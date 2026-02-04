@@ -1,0 +1,60 @@
+@startuml CheckCharityEligibility
+title Workflow : Vérification éligibilité œuvres de charité (Step 2)
+' Référence : ../README.md
+' Éligibilité = au moins un CharityParticipant (memberId) avec contributionsCount > 0
+' Cache member-charity-summary maintenu par Cloud Function (voir function/README.md)
+' Conventions : effectiveContributionAt = contributionDate || createdAt ; participantType=group ignoré ; fallback legacy si lastContributionAt absent
+
+start
+
+:Admin accède au **Step 2** du formulaire :
+- **Nouvelle demande** : /caisse-speciale/demandes/nouvelle (Step 2 = Informations de la demande)
+- **Nouveau contrat** : /caisse-speciale/contrats/nouveau (Step 2 = Configuration du contrat);
+
+:Le **memberId** est connu (sélectionné à l'étape 1);
+
+if (memberId présent ?) then (oui)
+else (non)
+  :Considérer **non éligible** (ex. contrat groupe sans membre ciblé);
+  :Afficher Step 2 avec types **Standard**, **Journalière**, **Libre** uniquement;
+  :Types charitable **indisponibles** (grisés ou masqués);
+  stop
+endif
+
+' ============================================
+' RÉCUPÉRATION ÉLIGIBILITÉ (lecture cache)
+' ============================================
+:Lire le document **member-charity-summary/{memberId}**\n(mis à jour par la Cloud Function ; voir function/README.md);
+note right
+  Conventions du cache :
+  - effectiveContributionAt = contributionDate || createdAt
+  - contributions de groupe ignorées (participantType=group)
+  - lastAmount = montant de la contribution la plus récente
+  - legacy : si lastContributionAt absent, reconstruction via contributions
+end note
+:Récupérer **eligible** et **lastContribution** (eventName, date, amount?);
+
+' ============================================
+' AFFICHAGE STEP 2
+' ============================================
+if (eligible == true ?) then (oui)
+  :Afficher **tous** les types de caisse :
+  - Standard, Journalière, Libre
+  - **Standard Charitable**, **Journalière Charitable**, **Libre Charitable** (activés);
+  :Afficher le bloc **"Dernière œuvre"** (si lastContribution) :
+  - Nom événement (ex. "Recolte MELEN")
+  - Date dernière contribution (ex. 04/02/2026)
+  - Montant ou type (optionnel);
+else (non)
+  :Afficher types **Standard**, **Journalière**, **Libre** (activés);
+  :Afficher types **Standard Charitable**, **Journalière Charitable**, **Libre Charitable** :
+  - **Indisponibles** (grisés ou masqués);
+  :Afficher message explicatif :
+  "Réservé aux membres ayant déjà contribué à une œuvre de charité";
+endif
+
+:Admin peut sélectionner un type de caisse (selon éligibilité) et poursuivre le formulaire;
+
+stop
+
+@enduml

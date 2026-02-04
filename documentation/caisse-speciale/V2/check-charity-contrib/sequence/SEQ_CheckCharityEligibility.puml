@@ -1,0 +1,65 @@
+@startuml SEQ_CheckCharityEligibility
+title Séquence : Vérification éligibilité œuvres de charité (Step 2)
+' Référence : activite/CheckCharityEligibility.puml, README.md
+' Architecture : domains (Domain Component → Domain Hook → Domain Service → Firestore)
+' Cache member-charity-summary maintenu par Cloud Function (voir function/README.md)
+' Conventions : effectiveContributionAt = contributionDate || createdAt ; participantType=group ignoré ; fallback legacy si lastContributionAt absent
+
+actor "Admin" as Admin
+
+participant "CreateDemandPage\nou ContractFormPage\n(app/(admin)/caisse-speciale/...)" as Page
+
+box "domains/financial/caisse-speciale" #E8F4FD
+  participant "Step2InfosDemande\nou Step2ContractConfiguration\n(Domain Component)" as Step2
+  participant "useMemberCharityEligibility\n(Domain Hook)" as Hook
+  participant "CharityEligibilityService\n(Domain Service)" as Service
+end box
+
+
+database "Firestore" as Firestore
+
+' ============================================
+' SCÉNARIO PRINCIPAL : Admin ouvre Step 2
+' ============================================
+Admin -> Page: Accède à Step 2\n(demandes/nouvelle ou contrats/nouveau, memberId connu)
+activate Page
+
+Page -> Step2: Render Step 2 (memberId en contexte)
+activate Step2
+
+Step2 -> Hook: useMemberCharityEligibility(memberId)
+activate Hook
+
+Hook -> Service: getMemberCharityEligibility(memberId)
+activate Service
+Service -> Firestore: getDoc(member-charity-summary/memberId)
+note right of Firestore
+  Document mis à jour par la **Cloud Function**
+  à chaque création / modification / suppression de contribution
+  Conventions :
+  - effectiveContributionAt = contributionDate || createdAt
+  - contributions de groupe ignorées (participantType=group)
+  - lastAmount = montant de la contribution la plus récente
+  - legacy : si lastContributionAt absent, reconstruction via contributions
+end note
+Firestore --> Service: { eligible, lastContributionAt, lastEventId, lastEventName, lastAmount? }
+Service -> Service: Mapper en { eligible, lastContribution }
+Service --> Hook: { eligible, lastContribution }
+deactivate Service
+
+Hook --> Step2: { eligible, lastContribution, isLoading: false }
+deactivate Hook
+
+Step2 -> Step2: Selon eligible : activer ou griser\nStandard Charitable, Journalière Charitable, Libre Charitable
+Step2 -> Step2: Si lastContribution : afficher bloc "Dernière œuvre"
+
+Step2 --> Admin: Affiche Step 2 avec types adaptés\n+ message "Dernière œuvre" si éligible
+deactivate Step2
+deactivate Page
+
+note over Admin, Firestore
+  **Architecture** : domains/financial/caisse-speciale (Step 2, useMemberCharityEligibility, CharityEligibilityService).
+  Le document **member-charity-summary/{memberId}** est mis à jour par la **Cloud Function** à chaque création/suppression de contribution (détail : function/README.md).
+end note
+
+@enduml

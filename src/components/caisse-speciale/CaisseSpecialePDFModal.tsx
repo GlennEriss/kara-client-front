@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
-import CaisseSpecialePDFV2 from './CaisseSpecialePDFV2'
+import CaisseSpecialePDFV3 from './CaisseSpecialePDFV3'
 
 interface CaisseSpecialePDFModalProps {
   isOpen: boolean
@@ -104,7 +104,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<CaisseSpecialePDFV2 contract={enrichedContract} />).toBlob()
+      const blob = await pdf(<CaisseSpecialePDFV3 contract={enrichedContract} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -236,7 +236,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider document={<CaisseSpecialePDFV2 contract={enrichedContract} />}>
+                  <BlobProvider document={<CaisseSpecialePDFV3 contract={enrichedContract} />}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -293,7 +293,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <CaisseSpecialePDFV2 contract={enrichedContract} />
+                  <CaisseSpecialePDFV3 contract={enrichedContract} />
                 </PDFViewer>
               </div>
             </>
