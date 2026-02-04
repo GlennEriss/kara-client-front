@@ -1182,7 +1182,7 @@ describe('MembershipServiceV2', () => {
       const { getFunctions, httpsCallable } = await import('firebase/functions')
       const mockCF = vi.fn().mockResolvedValue({ data: { success: true } })
       vi.mocked(getFunctions).mockReturnValue({} as any)
-      vi.mocked(httpsCallable).mockReturnValue(mockCF)
+      vi.mocked(httpsCallable).mockReturnValue(mockCF as any)
 
       await service.replaceAdhesionPdf({
         requestId: request.id,
@@ -1205,7 +1205,7 @@ describe('MembershipServiceV2', () => {
       vi.mocked(createFile).mockResolvedValue({ url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf' })
       const { getFunctions, httpsCallable } = await import('firebase/functions')
       vi.mocked(getFunctions).mockReturnValue({} as any)
-      vi.mocked(httpsCallable).mockReturnValue(vi.fn().mockResolvedValue({ data: { success: false } }))
+      vi.mocked(httpsCallable).mockReturnValue(vi.fn().mockResolvedValue({ data: { success: false } }) as any)
 
       await expect(
         service.replaceAdhesionPdf({
@@ -1224,7 +1224,7 @@ describe('MembershipServiceV2', () => {
       const { getFunctions, httpsCallable } = await import('firebase/functions')
       vi.mocked(getFunctions).mockReturnValue({} as any)
       vi.mocked(httpsCallable).mockReturnValue(
-        vi.fn().mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' }))
+        vi.fn().mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' })) as any
       )
 
       await expect(
@@ -1243,7 +1243,7 @@ describe('MembershipServiceV2', () => {
       vi.mocked(createFile).mockResolvedValue({ url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf' })
       const { getFunctions, httpsCallable } = await import('firebase/functions')
       vi.mocked(getFunctions).mockReturnValue({} as any)
-      vi.mocked(httpsCallable).mockReturnValue(vi.fn().mockRejectedValue(new Error('Validation failed')))
+      vi.mocked(httpsCallable).mockReturnValue(vi.fn().mockRejectedValue(new Error('Validation failed')) as any)
 
       await expect(
         service.replaceAdhesionPdf({
