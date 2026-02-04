@@ -686,20 +686,6 @@
       "collectionGroup": "membership-requests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "normalizedEmail", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "membership-requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "normalizedIdentityDocNumber", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "membership-requests",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "isDuplicate", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
