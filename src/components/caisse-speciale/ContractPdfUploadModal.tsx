@@ -9,14 +9,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import FileInput from '@/components/ui/file-input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { contractPdfUploadSchema, type ContractPdfUploadFormData } from '@/schemas/contract-pdf-upload.schema'
-import { updateContractPdf } from '@/db/caisse/contracts.db'
-import { createFile } from '@/db/upload-image.db'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react'
 import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { CaisseContract } from '@/types/types'
 import { DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
+import { useUploadContractPdf } from '@/domains/financial/caisse-speciale/contrats/hooks'
 
 interface ContractPdfUploadModalProps {
   isOpen: boolean
@@ -37,6 +36,7 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
 }) => {
   const { user } = useAuth()
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const { mutateAsync: uploadContractPdf } = useUploadContractPdf()
 
   const form = useForm<ContractPdfUploadFormData>({
     resolver: zodResolver(contractPdfUploadSchema),
@@ -90,20 +90,14 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
 
     try {
       console.log('📁 Début de l\'upload vers Firebase Storage...')
-      // Upload du fichier vers Firebase Storage
-      const uploadResult = await createFile(data.contractPdf.file, contractId, `contracts/${contractId}`)
-      console.log('✅ Upload réussi:', uploadResult)
-      
-      const contractPdfData = {
-        fileSize: data.contractPdf.fileSize,
-        path: uploadResult.path,
+      const uploadResult = await uploadContractPdf({
+        contractId,
+        file: data.contractPdf.file,
         originalFileName: data.contractPdf.originalFileName,
-        uploadedAt: new Date(),
-        url: uploadResult.url
-      }
-
-      console.log('📄 Mise à jour du contrat avec:', contractPdfData)
-      await updateContractPdf(contractId, contractPdfData, user.uid)
+        fileSize: data.contractPdf.fileSize,
+        uploadedBy: user.uid
+      })
+      
 
       try {
         const documentRepository = new DocumentRepository()

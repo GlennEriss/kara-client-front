@@ -1256,6 +1256,9 @@ export interface CaisseContract {
     originalFileName: string
     fileSize: number
   }
+  searchableText?: string
+  searchableTextFirstNameFirst?: string
+  searchableTextMatriculeFirst?: string
   emergencyContact?: EmergencyContact
   createdAt: Date
   updatedAt: Date

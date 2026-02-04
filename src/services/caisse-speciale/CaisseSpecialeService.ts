@@ -139,13 +139,17 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             throw new Error('Erreur lors de l\'acceptation de la demande');
         }
 
-        // 2. Créer le contrat Caisse Spéciale à partir de la demande
+        // 2. Créer le contrat Caisse Spéciale à partir de la demande (attributs de recherche + contact d'urgence)
         const contractId = await subscribe({
             memberId: demand.memberId,
             monthlyAmount: demand.monthlyAmount,
             monthsPlanned: demand.monthsPlanned,
             caisseType: demand.caisseType,
             firstPaymentDate: demand.desiredDate,
+            emergencyContact: demand.emergencyContact,
+            searchableText: demand.searchableText,
+            searchableTextFirstNameFirst: demand.searchableTextFirstNameFirst,
+            searchableTextMatriculeFirst: demand.searchableTextMatriculeFirst,
         });
 
         // 3. Mettre à jour la demande : statut CONVERTED + contractId + traçabilité
@@ -368,7 +372,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             throw new Error('Paramètres non configurés pour ce type de caisse');
         }
 
-        // Créer le contrat Caisse Spéciale à partir de la demande (même logique que approveDemand)
+        // Créer le contrat Caisse Spéciale à partir de la demande (attributs de recherche + contact d'urgence)
         const contractId = await subscribe({
             memberId: demand.memberId,
             monthlyAmount: demand.monthlyAmount,
@@ -376,6 +380,10 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             caisseType: demand.caisseType,
             firstPaymentDate: demand.desiredDate,
             settingsVersion: settings.id,
+            emergencyContact: demand.emergencyContact,
+            searchableText: demand.searchableText,
+            searchableTextFirstNameFirst: demand.searchableTextFirstNameFirst,
+            searchableTextMatriculeFirst: demand.searchableTextMatriculeFirst,
         });
 
         // Récupérer le nom de l'admin pour la traçabilité

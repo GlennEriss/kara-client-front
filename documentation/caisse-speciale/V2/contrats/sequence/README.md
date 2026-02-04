@@ -7,8 +7,8 @@ Ce dossier contient les diagrammes de séquence pour la partie Contrats du modul
 | Fichier | Description | Référence activité | Points couverts |
 |---------|-------------|-------------------|-----------------|
 | [SEQ_ListerContrats.puml](./SEQ_ListerContrats.puml) | Liste paginée + stats + pagination haut/bas | ListerContrats.puml | C.0, C.1 |
-| [SEQ_FiltrerContrats.puml](./SEQ_FiltrerContrats.puml) | Filtres + pagination | FiltrerContrats.puml | C.4 |
-| [SEQ_RechercherContrats.puml](./SEQ_RechercherContrats.puml) | Recherche Firestore | RechercherContrats.puml | C.2, C.3 |
+| [SEQ_FiltrerContrats.puml](./SEQ_FiltrerContrats.puml) | Filtres actifs + pagination | FiltrerContrats.puml | C.4 |
+| [SEQ_RechercherContrats.puml](./SEQ_RechercherContrats.puml) | Recherche Firestore + filtres actifs + pagination | RechercherContrats.puml | C.2, C.3 |
 | [SEQ_VoirDetailsContrat.puml](./SEQ_VoirDetailsContrat.puml) | Détails contrat + CTA PDF | VoirDetailsContrat.puml | C.5 |
 | [SEQ_CreerContrat.puml](./SEQ_CreerContrat.puml) | Création contrat (wizard) | CreerContrat.puml | C.0 |
 | [SEQ_TeleverserContratPDF.puml](./SEQ_TeleverserContratPDF.puml) | Upload PDF signé | TeleverserContratPDF.puml | C.5 |

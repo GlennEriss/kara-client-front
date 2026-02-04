@@ -5,8 +5,7 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download, TrendingUp } from 'lucide-react'
-import { useContracts } from '@/hooks/useContracts'
-import { useContractPayments } from '@/hooks/useContractPayments'
+import { useCaisseContract, useContractPayments } from '@/domains/financial/caisse-speciale/contrats/hooks'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
@@ -59,11 +58,10 @@ export default function ContractPaymentsPage() {
   const { user } = useAuth()
 
   // Récupérer les données du contrat
-  const { contracts, isLoading: isLoadingContracts, error } = useContracts()
-  const contract = contracts.find(c => c.id === contractId)
+  const { data: contract, isLoading: isLoadingContracts, error } = useCaisseContract(contractId)
 
   // Récupérer les versements du contrat
-  const { payments, isLoading: isLoadingPayments, error: paymentsError } = useContractPayments(contractId)
+  const { data: payments = [], isLoading: isLoadingPayments, error: paymentsError } = useContractPayments(contractId)
 
   // État pour stocker les informations des administrateurs
   const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
@@ -831,7 +829,7 @@ export default function ContractPaymentsPage() {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des données : {error}
+            Une erreur est survenue lors du chargement des données : {String((error as any)?.message || error || paymentsError)}
           </AlertDescription>
         </Alert>
       </div>

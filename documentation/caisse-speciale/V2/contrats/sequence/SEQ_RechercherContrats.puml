@@ -13,6 +13,8 @@ Admin -> Search: Saisit "Bernadette" / "MK1234"
 Search -> Hook: onSearchChange(query)
 Hook -> Service: searchContracts(query, filters, page, limit)
 Service -> Repo: searchContracts(query, filters, page, limit)
+Repo -> Repo: Appliquer filtres actifs (statut, type contrat, type caisse, dates création/échéance, overdueOnly)
+Repo -> Repo: Pagination (limit + startAfter)
 
 par
   Repo -> Firestore: query searchableText
@@ -26,6 +28,7 @@ and
 end
 
 Repo -> Repo: Fusion + déduplication
+Repo -> Repo: Re-appliquer filtres + pagination si nécessaire
 Repo --> Service: { items, total }
 Service --> Hook: { items, total }
 Hook --> Search: Render résultats
