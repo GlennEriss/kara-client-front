@@ -1,0 +1,40 @@
+@startuml SEQ_RemplacerPdfAdhesion
+
+title Sequence : Remplacer le PDF d'adhesion (Admin)
+
+actor Admin
+participant "MembershipRequestsPage / PdfViewer" as UI
+participant "UploadService\n(createFile)" as Upload
+participant "Firebase Storage" as Storage
+participant "Cloud Function\nreplaceAdhesionPdf" as CF
+
+database "Firestore\n(membership-requests)" as MR
+database "Firestore\n(documents)" as DOC
+database "Firestore\n(memberships/subscriptions)" as SUB
+
+Admin -> UI: Click "PDF"
+UI -> UI: Ouvrir viewer + bouton "Remplacer le PDF"
+Admin -> UI: Click "Remplacer le PDF"
+UI -> Admin: Modal de confirmation
+Admin -> UI: Confirmer + choisir un fichier
+
+UI -> Upload: upload(newPdf)
+Upload -> Storage: uploadBytes(newPdf)
+Storage --> Upload: { url, path, size }
+Upload --> UI: { url, path, size }
+
+UI -> CF: replaceAdhesionPdf(requestId, adminId, pdfMeta)
+CF -> MR: get request + verifier status/isPaid
+CF -> MR: update adhesionPdfURL + adhesionPdfUpdatedAt/By
+CF -> DOC: creer document ADHESION (isCurrent=true)
+CF -> DOC: marquer ancien document ADHESION isCurrent=false
+CF -> SUB: update adhesionPdfURL si subscription existe
+
+opt Cleanup ancien fichier
+  CF -> Storage: delete(oldPath)
+end
+
+CF --> UI: success
+UI --> Admin: Toast + refresh viewer
+
+@enduml

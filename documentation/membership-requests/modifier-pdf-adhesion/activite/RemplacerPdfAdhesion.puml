@@ -1,0 +1,28 @@
+@startuml RemplacerPdfAdhesion
+
+title Activite : Remplacer le PDF d'adhesion
+
+start
+:Admin ouvre la fiche ou la liste;
+
+if (status=approved et isPaid=true ?) then (oui)
+  :Bouton "PDF" visible;
+  :Ouvrir viewer PDF;
+  :Bouton "Remplacer le PDF" visible;
+
+  if (Admin confirme le remplacement ?) then (oui)
+    :Choisir un nouveau PDF;
+    :Uploader le fichier (Storage);
+    :Appeler Cloud Function replaceAdhesionPdf;
+    :Update membership-requests + documents + subscription;
+    :Toast succes + refresh viewer;
+  else (non)
+    :Annuler;
+  endif
+else (non)
+  :Bouton de remplacement masque;
+endif
+
+stop
+
+@enduml

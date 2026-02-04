@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -8,6 +8,7 @@ const overdueCommissions_1 = require("./scheduled/overdueCommissions");
 const creditPaymentDue_1 = require("./scheduled/creditPaymentDue");
 const ciPaymentDue_1 = require("./scheduled/ciPaymentDue");
 const vehicleInsuranceExpiring_1 = require("./scheduled/vehicleInsuranceExpiring");
+const agentRecouvrementNotifications_1 = require("./scheduled/agentRecouvrementNotifications");
 const transformCreditSpeciale_1 = require("./scheduled/transformCreditSpeciale");
 const caisseSpecialeDemandReminders_1 = require("./scheduled/caisseSpecialeDemandReminders");
 const caisseImprevueDemandReminders_1 = require("./scheduled/caisseImprevueDemandReminders");
@@ -26,7 +27,6 @@ Object.defineProperty(exports, "transformMembersAlgoliaPayload", { enumerable: t
 const transformMembershipRequestsAlgoliaPayload_1 = require("./algolia/transformMembershipRequestsAlgoliaPayload");
 Object.defineProperty(exports, "transformMembershipRequestsAlgoliaPayload", { enumerable: true, get: function () { return transformMembershipRequestsAlgoliaPayload_1.transformMembershipRequestsAlgoliaPayload; } });
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
-// Format cron : "0 8 * * *" (tous les jours à 8h00)
 exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({
     schedule: '0 8 * * *', // 8h00 tous les jours
     timeZone: 'Africa/Libreville', // Fuseau horaire du Gabon
@@ -35,6 +35,17 @@ exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({
 }, async (event) => {
     console.log('Démarrage du job quotidien pour les anniversaires');
     await (0, birthdayNotifications_1.generateBirthdayNotifications)();
+    console.log('Job terminé avec succès');
+});
+// Job quotidien à 8h30 pour les notifications agents de recouvrement (anniversaire + pièce expirée)
+exports.dailyAgentRecouvrementNotifications = (0, scheduler_1.onSchedule)({
+    schedule: '30 8 * * *', // 8h30 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540,
+}, async () => {
+    console.log('Démarrage des notifications agents de recouvrement');
+    await (0, agentRecouvrementNotifications_1.generateAgentRecouvrementNotifications)();
     console.log('Job terminé avec succès');
 });
 // Job horaire pour traiter les notifications programmées
@@ -150,6 +161,13 @@ exports.dailyCaisseImprevueApprovedNotConvertedReminders = (0, scheduler_1.onSch
 // Cloud Function pour supprimer définitivement une demande rejetée
 var deleteMembershipRequest_1 = require("./membership-requests/deleteMembershipRequest");
 Object.defineProperty(exports, "deleteMembershipRequest", { enumerable: true, get: function () { return deleteMembershipRequest_1.deleteMembershipRequest; } });
+// Détection des doublons (membership-requests)
+var detectDuplicates_1 = require("./membership-requests/detectDuplicates");
+Object.defineProperty(exports, "onMembershipRequestWrite", { enumerable: true, get: function () { return detectDuplicates_1.onMembershipRequestWrite; } });
+var onDuplicateGroupResolved_1 = require("./membership-requests/onDuplicateGroupResolved");
+Object.defineProperty(exports, "onDuplicateGroupResolved", { enumerable: true, get: function () { return onDuplicateGroupResolved_1.onDuplicateGroupResolved; } });
+var migrateExistingDuplicates_1 = require("./membership-requests/migrateExistingDuplicates");
+Object.defineProperty(exports, "migrateExistingDuplicates", { enumerable: true, get: function () { return migrateExistingDuplicates_1.migrateExistingDuplicates; } });
 // ✅ ACTIVÉ : Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 // (L'extension Algolia Firebase pose problème, cette fonction est plus fiable)
 var syncToAlgolia_1 = require("./membership-requests/syncToAlgolia");

@@ -15,6 +15,8 @@ export { useMembershipStats } from './useMembershipStats'
 export { useMembershipRequest } from './useMembershipRequest'
 export { useIntermediaryCodeSearch } from './useIntermediaryCodeSearch'
 export { useGenererIdentifiant } from './useGenererIdentifiant'
+export { useDuplicateAlert } from './useDuplicateAlert'
+export { useDuplicateGroups } from './useDuplicateGroups'
 export type {
   UseMembershipsListV2Options,
   UseMembershipsListV2Result,

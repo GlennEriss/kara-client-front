@@ -214,6 +214,18 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // GROUPES DE DOUBLONS (DUPLICATE-GROUPS)
+    // ==========================================
+    // Détection automatique des doublons (téléphone, email, pièce d'identité)
+    // Lecture : admins. Update : admins (résolution uniquement : resolvedAt, resolvedBy). Create/Delete : Cloud Functions.
+    match /duplicate-groups/{groupId} {
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolvedAt', 'resolvedBy']);
+      allow create, delete: if false;
+    }
+
+    // ==========================================
     // COLLECTION ADMINS
     // ==========================================
     // Lecture publique pour permettre la vérification d'unicité du matricule

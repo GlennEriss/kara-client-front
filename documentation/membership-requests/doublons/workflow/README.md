@@ -16,7 +16,7 @@ Avant de commencer toute implémentation, **lire intégralement** les documents 
 | **wireframes/WIREFRAME_ALERTE_ET_ONGLET_DOUBLONS.md** | Alerte, onglet Doublons, sections par type, modal de résolution, data-testid, responsive |
 | **activite/** et **sequence/** | Flux détection (Cloud Function) et consultation (UI), architecture domaines |
 
-Cela garantit la cohérence avec la spec et évite les oublis (ex. garde anti-boucle, signature `updateDuplicateGroups`, règles Firestore).
+**Lire tous les points de la doc avant d’implémenter** : cela garantit la cohérence avec la spec et évite les oublis (ex. garde anti-boucle, signature `updateDuplicateGroups`, règles Firestore).
 
 ---
 
