@@ -82,6 +82,10 @@ export async function subscribe(input: {
   emergencyContact?: EmergencyContact;
   settingsVersion?: string;
   createdBy?: string;
+  /** Attributs de recherche (ex. issus d'une demande convertie). Si fournis, ils sont utilisés tels quels. */
+  searchableText?: string;
+  searchableTextFirstNameFirst?: string;
+  searchableTextMatriculeFirst?: string;
 }) {
   // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
   if (!input.memberId && !input.groupeId) {
@@ -128,12 +132,21 @@ export async function subscribe(input: {
   // Pour un nouveau contrat (currentMonthIndex=0), nextDueAt = première échéance = startDate
   const nextDueAt = new Date(startDate)
 
-  // Nettoyer les données pour éviter les valeurs undefined dans Firestore
-  const searchableTexts = generateAllDemandSearchableTexts(
-    groupName || memberLastName,
-    groupName ? '' : memberFirstName,
-    memberMatricule
-  )
+  // Attributs de recherche : utiliser ceux fournis (ex. demande convertie) ou les générer depuis le membre/groupe
+  const searchableTexts =
+    input.searchableText != null &&
+    input.searchableTextFirstNameFirst != null &&
+    input.searchableTextMatriculeFirst != null
+      ? {
+          searchableText: input.searchableText,
+          searchableTextFirstNameFirst: input.searchableTextFirstNameFirst,
+          searchableTextMatriculeFirst: input.searchableTextMatriculeFirst,
+        }
+      : generateAllDemandSearchableTexts(
+          groupName || memberLastName,
+          groupName ? '' : memberFirstName,
+          memberMatricule
+        )
 
   const cleanData: any = {
     contractType,

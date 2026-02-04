@@ -236,7 +236,6 @@ const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalS
   const statsData = [
     { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
     { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(closedNominalSum || 0), percentage: 100, color: '#0ea5e9', icon: DollarSign, trend: 'up' as const },
-    { title: 'En cours', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
     { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: CheckCircle, trend: 'up' as const },
     { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
@@ -330,16 +329,18 @@ const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
 )
 
 // Composant de filtres
-  const ContractFilters = ({
-    filters,
-    onFiltersChange,
-    onReset
-  }: {
+const ContractFilters = ({
+  filters,
+  onFiltersChange,
+  onReset,
+  activeTab,
+}: {
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
-  }) => {
-    const safeFilters = {
+  activeTab: string
+}) => {
+  const safeFilters = {
     search: '',
     status: 'all',
     contractType: 'all',
@@ -349,156 +350,183 @@ const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
     nextDueAtFrom: undefined,
     nextDueAtTo: undefined,
     overdueOnly: false,
-      ...filters,
-    }
-    const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
-    const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
+    ...filters,
+  }
+  const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
+  const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
+  const isCaisseTabLocked =
+    activeTab === 'STANDARD' ||
+    activeTab === 'JOURNALIERE' ||
+    activeTab === 'LIBRE' ||
+    activeTab === 'STANDARD_CHARITABLE' ||
+    activeTab === 'JOURNALIERE_CHARITABLE' ||
+    activeTab === 'LIBRE_CHARITABLE'
+  const caisseTypeValue = isCaisseTabLocked ? activeTab : (safeFilters.caisseType || 'all')
+  const isOverdueTab = activeTab === 'overdue'
+  const isLateStatus =
+    safeFilters.status === 'LATE_NO_PENALTY' || safeFilters.status === 'LATE_WITH_PENALTY'
+  const statusValue = isOverdueTab
+    ? (isLateStatus ? safeFilters.status : 'LATE_NO_PENALTY')
+    : (safeFilters.status || 'all')
+
+  const inputBase =
+    'px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200 min-w-0'
 
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
-              <Filter className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-              <p className="text-gray-600">Affinez votre recherche</p>
-            </div>
+        {/* En-tête */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg shrink-0">
+            <Filter className="h-6 w-6 text-white" />
           </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
+            <p className="text-sm text-gray-600">Affinez votre recherche</p>
+          </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        {/* Ligne 1 : Recherche + listes déroulantes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 mb-4">
+          <div className="relative lg:col-span-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Rechercher par nom, prénom ou matricule..."
+              className={`pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full transition-all duration-200`}
+              value={safeFilters.search || ''}
+              onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
+            />
+          </div>
+          <select
+            className={`${inputBase} lg:col-span-2`}
+            value={statusValue}
+            onChange={(e) => onFiltersChange({ ...safeFilters, status: e.target.value })}
+          >
+            {!isOverdueTab && <option value="all">Tous les statuts</option>}
+            {!isOverdueTab && <option value="ACTIVE">Actif</option>}
+            <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
+            <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
+            {!isOverdueTab && <option value="RESCINDED">Cloture en urgence</option>}
+            {!isOverdueTab && <option value="CLOSED">Cloture finale</option>}
+          </select>
+          <select
+            className={`${inputBase} lg:col-span-3`}
+            value={caisseTypeValue}
+            onChange={(e) => onFiltersChange({ ...safeFilters, caisseType: e.target.value })}
+            disabled={isCaisseTabLocked}
+          >
+            <option value="all">Tous les types de contrat</option>
+            <option value="STANDARD">Standard</option>
+            <option value="JOURNALIERE">Journalière</option>
+            <option value="LIBRE">Libre</option>
+            <option value="STANDARD_CHARITABLE">Standard Charitable</option>
+            <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
+            <option value="LIBRE_CHARITABLE">Libre Charitable</option>
+          </select>
+          <select
+            className={`${inputBase} lg:col-span-2`}
+            value={safeFilters.contractType || 'all'}
+            onChange={(e) => onFiltersChange({ ...safeFilters, contractType: e.target.value })}
+          >
+            <option value="all">Tous les types</option>
+            <option value="INDIVIDUAL">Individuels</option>
+            <option value="GROUP">Groupes</option>
+          </select>
+        </div>
+
+        {/* Ligne 2 : Périodes + options + action */}
+        <div className="flex flex-wrap items-end gap-4">
+          {/* Période de création — en mobile : bloc pleine largeur, dates empilées */}
+          <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-0">
+            <span className="text-xs font-medium text-gray-500">Création</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <input
-                type="text"
-                placeholder="Rechercher par nom, prénom ou matricule..."
-                className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full sm:w-auto transition-all duration-200"
-                value={safeFilters.search || ''}
-                onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
+                type="date"
+                className={`${inputBase} w-full sm:w-40`}
+                value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
+                onChange={(e) =>
+                  onFiltersChange({
+                    ...safeFilters,
+                    createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                    nextDueAtFrom: undefined,
+                    nextDueAtTo: undefined,
+                  })
+                }
+                disabled={isNextDueRangeActive}
+              />
+              <span className="text-gray-400 text-sm self-center sm:self-auto shrink-0">→</span>
+              <input
+                type="date"
+                className={`${inputBase} w-full sm:w-40`}
+                value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
+                onChange={(e) =>
+                  onFiltersChange({
+                    ...safeFilters,
+                    createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                    nextDueAtFrom: undefined,
+                    nextDueAtTo: undefined,
+                  })
+                }
+                disabled={isNextDueRangeActive}
               />
             </div>
-
-            <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.status || 'all'}
-              onChange={(e) => onFiltersChange({ ...safeFilters, status: e.target.value })}
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="ACTIVE">Actif</option>
-              <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
-              <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
-              <option value="RESCINDED">Cloture en urgence</option>
-              <option value="CLOSED">Cloture finale</option>
-            </select>
-
-            <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.caisseType || 'all'}
-              onChange={(e) => onFiltersChange({ ...safeFilters, caisseType: e.target.value })}
-            >
-              <option value="all">Tous les types de contrat</option>
-              <option value="STANDARD">Standard</option>
-              <option value="JOURNALIERE">Journalière</option>
-              <option value="LIBRE">Libre</option>
-              <option value="STANDARD_CHARITABLE">Standard Charitable</option>
-              <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
-              <option value="LIBRE_CHARITABLE">Libre Charitable</option>
-            </select>
-
-            <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.contractType || 'all'}
-              onChange={(e) => onFiltersChange({ ...safeFilters, contractType: e.target.value })}
-            >
-              <option value="all">Tous les types</option>
-              <option value="INDIVIDUAL">Individuels</option>
-              <option value="GROUP">Groupes</option>
-            </select>
-
-            <input
-              type="date"
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
-              onChange={(e) =>
-                onFiltersChange({
-                  ...safeFilters,
-                  createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
-                  nextDueAtFrom: undefined,
-                  nextDueAtTo: undefined,
-                })
-              }
-              disabled={isNextDueRangeActive}
-            />
-            <input
-              type="date"
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
-              onChange={(e) =>
-                onFiltersChange({
-                  ...safeFilters,
-                  createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
-                  nextDueAtFrom: undefined,
-                  nextDueAtTo: undefined,
-                })
-              }
-              disabled={isNextDueRangeActive}
-            />
-
-            <input
-              type="date"
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
-              onChange={(e) =>
-                onFiltersChange({
-                  ...safeFilters,
-                  nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
-                  createdAtFrom: undefined,
-                  createdAtTo: undefined,
-                })
-              }
-              disabled={isCreatedAtRangeActive}
-            />
-            <input
-              type="date"
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
-              onChange={(e) =>
-                onFiltersChange({
-                  ...safeFilters,
-                  nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
-                  createdAtFrom: undefined,
-                  createdAtTo: undefined,
-                })
-              }
-              disabled={isCreatedAtRangeActive}
-            />
-
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+          </div>
+          {/* Prochaine échéance — en mobile : bloc pleine largeur, dates empilées */}
+          <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-0">
+            <span className="text-xs font-medium text-gray-500">Prochaine échéance</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input
+                type="date"
+                className={`${inputBase} w-full sm:w-40`}
+                value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
+                onChange={(e) =>
+                  onFiltersChange({
+                    ...safeFilters,
+                    nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                    createdAtFrom: undefined,
+                    createdAtTo: undefined,
+                  })
+                }
+                disabled={isCreatedAtRangeActive}
+              />
+              <span className="text-gray-400 text-sm self-center sm:self-auto shrink-0">→</span>
+              <input
+                type="date"
+                className={`${inputBase} w-full sm:w-40`}
+                value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
+                onChange={(e) =>
+                  onFiltersChange({
+                    ...safeFilters,
+                    nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                    createdAtFrom: undefined,
+                    createdAtTo: undefined,
+                  })
+                }
+                disabled={isCreatedAtRangeActive}
+              />
+            </div>
+          </div>
+          {/* Séparateur visuel sur desktop */}
+          <div className="hidden sm:block w-px h-10 bg-gray-200 self-center" aria-hidden />
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pb-2.5">
               <input
                 type="checkbox"
                 className="h-4 w-4 rounded border-gray-300 text-[#234D65] focus:ring-[#234D65]"
-                checked={!!safeFilters.overdueOnly}
+                checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
                 onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
+                disabled={isOverdueTab}
               />
               Retard uniquement
-            </label>
-
-            <Button
-              variant="outline"
-              onClick={onReset}
-              className="px-4 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 hover:scale-105"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Réinitialiser
-            </Button>
-          </div>
-          {(isCreatedAtRangeActive || isNextDueRangeActive) && (
-            <div className="mt-3 text-xs text-gray-500">
-              Un seul type de filtre date est autorisé à la fois (création ou échéance) pour éviter les limites Firestore.
-            </div>
-          )}
+          </label>
+          <Button
+            variant="outline"
+            onClick={onReset}
+            className="shrink-0 px-4 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Réinitialiser
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -577,6 +605,12 @@ const ListContracts = () => {
 
     if (activeTab === 'overdue') {
       nextFilters.overdueOnly = true
+      if (
+        nextFilters.status !== 'LATE_NO_PENALTY' &&
+        nextFilters.status !== 'LATE_WITH_PENALTY'
+      ) {
+        nextFilters.status = 'LATE_NO_PENALTY'
+      }
     }
 
     if (activeTab === 'currentMonth') {
@@ -978,7 +1012,6 @@ const ListContracts = () => {
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      DRAFT: 'En cours',
       ACTIVE: 'Actif',
       LATE_NO_PENALTY: 'Retard (J+0..3)',
       LATE_WITH_PENALTY: 'Retard (J+4..12)',
@@ -1089,7 +1122,6 @@ const ListContracts = () => {
   const computedStats = React.useMemo(() => {
     if (!stats) return null
     const total = stats.total || 0
-    const draft = stats.draft || 0
     const active = stats.active || 0
     const late = stats.late || 0
     const group = stats.group || 0
@@ -1097,12 +1129,10 @@ const ListContracts = () => {
 
     return {
       total,
-      draft,
       active,
       late,
       group,
       individual,
-      draftPercentage: total > 0 ? (draft / total) * 100 : 0,
       activePercentage: total > 0 ? (active / total) * 100 : 0,
       latePercentage: total > 0 ? (late / total) * 100 : 0,
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
@@ -1323,6 +1353,7 @@ const ListContracts = () => {
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        activeTab={activeTab}
       />
 
       {/* Barre d'actions moderne */}
