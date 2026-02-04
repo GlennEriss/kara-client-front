@@ -144,6 +144,12 @@ export interface MembershipRequest extends RegisterFormData {
   securityCodeUsed?: boolean;
   // Score de priorité (pour le tri)
   priorityScore?: number
+
+  // Doublons (détection automatique)
+  normalizedEmail?: string | null
+  normalizedIdentityDocNumber?: string | null
+  isDuplicate?: boolean
+  duplicateGroupIds?: string[]
 }
 
 export type PaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
