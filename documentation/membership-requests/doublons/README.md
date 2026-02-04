@@ -1,5 +1,7 @@
 # Documentation – Gestion des doublons (membership-requests)
 
+**Status** : Spec / To implement.
+
 > Spécification de la détection automatique et de l'affichage des dossiers en doublon parmi les demandes d'adhésion.
 
 ---
@@ -14,9 +16,17 @@ Deux dossiers (ou plus) sont considérés en doublon s'ils partagent **au moins 
 
 | Attribut | Champ Firestore | Comparaison |
 |----------|-----------------|-------------|
-| Numéro de téléphone | `identity.contacts[]` | Au moins un numéro en commun |
-| Adresse email | `identity.email` | Égalité après normalisation (trim + lowercase) |
+| Numéro de téléphone | `identity.contacts[]` | Au moins un numéro en commun (format normalisé) |
+| Adresse email | `identity.email` | Égalité après normalisation |
 | Numéro de pièce d'identité | `documents.identityDocumentNumber` | Égalité après normalisation |
+
+#### Règles de normalisation (règle unique)
+
+- **Email** : `trim()` + `toLowerCase()`.
+- **Numéro de pièce** : `trim()` + `toUpperCase()` + suppression des espaces internes (`replace(/\s+/g, '')`).
+- **Téléphone** : supprimer espaces, tirets, parenthèses ; conserver `+` et les chiffres (`replace(/[\s\-\(\)]/g, '')`).
+
+> **Décision de stockage** : `identity.contacts[]` est stocké **au format normalisé** (canonique) et sert de référence pour la détection. Le format d'affichage est géré côté UI.
 
 ### Fonctionnalités
 
@@ -36,7 +46,7 @@ La détection des doublons est effectuée **côté serveur** par une **Cloud Fun
 onWrite(membership-requests/{requestId})
   ↓
   1. Extraire les valeurs de détection :
-     - contacts[] (téléphones)
+     - contacts[] (téléphones normalisés)
      - email (normalisé)
      - identityDocumentNumber (normalisé)
   ↓
@@ -55,6 +65,8 @@ onWrite(membership-requests/{requestId})
      - Mettre à jour isDuplicate si plus aucun groupe
 ```
 
+> **Garde anti-boucle** : si un `onWrite` ne modifie **que** `isDuplicate` / `duplicateGroupIds` / champs normalisés (sans changement de `identity.contacts`, `identity.email`, `documents.identityDocumentNumber`), la fonction doit **sortir immédiatement** pour éviter les boucles de triggers.
+
 ### 2.2 Modèle de données
 
 #### Champs ajoutés sur `membership-requests/{id}`
@@ -62,9 +74,9 @@ onWrite(membership-requests/{requestId})
 | Champ | Type | Description |
 |-------|------|-------------|
 | `normalizedEmail` | `string?` | Email en lowercase + trim (pour index/requête) |
-| `normalizedIdentityDocNumber` | `string?` | Numéro de pièce normalisé (trim) |
-| `isDuplicate` | `boolean` | `true` si le dossier appartient à au moins un groupe de doublons |
-| `duplicateGroupIds` | `string[]` | Liste des IDs des groupes auxquels le dossier appartient |
+| `normalizedIdentityDocNumber` | `string?` | Numéro de pièce normalisé (trim + uppercase + sans espaces) |
+| `isDuplicate` | `boolean` | `true` si le dossier appartient à **au moins un groupe non résolu** |
+| `duplicateGroupIds` | `string[]` | Liste des IDs des **groupes non résolus** auxquels le dossier appartient |
 
 #### Collection `duplicate-groups/{groupId}`
 
@@ -73,7 +85,7 @@ onWrite(membership-requests/{requestId})
 | `type` | `'phone' \| 'email' \| 'identityDocument'` | Type d'attribut en commun |
 | `value` | `string` | Valeur partagée (téléphone, email ou numéro de pièce) |
 | `requestIds` | `string[]` | Liste des IDs des demandes concernées |
-| `requestCount` | `number` | Nombre de demandes (pour tri/affichage) |
+| `requestCount` | `number` | Nombre de demandes (pour tri/affichage) — **doit toujours être égal à `requestIds.length`** |
 | `detectedAt` | `Timestamp` | Date de première détection |
 | `updatedAt` | `Timestamp` | Date de dernière mise à jour |
 | `resolvedAt` | `Timestamp?` | Date de résolution (si l'admin a traité le groupe) |
@@ -129,6 +141,11 @@ duplicate-groups: resolvedAt (==), type (==), detectedAt (desc)
 
 L'admin peut marquer un groupe comme « traité » (fusion effectuée, faux positif, ou autre décision). Le groupe reste en base (traçabilité) mais n'apparaît plus dans l'onglet Doublons.
 
+**Comportement attendu lors de la résolution** :
+- Mettre à jour le groupe (`resolvedAt`, `resolvedBy`).
+- Retirer le `groupId` des `duplicateGroupIds` des demandes concernées.
+- Recalculer `isDuplicate` pour chaque demande : `true` **uniquement** si elle appartient encore à un autre groupe **non résolu**.
+
 ---
 
 ## 4. Architecture (domains)
@@ -138,6 +155,7 @@ L'admin peut marquer un groupe comme « traité » (fusion effectuée, faux posi
 | Couche | Élément | Rôle |
 |--------|---------|------|
 | **Cloud Function** | `onMembershipRequestWrite` | Détection des doublons à l'écriture |
+| **Cloud Function** | `onDuplicateGroupResolved` | Nettoyage `duplicateGroupIds` + recalcul `isDuplicate` |
 | **Repository** | `DuplicateGroupsRepository` | CRUD sur `duplicate-groups` |
 | **Hook** | `useDuplicateGroups` | Chargement des groupes non résolus |
 | **Hook** | `useDuplicateAlert` | Indique si des doublons existent (pour l'alerte) |
@@ -160,6 +178,8 @@ L'admin peut marquer un groupe comme « traité » (fusion effectuée, faux posi
         ▼
 [Firestore: membership-requests] ◄── mise à jour isDuplicate, duplicateGroupIds
 ```
+
+> **Concurrence** : lors des mises à jour concurrentes, `requestCount` doit être recalculé à partir de `requestIds.length` (transaction recommandée).
 
 ---
 
@@ -189,6 +209,7 @@ L'admin peut marquer un groupe comme « traité » (fusion effectuée, faux posi
 | Élément | Emplacement prévu |
 |--------|--------------------|
 | Cloud Function détection | `functions/src/membership-requests/detectDuplicates.ts` |
+| Cloud Function résolution | `functions/src/membership-requests/onDuplicateGroupResolved.ts` |
 | Repository groupes | `src/domains/memberships/repositories/DuplicateGroupsRepository.ts` |
 | Hook groupes | `src/domains/memberships/hooks/useDuplicateGroups.ts` |
 | Hook alerte | `src/domains/memberships/hooks/useDuplicateAlert.ts` |

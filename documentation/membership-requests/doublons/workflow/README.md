@@ -4,6 +4,22 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
+### Prérequis : lire toute la documentation avant d'implémenter
+
+Avant de commencer toute implémentation, **lire intégralement** les documents suivants :
+
+| Document | Contenu à maîtriser |
+|---------|----------------------|
+| **README principal** (`../README.md`) | Contexte, critères de doublon, modèle de données, index, garde anti-boucle, sécurité, mapping des composants |
+| **functions/README.md** | Trigger, normalisation, algorithme de détection, gestion des groupes, résolution, script de migration |
+| **firebase/README.md** | Collections, index Firestore (JSON), règles de sécurité `duplicate-groups` |
+| **wireframes/WIREFRAME_ALERTE_ET_ONGLET_DOUBLONS.md** | Alerte, onglet Doublons, sections par type, modal de résolution, data-testid, responsive |
+| **activite/** et **sequence/** | Flux détection (Cloud Function) et consultation (UI), architecture domaines |
+
+Cela garantit la cohérence avec la spec et évite les oublis (ex. garde anti-boucle, signature `updateDuplicateGroups`, règles Firestore).
+
+---
+
 ### Phase 0 – Branche et préparation
 
 - **Objectif** : partir d'une base à jour et isoler le travail.
@@ -49,7 +65,24 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
-### Phase 3 – Migration des données existantes
+### Phase 3 – Résolution + cleanup (Cloud Function)
+
+- **Objectif** : synchroniser la résolution d'un groupe avec les demandes concernées.
+- **Actions** :
+  1. Créer `functions/src/membership-requests/onDuplicateGroupResolved.ts` :
+     - Trigger sur mise à jour de `duplicate-groups/{groupId}` (changement de `resolvedAt`/`resolvedBy`).
+     - Retirer `groupId` des `duplicateGroupIds` des demandes liées.
+     - Recalculer `isDuplicate` (true si au moins un autre groupe non résolu).
+  2. Ajouter une garde pour ignorer les updates qui ne touchent pas `resolvedAt`/`resolvedBy`.
+  3. Déployer la fonction en environnement de développement.
+
+**Tests** :
+- Résoudre un groupe → vérifier retrait du `groupId` côté demandes.
+- Demande sans autres groupes → `isDuplicate` repasse à `false`.
+
+---
+
+### Phase 4 – Migration des données existantes
 
 - **Objectif** : appliquer la détection aux demandes existantes.
 - **Actions** :
@@ -61,7 +94,7 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
-### Phase 4 – Repository et hooks côté client
+### Phase 5 – Repository et hooks côté client
 
 - **Objectif** : exposer les données des doublons à l'UI.
 - **Actions** :
@@ -76,7 +109,7 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
-### Phase 5 – Alerte administrateur
+### Phase 6 – Alerte administrateur
 
 - **Objectif** : afficher une alerte lorsqu'il existe des doublons.
 - **Actions** :
@@ -89,7 +122,7 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
-### Phase 6 – Onglet « Doublons » (tabs)
+### Phase 7 – Onglet « Doublons » (tabs)
 
 - **Objectif** : afficher les groupes de doublons dans un onglet dédié.
 - **Actions** :
@@ -104,7 +137,7 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
-### Phase 7 – Tests et validation
+### Phase 8 – Tests et validation
 
 - **Objectif** : couvrir les cas critiques.
 - **Actions** :
@@ -120,7 +153,7 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 
 ---
 
-### Phase 8 – Documentation et déploiement
+### Phase 9 – Documentation et déploiement
 
 - **Objectif** : finaliser et déployer en production.
 - **Actions** :
@@ -140,12 +173,13 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 | 0 | Branche | - |
 | 1 | Modèle de données + index | - |
 | 2 | Cloud Function | Phase 1 |
-| 3 | Migration données existantes | Phase 2 |
-| 4 | Repository + hooks | Phase 1 |
-| 5 | Alerte admin | Phase 4 |
-| 6 | Onglet Doublons | Phase 4, 5 |
-| 7 | Tests | Phase 2, 6 |
-| 8 | Déploiement production | Phase 7 |
+| 3 | Résolution + cleanup | Phase 2 |
+| 4 | Migration données existantes | Phase 2 |
+| 5 | Repository + hooks | Phase 1 |
+| 6 | Alerte admin | Phase 5 |
+| 7 | Onglet Doublons | Phase 5, 6 |
+| 8 | Tests | Phase 2, 7 |
+| 9 | Déploiement production | Phase 8 |
 
 ---
 
@@ -156,7 +190,8 @@ Ce document décrit **le plan d'implémentation par étapes** pour la fonctionna
 | 0-1 | 0.5 jour |
 | 2 | 1-2 jours |
 | 3 | 0.5 jour |
-| 4-6 | 1-2 jours |
-| 7 | 1 jour |
-| 8 | 0.5 jour |
-| **Total** | **4-7 jours** |
+| 4 | 0.5 jour |
+| 5-7 | 1-2 jours |
+| 8 | 1 jour |
+| 9 | 0.5 jour |
+| **Total** | **4.5-7.5 jours** |

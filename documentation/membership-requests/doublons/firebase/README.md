@@ -11,9 +11,11 @@ Configuration Firebase (Firestore) pour la fonctionnalité de détection des dou
 | Champ | Type | Description |
 |-------|------|-------------|
 | `normalizedEmail` | `string?` | Email en lowercase + trim (pour requête optimisée) |
-| `normalizedIdentityDocNumber` | `string?` | Numéro de pièce normalisé (trim, uppercase optionnel) |
-| `isDuplicate` | `boolean` | `true` si le dossier appartient à au moins un groupe de doublons |
-| `duplicateGroupIds` | `string[]` | Liste des IDs des groupes auxquels le dossier appartient |
+| `normalizedIdentityDocNumber` | `string?` | Numéro de pièce normalisé (trim + uppercase + sans espaces) |
+| `isDuplicate` | `boolean` | `true` si le dossier appartient à **au moins un groupe non résolu** |
+| `duplicateGroupIds` | `string[]` | Liste des IDs des **groupes non résolus** auxquels le dossier appartient |
+
+> **Téléphones** : `identity.contacts[]` est stocké au format **normalisé** (canonique) et sert de référence pour la détection.
 
 ### 1.2 `duplicate-groups` (nouvelle collection)
 
@@ -128,6 +130,8 @@ service cloud.firestore {
 - **Lecture** : seuls les admins peuvent voir les groupes de doublons.
 - **Mise à jour partielle** : les admins peuvent uniquement marquer un groupe comme résolu (`resolvedAt`, `resolvedBy`).
 - **Création/suppression** : réservées à la Cloud Function (exécutée avec le service account, donc règles contournées).
+
+> **Post-traitement recommandé** : lorsqu'un groupe est résolu, une Cloud Function dédiée doit retirer le `groupId` des demandes concernées et recalculer `isDuplicate`.
 
 ---
 

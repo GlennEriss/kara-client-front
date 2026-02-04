@@ -15,6 +15,8 @@ export const onMembershipRequestWrite = onDocumentWritten(
 )
 ```
 
+> **Garde anti-boucle** : si une mise à jour ne touche **que** `isDuplicate`, `duplicateGroupIds` et/ou les champs normalisés, **sortir immédiatement** (pas de recalcul) afin d'éviter les boucles de triggers. La détection doit être relancée uniquement si `identity.contacts`, `identity.email` ou `documents.identityDocumentNumber` changent.
+
 ### Comportement
 
 | Événement | Action |
@@ -114,13 +116,15 @@ async function findDuplicates(
 ```typescript
 async function updateDuplicateGroups(
   requestId: string,
-  matches: DuplicateMatches
+  matches: DuplicateMatches,
+  normalizedEmail: string | null,
+  normalizedDocNumber: string | null
 ): Promise<string[]> {
   const db = getFirestore()
   const groupsCollection = db.collection('duplicate-groups')
   const groupIds: string[] = []
   
-  // Groupes par téléphone
+  // Groupes par téléphone (la valeur est la clé du Map)
   for (const [phone, otherIds] of matches.byPhone) {
     const groupId = await upsertGroup(groupsCollection, {
       type: 'phone',
@@ -131,7 +135,7 @@ async function updateDuplicateGroups(
   }
   
   // Groupe par email
-  if (matches.byEmail.length > 0) {
+  if (normalizedEmail && matches.byEmail.length > 0) {
     const groupId = await upsertGroup(groupsCollection, {
       type: 'email',
       value: normalizedEmail,
@@ -141,7 +145,7 @@ async function updateDuplicateGroups(
   }
   
   // Groupe par pièce d'identité
-  if (matches.byIdentityDoc.length > 0) {
+  if (normalizedDocNumber && matches.byIdentityDoc.length > 0) {
     const groupId = await upsertGroup(groupsCollection, {
       type: 'identityDocument',
       value: normalizedDocNumber,
@@ -157,41 +161,40 @@ async function upsertGroup(
   collection: CollectionReference,
   data: { type: string; value: string; requestIds: string[] }
 ): Promise<string> {
-  // Chercher un groupe existant avec le même type et la même valeur
+  // Recommandé : utiliser une transaction pour éviter les conflits concurrents
+  // et recalculer requestCount à partir de requestIds.length.
   const existing = await collection
     .where('type', '==', data.type)
     .where('value', '==', data.value)
     .limit(1)
     .get()
-  
+
   if (!existing.empty) {
-    // Mettre à jour le groupe existant
     const doc = existing.docs[0]
     const currentIds = doc.data().requestIds || []
     const mergedIds = [...new Set([...currentIds, ...data.requestIds])]
-    
+
     await doc.ref.update({
       requestIds: mergedIds,
       requestCount: mergedIds.length,
       updatedAt: FieldValue.serverTimestamp()
     })
-    
+
     return doc.id
-  } else {
-    // Créer un nouveau groupe
-    const newDoc = await collection.add({
-      type: data.type,
-      value: data.value,
-      requestIds: data.requestIds,
-      requestCount: data.requestIds.length,
-      detectedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      resolvedAt: null,
-      resolvedBy: null
-    })
-    
-    return newDoc.id
   }
+
+  const newDoc = await collection.add({
+    type: data.type,
+    value: data.value,
+    requestIds: data.requestIds,
+    requestCount: data.requestIds.length,
+    detectedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    resolvedAt: null,
+    resolvedBy: null
+  })
+
+  return newDoc.id
 }
 ```
 
@@ -263,7 +266,18 @@ async function cleanupOldGroups(
 
 ---
 
-## 4. Script de migration initiale
+## 4. Résolution d'un groupe (post-traitement)
+
+Lorsque l'admin marque un groupe comme résolu (`resolvedAt`, `resolvedBy`), il faut :
+
+- Retirer `groupId` des `duplicateGroupIds` des demandes concernées.
+- Recalculer `isDuplicate` : `true` uniquement si la demande appartient encore à un autre groupe **non résolu**.
+
+Ce nettoyage peut être déclenché par une Cloud Function dédiée (`onDuplicateGroupResolved`) sur la collection `duplicate-groups`.
+
+---
+
+## 5. Script de migration initiale
 
 Pour les données existantes, exécuter une fonction callable ou un script :
 
@@ -291,7 +305,8 @@ export const migrateExistingDuplicates = onCall(async (request) => {
     await doc.ref.update({
       normalizedEmail,
       normalizedIdentityDocNumber: normalizedDocNumber,
-      'identity.contacts': normalizedContacts // Optionnel : normaliser les contacts
+      // Décision : stocker les contacts au format normalisé (canonique).
+      'identity.contacts': normalizedContacts
     })
     
     // Détecter les doublons
@@ -299,7 +314,12 @@ export const migrateExistingDuplicates = onCall(async (request) => {
     const hasMatches = matches.byPhone.size > 0 || matches.byEmail.length > 0 || matches.byIdentityDoc.length > 0
     
     if (hasMatches) {
-      const groupIds = await updateDuplicateGroups(doc.id, matches)
+      const groupIds = await updateDuplicateGroups(
+        doc.id,
+        matches,
+        normalizedEmail,
+        normalizedDocNumber
+      )
       await doc.ref.update({
         isDuplicate: true,
         duplicateGroupIds: groupIds
@@ -316,19 +336,20 @@ export const migrateExistingDuplicates = onCall(async (request) => {
 
 ---
 
-## 5. Fichiers à créer
+## 6. Fichiers à créer
 
 | Fichier | Description |
 |---------|-------------|
-| `functions/src/membership-requests/detectDuplicates.ts` | Cloud Function principale |
+| `functions/src/membership-requests/detectDuplicates.ts` | Cloud Function principale (onMembershipRequestWrite) |
+| `functions/src/membership-requests/onDuplicateGroupResolved.ts` | Cloud Function résolution (trigger sur update duplicate-groups) |
 | `functions/src/membership-requests/duplicates/normalize.ts` | Fonctions de normalisation |
 | `functions/src/membership-requests/duplicates/detection.ts` | Logique de détection |
 | `functions/src/membership-requests/duplicates/groups.ts` | Gestion des groupes |
-| `functions/src/membership-requests/migrateExistingDuplicates.ts` | Script de migration |
+| `functions/src/membership-requests/migrateExistingDuplicates.ts` | Script de migration (callable) |
 
 ---
 
-## 6. Tests
+## 7. Tests
 
 - **Unitaires** : normalisation, détection avec mocks Firestore.
 - **Intégration** : création d'une demande → vérification du groupe créé → suppression → vérification du nettoyage.
