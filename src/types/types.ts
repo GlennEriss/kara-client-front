@@ -120,6 +120,8 @@ export interface MembershipRequest extends RegisterFormData {
   approvedBy?: string  // ID de l'admin qui a approuvé la demande
   approvedAt?: Date    // Date d'approbation (timestamp serveur)
   adhesionPdfURL?: string  // URL du PDF uploadé lors de l'approbation
+  adhesionPdfUpdatedAt?: Date   // Date du dernier remplacement du PDF d'adhésion
+  adhesionPdfUpdatedBy?: string // Admin ayant remplacé le PDF
 
   // Commentaires administratifs
   adminComments?: string

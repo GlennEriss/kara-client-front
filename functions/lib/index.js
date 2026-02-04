@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.replaceAdhesionPdf = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -168,6 +168,8 @@ var onDuplicateGroupResolved_1 = require("./membership-requests/onDuplicateGroup
 Object.defineProperty(exports, "onDuplicateGroupResolved", { enumerable: true, get: function () { return onDuplicateGroupResolved_1.onDuplicateGroupResolved; } });
 var migrateExistingDuplicates_1 = require("./membership-requests/migrateExistingDuplicates");
 Object.defineProperty(exports, "migrateExistingDuplicates", { enumerable: true, get: function () { return migrateExistingDuplicates_1.migrateExistingDuplicates; } });
+var replaceAdhesionPdf_1 = require("./membership-requests/replaceAdhesionPdf");
+Object.defineProperty(exports, "replaceAdhesionPdf", { enumerable: true, get: function () { return replaceAdhesionPdf_1.replaceAdhesionPdf; } });
 // ✅ ACTIVÉ : Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 // (L'extension Algolia Firebase pose problème, cette fonction est plus fiable)
 var syncToAlgolia_1 = require("./membership-requests/syncToAlgolia");

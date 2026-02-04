@@ -21,7 +21,9 @@ import type {
   ReopenMembershipRequestParams,
   RequestCorrectionsParams,
   ProcessPaymentParams,
+  ReplaceAdhesionPdfParams,
 } from './interfaces/IMembershipService'
+import { createFile } from '@/db/upload-image.db'
 import { MEMBERSHIP_REQUEST_VALIDATION, type PaymentMode } from '@/constantes/membership-requests'
 
 export class MembershipServiceV2 implements IMembershipService {
@@ -196,6 +198,68 @@ export class MembershipServiceV2 implements IMembershipService {
     }
 
     // Note: Les documents uploadés ne sont PAS supprimés (conforme aux règles métier)
+  }
+
+  async replaceAdhesionPdf(params: ReplaceAdhesionPdfParams): Promise<void> {
+    const { requestId, adminId, file } = params
+
+    if (!file || !(file instanceof File)) {
+      throw new Error('Un fichier PDF est requis')
+    }
+    if (file.type !== 'application/pdf') {
+      throw new Error('Le fichier doit être un PDF')
+    }
+
+    const request = await this.repository.getById(requestId)
+    if (!request) {
+      throw new Error(`Demande d'adhésion ${requestId} introuvable`)
+    }
+    if (request.status !== 'approved') {
+      throw new Error('Seules les demandes approuvées peuvent avoir leur PDF remplacé')
+    }
+    if (!request.isPaid) {
+      throw new Error('La demande doit être payée pour remplacer le PDF')
+    }
+
+    const uploadResult = await createFile(file, requestId, `membership-adhesion-pdfs/${requestId}`)
+    const functions = getFunctions(app)
+    const replaceAdhesionPdfCF = httpsCallable<
+      { requestId: string; adminId: string; pdf: { url: string; path: string; size: number } },
+      { success: boolean }
+    >(functions, 'replaceAdhesionPdf')
+
+    try {
+      const result = await replaceAdhesionPdfCF({
+        requestId,
+        adminId,
+        pdf: {
+          url: uploadResult.url,
+          path: uploadResult.path,
+          size: file.size,
+        },
+      })
+
+      if (!result.data?.success) {
+        throw new Error('Erreur lors du remplacement du PDF d\'adhésion')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : ''
+      const isNetworkOrCors =
+        code === 'functions/internal' ||
+        code === 'functions/unavailable' ||
+        message.includes('Failed to fetch') ||
+        message.includes('fetch') ||
+        message.toLowerCase().includes('internal') ||
+        message.includes('CORS') ||
+        message.includes('NetworkError')
+      if (isNetworkOrCors) {
+        throw new Error(
+          'Impossible de joindre le serveur. Vérifiez que la fonction replaceAdhesionPdf est déployée (firebase deploy --only functions:replaceAdhesionPdf) et que vous êtes connecté.'
+        )
+      }
+      throw err
+    }
   }
 
   async reopenMembershipRequest(params: ReopenMembershipRequestParams): Promise<void> {

@@ -52,7 +52,8 @@ import {
   PaymentModalV2,
   PaymentDetailsModalV2,
   IdentityDocumentModalV2,
-  ExportMembershipRequestsModalV2
+  ExportMembershipRequestsModalV2,
+  ReplaceAdhesionPdfModal,
 } from '../modals'
 import { DuplicatesAlert, DuplicatesTab } from '../duplicates'
 
@@ -211,6 +212,7 @@ export function MembershipRequestsPageV2() {
   const [identityDocumentModalOpen, setIdentityDocumentModalOpen] = useState(false)
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false)
   const [renewCodeModalOpen, setRenewCodeModalOpen] = useState(false)
+  const [replacePdfModalRequest, setReplacePdfModalRequest] = useState<MembershipRequest | null>(null)
 
   // États de chargement des actions
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({})
@@ -1179,6 +1181,7 @@ export function MembershipRequestsPageV2() {
                   onSendWhatsAppRejection={openRejectWhatsAppModal}
                   onViewMembershipForm={handleViewMembershipForm}
                   onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                  onReplaceAdhesionPdf={(request) => setReplacePdfModalRequest(request)}
                   onViewIdentityDocument={handleViewIdentityDocument}
                   onViewPaymentDetails={handleViewPaymentDetails}
                   onExportPDF={(id) => handleExportPDF(id)}
@@ -1273,6 +1276,7 @@ export function MembershipRequestsPageV2() {
                         }}
                         onViewMembershipForm={handleViewMembershipForm}
                         onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                        onReplaceAdhesionPdf={() => setReplacePdfModalRequest(request)}
                         onViewIdDocument={handleViewIdentityDocument}
                         onViewPaymentDetails={handleViewPaymentDetails}
                         onExportPDF={(id) => handleExportPDF(id)}
@@ -1315,6 +1319,7 @@ export function MembershipRequestsPageV2() {
                   onViewDetails={handleViewDetails}
                   onViewMembershipForm={handleViewMembershipForm}
                   onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                  onReplaceAdhesionPdf={(request) => setReplacePdfModalRequest(request)}
                   onViewIdentityDocument={handleViewIdentityDocument}
                   onViewPaymentDetails={handleViewPaymentDetails}
                   onExportPDF={(id) => handleExportPDF(id)}
@@ -1541,6 +1546,16 @@ export function MembershipRequestsPageV2() {
               setSelectedRequest(null)
             }}
             request={selectedRequest}
+          />
+        )}
+
+        {replacePdfModalRequest && user?.uid && (
+          <ReplaceAdhesionPdfModal
+            isOpen={!!replacePdfModalRequest}
+            onClose={() => setReplacePdfModalRequest(null)}
+            request={replacePdfModalRequest}
+            adminId={user.uid}
+            onSuccess={() => setReplacePdfModalRequest(null)}
           />
         )}
 

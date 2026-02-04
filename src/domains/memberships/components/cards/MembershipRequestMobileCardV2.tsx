@@ -36,6 +36,7 @@ interface MembershipRequestMobileCardV2Props {
 
   onViewMembershipForm?: (id: string) => void
   onViewApprovedMembershipPdf?: (id: string) => void
+  onReplaceAdhesionPdf?: () => void
   onViewIdDocument?: (id: string) => void
   onViewPaymentDetails?: (id: string) => void
   onExportPDF?: (id: string) => void
@@ -86,6 +87,7 @@ export function MembershipRequestMobileCardV2({
   onSendWhatsAppRejection,
   onViewMembershipForm,
   onViewApprovedMembershipPdf,
+  onReplaceAdhesionPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -274,6 +276,7 @@ export function MembershipRequestMobileCardV2({
             onViewDetails={onViewDetails ? () => onViewDetails(id || '') : undefined}
             onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(id || '') : undefined}
             onViewApprovedMembershipPdf={onViewApprovedMembershipPdf ? () => onViewApprovedMembershipPdf(id || '') : undefined}
+            onReplaceAdhesionPdf={onReplaceAdhesionPdf}
             onViewIdDocument={onViewIdDocument ? () => onViewIdDocument(id || '') : undefined}
             onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(id || '') : undefined}
             onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}

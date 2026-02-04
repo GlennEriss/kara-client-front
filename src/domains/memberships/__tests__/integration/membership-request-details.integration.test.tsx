@@ -61,6 +61,14 @@ vi.mock('sonner', () => ({
   },
 }))
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: vi.fn(() => ({
+    user: { uid: 'test-admin-uid', email: 'admin@test.com' },
+    loading: false,
+    authenticated: true,
+  })),
+}))
+
 // Fixtures
 const createRequestFixture = (overrides: any = {}) => ({
   id: 'req-1',

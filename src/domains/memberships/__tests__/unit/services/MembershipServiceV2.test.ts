@@ -39,6 +39,9 @@ vi.mock('@/factories/ServiceFactory', () => ({
     })),
   },
 }))
+vi.mock('@/db/upload-image.db', () => ({
+  createFile: vi.fn(),
+}))
 
 describe('MembershipServiceV2', () => {
   let service: MembershipServiceV2
@@ -1097,6 +1100,158 @@ describe('MembershipServiceV2', () => {
           request.motifReject // previousMotifReject
         )
       }, { timeout: 1000 })
+    })
+  })
+
+  describe('replaceAdhesionPdf', () => {
+    const createPdfFile = () =>
+      new File([new ArrayBuffer(1024)], 'test.pdf', { type: 'application/pdf' })
+
+    it('devrait throw si aucun fichier fourni', async () => {
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: 'req-1',
+          adminId: 'admin-1',
+          file: null as any,
+        })
+      ).rejects.toThrow('Un fichier PDF est requis')
+    })
+
+    it('devrait throw si le fichier n\'est pas une instance de File', async () => {
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: 'req-1',
+          adminId: 'admin-1',
+          file: { name: 'x.pdf' } as any,
+        })
+      ).rejects.toThrow('Un fichier PDF est requis')
+    })
+
+    it('devrait throw si le fichier n\'est pas un PDF', async () => {
+      const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' })
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: 'req-1',
+          adminId: 'admin-1',
+          file,
+        })
+      ).rejects.toThrow('Le fichier doit être un PDF')
+    })
+
+    it('devrait throw si la demande est introuvable', async () => {
+      mockRepository.getById.mockResolvedValue(null)
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: 'req-1',
+          adminId: 'admin-1',
+          file: createPdfFile(),
+        })
+      ).rejects.toThrow('Demande d\'adhésion req-1 introuvable')
+    })
+
+    it('devrait throw si la demande n\'est pas approuvée', async () => {
+      const request = createMembershipRequestFixture({ status: 'pending', isPaid: true })
+      mockRepository.getById.mockResolvedValue(request)
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: request.id,
+          adminId: 'admin-1',
+          file: createPdfFile(),
+        })
+      ).rejects.toThrow('Seules les demandes approuvées peuvent avoir leur PDF remplacé')
+    })
+
+    it('devrait throw si la demande n\'est pas payée', async () => {
+      const request = createMembershipRequestFixture({ status: 'approved', isPaid: false })
+      mockRepository.getById.mockResolvedValue(request)
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: request.id,
+          adminId: 'admin-1',
+          file: createPdfFile(),
+        })
+      ).rejects.toThrow('La demande doit être payée pour remplacer le PDF')
+    })
+
+    it('devrait uploader le fichier et appeler la Cloud Function avec succès', async () => {
+      const request = approvedRequest()
+      const file = createPdfFile()
+      mockRepository.getById.mockResolvedValue(request)
+      const { createFile } = await import('@/db/upload-image.db')
+      vi.mocked(createFile).mockResolvedValue({ url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf' })
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      const mockCF = vi.fn().mockResolvedValue({ data: { success: true } })
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(mockCF)
+
+      await service.replaceAdhesionPdf({
+        requestId: request.id,
+        adminId: 'admin-1',
+        file,
+      })
+
+      expect(createFile).toHaveBeenCalledWith(file, request.id, `membership-adhesion-pdfs/${request.id}`)
+      expect(mockCF).toHaveBeenCalledWith({
+        requestId: request.id,
+        adminId: 'admin-1',
+        pdf: { url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf', size: file.size },
+      })
+    })
+
+    it('devrait throw si la Cloud Function retourne success: false', async () => {
+      const request = approvedRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      const { createFile } = await import('@/db/upload-image.db')
+      vi.mocked(createFile).mockResolvedValue({ url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf' })
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(vi.fn().mockResolvedValue({ data: { success: false } }))
+
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: request.id,
+          adminId: 'admin-1',
+          file: createPdfFile(),
+        })
+      ).rejects.toThrow("Erreur lors du remplacement du PDF d'adhésion")
+    })
+
+    it('devrait throw un message explicite pour erreur réseau/CORS', async () => {
+      const request = approvedRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      const { createFile } = await import('@/db/upload-image.db')
+      vi.mocked(createFile).mockResolvedValue({ url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf' })
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(
+        vi.fn().mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' }))
+      )
+
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: request.id,
+          adminId: 'admin-1',
+          file: createPdfFile(),
+        })
+      ).rejects.toThrow('Impossible de joindre le serveur')
+    })
+
+    it('devrait propager une autre erreur', async () => {
+      const request = approvedRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      const { createFile } = await import('@/db/upload-image.db')
+      vi.mocked(createFile).mockResolvedValue({ url: 'https://storage.example.com/new.pdf', path: 'path/new.pdf' })
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(vi.fn().mockRejectedValue(new Error('Validation failed')))
+
+      await expect(
+        service.replaceAdhesionPdf({
+          requestId: request.id,
+          adminId: 'admin-1',
+          file: createPdfFile(),
+        })
+      ).rejects.toThrow('Validation failed')
     })
   })
 })

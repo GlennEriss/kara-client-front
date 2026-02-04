@@ -53,6 +53,7 @@ interface MembershipRequestsTableV2Props {
 
   onViewMembershipForm?: (id: string) => void
   onViewApprovedMembershipPdf?: (id: string) => void
+  onReplaceAdhesionPdf?: (request: MembershipRequest) => void
   onViewIdentityDocument?: (id: string) => void
   onViewPaymentDetails?: (id: string) => void
   onExportPDF?: (id: string) => void
@@ -181,6 +182,7 @@ export function MembershipRequestsTableV2({
   onSendWhatsAppRejection,
   onViewMembershipForm,
   onViewApprovedMembershipPdf,
+  onReplaceAdhesionPdf,
   onViewIdentityDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -280,6 +282,7 @@ export function MembershipRequestsTableV2({
                 onSendWhatsAppRejection={onSendWhatsAppRejection ? (_id) => onSendWhatsAppRejection(request) : undefined}
                 onViewMembershipForm={onViewMembershipForm}
                 onViewApprovedMembershipPdf={onViewApprovedMembershipPdf}
+                onReplaceAdhesionPdf={onReplaceAdhesionPdf ? () => onReplaceAdhesionPdf(request) : undefined}
                 onViewIdDocument={onViewIdentityDocument}
                 onViewPaymentDetails={onViewPaymentDetails}
                 onExportPDF={onExportPDF}

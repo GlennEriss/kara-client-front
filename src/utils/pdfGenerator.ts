@@ -96,6 +96,7 @@ export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<
   
   yPosition += 10
   doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...darkGray)
   doc.text(data.email, margin + 5, yPosition)
   
   yPosition += 20
@@ -111,6 +112,7 @@ export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<
   
   yPosition += 10
   doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...darkGray)
   doc.text(data.password, margin + 5, yPosition)
   
   yPosition += 25
