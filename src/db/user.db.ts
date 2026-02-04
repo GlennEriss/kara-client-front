@@ -314,6 +314,7 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
 
 /**
  * Récupère plusieurs utilisateurs par lot (chunk de 10 ids max par requête Firestore "in")
+ * Cherche à la fois par le champ 'id' et par le champ 'matricule' pour couvrir les deux cas
  */
 export async function getUsersByIds(userIds: string[]): Promise<User[]> {
   try {
@@ -323,20 +324,42 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
     const chunkSize = 10
     const chunks: string[][] = []
     for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize))
-    const results: User[] = []
+    const resultsMap = new Map<string, User>()
+    
     for (const chunk of chunks) {
-      const q = query(usersRef, where('id', 'in', chunk))
-      const snap = await getDocs(q)
-      snap.docs.forEach((d) => {
+      // Chercher par id
+      const qById = query(usersRef, where('id', 'in', chunk))
+      const snapById = await getDocs(qById)
+      snapById.docs.forEach((d) => {
         const data = d.data() as any
-        results.push({
+        const user = {
           id: d.id,
           ...data,
           createdAt: toDateSafe(data.createdAt),
           updatedAt: toDateSafe(data.updatedAt),
-        } as User)
+        } as User
+        resultsMap.set(d.id, user)
+      })
+      
+      // Chercher par matricule (pour les contrats qui stockent le matricule)
+      const qByMatricule = query(usersRef, where('matricule', 'in', chunk))
+      const snapByMatricule = await getDocs(qByMatricule)
+      snapByMatricule.docs.forEach((d) => {
+        if (!resultsMap.has(d.id)) {
+          const data = d.data() as any
+          const user = {
+            id: d.id,
+            ...data,
+            createdAt: toDateSafe(data.createdAt),
+            updatedAt: toDateSafe(data.updatedAt),
+          } as User
+          resultsMap.set(d.id, user)
+        }
       })
     }
+    
+    const results = Array.from(resultsMap.values())
+    console.log('[getUsersByIds] Trouvé', results.length, 'utilisateur(s) pour', ids.length, 'id(s) demandé(s)')
     return results
   } catch (error) {
     console.error('Erreur getUsersByIds:', error)

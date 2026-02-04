@@ -22,7 +22,7 @@
 import type { UserFilters, MembershipType } from '@/types/types'
 import type { PaginatedMembers } from '@/db/member.db'
 import { getMembers, getMemberWithSubscription } from '@/db/member.db'
-import { getUserById } from '@/db/user.db'
+import { getUserById, getUsersByIds } from '@/db/user.db'
 import type { User } from '@/types/types'
 import type { DocumentSnapshot } from 'firebase/firestore'
 import {
@@ -48,6 +48,21 @@ export class MembersRepositoryV2 {
    */
   async getById(memberId: string): Promise<User | null> {
     return getUserById(memberId)
+  }
+
+  /**
+   * Récupère plusieurs membres par leurs ids (batch, pour listes/contrats).
+   */
+  async getByIds(memberIds: string[]): Promise<User[]> {
+    const ids = Array.from(new Set(memberIds.filter(Boolean).map((id) => String(id).trim().replace(/\s/g, ''))))
+    if (ids.length === 0) {
+      console.log('[MembersRepositoryV2.getByIds] aucun id fourni')
+      return []
+    }
+    console.log('[MembersRepositoryV2.getByIds] ids demandés:', ids)
+    const users = await getUsersByIds(ids)
+    console.log('[MembersRepositoryV2.getByIds] getUsersByIds a retourné', users.length, 'utilisateur(s)', users.slice(0, 2).map((u) => ({ id: u?.id, matricule: u?.matricule, firstName: u?.firstName, lastName: u?.lastName })))
+    return users
   }
 
   /**

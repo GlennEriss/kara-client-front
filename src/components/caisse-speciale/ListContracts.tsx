@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
   FileText,
   RefreshCw,
@@ -33,9 +34,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
-import { useContracts } from '@/hooks/useContracts'
 import { useClosedNominalSum } from '@/hooks'
-import { useMembers } from '@/hooks/useMembers'
+import { useCaisseContracts, useCaisseContractsStats } from '@/domains/financial/caisse-speciale/contrats/hooks'
+import { useMembersByIds } from '@/domains/memberships/hooks'
+import { useDebounce } from '@/hooks/useDebounce'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
@@ -44,6 +46,24 @@ import ViewUploadedContractModal from './ViewUploadedContractModal'
 import { listRefunds } from '@/db/caisse/refunds.db'
 
 type ViewMode = 'grid' | 'list'
+
+type CaisseTypeTabValue =
+  | 'all'
+  | 'STANDARD'
+  | 'JOURNALIERE'
+  | 'LIBRE'
+  | 'STANDARD_CHARITABLE'
+  | 'JOURNALIERE_CHARITABLE'
+  | 'LIBRE_CHARITABLE'
+  | 'overdue'
+  | 'currentMonth'
+
+type CaisseTypeTabItem = {
+  value: CaisseTypeTabValue
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isDanger?: boolean
+}
 
 // Hook personnalisé pour le carousel avec drag/swipe
 const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
@@ -310,15 +330,30 @@ const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
 )
 
 // Composant de filtres
-const ContractFilters = ({
-  filters,
-  onFiltersChange,
-  onReset
-}: {
+  const ContractFilters = ({
+    filters,
+    onFiltersChange,
+    onReset
+  }: {
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
-}) => {
+  }) => {
+    const safeFilters = {
+    search: '',
+    status: 'all',
+    contractType: 'all',
+    caisseType: 'all',
+    createdAtFrom: undefined,
+    createdAtTo: undefined,
+    nextDueAtFrom: undefined,
+    nextDueAtTo: undefined,
+    overdueOnly: false,
+      ...filters,
+    }
+    const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
+    const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
+
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
@@ -338,17 +373,17 @@ const ContractFilters = ({
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher un contrat..."
+                placeholder="Rechercher par nom, prénom ou matricule..."
                 className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full sm:w-auto transition-all duration-200"
-                value={filters.search || ''}
-                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+                value={safeFilters.search || ''}
+                onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
               />
             </div>
 
             <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.status || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+              value={safeFilters.status || 'all'}
+              onChange={(e) => onFiltersChange({ ...safeFilters, status: e.target.value })}
             >
               <option value="all">Tous les statuts</option>
               <option value="ACTIVE">Actif</option>
@@ -360,24 +395,95 @@ const ContractFilters = ({
 
             <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.caisseType || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, caisseType: e.target.value })}
+              value={safeFilters.caisseType || 'all'}
+              onChange={(e) => onFiltersChange({ ...safeFilters, caisseType: e.target.value })}
             >
               <option value="all">Tous les types de contrat</option>
               <option value="STANDARD">Standard</option>
               <option value="JOURNALIERE">Journalière</option>
               <option value="LIBRE">Libre</option>
+              <option value="STANDARD_CHARITABLE">Standard Charitable</option>
+              <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
+              <option value="LIBRE_CHARITABLE">Libre Charitable</option>
             </select>
 
-           {/*  <select
+            <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.type || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, type: e.target.value })}
+              value={safeFilters.contractType || 'all'}
+              onChange={(e) => onFiltersChange({ ...safeFilters, contractType: e.target.value })}
             >
               <option value="all">Tous les types</option>
               <option value="INDIVIDUAL">Individuels</option>
               <option value="GROUP">Groupes</option>
-            </select> */}
+            </select>
+
+            <input
+              type="date"
+              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...safeFilters,
+                  createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                  nextDueAtFrom: undefined,
+                  nextDueAtTo: undefined,
+                })
+              }
+              disabled={isNextDueRangeActive}
+            />
+            <input
+              type="date"
+              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...safeFilters,
+                  createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                  nextDueAtFrom: undefined,
+                  nextDueAtTo: undefined,
+                })
+              }
+              disabled={isNextDueRangeActive}
+            />
+
+            <input
+              type="date"
+              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...safeFilters,
+                  nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                  createdAtFrom: undefined,
+                  createdAtTo: undefined,
+                })
+              }
+              disabled={isCreatedAtRangeActive}
+            />
+            <input
+              type="date"
+              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...safeFilters,
+                  nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                  createdAtFrom: undefined,
+                  createdAtTo: undefined,
+                })
+              }
+              disabled={isCreatedAtRangeActive}
+            />
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-[#234D65] focus:ring-[#234D65]"
+                checked={!!safeFilters.overdueOnly}
+                onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
+              />
+              Retard uniquement
+            </label>
 
             <Button
               variant="outline"
@@ -388,6 +494,11 @@ const ContractFilters = ({
               Réinitialiser
             </Button>
           </div>
+          {(isCreatedAtRangeActive || isNextDueRangeActive) && (
+            <div className="mt-3 text-xs text-gray-500">
+              Un seul type de filtre date est autorisé à la fois (création ou échéance) pour éviter les limites Firestore.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -397,24 +508,52 @@ const ContractFilters = ({
 // Composant principal
 const ListContracts = () => {
   const router = useRouter()
+
+  const tabItems: CaisseTypeTabItem[] = [
+    { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'STANDARD', label: 'Standard', icon: FileText },
+    { value: 'JOURNALIERE', label: 'Journalier', icon: Calendar },
+    { value: 'LIBRE', label: 'Libre', icon: FileText },
+    { value: 'STANDARD_CHARITABLE', label: 'Standard Charitable', icon: FileText },
+    { value: 'JOURNALIERE_CHARITABLE', label: 'Journalier Charitable', icon: Calendar },
+    { value: 'LIBRE_CHARITABLE', label: 'Libre Charitable', icon: FileText },
+    { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
+    { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+  ]
   
   // Fonction de navigation vers la création de contrat
   const handleCreateContract = () => {
-    router.push('/caisse-speciale/create')
+    router.push(routes.admin.caisseSpecialeCreateContract)
   }
   
   // État pour l'onglet actif (Tous les contrats / Standard / Journalier / Libre / Retard / Mois en cours)
-  const [activeTab, setActiveTab] = useState<'all' | 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'overdue' | 'currentMonth'>('all')
+  const [activeTab, setActiveTab] = useState<
+    | 'all'
+    | 'STANDARD'
+    | 'JOURNALIERE'
+    | 'LIBRE'
+    | 'STANDARD_CHARITABLE'
+    | 'JOURNALIERE_CHARITABLE'
+    | 'LIBRE_CHARITABLE'
+    | 'overdue'
+    | 'currentMonth'
+  >('all')
   
   // États
   const [filters, setFilters] = useState({
     search: '',
     status: 'all',
-    type: 'all',
-    caisseType: 'all'
+    contractType: 'all',
+    caisseType: 'all',
+    createdAtFrom: undefined as Date | undefined,
+    createdAtTo: undefined as Date | undefined,
+    nextDueAtFrom: undefined as Date | undefined,
+    nextDueAtTo: undefined as Date | undefined,
+    overdueOnly: false,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(12)
+  const [pageCursors, setPageCursors] = useState<Record<number, string | null>>({ 1: null })
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [isExporting, setIsExporting] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
@@ -424,17 +563,74 @@ const ListContracts = () => {
   const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
   const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
   const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
+  const debouncedSearch = useDebounce(filters.search, 300)
 
-  // Hook pour récupérer les contrats depuis Firestore
-  const { contracts: contractsData, isLoading, error, refetch } = useContracts()
+  const effectiveFilters = React.useMemo(() => {
+    const nextFilters: any = { ...filters }
+
+    const searchValue = debouncedSearch.trim()
+    if (searchValue.length >= 2) {
+      nextFilters.search = searchValue
+    } else {
+      nextFilters.search = ''
+    }
+
+    if (activeTab === 'overdue') {
+      nextFilters.overdueOnly = true
+    }
+
+    if (activeTab === 'currentMonth') {
+      const now = new Date()
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+      nextFilters.nextDueAtFrom = start
+      nextFilters.nextDueAtTo = end
+      nextFilters.createdAtFrom = undefined
+      nextFilters.createdAtTo = undefined
+    }
+
+    if (
+      activeTab === 'STANDARD' ||
+      activeTab === 'JOURNALIERE' ||
+      activeTab === 'LIBRE' ||
+      activeTab === 'STANDARD_CHARITABLE' ||
+      activeTab === 'JOURNALIERE_CHARITABLE' ||
+      activeTab === 'LIBRE_CHARITABLE'
+    ) {
+      nextFilters.caisseType = activeTab
+    }
+
+    const hasCreatedRange = Boolean(nextFilters.createdAtFrom || nextFilters.createdAtTo)
+    const hasNextDueRange = Boolean(nextFilters.nextDueAtFrom || nextFilters.nextDueAtTo)
+    if (hasCreatedRange && hasNextDueRange) {
+      nextFilters.nextDueAtFrom = undefined
+      nextFilters.nextDueAtTo = undefined
+    }
+
+    return nextFilters
+  }, [filters, activeTab, debouncedSearch])
+
+  const pagination = React.useMemo(
+    () => ({ limit: itemsPerPage, cursor: pageCursors[currentPage] || null }),
+    [itemsPerPage, pageCursors, currentPage]
+  )
+
+  // Hooks V2
+  const { data: contractsPage, isLoading, error, refetch } = useCaisseContracts(effectiveFilters, pagination)
+  const statsFilters = React.useMemo(() => ({}), [])
+  const { data: stats } = useCaisseContractsStats(statsFilters)
 
   // Données des membres et groupes (à récupérer depuis Firestore si nécessaire)
   const membersData = { data: [] as any[] }
   const groupsData: any[] = []
 
+  const contractsData = contractsPage?.items || []
+  const totalCount = contractsPage?.total || 0
+
   // Reset page when filters or tab change
   useEffect(() => {
     setCurrentPage(1)
+    setPageCursors({ 1: null })
   }, [filters, activeTab])
 
   // Charger les refunds pour chaque contrat
@@ -445,6 +641,7 @@ const ListContracts = () => {
       const refundsMap: Record<string, any> = {}
       
       for (const contract of contractsData) {
+        if (!contract.id) continue
         try {
           const refunds = await listRefunds(contract.id)
           // Récupérer le refund avec un document (EARLY ou FINAL)
@@ -467,15 +664,35 @@ const ListContracts = () => {
   const handleFiltersChange = (newFilters: any) => {
     setFilters(newFilters)
     setCurrentPage(1)
+    setPageCursors({ 1: null })
   }
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'all', type: 'all', caisseType: 'all' })
+    setFilters({
+      search: '',
+      status: 'all',
+      contractType: 'all',
+      caisseType: 'all',
+      createdAtFrom: undefined,
+      createdAtTo: undefined,
+      nextDueAtFrom: undefined,
+      nextDueAtTo: undefined,
+      overdueOnly: false,
+    })
     setCurrentPage(1)
+    setPageCursors({ 1: null })
   }
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
+  const handleNextPage = () => {
+    if (!contractsPage?.nextCursor) return
+    setPageCursors((prev) => ({ ...prev, [currentPage + 1]: contractsPage.nextCursor }))
+    setCurrentPage((prev) => prev + 1)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handlePrevPage = () => {
+    if (currentPage === 1) return
+    setCurrentPage((prev) => prev - 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -528,95 +745,142 @@ const ListContracts = () => {
     setSelectedContractForViewUploaded(null)
   }
 
+  const buildExportData = () => {
+    return contractsData.map((contract: any) => {
+      const _toISO = (v: any) => {
+        try {
+          if (!v) return ''
+          const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
+          return isNaN(d.getTime()) ? '' : d.toISOString()
+        } catch {
+          return ''
+        }
+      }
+
+      const toDate = (v: any) => {
+        try {
+          if (!v) return ''
+          const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
+          return isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR')
+        } catch {
+          return ''
+        }
+      }
+
+      return {
+        'ID Contrat': contract?.id || '',
+        'Type': getContractType(contract),
+        'Nom': getContractDisplayName(contract),
+        'Statut': getStatusLabel(contract.status),
+        'Montant mensuel (FCFA)': contract?.monthlyAmount || 0,
+        'Durée (mois)': contract?.monthsPlanned || 0,
+        'Montant total (FCFA)': (contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0),
+        'Montant versé (FCFA)': contract?.nominalPaid || 0,
+        'Montant restant (FCFA)': ((contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0)) - (contract?.nominalPaid || 0),
+        'Prochaine échéance': toDate(contract?.nextDueAt),
+        'Date de création': toDate(contract?.createdAt),
+        'Dernière modification': toDate(contract?.updatedAt),
+        'Type de caisse': contract?.caisseType || '',
+        'Date premier versement': toDate(contract?.firstPaymentDate),
+        'Jours de retard': contract?.daysLate || 0,
+        'Pénalités (FCFA)': contract?.penalties || 0,
+        'Bonus (FCFA)': contract?.bonuses || 0,
+        'ID Membre': contract?.memberId || '',
+        'ID Groupe': contract?.groupeId || '',
+        'CreatedAt ISO': _toISO(contract?.createdAt),
+      }
+    })
+  }
+
   const exportToExcel = async () => {
-    if (filteredContracts.length === 0) {
+    if (contractsData.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
 
     setIsExporting(true)
     try {
-      // Préparer les données pour l'export
-      const exportData = filteredContracts.map((contract: any) => {
-        const _toISO = (v: any) => {
-          try {
-            if (!v) return ''
-            const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
-            return isNaN(d.getTime()) ? '' : d.toISOString()
-          } catch {
-            return ''
-          }
-        }
-
-        const toDate = (v: any) => {
-          try {
-            if (!v) return ''
-            const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
-            return isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR')
-          } catch {
-            return ''
-          }
-        }
-
-        return {
-          'ID Contrat': contract?.id || '',
-          'Type': getContractType(contract),
-          'Nom': getContractDisplayName(contract),
-          'Statut': getStatusLabel(contract.status),
-          'Montant mensuel (FCFA)': contract?.monthlyAmount || 0,
-          'Durée (mois)': contract?.monthsPlanned || 0,
-          'Montant total (FCFA)': (contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0),
-          'Montant versé (FCFA)': contract?.nominalPaid || 0,
-          'Montant restant (FCFA)': ((contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0)) - (contract?.nominalPaid || 0),
-          'Prochaine échéance': toDate(contract?.nextDueAt),
-          'Date de création': toDate(contract?.createdAt),
-          'Dernière modification': toDate(contract?.updatedAt),
-          'Type de caisse': contract?.caisseType || '',
-          'Date premier versement': toDate(contract?.firstPaymentDate),
-          'Jours de retard': contract?.daysLate || 0,
-          'Pénalités (FCFA)': contract?.penalties || 0,
-          'Bonus (FCFA)': contract?.bonuses || 0,
-          'ID Membre': contract?.memberId || '',
-          'ID Groupe': contract?.groupeId || '',
-        }
-      })
-
-      // Créer le fichier CSV avec BOM pour Excel
-      const headers = Object.keys(exportData[0])
-      
-      // Ajouter le BOM UTF-8 pour Excel
-      const BOM = '\uFEFF'
-      
-      const csvContent = BOM + [
-        headers.join(';'),
-        ...exportData.map((row: Record<string, any>) => 
-          headers.map(header => {
-            const value = row[header]
-            // Échapper les points-virgules et guillemets dans les valeurs
-            if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
-              return `"${value.replace(/"/g, '""')}"`
-            }
-            return value
-          }).join(';')
-        )
-      ].join('\r\n')
-
-      // Créer et télécharger le fichier
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-      link.setAttribute('href', url)
-      link.setAttribute('download', `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      toast.success('Export réussi !')
+      const exportData = buildExportData()
+      const XLSX = await import('xlsx')
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+      worksheet['!cols'] = Object.keys(exportData[0] || {}).map(() => ({ wch: 22 }))
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Contrats')
+      const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      toast.success('Export Excel généré')
     } catch (error) {
       console.error('Erreur lors de l\'export:', error)
-      toast.error('Erreur lors de l\'export')
+      toast.error('Erreur lors de l\'export Excel')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const exportToPDF = async () => {
+    if (contractsData.length === 0) {
+      toast.error('Aucun contrat à exporter')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape')
+
+      doc.setFontSize(16)
+      doc.text('Liste des Contrats Caisse Spéciale', 14, 14)
+      doc.setFontSize(10)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 20)
+      doc.text(`Total: ${contractsData.length} contrat(s)`, 14, 24)
+
+      const rows = buildExportData().map((row) => [
+        row['ID Contrat'],
+        row['Type'],
+        row['Nom'],
+        row['Statut'],
+        row['Montant mensuel (FCFA)'],
+        row['Durée (mois)'],
+        row['Montant total (FCFA)'],
+        row['Montant versé (FCFA)'],
+        row['Montant restant (FCFA)'],
+        row['Prochaine échéance'],
+        row['Date de création'],
+        row['Type de caisse'],
+      ])
+
+      const headers = [
+        'ID',
+        'Type',
+        'Nom',
+        'Statut',
+        'Mensualité',
+        'Durée',
+        'Total',
+        'Versé',
+        'Restant',
+        'Prochaine échéance',
+        'Créé le',
+        'Caisse',
+      ]
+
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 28,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: { top: 28 },
+      })
+
+      const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.pdf`
+      doc.save(filename)
+      toast.success('Export PDF généré')
+    } catch (error) {
+      console.error('Erreur lors de l\'export:', error)
+      toast.error('Erreur lors de l\'export PDF')
     } finally {
       setIsExporting(false)
     }
@@ -658,7 +922,7 @@ const ListContracts = () => {
   // Fonction pour obtenir le nom du membre (version améliorée)
   const getMemberName = (contract: any) => {
     if (contract.contractType === 'INDIVIDUAL' && contract.memberId) {
-      const member = membersMap.get(contract.memberId)
+      const member = membersMap.get(normalizeMemberId(contract.memberId))
       if (member) {
         return {
           firstName: member.firstName,
@@ -755,128 +1019,81 @@ const ListContracts = () => {
     return false
   }
 
-  /**
-   * Vérifie si un contrat a une échéance dans le mois actuel
-   */
-  const hasDueDateInCurrentMonth = (contract: any): boolean => {
-    if (!contract.nextDueAt) return false
-    
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
-    
-    const nextDue = contract.nextDueAt instanceof Date 
-      ? contract.nextDueAt 
-      : new Date(contract.nextDueAt)
-    
-    return nextDue.getMonth() === currentMonth && nextDue.getFullYear() === currentYear
-  }
-
-  // Filtrage des contrats
-  const filteredContracts = React.useMemo(() => {
-    if (!contractsData) return []
-
-    let contracts = contractsData
-
-    // Filtrer par retard si l'onglet "Retard" est actif
-    if (activeTab === 'overdue') {
-      contracts = contracts.filter((c: any) => isContractOverdue(c))
-    }
-    // Filtrer par type de caisse (Standard, Journalier, Libre)
-    else if (activeTab === 'STANDARD' || activeTab === 'JOURNALIERE' || activeTab === 'LIBRE') {
-      contracts = contracts.filter((c: any) => c.caisseType === activeTab)
-    }
-    // Filtrer par mois en cours
-    else if (activeTab === 'currentMonth') {
-      contracts = contracts.filter((c: any) => hasDueDateInCurrentMonth(c))
-    }
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
-      contracts = contracts.filter((c: any) =>
-        c.id.toLowerCase().includes(searchLower) ||
-        c.memberId?.toLowerCase().includes(searchLower) ||
-        c.groupeId?.toLowerCase().includes(searchLower) ||
-        getContractType(c).toLowerCase().includes(searchLower) ||
-        getContractDisplayName(c).toLowerCase().includes(searchLower)
-      )
-    }
-
-    if (filters.status !== 'all') {
-      contracts = contracts.filter((c: any) => c.status === filters.status)
-    }
-
-    if (filters.caisseType !== 'all') {
-      contracts = contracts.filter((c: any) => c.caisseType === filters.caisseType)
-    }
-
-    if (filters.type !== 'all') {
-      if (filters.type === 'GROUP') {
-        contracts = contracts.filter((c: any) => isGroupContract(c))
-      } else {
-        contracts = contracts.filter((c: any) => !isGroupContract(c))
-      }
-    }
-
-    return contracts
-  }, [contractsData, filters, groupsData, membersData, activeTab])
-
-  // Pagination
-  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage)
+  // Pagination (serveur)
+  const totalPages = Math.ceil(totalCount / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentContracts = filteredContracts.slice(startIndex, endIndex)
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+  const currentContracts = contractsData
 
-  // Récupérer les informations des membres pour les contrats individuels
+  // Récupérer les informations des membres pour les contrats individuels (via domaine memberships)
   const individualContractMemberIds = React.useMemo(() => {
-    return contractsData
+    const ids = contractsData
       ?.filter((contract: any) => contract.contractType === 'INDIVIDUAL' && contract.memberId)
-      .map((contract: any) => contract.memberId) || []
+      .map((contract: any) => String(contract.memberId).trim().replace(/\s/g, ''))
+      .filter(Boolean) || []
+    return Array.from(new Set(ids))
   }, [contractsData])
 
-  const { data: membersDataFromHook } = useMembers(individualContractMemberIds)
+  const { data: membersDataFromHook, isLoading: membersLoading, error: membersError } = useMembersByIds(individualContractMemberIds)
 
-  // Créer un map des membres pour un accès rapide
+  // DEBUG: logs récupération membres (contrats caisse spéciale)
+  React.useEffect(() => {
+    console.log('[ListContracts] memberIds demandés:', individualContractMemberIds)
+    console.log('[ListContracts] useMembersByIds:', {
+      membersLoading,
+      membersError: membersError != null ? String(membersError) : null,
+      membersCount: membersDataFromHook?.length ?? 0,
+      membersSample: membersDataFromHook?.slice(0, 2).map((m: any) => ({ id: m?.id, matricule: m?.matricule, firstName: m?.firstName, lastName: m?.lastName })),
+    })
+  }, [individualContractMemberIds, membersLoading, membersError, membersDataFromHook])
+
+  // Map des membres : clé par id, matricule et id normalisé (sans espaces) pour retrouver le membre
   const membersMap = React.useMemo(() => {
-    if (!membersDataFromHook) return new Map()
-    return new Map(membersDataFromHook.map((member: any) => [member.id, member]))
+    if (!membersDataFromHook) return new Map<string, any>()
+    const map = new Map<string, any>()
+    for (const member of membersDataFromHook) {
+      if (member?.id) {
+        map.set(String(member.id).trim(), member)
+        map.set(String(member.id).trim().replace(/\s/g, ''), member)
+      }
+      if (member?.matricule && member.matricule !== member.id) {
+        map.set(String(member.matricule).trim(), member)
+        map.set(String(member.matricule).trim().replace(/\s/g, ''), member)
+      }
+    }
+    console.log('[ListContracts] membersMap size:', map.size, 'keys (sample):', Array.from(map.keys()).slice(0, 6))
+    return map
   }, [membersDataFromHook])
-  const stats = React.useMemo(() => {
-    if (!contractsData) return null
 
-    // Utiliser filteredContracts si on est sur l'onglet "Retard", sinon contractsData
-    const dataSource = activeTab === 'overdue' ? filteredContracts : contractsData
+  const normalizeMemberId = (memberId: string | undefined) =>
+    memberId ? String(memberId).trim().replace(/\s/g, '') : ''
 
-    const total = dataSource.length
-    const draft = dataSource.filter((c: any) => c.status === 'DRAFT').length
-    const active = dataSource.filter((c: any) => c.status === 'ACTIVE').length
-    const late = dataSource.filter((c: any) =>
-      c.status === 'LATE_NO_PENALTY' || c.status === 'LATE_WITH_PENALTY'
-    ).length
-    const group = dataSource.filter((c: any) => isGroupContract(c)).length
-    const individual = total - group
-
-    // Statistiques des tontines closes par type
-    const closedContracts = dataSource.filter((c: any) => c.status === 'CLOSED')
-    const closedStats = closedContracts.reduce((acc: any, contract: any) => {
-      const type = contract.caisseType || 'STANDARD'
-      if (!acc[type]) {
-        acc[type] = { count: 0, totalNominal: 0 }
+  // DEBUG: log lookup membre pour les premiers contrats affichés
+  React.useEffect(() => {
+    if (!currentContracts?.length || membersMap.size === 0) return
+    const toLog = currentContracts.slice(0, 5).map((c: any) => {
+      const raw = c.memberId
+      const norm = normalizeMemberId(raw)
+      const member = raw ? membersMap.get(norm) : undefined
+      return {
+        contractId: c.id,
+        memberIdRaw: raw,
+        memberIdNormalized: norm,
+        memberFound: !!member,
+        memberName: member ? `${member.firstName} ${member.lastName}` : null,
       }
-      acc[type].count += 1
-      acc[type].totalNominal += contract.nominalPaid || 0
-      return acc
-    }, {})
+    })
+    console.log('[ListContracts] Lookup membre par contrat (échantillon):', toLog)
+  }, [currentContracts, membersMap])
 
-    // Calculer la répartition par type de caisse
-    const byCaisseType = dataSource.reduce((acc: any, contract: any) => {
-      const type = contract.caisseType || 'STANDARD'
-      if (!acc[type]) {
-        acc[type] = 0
-      }
-      acc[type] += 1
-      return acc
-    }, {})
+  const computedStats = React.useMemo(() => {
+    if (!stats) return null
+    const total = stats.total || 0
+    const draft = stats.draft || 0
+    const active = stats.active || 0
+    const late = stats.late || 0
+    const group = stats.group || 0
+    const individual = stats.individual || 0
 
     return {
       total,
@@ -890,13 +1107,14 @@ const ListContracts = () => {
       latePercentage: total > 0 ? (late / total) * 100 : 0,
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
-      closedStats,
-      byCaisseType,
+      closedStats: {},
+      byCaisseType: stats.byCaisseType || {},
     }
-  }, [contractsData, activeTab, filteredContracts])
+  }, [stats])
 
   // Somme des nominalPaid pour les contrats clos
-  const { sum: closedNominalSum } = useClosedNominalSum(contractsData)
+  const contractsForSum = contractsData?.filter((c) => c.id !== undefined)
+  const { sum: closedNominalSum } = useClosedNominalSum(contractsForSum)
 
   // Gestion des erreurs
   if (error) {
@@ -905,7 +1123,7 @@ const ListContracts = () => {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats : {error}
+            Une erreur est survenue lors du chargement des contrats : {error instanceof Error ? error.message : String(error)}
             <Button
               variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
@@ -919,51 +1137,132 @@ const ListContracts = () => {
     )
   }
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+    return (
+      <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Affichage {totalCount === 0 ? 0 : startIndex + 1}-{endIndex} sur {totalCount} contrats
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="px-3 py-1"
+              >
+                Précédent
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={!contractsPage?.nextCursor}
+                className="px-3 py-1"
+              >
+                Suivant
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* Carrousel de statistiques */}
+      {computedStats && <StatsCarousel stats={computedStats} closedNominalSum={closedNominalSum || 0} />}
+
       {/* Onglets pour filtrer par type et période */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'overdue' | 'currentMonth')} className="w-full">
-        <TabsList className="grid w-full max-w-5xl grid-cols-6 gap-2">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Tous
-          </TabsTrigger>
-          <TabsTrigger value="STANDARD" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Standard
-          </TabsTrigger>
-          <TabsTrigger value="JOURNALIERE" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Journalier
-          </TabsTrigger>
-          <TabsTrigger value="LIBRE" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Libre
-          </TabsTrigger>
-          <TabsTrigger value="currentMonth" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Mois en cours
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
-            <AlertCircle className="h-4 w-4" />
-            Retard
-          </TabsTrigger>
+      {/* Tabs desktop (grille) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(
+            value as
+              | 'all'
+              | 'STANDARD'
+              | 'JOURNALIERE'
+              | 'LIBRE'
+              | 'STANDARD_CHARITABLE'
+              | 'JOURNALIERE_CHARITABLE'
+              | 'LIBRE_CHARITABLE'
+              | 'overdue'
+              | 'currentMonth'
+          )
+        }
+        className="hidden lg:block w-full"
+      >
+        <TabsList className="flex h-auto w-full max-w-6xl flex-nowrap gap-1.5 rounded-lg p-2">
+          {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className={cn(
+                'flex flex-initial items-center gap-1.5 px-2.5 py-1.5 whitespace-nowrap [&_svg]:shrink-0',
+                isDanger ? 'text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50' : ''
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
       </Tabs>
 
-      {/* Carrousel de statistiques */}
-      {stats && <StatsCarousel stats={stats} closedNominalSum={closedNominalSum || 0} />}
+      {/* Tabs mobile/tablette (badges carousel sans boutons) */}
+      <div className="lg:hidden">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+            const isActive = activeTab === value
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setActiveTab(value)}
+                className="shrink-0"
+              >
+                <Badge
+                  className={cn(
+                    'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                    isActive
+                      ? isDanger
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : 'bg-[#234D65] text-white border-transparent'
+                      : isDanger
+                      ? 'bg-white text-red-600 border-red-200'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </Badge>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Diagramme circulaire par type de caisse */}
-      {stats && stats.byCaisseType && Object.keys(stats.byCaisseType).length > 0 && (() => {
+      {computedStats && computedStats.byCaisseType && Object.keys(computedStats.byCaisseType).length > 0 && (() => {
         const CAISSE_TYPE_LABELS: Record<string, string> = {
           STANDARD: 'Standard',
           JOURNALIERE: 'Journalière',
           LIBRE: 'Libre',
+          STANDARD_CHARITABLE: 'Standard Charitable',
+          JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+          LIBRE_CHARITABLE: 'Libre Charitable',
         }
         const COLORS = ['#234D65', '#2C5A73', '#CBB171', '#F97316', '#EF4444']
         
-        const byCaisseTypeData = Object.entries(stats.byCaisseType)
+        const byCaisseTypeData = Object.entries(computedStats.byCaisseType)
           .filter(([_, count]) => (count as number) > 0)
           .map(([type, count]) => ({
             type,
@@ -1039,14 +1338,14 @@ const ListContracts = () => {
                   Liste des Contrats
                 </h2>
                 <p className="text-gray-600 font-medium">
-                  {filteredContracts.length.toLocaleString()} contrat{filteredContracts.length !== 1 ? 's' : ''} • Page {currentPage}
+                  {totalCount.toLocaleString()} contrat{totalCount !== 1 ? 's' : ''} • Page {currentPage}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
+              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden lg:flex">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
@@ -1089,7 +1388,7 @@ const ListContracts = () => {
                 variant="outline"
                 size="sm"
                 onClick={exportToExcel}
-                disabled={isExporting || filteredContracts.length === 0}
+                disabled={isExporting || contractsData.length === 0}
                 className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
               >
                 {isExporting ? (
@@ -1101,6 +1400,26 @@ const ListContracts = () => {
                   <>
                     <Download className="w-4 h-4 mr-2" />
                     Exporter Excel
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToPDF}
+                disabled={isExporting || contractsData.length === 0}
+                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
+                    Export...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Exporter PDF
                   </>
                 )}
               </Button>
@@ -1118,6 +1437,8 @@ const ListContracts = () => {
         </CardContent>
       </Card>
 
+      {renderPagination()}
+
       {/* Liste des contrats */}
       {isLoading ? (
         <div className={
@@ -1131,11 +1452,8 @@ const ListContracts = () => {
         </div>
       ) : currentContracts.length > 0 ? (
         <>
-          <div className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
-              : 'space-y-6'
-          }>
+          {viewMode === 'grid' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {currentContracts.map((contract: any, _index: number) => (
               <div
                 key={contract.id}
@@ -1154,193 +1472,306 @@ const ListContracts = () => {
                   )}
 
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 ${isGroupContract(contract)
-                          ? 'bg-purple-100 text-purple-600'
-                          : 'bg-blue-100 text-blue-600'
-                          }`}>
-                          {isGroupContract(contract) ? (
-                            <GroupIcon className="w-6 h-6" />
-                          ) : (
-                            <User className="w-6 h-6" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-mono text-sm font-bold text-gray-900">#{contract.id.slice(-6)}</h3>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isGroupContract(contract)
-                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                            : 'bg-blue-100 text-blue-700 border border-blue-200'
-                            }`}>
-                            {getContractType(contract)}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
-                        {getStatusLabel(contract.status)}
-                      </span>
-                    </div>
+                    {(() => {
+                      const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
+                      const memberContacts = member?.contacts?.length ? member.contacts.join(' / ') : '—'
+                      const memberEmail = member?.email ? ` • ${member.email}` : ''
+                      const emergency = contract.emergencyContact
+                      const fullName = member ? `${member.firstName} ${member.lastName}` : ''
+                      const initials = member
+                        ? `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()
+                        : 'CS'
 
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Type de contrat:</span>
-                        <span className="font-medium text-gray-900">{getContractTypeLabel(contract)}</span>
-                      </div>
-
-                      {(() => {
-                        const memberName = getMemberName(contract)
-                        if (typeof memberName === 'object' && memberName.firstName && memberName.lastName) {
-                          return (
-                            <>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Nom:</span>
-                                <span className="font-medium text-gray-900">{memberName.lastName}</span>
-                      </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Prénom:</span>
-                                <span className="font-medium text-gray-900">{memberName.firstName}</span>
-                              </div>
-                            </>
-                          )
-                        }
-                        return (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-500">Nom:</span>
-                            <span className="font-medium text-gray-900">{memberName}</span>
+                      return (
+                        <>
+                          <div className="flex items-start gap-3">
+                            <div className="shrink-0">
+                              <Avatar className="size-12 border border-gray-200 shadow-sm">
+                                {member?.photoURL ? (
+                                  <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} />
+                                ) : (
+                                  <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                                    {isGroupContract(contract) ? <GroupIcon className="h-5 w-5" /> : initials}
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs text-gray-500">Matricule contrat</div>
+                              <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
+                            </div>
                           </div>
-                        )
-                      })()}
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Mensuel:</span>
-                        <span className="font-semibold text-green-600">
-                          {(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA
-                        </span>
-                      </div>
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <Badge className={isGroupContract(contract) ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}>
+                              {getContractType(contract)}
+                            </Badge>
+                            <Badge className={`border ${getStatusColor(contract.status)}`}>
+                              {getStatusLabel(contract.status)}
+                            </Badge>
+                            {isContractOverdue(contract) && (
+                              <Badge variant="destructive" className="flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                Retard
+                              </Badge>
+                            )}
+                          </div>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Durée:</span>
-                        <span className="font-medium text-gray-900">{contract.monthsPlanned} mois</span>
-                      </div>
+                          <div className="space-y-2 mt-4 text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Type de contrat:</span>
+                              <span className="font-medium text-gray-900">{getContractTypeLabel(contract)}</span>
+                            </div>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Début d'échéance:</span>
-                        <div className="flex items-center gap-1 text-gray-700">
-                          <Calendar className="h-3 w-3" />
-                          {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
-                        </div>
-                      </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Nom:</span>
+                              <span className="font-medium text-gray-900">{member?.lastName || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Prénom:</span>
+                              <span className="font-medium text-gray-900">{member?.firstName || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Matricule membre:</span>
+                              <span className="font-mono text-xs font-semibold text-gray-900 break-all">{member?.matricule || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Contacts:</span>
+                              <span className="font-medium text-gray-900 text-right">{memberContacts}{memberEmail}</span>
+                            </div>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Prochaine échéance:</span>
-                        <div className="flex items-center gap-1 text-gray-700">
-                          <Calendar className="h-3 w-3" />
-                          {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
-                        </div>
-                      </div>
+                            <div className="pt-2 text-gray-500">Contact urgent:</div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Nom:</span>
+                              <span className="font-medium text-gray-900">{emergency?.lastName || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Prénom:</span>
+                              <span className="font-medium text-gray-900">{emergency?.firstName || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Téléphone:</span>
+                              <span className="font-medium text-gray-900">{emergency?.phone1 || (emergency as any)?.phone || '—'}</span>
+                            </div>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Contrat PDF:</span>
-                        <div className="flex items-center gap-1">
-                          {hasValidContractPdf(contract) ? (
-                            <>
-                              <CheckCircle className="h-3 w-3 text-green-600" />
-                              <span className="text-green-600 font-medium">Disponible</span>
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle className="h-3 w-3 text-orange-500" />
-                              <span className="text-orange-500 font-medium">À téléverser</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Mensualité:</span>
+                              <span className="font-semibold text-green-600">
+                                {(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Durée:</span>
+                              <span className="font-medium text-gray-900">{contract.monthsPlanned} mois</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Début d'échéance:</span>
+                              <div className="flex items-center gap-1 text-gray-700">
+                                <Calendar className="h-3 w-3" />
+                                {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Prochaine échéance:</span>
+                              <div className="flex items-center gap-1 text-gray-700">
+                                <Calendar className="h-3 w-3" />
+                                {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Contrat PDF:</span>
+                              <div className="flex items-center gap-1">
+                                {hasValidContractPdf(contract) ? (
+                                  <>
+                                    <CheckCircle className="h-3 w-3 text-green-600" />
+                                    <span className="text-green-600 font-medium">Disponible</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                                    <span className="text-orange-500 font-medium">À téléverser</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-600 pt-2">
+                              Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
+                            </div>
+                          </div>
 
-                    <div className="pt-3 border-t border-gray-100 mt-auto">
-                      <div className="text-xs text-gray-600 mb-2">
-                        Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
-                      </div>
-                      <div className="space-y-2">
-                        {hasValidContractPdf(contract) ? (
-                          <>
-                      <Button
-                        onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Ouvrir
-                            </Button>
-                            <Button
-                              onClick={() => handleViewUploadedContractPDF(contract)}
-                              variant="outline"
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                            >
-                              <FileText className="h-4 w-4" />
-                              Contrat d'inscription
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            onClick={() => handleUploadPDF(contract)}
-                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
-                          >
-                            <Upload className="h-4 w-4" />
-                            Téléverser le document PDF
-                          </Button>
-                        )}
-                        
-                        <Button
-                          onClick={() => handleViewContractPDF(contract)}
-                          variant="outline"
-                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                        >
-                          <FileText className="h-4 w-4" />
-                          Télécharger contrat
-                      </Button>
-                      </div>
-                    </div>
+                          <div className="pt-3 border-t border-gray-100 mt-auto">
+                            <div className="space-y-2">
+                              {hasValidContractPdf(contract) ? (
+                                <>
+                                  <Button
+                                    onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Ouvrir
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleViewUploadedContractPDF(contract)}
+                                    variant="outline"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    Contrat d'inscription
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  onClick={() => handleUploadPDF(contract)}
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
+                                >
+                                  <Upload className="h-4 w-4" />
+                                  Téléverser le document PDF
+                                </Button>
+                              )}
+
+                              <Button
+                                onClick={() => handleViewContractPDF(contract)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Télécharger contrat
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    })()}
                   </CardContent>
                 </Card>
               </div>
             ))}
           </div>
-
-          {/* Pagination simple */}
-          {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts.length)} sur {filteredContracts.length} contrats
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1"
-                    >
-                      Précédent
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} sur {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1"
-                    >
-                      Suivant
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           )}
+
+          {viewMode === 'list' && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+              <table className="min-w-[1400px] w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left px-4 py-3">Photo</th>
+                    <th className="text-left px-4 py-3">Matricule contrat</th>
+                    <th className="text-center px-4 py-3">Statut</th>
+                    <th className="text-left px-4 py-3">Type</th>
+                    <th className="text-left px-4 py-3">Nom</th>
+                    <th className="text-left px-4 py-3">Prénom</th>
+                    <th className="text-left px-4 py-3">Matricule membre</th>
+                    <th className="text-left px-4 py-3">Contacts</th>
+                    <th className="text-left px-4 py-3">Contact urgent</th>
+                    <th className="text-right px-4 py-3">Mensualité</th>
+                    <th className="text-right px-4 py-3">Durée</th>
+                    <th className="text-right px-4 py-3">Début</th>
+                    <th className="text-right px-4 py-3">Prochaine</th>
+                    <th className="text-left px-4 py-3">PDF</th>
+                    <th className="text-right px-4 py-3">Versé</th>
+                    <th className="text-left px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {currentContracts.map((contract: any) => {
+                    const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
+                    const contacts = member?.contacts?.length ? member.contacts.join(' / ') : '—'
+                    const emergency = contract.emergencyContact
+                    const fullName = member ? `${member.firstName} ${member.lastName}` : ''
+                    const initials = member
+                      ? `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()
+                      : 'CS'
+
+                    return (
+                      <tr key={contract.id} className="hover:bg-gray-50/50">
+                        <td className="px-4 py-3">
+                          <Avatar className="size-9 border border-gray-200 shadow-sm">
+                            {member?.photoURL ? (
+                              <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} />
+                            ) : (
+                              <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                                {isGroupContract(contract) ? <GroupIcon className="h-4 w-4" /> : initials}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-900 break-all">{contract.id}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
+                            {getStatusLabel(contract.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{getContractTypeLabel(contract)}</td>
+                        <td className="px-4 py-3">{member?.lastName || '—'}</td>
+                        <td className="px-4 py-3">{member?.firstName || '—'}</td>
+                        <td className="px-4 py-3 font-mono text-xs">{member?.matricule || '—'}</td>
+                        <td className="px-4 py-3">{contacts}{member?.email ? ` • ${member.email}` : ''}</td>
+                        <td className="px-4 py-3 text-xs">
+                          <div>{emergency?.lastName || '—'} {emergency?.firstName || ''}</div>
+                          <div>{emergency?.phone1 || '—'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-right">{(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</td>
+                        <td className="px-4 py-3 text-right">{contract.monthsPlanned} mois</td>
+                        <td className="px-4 py-3 text-right">{contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}</td>
+                        <td className="px-4 py-3 text-right">{contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}</td>
+                        <td className="px-4 py-3">
+                          {hasValidContractPdf(contract) ? (
+                            <span className="inline-flex items-center gap-1 text-green-600 text-xs">
+                              <CheckCircle className="h-3 w-3" /> Disponible
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-orange-500 text-xs">
+                              <AlertCircle className="h-3 w-3" /> À téléverser
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">{(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                            >
+                              <Eye className="h-3 w-3" />
+                              Ouvrir
+                            </Button>
+                            {hasValidContractPdf(contract) ? (
+                              <Button
+                                onClick={() => handleViewUploadedContractPDF(contract)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                              >
+                                <FileText className="h-3 w-3" />
+                                Contrat d'inscription
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => handleUploadPDF(contract)}
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
+                              >
+                                <Upload className="h-3 w-3" />
+                                Téléverser PDF
+                              </Button>
+                            )}
+                            <Button
+                              onClick={() => handleViewContractPDF(contract)}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                            >
+                              <FileText className="h-3 w-3" />
+                              Télécharger
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {renderPagination()}
         </>
       ) : (
         <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
@@ -1371,7 +1802,10 @@ const ListContracts = () => {
                     Réinitialiser les filtres
                   </Button>
                 )}
-                <Button className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                <Button
+                  onClick={handleCreateContract}
+                  className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Ajouter un contrat
                 </Button>

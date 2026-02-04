@@ -12,6 +12,8 @@ import { getStorageInstance } from '@/firebase/storage'
 import type { GroupPaymentContribution } from './types'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 import type { PaymentMode } from '@/types/types'
+import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
+import { getGroupById } from '@/db/group.db'
 
 // Fonction utilitaire pour générer un ID de contribution personnalisé
 function generateContributionId(memberId: string, paidAt: Date): string {
@@ -79,6 +81,7 @@ export async function subscribe(input: {
   contractPdf?: File;
   emergencyContact?: EmergencyContact;
   settingsVersion?: string;
+  createdBy?: string;
 }) {
   // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
   if (!input.memberId && !input.groupeId) {
@@ -96,17 +99,28 @@ export async function subscribe(input: {
   
   // Récupérer le matricule du membre si c'est un contrat individuel
   let memberMatricule = '0000' // Fallback par défaut
+  let memberLastName = ''
+  let memberFirstName = ''
+  let groupName = ''
   if (input.memberId) {
     try {
       const { getMemberWithSubscription } = await import('@/db/member.db')
       const member = await getMemberWithSubscription(input.memberId)
       memberMatricule = member?.matricule || '0000'
+      memberLastName = member?.lastName || ''
+      memberFirstName = member?.firstName || ''
     } catch {
       // Impossible de récupérer le matricule du membre - continue sans
     }
   } else if (input.groupeId) {
     // Pour les contrats de groupe, utiliser un matricule générique
     memberMatricule = 'GRP' + input.groupeId.slice(-3).padStart(3, '0')
+    try {
+      const group = await getGroupById(input.groupeId)
+      groupName = group?.name || group?.label || ''
+    } catch {
+      // Impossible de récupérer le nom du groupe - continue sans
+    }
   }
   
   // Calculer la date de début et la prochaine échéance AVANT la création du contrat
@@ -115,6 +129,12 @@ export async function subscribe(input: {
   const nextDueAt = new Date(startDate)
 
   // Nettoyer les données pour éviter les valeurs undefined dans Firestore
+  const searchableTexts = generateAllDemandSearchableTexts(
+    groupName || memberLastName,
+    groupName ? '' : memberFirstName,
+    memberMatricule
+  )
+
   const cleanData: any = {
     contractType,
     monthlyAmount: input.monthlyAmount,
@@ -124,8 +144,10 @@ export async function subscribe(input: {
     memberMatricule, // Ajouter le matricule pour la génération d'ID
     contractStartAt: startDate, // Requis pour computeNextDueAt et affichage "Prochaine échéance"
     nextDueAt, // Prochaine date d'échéance (premier versement pour un contrat neuf)
+    ...searchableTexts,
     ...(settingsVersion ? { settingsVersion } : {}),
-    ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {})
+    ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {}),
+    ...(input.createdBy ? { createdBy: input.createdBy } : {}),
   }
   
   // Ajouter seulement les champs non-undefined

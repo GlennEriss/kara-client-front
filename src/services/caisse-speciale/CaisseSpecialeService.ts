@@ -146,6 +146,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             monthsPlanned: demand.monthsPlanned,
             caisseType: demand.caisseType,
             firstPaymentDate: demand.desiredDate,
+            emergencyContact: demand.emergencyContact, // Transférer le contact d'urgence de la demande
         });
 
         // 3. Mettre à jour la demande : statut CONVERTED + contractId + traçabilité
@@ -376,6 +377,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             caisseType: demand.caisseType,
             firstPaymentDate: demand.desiredDate,
             settingsVersion: settings.id,
+            emergencyContact: demand.emergencyContact, // Transférer le contact d'urgence de la demande
         });
 
         // Récupérer le nom de l'admin pour la traçabilité
