@@ -69,6 +69,104 @@ Raisons principales :
 
 On utilise un **document de synthèse** par membre : `member-charity-summary/{memberId}` (champs : `eligible`, `lastContributionAt`, `lastEventId`, `lastEventName`, `lastAmount?`). Une **Cloud Function** est déclenchée à chaque création / modification / suppression d’une contribution et met à jour ce document. Le step 2 lit ce document (une seule lecture) pour afficher l’éligibilité et le bloc « Dernière œuvre ». Détail de la Cloud Function : [function/README.md](./function/README.md).
 
+### Décisions techniques (spécification exécutable, sans ambiguïté)
+
+#### Source exacte de la « dernière œuvre » (date de référence)
+
+- **Date de référence** d’une contribution :  
+  \(effectiveContributionAt\) = `contributionDate` **si présent**, sinon `createdAt`.
+- **`CharityParticipant.lastContributionAt`** doit représenter le **max** des \(effectiveContributionAt\) des contributions de ce participant.
+- **`member-charity-summary.lastContributionAt`** correspond au `lastContributionAt` le plus récent parmi **tous** les participants du membre (tous événements confondus).
+
+> Pourquoi : `contributionDate` est la date métier (peut être saisie/corrigée), `createdAt` est un fallback technique.
+
+#### Règle explicite de `lastAmount`
+
+Décision :
+
+- `member-charity-summary.lastAmount` = **montant de la contribution la plus récente** du membre, c.-à-d. celle dont \(effectiveContributionAt\) est maximale **pour la même “dernière œuvre”**.
+  - Contribution **monétaire** (`contributionType === 'money'`) : `payment.amount`
+  - Contribution **en nature** (`contributionType === 'in_kind'`) : `estimatedValue`
+- Si le montant n’est pas disponible sur cette contribution : `lastAmount = null`.
+
+#### Cas `participantType === 'group'`
+
+Décision (caisse spéciale) :
+
+- **Les contributions de type `group` ne rendent pas les membres éligibles** aux caisses charitable.
+- La Cloud Function **ignore** les contributions dont le participant est `group` (pas de mise à jour d’éligibilité de membres via un groupe).
+
+Si le métier souhaite compter les contributions de groupe, il faut une règle explicite de mapping **groupe → liste des membres** (hors périmètre de cette doc).
+
+#### Cohérence en cas de modification de contribution (create / update / delete)
+
+La Cloud Function doit recalculer le cache pour **tous les membres impactés** :
+
+- **onCreate** : recalculer le membre du `participantId` (après).
+- **onDelete** : recalculer le membre du `participantId` (avant).
+- **onUpdate** :
+  - Si `participantId` change : recalculer **l’ancien membre** (avant) **et** le **nouveau membre** (après).
+  - Si `contributionDate` (ou le montant) change : recalculer le membre (après).
+
+#### Événement supprimé / renommé
+
+Décision :
+
+- `lastEventName` est un **snapshot** écrit dans `member-charity-summary` au moment du recalcul (lecture de `charity-events/{eventId}.name`).
+- Si l’événement n’existe plus au moment du recalcul : `lastEventName = null` (et `lastEventId` reste renseigné).
+
+#### Contrat d’API du cache `member-charity-summary/{memberId}`
+
+| Champ | Type (Firestore) | Description |
+|------|-------------------|-------------|
+| `eligible` | `boolean` | `true` si le membre a au moins une contribution (participant `member` avec `contributionsCount > 0`) |
+| `lastContributionAt` | `timestamp \| null` | Date de dernière contribution (cf. règle \(effectiveContributionAt\)) |
+| `lastEventId` | `string \| null` | `eventId` de la dernière œuvre |
+| `lastEventName` | `string \| null` | Nom (snapshot) de la dernière œuvre |
+| `lastAmount` | `number \| null` | Montant de la contribution la plus récente (cf. règle `lastAmount`) |
+| `updatedAt` | `timestamp` | Date de dernière mise à jour du cache |
+
+#### Comportement UI quand le cache est absent
+
+Si `member-charity-summary/{memberId}` **n’existe pas** :
+
+- considérer `eligible = false`
+- considérer `lastContribution = null`
+
+#### Cas “legacy” : `contributionsCount > 0` mais `lastContributionAt` absent
+
+Si des données historiques contiennent `contributionsCount > 0` mais **pas** de `lastContributionAt` :
+
+- La Cloud Function doit **reconstruire** `lastContributionAt` en lisant les contributions du participant et en prenant le max de \(effectiveContributionAt\).
+- Tant que la reconstruction n’a pas eu lieu, `member-charity-summary.lastContributionAt` peut être `null` même si `eligible === true`.
+
+#### Index Firestore exact (à copier dans `firestore.indexes.json`)
+
+Index requis pour la requête de recalcul (collection group `participants`) :
+
+```json
+{
+  "collectionGroup": "participants",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "memberId", "order": "ASCENDING" },
+    { "fieldPath": "participantType", "order": "ASCENDING" },
+    { "fieldPath": "lastContributionAt", "order": "DESCENDING" }
+  ]
+}
+```
+
+#### Sécurité / droits d’accès (extrait de règle conseillé)
+
+Le client **ne doit jamais** écrire dans `member-charity-summary`.
+
+```js
+match /member-charity-summary/{memberId} {
+  allow read: if isAdmin(); // ou la condition d'accès de votre module caisse spéciale
+  allow write: if false;    // écriture via Admin SDK (Cloud Function)
+}
+```
+
 ---
 
 ## 4. Périmètre fonctionnel

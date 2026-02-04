@@ -1,8 +1,9 @@
 @startuml CheckCharityEligibility
 title Workflow : Vérification éligibilité œuvres de charité (Step 2)
-' Référence : documentation/caisse-speciale/check-charity-contrib/README.md
+' Référence : ../README.md
 ' Éligibilité = au moins un CharityParticipant (memberId) avec contributionsCount > 0
 ' Cache member-charity-summary maintenu par Cloud Function (voir function/README.md)
+' Conventions : effectiveContributionAt = contributionDate || createdAt ; participantType=group ignoré ; fallback legacy si lastContributionAt absent
 
 start
 
@@ -23,7 +24,14 @@ endif
 ' ============================================
 ' RÉCUPÉRATION ÉLIGIBILITÉ (lecture cache)
 ' ============================================
-:Lire le document **member-charity-summary/{memberId}**\n(mis à jour par la Cloud Function à chaque contribution ; voir function/README.md);
+:Lire le document **member-charity-summary/{memberId}**\n(mis à jour par la Cloud Function ; voir function/README.md);
+note right
+  Conventions du cache :
+  - effectiveContributionAt = contributionDate || createdAt
+  - contributions de groupe ignorées (participantType=group)
+  - lastAmount = montant de la contribution la plus récente
+  - legacy : si lastContributionAt absent, reconstruction via contributions
+end note
 :Récupérer **eligible** et **lastContribution** (eventName, date, amount?);
 
 ' ============================================

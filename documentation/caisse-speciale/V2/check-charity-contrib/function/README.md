@@ -32,19 +32,26 @@ Pour **chaque** document de contribution créé / modifié / supprimé :
 
 1. **Récupérer le contexte**
    - Depuis le chemin du document : `eventId` (segment `charity-events/{eventId}/contributions/...`).
-   - Lire le document contribution pour obtenir **participantId** (et éventuellement `contributionDate`, montant pour lastContribution).
+   - Lire le document contribution pour obtenir **participantId**, `contributionDate?`, `createdAt`, et le montant (pour `lastAmount` si souhaité).
 
 2. **Obtenir le memberId**
    - Lire le document **participant** : `charity-events/{eventId}/participants/{participantId}`.
    - Si `participantType === 'member'` et `memberId` présent → le membre concerné est `memberId`.
-   - Si `participantType === 'group'` : selon les règles métier, soit on ignore (éligibilité caisse = membre), soit on met à jour les summaries de tous les membres du groupe (non détaillé ici).
+   - Si `participantType === 'group'` : **décision caisse spéciale** → **ignorer** (les contributions de groupe ne rendent pas éligible un membre).
 
 3. **Recalculer l’éligibilité et la dernière œuvre pour ce memberId**
-   - Requête : tous les **participants** (tous événements) avec `memberId == X` (collection group sur `participants`, index Firestore à prévoir).
-   - Pour chaque participant avec **contributionsCount > 0**, garder `lastContributionAt`, `eventId`, et montant total ou dernière contribution.
-   - Parmi eux, prendre la participation avec **lastContributionAt** le plus récent → définit **lastContribution** (eventId, date, montant).
+   - Requête : tous les **participants** (tous événements) avec `memberId == X` et `participantType == 'member'` (collection group sur `participants`, index Firestore à prévoir).
+   - `eligible` = existe au moins un participant avec `contributionsCount > 0`.
+   - Dernière œuvre : prendre le participant dont `lastContributionAt` est le plus récent.
+     - Convention : `lastContributionAt` doit refléter la date métier de dernière contribution :  
+       \(effectiveContributionAt\) = `contributionDate` si présent, sinon `createdAt`.
+     - **Cas legacy** : si `contributionsCount > 0` mais `lastContributionAt` est absent, reconstruire en lisant les contributions du participant et en prenant le max de \(effectiveContributionAt\).
    - Lire le document **charity-events/{eventId}** pour le **nom** de l’événement.
-   - **eligible** = au moins un participant avec `contributionsCount > 0`.
+   - `lastEventName` est un **snapshot** : stocké dans `member-charity-summary` au moment du recalcul.
+   - `lastAmount` (optionnel) : montant de la contribution la plus récente (celle qui maximise \(effectiveContributionAt\)) :
+     - `money` → `payment.amount`
+     - `in_kind` → `estimatedValue`
+     - si absent → `null`
 
 4. **Écrire le document de synthèse**
    - **Chemin** : `member-charity-summary/{memberId}` (collection à la racine du projet, ou sous un segment dédié selon votre convention).
@@ -60,11 +67,29 @@ En **onDelete** de contribution : même principe (recalculer pour le memberId du
 
 ---
 
+## Cohérence en cas de modification (create / update / delete)
+
+La Cloud Function doit recalculer le cache pour **tous les membres impactés** :
+
+- **Create** : recalculer le membre du `participantId` (après).
+- **Delete** : recalculer le membre du `participantId` (avant).
+- **Update** :
+  - Si `participantId` change : recalculer **l’ancien membre** (avant) **et** le **nouveau membre** (après).
+  - Si `contributionDate` (ou le montant) change : recalculer le membre (après).
+
+## Événement supprimé / renommé
+
+- `lastEventName` est écrit comme **snapshot** (lecture de `charity-events/{eventId}.name` au moment du recalcul).
+- Si l’événement n’existe plus au moment du recalcul : écrire `lastEventName = null` (et conserver `lastEventId`).
+
+---
+
 ## Index Firestore nécessaires
 
 - **Collection group** sur la sous-collection **participants** :
-  - `memberId` (ASC)  
-  - Éventuellement `lastContributionAt` (DESC) pour trier côté requête.
+  - `memberId` (ASC)
+  - `participantType` (ASC)
+  - `lastContributionAt` (DESC)
 
 À ajouter dans `firestore.indexes.json` si pas déjà présents (voir [Firestore collection group](https://firebase.google.com/docs/firestore/query-data/queries#collection-group-query)).
 

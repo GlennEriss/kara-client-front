@@ -99,6 +99,16 @@ service cloud.firestore {
       // Écriture : Admin uniquement
       allow write: if isAdmin();
     }
+
+    // ==========================================
+    // CAISSE SPÉCIALE – CACHE ÉLIGIBILITÉ CHARITY
+    // ==========================================
+    // Lecture : admins (module caisse spéciale)
+    // Écriture : interdite au client (Cloud Function via Admin SDK)
+    match /member-charity-summary/{memberId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
     
     // ==========================================
     // DEMANDES D'ADHÉSION (MEMBERSHIP REQUESTS)

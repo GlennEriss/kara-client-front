@@ -11,6 +11,8 @@ Ce document décrit les étapes prévues pour implémenter la règle d’éligib
 - [ ] **Critère d’éligibilité** : membre éligible si au moins un `CharityParticipant` (type `member`, ce `memberId`) a **`contributionsCount > 0`** (ne pas se baser sur la seule présence en liste participants).
 - [ ] Exposer un service du type `getMemberCharityEligibility(memberId): Promise<{ eligible: boolean, lastContribution?: { eventId, eventName, date, amount? } }>` qui lit le document `member-charity-summary/{memberId}` (pas de booléen sur le membre).
 - [ ] Document `member-charity-summary/{memberId}` mis à jour à chaque ajout/suppression de contribution par une **Cloud Function** (voir [function/README.md](./function/README.md)).
+- [ ] Ajouter l’**index Firestore** collection group `participants` (cf. snippet dans [README.md](./README.md)).
+- [ ] Ajouter/valider les **règles Firestore** pour interdire l’écriture client sur `member-charity-summary` (cf. snippet dans [README.md](./README.md)).
 
 ## 2. Frontend – Hook / état
 

@@ -3,6 +3,7 @@ title Séquence : Vérification éligibilité œuvres de charité (Step 2)
 ' Référence : activite/CheckCharityEligibility.puml, README.md
 ' Architecture : domains (Domain Component → Domain Hook → Domain Service → Firestore)
 ' Cache member-charity-summary maintenu par Cloud Function (voir function/README.md)
+' Conventions : effectiveContributionAt = contributionDate || createdAt ; participantType=group ignoré ; fallback legacy si lastContributionAt absent
 
 actor "Admin" as Admin
 
@@ -34,7 +35,12 @@ activate Service
 Service -> Firestore: getDoc(member-charity-summary/memberId)
 note right of Firestore
   Document mis à jour par la **Cloud Function**
-  à chaque création/suppression de contribution
+  à chaque création / modification / suppression de contribution
+  Conventions :
+  - effectiveContributionAt = contributionDate || createdAt
+  - contributions de groupe ignorées (participantType=group)
+  - lastAmount = montant de la contribution la plus récente
+  - legacy : si lastContributionAt absent, reconstruction via contributions
 end note
 Firestore --> Service: { eligible, lastContributionAt, lastEventId, lastEventName, lastAmount? }
 Service -> Service: Mapper en { eligible, lastContribution }
