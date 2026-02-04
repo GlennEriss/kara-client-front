@@ -52,11 +52,14 @@ import {
   PaymentModalV2,
   PaymentDetailsModalV2,
   IdentityDocumentModalV2,
-  ExportMembershipRequestsModalV2
+  ExportMembershipRequestsModalV2,
+  ReplaceAdhesionPdfModal,
 } from '../modals'
+import { DuplicatesAlert, DuplicatesTab } from '../duplicates'
 
 // Hooks V2
 import { useMembershipRequestsV2 } from '../../hooks/useMembershipRequestsV2'
+import { useDuplicateGroups } from '../../hooks/useDuplicateGroups'
 import { useMembershipActionsV2 } from '../../hooks/useMembershipActionsV2'
 import { useMembershipStatsV2 } from '../../hooks/useMembershipStatsV2'
 import { useApproveMembershipRequest } from '../../hooks/useApproveMembershipRequest'
@@ -209,6 +212,7 @@ export function MembershipRequestsPageV2() {
   const [identityDocumentModalOpen, setIdentityDocumentModalOpen] = useState(false)
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false)
   const [renewCodeModalOpen, setRenewCodeModalOpen] = useState(false)
+  const [replacePdfModalRequest, setReplacePdfModalRequest] = useState<MembershipRequest | null>(null)
 
   // États de chargement des actions
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({})
@@ -228,6 +232,7 @@ export function MembershipRequestsPageV2() {
   // Hooks de données
   const { data, isLoading, refetch } = useMembershipRequestsV2(effectiveFilters, currentPage)
   const { data: stats } = useMembershipStatsV2()
+  const { groups: duplicateGroups } = useDuplicateGroups()
   const {
     rejectMutation,
     reopenMutation,
@@ -290,7 +295,7 @@ export function MembershipRequestsPageV2() {
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab)
     setCurrentPage(1)
-
+    if (tab === 'duplicates') return
     if (tab === 'all') {
       setFilters({})
     } else if (tab === 'paid') {
@@ -965,6 +970,12 @@ export function MembershipRequestsPageV2() {
           )}
         </div>
 
+        {/* Alerte doublons */}
+        <DuplicatesAlert
+          onViewDuplicates={() => handleTabChange('duplicates')}
+          className="mb-4"
+        />
+
         {/* Tabs comme conteneur principal - Effet classeur (UX optimisée) */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           {/* Conteneur principal avec style Card - Tabs englobent tout le contenu */}
@@ -1016,6 +1027,18 @@ export function MembershipRequestsPageV2() {
                   className="hidden md:flex shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-error data-[state=active]:border-kara-error data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-error"
                 >
                   Non payées
+                </TabsTrigger>
+                <TabsTrigger
+                  value="duplicates"
+                  data-testid="tab-duplicates"
+                  className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-warning data-[state=active]:border-kara-warning data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-warning"
+                >
+                  Doublons
+                  {duplicateGroups.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-kara-warning/20 text-kara-warning text-xs font-bold">
+                      {duplicateGroups.length}
+                    </span>
+                  )}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -1142,7 +1165,8 @@ export function MembershipRequestsPageV2() {
               </div>
 
               {/* Affichage selon le mode sélectionné */}
-              {viewMode === 'grid' ? (
+              {activeTab === 'duplicates' && <DuplicatesTab />}
+              {activeTab !== 'duplicates' && viewMode === 'grid' && (
                 // Vue Grid : 4 colonnes sur desktop, 2 sur tablette, 1 sur mobile
                 <MembershipRequestsGridView
                   requests={filteredRequests}
@@ -1157,6 +1181,7 @@ export function MembershipRequestsPageV2() {
                   onSendWhatsAppRejection={openRejectWhatsAppModal}
                   onViewMembershipForm={handleViewMembershipForm}
                   onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                  onReplaceAdhesionPdf={(request) => setReplacePdfModalRequest(request)}
                   onViewIdentityDocument={handleViewIdentityDocument}
                   onViewPaymentDetails={handleViewPaymentDetails}
                   onExportPDF={(id) => handleExportPDF(id)}
@@ -1187,7 +1212,8 @@ export function MembershipRequestsPageV2() {
                   }}
                   loadingActions={loadingActions}
                 />
-              ) : isMobile ? (
+              )}
+              {activeTab !== 'duplicates' && viewMode !== 'grid' && isMobile && (
                 // Vue mobile : Cards (liste verticale)
                 <div className="divide-y divide-kara-neutral-100">
                   {isLoading ? (
@@ -1250,6 +1276,7 @@ export function MembershipRequestsPageV2() {
                         }}
                         onViewMembershipForm={handleViewMembershipForm}
                         onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                        onReplaceAdhesionPdf={() => setReplacePdfModalRequest(request)}
                         onViewIdDocument={handleViewIdentityDocument}
                         onViewPaymentDetails={handleViewPaymentDetails}
                         onExportPDF={(id) => handleExportPDF(id)}
@@ -1283,7 +1310,8 @@ export function MembershipRequestsPageV2() {
                     ))
                   )}
                 </div>
-              ) : (
+              )}
+              {activeTab !== 'duplicates' && viewMode !== 'grid' && !isMobile && (
                 // Vue desktop : Tableau
                 <MembershipRequestsTableV2
                   data={{ items: filteredRequests, pagination: data?.pagination || { page: 1, limit: 10, totalItems: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false } }}
@@ -1291,6 +1319,7 @@ export function MembershipRequestsPageV2() {
                   onViewDetails={handleViewDetails}
                   onViewMembershipForm={handleViewMembershipForm}
                   onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                  onReplaceAdhesionPdf={(request) => setReplacePdfModalRequest(request)}
                   onViewIdentityDocument={handleViewIdentityDocument}
                   onViewPaymentDetails={handleViewPaymentDetails}
                   onExportPDF={(id) => handleExportPDF(id)}
@@ -1336,7 +1365,7 @@ export function MembershipRequestsPageV2() {
               )}
 
               {/* Pagination en bas avec ellipses */}
-              {data?.pagination && data.pagination.totalPages > 1 && (
+              {activeTab !== 'duplicates' && data?.pagination && data.pagination.totalPages > 1 && (
                 <div className="px-6 py-4 border-t border-kara-neutral-100 bg-kara-neutral-50/50">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-sm text-kara-neutral-600">
@@ -1517,6 +1546,16 @@ export function MembershipRequestsPageV2() {
               setSelectedRequest(null)
             }}
             request={selectedRequest}
+          />
+        )}
+
+        {replacePdfModalRequest && user?.uid && (
+          <ReplaceAdhesionPdfModal
+            isOpen={!!replacePdfModalRequest}
+            onClose={() => setReplacePdfModalRequest(null)}
+            request={replacePdfModalRequest}
+            adminId={user.uid}
+            onSuccess={() => setReplacePdfModalRequest(null)}
           />
         )}
 

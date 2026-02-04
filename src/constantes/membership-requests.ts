@@ -89,6 +89,15 @@ export const MEMBERSHIP_REQUEST_CACHE = {
   
   /** Durée de cache pour les statistiques après inutilisation (ms) */
   STATS_GC_TIME_MS: 1000 * 60 * 60 * 2, // 2 heures
+
+  /** Clé pour l’alerte doublons (hasUnresolvedGroups) */
+  DUPLICATES_ALERT_QUERY_KEY: 'membership-requests-duplicates-alert',
+  /** Clé pour la liste des groupes de doublons */
+  DUPLICATES_GROUPS_QUERY_KEY: 'membership-requests-duplicates-groups',
+  /** Stale time alerte doublons (30s) */
+  DUPLICATES_ALERT_STALE_MS: 1000 * 30,
+  /** Stale time groupes doublons (30s) */
+  DUPLICATES_GROUPS_STALE_MS: 1000 * 30,
 } as const
 
 // ============================================

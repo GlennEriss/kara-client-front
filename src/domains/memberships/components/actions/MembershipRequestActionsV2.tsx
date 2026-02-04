@@ -31,6 +31,7 @@ import {
   RotateCcw,
   Trash2,
   Edit,
+  Upload,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -55,6 +56,7 @@ interface MembershipRequestActionsV2Props {
   onViewDetails?: () => void
   onViewMembershipForm?: () => void // PDF du dossier initial (généré)
   onViewApprovedMembershipPdf?: () => void // PDF uploadé lors de l'approbation (document officiel validé)
+  onReplaceAdhesionPdf?: () => void // Remplacer le PDF d'adhésion (demande approuvée et payée)
   onViewIdDocument?: () => void
   onViewPaymentDetails?: () => void // Nouvelle action pour voir les détails du paiement
   onExportPDF?: () => void // Export PDF individuel
@@ -94,6 +96,7 @@ export function MembershipRequestActionsV2({
   onViewDetails,
   onViewMembershipForm,
   onViewApprovedMembershipPdf,
+  onReplaceAdhesionPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -710,6 +713,16 @@ export function MembershipRequestActionsV2({
               >
                 <IdCard className="w-4 h-4 mr-2" />
                 Pièce d'identité
+              </DropdownMenuItem>
+            )}
+
+            {isApproved && isPaid && onReplaceAdhesionPdf && (
+              <DropdownMenuItem
+                onClick={onReplaceAdhesionPdf}
+                data-testid="action-replace-adhesion-pdf-menu"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Remplacer le PDF d&apos;adhésion
               </DropdownMenuItem>
             )}
 
