@@ -590,9 +590,15 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         </View>
 
         <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>Par cet engagement, je prends la décision de mettre à la disposition de l’association la somme déterminée de :</Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>{amountInWords} (Lettres)</Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>{amountInDigits} (Chiffres)</Text>
-        <Text style={[styles.dotsLine, { marginTop: 6 }]}>A l’échéance prévue pour le………………………………………………..Et ce</Text>
+        {!isChangeable && (
+          <>
+            <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>{amountInWords} (Lettres)</Text>
+            <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>{amountInDigits} (Chiffres)</Text>
+          </>
+        )}
+        <Text style={[styles.paragraphIndented, { marginTop: 6 }]}>
+          A l’échéance prévue pour le {formatDate(contract?.firstPaymentDate)}. Et ce
+        </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
       </Page>
 
