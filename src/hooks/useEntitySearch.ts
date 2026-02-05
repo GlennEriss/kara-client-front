@@ -55,7 +55,7 @@ export function useEntitySearch(contractType?: 'INDIVIDUAL' | 'GROUP') {
           console.log('✅ Membres trouvés:', users.length, users)
           const memberResults: EntitySearchResult[] = users.map(user => ({
             id: user.id,
-            displayName: `${user.firstName} ${user.lastName}`,
+            displayName: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.matricule || `Membre ${user.id.slice(0, 8)}`,
             type: 'member' as const,
             additionalInfo: `Matricule: ${user.matricule}`,
             photoURL: user.photoURL || undefined,

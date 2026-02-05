@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.replaceAdhesionPdf = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMemberCharitySummary = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.replaceAdhesionPdf = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -179,4 +179,7 @@ Object.defineProperty(exports, "syncToAlgolia", { enumerable: true, get: functio
 // (L'extension Algolia Firebase pose problème, cette fonction est plus fiable)
 var syncMembersToAlgolia_1 = require("./members/syncMembersToAlgolia");
 Object.defineProperty(exports, "syncMembersToAlgolia", { enumerable: true, get: function () { return syncMembersToAlgolia_1.syncMembersToAlgolia; } });
+// ==================== CAISSE SPÉCIALE – CACHE ÉLIGIBILITÉ CHARITY ====================
+var syncMemberCharitySummary_1 = require("./caisse-speciale/syncMemberCharitySummary");
+Object.defineProperty(exports, "syncMemberCharitySummary", { enumerable: true, get: function () { return syncMemberCharitySummary_1.syncMemberCharitySummary; } });
 //# sourceMappingURL=index.js.map

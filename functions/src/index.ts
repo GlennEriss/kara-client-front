@@ -233,6 +233,9 @@ export { syncToAlgolia } from './membership-requests/syncToAlgolia'
 // (L'extension Algolia Firebase pose problème, cette fonction est plus fiable)
 export { syncMembersToAlgolia } from './members/syncMembersToAlgolia'
 
+// ==================== CAISSE SPÉCIALE – CACHE ÉLIGIBILITÉ CHARITY ====================
+export { syncMemberCharitySummary } from './caisse-speciale/syncMemberCharitySummary'
+
 // ==================== ALGOLIA EXTENSION - TRANSFORM FUNCTIONS ====================
 // Fonctions HTTP appelées par l’extension Firebase Algolia (TRANSFORM_FUNCTION)
 export { transformMembersAlgoliaPayload, transformMembershipRequestsAlgoliaPayload }

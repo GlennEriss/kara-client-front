@@ -83,12 +83,29 @@ export class CharityContributionRepository {
   }
 
   /**
-   * Crée une nouvelle contribution
+   * Génère un ID de contribution au format CONTRIB_{Matricule}_{DDMMYY}_{HHMMss}
+   */
+  private static generateContributionId(participantId: string): string {
+    const now = new Date()
+    const day = now.getDate().toString().padStart(2, '0')
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const year = now.getFullYear().toString().slice(-2)
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    const seconds = now.getSeconds().toString().padStart(2, '0')
+    return `CONTRIB_${participantId}_${day}${month}${year}_${hours}${minutes}${seconds}`
+  }
+
+  /**
+   * Crée une nouvelle contribution avec un ID au format CONTRIB_{Matricule}_{DDMMYY}_{HHMMss}
    */
   static async create(eventId: string, contribution: Omit<CharityContribution, 'id'>): Promise<string> {
     try {
-      const { collection, addDoc, Timestamp, db } = await getFirestore()
-      const contributionsRef = collection(db, `charity-events/${eventId}/contributions`)
+      const { doc, setDoc, Timestamp, db } = await getFirestore()
+      
+      // Générer l'ID de la contribution basé sur le participantId (matricule)
+      const contributionId = this.generateContributionId(contribution.participantId)
+      const docRef = doc(db, 'charity-events', eventId, 'contributions', contributionId)
       
       // Préparer les données avec conversion des dates
       const dataToSave: any = {
@@ -124,9 +141,9 @@ export class CharityContributionRepository {
         contributionDate: cleanedData.contributionDate
       })
 
-      const docRef = await addDoc(contributionsRef, cleanedData)
+      await setDoc(docRef, cleanedData)
 
-      return docRef.id
+      return contributionId
     } catch (error) {
       console.error('Error creating contribution:', error)
       throw error

@@ -102,8 +102,8 @@ export function Step1Member({ form }: Step1MemberProps) {
           <p className="text-xs text-red-500 mt-2">{form.formState.errors.memberId.message}</p>
         )}
 
-        {/* Affichage du membre sélectionné */}
-        {memberId && (selectedMemberData || (memberFirstName && memberLastName)) && (
+        {/* Affichage du membre sélectionné (nom obligatoire ; prénom optionnel) */}
+        {memberId && (selectedMemberData || memberLastName) && (
           <Card className="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-start gap-3 sm:gap-4">
@@ -111,7 +111,7 @@ export function Step1Member({ form }: Step1MemberProps) {
                   {selectedMemberData?.photoURL ? (
                     <AvatarImage
                       src={selectedMemberData.photoURL}
-                      alt={`Photo de ${memberFirstName} ${memberLastName}`}
+                      alt={`Photo de ${[memberFirstName, memberLastName].filter(Boolean).join(' ') || 'Membre'}`}
                     />
                   ) : (
                     <AvatarFallback className="bg-[#234D65] text-white text-sm sm:text-base">
@@ -121,7 +121,7 @@ export function Step1Member({ form }: Step1MemberProps) {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-900 text-base sm:text-lg truncate">
-                    {memberFirstName} {memberLastName}
+                    {[memberFirstName, memberLastName].filter(Boolean).join(' ') || memberMatricule || 'Membre'}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-xs sm:text-sm text-gray-600">
                     {memberMatricule && (

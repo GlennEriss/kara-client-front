@@ -37,15 +37,12 @@ export class CharityEventRepository {
         }
       }
 
-      // Filtre par date de début
+      // Un seul champ avec inégalité par requête Firestore (cf. multiple range fields).
+      // On utilise startDate si dateFrom est fourni ; dateTo est appliqué en mémoire.
       if (filters?.dateFrom) {
         constraints.push(where('startDate', '>=', Timestamp.fromDate(filters.dateFrom)))
       }
-
-      // Filtre par date de fin
-      if (filters?.dateTo) {
-        constraints.push(where('endDate', '<=', Timestamp.fromDate(filters.dateTo)))
-      }
+      // Ne pas ajouter endDate ici : filters?.dateTo sera appliqué après récupération
 
       // Tri
       const orderField = filters?.orderByField || 'createdAt'
@@ -70,6 +67,13 @@ export class CharityEventRepository {
       const snapshot = await getDocs(q)
 
       let events = snapshot.docs.slice(0, limitValue).map(d => this.mapDocToEvent(d.id, d.data()))
+
+      // Filtre date de fin côté client (évite deux champs range en Firestore)
+      if (filters?.dateTo) {
+        const dateTo = filters.dateTo.getTime()
+        events = events.filter(event => event.endDate.getTime() <= dateTo)
+        total = events.length
+      }
 
       // Filtre de recherche côté client (Firestore ne supporte pas bien les recherches textuelles)
       if (filters?.searchQuery && filters.searchQuery.trim().length > 0) {
@@ -119,15 +123,11 @@ export class CharityEventRepository {
         }
       }
 
-      // Filtre par date de début
+      // Un seul champ avec inégalité par requête Firestore (cf. multiple range fields).
       if (filters?.dateFrom) {
         constraints.push(where('startDate', '>=', Timestamp.fromDate(filters.dateFrom)))
       }
-
-      // Filtre par date de fin
-      if (filters?.dateTo) {
-        constraints.push(where('endDate', '<=', Timestamp.fromDate(filters.dateTo)))
-      }
+      // dateTo appliqué en mémoire ci-dessous
 
       // Tri
       const orderField = filters?.orderByField || 'createdAt'
@@ -143,6 +143,12 @@ export class CharityEventRepository {
       const snapshot = await getDocs(q)
 
       let events = snapshot.docs.map(d => this.mapDocToEvent(d.id, d.data()))
+
+      // Filtre date de fin côté client (évite deux champs range en Firestore)
+      if (filters?.dateTo) {
+        const dateTo = filters.dateTo.getTime()
+        events = events.filter(event => event.endDate.getTime() <= dateTo)
+      }
 
       // Filtre de recherche côté client (Firestore ne supporte pas bien les recherches textuelles)
       if (filters?.searchQuery && filters.searchQuery.trim().length > 0) {
@@ -182,12 +188,28 @@ export class CharityEventRepository {
   }
 
   /**
-   * Crée un nouvel évènement
+   * Génère un ID d'événement au format CHARITY_MK_DDMMYY_HHMM
+   */
+  private static generateEventId(): string {
+    const now = new Date()
+    const day = now.getDate().toString().padStart(2, '0')
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const year = now.getFullYear().toString().slice(-2)
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    return `CHARITY_MK_${day}${month}${year}_${hours}${minutes}`
+  }
+
+  /**
+   * Crée un nouvel évènement avec un ID au format CHARITY_MK_DDMMYY_HHMM
    */
   static async create(event: Omit<CharityEvent, 'id'>): Promise<string> {
     try {
-      const { addDoc, collection, Timestamp, db } = await getFirestore()
-      const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+      const { doc, setDoc, Timestamp, db } = await getFirestore()
+      const eventId = this.generateEventId()
+      const docRef = doc(db, COLLECTION_NAME, eventId)
+      
+      await setDoc(docRef, {
         ...event,
         startDate: Timestamp.fromDate(event.startDate),
         endDate: Timestamp.fromDate(event.endDate),
@@ -195,7 +217,7 @@ export class CharityEventRepository {
         updatedAt: Timestamp.fromDate(event.updatedAt)
       })
 
-      return docRef.id
+      return eventId
     } catch (error) {
       console.error('Error creating charity event:', error)
       throw error
