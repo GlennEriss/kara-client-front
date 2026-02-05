@@ -7,6 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { 
   Settings, 
   DollarSign, 
@@ -14,17 +20,32 @@ import {
   AlertTriangle,
   CheckCircle,
   Loader2,
-  Info
+  Info,
+  Heart
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import { useMemberCharityEligibility } from '@/domains/financial/caisse-speciale/hooks/useMemberCharityEligibility'
+
+const CHARITABLE_TYPES = ['STANDARD_CHARITABLE', 'JOURNALIERE_CHARITABLE', 'LIBRE_CHARITABLE'] as const
 
 export function Step2ContractConfiguration() {
   const { state, updateFormData, validateCurrentStep } = useContractForm()
   const { formData } = state
+  const memberId = formData.contractType === 'INDIVIDUAL' ? formData.memberId || null : null
+  const { eligible, lastContribution, isLoading: eligibilityLoading } = useMemberCharityEligibility(memberId)
 
   // Validation des paramètres de la Caisse Spéciale
   const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(formData.caisseType)
+
+  // Réinitialiser le type de caisse si charitable et membre non éligible
+  useEffect(() => {
+    if (eligibilityLoading) return
+    const current = formData.caisseType
+    if (current && CHARITABLE_TYPES.includes(current as typeof CHARITABLE_TYPES[number]) && !eligible) {
+      updateFormData({ caisseType: 'STANDARD' })
+    }
+  }, [eligible, eligibilityLoading, formData.caisseType, updateFormData])
 
   // Validation de l'étape
   useEffect(() => {
@@ -105,6 +126,27 @@ export function Step2ContractConfiguration() {
         </p>
       </div>
 
+      {/* Message éligibilité charitable (contrat individuel) */}
+      {formData.contractType === 'INDIVIDUAL' && (
+        <>
+          {!eligible && memberId && !eligibilityLoading && (
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              Les types <strong>Standard Charitable</strong>, <strong>Journalière Charitable</strong> et <strong>Libre Charitable</strong> sont réservés aux membres ayant déjà contribué à une œuvre de charité.
+            </div>
+          )}
+          {eligible && lastContribution && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm flex items-start gap-2">
+              <Heart className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-medium">Dernière œuvre :</span> {lastContribution.eventName ?? lastContribution.eventId}
+                {' — '}{lastContribution.date.toLocaleDateString('fr-FR')}
+                {lastContribution.amount != null && ` — ${lastContribution.amount.toLocaleString('fr-FR')} FCFA`}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Sélection du type de caisse */}
       <Card className="border-0 shadow-lg">
         <CardHeader>
@@ -164,52 +206,87 @@ export function Step2ContractConfiguration() {
             </Button>
 
             {/* Caisse Standard Charitable */}
-            <Button
-              variant={formData.caisseType === 'STANDARD_CHARITABLE' ? 'default' : 'outline'}
-              onClick={() => handleCaisseTypeChange('STANDARD_CHARITABLE')}
-              className={cn(
-                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
-                formData.caisseType === 'STANDARD_CHARITABLE'
-                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
-                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
-              )}
-            >
-              <DollarSign className="w-6 h-6" />
-              <span className="font-semibold">Standard Charitable</span>
-              <span className="text-xs opacity-80">Versement mensuel fixe</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block w-full">
+                    <Button
+                      variant={formData.caisseType === 'STANDARD_CHARITABLE' ? 'default' : 'outline'}
+                      onClick={() => eligible && handleCaisseTypeChange('STANDARD_CHARITABLE')}
+                      disabled={!eligible}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300 w-full",
+                        !eligible && "opacity-60 cursor-not-allowed",
+                        formData.caisseType === 'STANDARD_CHARITABLE'
+                          ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                          : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+                      )}
+                    >
+                      <DollarSign className="w-6 h-6" />
+                      <span className="font-semibold">Standard Charitable</span>
+                      <span className="text-xs opacity-80">Versement mensuel fixe</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {!eligible ? "Réservé aux membres ayant déjà contribué à une œuvre de charité" : "Versement mensuel fixe (caritatif)"}
+                </TooltipContent>
+              </Tooltip>
 
-            {/* Caisse Journalière Charitable */}
-            <Button
-              variant={formData.caisseType === 'JOURNALIERE_CHARITABLE' ? 'default' : 'outline'}
-              onClick={() => handleCaisseTypeChange('JOURNALIERE_CHARITABLE')}
-              className={cn(
-                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
-                formData.caisseType === 'JOURNALIERE_CHARITABLE'
-                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
-                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
-              )}
-            >
-              <Calendar className="w-6 h-6" />
-              <span className="font-semibold">Journalière Charitable</span>
-              <span className="text-xs opacity-80">Contributions quotidiennes</span>
-            </Button>
+              {/* Caisse Journalière Charitable */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block w-full">
+                    <Button
+                      variant={formData.caisseType === 'JOURNALIERE_CHARITABLE' ? 'default' : 'outline'}
+                      onClick={() => eligible && handleCaisseTypeChange('JOURNALIERE_CHARITABLE')}
+                      disabled={!eligible}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300 w-full",
+                        !eligible && "opacity-60 cursor-not-allowed",
+                        formData.caisseType === 'JOURNALIERE_CHARITABLE'
+                          ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                          : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+                      )}
+                    >
+                      <Calendar className="w-6 h-6" />
+                      <span className="font-semibold">Journalière Charitable</span>
+                      <span className="text-xs opacity-80">Contributions quotidiennes</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {!eligible ? "Réservé aux membres ayant déjà contribué à une œuvre de charité" : "Contributions quotidiennes (caritatif)"}
+                </TooltipContent>
+              </Tooltip>
 
-            {/* Caisse Libre Charitable */}
-            <Button
-              variant={formData.caisseType === 'LIBRE_CHARITABLE' ? 'default' : 'outline'}
-              onClick={() => handleCaisseTypeChange('LIBRE_CHARITABLE')}
-              className={cn(
-                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
-                formData.caisseType === 'LIBRE_CHARITABLE'
-                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
-                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
-              )}
-            >
-              <DollarSign className="w-6 h-6" />
-              <span className="font-semibold">Libre Charitable</span>
-              <span className="text-xs opacity-80">Versements flexibles</span>
-            </Button>
+              {/* Caisse Libre Charitable */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block w-full">
+                    <Button
+                      variant={formData.caisseType === 'LIBRE_CHARITABLE' ? 'default' : 'outline'}
+                      onClick={() => eligible && handleCaisseTypeChange('LIBRE_CHARITABLE')}
+                      disabled={!eligible}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300 w-full",
+                        !eligible && "opacity-60 cursor-not-allowed",
+                        formData.caisseType === 'LIBRE_CHARITABLE'
+                          ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                          : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+                      )}
+                    >
+                      <DollarSign className="w-6 h-6" />
+                      <span className="font-semibold">Libre Charitable</span>
+                      <span className="text-xs opacity-80">Versements flexibles</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {!eligible ? "Réservé aux membres ayant déjà contribué à une œuvre de charité" : "Versements flexibles (caritatif)"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {/* Informations sur le type sélectionné */}

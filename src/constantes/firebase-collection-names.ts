@@ -24,6 +24,7 @@ export const firebaseCollectionNames = {
     // Caisse Spéciale
     caisseContracts: "caisseContracts",
     caisseSettings: "caisseSettings",
+    memberCharitySummary: "member-charity-summary",
     caisseAdminNotes: "caisseAdminNotes",
     caisseSpecialeDemands: "caisseSpecialeDemands",
     // Caisse Imprévue
@@ -73,6 +74,7 @@ export const FIREBASE_COLLECTION_NAMES = {
     // Caisse Spéciale
     CAISSE_CONTRACTS: firebaseCollectionNames.caisseContracts,
     CAISSE_SETTINGS: firebaseCollectionNames.caisseSettings,
+    MEMBER_CHARITY_SUMMARY: firebaseCollectionNames.memberCharitySummary,
     CAISSE_ADMIN_NOTES: firebaseCollectionNames.caisseAdminNotes,
     CAISSE_SPECIALE_DEMANDS: firebaseCollectionNames.caisseSpecialeDemands,
     // Caisse Imprévue
