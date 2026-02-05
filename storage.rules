@@ -325,6 +325,37 @@ service firebase.storage {
     }
     
     // ==========================================
+    // BIENFAITEUR / CHARITÉS (CHARITY EVENTS)
+    // ==========================================
+    // Covers : charity-events/covers/{fileName}
+    // Preuves de contribution : charity-events/{eventId}/contributions/{fileName}
+    // Médias évènement (photos/vidéos) : charity-events/{eventId}/media/{fileName}
+    
+    match /charity-events/covers/{fileName} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+    
+    match /charity-events/{eventId}/contributions/{fileName} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+    
+    match /charity-events/{eventId}/media/{fileName} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin() && (
+        (isImage() && isImageSizeValid()) ||
+        (request.resource.contentType.matches('video/.*') && request.resource.size < 50 * 1024 * 1024)
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
     // PHOTOS AGENTS DE RECOUVREMENT
     // ==========================================
     // Photos des agents (champ optionnel)

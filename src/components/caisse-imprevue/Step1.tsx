@@ -68,7 +68,7 @@ export default function Step1() {
     }
 
     setFormValue('step1.memberId', member.id)
-    setFormValue('step1.memberFirstName', member.firstName)
+    setFormValue('step1.memberFirstName', member.firstName || '')
     setFormValue('step1.memberLastName', member.lastName)
     setFormValue('step1.memberContacts', member.contacts || [])
     setFormValue('step1.memberEmail', member.email || '')
@@ -84,7 +84,7 @@ export default function Step1() {
       : ''
     setFormValue('step1.memberAddress', address)
     
-    toast.success(`Membre sélectionné : ${member.firstName} ${member.lastName}`)
+    toast.success(`Membre sélectionné : ${[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}`)
   }
 
   return (
@@ -167,7 +167,7 @@ export default function Step1() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium">
-                              {member.firstName} {member.lastName}
+                              {[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}
                             </p>
                             {selectedMemberId === member.id && (
                               <CheckCircle2 className="w-5 h-5 text-[#224D62]" />

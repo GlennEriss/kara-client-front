@@ -4,7 +4,7 @@ import { emergencyContactCISchema } from './emergency-contact.schema'
 // Schéma pour Step 1 : Sélection du membre
 export const caisseImprevueStep1Schema = z.object({
   memberId: z.string().min(1, 'Le membre est requis'),
-  memberFirstName: z.string().min(1, 'Le prénom est requis'),
+  memberFirstName: z.string(), // Optionnel (membre peut ne pas avoir de prénom)
   memberLastName: z.string().min(1, 'Le nom est requis'),
   memberContacts: z.array(z.string()).min(1, 'Au moins un contact est requis'),
   memberEmail: z.string().email('Email invalide').optional().or(z.literal('')),

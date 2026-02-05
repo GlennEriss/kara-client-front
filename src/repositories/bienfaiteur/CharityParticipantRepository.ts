@@ -118,12 +118,20 @@ export class CharityParticipantRepository {
   }
 
   /**
-   * Crée un nouveau participant
+   * Crée un nouveau participant.
+   * L'ID du document est le matricule du membre (memberId) pour les membres,
+   * ou le groupId pour les groupes.
    */
   static async create(eventId: string, participant: Omit<CharityParticipant, 'id'>): Promise<string> {
     try {
-      const { collection, addDoc, Timestamp, db } = await getFirestore()
-      const participantsRef = collection(db, `charity-events/${eventId}/participants`)
+      const { doc, setDoc, Timestamp, db } = await getFirestore()
+      
+      // ID du participant = memberId (matricule) pour les membres, groupId pour les groupes
+      const participantId = participant.participantType === 'member' && participant.memberId
+        ? participant.memberId
+        : participant.groupId || `PARTICIPANT_${Date.now()}`
+      
+      const docRef = doc(db, 'charity-events', eventId, 'participants', participantId)
       const dataToSave: any = {
         ...participant,
         createdAt: Timestamp.fromDate(participant.createdAt),
@@ -134,9 +142,9 @@ export class CharityParticipantRepository {
       }
 
       const cleanedData = this.cleanObject(dataToSave)
-      const docRef = await addDoc(participantsRef, cleanedData)
+      await setDoc(docRef, cleanedData)
 
-      return docRef.id
+      return participantId
     } catch (error) {
       console.error('Error creating participant:', error)
       throw error
