@@ -227,12 +227,20 @@ const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance 
             {forfaitRows.map((row, index) => {
               const highlighted = index === highlightedIndex
               const rowStyle = highlighted ? [styles.tableRow, styles.forfaitRowHighlight] : styles.tableRow
-              const cellStyle = highlighted ? [styles.tableCell, styles.forfaitCellHighlight] : styles.tableCell
+              const cell1Style = highlighted
+                ? [styles.tableCell, styles.forfaitCell, styles.forfaitCellHighlight]
+                : [styles.tableCell, styles.forfaitCell]
+              const cell2Style = highlighted
+                ? [styles.tableCell, styles.amountCell, styles.forfaitCellHighlight]
+                : [styles.tableCell, styles.amountCell]
+              const cell3Style = highlighted
+                ? [styles.tableCell, styles.forfaitCellHighlight]
+                : [styles.tableCell]
               return (
                 <View key={index} style={rowStyle}>
-                  <Text style={[cellStyle, styles.forfaitCell]}>{row[0]}</Text>
-                  <Text style={[cellStyle, styles.amountCell]}>{row[1]}</Text>
-                  <Text style={cellStyle}>{row[2]}</Text>
+                  <Text style={cell1Style}>{row[0]}</Text>
+                  <Text style={cell2Style}>{row[1]}</Text>
+                  <Text style={cell3Style}>{row[2]}</Text>
                 </View>
               )
             })}
