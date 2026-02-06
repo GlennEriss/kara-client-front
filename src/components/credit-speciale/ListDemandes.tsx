@@ -31,6 +31,7 @@ import { CreditDemand, CreditDemandStatus } from '@/types/types'
 import { useCreditDemands, useCreditDemandsStats, useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import CreateCreditDemandModal from './CreateCreditDemandModal'
+import EditCreditDemandModal from './EditCreditDemandModal'
 import ValidateDemandModal from './ValidateDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import CreditSimulationModal from './CreditSimulationModal'
@@ -39,7 +40,7 @@ import StatisticsCreditDemandes from './StatisticsCreditDemandes'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import type { StandardSimulation, CustomSimulation } from '@/types/types'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Eye, Calendar } from 'lucide-react'
+import { Eye, Calendar, Edit } from 'lucide-react'
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import { useMember } from '@/hooks/useMembers'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
@@ -332,6 +333,10 @@ const ListDemandes = () => {
     demand: null,
     simulation: null,
   })
+  const [editModalState, setEditModalState] = useState<{
+    isOpen: boolean
+    demand: CreditDemand | null
+  }>({ isOpen: false, demand: null })
   const { createFromDemand } = useCreditContractMutations()
 
   // Synchroniser l'URL avec l'état
@@ -919,6 +924,15 @@ const ListDemandes = () => {
                       <>
                         <Button
                           size="sm"
+                          onClick={() => setEditModalState({ isOpen: true, demand: demande })}
+                          variant="outline"
+                          className="w-full border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Modifier
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
                           className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
                         >
@@ -1068,6 +1082,15 @@ const ListDemandes = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       />
+
+      {/* Modal de modification */}
+      {editModalState.demand && (
+        <EditCreditDemandModal
+          isOpen={editModalState.isOpen}
+          onClose={() => setEditModalState({ isOpen: false, demand: null })}
+          demand={editModalState.demand}
+        />
+      )}
 
       {/* Modal de validation/rejet */}
       <ValidateDemandModal

@@ -4,6 +4,21 @@ import { CreditContractFilters, CreditContractStats } from "@/repositories/credi
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
 import { GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 
+/** Champs modifiables d'une demande de crédit (uniquement pour statut PENDING). */
+export type UpdateCreditDemandInput = Partial<Pick<
+  CreditDemand,
+  | 'creditType'
+  | 'amount'
+  | 'monthlyPaymentAmount'
+  | 'desiredDate'
+  | 'cause'
+  | 'guarantorId'
+  | 'guarantorFirstName'
+  | 'guarantorLastName'
+  | 'guarantorRelation'
+  | 'guarantorIsMember'
+>>;
+
 export interface ICreditSpecialeService {
     // Demandes
     createDemand(data: Omit<CreditDemand, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditDemand>;
@@ -11,7 +26,9 @@ export interface ICreditSpecialeService {
     getDemandsWithFilters(filters?: CreditDemandFilters): Promise<CreditDemand[]>;
     getDemandsStats(filters?: CreditDemandFilters): Promise<CreditDemandStats>;
     updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string): Promise<CreditDemand | null>;
-    
+    /** Modifie les champs métier d'une demande (uniquement si status === PENDING). */
+    updateDemandDetails(demandId: string, data: UpdateCreditDemandInput, adminId: string): Promise<CreditDemand | null>;
+
     // Contrats
     createContractFromDemand(
         demandId: string, 

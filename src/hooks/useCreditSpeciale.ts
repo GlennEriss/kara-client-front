@@ -18,6 +18,7 @@ import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICredit
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import type { CreditPaymentFilters } from '@/repositories/credit-speciale/ICreditPaymentRepository'
 import type { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import type { UpdateCreditDemandInput } from '@/services/credit-speciale/ICreditSpecialeService'
 
 // ==================== DEMANDES ====================
 
@@ -93,7 +94,23 @@ export function useCreditDemandMutations() {
         },
     })
 
-    return { create, updateStatus }
+    const updateDemand = useMutation({
+        mutationFn: ({ demandId, data }: { demandId: string; data: UpdateCreditDemandInput }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.updateDemandDetails(demandId, data, user.uid)
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['creditDemands'] })
+            qc.invalidateQueries({ queryKey: ['creditDemand'] })
+            qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
+            toast.success('Demande modifiée avec succès')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la modification de la demande')
+        },
+    })
+
+    return { create, updateStatus, updateDemand }
 }
 
 // ==================== CONTRATS ====================
