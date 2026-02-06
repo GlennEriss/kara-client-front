@@ -148,10 +148,11 @@ export default function ListContractsCISection() {
     return false
   }
 
-  // Construire les filtres avec paymentFrequency et overdueOnly selon l'onglet actif
+  // Construire les filtres : dans l'onglet "Tous" (et Retard / Mois en cours), utiliser le filtre "Type de contrat" ; sinon l'onglet impose le type (Journalier / Mensuel)
   const effectiveFilters: ContractsCIFilters = {
     ...filters,
-    paymentFrequency: activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? 'all' : activeTab,
+    paymentFrequency:
+      activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : (filters.paymentFrequency || 'all'),
     overdueOnly: activeTab === 'overdue'
   }
 
@@ -452,11 +453,12 @@ export default function ListContractsCISection() {
       {/* Statistiques */}
       <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? undefined : (activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : undefined)} />
 
-      {/* Filtres */}
+      {/* Filtres : filtre "Type de contrat" visible uniquement dans l'onglet Tous (et Retard / Mois en cours) */}
       <FiltersCI
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        showPaymentFrequencyFilter={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth'}
       />
 
       {/* Barre d'actions moderne */}
