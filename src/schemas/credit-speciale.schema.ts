@@ -8,9 +8,7 @@ export const creditDemandStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED']
 
 export const creditDemandSchema = z.object({
   clientId: z.string().min(1, 'L\'ID du client est requis'),
-  clientFirstName: z.string()
-    .min(2, 'Le prénom doit contenir au moins 2 caractères')
-    .max(50, 'Le prénom ne peut pas dépasser 50 caractères'),
+  clientFirstName: z.string().max(50, 'Le prénom ne peut pas dépasser 50 caractères'), // Optionnel (membre peut ne pas avoir de prénom)
   clientLastName: z.string()
     .min(2, 'Le nom doit contenir au moins 2 caractères')
     .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
@@ -34,7 +32,7 @@ export const creditDemandSchema = z.object({
   
   // Garant (obligatoire)
   guarantorId: z.string().min(1, 'Le garant est requis'),
-  guarantorFirstName: z.string().min(1, 'Le prénom du garant est requis'),
+  guarantorFirstName: z.string(), // Optionnel (garant peut ne pas avoir de prénom)
   guarantorLastName: z.string().min(1, 'Le nom du garant est requis'),
   guarantorRelation: z.string().min(1, 'Le lien de parenté est requis'),
   guarantorIsMember: z.boolean().optional(),
@@ -56,8 +54,8 @@ export const creditDemandSchema = z.object({
   createdBy: z.string().min(1, 'L\'ID du créateur est requis'),
   updatedBy: z.string().optional(),
 }).superRefine((data, ctx) => {
-  // Validation : garant obligatoire, les infos doivent être complètes
-  if (!data.guarantorId || !data.guarantorFirstName || !data.guarantorLastName || !data.guarantorRelation) {
+  // Validation : garant obligatoire (prénom optionnel)
+  if (!data.guarantorId || !data.guarantorLastName || !data.guarantorRelation) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Le garant et toutes ses informations sont requis',
@@ -103,9 +101,7 @@ export type CreditDemandFormData = z.infer<typeof creditDemandSchema>
 // Schéma pour le formulaire (sans createdBy/updatedBy qui sont ajoutés lors de la soumission)
 export const creditDemandFormSchema = z.object({
   clientId: z.string().min(1, 'L\'ID du client est requis'),
-  clientFirstName: z.string()
-    .min(2, 'Le prénom doit contenir au moins 2 caractères')
-    .max(50, 'Le prénom ne peut pas dépasser 50 caractères'),
+  clientFirstName: z.string().max(50, 'Le prénom ne peut pas dépasser 50 caractères'), // Optionnel (membre peut ne pas avoir de prénom)
   clientLastName: z.string()
     .min(2, 'Le nom doit contenir au moins 2 caractères')
     .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
@@ -129,7 +125,7 @@ export const creditDemandFormSchema = z.object({
   
   // Garant (obligatoire)
   guarantorId: z.string().min(1, 'Le garant est requis'),
-  guarantorFirstName: z.string().min(1, 'Le prénom du garant est requis'),
+  guarantorFirstName: z.string(), // Optionnel (garant peut ne pas avoir de prénom)
   guarantorLastName: z.string().min(1, 'Le nom du garant est requis'),
   guarantorRelation: z.string().min(1, 'Le lien de parenté est requis'),
   guarantorIsMember: z.boolean().optional(),
@@ -148,8 +144,8 @@ export const creditDemandFormSchema = z.object({
     .max(10, 'Le score maximum est 10')
     .optional(),
 }).superRefine((data, ctx) => {
-  // Validation : garant obligatoire, les infos doivent être complètes
-  if (!data.guarantorId || !data.guarantorFirstName || !data.guarantorLastName || !data.guarantorRelation) {
+  // Validation : garant obligatoire (prénom optionnel)
+  if (!data.guarantorId || !data.guarantorLastName || !data.guarantorRelation) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Le garant et toutes ses informations sont requis',

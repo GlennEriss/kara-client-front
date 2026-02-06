@@ -336,6 +336,21 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
     return payment?.status || 'DUE'
   }
 
+  // Prochaine échéance à payer (premier mois DUE dont la date >= aujourd'hui) pour le PDF Reconnaissance
+  const nextDueDate = React.useMemo(() => {
+    if (!contract.firstPaymentDate) return null
+    const first = new Date(contract.firstPaymentDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    for (let monthIndex = 0; monthIndex < (contract.subscriptionCIDuration ?? 12); monthIndex++) {
+      const due = new Date(first)
+      due.setMonth(due.getMonth() + monthIndex)
+      due.setHours(0, 0, 0, 0)
+      if (due >= today && getMonthStatus(monthIndex) === 'DUE') return due
+    }
+    return null
+  }, [contract.firstPaymentDate, contract.subscriptionCIDuration, payments])
+
   const getMonthTotal = (monthIndex: number) => {
     const payment = payments.find((p: any) => p.monthIndex === monthIndex)
     return payment?.accumulatedAmount || 0
@@ -1173,9 +1188,13 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
             memberLastName: contract.memberLastName,
             subscriptionCICode: contract.subscriptionCICode,
             subscriptionCIAmountPerMonth: contract.subscriptionCIAmountPerMonth,
+            subscriptionCINominal: contract.subscriptionCINominal,
+            subscriptionCISupportMin: contract.subscriptionCISupportMin,
+            subscriptionCISupportMax: contract.subscriptionCISupportMax,
             firstPaymentDate: contract.firstPaymentDate,
             createdAt: contract.createdAt,
           }}
+          nextDueDate={nextDueDate}
           support={
             activeSupport || supportHistory[0]
               ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt }

@@ -476,6 +476,20 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
     }
   }, [payments, getTotalForMonth, contract.subscriptionCIAmountPerMonth])
 
+  // Prochaine échéance à payer (premier mois DUE dont la date de début >= aujourd'hui) pour le PDF Reconnaissance
+  const nextDueDate = React.useMemo(() => {
+    if (!contract.firstPaymentDate) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const duration = contract.subscriptionCIDuration ?? 12
+    for (let monthIndex = 0; monthIndex < duration; monthIndex++) {
+      const { startDate } = getMonthPeriod(monthIndex, contract.firstPaymentDate!)
+      startDate.setHours(0, 0, 0, 0)
+      if (startDate >= today && getMonthStatus(monthIndex) === 'DUE') return startDate
+    }
+    return null
+  }, [contract.firstPaymentDate, contract.subscriptionCIDuration, payments, getMonthStatus])
+
   // Référence pour le slider vertical (desktop) et horizontal (mobile)
   const monthSliderRef = React.useRef<HTMLDivElement>(null)
   const monthSliderMobileRef = React.useRef<HTMLDivElement>(null)
@@ -1661,9 +1675,13 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             memberLastName: contract.memberLastName,
             subscriptionCICode: contract.subscriptionCICode,
             subscriptionCIAmountPerMonth: contract.subscriptionCIAmountPerMonth,
+            subscriptionCINominal: contract.subscriptionCINominal,
+            subscriptionCISupportMin: contract.subscriptionCISupportMin,
+            subscriptionCISupportMax: contract.subscriptionCISupportMax,
             firstPaymentDate: contract.firstPaymentDate,
             createdAt: contract.createdAt,
           }}
+          nextDueDate={nextDueDate}
           support={
             activeSupport || supportHistory[0]
               ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt }

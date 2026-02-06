@@ -109,6 +109,12 @@ const styles = StyleSheet.create({
   amountCell: {
     width: '30%',
   },
+  forfaitRowHighlight: {
+    backgroundColor: '#E8F4FC',
+  },
+  forfaitCellHighlight: {
+    backgroundColor: '#E8F4FC',
+  },
   footer: {
     position: 'absolute',
     bottom: 15,
@@ -120,27 +126,56 @@ const styles = StyleSheet.create({
   },
 })
 
-interface SupportRecognitionPDFProps {
-  contract: {
-    memberFirstName: string
-    memberLastName: string
-    subscriptionCICode: string
-    subscriptionCIAmountPerMonth: number
-  }
-  supportDate: Date
-  dueDate: Date
+export interface SupportRecognitionContract {
+  memberFirstName: string
+  memberLastName: string
+  subscriptionCICode: string
+  subscriptionCIAmountPerMonth: number
+  subscriptionCINominal?: number
+  subscriptionCISupportMin?: number
+  subscriptionCISupportMax?: number
 }
 
-const SupportRecognitionPDF = ({ contract, supportDate, dueDate }: SupportRecognitionPDFProps) => {
+interface SupportRecognitionPDFProps {
+  contract: SupportRecognitionContract
+  /** Date de la prise d'aide ("en date du") */
+  datePriseAide: Date
+  /** Date de la prochaine échéance à payer */
+  dateProchaineEcheance: Date
+}
+
+const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance }: SupportRecognitionPDFProps) => {
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     })
   }
 
   const memberName = `${contract.memberFirstName} ${contract.memberLastName}`
+
+  // Tableau forfait : mêmes lignes et surlignage que CaisseImprevuePDFV3
+  const code = (contract?.subscriptionCICode ?? '').toString().toUpperCase().trim()
+  const fixedRows: [string, string, string][] = [
+    ['A- 10 000', '120 000', '[0 ; 30 000]'],
+    ['B- 20 000', '240 000', '[0 ; 60 000]'],
+    ['C- 30 000', '360 000', '[0 ; 90 000]'],
+    ['D- 40 000', '480 000', '[0 ; 120 000]'],
+    ['E-50 000', '600 000', '[0 ; 150 000]'],
+  ]
+  const codeToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
+  const isFixed = code in codeToIndex
+  const customRow: [string, string, string] | null =
+    !isFixed && contract
+      ? [
+          `${contract.subscriptionCICode ?? ''}- ${Number(contract.subscriptionCIAmountPerMonth ?? 0).toLocaleString('fr-FR')}`,
+          Number(contract.subscriptionCINominal ?? 0).toLocaleString('fr-FR'),
+          `[${Number(contract.subscriptionCISupportMin ?? 0).toLocaleString('fr-FR')} ; ${Number(contract.subscriptionCISupportMax ?? 0).toLocaleString('fr-FR')}]`,
+        ]
+      : null
+  const forfaitRows = customRow ? [...fixedRows, customRow] : fixedRows
+  const highlightedIndex = isFixed ? codeToIndex[code] : 5
 
   return (
     <Document>
@@ -165,12 +200,12 @@ const SupportRecognitionPDF = ({ contract, supportDate, dueDate }: SupportRecogn
 
           <Text style={styles.text}>
             Membre de l'Association KARA, reconnais avoir souscris un accompagnement régulier à taux nul, en date du{' '}
-            <Text style={styles.bold}>{formatDate(supportDate)}</Text>.
+            <Text style={styles.bold}>{formatDate(datePriseAide)}</Text>.
           </Text>
 
           <Text style={styles.text}>
             Je m'engage à rembourser la somme empruntée au plus tard avant le paiement de la prochaine contribution prévu en date du{' '}
-            <Text style={styles.bold}>{formatDate(dueDate)}</Text>.
+            <Text style={styles.bold}>{formatDate(dateProchaineEcheance)}</Text>.
           </Text>
 
           <Text style={[styles.text, { marginTop: 15 }]}>
@@ -182,37 +217,34 @@ const SupportRecognitionPDF = ({ contract, supportDate, dueDate }: SupportRecogn
             Type d'accompagnement sollicité :
           </Text>
 
-          {/* Tableau des forfaits */}
+          {/* Tableau des forfaits (Forfait, Nominal, Appui) avec surlignage */}
           <View style={styles.table}>
             <View style={[styles.tableRow, styles.tableHeader]}>
               <Text style={[styles.tableCell, styles.forfaitCell]}>Forfait</Text>
-              <Text style={[styles.tableCell, styles.amountCell]}>Montant (FCFA)</Text>
+              <Text style={[styles.tableCell, styles.amountCell]}>Nominal</Text>
+              <Text style={styles.tableCell}>Appui</Text>
             </View>
-            <View style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.forfaitCell]}>A</Text>
-              <Text style={styles.tableCell}>10 000</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.forfaitCell]}>B</Text>
-              <Text style={styles.tableCell}>20 000</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.forfaitCell]}>C</Text>
-              <Text style={styles.tableCell}>30 000</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.forfaitCell]}>D</Text>
-              <Text style={styles.tableCell}>40 000</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.forfaitCell]}>E</Text>
-              <Text style={styles.tableCell}>50 000</Text>
-            </View>
+            {forfaitRows.map((row, index) => {
+              const highlighted = index === highlightedIndex
+              const rowStyle = highlighted ? [styles.tableRow, styles.forfaitRowHighlight] : styles.tableRow
+              const cell1Style = highlighted
+                ? [styles.tableCell, styles.forfaitCell, styles.forfaitCellHighlight]
+                : [styles.tableCell, styles.forfaitCell]
+              const cell2Style = highlighted
+                ? [styles.tableCell, styles.amountCell, styles.forfaitCellHighlight]
+                : [styles.tableCell, styles.amountCell]
+              const cell3Style = highlighted
+                ? [styles.tableCell, styles.forfaitCellHighlight]
+                : [styles.tableCell]
+              return (
+                <View key={index} style={rowStyle}>
+                  <Text style={cell1Style}>{row[0]}</Text>
+                  <Text style={cell2Style}>{row[1]}</Text>
+                  <Text style={cell3Style}>{row[2]}</Text>
+                </View>
+              )
+            })}
           </View>
-
-          <Text style={[styles.text, { marginTop: 10 }]}>
-            <Text style={styles.bold}>Forfait sélectionné : {contract.subscriptionCICode} - {contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA</Text>
-          </Text>
 
           {/* Section de signature */}
           <View style={styles.signatureSection}>
@@ -239,4 +271,3 @@ const SupportRecognitionPDF = ({ contract, supportDate, dueDate }: SupportRecogn
 }
 
 export default SupportRecognitionPDF
-
