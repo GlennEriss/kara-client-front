@@ -28,6 +28,14 @@ const colWidths = [2668, 3048, 1510, 2689]
 const sumCols = (start: number, span: number) =>
   colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
 
+const COLORS = {
+  primary: '#1E3A5F',
+  subtitle: '#475569',
+  tableHeaderBg: '#E7EFF8',
+  rowAlt: '#F7F9FC',
+  border: '#CBD5E1',
+}
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times New Roman',
@@ -44,10 +52,16 @@ const styles = StyleSheet.create({
     height: 100,
     objectFit: 'contain',
     marginBottom: 8,
+    alignSelf: 'center',
+  },
+  headerBand: {
+    height: 6,
+    backgroundColor: COLORS.primary,
+    marginBottom: 12,
   },
   table: {
     borderWidth: 0.5,
-    borderColor: '#C9C9C9',
+    borderColor: COLORS.border,
     marginBottom: 10,
   },
   tableRow: {
@@ -60,19 +74,20 @@ const styles = StyleSheet.create({
   },
   tableCellRightBorder: {
     borderRightWidth: 0.5,
-    borderRightColor: '#C9C9C9',
+    borderRightColor: COLORS.border,
   },
   tableCellBottomBorder: {
     borderBottomWidth: 0.5,
-    borderBottomColor: '#C9C9C9',
+    borderBottomColor: COLORS.border,
   },
   tableHeaderText: {
     fontFamily: 'Times New Roman',
     fontSize: 14,
     fontWeight: 'bold',
+    color: COLORS.primary,
   },
   tableLabelText: {
-    fontFamily: 'Bahnschrift',
+    fontFamily: 'Times New Roman',
     fontSize: 10,
   },
   tableValueText: {
@@ -80,8 +95,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   associationLabel: {
-    fontFamily: 'Bahnschrift',
+    fontFamily: 'Times New Roman',
     fontSize: 10,
+    color: COLORS.subtitle,
     marginBottom: 4,
   },
   title16: {
@@ -90,6 +106,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 6,
+    color: COLORS.primary,
   },
   title14Center: {
     fontSize: 14,
@@ -97,6 +114,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 6,
+    color: COLORS.primary,
   },
   paragraph12: {
     fontSize: 12,
@@ -104,7 +122,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   paragraph14: {
-    fontSize: 14,
+    fontSize: 12,
     textAlign: 'justify',
     marginBottom: 4,
   },
@@ -114,6 +132,19 @@ const styles = StyleSheet.create({
     textAlign: 'justify',
     marginTop: 8,
     marginBottom: 4,
+    color: COLORS.primary,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  checkboxBox: {
+    width: 12,
+    height: 12,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
   signatureRow: {
     flexDirection: 'row',
@@ -134,12 +165,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 6,
     borderWidth: 0.5,
-    borderColor: '#C9C9C9',
+    borderColor: COLORS.border,
   },
   scheduleRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#C9C9C9',
+    borderBottomColor: COLORS.border,
+  },
+  scheduleHeaderRow: {
+    backgroundColor: COLORS.tableHeaderBg,
   },
   scheduleRowLast: {
     flexDirection: 'row',
@@ -151,7 +185,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     borderRightWidth: 0.5,
-    borderRightColor: '#C9C9C9',
+    borderRightColor: COLORS.border,
+  },
+  scheduleHeaderCell: {
+    fontWeight: 'bold',
+    color: COLORS.primary,
   },
   scheduleCellLast: {
     flex: 1,
@@ -381,7 +419,8 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
   const guaranteeAmount = contract.totalAmount || contract.amount
 
   const scheduleRows = Array.from({ length: 7 }).map((_, index) => schedule[index])
-  const bandColor = '#EDEDED'
+  const visibleScheduleRows = scheduleRows.filter((item): item is (typeof schedule)[number] => Boolean(item))
+  const bandColor = COLORS.rowAlt
   const withBand = (cells: TableCellConfig[], shaded: boolean) =>
     shaded ? cells.map((cell) => ({ ...cell, backgroundColor: bandColor })) : cells
 
@@ -395,9 +434,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
             height={43.35}
             cells={[
               {
-                content: 'Informations Personnelles du Membre :',
+                content: 'Informations Personnelles du Membre',
                 span: 4,
                 textStyle: styles.tableHeaderText,
+                backgroundColor: COLORS.tableHeaderBg,
               },
             ]}
           />
@@ -472,7 +512,6 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           />
         </View>
 
-        <Text style={styles.associationLabel}>ASSOCIATION</Text>
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
 
         <Text style={styles.paragraph12}>
@@ -508,8 +547,14 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           L’Association accorde et consent au membre bénéficiaire un accompagnement
         </Text>
-        <Text style={styles.paragraph14}>Exceptionnel</Text>
-        <Text style={styles.paragraph14}>Régulier</Text>
+        <View style={styles.checkboxRow}>
+          <View style={styles.checkboxBox} />
+          <Text style={styles.paragraph14}>Exceptionnel</Text>
+        </View>
+        <View style={styles.checkboxRow}>
+          <View style={styles.checkboxBox} />
+          <Text style={styles.paragraph14}>Régulier</Text>
+        </View>
         <Text style={styles.paragraph14}>À hauteur de</Text>
         <Text style={styles.paragraph14}>{formatAmount(contract.amount)} FCFA (chiffres)</Text>
         <Text style={styles.paragraph14}>{numberToWords(contract.amount)} FCFA (lettres),</Text>
@@ -529,22 +574,22 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         </Text>
 
         <View style={styles.scheduleTable}>
-          <View style={styles.scheduleRow}>
-            <Text style={styles.scheduleCell}>Échéances</Text>
-            <Text style={styles.scheduleCell}>Date</Text>
-            <Text style={styles.scheduleCellLast}>Montant FCFA</Text>
+          <View style={[styles.scheduleRow, styles.scheduleHeaderRow]}>
+            <Text style={[styles.scheduleCell, styles.scheduleHeaderCell]}>Échéances</Text>
+            <Text style={[styles.scheduleCell, styles.scheduleHeaderCell]}>Date</Text>
+            <Text style={[styles.scheduleCellLast, styles.scheduleHeaderCell]}>Montant FCFA</Text>
           </View>
-          {scheduleRows.map((item, index) => (
+          {visibleScheduleRows.map((item, index) => (
             <View
               key={index}
               style={[
-                index === scheduleRows.length - 1 ? styles.scheduleRowLast : styles.scheduleRow,
+                index === visibleScheduleRows.length - 1 ? styles.scheduleRowLast : styles.scheduleRow,
                 ...(index % 2 === 0 ? [{ backgroundColor: bandColor }] : []),
               ]}
             >
-              <Text style={styles.scheduleCell}>{item ? `M${item.month}` : ''}</Text>
-              <Text style={styles.scheduleCell}>{item ? formatDate(item.date) : ''}</Text>
-              <Text style={styles.scheduleCellLast}>{item ? formatAmount(item.payment) : ''}</Text>
+              <Text style={styles.scheduleCell}>{`M${item.month}`}</Text>
+              <Text style={styles.scheduleCell}>{formatDate(item.date)}</Text>
+              <Text style={styles.scheduleCellLast}>{formatAmount(item.payment)}</Text>
             </View>
           ))}
         </View>
@@ -589,8 +634,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           Fait à…………………………Le …………/………/…………….
         </Text>
 
+        <View />
         <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
+        <View style={{ height: 80 }} />
         <Text style={styles.signatureText14}>Signature  Membre(précédée de la mention membre lu et approuvé)</Text>
+        <View style={{ height: 100 }} />
         <Text style={styles.signatureText14}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
       </Page>
 
@@ -598,7 +646,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 
         <Text style={styles.paragraph12}>
-          En date du {formatDate(firstPaymentDate)} le présent acte a été conclu entre les parties suivantes nommément désignées :
+          En date du {formatDate(firstPaymentDate)} le présent acte a été conclu entre les parties suivantes nommément désignées:
         </Text>
         <Text style={styles.paragraph12}>
           L’Association LE KARA et M/Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName}, domicilié à {member.quarter} et Tel : {member.phone1}.
@@ -646,8 +694,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           Ce document a été dressé pour faire valoir ce que de droit
         </Text>
 
+        <View />
         <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
+        <View style={{ height: 40 }} />
         <Text style={styles.signatureText14}>Signature Membre(précédée de la mention membre lu et approuvé)</Text>
+        <View style={{ height: 50 }} />
         <Text style={styles.signatureText14}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
       </Page>
     </Document>
