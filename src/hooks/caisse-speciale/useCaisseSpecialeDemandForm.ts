@@ -18,7 +18,7 @@ const defaultValues: Partial<CaisseSpecialeDemandFormInput> = {
   memberId: '',
 }
 
-export function useCaisseSpecialeDemandForm(initialValues?: Partial<CaisseSpecialeDemandFormInput>) {
+export function useCaisseSpecialeDemandForm(initialValues?: Partial<CaisseSpecialeDemandFormInput>, disablePersistence: boolean = false) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -37,7 +37,7 @@ export function useCaisseSpecialeDemandForm(initialValues?: Partial<CaisseSpecia
     defaultValues: mergedDefaultValues,
   })
 
-  const { clearFormData } = useCaisseSpecialeDemandFormPersistence(form)
+  const { clearFormData } = useCaisseSpecialeDemandFormPersistence(form, !disablePersistence)
 
   const resetForm = () => {
     form.reset(defaultValues as CaisseSpecialeDemandFormInput)

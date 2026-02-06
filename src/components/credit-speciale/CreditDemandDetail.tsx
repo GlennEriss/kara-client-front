@@ -20,6 +20,8 @@ import {
   RotateCcw,
   Calculator,
   Loader2,
+  Edit,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreditDemand, CreditDemandStatus } from '@/types/types'
@@ -33,6 +35,8 @@ import { useCreditContractMutations, useCreditContract } from '@/hooks/useCredit
 import { toast } from 'sonner'
 import type { StandardSimulation, CustomSimulation, CreditContract } from '@/types/types'
 import ContractCreationModal from './ContractCreationModal'
+import EditCreditDemandModal from './EditCreditDemandModal'
+import DeleteCreditDemandModal from './DeleteCreditDemandModal'
 import Image from 'next/image'
 import {
   Table,
@@ -95,6 +99,8 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     isOpen: false,
     simulation: null,
   })
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const { createFromDemand } = useCreditContractMutations()
   
   // Récupérer le contrat si il existe
@@ -511,10 +517,18 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
         {demand.status === 'PENDING' && (
           <Card className="border-0 shadow-xl">
             <CardContent className="p-6">
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  onClick={() => setIsEditModalOpen(true)}
+                  variant="outline"
+                  className="border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifier la demande
+                </Button>
                 <Button
                   onClick={() => setValidateModalState({ isOpen: true, action: 'approve' })}
-                  className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
+                  className="flex-1 min-w-[160px] bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Approuver la demande
@@ -522,15 +536,38 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                 <Button
                   onClick={() => setValidateModalState({ isOpen: true, action: 'reject' })}
                   variant="destructive"
-                  className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700"
+                  className="flex-1 min-w-[160px] bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Rejeter la demande
+                </Button>
+                <Button
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer la demande
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Modal de modification */}
+        <EditCreditDemandModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          demand={demand}
+        />
+
+        {/* Modal de suppression */}
+        <DeleteCreditDemandModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          demand={demand}
+          onSuccess={() => router.push(routes.admin.creditSpecialeDemandes)}
+        />
 
         {/* Informations du contrat créé */}
         {demand.status === 'APPROVED' && demand.contractId && (

@@ -1,4 +1,4 @@
-import { ICreditSpecialeService } from "./ICreditSpecialeService";
+import { ICreditSpecialeService, UpdateCreditDemandInput } from "./ICreditSpecialeService";
 import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
@@ -111,6 +111,32 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     async getDemandsStats(filters?: CreditDemandFilters): Promise<CreditDemandStats> {
         return await this.creditDemandRepository.getDemandsStats(filters);
+    }
+
+    async updateDemandDetails(demandId: string, data: UpdateCreditDemandInput, adminId: string): Promise<CreditDemand | null> {
+        const demand = await this.creditDemandRepository.getDemandById(demandId);
+        if (!demand) return null;
+        if (demand.status !== 'PENDING') {
+            throw new Error('Seules les demandes en attente peuvent être modifiées');
+        }
+        return this.creditDemandRepository.updateDemand(demandId, {
+            ...data,
+            updatedBy: adminId,
+        });
+    }
+
+    async deleteDemand(demandId: string): Promise<void> {
+        const demand = await this.creditDemandRepository.getDemandById(demandId);
+        if (!demand) {
+            throw new Error('Demande introuvable');
+        }
+        if (demand.status !== 'PENDING') {
+            throw new Error('Seules les demandes en attente peuvent être supprimées');
+        }
+        if (demand.contractId) {
+            throw new Error('Impossible de supprimer une demande déjà liée à un contrat');
+        }
+        await this.creditDemandRepository.deleteDemand(demandId);
     }
 
     async updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string): Promise<CreditDemand | null> {

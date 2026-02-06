@@ -35,6 +35,7 @@ const routes = {
         caisseSpecialeDemandes: '/caisse-speciale/demandes',
         caisseSpecialeNewDemand: '/caisse-speciale/demandes/nouvelle',
         caisseSpecialeDemandDetails: (id: string) => `/caisse-speciale/demandes/${id}`,
+        caisseSpecialeDemandEdit: (id: string) => `/caisse-speciale/demandes/${id}/edit`,
         caisseSpecialeContractDetails: (id: string) => `/caisse-speciale/contrats/${id}`,
         caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
         caisseSpecialeCreateContract: '/caisse-speciale/contrats/nouveau',

@@ -21,6 +21,7 @@ import {
   FileDown,
   Phone,
   Mail,
+  FileEdit,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useCaisseSpecialeDemand, useCaisseSpecialeDemandMutations } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
@@ -513,6 +514,14 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
         <Card>
           <CardContent className="p-6">
             <div className="flex gap-4">
+              <Button
+                onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demand.id))}
+                variant="outline"
+                className="flex-1 border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+              >
+                <FileEdit className="h-4 w-4 mr-2" />
+                Modifier la demande
+              </Button>
               <Button
                 onClick={() => setAcceptModalOpen(true)}
                 className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
