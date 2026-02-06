@@ -465,4 +465,36 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         }
         await this.caisseSpecialeDemandRepository.deleteDemand(demandId);
     }
+
+    async updateDemandDetails(demandId: string, data: Partial<CaisseSpecialeDemand>, adminId: string): Promise<CaisseSpecialeDemand | null> {
+        // Vérifier que la demande existe et est en statut PENDING
+        const demand = await this.getDemandById(demandId);
+        if (!demand) {
+            throw new Error('Demande introuvable');
+        }
+        if (demand.status !== 'PENDING') {
+            throw new Error('Seules les demandes en attente peuvent être modifiées');
+        }
+
+        // Récupérer le membre pour recalculer les searchableText si nécessaire
+        let searchableTexts: { searchableText?: string; searchableTextFirstNameFirst?: string; searchableTextMatriculeFirst?: string } = {};
+        if (demand.memberId) {
+            const member = await this.memberRepository.getMemberById(demand.memberId);
+            if (member) {
+                const memberLastName = member.lastName || '';
+                const memberFirstName = member.firstName || '';
+                const memberMatricule = member.matricule || '';
+                searchableTexts = generateAllDemandSearchableTexts(memberLastName, memberFirstName, memberMatricule);
+            }
+        }
+
+        // Mettre à jour la demande avec les données fournies + searchableText + traçabilité
+        const updateData: Partial<CaisseSpecialeDemand> = {
+            ...data,
+            ...searchableTexts,
+            updatedBy: adminId,
+        };
+
+        return await this.caisseSpecialeDemandRepository.updateDemand(demandId, updateData);
+    }
 }

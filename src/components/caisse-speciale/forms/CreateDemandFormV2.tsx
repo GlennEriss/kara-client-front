@@ -24,6 +24,8 @@ interface CreateDemandFormV2Props {
   isSubmitting: boolean
   onResetStep?: () => void
   onResetAll?: () => void
+  submitLabel?: string // Label personnalisé pour le bouton de soumission (par défaut: "Créer la demande")
+  submittingLabel?: string // Label personnalisé pendant la soumission (par défaut: "Création...")
 }
 
 const steps = [
@@ -41,6 +43,8 @@ export function CreateDemandFormV2({
   isSubmitting,
   onResetStep,
   onResetAll,
+  submitLabel = 'Créer la demande',
+  submittingLabel = 'Création...',
 }: CreateDemandFormV2Props) {
   const handleResetStep = () => {
     if (onResetStep) {
@@ -214,12 +218,12 @@ export function CreateDemandFormV2({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Création...
+                      {submittingLabel}
                     </>
                   ) : (
                     <>
                       <Check className="w-5 h-5 mr-2" />
-                      Créer la demande
+                      {submitLabel}
                     </>
                   )}
                 </Button>

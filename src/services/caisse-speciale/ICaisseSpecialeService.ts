@@ -12,5 +12,6 @@ export interface ICaisseSpecialeService {
     reopenDemand(demandId: string, adminId: string, reason: string): Promise<CaisseSpecialeDemand | null>;
     convertDemandToContract(demandId: string, adminId: string): Promise<{ demand: CaisseSpecialeDemand; contractId: string } | null>;
     deleteDemand(demandId: string): Promise<void>;
+    updateDemandDetails(demandId: string, data: Partial<CaisseSpecialeDemand>, adminId: string): Promise<CaisseSpecialeDemand | null>;
 }
 

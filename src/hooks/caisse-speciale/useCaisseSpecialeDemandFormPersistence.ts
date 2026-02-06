@@ -1,9 +1,12 @@
 /**
  * Hook pour la persistance du formulaire de création de demande Caisse Spéciale
  * Sauvegarde automatique avec debounce 500ms, restauration au chargement, expiration 24h
+ *
+ * @param form - Instance react-hook-form
+ * @param enabled - Si false, le hook est entièrement no-op (pas de load/save/watch). Utile pour la page d'édition.
  */
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { toast } from 'sonner'
 import type { CaisseSpecialeDemandFormInput } from '@/schemas/caisse-speciale.schema'
@@ -22,9 +25,13 @@ export function useCaisseSpecialeDemandFormPersistence(
   form: UseFormReturn<CaisseSpecialeDemandFormInput>,
   enabled: boolean = true
 ) {
+  // Ref pour avoir toujours la valeur courante de enabled dans les effets (évite les closures stale)
+  const enabledRef = useRef(enabled)
+  enabledRef.current = enabled
+
   const saveFormData = useCallback(
     (data: Partial<CaisseSpecialeDemandFormInput>) => {
-      if (!enabled) return
+      if (!enabledRef.current) return
 
       try {
         const stored: StoredFormData = {
@@ -37,11 +44,11 @@ export function useCaisseSpecialeDemandFormPersistence(
         console.warn('Impossible de sauvegarder le formulaire:', error)
       }
     },
-    [enabled]
+    []
   )
 
   const loadFormData = useCallback((): Partial<CaisseSpecialeDemandFormInput> | null => {
-    if (!enabled) return null
+    if (!enabledRef.current) return null
 
     try {
       const stored = localStorage.getItem(FORM_STORAGE_KEY)
@@ -65,14 +72,15 @@ export function useCaisseSpecialeDemandFormPersistence(
       localStorage.removeItem(FORM_STORAGE_KEY)
       return null
     }
-  }, [enabled])
+  }, [])
 
   const clearFormData = useCallback(() => {
     localStorage.removeItem(FORM_STORAGE_KEY)
   }, [])
 
+  // Auto-save avec watch (uniquement si enabled)
   useEffect(() => {
-    if (!enabled) return
+    if (!enabledRef.current) return
 
     const subscription = form.watch((data) => {
       const timeoutId = setTimeout(() => {
@@ -85,8 +93,9 @@ export function useCaisseSpecialeDemandFormPersistence(
     return () => subscription.unsubscribe()
   }, [form, saveFormData, enabled])
 
+  // Restauration au montage (uniquement si enabled)
   useEffect(() => {
-    if (!enabled) return
+    if (!enabledRef.current) return
 
     const saved = loadFormData()
     if (saved) {
@@ -96,6 +105,7 @@ export function useCaisseSpecialeDemandFormPersistence(
         duration: 3000,
       })
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { saveFormData, loadFormData, clearFormData }

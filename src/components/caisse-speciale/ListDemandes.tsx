@@ -21,6 +21,7 @@ import {
   FileDown,
   FileSpreadsheet,
   Trash2,
+  FileEdit,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -282,6 +283,14 @@ const DemandCard = ({
             <>
               <Button
                 size="sm"
+                onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                <FileEdit className="h-4 w-4 mr-1" />
+                Modifier
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
                 className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
               >
@@ -376,6 +385,9 @@ const DemandTableRow = ({
       <TableCell className="text-right space-x-2">
         {demande.status === 'PENDING' && (
           <>
+            <Button size="sm" variant="outline" onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}>
+              <FileEdit className="h-4 w-4" />
+            </Button>
             <Button size="sm" variant="default" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}>
               Accepter
             </Button>

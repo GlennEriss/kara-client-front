@@ -167,6 +167,22 @@ export function useCaisseSpecialeDemandMutations() {
         },
     })
 
+    const updateDemand = useMutation({
+        mutationFn: ({ demandId, data }: { demandId: string; data: Partial<CaisseSpecialeDemand> }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.updateDemandDetails(demandId, data, user.uid)
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
+            qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
+            qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
+            toast.success('Demande modifiée avec succès')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la modification de la demande')
+        },
+    })
+
     return {
         create,
         approve,
@@ -174,6 +190,7 @@ export function useCaisseSpecialeDemandMutations() {
         reopen,
         convert,
         deleteDemand,
+        updateDemand,
     }
 }
 
