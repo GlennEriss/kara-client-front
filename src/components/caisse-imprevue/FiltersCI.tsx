@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Filter, Search, RefreshCw } from 'lucide-react'
 import { ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 import { ContractsCIFilters } from '@/hooks/caisse-imprevue/useContractsCI'
+import type { CaisseImprevuePaymentFrequency } from '@/types/types'
 
 interface FiltersCIProps {
   filters: ContractsCIFilters
   onFiltersChange: (filters: ContractsCIFilters) => void
   onReset: () => void
+  /** Quand true, le filtre "Type de contrat" est pris en compte (ex. onglet "Tous"). Quand false, il est masqué ou désactivé (ex. onglet Journalier/Mensuel). */
+  showPaymentFrequencyFilter?: boolean
 }
 
 const STATUS_LABELS: Record<ContractCIStatus | 'all', string> = {
@@ -18,7 +21,13 @@ const STATUS_LABELS: Record<ContractCIStatus | 'all', string> = {
   ...CONTRACT_CI_STATUS_LABELS
 }
 
-export default function FiltersCI({ filters, onFiltersChange, onReset }: FiltersCIProps) {
+const PAYMENT_FREQUENCY_LABELS: Record<CaisseImprevuePaymentFrequency | 'all', string> = {
+  all: 'Tous les types',
+  DAILY: 'Quotidien',
+  MONTHLY: 'Mensuel',
+}
+
+export default function FiltersCI({ filters, onFiltersChange, onReset, showPaymentFrequencyFilter = true }: FiltersCIProps) {
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
@@ -44,6 +53,24 @@ export default function FiltersCI({ filters, onFiltersChange, onReset }: Filters
                 onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
               />
             </div>
+
+            {showPaymentFrequencyFilter && (
+              <select
+                className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+                value={filters.paymentFrequency || 'all'}
+                onChange={(e) =>
+                  onFiltersChange({
+                    ...filters,
+                    paymentFrequency: e.target.value as CaisseImprevuePaymentFrequency | 'all',
+                  })
+                }
+                title="Type de contrat"
+              >
+                <option value="all">{PAYMENT_FREQUENCY_LABELS.all}</option>
+                <option value="DAILY">{PAYMENT_FREQUENCY_LABELS.DAILY}</option>
+                <option value="MONTHLY">{PAYMENT_FREQUENCY_LABELS.MONTHLY}</option>
+              </select>
+            )}
 
             <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"

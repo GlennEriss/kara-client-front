@@ -19,6 +19,9 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
+  Grid3X3,
+  List,
+  MoreVertical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
@@ -28,6 +31,13 @@ import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
@@ -43,6 +53,8 @@ const FREQUENCY_LABELS = {
   DAILY: 'Quotidien',
   MONTHLY: 'Mensuel'
 }
+
+type ViewMode = 'grid' | 'list'
 
 /** Formate une date contrat (string YYYY-MM-DD, Timestamp, Date) en fr-FR ou "—" si invalide */
 function formatContractDate(value: string | Date | { toDate?: () => Date } | undefined): string {
@@ -85,8 +97,9 @@ export default function ListContractsCISection() {
     paymentFrequency: 'all'
   })
   const [currentPage, setCurrentPage] = useState(1)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const itemsPerPage = 14
-  
+
   // États pour les modals
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<ContractCI | null>(null)
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
@@ -148,10 +161,11 @@ export default function ListContractsCISection() {
     return false
   }
 
-  // Construire les filtres avec paymentFrequency et overdueOnly selon l'onglet actif
+  // Construire les filtres : dans l'onglet "Tous" (et Retard / Mois en cours), utiliser le filtre "Type de contrat" ; sinon l'onglet impose le type (Journalier / Mensuel)
   const effectiveFilters: ContractsCIFilters = {
     ...filters,
-    paymentFrequency: activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? 'all' : activeTab,
+    paymentFrequency:
+      activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : (filters.paymentFrequency || 'all'),
     overdueOnly: activeTab === 'overdue'
   }
 
@@ -423,6 +437,9 @@ export default function ListContractsCISection() {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
+      <StatisticsCI />
+
       {/* Onglets pour filtrer par type de contrat */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth')} className="w-full">
         <TabsList className="grid w-full max-w-4xl grid-cols-5 gap-2">
@@ -449,14 +466,12 @@ export default function ListContractsCISection() {
         </TabsList>
       </Tabs>
 
-      {/* Statistiques */}
-      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? undefined : (activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : undefined)} />
-
-      {/* Filtres */}
+      {/* Filtres : filtre "Type de contrat" visible uniquement dans l'onglet Tous (et Retard / Mois en cours) */}
       <FiltersCI
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        showPaymentFrequencyFilter={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth'}
       />
 
       {/* Barre d'actions moderne */}
@@ -478,7 +493,27 @@ export default function ListContractsCISection() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Actions avec animations */}
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid' ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                title="Affichage en grille"
+              >
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Grille
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list' ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                title="Affichage en liste"
+              >
+                <List className="h-4 w-4 mr-2" />
+                Liste
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -505,13 +540,14 @@ export default function ListContractsCISection() {
 
       {/* Liste des contrats */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-2'}>
           {[...Array(itemsPerPage)].map((_, i) => (
             <ModernSkeleton key={i} />
           ))}
         </div>
       ) : currentContracts.length > 0 ? (
         <>
+          {viewMode === 'grid' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
             {currentContracts.map((contract: ContractCI, index: number) => (
               <div
@@ -531,67 +567,96 @@ export default function ListContractsCISection() {
                   )}
 
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 bg-blue-100 text-blue-600">
-                          <User className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-mono text-sm font-bold text-gray-900">#{contract.id.slice(-6)}</h3>
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                            {contract.subscriptionCICode}
-                          </span>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0">
+                        <Avatar className="size-12 border border-gray-200 shadow-sm">
+                          {contract.memberPhotoUrl ? (
+                            <AvatarImage src={contract.memberPhotoUrl} alt={`Photo de ${contract.memberFirstName} ${contract.memberLastName}`} />
+                          ) : (
+                            <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                              {`${(contract.memberFirstName || '')[0] || ''}${(contract.memberLastName || '')[0] || ''}`.toUpperCase() || <User className="h-5 w-5" />}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs text-gray-500">Matricule contrat</div>
+                        <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-3">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${STATUS_COLORS[contract.status]}`}>
                         {CONTRACT_CI_STATUS_LABELS[contract.status]}
                       </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                        {contract.subscriptionCICode}
+                      </span>
                     </div>
 
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center justify-between text-sm">
+                    <div className="space-y-2 mt-4 text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Nom:</span>
-                        <span className="font-medium text-gray-900">{contract.memberLastName}</span>
+                        <span className="font-medium text-gray-900">{contract.memberLastName || '—'}</span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Prénom:</span>
-                        <span className="font-medium text-gray-900">{contract.memberFirstName}</span>
+                        <span className="font-medium text-gray-900">{contract.memberFirstName || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Matricule:</span>
+                        <span className="font-mono text-xs font-semibold text-gray-900 break-all">{contract.memberId || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Contacts:</span>
+                        <span className="font-medium text-gray-900 text-right text-xs break-all">
+                          {contract.memberContacts?.length ? contract.memberContacts.join(' / ') : '—'}
+                          {contract.memberEmail ? ` • ${contract.memberEmail}` : ''}
+                        </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="pt-2 text-gray-500">Contact urgent:</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Nom:</span>
+                        <span className="font-medium text-gray-900">{contract.emergencyContact?.lastName || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Prénom:</span>
+                        <span className="font-medium text-gray-900">{contract.emergencyContact?.firstName || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Téléphone:</span>
+                        <span className="font-medium text-gray-900">{contract.emergencyContact?.phone1 || '—'}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Forfait:</span>
                         <span className="font-medium text-gray-900">{contract.subscriptionCILabel || contract.subscriptionCICode}</span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Montant mensuel:</span>
                         <span className="font-semibold text-green-600">
                           {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} FCFA
                         </span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Durée:</span>
                         <span className="font-medium text-gray-900">{contract.subscriptionCIDuration} mois</span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Fréquence:</span>
                         <span className="font-medium text-gray-900">
                           {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
                         </span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Premier versement:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
                           {formatContractDate(contract.firstPaymentDate)}
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Date de fin:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <CalendarDays className="h-3 w-3" />
@@ -602,14 +667,6 @@ export default function ListContractsCISection() {
                             endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
                             return endDate.toLocaleDateString('fr-FR')
                           })() : '—'}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Contact urgence:</span>
-                        <div className="flex items-center gap-1 text-gray-700">
-                          <Phone className="h-3 w-3" />
-                          <span className="text-xs">{contract.emergencyContact?.phone1 || '—'}</span>
                         </div>
                       </div>
                     </div>
@@ -687,6 +744,111 @@ export default function ListContractsCISection() {
               </div>
             ))}
           </div>
+          )}
+
+          {viewMode === 'list' && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+              <table className="min-w-[1000px] w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left px-4 py-3">ID</th>
+                    <th className="text-center px-4 py-3">Statut</th>
+                    <th className="text-left px-4 py-3">Nom</th>
+                    <th className="text-left px-4 py-3">Prénom</th>
+                    <th className="text-left px-4 py-3">Forfait</th>
+                    <th className="text-right px-4 py-3">Montant/mois</th>
+                    <th className="text-center px-4 py-3">Fréquence</th>
+                    <th className="text-left px-4 py-3">Début</th>
+                    <th className="text-left px-4 py-3">Fin</th>
+                    <th className="text-left px-4 py-3">Contact urgence</th>
+                    <th className="text-right px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {currentContracts.map((contract: ContractCI) => (
+                    <tr key={contract.id} className="hover:bg-gray-50/50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900">#{contract.id.slice(-8)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${STATUS_COLORS[contract.status]}`}>
+                          {CONTRACT_CI_STATUS_LABELS[contract.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{contract.memberLastName || '—'}</td>
+                      <td className="px-4 py-3 text-gray-700">{contract.memberFirstName || '—'}</td>
+                      <td className="px-4 py-3">{contract.subscriptionCILabel || contract.subscriptionCICode || '—'}</td>
+                      <td className="px-4 py-3 text-right font-medium text-green-700">
+                        {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} FCFA
+                      </td>
+                      <td className="px-4 py-3 text-center">{FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}</td>
+                      <td className="px-4 py-3 text-gray-700">{formatContractDate(contract.firstPaymentDate)}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {contract.firstPaymentDate
+                          ? (() => {
+                              const start = new Date(contract.firstPaymentDate)
+                              if (isNaN(start.getTime())) return '—'
+                              const end = new Date(start)
+                              end.setMonth(end.getMonth() + (contract.subscriptionCIDuration || 0))
+                              return end.toLocaleDateString('fr-FR')
+                            })()
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{contract.emergencyContact?.phone1 || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
+                                title="Actions"
+                              >
+                                <MoreVertical className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[180px]">
+                              <DropdownMenuItem
+                                onClick={() => handleViewContract(contract.id)}
+                                disabled={!contract.contractStartId}
+                                className="cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ouvrir
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDownloadContract(contract)}
+                                className="cursor-pointer"
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Télécharger PDF
+                              </DropdownMenuItem>
+                              {contract.contractStartId ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleViewUploadedContract(contract)}
+                                  className="cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Voir contrat uploadé
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleUploadContract(contract)}
+                                  className="cursor-pointer"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Téléverser contrat
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Pagination simple */}
           {totalPages > 1 && (

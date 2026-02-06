@@ -19,9 +19,18 @@ import {
   Download,
   Upload,
   Loader2,
+  User,
+  MoreVertical,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -55,12 +64,12 @@ const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
 }
 
 // Composant pour afficher les infos garant avec statut CI
-const GuarantorInfo = ({ 
-  guarantorId, 
-  guarantorFirstName, 
-  guarantorLastName, 
-  guarantorIsMember 
-}: { 
+const GuarantorInfo = ({
+  guarantorId,
+  guarantorFirstName,
+  guarantorLastName,
+  guarantorIsMember,
+}: {
   guarantorId: string
   guarantorFirstName?: string
   guarantorLastName?: string
@@ -69,39 +78,40 @@ const GuarantorInfo = ({
   const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-500 flex items-center gap-1">
           <Shield className="h-3.5 w-3.5" />
           Garant:
         </span>
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900">
-            {guarantorFirstName} {guarantorLastName}
-          </span>
-          {guarantorIsMember && (
-            <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
-          )}
-        </div>
+        {guarantorIsMember && (
+          <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
+        )}
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-500">Nom:</span>
+        <span className="font-medium text-gray-900">{guarantorLastName || '—'}</span>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-500">Prénom:</span>
+        <span className="font-medium text-gray-900">{guarantorFirstName || '—'}</span>
       </div>
       {guarantorIsMember && !isLoading && (
-        <div className="flex items-center justify-between text-xs pl-5">
-          <span className="text-gray-400">Statut CI:</span>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">Statut CI:</span>
           <div className="flex items-center gap-1.5">
             {hasActiveContract ? (
-              <>
-                {isUpToDate ? (
-                  <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    À jour
-                  </Badge>
-                ) : (
-                  <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    En retard
-                  </Badge>
-                )}
-              </>
+              isUpToDate ? (
+                <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  À jour
+                </Badge>
+              ) : (
+                <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  En retard
+                </Badge>
+              )
             ) : (
               <Badge className="bg-gray-50 text-gray-500 border border-gray-300 text-xs">
                 Pas de contrat CI
@@ -583,6 +593,9 @@ const ListContrats = () => {
   return (
     <>
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
+      <StatisticsCreditContrats />
+
       {/* Onglets pour filtrer par retard */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
         <TabsList className="grid w-full max-w-xl grid-cols-2">
@@ -596,9 +609,6 @@ const ListContrats = () => {
           </TabsTrigger>
         </TabsList>
       </Tabs>
-
-      {/* Statistiques */}
-      <StatisticsCreditContrats overdueOnly={activeTab === 'overdue'} />
 
       {/* Filtres */}
       <ContractFilters
@@ -723,17 +733,13 @@ const ListContrats = () => {
         </div>
       ) : currentContrats.length > 0 ? (
         <>
-          <div className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
-              : 'space-y-6'
-          }>
-            {currentContrats.map((contract, index) => (
+          {viewMode === 'grid' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+            {currentContrats.map((contract) => (
               <Card
                 key={contract.id}
                 className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
               >
-                {/* Badge "En retard" */}
                 {isContractOverdue(contract) && (
                   <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
@@ -742,85 +748,109 @@ const ListContrats = () => {
                 )}
 
                 <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-mono text-sm font-bold text-gray-900">#{contract.id.slice(-6)}</h3>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 mt-1">
-                        {getCreditTypeLabel(contract.creditType)}
-                      </span>
+                  <div className="flex items-start gap-3">
+                    <div className="shrink-0">
+                      <Avatar className="size-12 border border-gray-200 shadow-sm">
+                        <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                          {`${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || <User className="h-5 w-5" />}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-gray-500">Matricule contrat</div>
+                      <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mt-3">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
                       {getStatusLabel(contract.status)}
                     </span>
-                  </div>
-
-                  {/* Badge pénalités impayées (plus cohérent que "En retard" basé sur PARTIAL) */}
-                  <div className="mb-3">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                      {getCreditTypeLabel(contract.creditType)}
+                    </span>
                     <UnpaidPenaltiesBadge creditId={contract.id} />
                   </div>
 
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Client:</span>
-                      <span className="font-medium text-gray-900">{contract.clientFirstName} {contract.clientLastName}</span>
+                  <div className="space-y-2 mt-4 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Nom:</span>
+                      <span className="font-medium text-gray-900">{contract.clientLastName || '—'}</span>
                     </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Montant:</span>
-                      <span className="font-semibold text-green-600">
-                        {contract.amount.toLocaleString('fr-FR')} FCFA
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Prénom:</span>
+                      <span className="font-medium text-gray-900">{contract.clientFirstName || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Matricule:</span>
+                      <span className="font-mono text-xs font-semibold text-gray-900 break-all">{contract.clientId || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Contacts:</span>
+                      <span className="font-medium text-gray-900 text-right text-xs break-all">
+                        {contract.clientContacts?.length ? contract.clientContacts.join(' / ') : '—'}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm">
+                    {contract.emergencyContact && (
+                      <>
+                        <div className="pt-2 text-gray-500">Contact urgent:</div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Nom:</span>
+                          <span className="font-medium text-gray-900">{contract.emergencyContact.lastName || '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Prénom:</span>
+                          <span className="font-medium text-gray-900">{contract.emergencyContact.firstName || '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Téléphone:</span>
+                          <span className="font-medium text-gray-900">{contract.emergencyContact.phone1 || '—'}</span>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Montant:</span>
+                      <span className="font-semibold text-green-600">{contract.amount.toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-gray-500">Durée:</span>
                       <span className="font-medium text-gray-900">{contract.duration} mois</span>
                     </div>
-
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between">
                       <span className="text-gray-500">Versé:</span>
-                      <span className="font-semibold text-green-600">
-                        {contract.amountPaid.toLocaleString('fr-FR')} FCFA
-                      </span>
+                      <span className="font-semibold text-green-600">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</span>
                     </div>
-
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between">
                       <span className="text-gray-500">Reste:</span>
-                      <span className="font-semibold text-orange-600">
-                        {Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA
-                      </span>
+                      <span className="font-semibold text-orange-600">{Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA</span>
                     </div>
-
                     {contract.nextDueAt && (
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Prochaine échéance:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
-                          {contract.nextDueAt instanceof Date 
-                            ? contract.nextDueAt.toLocaleDateString('fr-FR')
-                            : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')}
+                          {contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')}
                         </div>
                       </div>
                     )}
-
                     {contract.guarantorId && (
-                      <GuarantorInfo 
+                      <GuarantorInfo
                         guarantorId={contract.guarantorId}
                         guarantorFirstName={contract.guarantorFirstName}
                         guarantorLastName={contract.guarantorLastName}
                         guarantorIsMember={contract.guarantorIsMember}
                       />
                     )}
-
-                    {/* Score toujours affiché pour admin */}
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between">
                       <span className="text-gray-500">Score:</span>
                       <Badge className={cn(
-                        "font-bold text-sm px-2.5 py-1",
-                        contract.score !== undefined && contract.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
-                        contract.score !== undefined && contract.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
-                        contract.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
-                        "bg-gray-100 text-gray-500 border border-gray-300"
+                        'font-bold text-sm px-2.5 py-1',
+                        contract.score !== undefined && contract.score >= 8 ? 'bg-green-100 text-green-700 border border-green-300' :
+                        contract.score !== undefined && contract.score >= 5 ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
+                        contract.score !== undefined ? 'bg-red-100 text-red-700 border border-red-300' :
+                        'bg-gray-100 text-gray-500 border border-gray-300'
                       )}>
                         {contract.score !== undefined ? `${contract.score}/10` : 'N/A'}
                       </Badge>
@@ -835,8 +865,6 @@ const ListContrats = () => {
                       <Eye className="h-4 w-4" />
                       Ouvrir
                     </Button>
-                    
-                    {/* Bouton télécharger contrat */}
                     {contract.contractUrl ? (
                       <Button
                         variant="outline"
@@ -849,25 +877,17 @@ const ListContrats = () => {
                     ) : contract.status === 'PENDING' && (
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          setSelectedContractForPDF(contract)
-                          setShowContractPDFModal(true)
-                        }}
+                        onClick={() => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                       >
                         <FileText className="h-4 w-4" />
                         Générer contrat
                       </Button>
                     )}
-                    
-                    {/* Bouton téléverser contrat signé (si statut PENDING) */}
                     {contract.status === 'PENDING' && (
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          setSelectedContractForUpload(contract)
-                          setShowUploadModal(true)
-                        }}
+                        onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
                       >
                         <Upload className="h-4 w-4" />
@@ -879,6 +899,104 @@ const ListContrats = () => {
               </Card>
             ))}
           </div>
+          )}
+
+          {viewMode === 'list' && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+              <table className="min-w-[1200px] w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left px-4 py-3">Photo</th>
+                    <th className="text-left px-4 py-3">Matricule contrat</th>
+                    <th className="text-center px-4 py-3">Statut</th>
+                    <th className="text-left px-4 py-3">Type</th>
+                    <th className="text-left px-4 py-3">Nom</th>
+                    <th className="text-left px-4 py-3">Prénom</th>
+                    <th className="text-left px-4 py-3">Matricule</th>
+                    <th className="text-left px-4 py-3">Contacts</th>
+                    <th className="text-left px-4 py-3">Contact urgent</th>
+                    <th className="text-right px-4 py-3">Montant</th>
+                    <th className="text-right px-4 py-3">Versé</th>
+                    <th className="text-right px-4 py-3">Reste</th>
+                    <th className="text-right px-4 py-3">Prochaine échéance</th>
+                    <th className="text-left px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {currentContrats.map((contract) => (
+                    <tr key={contract.id} className="hover:bg-gray-50/50">
+                      <td className="px-4 py-3">
+                        <Avatar className="size-9 border border-gray-200 shadow-sm">
+                          <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold text-xs">
+                            {`${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || '—'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900 break-all">{contract.id}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
+                          {getStatusLabel(contract.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{getCreditTypeLabel(contract.creditType)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{contract.clientLastName || '—'}</td>
+                      <td className="px-4 py-3 text-gray-700">{contract.clientFirstName || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900 break-all">{contract.clientId || '—'}</td>
+                      <td className="px-4 py-3 text-xs break-all">{contract.clientContacts?.length ? contract.clientContacts.join(' / ') : '—'}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {contract.emergencyContact ? (
+                          <div>
+                            <div>{contract.emergencyContact.lastName || '—'} {contract.emergencyContact.firstName || ''}</div>
+                            <div>{contract.emergencyContact.phone1 || '—'}</div>
+                          </div>
+                        ) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-green-700">{contract.amount.toLocaleString('fr-FR')} FCFA</td>
+                      <td className="px-4 py-3 text-right">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</td>
+                      <td className="px-4 py-3 text-right font-medium text-orange-600">{Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA</td>
+                      <td className="px-4 py-3 text-right text-gray-700">
+                        {contract.nextDueAt ? (contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100" title="Actions">
+                                <MoreVertical className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[200px]">
+                              <DropdownMenuItem onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)} className="cursor-pointer">
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ouvrir
+                              </DropdownMenuItem>
+                              {contract.contractUrl ? (
+                                <DropdownMenuItem onClick={() => window.open(contract.contractUrl, '_blank')} className="cursor-pointer">
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Télécharger contrat
+                                </DropdownMenuItem>
+                              ) : contract.status === 'PENDING' && (
+                                <DropdownMenuItem onClick={() => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }} className="cursor-pointer">
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Générer contrat
+                                </DropdownMenuItem>
+                              )}
+                              {contract.status === 'PENDING' && (
+                                <DropdownMenuItem onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }} className="cursor-pointer">
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Téléverser contrat signé
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
