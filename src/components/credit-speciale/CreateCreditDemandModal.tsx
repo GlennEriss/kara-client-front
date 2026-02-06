@@ -76,7 +76,7 @@ export default function CreateCreditDemandModal({
     if (member) {
       setSelectedClientId(memberId)
       form.setValue('clientId', memberId)
-      form.setValue('clientFirstName', member.firstName)
+      form.setValue('clientFirstName', member.firstName || '')
       form.setValue('clientLastName', member.lastName)
       form.setValue('clientContacts', member.contacts || [])
       setClientSearch('')
@@ -89,7 +89,7 @@ export default function CreateCreditDemandModal({
     if (member) {
       setSelectedGuarantorId(memberId)
       form.setValue('guarantorId', memberId)
-      form.setValue('guarantorFirstName', member.firstName)
+      form.setValue('guarantorFirstName', member.firstName || '')
       form.setValue('guarantorLastName', member.lastName)
       form.setValue('guarantorIsMember', true)
       setGuarantorSearch('')
@@ -194,7 +194,7 @@ export default function CreateCreditDemandModal({
                           >
                             <User className="h-5 w-5 text-gray-400" />
                             <div className="flex-1">
-                              <div className="font-medium">{member.firstName} {member.lastName}</div>
+                              <div className="font-medium">{[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}</div>
                               <div className="text-sm text-gray-500">Matricule: {member.matricule}</div>
                             </div>
                           </div>
@@ -209,7 +209,7 @@ export default function CreateCreditDemandModal({
                         <CheckCircle className="h-5 w-5 text-green-600" />
                         <div>
                           <div className="font-medium text-green-900">
-                            {form.watch('clientFirstName')} {form.watch('clientLastName')}
+                            {[form.watch('clientFirstName'), form.watch('clientLastName')].filter(Boolean).join(' ') || 'Client'}
                           </div>
                           <div className="text-sm text-green-700">Client sélectionné</div>
                         </div>
@@ -353,7 +353,7 @@ export default function CreateCreditDemandModal({
                           >
                             <User className="h-5 w-5 text-gray-400" />
                             <div className="flex-1">
-                              <div className="font-medium">{member.firstName} {member.lastName}</div>
+                              <div className="font-medium">{[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}</div>
                               <div className="text-sm text-gray-500">Matricule: {member.matricule}</div>
                             </div>
                           </div>
@@ -368,7 +368,7 @@ export default function CreateCreditDemandModal({
                         <User className="h-5 w-5 text-blue-600" />
                         <div>
                           <div className="font-medium text-blue-900">
-                            {form.watch('guarantorFirstName')} {form.watch('guarantorLastName')}
+                            {[form.watch('guarantorFirstName'), form.watch('guarantorLastName')].filter(Boolean).join(' ') || 'Garant'}
                           </div>
                           <div className="text-sm text-blue-700">Garant sélectionné</div>
                         </div>

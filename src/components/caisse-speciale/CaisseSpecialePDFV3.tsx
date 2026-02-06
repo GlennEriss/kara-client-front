@@ -297,7 +297,10 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
     caisseType === 'JOURNALIERE_CHARITABLE'
   const memberFullName = `${contract?.member?.lastName ?? ''} ${contract?.member?.firstName ?? ''}`.trim() || '—'
   const memberAddress = contract?.member?.address?.district || '—'
-  const memberPhone = contract?.member?.contacts?.[0] || '—'
+  const memberPhones =
+    Array.isArray(contract?.member?.contacts) && contract.member.contacts.length > 0
+      ? contract.member.contacts.filter(Boolean).join(' / ')
+      : '—'
   const durationMonths = contract?.monthsPlanned || 12
   const amountValue = Number(contract?.monthlyAmount ?? 0)
   const amountInWords = amountValue ? `${numberToWords(amountValue)} francs CFA` : '—'
@@ -369,10 +372,8 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
           <TableRow
             height={26.15}
             cells={[
-              { content: 'TÉLÉPHONE 1', textStyle: styles.tableLabelText },
-              { content: contract?.member?.contacts?.[0] || '—', textStyle: styles.tableValueText },
-              { content: 'TÉLÉPHONE 2', textStyle: styles.tableLabelText },
-              { content: contract?.member?.contacts?.[1] || '—', textStyle: styles.tableValueText },
+              { content: 'TÉLÉPHONES', textStyle: styles.tableLabelText },
+              { content: memberPhones, span: 3, textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
@@ -556,7 +557,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={styles.paragraphIndented}>Je soussigné(e),</Text>
         <Text style={[styles.paragraphIndented, { fontWeight: 'bold' }]}>{memberFullName}</Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          membre de l’association KARA, domicilié à {memberAddress} et joignable au {memberPhone}.
+          membre de l’association KARA, domicilié à {memberAddress} et joignable au {memberPhones}.
         </Text>
 
         <Text style={styles.articleTitle}>ARTICLE 1 : OBJET DU CONTRAT</Text>

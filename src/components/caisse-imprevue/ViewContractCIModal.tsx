@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Download, Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { Download, Loader2, FileText, Smartphone, Monitor } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ContractCI } from '@/types/types'
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer'
-import CaisseImprevuePDF from './CaisseImprevuePDF'
-import { usePaymentsCI } from '@/hooks/caisse-imprevue'
+import { useMemberById } from '@/domains/memberships/hooks/useMemberById'
+import CaisseImprevuePDFV3 from './CaisseImprevuePDFV3'
 
 // Hook pour détecter le mobile
 const useIsMobile = () => {
@@ -47,13 +47,15 @@ export default function ViewContractCIModal({
 }: ViewContractCIModalProps) {
   const _isMobile = useIsMobile()
   const [isGenerating, setIsGenerating] = useState(true)
+  const { data: member, isLoading: memberLoading } = useMemberById(contract?.memberId)
 
-  // Récupérer les paiements pour le récapitulatif
-  const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract?.id)
+  const contractWithMember = useMemo(() => {
+    if (!contract) return null
+    return { ...contract, member: member ?? undefined }
+  }, [contract, member])
 
   React.useEffect(() => {
     if (isOpen && contract) {
-      // Simuler un délai de génération
       setIsGenerating(true)
       const timer = setTimeout(() => {
         setIsGenerating(false)
@@ -61,6 +63,8 @@ export default function ViewContractCIModal({
       return () => clearTimeout(timer)
     }
   }, [isOpen, contract])
+
+  const isLoading = isGenerating || (Boolean(contract?.memberId) && memberLoading)
 
   if (!contract) return null
 
@@ -85,16 +89,16 @@ export default function ViewContractCIModal({
             </div>
           </div>
           <PDFDownloadLink
-            document={<CaisseImprevuePDF contract={contract} payments={payments} />}
+            document={<CaisseImprevuePDFV3 contract={contractWithMember ?? contract} />}
             fileName={`Contrat_CI_${contract.memberLastName}_${contract.id.slice(-6)}.pdf`}
           >
             {({ loading }) => (
               <Button
-                disabled={loading || isLoadingPayments}
+                disabled={loading}
                 className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
               >
                 <div className="flex items-center gap-2">
-                  {loading || isLoadingPayments ? (
+                  {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span className="hidden lg:inline">Préparation...</span>
@@ -113,12 +117,12 @@ export default function ViewContractCIModal({
 
         {/* Contenu principal */}
         <div className="flex-1 min-h-[600px] lg:h-[calc(95vh-150px)] overflow-hidden">
-          {isGenerating || isLoadingPayments ? (
+          {isLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center space-y-4">
                 <Loader2 className="w-12 h-12 animate-spin text-[#234D65] mx-auto" />
                 <p className="text-gray-600">
-                  {isLoadingPayments ? 'Chargement des paiements...' : 'Génération du document...'}
+                  Génération du document...
                 </p>
               </div>
             </div>
@@ -157,10 +161,6 @@ export default function ViewContractCIModal({
                         <span className="font-medium text-gray-900">{contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA/mois</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Versements:</span>
-                        <span className="font-medium text-gray-900">{payments.length} / 12</span>
-                      </div>
-                      <div className="flex items-center justify-between">
                         <span className="text-gray-600">Format:</span>
                         <span className="font-medium text-gray-900 uppercase">PDF</span>
                       </div>
@@ -169,7 +169,7 @@ export default function ViewContractCIModal({
                     {/* Bouton de téléchargement mobile */}
                     <div className="w-full space-y-2">
                       <PDFDownloadLink
-                        document={<CaisseImprevuePDF contract={contract} payments={payments} />}
+                        document={<CaisseImprevuePDFV3 contract={contractWithMember ?? contract} />}
                         fileName={`Contrat_CI_${contract.memberLastName}_${contract.id.slice(-6)}.pdf`}
                         className="w-full"
                       >
@@ -218,7 +218,7 @@ export default function ViewContractCIModal({
                   }}
                   showToolbar={true}
                 >
-                  <CaisseImprevuePDF contract={contract} payments={payments} />
+                  <CaisseImprevuePDFV3 contract={contractWithMember ?? contract} />
                 </PDFViewer>
               </div>
             </>
@@ -228,4 +228,3 @@ export default function ViewContractCIModal({
     </Dialog>
   )
 }
-

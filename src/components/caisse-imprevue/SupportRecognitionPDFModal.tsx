@@ -6,20 +6,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileSignature, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
-import SupportRecognitionPDF from './SupportRecognitionPDF'
+import SupportRecognitionPDF, { type SupportRecognitionContract } from './SupportRecognitionPDF'
 import { format } from 'date-fns'
 
 interface SupportRecognitionPDFModalProps {
   isOpen: boolean
   onClose: () => void
-  contract: {
-    memberFirstName: string
-    memberLastName: string
-    subscriptionCICode: string
-    subscriptionCIAmountPerMonth: number
+  /** Contrat avec au minimum les champs pour le PDF (membre, forfait, nominal, appui min/max) */
+  contract: SupportRecognitionContract & {
     firstPaymentDate?: string
     createdAt?: Date
   }
+  /** Prochaine échéance à payer (premier mois DUE). Si non fourni, fallback = date du jour + 30 j */
+  nextDueDate?: Date | null
   support?: {
     approvedAt: Date
   } | null
@@ -29,10 +28,12 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
   isOpen,
   onClose,
   contract,
+  nextDueDate,
   support
 }) => {
   const [isExporting, setIsExporting] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [datePriseAide, setDatePriseAide] = useState(() => new Date())
 
   // Détecter si on est sur mobile
   React.useEffect(() => {
@@ -46,20 +47,18 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
-  // Date de référence : support approuvé ou date du contrat
-  const supportDate = React.useMemo(() => {
-    if (support?.approvedAt) return new Date(support.approvedAt)
-    if (contract.firstPaymentDate) return new Date(contract.firstPaymentDate)
-    if (contract.createdAt) return new Date(contract.createdAt)
-    return new Date()
-  }, [support?.approvedAt, contract.firstPaymentDate, contract.createdAt])
+  // Date de la prise d'aide = date actuelle à l'ouverture du modal
+  React.useEffect(() => {
+    if (isOpen) setDatePriseAide(new Date())
+  }, [isOpen])
 
-  // Calculer la date limite de remboursement (référence + 30 jours)
-  const dueDate = React.useMemo(() => {
-    const date = new Date(supportDate)
-    date.setDate(date.getDate() + 30)
-    return date
-  }, [supportDate])
+  // Prochaine échéance à payer : fournie par le parent, sinon fallback (date du jour + 30 j)
+  const dateProchaineEcheance = React.useMemo(() => {
+    if (nextDueDate) return new Date(nextDueDate)
+    const fallback = new Date(datePriseAide)
+    fallback.setDate(fallback.getDate() + 30)
+    return fallback
+  }, [nextDueDate, datePriseAide])
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
@@ -68,8 +67,8 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
       const blob = await pdf(
         <SupportRecognitionPDF
           contract={contract}
-          supportDate={supportDate}
-          dueDate={dueDate}
+          datePriseAide={datePriseAide}
+          dateProchaineEcheance={dateProchaineEcheance}
         />
       ).toBlob()
       
@@ -182,8 +181,8 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
                 document={
                   <SupportRecognitionPDF
                     contract={contract}
-                    supportDate={supportDate}
-                    dueDate={dueDate}
+                    datePriseAide={datePriseAide}
+                    dateProchaineEcheance={dateProchaineEcheance}
                   />
                 }
               >
@@ -245,8 +244,8 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
             }}>
               <SupportRecognitionPDF
                 contract={contract}
-                supportDate={supportDate}
-                dueDate={dueDate}
+                datePriseAide={datePriseAide}
+                dateProchaineEcheance={dateProchaineEcheance}
               />
             </PDFViewer>
           </div>
