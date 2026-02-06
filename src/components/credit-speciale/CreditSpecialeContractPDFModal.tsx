@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
-import AdhesionCreditSpecialeV2 from './AdhesionCreditSpecialeV2'
+import AdhesionCreditSpecialeV3 from './AdhesionCreditSpecialeV3'
 import { CreditContract } from '@/types/types'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 
@@ -50,7 +50,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
       toast.info('Génération du PDF en cours...')
 
       const doc = (
-        <AdhesionCreditSpecialeV2
+        <AdhesionCreditSpecialeV3
           contract={contract}
           memberData={memberData}
           guarantorData={guarantorData}
@@ -88,7 +88,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
       toast.info('Génération et enregistrement du PDF en cours...')
 
       const doc = (
-        <AdhesionCreditSpecialeV2
+        <AdhesionCreditSpecialeV3
           contract={contract}
           memberData={memberData}
           guarantorData={guarantorData}
@@ -213,7 +213,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                   {/* Boutons d'action mobile */}
                   <BlobProvider 
                     document={
-                      <AdhesionCreditSpecialeV2
+                      <AdhesionCreditSpecialeV3
                         contract={contract}
                         memberData={memberData}
                         guarantorData={guarantorData}
@@ -276,11 +276,11 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <AdhesionCreditSpecialeV2
-                    contract={contract}
-                    memberData={memberData}
-                    guarantorData={guarantorData}
-                  />
+                <AdhesionCreditSpecialeV3
+                  contract={contract}
+                  memberData={memberData}
+                  guarantorData={guarantorData}
+                />
                 </PDFViewer>
               </div>
             </>
