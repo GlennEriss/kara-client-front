@@ -31,6 +31,7 @@ import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -566,67 +567,96 @@ export default function ListContractsCISection() {
                   )}
 
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 bg-blue-100 text-blue-600">
-                          <User className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-mono text-sm font-bold text-gray-900">#{contract.id.slice(-6)}</h3>
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                            {contract.subscriptionCICode}
-                          </span>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0">
+                        <Avatar className="size-12 border border-gray-200 shadow-sm">
+                          {contract.memberPhotoUrl ? (
+                            <AvatarImage src={contract.memberPhotoUrl} alt={`Photo de ${contract.memberFirstName} ${contract.memberLastName}`} />
+                          ) : (
+                            <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                              {`${(contract.memberFirstName || '')[0] || ''}${(contract.memberLastName || '')[0] || ''}`.toUpperCase() || <User className="h-5 w-5" />}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs text-gray-500">Matricule contrat</div>
+                        <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-3">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${STATUS_COLORS[contract.status]}`}>
                         {CONTRACT_CI_STATUS_LABELS[contract.status]}
                       </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                        {contract.subscriptionCICode}
+                      </span>
                     </div>
 
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center justify-between text-sm">
+                    <div className="space-y-2 mt-4 text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Nom:</span>
-                        <span className="font-medium text-gray-900">{contract.memberLastName}</span>
+                        <span className="font-medium text-gray-900">{contract.memberLastName || '—'}</span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Prénom:</span>
-                        <span className="font-medium text-gray-900">{contract.memberFirstName}</span>
+                        <span className="font-medium text-gray-900">{contract.memberFirstName || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Matricule:</span>
+                        <span className="font-mono text-xs font-semibold text-gray-900 break-all">{contract.memberId || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Contacts:</span>
+                        <span className="font-medium text-gray-900 text-right text-xs break-all">
+                          {contract.memberContacts?.length ? contract.memberContacts.join(' / ') : '—'}
+                          {contract.memberEmail ? ` • ${contract.memberEmail}` : ''}
+                        </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="pt-2 text-gray-500">Contact urgent:</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Nom:</span>
+                        <span className="font-medium text-gray-900">{contract.emergencyContact?.lastName || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Prénom:</span>
+                        <span className="font-medium text-gray-900">{contract.emergencyContact?.firstName || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Téléphone:</span>
+                        <span className="font-medium text-gray-900">{contract.emergencyContact?.phone1 || '—'}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Forfait:</span>
                         <span className="font-medium text-gray-900">{contract.subscriptionCILabel || contract.subscriptionCICode}</span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Montant mensuel:</span>
                         <span className="font-semibold text-green-600">
                           {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} FCFA
                         </span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Durée:</span>
                         <span className="font-medium text-gray-900">{contract.subscriptionCIDuration} mois</span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Fréquence:</span>
                         <span className="font-medium text-gray-900">
                           {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
                         </span>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Premier versement:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
                           {formatContractDate(contract.firstPaymentDate)}
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-500">Date de fin:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <CalendarDays className="h-3 w-3" />
@@ -637,14 +667,6 @@ export default function ListContractsCISection() {
                             endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
                             return endDate.toLocaleDateString('fr-FR')
                           })() : '—'}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Contact urgence:</span>
-                        <div className="flex items-center gap-1 text-gray-700">
-                          <Phone className="h-3 w-3" />
-                          <span className="text-xs">{contract.emergencyContact?.phone1 || '—'}</span>
                         </div>
                       </div>
                     </div>
