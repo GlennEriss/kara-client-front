@@ -32,6 +32,7 @@ import { useCreditDemands, useCreditDemandsStats, useCreditDemandMutations } fro
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import CreateCreditDemandModal from './CreateCreditDemandModal'
 import EditCreditDemandModal from './EditCreditDemandModal'
+import DeleteCreditDemandModal from './DeleteCreditDemandModal'
 import ValidateDemandModal from './ValidateDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import CreditSimulationModal from './CreditSimulationModal'
@@ -40,7 +41,7 @@ import StatisticsCreditDemandes from './StatisticsCreditDemandes'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import type { StandardSimulation, CustomSimulation } from '@/types/types'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Eye, Calendar, Edit } from 'lucide-react'
+import { Eye, Calendar, Edit, Trash2 } from 'lucide-react'
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import { useMember } from '@/hooks/useMembers'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
@@ -334,6 +335,10 @@ const ListDemandes = () => {
     simulation: null,
   })
   const [editModalState, setEditModalState] = useState<{
+    isOpen: boolean
+    demand: CreditDemand | null
+  }>({ isOpen: false, demand: null })
+  const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean
     demand: CreditDemand | null
   }>({ isOpen: false, demand: null })
@@ -947,6 +952,15 @@ const ListDemandes = () => {
                           <XCircle className="h-4 w-4 mr-1" />
                           Rejeter
                         </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
+                          variant="outline"
+                          className="w-full border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Supprimer
+                        </Button>
                       </>
                     )}
                     {demande.status === 'APPROVED' && (
@@ -1089,6 +1103,15 @@ const ListDemandes = () => {
           isOpen={editModalState.isOpen}
           onClose={() => setEditModalState({ isOpen: false, demand: null })}
           demand={editModalState.demand}
+        />
+      )}
+
+      {/* Modal de suppression */}
+      {deleteModalState.demand && (
+        <DeleteCreditDemandModal
+          isOpen={deleteModalState.isOpen}
+          onClose={() => setDeleteModalState({ isOpen: false, demand: null })}
+          demand={deleteModalState.demand}
         />
       )}
 

@@ -110,7 +110,20 @@ export function useCreditDemandMutations() {
         },
     })
 
-    return { create, updateStatus, updateDemand }
+    const deleteDemand = useMutation({
+        mutationFn: (demandId: string) => service.deleteDemand(demandId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['creditDemands'] })
+            qc.invalidateQueries({ queryKey: ['creditDemand'] })
+            qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
+            toast.success('Demande supprimée')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la suppression de la demande')
+        },
+    })
+
+    return { create, updateStatus, updateDemand, deleteDemand }
 }
 
 // ==================== CONTRATS ====================

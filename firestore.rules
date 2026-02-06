@@ -726,8 +726,10 @@ service cloud.firestore {
       // MISE À JOUR : Admin uniquement (approbation, refus, réouverture)
       allow update: if isAdmin();
       
-      // SUPPRESSION : Admin uniquement (seulement demandes REJECTED)
-      allow delete: if isAdmin() && resource.data.status == 'REJECTED';
+      // SUPPRESSION : Admin uniquement, seulement demandes PENDING sans contrat lié
+      allow delete: if isAdmin() &&
+        resource.data.status == 'PENDING' &&
+        (!('contractId' in resource.data) || resource.data.get('contractId', null) == null);
     }
     
     // ==========================================

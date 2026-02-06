@@ -21,6 +21,7 @@ import {
   Calculator,
   Loader2,
   Edit,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreditDemand, CreditDemandStatus } from '@/types/types'
@@ -35,6 +36,7 @@ import { toast } from 'sonner'
 import type { StandardSimulation, CustomSimulation, CreditContract } from '@/types/types'
 import ContractCreationModal from './ContractCreationModal'
 import EditCreditDemandModal from './EditCreditDemandModal'
+import DeleteCreditDemandModal from './DeleteCreditDemandModal'
 import Image from 'next/image'
 import {
   Table,
@@ -98,6 +100,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     simulation: null,
   })
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const { createFromDemand } = useCreditContractMutations()
   
   // Récupérer le contrat si il existe
@@ -538,6 +541,14 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                   <XCircle className="h-4 w-4 mr-2" />
                   Rejeter la demande
                 </Button>
+                <Button
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer la demande
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -548,6 +559,14 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           demand={demand}
+        />
+
+        {/* Modal de suppression */}
+        <DeleteCreditDemandModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          demand={demand}
+          onSuccess={() => router.push(routes.admin.creditSpecialeDemandes)}
         />
 
         {/* Informations du contrat créé */}

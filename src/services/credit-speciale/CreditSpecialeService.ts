@@ -125,6 +125,20 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         });
     }
 
+    async deleteDemand(demandId: string): Promise<void> {
+        const demand = await this.creditDemandRepository.getDemandById(demandId);
+        if (!demand) {
+            throw new Error('Demande introuvable');
+        }
+        if (demand.status !== 'PENDING') {
+            throw new Error('Seules les demandes en attente peuvent être supprimées');
+        }
+        if (demand.contractId) {
+            throw new Error('Impossible de supprimer une demande déjà liée à un contrat');
+        }
+        await this.creditDemandRepository.deleteDemand(demandId);
+    }
+
     async updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string): Promise<CreditDemand | null> {
         const demand = await this.creditDemandRepository.updateDemand(id, {
             status,

@@ -28,6 +28,8 @@ export interface ICreditSpecialeService {
     updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string): Promise<CreditDemand | null>;
     /** Modifie les champs métier d'une demande (uniquement si status === PENDING). */
     updateDemandDetails(demandId: string, data: UpdateCreditDemandInput, adminId: string): Promise<CreditDemand | null>;
+    /** Supprime une demande (uniquement si PENDING et sans contrat). */
+    deleteDemand(demandId: string): Promise<void>;
 
     // Contrats
     createContractFromDemand(

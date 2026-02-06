@@ -464,31 +464,29 @@ export default function AdminCaisseSettingsPage() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-                                    {process.env.NODE_ENV === 'development' && (
-                                      <button
-                                        className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0"
-                                        onClick={() => {
-                                          setEditId(s.id)
-                                          const bt = (s as any)?.bonusTable || {}
-                                          const prefilled: Record<string, number> = {}
-                                          for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
-                                          setEditBonusTable(prefilled)
-                                          const pr = (s as any)?.penaltyRules || {}
-                                          if (pr.day4To12?.steps) {
-                                            setEditUseSteps(true)
-                                            setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
-                                            setEditPerDay(0)
-                                          } else {
-                                            setEditUseSteps(false)
-                                            setEditSteps([])
-                                            setEditPerDay(Number(pr.day4To12?.perDay || 0))
-                                          }
-                                        }}
-                                        title="Éditer"
-                                      >
-                                        <Edit3 className="h-4 w-4 sm:h-4 sm:w-4" />
-                                      </button>
-                                    )}
+                                    <button
+                                      className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0"
+                                      onClick={() => {
+                                        setEditId(s.id)
+                                        const bt = (s as any)?.bonusTable || {}
+                                        const prefilled: Record<string, number> = {}
+                                        for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
+                                        setEditBonusTable(prefilled)
+                                        const pr = (s as any)?.penaltyRules || {}
+                                        if (pr.day4To12?.steps) {
+                                          setEditUseSteps(true)
+                                          setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
+                                          setEditPerDay(0)
+                                        } else {
+                                          setEditUseSteps(false)
+                                          setEditSteps([])
+                                          setEditPerDay(Number(pr.day4To12?.perDay || 0))
+                                        }
+                                      }}
+                                      title="Éditer"
+                                    >
+                                      <Edit3 className="h-4 w-4 sm:h-4 sm:w-4" />
+                                    </button>
                                     {!s.isActive && (
                                       <button 
                                         className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0" 
@@ -505,15 +503,13 @@ export default function AdminCaisseSettingsPage() {
                                         <Power className="h-4 w-4 sm:h-4 sm:w-4" />
                                       </button>
                                     )}
-                                    {process.env.NODE_ENV === 'development' && (
-                                      <button 
-                                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0" 
-                                        onClick={() => setConfirmDeleteId(s.id)}
-                                        title="Supprimer"
-                                      >
-                                        <Trash2 className="h-4 w-4 sm:h-4 sm:w-4" />
-                                      </button>
-                                    )}
+                                    <button 
+                                      className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0" 
+                                      onClick={() => setConfirmDeleteId(s.id)}
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 className="h-4 w-4 sm:h-4 sm:w-4" />
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -530,7 +526,7 @@ export default function AdminCaisseSettingsPage() {
         </div>
 
         {/* Modal de confirmation de suppression */}
-        {process.env.NODE_ENV === 'development' && confirmDeleteId && (
+        {confirmDeleteId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
               <div className="bg-red-50 border-b border-red-100 p-6">
@@ -570,7 +566,7 @@ export default function AdminCaisseSettingsPage() {
         )}
 
         {/* Modal d'édition */}
-        {process.env.NODE_ENV === 'development' && editId && (
+        {editId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden my-4 sm:my-0 flex flex-col">
               <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-4 sm:p-6 shrink-0">
