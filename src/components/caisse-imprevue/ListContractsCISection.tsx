@@ -19,6 +19,9 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
+  Grid3X3,
+  List,
+  MoreVertical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
@@ -28,6 +31,12 @@ import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
@@ -43,6 +52,8 @@ const FREQUENCY_LABELS = {
   DAILY: 'Quotidien',
   MONTHLY: 'Mensuel'
 }
+
+type ViewMode = 'grid' | 'list'
 
 /** Formate une date contrat (string YYYY-MM-DD, Timestamp, Date) en fr-FR ou "—" si invalide */
 function formatContractDate(value: string | Date | { toDate?: () => Date } | undefined): string {
@@ -85,8 +96,9 @@ export default function ListContractsCISection() {
     paymentFrequency: 'all'
   })
   const [currentPage, setCurrentPage] = useState(1)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const itemsPerPage = 14
-  
+
   // États pour les modals
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<ContractCI | null>(null)
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
@@ -424,6 +436,9 @@ export default function ListContractsCISection() {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
+      <StatisticsCI />
+
       {/* Onglets pour filtrer par type de contrat */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth')} className="w-full">
         <TabsList className="grid w-full max-w-4xl grid-cols-5 gap-2">
@@ -449,9 +464,6 @@ export default function ListContractsCISection() {
           </TabsTrigger>
         </TabsList>
       </Tabs>
-
-      {/* Statistiques */}
-      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? undefined : (activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : undefined)} />
 
       {/* Filtres : filtre "Type de contrat" visible uniquement dans l'onglet Tous (et Retard / Mois en cours) */}
       <FiltersCI
@@ -480,7 +492,27 @@ export default function ListContractsCISection() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Actions avec animations */}
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid' ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                title="Affichage en grille"
+              >
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Grille
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list' ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                title="Affichage en liste"
+              >
+                <List className="h-4 w-4 mr-2" />
+                Liste
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -507,13 +539,14 @@ export default function ListContractsCISection() {
 
       {/* Liste des contrats */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-2'}>
           {[...Array(itemsPerPage)].map((_, i) => (
             <ModernSkeleton key={i} />
           ))}
         </div>
       ) : currentContracts.length > 0 ? (
         <>
+          {viewMode === 'grid' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
             {currentContracts.map((contract: ContractCI, index: number) => (
               <div
@@ -689,6 +722,111 @@ export default function ListContractsCISection() {
               </div>
             ))}
           </div>
+          )}
+
+          {viewMode === 'list' && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+              <table className="min-w-[1000px] w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left px-4 py-3">ID</th>
+                    <th className="text-center px-4 py-3">Statut</th>
+                    <th className="text-left px-4 py-3">Nom</th>
+                    <th className="text-left px-4 py-3">Prénom</th>
+                    <th className="text-left px-4 py-3">Forfait</th>
+                    <th className="text-right px-4 py-3">Montant/mois</th>
+                    <th className="text-center px-4 py-3">Fréquence</th>
+                    <th className="text-left px-4 py-3">Début</th>
+                    <th className="text-left px-4 py-3">Fin</th>
+                    <th className="text-left px-4 py-3">Contact urgence</th>
+                    <th className="text-right px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {currentContracts.map((contract: ContractCI) => (
+                    <tr key={contract.id} className="hover:bg-gray-50/50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900">#{contract.id.slice(-8)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${STATUS_COLORS[contract.status]}`}>
+                          {CONTRACT_CI_STATUS_LABELS[contract.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{contract.memberLastName || '—'}</td>
+                      <td className="px-4 py-3 text-gray-700">{contract.memberFirstName || '—'}</td>
+                      <td className="px-4 py-3">{contract.subscriptionCILabel || contract.subscriptionCICode || '—'}</td>
+                      <td className="px-4 py-3 text-right font-medium text-green-700">
+                        {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} FCFA
+                      </td>
+                      <td className="px-4 py-3 text-center">{FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}</td>
+                      <td className="px-4 py-3 text-gray-700">{formatContractDate(contract.firstPaymentDate)}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {contract.firstPaymentDate
+                          ? (() => {
+                              const start = new Date(contract.firstPaymentDate)
+                              if (isNaN(start.getTime())) return '—'
+                              const end = new Date(start)
+                              end.setMonth(end.getMonth() + (contract.subscriptionCIDuration || 0))
+                              return end.toLocaleDateString('fr-FR')
+                            })()
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{contract.emergencyContact?.phone1 || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
+                                title="Actions"
+                              >
+                                <MoreVertical className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[180px]">
+                              <DropdownMenuItem
+                                onClick={() => handleViewContract(contract.id)}
+                                disabled={!contract.contractStartId}
+                                className="cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ouvrir
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDownloadContract(contract)}
+                                className="cursor-pointer"
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Télécharger PDF
+                              </DropdownMenuItem>
+                              {contract.contractStartId ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleViewUploadedContract(contract)}
+                                  className="cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Voir contrat uploadé
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleUploadContract(contract)}
+                                  className="cursor-pointer"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Téléverser contrat
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Pagination simple */}
           {totalPages > 1 && (

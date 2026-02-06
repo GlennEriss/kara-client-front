@@ -28,10 +28,17 @@ import {
   ChevronRight,
   Download,
   BarChart3,
-  Upload
+  Upload,
+  MoreVertical,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useClosedNominalSum } from '@/hooks'
@@ -1758,40 +1765,52 @@ const ListContracts = () => {
                         </td>
                         <td className="px-4 py-3 text-right">{(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA</td>
                         <td className="px-4 py-3">
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                            >
-                              <Eye className="h-3 w-3" />
-                              Ouvrir
-                            </Button>
-                            {hasValidContractPdf(contract) ? (
-                              <Button
-                                onClick={() => handleViewUploadedContractPDF(contract)}
-                                variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                              >
-                                <FileText className="h-3 w-3" />
-                                Contrat d'inscription
-                              </Button>
-                            ) : (
-                              <Button
-                                onClick={() => handleUploadPDF(contract)}
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
-                              >
-                                <Upload className="h-3 w-3" />
-                                Téléverser PDF
-                              </Button>
-                            )}
-                            <Button
-                              onClick={() => handleViewContractPDF(contract)}
-                              variant="outline"
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                            >
-                              <FileText className="h-3 w-3" />
-                              Télécharger
-                            </Button>
+                          <div className="flex justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
+                                  title="Actions"
+                                >
+                                  <MoreVertical className="h-4 w-4 text-gray-600" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="min-w-[200px]">
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
+                                  className="cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ouvrir
+                                </DropdownMenuItem>
+                                {hasValidContractPdf(contract) ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewUploadedContractPDF(contract)}
+                                    className="cursor-pointer"
+                                  >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Contrat d'inscription
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleUploadPDF(contract)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Téléverser le document PDF
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => handleViewContractPDF(contract)}
+                                  className="cursor-pointer"
+                                >
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Télécharger contrat
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       </tr>
