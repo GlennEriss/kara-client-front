@@ -316,7 +316,25 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, closeContract }
+    const deleteContract = useMutation({
+        mutationFn: (contractId: string) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.deleteContract(contractId, user.uid)
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
+            qc.invalidateQueries({ queryKey: ['creditContract'] })
+            qc.invalidateQueries({ queryKey: ['creditDemands'] })
+            qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
+            toast.success('Contrat supprimé')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la suppression du contrat')
+        },
+    })
+
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, closeContract, deleteContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================

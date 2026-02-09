@@ -47,7 +47,8 @@ export interface ICreditSpecialeService {
     getContractsWithFilters(filters?: CreditContractFilters): Promise<CreditContract[]>;
     getContractsStats(filters?: CreditContractFilters): Promise<CreditContractStats>;
     updateContractStatus(id: string, status: CreditContractStatus, adminId: string): Promise<CreditContract | null>;
-    
+    deleteContract(id: string, adminId: string): Promise<void>;
+
     // Génération et upload de contrats PDF
     generateContractPDF(contractId: string, blank?: boolean, pdfFile?: File): Promise<{ url: string; path: string; documentId: string }>;
     uploadSignedContract(contractId: string, signedContractFile: File, adminId: string): Promise<CreditContract>;
