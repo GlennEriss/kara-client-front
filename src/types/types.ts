@@ -765,6 +765,9 @@ export interface ContractCI {
   // Statut du contrat
   status: ContractCIStatus
 
+  // Lien vers la demande (si créé via createContractFromDemand)
+  demandId?: string
+
   // Documents du contrat
   contractStartId?: string
   contractCanceledId?: string

@@ -22,6 +22,7 @@ import {
   Grid3X3,
   List,
   MoreVertical,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
@@ -42,6 +43,7 @@ import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
+import DeleteContractCIModal from './DeleteContractCIModal'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
@@ -55,6 +57,15 @@ const FREQUENCY_LABELS = {
 }
 
 type ViewMode = 'grid' | 'list'
+
+/** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). */
+function canDeleteContractCI(contract: ContractCI): boolean {
+  if (contract.status !== 'ACTIVE') return false
+  if ((contract.totalMonthsPaid ?? 0) > 0) return false
+  if (contract.currentSupportId) return false
+  if ((contract.supportHistory?.length ?? 0) > 0) return false
+  return true
+}
 
 /** Formate une date contrat (string YYYY-MM-DD, Timestamp, Date) en fr-FR ou "—" si invalide */
 function formatContractDate(value: string | Date | { toDate?: () => Date } | undefined): string {
@@ -110,6 +121,8 @@ export default function ListContractsCISection() {
   const [selectedContractForRefund, setSelectedContractForRefund] = useState<ContractCI | null>(null)
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [showDeleteContractCIModal, setShowDeleteContractCIModal] = useState(false)
+  const [selectedContractForDelete, setSelectedContractForDelete] = useState<ContractCI | null>(null)
 
   /**
    * Vérifie si un contrat CI a une échéance dans le mois actuel
@@ -737,6 +750,17 @@ export default function ListContractsCISection() {
                             Contrat de résiliation
                           </Button>
                         )}
+
+                        {canDeleteContractCI(contract) && (
+                          <Button
+                            variant="outline"
+                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Supprimer
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -837,6 +861,15 @@ export default function ListContractsCISection() {
                                 >
                                   <Plus className="h-4 w-4 mr-2" />
                                   Téléverser contrat
+                                </DropdownMenuItem>
+                              )}
+                              {canDeleteContractCI(contract) && (
+                                <DropdownMenuItem
+                                  onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                                  className="cursor-pointer text-red-700 focus:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Supprimer
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -957,6 +990,19 @@ export default function ListContractsCISection() {
           refundType={refundType}
         />
       )}
+
+      <DeleteContractCIModal
+        isOpen={showDeleteContractCIModal}
+        onClose={() => {
+          setShowDeleteContractCIModal(false)
+          setSelectedContractForDelete(null)
+        }}
+        contract={selectedContractForDelete}
+        onSuccess={() => {
+          setShowDeleteContractCIModal(false)
+          setSelectedContractForDelete(null)
+        }}
+      />
     </div>
   )
 }
