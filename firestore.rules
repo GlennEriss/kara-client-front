@@ -268,7 +268,7 @@ service cloud.firestore {
       // Lecture : Admin ou propriétaire (via memberId)
       allow read: if isAdmin() || 
                      (isAuthenticated() && resource.data.memberId == request.auth.uid);
-      // Écriture : Admin uniquement
+      // Écriture et suppression : Admin uniquement (inclut cleanup lors de la suppression d'un contrat crédit spéciale)
       allow write: if isAdmin();
     }
     
@@ -723,7 +723,7 @@ service cloud.firestore {
         request.resource.data.createdAt is timestamp &&
         request.resource.data.updatedAt is timestamp;
       
-      // MISE À JOUR : Admin uniquement (approbation, refus, réouverture)
+      // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, et suppression de contrat : contractId=null, updatedBy, updatedAt)
       allow update: if isAdmin();
       
       // SUPPRESSION : Admin uniquement, seulement demandes PENDING sans contrat lié
@@ -735,6 +735,7 @@ service cloud.firestore {
     // ==========================================
     // CRÉDIT SPÉCIALE - CONTRATS (CREDIT CONTRACTS)
     // Validation des transitions DISCHARGED et CLOSED (clôture de contrat)
+    // Suppression de contrat (V2) : admin uniquement, contrats PENDING/DRAFT sans versement (vérifié côté service)
     // ==========================================
     match /creditContracts/{contractId} {
       allow read: if isAdmin();
@@ -765,6 +766,7 @@ service cloud.firestore {
           request.resource.data.closedBy == request.auth.uid &&
           request.resource.data.closedAt is timestamp))
       );
+      // Suppression : admin uniquement (supprimer contrat crédit spéciale V2 — éligibilité PENDING/DRAFT + amountPaid=0 côté service)
       allow delete: if isAdmin();
     }
     
