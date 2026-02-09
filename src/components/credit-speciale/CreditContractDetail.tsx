@@ -2305,41 +2305,33 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {/* Actions pour générer/uploader contrat */}
-              {contract.status === 'PENDING' && (
+              {/* Actions pour uploader contrat signé (PENDING sans contrat signé) */}
+              {contract.status === 'PENDING' && !contract.signedContractUrl && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <Button
                     variant="outline"
                     className="justify-start bg-white hover:bg-blue-50"
-                    onClick={() => setShowContractPDFModal(true)}
+                    onClick={() => setShowUploadContractModal(true)}
+                    disabled={uploadSignedContract.isPending}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Générer contrat
+                    <Upload className="h-4 w-4 mr-2" />
+                    Uploader contrat signé
                   </Button>
-                  {!contract.signedContractUrl && (
-                    <Button
-                      variant="outline"
-                      className="justify-start bg-white hover:bg-blue-50"
-                      onClick={() => setShowUploadContractModal(true)}
-                      disabled={uploadSignedContract.isPending}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Uploader contrat signé
-                    </Button>
-                  )}
                 </div>
               )}
 
               {/* Documents existants */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {contract.contractUrl && (
+                {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                   <Button
                     variant="outline"
                     className="justify-start"
-                    onClick={() => window.open(contract.contractUrl, '_blank')}
+                    onClick={contract.contractUrl
+                      ? () => window.open(contract.contractUrl, '_blank')
+                      : () => setShowContractPDFModal(true)}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Contrat PDF
+                    Télécharger contrat
                   </Button>
                 )}
                 {contract.signedContractUrl && (
