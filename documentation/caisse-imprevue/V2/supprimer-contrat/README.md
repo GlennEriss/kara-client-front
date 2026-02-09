@@ -5,6 +5,18 @@
 
 ---
 
+## Sommaire
+
+- [1. Objectif](#1-objectif)
+- [2. Règles métier](#2-règles-métier)
+- [3. Parcours utilisateur](#3-parcours-utilisateur)
+- [4. Architecture technique (domains)](#4-architecture-technique-domains)
+- [5. Liste des tâches](#5-liste-des-tâches)
+- [6. Tests à prévoir](#6-tests-à-prévoir)
+- [7. Références](#7-références)
+
+---
+
 ## 1. Objectif
 
 - Permettre à l’administrateur de **supprimer définitivement** un contrat CI.

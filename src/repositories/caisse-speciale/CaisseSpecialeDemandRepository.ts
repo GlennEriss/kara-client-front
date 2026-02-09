@@ -70,6 +70,33 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
         }
     }
 
+    async getByContractId(contractId: string): Promise<CaisseSpecialeDemand | null> {
+        try {
+            const { collection, db, getDocs, query, where, limit } = await getFirestore();
+            const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
+            const q = query(colRef, where("contractId", "==", contractId), limit(1));
+            const snap = await getDocs(q);
+            if (snap.empty) return null;
+            const docSnap = snap.docs[0];
+            const data = docSnap.data();
+            const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
+            return {
+                id: docSnap.id,
+                ...(data as any),
+                createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
+                updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                decisionMadeAt: toDate(data.decisionMadeAt),
+                reopenedAt: toDate(data.reopenedAt),
+                approvedAt: toDate(data.approvedAt),
+                rejectedAt: toDate(data.rejectedAt),
+                convertedAt: toDate(data.convertedAt),
+            } as CaisseSpecialeDemand;
+        } catch (error) {
+            console.error("Erreur getByContractId:", error);
+            return null;
+        }
+    }
+
     async getDemandsWithFilters(filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandsPaginated> {
         try {
             const hasSearch = Boolean(filters?.search && filters.search.trim().length >= 2);

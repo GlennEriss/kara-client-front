@@ -5,6 +5,19 @@
 
 ---
 
+## Sommaire
+
+- [1. Objectif](#1-objectif)
+- [2. Règles métier](#2-règles-métier)
+- [3. Parcours utilisateur](#3-parcours-utilisateur)
+- [4. Architecture technique](#4-architecture-technique)
+- [5. Firestore](#5-firestore)
+- [6. Cloud Function](#6-cloud-function)
+- [7. Checklist avant implémentation](#7-checklist-avant-implémentation)
+- [8. Références](#8-références)
+
+---
+
 ## 1. Objectif
 
 - Permettre à l’administrateur de **remplacer** un contrat signé déjà téléversé.

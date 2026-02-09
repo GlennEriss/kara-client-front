@@ -85,3 +85,13 @@ export async function deleteRefund(contractId: string, refundId: string) {
   return true
 }
 
+/**
+ * Supprime tous les remboursements d'un contrat (sous-collection refunds).
+ */
+export async function deleteAllRefunds(contractId: string): Promise<void> {
+  const { db, collection, getDocs, doc, deleteDoc } = await getFirestore() as any
+  const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`)
+  const snap = await getDocs(colRef)
+  await Promise.all(snap.docs.map((d: any) => deleteDoc(doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, d.id))))
+}
+
