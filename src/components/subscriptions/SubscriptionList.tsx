@@ -105,8 +105,8 @@ export default function SubscriptionList() {
                         <Card className="p-6 text-center border-0 bg-gradient-to-br from-rose-50 to-rose-100"><div className="text-3xl font-bold text-rose-700 mb-2">{subscriptions.filter(s => !isSubscriptionValid(s)).length}</div><p className="text-sm text-rose-700 font-medium">Expirés</p></Card>
                     </div>
 
-                    {/* Actions: fiche d'adhésion + renouvellement */}
-                    <div className="flex items-center justify-end gap-2">
+                    {/* Actions: fiche d'adhésion + renouvellement - empilés en mobile, côte à côte en desktop */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
                         <Button
                           variant="outline"
                           onClick={async () => {
