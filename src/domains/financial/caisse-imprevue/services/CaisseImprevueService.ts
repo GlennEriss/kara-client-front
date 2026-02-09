@@ -381,4 +381,61 @@ export class CaisseImprevueService {
 
     await this.contractRepository.deleteContract(contractId)
   }
+
+  /**
+   * Remplace le PDF du contrat déjà téléversé (contractStartId).
+   * Autorisé uniquement si statut ACTIVE et contractStartId existant.
+   */
+  async replaceContractDocument(contractId: string, file: File, adminId: string): Promise<ContractCI> {
+    const contract = await this.contractRepository.getContractById(contractId)
+    if (!contract) {
+      throw new Error('Contrat introuvable')
+    }
+    if (contract.status !== 'ACTIVE') {
+      throw new Error('Contrat non actif : remplacement interdit')
+    }
+    if (!contract.contractStartId) {
+      throw new Error('Aucun contrat téléversé à remplacer')
+    }
+
+    const documentRepository = RepositoryFactory.getDocumentRepository()
+
+    try {
+      const oldDoc = await documentRepository.getDocumentById(contract.contractStartId)
+      if (oldDoc?.path) {
+        await documentRepository.deleteFile(oldDoc.path)
+      }
+      await documentRepository.deleteDocument(contract.contractStartId)
+    } catch (err) {
+      console.error('Erreur suppression ancien contrat', err)
+    }
+
+    const { url, path, size } = await documentRepository.uploadDocumentFile(
+      file,
+      contract.memberId,
+      'ADHESION_CI'
+    )
+
+    const doc = await documentRepository.createDocument({
+      type: 'ADHESION_CI',
+      format: 'pdf',
+      libelle: `Contrat CI - ${contract.memberId}`,
+      path,
+      url,
+      size,
+      memberId: contract.memberId,
+      contractId: contract.id,
+      createdBy: adminId,
+      updatedBy: adminId,
+    })
+
+    const updated = await this.contractRepository.updateContract(contractId, {
+      contractStartId: doc.id,
+      updatedBy: adminId,
+    })
+    if (!updated) {
+      throw new Error('Erreur lors de la mise à jour du contrat')
+    }
+    return updated
+  }
 }

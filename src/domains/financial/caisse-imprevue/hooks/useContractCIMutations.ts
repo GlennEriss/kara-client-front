@@ -31,5 +31,22 @@ export function useContractCIMutations() {
     },
   })
 
-  return { deleteContract }
+  const replaceContractDocument = useMutation({
+    mutationFn: ({ contractId, file }: { contractId: string; file: File }) => {
+      if (!user?.uid) throw new Error('Utilisateur non authentifié')
+      return service.replaceContractDocument(contractId, file, user.uid)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI'] })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+      toast.success('Contrat remplacé avec succès')
+    },
+    onError: (error: Error) => {
+      toast.error(error?.message ?? 'Erreur lors du remplacement du contrat')
+    },
+  })
+
+  return { deleteContract, replaceContractDocument }
 }

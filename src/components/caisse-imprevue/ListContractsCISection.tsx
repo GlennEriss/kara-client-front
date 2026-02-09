@@ -44,6 +44,7 @@ import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
 import DeleteContractCIModal from './DeleteContractCIModal'
+import ReplaceContractCIModal from './ReplaceContractCIModal'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
@@ -65,6 +66,11 @@ function canDeleteContractCI(contract: ContractCI): boolean {
   if (contract.currentSupportId) return false
   if ((contract.supportHistory?.length ?? 0) > 0) return false
   return true
+}
+
+/** Afficher « Modifier contrat » : contractStartId existant et statut ACTIVE (doc § 2.1–2.2). */
+function canReplaceContractCI(contract: ContractCI): boolean {
+  return Boolean(contract.contractStartId) && contract.status === 'ACTIVE'
 }
 
 /** Formate une date contrat (string YYYY-MM-DD, Timestamp, Date) en fr-FR ou "—" si invalide */
@@ -123,6 +129,8 @@ export default function ListContractsCISection() {
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [showDeleteContractCIModal, setShowDeleteContractCIModal] = useState(false)
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<ContractCI | null>(null)
+  const [showReplaceContractCIModal, setShowReplaceContractCIModal] = useState(false)
+  const [selectedContractForReplace, setSelectedContractForReplace] = useState<ContractCI | null>(null)
 
   /**
    * Vérifie si un contrat CI a une échéance dans le mois actuel
@@ -709,14 +717,26 @@ export default function ListContractsCISection() {
                         </Button>
 
                         {contract.contractStartId ? (
-                          <Button
-                            onClick={() => handleViewUploadedContract(contract)}
-                            variant="outline"
-                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
-                          >
-                            <Eye className="h-4 w-4" />
-                            Voir contrat
-                          </Button>
+                          <>
+                            <Button
+                              onClick={() => handleViewUploadedContract(contract)}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Voir contrat
+                            </Button>
+                            {canReplaceContractCI(contract) && (
+                              <Button
+                                onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Modifier contrat
+                              </Button>
+                            )}
+                          </>
                         ) : (
                           <Button
                             onClick={() => handleUploadContract(contract)}
@@ -847,13 +867,24 @@ export default function ListContractsCISection() {
                                 Télécharger PDF
                               </DropdownMenuItem>
                               {contract.contractStartId ? (
-                                <DropdownMenuItem
-                                  onClick={() => handleViewUploadedContract(contract)}
-                                  className="cursor-pointer"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Voir contrat uploadé
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewUploadedContract(contract)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Voir contrat uploadé
+                                  </DropdownMenuItem>
+                                  {canReplaceContractCI(contract) && (
+                                    <DropdownMenuItem
+                                      onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
+                                      className="cursor-pointer"
+                                    >
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      Modifier contrat
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
                               ) : (
                                 <DropdownMenuItem
                                   onClick={() => handleUploadContract(contract)}
@@ -1001,6 +1032,19 @@ export default function ListContractsCISection() {
         onSuccess={() => {
           setShowDeleteContractCIModal(false)
           setSelectedContractForDelete(null)
+        }}
+      />
+
+      <ReplaceContractCIModal
+        isOpen={showReplaceContractCIModal}
+        onClose={() => {
+          setShowReplaceContractCIModal(false)
+          setSelectedContractForReplace(null)
+        }}
+        contract={selectedContractForReplace}
+        onSuccess={() => {
+          setShowReplaceContractCIModal(false)
+          setSelectedContractForReplace(null)
         }}
       />
     </div>
