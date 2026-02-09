@@ -14,7 +14,8 @@ import {
   getCountFromServer,
   serverTimestamp,
   updateDoc,
-  arrayUnion
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { User, UserFilters, UserStats, Subscription } from '@/types/types'
@@ -130,6 +131,35 @@ export async function addCaisseContractToEntity(entityId: string, contractId: st
  */
 export async function addCaisseContractToUser(userId: string, contractId: string): Promise<boolean> {
   return addCaisseContractToEntity(userId, contractId, 'USER')
+}
+
+/**
+ * Retire un contrat Caisse Spéciale d'un membre ou d'un groupe (caisseContractIds).
+ */
+export async function removeCaisseContractFromEntity(
+  entityId: string,
+  contractId: string,
+  entityType: 'USER' | 'GROUP'
+): Promise<boolean> {
+  try {
+    if (entityType === 'USER') {
+      const userRef = doc(db, 'users', entityId)
+      await updateDoc(userRef, {
+        caisseContractIds: arrayRemove(contractId),
+        updatedAt: serverTimestamp(),
+      } as any)
+    } else if (entityType === 'GROUP') {
+      const groupRef = doc(db, 'groups', entityId)
+      await updateDoc(groupRef, {
+        caisseContractIds: arrayRemove(contractId),
+        updatedAt: serverTimestamp(),
+      } as any)
+    }
+    return true
+  } catch (e) {
+    console.error('Erreur removeCaisseContractFromEntity:', e)
+    return false
+  }
 }
 
 /**

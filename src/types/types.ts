@@ -765,6 +765,9 @@ export interface ContractCI {
   // Statut du contrat
   status: ContractCIStatus
 
+  // Lien vers la demande (si créé via createContractFromDemand)
+  demandId?: string
+
   // Documents du contrat
   contractStartId?: string
   contractCanceledId?: string
@@ -1542,6 +1545,8 @@ export interface CreditContract {
   emergencyContact?: EmergencyContact // Contact d'urgence
   contractUrl?: string // URL du contrat PDF généré
   signedContractUrl?: string // URL du contrat signé téléversé
+  signedContractPath?: string // Chemin Storage du contrat signé (pour cleanup remplacement)
+  signedContractDocumentId?: string // ID document (collection documents) du contrat signé
   dischargeUrl?: string // URL de la décharge
   dischargeMotif?: string // Motif de la décharge (remboursement final)
   dischargedBy?: string // Admin UID ayant validé la décharge

@@ -30,6 +30,8 @@ import {
   BarChart3,
   Upload,
   MoreVertical,
+  Trash2,
+  FileEdit,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -50,6 +52,8 @@ import routes from '@/constantes/routes'
 import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
 import ContractPdfUploadModal from './ContractPdfUploadModal'
 import ViewUploadedContractModal from './ViewUploadedContractModal'
+import DeleteCaisseSpecialeContractModal from './DeleteCaisseSpecialeContractModal'
+import ReplaceCaisseSpecialeContractPdfModal from './ReplaceCaisseSpecialeContractPdfModal'
 import { listRefunds } from '@/db/caisse/refunds.db'
 
 type ViewMode = 'grid' | 'list'
@@ -597,6 +601,8 @@ const ListContracts = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
   const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
+  const [contractToDelete, setContractToDelete] = useState<any>(null)
+  const [contractToReplacePdf, setContractToReplacePdf] = useState<any>(null)
   const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
   const debouncedSearch = useDebounce(filters.search, 300)
 
@@ -1030,6 +1036,22 @@ const ListContracts = () => {
       CLOSED: 'Clos'
     }
     return labels[status as keyof typeof labels] || status
+  }
+
+  /** Contrat éligible à la suppression (DRAFT/ACTIVE, sans versements ni pénalités). */
+  const canDeleteCaisseContract = (contract: any) => {
+    if (!contract?.id) return false
+    const status = contract.status
+    if (status !== 'DRAFT' && status !== 'ACTIVE') return false
+    if ((contract.nominalPaid ?? 0) !== 0 || (contract.penaltiesTotal ?? 0) !== 0) return false
+    return true
+  }
+
+  /** Contrat éligible au remplacement du PDF (téléversé + statut DRAFT/ACTIVE/LATE_*). */
+  const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY']
+  const canReplaceContractPdf = (contract: any) => {
+    if (!contract?.id) return false
+    return hasValidContractPdf(contract) && ALLOWED_REPLACE_PDF_STATUSES.includes(contract.status)
   }
 
   /**
@@ -1654,8 +1676,18 @@ const ListContracts = () => {
                                     className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                                   >
                                     <FileText className="h-4 w-4" />
-                                    Contrat d'inscription
+                                    Voir contrat
                                   </Button>
+                                  {canReplaceContractPdf(contract) && (
+                                    <Button
+                                      onClick={() => setContractToReplacePdf(contract)}
+                                      variant="outline"
+                                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                                    >
+                                      <FileEdit className="h-4 w-4" />
+                                      Modifier contrat
+                                    </Button>
+                                  )}
                                 </>
                               ) : (
                                 <Button
@@ -1675,6 +1707,16 @@ const ListContracts = () => {
                                 <FileText className="h-4 w-4" />
                                 Télécharger contrat
                               </Button>
+                              {canDeleteCaisseContract(contract) && (
+                                <Button
+                                  onClick={() => setContractToDelete(contract)}
+                                  variant="destructive"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Supprimer
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </>
@@ -1786,13 +1828,24 @@ const ListContracts = () => {
                                   Ouvrir
                                 </DropdownMenuItem>
                                 {hasValidContractPdf(contract) ? (
-                                  <DropdownMenuItem
-                                    onClick={() => handleViewUploadedContractPDF(contract)}
-                                    className="cursor-pointer"
-                                  >
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Contrat d'inscription
-                                  </DropdownMenuItem>
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() => handleViewUploadedContractPDF(contract)}
+                                      className="cursor-pointer"
+                                    >
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      Voir contrat
+                                    </DropdownMenuItem>
+                                    {canReplaceContractPdf(contract) && (
+                                      <DropdownMenuItem
+                                        onClick={() => setContractToReplacePdf(contract)}
+                                        className="cursor-pointer"
+                                      >
+                                        <FileEdit className="h-4 w-4 mr-2" />
+                                        Modifier contrat
+                                      </DropdownMenuItem>
+                                    )}
+                                  </>
                                 ) : (
                                   <DropdownMenuItem
                                     onClick={() => handleUploadPDF(contract)}
@@ -1809,6 +1862,15 @@ const ListContracts = () => {
                                   <FileText className="h-4 w-4 mr-2" />
                                   Télécharger contrat
                                 </DropdownMenuItem>
+                                {canDeleteCaisseContract(contract) && (
+                                  <DropdownMenuItem
+                                    onClick={() => setContractToDelete(contract)}
+                                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1895,6 +1957,25 @@ const ListContracts = () => {
           contract={selectedContractForViewUploaded}
         />
       )}
+
+      {/* Modal Suppression contrat */}
+      <DeleteCaisseSpecialeContractModal
+        isOpen={!!contractToDelete}
+        onClose={() => setContractToDelete(null)}
+        contract={contractToDelete}
+        onSuccess={() => setContractToDelete(null)}
+      />
+
+      {/* Modal Modifier contrat (remplacer PDF) */}
+      <ReplaceCaisseSpecialeContractPdfModal
+        isOpen={!!contractToReplacePdf}
+        onClose={() => setContractToReplacePdf(null)}
+        contract={contractToReplacePdf}
+        onSuccess={() => {
+          setContractToReplacePdf(null)
+          refetch()
+        }}
+      />
     </div>
   )
 }

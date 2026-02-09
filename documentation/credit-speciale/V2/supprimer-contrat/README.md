@@ -5,6 +5,17 @@
 
 ---
 
+## Sommaire
+
+- [1. Objectif](#1-objectif)
+- [2. Règles métier](#2-règles-métier)
+- [3. Parcours utilisateur](#3-parcours-utilisateur)
+- [4. Architecture technique (domains)](#4-architecture-technique-domains)
+- [5. Checklist avant implémentation](#5-checklist-avant-implémentation)
+- [6. Références](#6-références)
+
+---
+
 ## 1. Objectif
 
 - Permettre à l’administrateur de **supprimer définitivement** un contrat de crédit depuis la liste des contrats (`/credit-speciale/contrats`).

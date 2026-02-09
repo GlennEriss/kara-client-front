@@ -1,7 +1,7 @@
 import { IDocumentRepository, DocumentListQuery, DocumentListResult, DocumentSortInput } from "./IDocumentRepository";
 import { Document } from "../entities/document.types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { getStorageInstance } from '@/firebase/storage';
 
 const getFirestore = () => import("@/firebase/firestore");
@@ -565,6 +565,22 @@ export class DocumentRepository implements IDocumentRepository {
 
         } catch (error) {
             console.error("Erreur lors de la suppression du document:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Supprime un fichier dans Storage à partir de son path
+     * @param {string} path - Chemin du fichier dans le bucket Storage
+     * @returns {Promise<void>}
+     */
+    async deleteFile(path: string): Promise<void> {
+        try {
+            const storage = getStorageInstance();
+            const fileRef = ref(storage, path);
+            await deleteObject(fileRef);
+        } catch (error) {
+            console.error("Erreur lors de la suppression du fichier Storage:", error);
             throw error;
         }
     }

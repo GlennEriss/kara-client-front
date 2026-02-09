@@ -437,8 +437,8 @@ service cloud.firestore {
       // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, conversion)
       allow update: if isAdmin();
       
-      // SUPPRESSION : Admin uniquement (seulement demandes REJECTED)
-      allow delete: if isAdmin() && resource.data.status == 'REJECTED';
+      // SUPPRESSION : Admin uniquement (en attente PENDING, approuvée APPROVED, refusée REJECTED — pas CONVERTED)
+      allow delete: if isAdmin() && resource.data.status in ['PENDING', 'APPROVED', 'REJECTED'];
     }
     
     // ==========================================

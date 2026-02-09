@@ -242,6 +242,22 @@ export function useCreditContractMutations() {
         },
     })
 
+    const replaceSignedContract = useMutation({
+        mutationFn: ({ contractId, file }: { contractId: string; file: File }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.replaceSignedContract(contractId, file, user.uid)
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            qc.invalidateQueries({ queryKey: ['creditContract'] })
+            qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
+            toast.success('Contrat signé remplacé avec succès')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors du remplacement du contrat signé')
+        },
+    })
+
     const updateStatus = useMutation({
         mutationFn: ({ id, status }: { id: string; status: CreditContractStatus }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
@@ -334,7 +350,7 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, closeContract, deleteContract }
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, closeContract, deleteContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
