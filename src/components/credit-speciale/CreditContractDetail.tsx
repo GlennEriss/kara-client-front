@@ -385,13 +385,15 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(false)
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
+  const [showReplaceContractModal, setShowReplaceContractModal] = useState(false)
+  const [replaceContractFile, setReplaceContractFile] = useState<File | undefined>()
   const [isCompressing] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const [showFinalRepaymentModal, setShowFinalRepaymentModal] = useState(false)
   const [showSignedQuittanceUploadModal, setShowSignedQuittanceUploadModal] = useState(false)
   const [showCloseContractModal, setShowCloseContractModal] = useState(false)
   const [showQuittanceModal, setShowQuittanceModal] = useState(false)
-  const { uploadSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, closeContract } = useCreditContractMutations()
+  const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, closeContract } = useCreditContractMutations()
   
   // États pour les modals
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
@@ -2314,15 +2316,17 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                     <FileText className="h-4 w-4 mr-2" />
                     Générer contrat
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="justify-start bg-white hover:bg-blue-50"
-                    onClick={() => setShowUploadContractModal(true)}
-                    disabled={uploadSignedContract.isPending}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Uploader contrat signé
-                  </Button>
+                  {!contract.signedContractUrl && (
+                    <Button
+                      variant="outline"
+                      className="justify-start bg-white hover:bg-blue-50"
+                      onClick={() => setShowUploadContractModal(true)}
+                      disabled={uploadSignedContract.isPending}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Uploader contrat signé
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -2339,14 +2343,28 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   </Button>
                 )}
                 {contract.signedContractUrl && (
-                  <Button
-                    variant="outline"
-                    className="justify-start"
-                    onClick={() => window.open(contract.signedContractUrl, '_blank')}
-                  >
-                    <FileSignature className="h-4 w-4 mr-2" />
-                    Contrat signé
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => window.open(contract.signedContractUrl, '_blank')}
+                    >
+                      <FileSignature className="h-4 w-4 mr-2" />
+                      Voir contrat
+                    </Button>
+                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="justify-start border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={() => { setReplaceContractFile(undefined); setShowReplaceContractModal(true) }}
+                        disabled={replaceSignedContract.isPending}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Modifier contrat signé
+                      </Button>
+                    )}
+                  </div>
                 )}
                 {contract.signedQuittanceUrl && (
                   <Button
@@ -2567,6 +2585,87 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   <Upload className="h-4 w-4 mr-2" />
                   Uploader et activer
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de remplacement du contrat signé */}
+      <Dialog open={showReplaceContractModal} onOpenChange={setShowReplaceContractModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Modifier le contrat signé
+            </DialogTitle>
+            <DialogDescription>
+              Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="replaceContractFile" className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Nouveau fichier du contrat signé (PDF) *
+              </Label>
+              <Input
+                id="replaceContractFile"
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) setReplaceContractFile(file)
+                }}
+                disabled={replaceSignedContract.isPending}
+              />
+              {replaceContractFile && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Fichier sélectionné : {replaceContractFile.name} ({(replaceContractFile.size / 1024).toFixed(2)} KB)
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowReplaceContractModal(false)
+                setReplaceContractFile(undefined)
+              }}
+              disabled={replaceSignedContract.isPending}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!replaceContractFile) {
+                  toast.error('Veuillez sélectionner un fichier')
+                  return
+                }
+                try {
+                  await replaceSignedContract.mutateAsync({
+                    contractId: contract.id,
+                    file: replaceContractFile,
+                  })
+                  setShowReplaceContractModal(false)
+                  setReplaceContractFile(undefined)
+                } catch (error: any) {
+                  toast.error(error?.message || 'Erreur lors du remplacement du contrat signé')
+                }
+              }}
+              disabled={!replaceContractFile || replaceSignedContract.isPending}
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+            >
+              {replaceSignedContract.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Remplacement en cours...
+                </>
+              ) : (
+                'Remplacer'
               )}
             </Button>
           </DialogFooter>

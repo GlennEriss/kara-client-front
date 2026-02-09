@@ -2164,7 +2164,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         );
 
         // Créer le document dans la collection documents
-        await this.documentRepository.createDocument({
+        const document = await this.documentRepository.createDocument({
             type: 'CREDIT_SPECIALE_CONTRACT_SIGNED',
             format: 'pdf',
             libelle: `Contrat signé crédit ${contract.creditType}`,
@@ -2177,9 +2177,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         });
 
-        // Mettre à jour le contrat avec l'URL du contrat signé et activer le contrat
+        // Mettre à jour le contrat avec l'URL, le chemin et l'ID document du contrat signé, et activer le contrat
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             signedContractUrl: url,
+            signedContractPath: path,
+            signedContractDocumentId: document.id,
             status: 'ACTIVE',
             activatedAt: new Date(),
             fundsReleasedAt: new Date(),
@@ -2207,6 +2209,76 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // Erreur lors de la création de la notification - continue sans
         }
 
+        return updatedContract;
+    }
+
+    /**
+     * Remplace le contrat signé déjà téléversé par un nouveau PDF.
+     * Interdit si statut DISCHARGED ou CLOSED. Cleanup ancien fichier/document (best effort).
+     */
+    async replaceSignedContract(contractId: string, file: File, adminId: string): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        if (['DISCHARGED', 'CLOSED'].includes(contract.status)) {
+            throw new Error('Contrat clôturé : remplacement interdit');
+        }
+        if (!contract.signedContractUrl) {
+            throw new Error('Aucun contrat signé à remplacer');
+        }
+
+        // 1) Cleanup ancien fichier et document (best effort)
+        if (contract.signedContractPath) {
+            try {
+                const storage = getStorageInstance();
+                const fileRef = ref(storage, contract.signedContractPath);
+                await deleteObject(fileRef);
+            } catch (err) {
+                console.error('Erreur suppression ancien fichier Storage (signedContractPath):', err);
+            }
+        }
+        if (contract.signedContractDocumentId) {
+            try {
+                await this.documentRepository.deleteDocument(contract.signedContractDocumentId);
+            } catch (err) {
+                console.error('Erreur suppression ancien document:', err);
+            }
+        }
+
+        // 2) Upload nouveau fichier
+        const { url, path } = await this.documentRepository.uploadDocumentFile(
+            file,
+            contract.clientId,
+            'CREDIT_SPECIALE_CONTRACT_SIGNED'
+        );
+
+        // 3) Créer nouvelle entrée document
+        const doc = await this.documentRepository.createDocument({
+            type: 'CREDIT_SPECIALE_CONTRACT_SIGNED',
+            format: 'pdf',
+            libelle: `Contrat signé crédit ${contract.creditType}`,
+            path,
+            url,
+            size: file.size,
+            memberId: contract.clientId,
+            contractId: contract.id,
+            createdBy: adminId,
+            updatedBy: adminId,
+        });
+
+        // 4) Mettre à jour le contrat (sans changer le statut)
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            signedContractUrl: url,
+            signedContractPath: path,
+            signedContractDocumentId: doc.id,
+            updatedBy: adminId,
+            updatedAt: new Date(),
+        });
+
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
         return updatedContract;
     }
 

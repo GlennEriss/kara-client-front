@@ -1654,7 +1654,7 @@ const ListContracts = () => {
                                     className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                                   >
                                     <FileText className="h-4 w-4" />
-                                    Contrat d'inscription
+                                    Voir contrat
                                   </Button>
                                 </>
                               ) : (
@@ -1791,7 +1791,7 @@ const ListContracts = () => {
                                     className="cursor-pointer"
                                   >
                                     <FileText className="h-4 w-4 mr-2" />
-                                    Contrat d'inscription
+                                    Voir contrat
                                   </DropdownMenuItem>
                                 ) : (
                                   <DropdownMenuItem
