@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CharityEventService } from '@/services/bienfaiteur/CharityEventService'
-import { CharityEvent, CharityEventFilters, CharityGlobalStats } from '@/types/types'
+import { CharityEvent, CharityEventFilters } from '@/types/types'
 import { useAuth } from '@/hooks/useAuth'
 
 /**
@@ -95,6 +95,7 @@ export function useUpdateCharityEvent() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['charity-events', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['charity-events', 'global-stats'] })
     },
   })
 }
@@ -124,4 +125,3 @@ export function useSearchCharityEvents(searchQuery: string) {
     staleTime: 1000 * 60 * 5,
   })
 }
-

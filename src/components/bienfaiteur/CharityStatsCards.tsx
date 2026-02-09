@@ -33,75 +33,83 @@ export default function CharityStatsCards({ stats }: CharityStatsCardsProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {/* Évènements cette année */}
-      <Card>
+      <Card className="overflow-hidden border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/60 shadow-[0_14px_28px_-24px_rgba(16,61,99,0.9)] transition-transform hover:-translate-y-0.5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Évènements cette année
           </CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-full bg-cyan-100 p-2 text-cyan-700">
+            <Calendar className="h-4 w-4" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalEventsThisYear}</div>
-          <p className="text-xs text-muted-foreground">
+          <div className="text-3xl font-black text-slate-800">{stats.totalEventsThisYear}</div>
+          <p className="text-xs text-slate-500">
             Actions de solidarité
           </p>
         </CardContent>
       </Card>
 
       {/* Montant total collecté */}
-      <Card>
+      <Card className="overflow-hidden border-emerald-100/70 bg-gradient-to-br from-white to-emerald-50/70 shadow-[0_14px_28px_-24px_rgba(16,80,58,0.85)] transition-transform hover:-translate-y-0.5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Montant total collecté
           </CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-full bg-emerald-100 p-2 text-emerald-700">
+            <TrendingUp className="h-4 w-4" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatAmount(stats.totalCollectedAmount)}</div>
-          <p className="text-xs text-muted-foreground">
+          <div className="text-3xl font-black text-slate-800">{formatAmount(stats.totalCollectedAmount)}</div>
+          <p className="text-xs text-slate-500">
             FCFA
           </p>
         </CardContent>
       </Card>
 
       {/* Total participants */}
-      <Card>
+      <Card className="overflow-hidden border-violet-100/70 bg-gradient-to-br from-white to-violet-50/70 shadow-[0_14px_28px_-24px_rgba(71,58,132,0.85)] transition-transform hover:-translate-y-0.5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Total participants
           </CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-full bg-violet-100 p-2 text-violet-700">
+            <Users className="h-4 w-4" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalParticipants}</div>
-          <p className="text-xs text-muted-foreground">
+          <div className="text-3xl font-black text-slate-800">{stats.totalParticipants}</div>
+          <p className="text-xs text-slate-500">
             Membres contributeurs
           </p>
         </CardContent>
       </Card>
 
       {/* Prochain évènement */}
-      <Card>
+      <Card className="overflow-hidden border-amber-100/80 bg-gradient-to-br from-white to-amber-50/70 shadow-[0_14px_28px_-24px_rgba(120,87,20,0.78)] transition-transform hover:-translate-y-0.5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Prochain évènement
           </CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+            <Clock className="h-4 w-4" />
+          </div>
         </CardHeader>
         <CardContent>
           {stats.nextUpcomingEvent ? (
             <>
-              <div className="text-lg font-bold truncate">
+              <div className="text-lg font-bold text-slate-800 truncate">
                 {stats.nextUpcomingEvent.title}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-500">
                 {formatDate(stats.nextUpcomingEvent.startDate)}
               </p>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-500">
               Aucun évènement à venir
             </p>
           )}
@@ -110,4 +118,3 @@ export default function CharityStatsCards({ stats }: CharityStatsCardsProps) {
     </div>
   )
 }
-

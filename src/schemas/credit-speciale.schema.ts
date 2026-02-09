@@ -63,15 +63,6 @@ export const creditDemandSchema = z.object({
     })
   }
   
-  // Validation : montant mensuel doit être cohérent avec le montant total
-  if (data.monthlyPaymentAmount && data.monthlyPaymentAmount > data.amount) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'La mensualité ne peut pas être supérieure au montant total',
-      path: ['monthlyPaymentAmount'],
-    })
-  }
-  
   // Validation : limites selon le type de crédit
   if (data.creditType === 'SPECIALE' && data.monthlyPaymentAmount) {
     const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
@@ -153,15 +144,6 @@ export const creditDemandFormSchema = z.object({
     })
   }
   
-  // Validation : montant mensuel doit être cohérent avec le montant total
-  if (data.monthlyPaymentAmount && data.monthlyPaymentAmount > data.amount) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'La mensualité ne peut pas être supérieure au montant total',
-      path: ['monthlyPaymentAmount'],
-    })
-  }
-  
   // Validation : limites selon le type de crédit
   if (data.creditType === 'SPECIALE' && data.monthlyPaymentAmount) {
     const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
@@ -235,16 +217,7 @@ export const standardSimulationSchema = z.object({
   firstPaymentDate: z.date(),
   creditType: creditTypeEnum,
 }).superRefine((data, ctx) => {
-  // Validation : la mensualité doit permettre de rembourser le montant
-  if (data.monthlyPayment > data.amount) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'La mensualité ne peut pas être supérieure au montant total',
-      path: ['monthlyPayment'],
-    })
-  }
-  
-  // Validation : limites selon le type
+  // Validation : limites selon le type (si mensualité >= montant, durée = 1 mois, donc OK)
   const estimatedDuration = Math.ceil(data.amount / data.monthlyPayment)
   if (data.creditType === 'SPECIALE' && estimatedDuration > 7) {
     ctx.addIssue({

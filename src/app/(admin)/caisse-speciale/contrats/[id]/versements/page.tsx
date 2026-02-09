@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useParams } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download, TrendingUp } from 'lucide-react'
@@ -11,10 +12,12 @@ import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useAuth } from '@/hooks/useAuth'
 import { getAdminById } from '@/db/admin.db'
+import { useMember } from '@/hooks/useMembers'
 import { Button } from '@/components/ui/button'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getGroupById } from '@/db/group.db'
 import { getDoc, doc } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
@@ -62,6 +65,14 @@ export default function ContractPaymentsPage() {
 
   // Récupérer les versements du contrat
   const { data: payments = [], isLoading: isLoadingPayments, error: paymentsError } = useContractPayments(contractId)
+  const { data: member } = useMember(contract?.memberId)
+  const { data: group } = useQuery({
+    queryKey: ['group', contract?.groupeId],
+    queryFn: () => getGroupById(contract?.groupeId as string),
+    enabled: Boolean(contract?.groupeId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  })
 
   // État pour stocker les informations des administrateurs
   const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
@@ -679,121 +690,480 @@ export default function ContractPaymentsPage() {
   }
 
   // Fonction pour exporter les versements en PDF
-  const exportToPDF = () => {
-    if (!payments.length) return
+  const exportToPDF = async () => {
+    if (!contract) return
 
-    const doc = new jsPDF('l', 'mm', 'a4') // Orientation paysage pour plus d'espace
+    const loadLogoDataUrl = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
+      try {
+        const response = await fetch('/assets/caisse-speciale/caissesp-logo.png')
+        if (!response.ok) return null
+        const blob = await response.blob()
+        const dataUrl = await new Promise<string | null>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+          reader.onerror = () => reject(reader.error)
+          reader.readAsDataURL(blob)
+        })
+        if (!dataUrl) return null
 
-    // En-tête du document
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Historique des Versements', 14, 15)
-    
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Contrat #${contractId}`, 14, 22)
-    
-    // Informations du contrat
-    doc.setFontSize(9)
-    doc.text(`Type: ${contract?.contractType || 'N/A'}`, 14, 28)
-    doc.text(`Montant mensuel: ${formatAmountForPDF(contract?.monthlyAmount) || 0} FCFA`, 80, 28)
-    doc.text(`Durée: ${contract?.monthsPlanned || 0} mois`, 160, 28)
-    doc.text(`Statut: ${translateContractStatus(contract?.status || '')}`, 14, 33)
-    doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 160, 33)
+        const dimensions = await new Promise<{ width: number; height: number } | null>((resolve) => {
+          const img = new window.Image()
+          img.onload = () => {
+            if (!img.naturalWidth || !img.naturalHeight) {
+              resolve(null)
+              return
+            }
+            resolve({ width: img.naturalWidth, height: img.naturalHeight })
+          }
+          img.onerror = () => resolve(null)
+          img.src = dataUrl
+        })
 
-    // Préparer les données du tableau
-    const tableData = payments.map((payment) => {
-      const now = new Date()
-      const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
-      
-      let status = ''
+        if (!dimensions) return null
+        return {
+          dataUrl,
+          width: dimensions.width,
+          height: dimensions.height,
+        }
+      } catch (error) {
+        console.error('Erreur chargement logo export PDF:', error)
+        return null
+      }
+    }
+
+    const logoDataUrl = await loadLogoDataUrl()
+    const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
+    const doc = new jsPDF('l', 'mm', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const marginX = 14
+    const contentWidth = pageWidth - marginX * 2
+    const colors = {
+      navy: [21, 62, 96] as [number, number, number],
+      line: [24, 24, 24] as [number, number, number],
+      headerFill: [236, 242, 248] as [number, number, number],
+      pageFill: [247, 249, 252] as [number, number, number],
+    }
+
+    const toDateSafe = (value: unknown): Date | null => {
+      if (!value) return null
+      if (value instanceof Date) return value
+      if (typeof (value as any)?.toDate === 'function') return (value as any).toDate()
+      const parsed = new Date(value as any)
+      return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+
+    const formatLongDate = (value: unknown): string => {
+      const date = toDateSafe(value)
+      if (!date) return '-'
+      return date.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    }
+
+    const formatMode = (mode?: string): string => {
+      const modeMap: Record<string, string> = {
+        airtel_money: 'AIRTEL-MONEY',
+        mobicash: 'MOBICASH',
+        cash: 'CASH',
+        bank_transfer: 'VIREMENT',
+      }
+      if (!mode) return '-'
+      return modeMap[mode] || String(mode).toUpperCase()
+    }
+
+    const getAge = (birthDate?: string): string => {
+      if (!birthDate) return '-'
+      const birth = toDateSafe(birthDate)
+      if (!birth) return '-'
+      const today = new Date()
+      let age = today.getFullYear() - birth.getFullYear()
+      const monthDiff = today.getMonth() - birth.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
+      return age > 0 ? `${age} ANS` : '-'
+    }
+
+    const getPaymentRemark = (payment: any): string => {
       if (payment.status === 'PAID') {
-        status = 'Payé'
-      } else if (dueDate && now > dueDate) {
-        status = 'En retard'
-      } else {
-        status = 'En attente'
+        if ((payment.penaltyApplied || 0) > 0) {
+          return `RETARD ${payment.penaltyDays || 0}J`
+        }
+        return 'CONFORME'
       }
+      const dueDate = toDateSafe(payment.dueAt)
+      if (dueDate && new Date() > dueDate) return 'IMPAYE'
+      return 'EN ATTENTE'
+    }
 
-      const penaltyDays = (payment as any).penaltyDays || 0
-      const penaltyDisplay = payment.penaltyApplied 
-        ? `${formatAmountForPDF(payment.penaltyApplied)} FCFA${penaltyDays > 0 ? ` (${penaltyDays}j)` : ''}` 
-        : penaltyDays > 0 && penaltyDays <= 3 
-          ? `Tolérance (${penaltyDays}j)` 
-          : 'Non'
+    const getAdminNameForExport = (payment: any): string => {
+      const label = getAdminDisplayName(payment.updatedBy)
+      if (!label || label === 'Chargement...') return payment.updatedBy || '-'
+      return label
+    }
 
-      return [
-        `M${payment.dueMonthIndex + 1}`,
-        payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'N/A',
-        status,
-        `${formatAmountForPDF(payment.amount) || 0} FCFA`,
-        payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('fr-FR') : '',
-        payment.time || '',
-        payment.mode || '',
-        penaltyDisplay,
-        payment.contribs?.length || (payment as any).groupContributions?.length || 0,
-        getAdminDisplayName(payment.updatedBy)
+    const contractTypeLabel = contract.contractType === 'GROUP' ? 'GROUPE' : 'INDIVIDUEL'
+    const caisseTypeLabelMap: Record<string, string> = {
+      STANDARD: 'STANDARD',
+      JOURNALIERE: 'JOURNALIERE',
+      LIBRE: 'LIBRE',
+      STANDARD_CHARITABLE: 'STANDARD CHARITABLE',
+      JOURNALIERE_CHARITABLE: 'JOURNALIERE CHARITABLE',
+      LIBRE_CHARITABLE: 'LIBRE CHARITABLE',
+    }
+    const caisseTypeLabel = caisseTypeLabelMap[contract.caisseType] || contract.caisseType
+
+    const memberNameForGroup = group?.name || group?.label || 'GROUPE'
+    const memberLastName = contract.contractType === 'GROUP' ? memberNameForGroup : member?.lastName || 'INCONNU'
+    const memberFirstName = contract.contractType === 'GROUP' ? '-' : member?.firstName || 'INCONNU'
+    const memberMatricule = member?.matricule || contract.memberId || contract.id || '-'
+    const memberBirthPlace = contract.contractType === 'GROUP' ? '-' : member?.birthPlace || '-'
+    const memberBirthDate = contract.contractType === 'GROUP' ? '-' : formatLongDate(member?.birthDate)
+    const memberNationality = contract.contractType === 'GROUP' ? '-' : member?.nationality || '-'
+    const memberIdDocument = contract.contractType === 'GROUP' ? '-' : member?.identityDocumentNumber || '-'
+    const memberPhone1 = contract.contractType === 'GROUP' ? '-' : member?.contacts?.[0] || '-'
+    const memberPhone2 = contract.contractType === 'GROUP' ? '-' : member?.contacts?.[1] || '-'
+    const memberGender = contract.contractType === 'GROUP' ? '-' : (member?.gender ? String(member.gender).toUpperCase() : '-')
+    const memberAge = contract.contractType === 'GROUP' ? '-' : getAge(member?.birthDate)
+    const memberQuarter = contract.contractType === 'GROUP'
+      ? '-'
+      : member?.address?.district || member?.address?.arrondissement || member?.address?.city || '-'
+    const memberProfession = contract.contractType === 'GROUP'
+      ? '-'
+      : member?.profession || member?.companyName || '-'
+
+    const emergencyContactName = contract.emergencyContact
+      ? `${contract.emergencyContact.lastName || ''} ${contract.emergencyContact.firstName || ''}`.trim() || 'INCONNU'
+      : 'INCONNU'
+    const emergencyRelation = contract.emergencyContact?.relationship || '-'
+    const emergencyPhone1 = contract.emergencyContact?.phone1 || '-'
+    const emergencyPhone2 = contract.emergencyContact?.phone2 || '-'
+    const emergencyId = contract.emergencyContact?.idNumber || '-'
+
+    const unpaidCount = sortedPayments.filter((payment) => payment.status !== 'PAID').length
+    const totalCotisation = sortedPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
+    const totalPaid = sortedPayments
+      .filter((payment) => payment.status === 'PAID')
+      .reduce((sum, payment) => sum + (payment.amount || 0), 0)
+    const totalUnpaid = Math.max(totalCotisation - totalPaid, 0)
+    const totalPenalties = sortedPayments.reduce((sum, payment) => sum + ((payment as any).penaltyApplied || 0), 0)
+    const firstPaidDate = sortedPayments.find((payment) => payment.paidAt)?.paidAt
+
+    const drawPageBackground = () => {
+      doc.setFillColor(...colors.pageFill)
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+      doc.setDrawColor(...colors.navy)
+      doc.setLineWidth(0.7)
+      doc.rect(8, 8, pageWidth - 16, pageHeight - 16)
+    }
+
+    const drawMainTitle = (showLogo = false) => {
+      if (showLogo && logoDataUrl) {
+        const maxLogoWidth = 34
+        const maxLogoHeight = 18
+        const ratio = logoDataUrl.width / logoDataUrl.height
+        let logoWidth = maxLogoWidth
+        let logoHeight = logoWidth / ratio
+        if (logoHeight > maxLogoHeight) {
+          logoHeight = maxLogoHeight
+          logoWidth = logoHeight * ratio
+        }
+        const logoY = 10 + (maxLogoHeight - logoHeight) / 2
+        doc.addImage(logoDataUrl.dataUrl, 'PNG', marginX, logoY, logoWidth, logoHeight)
+      }
+      doc.setFont('times', 'bold')
+      doc.setFontSize(15)
+      doc.setTextColor(...colors.navy)
+      doc.text('HISTORIQUE VERSEMENT CAISSE SPECIALE', pageWidth / 2, 18, { align: 'center' })
+      doc.setFontSize(10)
+      doc.setTextColor(45, 45, 45)
+      doc.text(`Contrat : ${contract.id || contractId}`, pageWidth / 2, 23, { align: 'center' })
+    }
+
+    const drawSectionTitle = (title: string, y: number) => {
+      doc.setFillColor(...colors.headerFill)
+      doc.setDrawColor(...colors.line)
+      doc.setLineWidth(0.2)
+      doc.rect(marginX, y, contentWidth, 8, 'FD')
+      doc.setFont('times', 'bold')
+      doc.setFontSize(10.5)
+      doc.setTextColor(...colors.navy)
+      doc.text(title, pageWidth / 2, y + 5.6, { align: 'center' })
+    }
+
+    const drawGridRows = (
+      rows: Array<{ leftLabel: string; leftValue: string; rightLabel: string; rightValue: string }>,
+      startY: number,
+      options?: {
+        leftLabelWidth?: number
+        rightLabelWidth?: number
+        labelFontSize?: number
+        valueFontSize?: number
+      }
+    ) => {
+      const rowHeight = 8
+      const halfWidth = contentWidth / 2
+      const leftLabelWidth = options?.leftLabelWidth ?? 33
+      const rightLabelWidth = options?.rightLabelWidth ?? 33
+      const labelFontSize = options?.labelFontSize ?? 9.2
+      const valueFontSize = options?.valueFontSize ?? 9.2
+      const totalHeight = rows.length * rowHeight
+      doc.setDrawColor(...colors.line)
+      doc.setLineWidth(0.2)
+      doc.rect(marginX, startY, contentWidth, totalHeight)
+      doc.line(marginX + halfWidth, startY, marginX + halfWidth, startY + totalHeight)
+      doc.line(marginX + leftLabelWidth, startY, marginX + leftLabelWidth, startY + totalHeight)
+      doc.line(marginX + halfWidth + rightLabelWidth, startY, marginX + halfWidth + rightLabelWidth, startY + totalHeight)
+
+      rows.forEach((row, index) => {
+        const y = startY + index * rowHeight
+        if (index > 0) doc.line(marginX, y, marginX + contentWidth, y)
+        doc.setFont('times', 'bold')
+        doc.setFontSize(labelFontSize)
+        doc.setTextColor(35, 35, 35)
+        doc.text(row.leftLabel, marginX + 2, y + 5.3)
+        doc.text(row.rightLabel, marginX + halfWidth + 2, y + 5.3)
+        doc.setFont('times', 'normal')
+        doc.setFontSize(valueFontSize)
+        doc.setTextColor(15, 15, 15)
+        doc.text(row.leftValue, marginX + leftLabelWidth + 2, y + 5.3)
+        doc.text(row.rightValue, marginX + halfWidth + rightLabelWidth + 2, y + 5.3)
+      })
+      return startY + totalHeight
+    }
+
+    const drawPaymentBlock = (payment: any, startY: number) => {
+      const headerHeight = 8
+      const valuesHeight = 8
+      const titleHeight = 8
+      const totalHeight = titleHeight + headerHeight + valuesHeight
+      const columns = [43, 41, 33, 18, 34, 36, 64]
+
+      doc.setFillColor(...colors.headerFill)
+      doc.setDrawColor(...colors.line)
+      doc.setLineWidth(0.2)
+      doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
+      doc.setFont('times', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...colors.navy)
+      doc.text(`VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatLongDate(payment.dueAt)}`, marginX + 3, startY + 5.4)
+
+      const tableY = startY + titleHeight
+      doc.setDrawColor(...colors.line)
+      doc.rect(marginX, tableY, contentWidth, headerHeight + valuesHeight)
+      doc.setFillColor(225, 235, 245)
+      doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
+
+      const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
+      let cursorX = marginX
+      headers.forEach((header, index) => {
+        const width = columns[index]
+        if (index > 0) doc.line(cursorX, tableY, cursorX, tableY + headerHeight + valuesHeight)
+        doc.setFont('times', 'bold')
+        doc.setFontSize(8.7)
+        doc.setTextColor(32, 32, 32)
+        doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
+        cursorX += width
+      })
+
+      doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
+
+      const isPaymentCompleted = payment.status === 'PAID' || Boolean(payment.paidAt)
+      const displayedAmount = isPaymentCompleted ? (payment.amount || 0) : 0
+
+      const rowValues = [
+        formatLongDate(payment.dueAt),
+        formatLongDate(payment.paidAt),
+        `${formatAmountForPDF(displayedAmount)} FCFA`,
+        payment.time || '-',
+        formatMode(payment.mode),
+        getAdminNameForExport(payment),
+        getPaymentRemark(payment),
       ]
-    })
 
-    // Créer le tableau
-    autoTable(doc, {
-      head: [[
-        'Mois',
-        'Échéance',
-        'Statut',
-        'Montant',
-        'Date paiement',
-        'Heure',
-        'Mode',
-        'Pénalité',
-        'Contribs',
-        'Traité par'
-      ]],
-      body: tableData,
-      startY: 38,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
+      cursorX = marginX
+      rowValues.forEach((value, index) => {
+        const width = columns[index]
+        doc.setFont('times', 'normal')
+        doc.setFontSize(8.9)
+        doc.setTextColor(18, 18, 18)
+        doc.text(value, cursorX + width / 2, tableY + headerHeight + 5.3, { align: 'center' })
+        cursorX += width
+      })
+
+      return startY + totalHeight
+    }
+
+    drawPageBackground()
+    drawMainTitle(true)
+    drawSectionTitle('Informations Personnelles du Membre', 30)
+    let yCursor = 38.2
+    yCursor = drawGridRows(
+      [
+        {
+          leftLabel: 'MATRICULE',
+          leftValue: memberMatricule,
+          rightLabel: 'ANNEE',
+          rightValue: String(new Date().getFullYear()),
+        },
+        {
+          leftLabel: 'MEMBRE',
+          leftValue: contractTypeLabel,
+          rightLabel: 'CODE',
+          rightValue: (contract.id || contractId).slice(0, 16),
+        },
+        { leftLabel: 'NOM', leftValue: memberLastName, rightLabel: 'PRENOM', rightValue: memberFirstName },
+        {
+          leftLabel: 'LIEU / NAISSANCE',
+          leftValue: memberBirthPlace,
+          rightLabel: 'D.NAISS',
+          rightValue: memberBirthDate,
+        },
+        {
+          leftLabel: 'NATIONALITE',
+          leftValue: memberNationality,
+          rightLabel: 'N°CNI/PASS/CS',
+          rightValue: memberIdDocument,
+        },
+        {
+          leftLabel: 'TELEPHONE 1',
+          leftValue: memberPhone1,
+          rightLabel: 'TELEPHONE 2',
+          rightValue: memberPhone2,
+        },
+        { leftLabel: 'SEXE', leftValue: memberGender, rightLabel: 'AGE', rightValue: memberAge },
+        { leftLabel: 'QUARTIER', leftValue: memberQuarter, rightLabel: 'PROFESSION', rightValue: memberProfession },
+      ],
+      yCursor
+    )
+
+    drawSectionTitle('Informations Concernant Le Contact Urgent', yCursor + 9)
+    drawGridRows(
+      [
+        { leftLabel: 'NOM', leftValue: emergencyContactName, rightLabel: 'LIEN', rightValue: emergencyRelation },
+        { leftLabel: 'TELEPHONE 1', leftValue: emergencyPhone1, rightLabel: 'TELEPHONE 2', rightValue: emergencyPhone2 },
+        { leftLabel: 'N°CNI/PASS/CS', leftValue: emergencyId, rightLabel: 'OBSERVATION', rightValue: 'CAISSE SPECIALE' },
+      ],
+      yCursor + 17.2
+    )
+
+    doc.addPage()
+    drawPageBackground()
+    drawMainTitle()
+    drawSectionTitle('Informations concernant la Caisse Spéciale', 30)
+    const contractRows = [
+      {
+        leftLabel: 'PRENOM',
+        leftValue: memberFirstName,
+        rightLabel: 'LIENS',
+        rightValue: emergencyRelation,
       },
-      headStyles: {
-        fillColor: [35, 77, 101], // Couleur de la marque
-        textColor: 255,
-        fontStyle: 'bold',
-        halign: 'center'
+      {
+        leftLabel: 'DEBUT CAISSE.S',
+        leftValue: formatLongDate(contract.contractStartAt),
+        rightLabel: 'FIN CAISSE.S',
+        rightValue: formatLongDate(contract.contractEndAt),
       },
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 15 }, // Mois
-        1: { halign: 'center', cellWidth: 25 }, // Échéance
-        2: { halign: 'center', cellWidth: 20 }, // Statut
-        3: { halign: 'right', cellWidth: 28 }, // Montant
-        4: { halign: 'center', cellWidth: 25 }, // Date paiement
-        5: { halign: 'center', cellWidth: 18 }, // Heure
-        6: { halign: 'center', cellWidth: 25 }, // Mode
-        7: { halign: 'right', cellWidth: 35 }, // Pénalité
-        8: { halign: 'center', cellWidth: 15 }, // Contribs
-        9: { halign: 'left', cellWidth: 40 }, // Traité par
+      {
+        leftLabel: 'STATUT',
+        leftValue: translateContractStatus(contract.status || ''),
+        rightLabel: 'CONTRAT',
+        rightValue: contract.id || contractId,
       },
-      alternateRowStyles: {
-        fillColor: [245, 247, 250]
+      {
+        leftLabel: 'TYPE CAISSE.S',
+        leftValue: caisseTypeLabel,
+        rightLabel: 'MONTANT',
+        rightValue: `${formatAmountForPDF(contract.monthlyAmount || 0)} FCFA`,
       },
-      didDrawPage: (data) => {
-        // Pied de page avec numéro de page
-        const pageCount = (doc as any).internal.getNumberOfPages()
-        doc.setFontSize(8)
-        doc.text(
-          `Page ${data.pageNumber} sur ${pageCount}`,
-          doc.internal.pageSize.getWidth() / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' }
-        )
+      {
+        leftLabel: 'ANNEE INSCRIT',
+        leftValue: String(toDateSafe(contract.createdAt)?.getFullYear() || new Date().getFullYear()),
+        rightLabel: 'DUREE',
+        rightValue: `${contract.monthsPlanned || 0} MOIS`,
+      },
+      {
+        leftLabel: 'DATE REMISE',
+        leftValue: formatLongDate(firstPaidDate),
+        rightLabel: 'OBSERVATION',
+        rightValue: 'TABLEAU RECAPITULATIF',
+      },
+    ]
+    drawGridRows(contractRows, 38.2)
+
+    doc.setFillColor(...colors.headerFill)
+    doc.setDrawColor(...colors.line)
+    doc.rect(marginX, 90, contentWidth, 8, 'FD')
+    doc.setFont('times', 'bold')
+    doc.setFontSize(10.5)
+    doc.setTextColor(...colors.navy)
+    doc.text('GESTION DES VERSEMENTS CAISSE SPECIALE TABLEAU RECAPITULATIF CI-DESSOUS', pageWidth / 2, 95.3, { align: 'center' })
+
+    drawGridRows(
+      [
+        {
+          leftLabel: 'NOMBRE DE VERSEMENT',
+          leftValue: String(sortedPayments.length),
+          rightLabel: 'MOIS IMPAYE',
+          rightValue: String(unpaidCount),
+        },
+        {
+          leftLabel: 'MONTANT T.COTISATION',
+          leftValue: `${formatAmountForPDF(totalCotisation)} FCFA`,
+          rightLabel: 'MONTANT PAYE',
+          rightValue: `${formatAmountForPDF(totalPaid)} FCFA`,
+        },
+        {
+          leftLabel: 'IMPAYE',
+          leftValue: `${formatAmountForPDF(totalUnpaid)} FCFA`,
+          rightLabel: 'TOTAL PENALITES',
+          rightValue: `${formatAmountForPDF(totalPenalties)} FCFA`,
+        },
+      ],
+      99,
+      {
+        leftLabelWidth: 50,
+        rightLabelWidth: 46,
+        labelFontSize: 8.8,
+        valueFontSize: 9.4,
       }
-    })
+    )
 
-    // Télécharger le PDF
+    if (sortedPayments.length > 0) {
+      drawPaymentBlock(sortedPayments[0], 130)
+    }
+
+    const remainingPayments = sortedPayments.slice(1)
+    const chunkSize = 3
+    for (let i = 0; i < remainingPayments.length; i += chunkSize) {
+      const chunk = remainingPayments.slice(i, i + chunkSize)
+      doc.addPage()
+      drawPageBackground()
+      drawMainTitle()
+      let blockY = 30
+      chunk.forEach((payment) => {
+        blockY = drawPaymentBlock(payment, blockY) + 6
+      })
+    }
+
+    const pageCount = doc.getNumberOfPages()
+    for (let page = 1; page <= pageCount; page += 1) {
+      doc.setPage(page)
+      doc.setFont('times', 'italic')
+      doc.setFontSize(8.5)
+      doc.setTextColor(90, 90, 90)
+      doc.text(
+        `Page ${page} sur ${pageCount} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+        pageWidth / 2,
+        pageHeight - 9,
+        { align: 'center' }
+      )
+    }
+
     const dateStr = new Date().toISOString().split('T')[0]
-    const fileName = `versements_contrat_${contractId}_${dateStr}.pdf`
-    doc.save(fileName)
+    doc.save(`historique_versement_caisse_speciale_${contractId}_${dateStr}.pdf`)
   }
 
   if (isLoadingContracts || isLoadingPayments) {
