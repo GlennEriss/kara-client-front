@@ -1,10 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Grid3X3, List, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { useCharityEventsList, useCharityGlobalStats } from '@/hooks/bienfaiteur/useCharityEvents'
+import { useCharityEventsList, useCharityGlobalStats, useUpdateCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import { CharityEventStatus } from '@/types/types'
 import CharityStatsCards from './CharityStatsCards'
 import CharityFilters from './CharityFilters'
@@ -22,6 +22,20 @@ export default function CharityEventsList() {
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize] = useState(12)
+  const [updatingEventId, setUpdatingEventId] = useState<string | null>(null)
+
+  const { mutate: updateEvent } = useUpdateCharityEvent()
+  const handleSetOngoing = (eventId: string) => {
+    setUpdatingEventId(eventId)
+    updateEvent(
+      { eventId, updates: { status: 'ongoing' } },
+      {
+        onSuccess: () => toast.success('Évènement mis en cours'),
+        onError: (err: Error) => toast.error(err?.message ?? 'Erreur lors de la mise à jour'),
+        onSettled: () => setUpdatingEventId(null),
+      }
+    )
+  }
 
   // Réinitialiser la page à 1 quand la recherche ou le filtre change
   useEffect(() => {
@@ -92,11 +106,20 @@ export default function CharityEventsList() {
       ) : events && events.length > 0 ? (
         <>
           {viewMode === 'table' ? (
-            <CharityEventTable events={events} />
+            <CharityEventTable
+              events={events}
+              onSetOngoing={handleSetOngoing}
+              updatingEventId={updatingEventId}
+            />
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (
-                <CharityEventCard key={event.id} event={event} />
+                <CharityEventCard
+                  key={event.id}
+                  event={event}
+                  onSetOngoing={handleSetOngoing}
+                  updatingEventId={updatingEventId}
+                />
               ))}
             </div>
           )}

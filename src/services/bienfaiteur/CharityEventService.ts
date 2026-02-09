@@ -47,9 +47,20 @@ export class CharityEventService {
   }
 
   /**
-   * Met à jour un évènement
+   * Met à jour un évènement.
+   * Règle métier : la transition vers « En cours » (ongoing) n'est autorisée que depuis Brouillon (draft) ou À venir (upcoming).
    */
   static async updateEvent(id: string, updates: Partial<CharityEvent>, adminId: string): Promise<void> {
+    if (updates.status === 'ongoing') {
+      const current = await CharityEventRepository.getById(id)
+      if (!current) {
+        throw new Error('Évènement introuvable.')
+      }
+      if (current.status !== 'draft' && current.status !== 'upcoming') {
+        throw new Error('Impossible de passer cet évènement en cours : le statut actuel ne le permet pas.')
+      }
+    }
+
     const updateData = {
       ...updates,
       updatedAt: new Date(),

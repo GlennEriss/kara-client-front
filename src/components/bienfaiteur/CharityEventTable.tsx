@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -12,18 +12,37 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { CharityEvent, CHARITY_EVENT_STATUS_LABELS } from '@/types/types'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
-import { Eye, MoreVertical } from 'lucide-react'
+import { Eye, MoreVertical, Pencil, PlayCircle, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 
 interface CharityEventTableProps {
   events: CharityEvent[]
+  onSetOngoing?: (eventId: string) => void
+  updatingEventId?: string | null
 }
 
-export default function CharityEventTable({ events }: CharityEventTableProps) {
+export default function CharityEventTable({ events, onSetOngoing, updatingEventId }: CharityEventTableProps) {
   const router = useRouter()
+  const [eventIdToSetOngoing, setEventIdToSetOngoing] = useState<string | null>(null)
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount)
@@ -128,27 +147,38 @@ export default function CharityEventTable({ events }: CharityEventTableProps) {
                     <p className="text-gray-500">{event.totalGroupsCount} groupes</p>
                   </div>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(routes.admin.bienfaiteurDetails(event.id))
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                      }}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => router.push(routes.admin.bienfaiteurDetails(event.id))}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Voir les détails
+                        </DropdownMenuItem>
+                        {(event.status === 'draft' || event.status === 'upcoming') && onSetOngoing && (
+                          <DropdownMenuItem
+                            disabled={updatingEventId === event.id}
+                            onSelect={() => setEventIdToSetOngoing(event.id)}
+                          >
+                            {updatingEventId === event.id ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <PlayCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Mettre en cours
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => router.push(routes.admin.bienfaiteurModify(event.id))}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Modifier
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -156,6 +186,29 @@ export default function CharityEventTable({ events }: CharityEventTableProps) {
           })}
         </TableBody>
       </Table>
+
+      <AlertDialog open={!!eventIdToSetOngoing} onOpenChange={(open) => !open && setEventIdToSetOngoing(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mettre cet évènement en cours ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La collecte sera ouverte aux participants. Vous pourrez modifier le statut plus tard depuis les paramètres.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (eventIdToSetOngoing) onSetOngoing?.(eventIdToSetOngoing)
+                setEventIdToSetOngoing(null)
+              }}
+              disabled={eventIdToSetOngoing !== null && updatingEventId === eventIdToSetOngoing}
+            >
+              Mettre en cours
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

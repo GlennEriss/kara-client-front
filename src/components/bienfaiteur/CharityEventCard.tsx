@@ -1,11 +1,21 @@
 'use client'
 
-import React from 'react'
-import { Calendar, MapPin, Users, TrendingUp } from 'lucide-react'
+import React, { useState } from 'react'
+import { Calendar, MapPin, Users, TrendingUp, PlayCircle, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { CharityEvent, CHARITY_EVENT_STATUS_LABELS } from '@/types/types'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
@@ -13,10 +23,20 @@ import Image from 'next/image'
 
 interface CharityEventCardProps {
   event: CharityEvent
+  onSetOngoing?: (eventId: string) => void
+  updatingEventId?: string | null
 }
 
-export default function CharityEventCard({ event }: CharityEventCardProps) {
+export default function CharityEventCard({ event, onSetOngoing, updatingEventId }: CharityEventCardProps) {
   const router = useRouter()
+  const [confirmSetOngoing, setConfirmSetOngoing] = useState(false)
+  const canSetOngoing = (event.status === 'draft' || event.status === 'upcoming') && onSetOngoing
+  const isUpdating = updatingEventId === event.id
+
+  const handleConfirmSetOngoing = () => {
+    setConfirmSetOngoing(false)
+    onSetOngoing?.(event.id)
+  }
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount)
@@ -136,10 +156,10 @@ export default function CharityEventCard({ event }: CharityEventCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter>
-        <Button 
-          variant="outline" 
-          className="w-full"
+      <CardFooter className="flex flex-col sm:flex-row gap-2">
+        <Button
+          variant="outline"
+          className="flex-1"
           onClick={(e) => {
             e.stopPropagation()
             router.push(routes.admin.bienfaiteurDetails(event.id))
@@ -147,7 +167,42 @@ export default function CharityEventCard({ event }: CharityEventCardProps) {
         >
           Voir les détails
         </Button>
+        {canSetOngoing && (
+          <Button
+            variant="default"
+            className="flex-1"
+            disabled={isUpdating}
+            onClick={(e) => {
+              e.stopPropagation()
+              setConfirmSetOngoing(true)
+            }}
+          >
+            {isUpdating ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <PlayCircle className="h-4 w-4 mr-2" />
+            )}
+            Mettre en cours
+          </Button>
+        )}
       </CardFooter>
+
+      <AlertDialog open={confirmSetOngoing} onOpenChange={setConfirmSetOngoing}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mettre cet évènement en cours ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La collecte sera ouverte aux participants. Vous pourrez modifier le statut plus tard depuis les paramètres.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSetOngoing} disabled={isUpdating}>
+              Mettre en cours
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
