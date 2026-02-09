@@ -52,6 +52,13 @@ const PAYMENT_STATUS_LABELS = {
   PARTIAL: 'Partiel',
 }
 
+/** Formate un montant pour l'affichage PDF (espace comme séparateur de milliers, pas de caractère fr-FR qui peut s'afficher en "/"). */
+function formatAmountForPDF(n: number): string {
+  return Math.round(n)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 export default function ContractCIPaymentsPage() {
   const params = useParams() as { id: string }
   const contractId = params.id
@@ -216,7 +223,7 @@ export default function ContractCIPaymentsPage() {
     doc.setFontSize(9)
     doc.text(`Contrat: ${contract.id.slice(-8).toUpperCase()}`, 14, yPos)
     doc.text(`Forfait: ${contract.subscriptionCICode}`, 80, yPos)
-    doc.text(`Montant mensuel: ${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`, 150, yPos)
+    doc.text(`Montant mensuel: ${formatAmountForPDF(contract.subscriptionCIAmountPerMonth)} FCFA`, 150, yPos)
     doc.text(`Statut: ${CONTRACT_CI_STATUS_LABELS[contract.status]}`, 230, yPos)
     
     yPos += 6
@@ -237,8 +244,8 @@ export default function ContractCIPaymentsPage() {
           format(new Date(versement.date), 'dd/MM/yyyy', { locale: fr }),
           versement.time,
           PAYMENT_MODE_LABELS[versement.mode] || versement.mode,
-          `${versement.amount.toLocaleString('fr-FR')} FCFA`,
-          versement.penalty && versement.penalty > 0 ? `${versement.penalty.toLocaleString('fr-FR')} FCFA` : '-',
+          `${formatAmountForPDF(versement.amount)} FCFA`,
+          versement.penalty && versement.penalty > 0 ? `${formatAmountForPDF(versement.penalty)} FCFA` : '-',
           PAYMENT_STATUS_LABELS[payment.status],
           getAdminDisplayName(versement.createdBy),
           versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId]
@@ -326,8 +333,8 @@ export default function ContractCIPaymentsPage() {
     doc.text(`Statut: ${PAYMENT_STATUS_LABELS[payment.status]}`, pageWidth - 14, yPos, { align: 'right' })
     
     yPos += 7
-    doc.text(`Objectif du mois: ${payment.targetAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
-    doc.text(`Total versé: ${payment.accumulatedAmount.toLocaleString('fr-FR')} FCFA`, pageWidth - 14, yPos, { align: 'right' })
+    doc.text(`Objectif du mois: ${formatAmountForPDF(payment.targetAmount)} FCFA`, 14, yPos)
+    doc.text(`Total versé: ${formatAmountForPDF(payment.accumulatedAmount)} FCFA`, pageWidth - 14, yPos, { align: 'right' })
 
     yPos += 15
 
@@ -337,8 +344,8 @@ export default function ContractCIPaymentsPage() {
       format(new Date(versement.date), 'dd/MM/yyyy', { locale: fr }),
       versement.time,
       PAYMENT_MODE_LABELS[versement.mode] || versement.mode,
-      `${versement.amount.toLocaleString('fr-FR')} FCFA`,
-      versement.penalty && versement.penalty > 0 ? `${versement.penalty.toLocaleString('fr-FR')} FCFA` : '-',
+      `${formatAmountForPDF(versement.amount)} FCFA`,
+      versement.penalty && versement.penalty > 0 ? `${formatAmountForPDF(versement.penalty)} FCFA` : '-',
       getAdminDisplayName(versement.createdBy),
       versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId]
         ? `${agentsMap[versement.agentRecouvrementId].nom} ${agentsMap[versement.agentRecouvrementId].prenom}`
