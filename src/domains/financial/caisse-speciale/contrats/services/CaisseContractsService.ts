@@ -3,10 +3,13 @@ import { CaisseContractsRepository } from '../repositories/CaisseContractsReposi
 import type { ContractFilters, PaginationParams, PaginatedContracts, ContractStats } from '../entities/contract-filters.types'
 import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, UploadContractPdfInput } from '../entities/contract.types'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
-import { deleteFile } from '@/db/upload-image.db'
+import { deleteFile, createFile } from '@/db/upload-image.db'
 import { removeCaisseContractFromEntity } from '@/db/member.db'
+import { updateContractPdf } from '@/db/caisse/contracts.db'
 
 const ALLOWED_DELETE_STATUSES = ['DRAFT', 'ACTIVE'] as const
+
+const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] as const
 
 export class CaisseContractsService {
   private static instance: CaisseContractsService
@@ -43,6 +46,66 @@ export class CaisseContractsService {
 
   async getContractPayments(contractId: string): Promise<ContractPayment[]> {
     return this.repo.getContractPayments(contractId)
+  }
+
+  /**
+   * Remplace le PDF téléversé d'un contrat (cleanup ancien fichier + documents ADHESION_CS, upload nouveau, update contrat + doc).
+   */
+  async replaceContractPdf(contractId: string, file: File, adminId: string): Promise<ContractPdfMetadata> {
+    const contract = await this.repo.getContractById(contractId)
+    if (!contract) {
+      throw new Error('Contrat introuvable')
+    }
+    if (!ALLOWED_REPLACE_PDF_STATUSES.includes(contract.status as any)) {
+      throw new Error('Contrat non modifiable : remplacement du PDF interdit pour ce statut')
+    }
+    if (!contract.contractPdf?.path) {
+      throw new Error('Aucun contrat téléversé à remplacer')
+    }
+
+    try {
+      await deleteFile(contract.contractPdf.path)
+    } catch (err) {
+      console.error('Erreur suppression ancien PDF:', err)
+    }
+
+    const documentRepo = RepositoryFactory.getDocumentRepository()
+    try {
+      const docs = await documentRepo.getDocumentsByContractId(contractId)
+      const oldDocs = docs.filter((d) => d.type === 'ADHESION_CS')
+      for (const d of oldDocs) {
+        if (d.id) await documentRepo.deleteDocument(d.id)
+      }
+    } catch (err) {
+      console.error('Erreur suppression documents ADHESION_CS:', err)
+    }
+
+    const upload = await createFile(file, contractId, `contracts/${contractId}`)
+    const payload: ContractPdfMetadata = {
+      fileSize: file.size,
+      path: upload.path,
+      originalFileName: file.name,
+      uploadedAt: new Date(),
+      url: upload.url,
+    }
+
+    await updateContractPdf(contractId, payload, adminId)
+
+    const memberIdForDoc = contract.memberId || (contract.groupeId ? `GROUP_${contract.groupeId}` : contractId)
+    await documentRepo.createDocument({
+      type: 'ADHESION_CS',
+      format: 'pdf',
+      libelle: `Contrat Caisse Spéciale #${contractId.slice(-6)}`,
+      path: upload.path,
+      url: upload.url,
+      size: file.size,
+      memberId: memberIdForDoc,
+      contractId,
+      createdBy: adminId,
+      updatedBy: adminId,
+    })
+
+    return payload
   }
 
   /**

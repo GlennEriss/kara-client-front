@@ -89,3 +89,24 @@ export function useDeleteCaisseContract() {
     },
   })
 }
+
+export function useReplaceContractPdf() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ contractId, file }: { contractId: string; file: File }) => {
+      if (!user?.uid) throw new Error('Utilisateur non authentifié')
+      return service.replaceContractPdf(contractId, file, user.uid)
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['caisse-contract', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['caisse-contracts'] })
+      queryClient.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
+      toast.success('Contrat remplacé avec succès')
+    },
+    onError: (error: Error) => {
+      toast.error(error?.message ?? 'Erreur lors du remplacement du contrat')
+    },
+  })
+}
