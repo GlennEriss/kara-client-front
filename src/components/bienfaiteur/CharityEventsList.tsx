@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCharityEventsList, useCharityGlobalStats, useUpdateCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
@@ -67,12 +67,12 @@ export default function CharityEventsList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {/* Statistiques globales */}
       {isLoadingStats ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32" />
+            <Skeleton key={i} className="h-36 rounded-2xl border border-cyan-100/60" />
           ))}
         </div>
       ) : globalStats ? (
@@ -96,11 +96,14 @@ export default function CharityEventsList() {
       {isLoadingEvents ? (
         <div className={
           viewMode === 'grid'
-            ? 'grid gap-6 md:grid-cols-2 lg:grid-cols-3'
+            ? 'grid gap-6 md:grid-cols-2 xl:grid-cols-3'
             : 'space-y-4'
         }>
           {[...Array(pageSize)].map((_, i) => (
-            <Skeleton key={i} className={viewMode === 'grid' ? 'h-80' : 'h-32'} />
+            <Skeleton
+              key={i}
+              className={viewMode === 'grid' ? 'h-[26rem] rounded-2xl border border-cyan-100/60' : 'h-32 rounded-xl border border-cyan-100/60'}
+            />
           ))}
         </div>
       ) : events && events.length > 0 ? (
@@ -112,7 +115,7 @@ export default function CharityEventsList() {
               updatingEventId={updatingEventId}
             />
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {events.map((event) => (
                 <CharityEventCard
                   key={event.id}
@@ -126,10 +129,10 @@ export default function CharityEventsList() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card>
+            <Card className="overflow-hidden border-cyan-100/70 bg-white/80 shadow-[0_14px_30px_-26px_rgba(21,57,92,0.85)] backdrop-blur">
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-slate-600">
                     Page {currentPage} sur {totalPages} ({totalEvents} évènements au total)
                   </div>
 
@@ -144,17 +147,17 @@ export default function CharityEventsList() {
                       Précédent
                     </Button>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 rounded-full border border-cyan-100 bg-cyan-50/60 px-2 py-1">
                       {[...Array(totalPages)].map((_, i) => {
                         const page = i + 1
                         // Afficher les 3 premières, les 3 dernières, et les 3 autour de la page actuelle
                         const showPage = page <= 3 || page > totalPages - 3 || Math.abs(page - currentPage) <= 1
                         
                         if (!showPage && page === 4 && currentPage > 5) {
-                          return <span key={page} className="px-2">...</span>
+                          return <span key={page} className="px-2 text-slate-500">...</span>
                         }
                         if (!showPage && page === totalPages - 3 && currentPage < totalPages - 4) {
-                          return <span key={page} className="px-2">...</span>
+                          return <span key={page} className="px-2 text-slate-500">...</span>
                         }
                         if (!showPage) return null
 
@@ -164,7 +167,7 @@ export default function CharityEventsList() {
                             variant={currentPage === page ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => handlePageChange(page)}
-                            className="min-w-[2.5rem]"
+                            className="min-w-[2.5rem] rounded-full"
                           >
                             {page}
                           </Button>
@@ -188,14 +191,17 @@ export default function CharityEventsList() {
           )}
         </>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-lg text-gray-500 mb-4">
+        <Card className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/50 shadow-[0_16px_35px_-28px_rgba(16,58,94,0.9)]">
+          <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+            <div className="mb-4 rounded-full border border-cyan-200 bg-cyan-50 p-3 text-cyan-700">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <p className="mb-4 text-lg text-slate-600">
               {searchQuery || statusFilter !== 'all'
                 ? 'Aucun évènement ne correspond à vos critères'
                 : 'Aucun évènement disponible'}
             </p>
-            <Button onClick={handleCreateEvent}>
+            <Button onClick={handleCreateEvent} className="rounded-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white shadow-sm hover:opacity-95">
               <Plus className="w-4 h-4 mr-2" />
               Créer un évènement
             </Button>
