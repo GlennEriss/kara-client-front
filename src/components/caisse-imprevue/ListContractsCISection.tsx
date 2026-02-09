@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -59,10 +61,14 @@ const FREQUENCY_LABELS = {
 
 type ViewMode = 'grid' | 'list'
 
-/** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). */
-function canDeleteContractCI(contract: ContractCI): boolean {
+/** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). Utilise les stats de paiement réelles si fournies. */
+function canDeleteContractCI(
+  contract: ContractCI,
+  paymentStats?: { paymentCount: number; totalAmountPaid: number }
+): boolean {
   if (contract.status !== 'ACTIVE') return false
   if ((contract.totalMonthsPaid ?? 0) > 0) return false
+  if (paymentStats && (paymentStats.paymentCount > 0 || paymentStats.totalAmountPaid > 0)) return false
   if (contract.currentSupportId) return false
   if ((contract.supportHistory?.length ?? 0) > 0) return false
   return true
@@ -434,6 +440,25 @@ export default function ListContractsCISection() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentContracts = filteredContracts?.slice(startIndex, endIndex) || []
+  const contractIds = useMemo(() => currentContracts.map((c) => c.id), [currentContracts])
+
+  // Stats de paiement pour la page courante (pour masquer "Supprimer" si versements réels)
+  const paymentStatsQueries = useQueries({
+    queries: contractIds.map((contractId) => ({
+      queryKey: ['contract-payment-stats', contractId],
+      queryFn: () => ServiceFactory.getCaisseImprevueService().getContractPaymentStats(contractId),
+      enabled: !!contractId,
+      staleTime: 60_000,
+    })),
+  })
+  const paymentStatsByContractId = useMemo(() => {
+    const map: Record<string, { paymentCount: number; totalAmountPaid: number }> = {}
+    contractIds.forEach((id, i) => {
+      const res = paymentStatsQueries[i]?.data
+      if (res) map[id] = { paymentCount: res.paymentCount, totalAmountPaid: res.totalAmountPaid }
+    })
+    return map
+  }, [contractIds, paymentStatsQueries])
 
   // Gestion des erreurs
   if (error) {
@@ -771,7 +796,7 @@ export default function ListContractsCISection() {
                           </Button>
                         )}
 
-                        {canDeleteContractCI(contract) && (
+                        {canDeleteContractCI(contract, paymentStatsByContractId[contract.id]) && (
                           <Button
                             variant="outline"
                             onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
@@ -894,7 +919,7 @@ export default function ListContractsCISection() {
                                   Téléverser contrat
                                 </DropdownMenuItem>
                               )}
-                              {canDeleteContractCI(contract) && (
+                              {canDeleteContractCI(contract, paymentStatsByContractId[contract.id]) && (
                                 <DropdownMenuItem
                                   onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
                                   className="cursor-pointer text-red-700 focus:text-red-700"
