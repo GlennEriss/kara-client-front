@@ -11,6 +11,8 @@ import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRe
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { IDocumentRepository } from "@/domains/infrastructure/documents/repositories/IDocumentRepository";
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
+import { getStorageInstance } from "@/firebase/storage";
+import { ref, deleteObject } from "@/firebase/storage";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { EmergencyContact } from "@/schemas/emergency-contact.schema";
@@ -328,6 +330,57 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     async getContractsStats(filters?: CreditContractFilters): Promise<CreditContractStats> {
         return await this.creditContractRepository.getContractsStats(filters);
+    }
+
+    async deleteContract(id: string, adminId: string): Promise<void> {
+        const contract = await this.creditContractRepository.getContractById(id);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        const allowedStatuses: CreditContractStatus[] = ['DRAFT', 'PENDING'];
+        if (!allowedStatuses.includes(contract.status)) {
+            throw new Error('Seuls les contrats en brouillon ou en attente peuvent être supprimés');
+        }
+        if (contract.amountPaid > 0) {
+            throw new Error('Impossible de supprimer un contrat pour lequel des versements ont été enregistrés');
+        }
+
+        // 1) Mise à jour de la demande liée (si demandId) — contractId à null pour permettre de recréer un contrat
+        if (contract.demandId) {
+            await this.creditDemandRepository.updateDemand(contract.demandId, {
+                contractId: null,
+                updatedBy: adminId,
+                updatedAt: new Date(),
+            } as unknown as Partial<Omit<CreditDemand, 'id' | 'createdAt'>>);
+        }
+
+        // 2) Cleanup Storage et documents (best effort)
+        try {
+            const documents = await this.documentRepository.getDocumentsByContractId(id);
+            for (const doc of documents) {
+                if (doc.path) {
+                    try {
+                        const storage = getStorageInstance();
+                        const fileRef = ref(storage, doc.path);
+                        await deleteObject(fileRef);
+                    } catch (err) {
+                        console.error(`Erreur suppression fichier Storage (path: ${doc.path}):`, err);
+                    }
+                }
+                if (doc.id) {
+                    try {
+                        await this.documentRepository.deleteDocument(doc.id);
+                    } catch (err) {
+                        console.error(`Erreur suppression document (id: ${doc.id}):`, err);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Erreur lors du cleanup documents pour le contrat:', err);
+        }
+
+        // 3) Suppression du document contrat
+        await this.creditContractRepository.deleteContract(id);
     }
 
     async updateContractStatus(id: string, status: CreditContractStatus, adminId: string): Promise<CreditContract | null> {

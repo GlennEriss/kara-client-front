@@ -21,6 +21,7 @@ import {
   Loader2,
   User,
   MoreVertical,
+  Trash2,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -45,8 +46,14 @@ import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { Shield, CheckCircle2 } from 'lucide-react'
 import { AlertTriangle } from 'lucide-react'
 import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
+import DeleteCreditContractModal from './DeleteCreditContractModal'
 
 type ViewMode = 'grid' | 'list'
+
+/** Contrat supprimable uniquement si PENDING/DRAFT et aucun versement (doc § 2.1) */
+function canDeleteContract(contract: CreditContract): boolean {
+  return (contract.status === 'DRAFT' || contract.status === 'PENDING') && contract.amountPaid === 0
+}
 
 const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
   const { data: unpaidPenalties = [], isLoading } = useUnpaidCreditPenaltiesByCreditId(creditId)
@@ -285,6 +292,8 @@ const ListContrats = () => {
   const [contractFile, setContractFile] = useState<File | undefined>()
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<CreditContract | null>(null)
+  const [showDeleteContractModal, setShowDeleteContractModal] = useState(false)
+  const [selectedContractForDelete, setSelectedContractForDelete] = useState<CreditContract | null>(null)
 
   // Reset page when filters or tab change
   React.useEffect(() => {
@@ -894,6 +903,16 @@ const ListContrats = () => {
                         Téléverser contrat signé
                       </Button>
                     )}
+                    {canDeleteContract(contract) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Supprimer
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -985,6 +1004,15 @@ const ListContrats = () => {
                                 <DropdownMenuItem onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }} className="cursor-pointer">
                                   <Upload className="h-4 w-4 mr-2" />
                                   Téléverser contrat signé
+                                </DropdownMenuItem>
+                              )}
+                              {canDeleteContract(contract) && (
+                                <DropdownMenuItem
+                                  onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
+                                  className="cursor-pointer text-red-700 focus:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Supprimer
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -1186,6 +1214,18 @@ const ListContrats = () => {
           contract={selectedContractForPDF}
         />
       )}
+      <DeleteCreditContractModal
+        isOpen={showDeleteContractModal}
+        onClose={() => {
+          setShowDeleteContractModal(false)
+          setSelectedContractForDelete(null)
+        }}
+        contract={selectedContractForDelete}
+        onSuccess={() => {
+          setShowDeleteContractModal(false)
+          setSelectedContractForDelete(null)
+        }}
+      />
     </>
   )
 }
