@@ -117,7 +117,7 @@ export function AgentDetailsPage({ agentId }: AgentDetailsPageProps) {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour à la liste
         </Button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-2" />
             Modifier
