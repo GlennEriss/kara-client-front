@@ -34,30 +34,30 @@ export function MembershipsListHeader({
 }: MembershipsListHeaderProps) {
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-      <CardContent className="p-6">
-        {/* Première ligne : Titre + Pagination en haut */}
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center space-x-4 flex-1 min-w-0">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg shrink-0">
-              <Users className="h-6 w-6 text-white" />
+      <CardContent className="p-4 md:p-6">
+        {/* Ligne 1 (mobile) / bloc titre (desktop) : icône + titre, puis en dessous total & page */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 mb-4 md:mb-6">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg shrink-0">
+              <Users className="h-5 w-5 md:h-6 md:w-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                Liste des Membres
+              <h2 className="text-base md:text-2xl font-bold md:font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent md:truncate">
+                Liste des membres
               </h2>
-              <p className="text-gray-600 font-medium">
+              <p className="text-sm md:text-base text-gray-600 font-medium mt-0.5">
                 {totalItems.toLocaleString()} membres • Page {currentPage}
               </p>
             </div>
           </div>
 
-          {/* Pagination en haut - alignée à droite */}
+          {/* Ligne 2 (mobile) : pagination sur sa propre ligne */}
           {pagination && onPageChange && pagination.totalPages > 1 && (
-            <div className="shrink-0">
+            <div className="shrink-0 w-full md:w-auto flex justify-start md:justify-end">
               <MembershipsListPagination
                 pagination={pagination}
                 onPageChange={onPageChange}
-                onItemsPerPageChange={() => {}} // Géré en bas
+                onItemsPerPageChange={() => {}}
                 isLoading={isLoading}
                 compact={true}
               />
@@ -65,7 +65,7 @@ export function MembershipsListHeader({
           )}
         </div>
 
-        {/* Deuxième ligne : Boutons d'actions */}
+        {/* Ligne 3 (mobile) : Exporter + Nouveau ; desktop : tous les boutons d'actions */}
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
             {/* Boutons de vue modernes - Cachés sur mobile */}
             <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">

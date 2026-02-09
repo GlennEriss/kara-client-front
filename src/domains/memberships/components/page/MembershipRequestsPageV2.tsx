@@ -56,6 +56,10 @@ import {
   ReplaceAdhesionPdfModal,
 } from '../modals'
 import { DuplicatesAlert, DuplicatesTab } from '../duplicates'
+import {
+  MembershipRequestsFilterBadgesCarousel,
+  type MembershipRequestTabValue,
+} from './MembershipRequestsFilterBadgesCarousel'
 
 // Hooks V2
 import { useMembershipRequestsV2 } from '../../hooks/useMembershipRequestsV2'
@@ -980,67 +984,85 @@ export function MembershipRequestsPageV2() {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           {/* Conteneur principal avec style Card - Tabs englobent tout le contenu */}
           <div className="border-0 shadow-lg rounded-xl md:rounded-2xl overflow-hidden">
-            {/* TabsList en haut - Responsive : tabs principales en mobile, toutes en desktop */}
+            {/* Tabs : desktop = TabsList, mobile = badges carousel (comme caisse-speciale) */}
             <div className="flex items-center gap-2 border-b border-kara-neutral-200">
-              <TabsList className="relative flex flex-1 flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
-                {/* Tabs principales : toujours visibles (mobile et desktop) */}
-                <TabsTrigger
-                  value="all"
-                  className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-primary-dark data-[state=active]:border-kara-primary-dark data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-primary-dark"
-                >
-                  Toutes
-                </TabsTrigger>
-                <TabsTrigger
-                  value="pending"
-                  className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-warning data-[state=active]:border-kara-warning data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-warning"
-                >
-                  En attente
-                </TabsTrigger>
-                <TabsTrigger
-                  value="under_review"
-                  className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-info data-[state=active]:border-kara-info data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-info"
-                >
-                  En cours
-                </TabsTrigger>
-                <TabsTrigger
-                  value="approved"
-                  className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-success data-[state=active]:border-kara-success data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-success"
-                >
-                  Approuvées
-                </TabsTrigger>
+              {/* TabsList - Vue desktop uniquement */}
+              <div className="hidden lg:block flex-1">
+                <TabsList className="relative flex flex-1 flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+                  <TabsTrigger
+                    value="all"
+                    className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-primary-dark data-[state=active]:border-kara-primary-dark data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-primary-dark"
+                  >
+                    Toutes
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="pending"
+                    className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-warning data-[state=active]:border-kara-warning data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-warning"
+                  >
+                    En attente
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="under_review"
+                    className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-info data-[state=active]:border-kara-info data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-info"
+                  >
+                    En cours
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="approved"
+                    className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-success data-[state=active]:border-kara-success data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-success"
+                  >
+                    Approuvées
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="rejected"
+                    className="shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-error data-[state=active]:border-kara-error data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-error"
+                  >
+                    Rejetées
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="paid"
+                    className="shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-primary-light data-[state=active]:border-kara-primary-light data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-primary-light"
+                  >
+                    Payées
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="unpaid"
+                    className="shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-error data-[state=active]:border-kara-error data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-error"
+                  >
+                    Non payées
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="duplicates"
+                    data-testid="tab-duplicates"
+                    className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-warning data-[state=active]:border-kara-warning data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-warning"
+                  >
+                    Doublons
+                    {duplicateGroups.length > 0 && (
+                      <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-kara-warning/20 text-kara-warning text-xs font-bold">
+                        {duplicateGroups.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-                {/* Tabs secondaires : visibles en desktop uniquement */}
-                <TabsTrigger
-                  value="rejected"
-                  className="hidden md:flex shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-error data-[state=active]:border-kara-error data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-error"
-                >
-                  Rejetées
-                </TabsTrigger>
-                <TabsTrigger
-                  value="paid"
-                  className="hidden md:flex shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-primary-light data-[state=active]:border-kara-primary-light data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-primary-light"
-                >
-                  Payées
-                </TabsTrigger>
-                <TabsTrigger
-                  value="unpaid"
-                  className="hidden md:flex shrink-0 min-w-[100px] px-4 py-3 text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-error data-[state=active]:border-kara-error data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-error"
-                >
-                  Non payées
-                </TabsTrigger>
-                <TabsTrigger
-                  value="duplicates"
-                  data-testid="tab-duplicates"
-                  className="shrink-0 min-w-[80px] sm:min-w-[100px] px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-kara-neutral-200 bg-kara-neutral-50/50 font-semibold text-kara-neutral-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-kara-warning data-[state=active]:border-kara-warning data-[state=active]:shadow-none hover:bg-kara-neutral-100 hover:text-kara-warning"
-                >
-                  Doublons
-                  {duplicateGroups.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-kara-warning/20 text-kara-warning text-xs font-bold">
-                      {duplicateGroups.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+              {/* Badges carousel - Vue mobile et tablette (comme caisse-speciale) */}
+              <div className="lg:hidden flex-1 min-w-0 py-2">
+                <MembershipRequestsFilterBadgesCarousel
+                  value={activeTab as MembershipRequestTabValue}
+                  onChange={(v) => handleTabChange(v)}
+                  counts={{
+                    all: stats?.total,
+                    pending: stats?.byStatus?.pending,
+                    under_review: stats?.byStatus?.under_review,
+                    approved: stats?.byStatus?.approved,
+                    rejected: stats?.byStatus?.rejected,
+                    paid: stats?.byPayment?.paid,
+                    unpaid: stats?.byPayment?.unpaid,
+                    duplicates: duplicateGroups.length,
+                  }}
+                />
+              </div>
             </div>
 
             {/* Contenu de la "page" du classeur - Fait partie intégrante du tab actif */}
@@ -1048,23 +1070,22 @@ export function MembershipRequestsPageV2() {
               {/* En-tête de liste avec titre, recherche et pagination - Pas de séparation avec tabs */}
               <div className="px-3 sm:px-4 md:px-6 py-3 md:py-4 border-b border-kara-neutral-100">
                 <div className="flex flex-col gap-3 md:gap-4">
-                  {/* Titre et compteur avec pagination en haut et switch grid/liste */}
-                  <div className="flex items-center justify-between gap-4 w-full">
-                    <div className="flex items-center gap-2 md:gap-3 shrink-0 flex-1 min-w-0">
+                  {/* Ligne 1 (mobile) / ligne unique (desktop) : icône + titre + compteur */}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 w-full">
+                    <div className="flex items-start gap-2 md:gap-3 min-w-0 flex-1">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-kara-primary-dark/10 flex items-center justify-center shrink-0">
                         <Users className="w-4 h-4 md:w-5 md:h-5 text-kara-primary-dark" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h2 className="font-bold text-base md:text-lg text-kara-primary-dark truncate">Liste des demandes</h2>
-                        <p className="text-xs md:text-sm text-kara-neutral-500 truncate">
-                          {data?.pagination?.totalItems || 0} demande{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''} trouvée{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''}
+                        <h2 className="font-bold text-base md:text-lg text-kara-primary-dark md:truncate">Liste des demandes</h2>
+                        <p className="text-xs md:text-sm text-kara-neutral-500 md:truncate">
+                          {data?.pagination?.totalItems ?? 0} demande{(data?.pagination?.totalItems ?? 0) > 1 ? 's' : ''} trouvée{(data?.pagination?.totalItems ?? 0) > 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
-                    
-                    {/* Pagination en haut + Bouton de switch grid/liste */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      {/* Bouton de switch grid/liste */}
+
+                    {/* Ligne 2 (mobile) : bouton d'affichage (grille/liste) + pagination */}
+                    <div className="flex items-center justify-between md:justify-end gap-3 shrink-0">
                       <div className="flex items-center gap-1 bg-kara-neutral-100 rounded-lg p-1">
                         <Button
                           variant="ghost"
@@ -1072,8 +1093,8 @@ export function MembershipRequestsPageV2() {
                           onClick={() => handleViewModeChange('grid')}
                           className={cn(
                             'h-7 px-2',
-                            viewMode === 'grid' 
-                              ? 'bg-white text-kara-primary-dark shadow-sm' 
+                            viewMode === 'grid'
+                              ? 'bg-white text-kara-primary-dark shadow-sm'
                               : 'text-kara-neutral-600 hover:text-kara-primary-dark'
                           )}
                           title="Vue en grille"
@@ -1086,8 +1107,8 @@ export function MembershipRequestsPageV2() {
                           onClick={() => handleViewModeChange('list')}
                           className={cn(
                             'h-7 px-2',
-                            viewMode === 'list' 
-                              ? 'bg-white text-kara-primary-dark shadow-sm' 
+                            viewMode === 'list'
+                              ? 'bg-white text-kara-primary-dark shadow-sm'
                               : 'text-kara-neutral-600 hover:text-kara-primary-dark'
                           )}
                           title="Vue en liste"
@@ -1095,8 +1116,6 @@ export function MembershipRequestsPageV2() {
                           <List className="w-4 h-4" />
                         </Button>
                       </div>
-                      
-                      {/* Pagination compacte en haut */}
                       {data?.pagination && data.pagination.totalPages > 1 && (
                         <PaginationWithEllipses
                           currentPage={data.pagination.page}
@@ -1111,7 +1130,7 @@ export function MembershipRequestsPageV2() {
                     </div>
                   </div>
 
-                  {/* Barre de recherche, filtres et pagination - Pattern standard (filtre à côté recherche) */}
+                  {/* Ligne 3 : recherche + filtres */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                     {/* Barre de recherche + Filtre (pattern standard) */}
                     <div className="flex-1 min-w-0 flex items-center gap-2">
