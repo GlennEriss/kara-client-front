@@ -162,9 +162,9 @@ export function PaymentModalV2({
     setUploadProgress(10)
 
     try {
-      // Étape 1 : Compression
+      // Étape 1 : Compression (profil rapide pour preuve de paiement ; ignorée si < 2 MB)
       toast.info('Compression de l\'image en cours...', { duration: 2000 })
-      const compressedFile = await ImageCompressionService.compressDocumentImage(file)
+      const compressedFile = await ImageCompressionService.compressPaymentProofImage(file)
       setCompressedSize(ImageCompressionService.formatFileSize(compressedFile.size))
       setUploadProgress(50)
       setIsCompressing(false)

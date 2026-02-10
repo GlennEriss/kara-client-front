@@ -43,6 +43,31 @@ export class ImageCompressionService {
   }
 
   /**
+   * Compresse une image pour une preuve de paiement (priorité vitesse).
+   * Paramètres moins agressifs que le document pour réduire le temps de compression.
+   * @param file - Le fichier image à compresser
+   * @returns Le fichier image compressé (ou original si déjà petit)
+   */
+  static async compressPaymentProofImage(file: File): Promise<File> {
+    const maxSizeBytes = 2 * 1024 * 1024 // 2 MB — sous la limite Storage 5MB
+    if (file.size <= maxSizeBytes) {
+      return file
+    }
+    try {
+      const options = {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: file.type as any,
+        initialQuality: 0.82,
+      }
+      return await imageCompression(file, options)
+    } catch {
+      return file
+    }
+  }
+
+  /**
    * Compresse une image pour un document d'identité
    * Utilise des paramètres optimisés pour la lisibilité des documents
    * @param file - Le fichier image à compresser

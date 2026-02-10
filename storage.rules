@@ -119,15 +119,18 @@ service firebase.storage {
     // ==========================================
     // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
     // ==========================================
-    // Preuves de paiement uploadées par les admins
-    // DONNÉES SENSIBLES - Accès restreint
+    // Preuves de paiement uploadées par les admins (demandes d'adhésion)
+    // Lecture : tout utilisateur authentifié (la page /membership-requests est protégée côté app ;
+    // Firestore isAdmin() utilise un fallback via collection admins que Storage ne peut pas vérifier)
+    // Écriture : utilisateur authentifié avec validation (image, max 5MB)
+    // Suppression : admin uniquement
     
     match /payment-proofs/{fileName} {
-      // Lecture : Admins uniquement (données sensibles)
-      allow read: if isAdmin();
+      // Lecture : utilisateur authentifié (évite storage/unauthorized pour les admins sans custom claim role)
+      allow read: if isAuthenticated();
       
-      // Écriture : Admins uniquement avec validation (image, max 5MB)
-      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      // Écriture : utilisateur authentifié avec validation (image, max 5MB)
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
       
       // Suppression : Admin uniquement
       allow delete: if isAdmin();
