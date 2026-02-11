@@ -22,6 +22,7 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ContractCI } from '@/types/types'
@@ -43,6 +44,7 @@ import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
 import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
+import EditContractCategoryCIModal from './EditContractCategoryCIModal'
 
 interface MonthlyCIContractProps {
   contract: ContractCI
@@ -291,6 +293,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
   const [showReconnaissanceAccompagnement, setShowReconnaissanceAccompagnement] = useState(false)
+  const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
   const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
 
@@ -614,12 +617,32 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
               <p className="text-sm sm:text-base lg:text-lg break-words">
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{contract.id}</span>
               </p>
-              <p className="text-sm break-words">
+              <p className="text-sm break-words flex items-center gap-2 flex-wrap">
                 {contract.memberFirstName} {contract.memberLastName} - Forfait <span className="font-mono text-xs break-all">{contract.subscriptionCICode}</span>
+                {process.env.NODE_ENV === 'development' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-blue-100 hover:text-white hover:bg-white/20"
+                    onClick={() => setEditCategoryOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                    Modifier la catégorie
+                  </Button>
+                )}
               </p>
             </div>
           </CardHeader>
         </Card>
+
+        {process.env.NODE_ENV === 'development' && (
+          <EditContractCategoryCIModal
+            open={editCategoryOpen}
+            onOpenChange={setEditCategoryOpen}
+            contract={contract}
+          />
+        )}
 
         {/* Statistiques de paiement - Carrousel */}
         <PaymentStatsCarousel contract={contract} paymentStats={paymentStats} />

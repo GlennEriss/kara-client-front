@@ -438,4 +438,42 @@ export class CaisseImprevueService {
     }
     return updated
   }
+
+  /**
+   * Met à jour la catégorie (forfait) d'un contrat CI.
+   * Remplace toutes les données du forfait sur le contrat par celles du forfait cible.
+   */
+  async updateContractSubscription(
+    contractId: string,
+    newSubscriptionId: string,
+    adminId: string
+  ): Promise<ContractCI> {
+    const contract = await this.contractRepository.getContractById(contractId)
+    if (!contract) {
+      throw new Error('Contrat introuvable')
+    }
+    const subscriptionRepository = RepositoryFactory.getSubscriptionCIRepository()
+    const subscription = await subscriptionRepository.getSubscriptionById(newSubscriptionId)
+    if (!subscription) {
+      throw new Error('Forfait introuvable')
+    }
+    if (subscription.status !== 'ACTIVE') {
+      throw new Error('Le forfait sélectionné n\'est pas actif')
+    }
+    const updated = await this.contractRepository.updateContract(contractId, {
+      subscriptionCIID: subscription.id,
+      subscriptionCICode: subscription.code,
+      subscriptionCILabel: subscription.label,
+      subscriptionCIAmountPerMonth: subscription.amountPerMonth,
+      subscriptionCINominal: subscription.nominal,
+      subscriptionCIDuration: subscription.durationInMonths,
+      subscriptionCISupportMin: subscription.supportMin,
+      subscriptionCISupportMax: subscription.supportMax,
+      updatedBy: adminId,
+    })
+    if (!updated) {
+      throw new Error('Erreur lors de la mise à jour du contrat')
+    }
+    return updated
+  }
 }

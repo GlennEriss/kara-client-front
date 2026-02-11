@@ -48,5 +48,21 @@ export function useContractCIMutations() {
     },
   })
 
-  return { deleteContract, replaceContractDocument }
+  const updateContractSubscription = useMutation({
+    mutationFn: ({ contractId, subscriptionId }: { contractId: string; subscriptionId: string }) => {
+      if (!user?.uid) throw new Error('Utilisateur non authentifié')
+      return service.updateContractSubscription(contractId, subscriptionId, user.uid)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI'] })
+      toast.success('Catégorie du contrat mise à jour')
+    },
+    onError: (error: Error) => {
+      toast.error(error?.message ?? 'Erreur lors de la modification de la catégorie')
+    },
+  })
+
+  return { deleteContract, replaceContractDocument, updateContractSubscription }
 }
