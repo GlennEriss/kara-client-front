@@ -596,8 +596,8 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={styles.paragraph14}>Régulier</Text>
         </View>
         <Text style={styles.paragraph14}>À hauteur de</Text>
-        <Text style={styles.paragraph14}>{formatAmount(contract.amount)} FCFA (chiffres)</Text>
-        <Text style={styles.paragraph14}>{numberToWords(contract.amount)} FCFA (lettres),</Text>
+        <Text style={styles.paragraph14}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres)</Text>
+        <Text style={styles.paragraph14}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres),</Text>
         <Text style={styles.paragraph14}>
           En date du {formatDate(firstPaymentDate)}. Pour une nécessité sociale.
         </Text>
@@ -698,7 +698,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           En date du {formatDate(firstPaymentDate)},
         </Text>
         <Text style={styles.paragraph12}>
-          l’Association LE KARA a mis à la disposition de M / Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName} Une somme de {formatAmount(contract.amount)} FCFA(Chiffres), {numberToWords(contract.amount)} FCFA (Lettres) dans le cadre d’un accompagnement, à charge pour le membre de la lui restituer en date du {formatDate(endDate)}.
+          l’Association LE KARA a mis à la disposition de M / Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName} Une somme de {formatAmount(contract.totalAmount ?? contract.amount)} FCFA(Chiffres), {numberToWords(contract.totalAmount ?? contract.amount)} FCFA (Lettres) dans le cadre d’un accompagnement, à charge pour le membre de la lui restituer en date du {formatDate(endDate)}.
         </Text>
         <Text style={styles.paragraph12}>
           Que pour garantir le remboursement de ladite somme,
