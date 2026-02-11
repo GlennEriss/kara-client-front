@@ -378,7 +378,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
               { content: 'SEXE', textStyle: styles.tableLabelText },
               { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
               { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.age || '—', textStyle: styles.tableValueText },
+              { content: contract?.member?.age+' ans' || '—', textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
