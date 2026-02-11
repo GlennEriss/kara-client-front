@@ -39,13 +39,14 @@ export function Step2ContractConfiguration() {
   const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(formData.caisseType)
 
   // Réinitialiser le type de caisse si charitable et membre non éligible
-  useEffect(() => {
-    if (eligibilityLoading) return
-    const current = formData.caisseType
-    if (current && CHARITABLE_TYPES.includes(current as typeof CHARITABLE_TYPES[number]) && !eligible) {
-      updateFormData({ caisseType: 'STANDARD' })
-    }
-  }, [eligible, eligibilityLoading, formData.caisseType, updateFormData])
+  // (désactivé temporairement : les types charitables restent déverrouillés)
+  // useEffect(() => {
+  //   if (eligibilityLoading) return
+  //   const current = formData.caisseType
+  //   if (current && CHARITABLE_TYPES.includes(current as typeof CHARITABLE_TYPES[number]) && !eligible) {
+  //     updateFormData({ caisseType: 'STANDARD' })
+  //   }
+  // }, [eligible, eligibilityLoading, formData.caisseType, updateFormData])
 
   // Validation de l'étape
   useEffect(() => {
@@ -130,8 +131,8 @@ export function Step2ContractConfiguration() {
       {formData.contractType === 'INDIVIDUAL' && (
         <>
           {!eligible && memberId && !eligibilityLoading && (
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-              Les types <strong>Standard Charitable</strong>, <strong>Journalière Charitable</strong> et <strong>Libre Charitable</strong> sont réservés aux membres ayant déjà contribué à une œuvre de charité.
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+              Ce membre n&apos;a jamais fait d&apos;acte de charité.
             </div>
           )}
           {eligible && lastContribution && (
@@ -205,18 +206,16 @@ export function Step2ContractConfiguration() {
               <span className="text-xs opacity-80">Versements flexibles</span>
             </Button>
 
-            {/* Caisse Standard Charitable */}
+            {/* Caisse Standard Charitable - condition disabled commentée : toujours cliquable */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-block w-full">
                     <Button
                       variant={formData.caisseType === 'STANDARD_CHARITABLE' ? 'default' : 'outline'}
-                      onClick={() => eligible && handleCaisseTypeChange('STANDARD_CHARITABLE')}
-                      disabled={!eligible}
+                      onClick={() => handleCaisseTypeChange('STANDARD_CHARITABLE')}
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300 w-full",
-                        !eligible && "opacity-60 cursor-not-allowed",
                         formData.caisseType === 'STANDARD_CHARITABLE'
                           ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
                           : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
@@ -239,11 +238,9 @@ export function Step2ContractConfiguration() {
                   <span className="inline-block w-full">
                     <Button
                       variant={formData.caisseType === 'JOURNALIERE_CHARITABLE' ? 'default' : 'outline'}
-                      onClick={() => eligible && handleCaisseTypeChange('JOURNALIERE_CHARITABLE')}
-                      disabled={!eligible}
+                      onClick={() => handleCaisseTypeChange('JOURNALIERE_CHARITABLE')}
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300 w-full",
-                        !eligible && "opacity-60 cursor-not-allowed",
                         formData.caisseType === 'JOURNALIERE_CHARITABLE'
                           ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
                           : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
@@ -266,11 +263,9 @@ export function Step2ContractConfiguration() {
                   <span className="inline-block w-full">
                     <Button
                       variant={formData.caisseType === 'LIBRE_CHARITABLE' ? 'default' : 'outline'}
-                      onClick={() => eligible && handleCaisseTypeChange('LIBRE_CHARITABLE')}
-                      disabled={!eligible}
+                      onClick={() => handleCaisseTypeChange('LIBRE_CHARITABLE')}
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300 w-full",
-                        !eligible && "opacity-60 cursor-not-allowed",
                         formData.caisseType === 'LIBRE_CHARITABLE'
                           ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
                           : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
