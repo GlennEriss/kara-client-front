@@ -393,7 +393,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
         </View>
 
         <Text style={styles.title}>VOLET ENTRAIDE</Text>
-       <Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
         </Text>
