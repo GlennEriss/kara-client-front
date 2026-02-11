@@ -1530,6 +1530,8 @@ export interface CreditContract {
   monthlyPaymentAmount: number
   totalAmount: number // Montant + intérêts
   duration: number // Durée en mois
+  /** Échéancier personnalisé (simulation personnalisée) : montant par mois. Si présent, le PDF utilise ces montants au lieu de recalculer. */
+  customSchedule?: Array<{ month: number; amount: number }>
   firstPaymentDate: Date
   nextDueAt?: Date
   status: CreditContractStatus

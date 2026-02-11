@@ -192,11 +192,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         demandId: string, 
         adminId: string,
         simulationData: {
+            amount: number;
             interestRate: number;
             monthlyPaymentAmount: number;
             duration: number;
             firstPaymentDate: Date;
             totalAmount: number;
+            customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;
             guarantorRemunerationPercentage?: number;
         }
@@ -265,11 +267,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             clientLastName: demand.clientLastName,
             clientContacts: demand.clientContacts,
             creditType: demand.creditType,
-            amount: demand.amount,
+            amount: simulationData.amount,
             interestRate: simulationData.interestRate,
             monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
             totalAmount: simulationData.totalAmount,
             duration: simulationData.duration,
+            ...(simulationData.customSchedule && simulationData.customSchedule.length > 0
+                ? { customSchedule: simulationData.customSchedule }
+                : {}),
             firstPaymentDate: simulationData.firstPaymentDate,
             nextDueAt,
             status: 'PENDING',

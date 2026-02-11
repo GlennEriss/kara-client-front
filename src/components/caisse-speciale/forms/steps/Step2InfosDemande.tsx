@@ -26,21 +26,22 @@ export function Step2InfosDemande({ form }: Step2InfosDemandeProps) {
   const { eligible, lastContribution, isLoading } = useMemberCharityEligibility(memberId || null)
 
   // Si le membre n'est pas éligible et qu'un type charitable est sélectionné, réinitialiser
-  useEffect(() => {
-    if (isLoading) return
-    const current = form.getValues('caisseType')
-    if (!eligible && current && CHARITABLE_TYPES.includes(current as typeof CHARITABLE_TYPES[number])) {
-      form.setValue('caisseType', 'STANDARD')
-    }
-  }, [eligible, isLoading, form])
+  // (désactivé temporairement : les types charitables restent déverrouillés)
+  // useEffect(() => {
+  //   if (isLoading) return
+  //   const current = form.getValues('caisseType')
+  //   if (!eligible && current && CHARITABLE_TYPES.includes(current as typeof CHARITABLE_TYPES[number])) {
+  //     form.setValue('caisseType', 'STANDARD')
+  //   }
+  // }, [eligible, isLoading, form])
 
   return (
     <div className="space-y-6">
       <h3 className="font-semibold text-lg">Informations de la demande</h3>
 
       {!eligible && (memberId ? !isLoading : true) && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
-          Les types <strong>Standard Charitable</strong>, <strong>Journalière Charitable</strong> et <strong>Libre Charitable</strong> sont réservés aux membres ayant déjà contribué à une œuvre de charité.
+        <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-md p-3">
+          Ce membre n&apos;a jamais fait d&apos;acte de charité.
         </p>
       )}
 
@@ -85,14 +86,15 @@ export function Step2InfosDemande({ form }: Step2InfosDemandeProps) {
                   <SelectItem value="STANDARD">Standard</SelectItem>
                   <SelectItem value="JOURNALIERE">Journalière</SelectItem>
                   <SelectItem value="LIBRE">Libre</SelectItem>
-                  <SelectItem value="STANDARD_CHARITABLE" disabled={!eligible}>
-                    Standard Charitable {!eligible && '(réservé aux contributeurs œuvres de charité)'}
+                  {/* Condition désactivée temporairement : types charitables toujours cliquables */}
+                  <SelectItem value="STANDARD_CHARITABLE" disabled={false}>
+                    Standard Charitable (réservé aux contributeurs œuvres de charité)
                   </SelectItem>
-                  <SelectItem value="JOURNALIERE_CHARITABLE" disabled={!eligible}>
-                    Journalière Charitable {!eligible && '(réservé aux contributeurs œuvres de charité)'}
+                  <SelectItem value="JOURNALIERE_CHARITABLE" disabled={false}>
+                    Journalière Charitable (réservé aux contributeurs œuvres de charité)
                   </SelectItem>
-                  <SelectItem value="LIBRE_CHARITABLE" disabled={!eligible}>
-                    Libre Charitable {!eligible && '(réservé aux contributeurs œuvres de charité)'}
+                  <SelectItem value="LIBRE_CHARITABLE" disabled={false}>
+                    Libre Charitable (réservé aux contributeurs œuvres de charité)
                   </SelectItem>
                 </SelectContent>
               </Select>
