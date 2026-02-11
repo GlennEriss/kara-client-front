@@ -12,10 +12,10 @@ const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
     fontSize: 12,
-    paddingTop: 50, // 1820 twips
-    paddingRight: 62, // 1240 twips
+    paddingTop: 30, // 1820 twips
+    paddingRight: 50, // 1240 twips
     paddingBottom: 14, // 280 twips
-    paddingLeft: 65, // 1300 twips
+    paddingLeft: 50, // 1300 twips
     color: '#000000',
   },
   logo: {
@@ -49,15 +49,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#0070C0',
   },
   tableHeaderText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableSectionText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#0070C0',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   tableLabelText: {
@@ -65,34 +65,46 @@ const styles = StyleSheet.create({
   },
   tableValueText: {
     fontSize: 12,
+    textAlign: 'center',
   },
   title1: {
-    fontSize: 13,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
     textDecoration: 'underline',
-    marginBottom: 8,
+    marginBottom: 12,
+    color: '#1f3a4e',
+    marginTop: 5,
   },
   title2Underline: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
     textDecoration: 'underline',
-    marginTop: 6,
+    marginTop: 12,
     marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: '#224d62',
   },
   title2: {
-    fontSize: 13,
+   fontSize: 15,
     fontWeight: 'bold',
     textDecoration: 'underline',
-    textAlign: 'center',
-    marginTop: 6,
+    marginTop: 12,
     marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: '#224d62',
   },
   articleTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginTop: 6,
-    marginBottom: 4,
+    
+    marginTop: 12,
+    marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: '#224d62',
   },
   paragraph: {
     fontSize: 12,
@@ -101,9 +113,16 @@ const styles = StyleSheet.create({
   },
   paragraphIndented: {
     fontSize: 12,
-    lineHeight: 1.3,
     textAlign: 'justify',
-    marginLeft: 6,
+    textIndent: 36,
+    marginBottom: 6,
+  },
+  paragraphIndented2: {
+    fontSize: 12,
+    textAlign: 'center',
+    textIndent: 36,
+    marginBottom: 6,
+    fontWeight: 'bold',
   },
   paragraphListIndent: {
     fontSize: 12,
@@ -299,7 +318,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
   const memberAddress = contract?.member?.address?.district || '—'
   const memberPhones =
     Array.isArray(contract?.member?.contacts) && contract.member.contacts.length > 0
-      ? contract.member.contacts.filter(Boolean).join(' / ')
+      ? contract.member.contacts.filter(Boolean).join(' || ')
       : '—'
   const durationMonths = contract?.monthsPlanned || 12
   const amountValue = Number(contract?.monthlyAmount ?? 0)
@@ -320,13 +339,9 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
                 content: 'Informations Personnelles du Membre :',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: '#0070C0',
+                backgroundColor: '#224d62',
               },
             ]}
-          />
-          <TableRow
-            height={43.35}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
           />
           <TableRow
             height={26.15}
@@ -382,7 +397,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
               { content: 'SEXE', textStyle: styles.tableLabelText },
               { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
               { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.age || '—', textStyle: styles.tableValueText },
+              { content: contract?.member?.age+' ans' || '—', textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
@@ -395,22 +410,15 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
             ]}
           />
           <TableRow
-            height={26.15}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
-          />
-          <TableRow
             height={41.9}
             cells={[
               {
                 content: 'Informations Concernant Le Contact Urgent :',
                 span: 4,
                 textStyle: styles.tableSectionText,
+                backgroundColor: '#224d62',
               },
             ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
           />
           <TableRow
             height={26.15}
@@ -455,22 +463,34 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
       {/* PAGE 2 */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.title1}>CAISSE SPÉCIALE</Text>
-
         <Text style={styles.paragraph}>
-          Dans le cadre d’une démarche purement sociale et en lien à sa mission de promouvoir la
-          solidarité et l’appui mutuel entre ses membres, l’Association LE KARA met en place le
-          volet « Caisse spéciale ».
+               </Text>
+               <Text style={styles.paragraph}>
+               </Text>
+               <Text style={styles.paragraph}>
+               </Text>
+               <Text style={styles.paragraph}>
+               </Text>
+               <Text style={styles.paragraph}>
+               </Text>
+
+        <Text style={styles.paragraphIndented}>
+          Dans le cadre d’une démarche purement sociale et en 
+          lien à sa mission de promouvoir la solidarité et l’appui mutuel entre ses membres, l’Association LE KARA met en place le volet « Caisse spéciale ».
         </Text>
-        <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          Ce dispositif permet à chaque adhérent volontaire, appelé épargnant, de constituer
-          progressivement une réserve financière personnelle destinée à faire face sereinement aux
-          imprévus de la vie : difficultés passagères, besoins urgents, projets essentiels ou
-          situations fragilisantes.
+        <Text style={styles.paragraph}>
         </Text>
-        <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          L’Association LE KARA s’engage avec transparence, à sécuriser les fonds épargnés et à les
-          mettre à la disposition de l’épargnant au moindre besoin, conformément aux dispositions
-          qui suivent.
+        <Text style={styles.paragraphIndented}>
+          Ce dispositif permet à chaque adhérent volontaire, appelé épargnant, de constituer progressivement une réserve financière personnelle destinée à faire face sereinement aux imprévus de la vie 
+          : difficultés passagères, besoins urgents, projets essentiels ou situations fragilisantes.
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraphIndented}>
+          L’Association LE KARA s’engage avec transparence, à sécuriser les fonds épargnés et à les mettre à
+           la disposition de l’épargnant au moindre besoin, conformément aux dispositions qui suivent.
+        </Text>
+        <Text style={styles.paragraph}>
         </Text>
 
         <Text style={[styles.paragraph, { marginTop: 4 }]}>
@@ -479,11 +499,13 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         </Text>
         <Text style={[styles.paragraph, { marginTop: 2 }]}>
           <Text style={{ fontWeight: 'bold' }}>Le nominal : </Text>
-          Globalité des versements mensuels de l’épargnant.
+          Globalité des versements mensuels de l’épargnant. 
         </Text>
-
+<Text style={styles.paragraph}>
+               </Text>
         <Text style={styles.title2Underline}>Fonctionnement général de la Caisse Spéciale</Text>
-
+<Text style={styles.paragraph}>
+               </Text>
         {[
           {
             label: 'Durée du contrat',
@@ -495,7 +517,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
           },
           {
             label: 'Terme du contrat',
-            text: 'Le contrat prend fin à la date prévue par le contrat. A cette date, l’épargnant reçoit le remboursement de intégralité des sommes qu’il a eu à verser.',
+            text: 'Le contrat prend fin à la date prévue par le contrat. A cette date, l’épargnant reçoit le remboursement de l’intégralité des sommes qu’il a eu à verser.',
           },
           {
             label: 'Déroulement des versements mensuels',
@@ -503,7 +525,9 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
           },
           {
             label: 'Remboursement',
-            text: 'Le remboursement du nominal, à l’initiative de l’association et au bénéfice de l’épargnant, intervient sur une durée maximale de trente (30) jours à compter de la date du terme du contrat.',
+            text: 'Le remboursement du nominal, à l’initiative de l’association et au bénéfice de l’épargnant, intervient sur une durée maximale de trente (30) jours à compter de la date du terme du contrat.  Ce délai permet une gestion saine, responsable et transparente de la trésorerie',
+                  
+
           },
           {
             label: 'Tolérance de retard',
@@ -522,9 +546,8 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={[styles.paragraph, { marginTop: 2 }]}>Ce délai permet une gestion saine, responsable et transparente de la trésorerie.</Text>
 
         <Text style={[styles.paragraphListIndent, { marginTop: 4 }]}>
-          •À compter du quatrième jour jusqu’à douzième jour succédant l’expiration du délai de retard,
-          tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées
-          à préserver l’équilibre et la bonne tenue de la caisse commune.
+          •À compter du quatrième jour jusqu'au douzième jour succédant à l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver 
+          l’équilibre et la bonne tenue de la caisse commune.
         </Text>
         <Text style={styles.paragraphListIndent}>
           •Tout versement intervenu après le douzième jour est irrecevable et s’assimile à un manquement
@@ -533,18 +556,24 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         </Text>
 
         <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          <Text style={{ fontWeight: 'bold' }}>Résiliation</Text> : Le contrat est de plein droit résolu si :
+          <Text style={{ fontWeight: 'bold' }}>7. Résiliation</Text> : Le contrat est de plein droit résolu si :
+        </Text>
+        <Text style={[styles.paragraphListIndent, styles.italicText]}>
         </Text>
         <Text style={[styles.paragraphListIndent, styles.italicText]}>-l’épargnant omet le versement d’un mois.</Text>
         <Text style={[styles.paragraphListIndent, styles.italicText]}>
+        </Text>
+        <Text style={[styles.paragraphListIndent, styles.italicText]}>
           -l’épargnant exige le remboursement du nominal avant le terme du contrat.
         </Text>
-
-        <Text style={[styles.paragraphListIndent, { marginTop: 2 }]}>
+<Text style={styles.paragraph}>
+        </Text>
+        <Text style={[styles.paragraph, { marginTop: 4 }]}>
           Le remboursement du nominal suite à une demande de retrait intervenue avant terme, est réalisé
           dans un intervalle de quarante-cinq jours à compter de la demande.
         </Text>
-
+<Text style={styles.paragraph}>
+        </Text>
         <Text style={[styles.paragraph, styles.rightAlign, { marginTop: 12 }]}>
           [Signature de l’épargnant précédée de la mention « lu et approuvé »]
         </Text>
@@ -557,21 +586,27 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={styles.paragraphIndented}>Je soussigné(e),</Text>
         <Text style={[styles.paragraphIndented, { fontWeight: 'bold' }]}>{memberFullName}</Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          membre de l’association KARA, domicilié à {memberAddress} et joignable au {memberPhones}.
+          Membre de l’association LE KARA, domicilié à {memberAddress} et joignable au :
+        </Text>
+        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
+           {memberPhones}.
         </Text>
 
         <Text style={styles.articleTitle}>ARTICLE 1 : OBJET DU CONTRAT</Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l’association Kara.</Text>
+        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l’association LE KARA.</Text>
+<Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
+        </Text>
 
         <Text style={styles.articleTitle}>ARTICLE 2 : DUREE DU CONTRAT</Text>
         <Text style={styles.paragraphIndented}>Que cet engagement est valable pour une durée de {durationMonths} mois ;</Text>
         <Text style={styles.paragraphIndented}>
-          Qu’il a été Conclu en date du {formatDate(contract?.firstPaymentDate)} et prend donc fin en
+          Qu’il a été Conclu en date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(contract?.firstPaymentDate)}</Text>  et prend donc fin en
         </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          Date du {formatDate(contract?.lastPaymentDate)}
+          Date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(contract?.lastPaymentDate)}</Text> 
         </Text>
-
+<Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
+        </Text>
         <Text style={styles.articleTitle}>ARTICLE 3 : TERMES CONTRACTUELS</Text>
         <Text style={[styles.paragraph, { fontWeight: 'bold', marginTop: 4 }]}>L’épargnant souscrit à la formule :</Text>
 
@@ -593,12 +628,12 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>Par cet engagement, je prends la décision de mettre à la disposition de l’association la somme déterminée de :</Text>
         {!isChangeable && (
           <>
-            <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>{amountInWords} (Lettres)</Text>
-            <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>{amountInDigits} (Chiffres)</Text>
+            <Text style={[styles.paragraphIndented2, { marginTop: 4 }]}>{amountInWords} (Lettres)</Text>
+            <Text style={[styles.paragraphIndented2, { marginTop: 2 }]}>{amountInDigits} (Chiffres)</Text>
           </>
         )}
         <Text style={[styles.paragraphIndented, { marginTop: 6 }]}>
-          A l’échéance prévue pour le {formatDate(contract?.firstPaymentDate)}. Et ce
+          A l’échéance prévue pour le <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(contract?.firstPaymentDate)}</Text>. Et ce
         </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
       </Page>
@@ -612,9 +647,9 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
 
         <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT</Text>
 
-        <Text style={[styles.paragraphIndented, { marginTop: 8 }]}>Signature de l’épargnant précédée de la mention « lu et approuvé »</Text>
+        <Text style={[styles.paragraphIndented, { marginTop: 16 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
 
-        <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 100 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
+        <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 100 }]}>Signature de l’épargnant précédée de la mention « lu et approuvé »</Text>
       </Page>
     </Document>
   )
