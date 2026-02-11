@@ -336,6 +336,15 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
     return payment?.status || 'DUE'
   }
 
+  /** Index du premier mois non payé (ordre chronologique) : seul ce mois peut recevoir un nouveau versement. */
+  const nextUnpaidMonthIndex = React.useMemo(() => {
+    const duration = contract.subscriptionCIDuration ?? 12
+    for (let i = 0; i < duration; i++) {
+      if (getMonthStatus(i) !== 'PAID') return i
+    }
+    return null
+  }, [contract.subscriptionCIDuration, payments])
+
   // Prochaine échéance à payer (premier mois DUE dont la date >= aujourd'hui) pour le PDF Reconnaissance
   const nextDueDate = React.useMemo(() => {
     if (!contract.firstPaymentDate) return null
@@ -381,7 +390,14 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
       // 2. Si support actif → Modal de remboursement du support (PRIORITAIRE)
       setShowRepaySupportModal(true)
     } else {
-      // 3. Sinon → Modal de versement normal
+      // 3. Versement normal : uniquement pour le prochain mois impayé (ordre chronologique)
+      if (nextUnpaidMonthIndex !== null && monthIndex !== nextUnpaidMonthIndex) {
+        toast.error(
+          `Veuillez d'abord régler le mois M${nextUnpaidMonthIndex + 1} avant de pouvoir enregistrer un versement pour le mois M${monthIndex + 1}.`
+        )
+        setSelectedMonthIndex(null)
+        return
+      }
       setShowPaymentModal(true)
     }
   }
@@ -712,7 +728,9 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                     const statusConfig = getStatusConfig(status)
                     const StatusIcon = statusConfig.icon
 
-                    const isDisabled = isContractTerminated && status !== 'PAID'
+                    // Désactiver : contrat terminé et mois non payé, ou mois à payer mais pas le prochain dans l'ordre
+                    const isNotNextUnpaid = status === 'DUE' && nextUnpaidMonthIndex !== null && monthIndex !== nextUnpaidMonthIndex
+                    const isDisabled = (isContractTerminated && status !== 'PAID') || isNotNextUnpaid
                     
                     return (
                       <Card
@@ -806,7 +824,10 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
             {/* Information */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
-                <strong>ℹ️ Information :</strong> Cliquez sur un mois pour enregistrer un versement.
+                <strong>ℹ️ Information :</strong> Cliquez sur un mois pour voir le reçu (mois payé) ou enregistrer un versement.
+                {nextUnpaidMonthIndex !== null && !isContractTerminated && (
+                  <> Seul le <strong>mois M{nextUnpaidMonthIndex + 1}</strong> (prochain mois à payer) accepte un nouveau versement.</>
+                )}
               </p>
             </div>
           </CardContent>

@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,6 +24,7 @@ import {
   Grid3X3,
   List,
   MoreVertical,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
@@ -42,6 +45,8 @@ import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
+import DeleteContractCIModal from './DeleteContractCIModal'
+import ReplaceContractCIModal from './ReplaceContractCIModal'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
@@ -55,6 +60,24 @@ const FREQUENCY_LABELS = {
 }
 
 type ViewMode = 'grid' | 'list'
+
+/** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). Utilise les stats de paiement réelles si fournies. */
+function canDeleteContractCI(
+  contract: ContractCI,
+  paymentStats?: { paymentCount: number; totalAmountPaid: number }
+): boolean {
+  if (contract.status !== 'ACTIVE') return false
+  if ((contract.totalMonthsPaid ?? 0) > 0) return false
+  if (paymentStats && (paymentStats.paymentCount > 0 || paymentStats.totalAmountPaid > 0)) return false
+  if (contract.currentSupportId) return false
+  if ((contract.supportHistory?.length ?? 0) > 0) return false
+  return true
+}
+
+/** Afficher « Modifier contrat » : contractStartId existant et statut ACTIVE (doc § 2.1–2.2). */
+function canReplaceContractCI(contract: ContractCI): boolean {
+  return Boolean(contract.contractStartId) && contract.status === 'ACTIVE'
+}
 
 /** Formate une date contrat (string YYYY-MM-DD, Timestamp, Date) en fr-FR ou "—" si invalide */
 function formatContractDate(value: string | Date | { toDate?: () => Date } | undefined): string {
@@ -110,6 +133,10 @@ export default function ListContractsCISection() {
   const [selectedContractForRefund, setSelectedContractForRefund] = useState<ContractCI | null>(null)
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [showDeleteContractCIModal, setShowDeleteContractCIModal] = useState(false)
+  const [selectedContractForDelete, setSelectedContractForDelete] = useState<ContractCI | null>(null)
+  const [showReplaceContractCIModal, setShowReplaceContractCIModal] = useState(false)
+  const [selectedContractForReplace, setSelectedContractForReplace] = useState<ContractCI | null>(null)
 
   /**
    * Vérifie si un contrat CI a une échéance dans le mois actuel
@@ -413,6 +440,25 @@ export default function ListContractsCISection() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentContracts = filteredContracts?.slice(startIndex, endIndex) || []
+  const contractIds = useMemo(() => currentContracts.map((c) => c.id), [currentContracts])
+
+  // Stats de paiement pour la page courante (pour masquer "Supprimer" si versements réels)
+  const paymentStatsQueries = useQueries({
+    queries: contractIds.map((contractId) => ({
+      queryKey: ['contract-payment-stats', contractId],
+      queryFn: () => ServiceFactory.getCaisseImprevueService().getContractPaymentStats(contractId),
+      enabled: !!contractId,
+      staleTime: 60_000,
+    })),
+  })
+  const paymentStatsByContractId = useMemo(() => {
+    const map: Record<string, { paymentCount: number; totalAmountPaid: number }> = {}
+    contractIds.forEach((id, i) => {
+      const res = paymentStatsQueries[i]?.data
+      if (res) map[id] = { paymentCount: res.paymentCount, totalAmountPaid: res.totalAmountPaid }
+    })
+    return map
+  }, [contractIds, paymentStatsQueries])
 
   // Gestion des erreurs
   if (error) {
@@ -696,14 +742,26 @@ export default function ListContractsCISection() {
                         </Button>
 
                         {contract.contractStartId ? (
-                          <Button
-                            onClick={() => handleViewUploadedContract(contract)}
-                            variant="outline"
-                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
-                          >
-                            <Eye className="h-4 w-4" />
-                            Voir contrat
-                          </Button>
+                          <>
+                            <Button
+                              onClick={() => handleViewUploadedContract(contract)}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Voir contrat
+                            </Button>
+                            {canReplaceContractCI(contract) && (
+                              <Button
+                                onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Modifier contrat
+                              </Button>
+                            )}
+                          </>
                         ) : (
                           <Button
                             onClick={() => handleUploadContract(contract)}
@@ -735,6 +793,17 @@ export default function ListContractsCISection() {
                           >
                             <Eye className="h-4 w-4" />
                             Contrat de résiliation
+                          </Button>
+                        )}
+
+                        {canDeleteContractCI(contract, paymentStatsByContractId[contract.id]) && (
+                          <Button
+                            variant="outline"
+                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Supprimer
                           </Button>
                         )}
                       </div>
@@ -823,13 +892,24 @@ export default function ListContractsCISection() {
                                 Télécharger PDF
                               </DropdownMenuItem>
                               {contract.contractStartId ? (
-                                <DropdownMenuItem
-                                  onClick={() => handleViewUploadedContract(contract)}
-                                  className="cursor-pointer"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Voir contrat uploadé
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewUploadedContract(contract)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Voir contrat uploadé
+                                  </DropdownMenuItem>
+                                  {canReplaceContractCI(contract) && (
+                                    <DropdownMenuItem
+                                      onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
+                                      className="cursor-pointer"
+                                    >
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      Modifier contrat
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
                               ) : (
                                 <DropdownMenuItem
                                   onClick={() => handleUploadContract(contract)}
@@ -837,6 +917,15 @@ export default function ListContractsCISection() {
                                 >
                                   <Plus className="h-4 w-4 mr-2" />
                                   Téléverser contrat
+                                </DropdownMenuItem>
+                              )}
+                              {canDeleteContractCI(contract, paymentStatsByContractId[contract.id]) && (
+                                <DropdownMenuItem
+                                  onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                                  className="cursor-pointer text-red-700 focus:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Supprimer
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -957,6 +1046,32 @@ export default function ListContractsCISection() {
           refundType={refundType}
         />
       )}
+
+      <DeleteContractCIModal
+        isOpen={showDeleteContractCIModal}
+        onClose={() => {
+          setShowDeleteContractCIModal(false)
+          setSelectedContractForDelete(null)
+        }}
+        contract={selectedContractForDelete}
+        onSuccess={() => {
+          setShowDeleteContractCIModal(false)
+          setSelectedContractForDelete(null)
+        }}
+      />
+
+      <ReplaceContractCIModal
+        isOpen={showReplaceContractCIModal}
+        onClose={() => {
+          setShowReplaceContractCIModal(false)
+          setSelectedContractForReplace(null)
+        }}
+        contract={selectedContractForReplace}
+        onSuccess={() => {
+          setShowReplaceContractCIModal(false)
+          setSelectedContractForReplace(null)
+        }}
+      />
     </div>
   )
 }

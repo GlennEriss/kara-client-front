@@ -9,4 +9,7 @@ export interface ICaisseContractsRepository {
   createContract(input: CreateCaisseContractInput): Promise<string>
   uploadContractPdf(input: UploadContractPdfInput): Promise<ContractPdfMetadata>
   getContractPayments(contractId: string): Promise<ContractPayment[]>
+  deletePayments(contractId: string): Promise<void>
+  deleteRefunds(contractId: string): Promise<void>
+  deleteContract(contractId: string): Promise<void>
 }

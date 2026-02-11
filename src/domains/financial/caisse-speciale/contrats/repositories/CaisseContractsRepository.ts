@@ -9,13 +9,15 @@ import {
   getDocs,
   getDoc,
   doc,
+  deleteDoc,
   getCountFromServer,
   Timestamp,
 } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { CaisseContract } from '@/types/types'
 import { subscribe } from '@/services/caisse/mutations'
-import { listPayments } from '@/db/caisse/payments.db'
+import { listPayments, deleteAllPayments } from '@/db/caisse/payments.db'
+import { deleteAllRefunds } from '@/db/caisse/refunds.db'
 import { updateContractPdf } from '@/db/caisse/contracts.db'
 import { createFile } from '@/db/upload-image.db'
 import type { ICaisseContractsRepository } from './ICaisseContractsRepository'
@@ -383,5 +385,18 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
 
   async getContractPayments(contractId: string): Promise<ContractPayment[]> {
     return listPayments(contractId)
+  }
+
+  async deletePayments(contractId: string): Promise<void> {
+    await deleteAllPayments(contractId)
+  }
+
+  async deleteRefunds(contractId: string): Promise<void> {
+    await deleteAllRefunds(contractId)
+  }
+
+  async deleteContract(contractId: string): Promise<void> {
+    const ref = doc(db, this.collectionName, contractId)
+    await deleteDoc(ref)
   }
 }

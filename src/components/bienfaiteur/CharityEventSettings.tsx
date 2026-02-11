@@ -139,10 +139,10 @@ export default function CharityEventSettings({ event }: CharityEventSettingsProp
     }
   }
 
-  const statusOptions = Object.entries(CHARITY_EVENT_STATUS_LABELS).map(([value, label]) => ({
-    value,
-    label
-  }))
+  // « En cours » n'est proposé que depuis Brouillon ou À venir (règle métier ; garde aussi côté service)
+  const statusOptions = Object.entries(CHARITY_EVENT_STATUS_LABELS)
+    .filter(([value]) => value !== 'ongoing' || event.status === 'draft' || event.status === 'upcoming')
+    .map(([value, label]) => ({ value, label }))
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

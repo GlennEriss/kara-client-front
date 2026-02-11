@@ -59,21 +59,23 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
   }, [contributions])
 
   // Filtrage et pagination
-  const filtered = contributions?.filter(contribution => {
-    // Filtre par type
-    if (typeFilter !== 'all' && contribution.contributionType !== typeFilter) return false
-    
-    // Filtre par statut
-    if (statusFilter !== 'all' && contribution.status !== statusFilter) return false
-    
-    // Filtre par recherche (TODO: ajouter nom du contributeur)
-    if (searchQuery) {
-      // const searchLower = searchQuery.toLowerCase()
-      // return contribution contient la recherche
-    }
-    
-    return true
-  }) || []
+  const filtered = useMemo(() => {
+    return contributions?.filter(contribution => {
+      // Filtre par type
+      if (typeFilter !== 'all' && contribution.contributionType !== typeFilter) return false
+
+      // Filtre par statut
+      if (statusFilter !== 'all' && contribution.status !== statusFilter) return false
+
+      // Filtre par recherche (TODO: ajouter nom du contributeur)
+      if (searchQuery) {
+        // const searchLower = searchQuery.toLowerCase()
+        // return contribution contient la recherche
+      }
+
+      return true
+    }) || []
+  }, [contributions, typeFilter, statusFilter, searchQuery])
 
   const paginatedContributions = filtered
 
@@ -365,54 +367,54 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
     <div className="space-y-6">
       {/* Résumé */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/55 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.88)]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total collecté</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Total collecté</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAmount.toLocaleString()} FCFA</div>
-            <p className="text-xs text-gray-500 mt-1">{cashContributions} contributions</p>
+            <div className="text-2xl font-bold text-slate-800">{totalAmount.toLocaleString()} FCFA</div>
+            <p className="mt-1 text-xs text-slate-500">{cashContributions} contributions</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-emerald-100/70 bg-gradient-to-br from-white to-emerald-50/60 shadow-[0_12px_26px_-22px_rgba(18,89,63,0.74)]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Dons en nature</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Dons en nature</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inKindContributions}</div>
-            <p className="text-xs text-gray-500 mt-1">contributions</p>
+            <div className="text-2xl font-bold text-slate-800">{inKindContributions}</div>
+            <p className="mt-1 text-xs text-slate-500">contributions</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-indigo-100/70 bg-gradient-to-br from-white to-indigo-50/60 shadow-[0_12px_26px_-22px_rgba(66,76,135,0.7)]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filtered.length}</div>
-            <p className="text-xs text-gray-500 mt-1">contributions au total</p>
+            <div className="text-2xl font-bold text-slate-800">{filtered.length}</div>
+            <p className="mt-1 text-xs text-slate-500">contributions au total</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filtres et actions */}
-      <Card>
+      <Card className="border-cyan-100/70 bg-white/80 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)] backdrop-blur-sm">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Rechercher un contributeur..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="h-11 border-cyan-100 bg-white pl-10"
               />
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Select value={typeFilter} onValueChange={(value: any) => setTypeFilter(value)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="h-11 w-[180px] border-cyan-100 bg-white">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -423,7 +425,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
               </Select>
 
               <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="h-11 w-[180px] border-cyan-100 bg-white">
                   <SelectValue placeholder="Statut" />
                 </SelectTrigger>
                 <SelectContent>
@@ -434,16 +436,16 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                 </SelectContent>
               </Select>
 
-              <Button variant="outline" onClick={handleExportExcel}>
+              <Button variant="outline" onClick={handleExportExcel} className="h-11 border-cyan-100 bg-white">
                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                 Exporter Excel
               </Button>
-              <Button variant="outline" onClick={handleExportPDF}>
+              <Button variant="outline" onClick={handleExportPDF} className="h-11 border-cyan-100 bg-white">
                 <FileDown className="w-4 h-4 mr-2" />
                 Exporter PDF
               </Button>
 
-              <Button onClick={() => setIsAddOpen(true)} className="bg-[#234D65] hover:bg-[#2c5a73]">
+              <Button onClick={() => setIsAddOpen(true)} className="h-11 bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
                 <Plus className="w-4 h-4 mr-2" />
                 Ajouter
               </Button>
@@ -453,18 +455,18 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
       </Card>
 
       {/* Tableau */}
-      <Card>
+      <Card className="overflow-hidden border-cyan-100/70 bg-white/80 shadow-[0_14px_30px_-24px_rgba(17,57,93,0.82)] backdrop-blur-sm">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 p-6">
               {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16" />
+                <Skeleton key={i} className="h-16 rounded-lg border border-cyan-100/70" />
               ))}
             </div>
           ) : paginatedContributions.length > 0 ? (
             <>
               {/* Vue mobile en cartes */}
-              <div className="md:hidden divide-y">
+              <div className="divide-y md:hidden">
                 {paginatedContributions.map((contribution) => {
                   const referenceDate = 
                     contribution.contributionDate || 
@@ -474,7 +476,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                   const paymentMethod = contribution.payment?.mode
 
                   return (
-                    <div key={contribution.id} className="p-4 space-y-4">
+                    <div key={contribution.id} className="space-y-4 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-xs text-gray-500">{formatDateSafe(referenceDate)}</p>
@@ -511,20 +513,20 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                           {contribution.contributionType === 'money' ? 'Espèces' : 'En nature'}
                         </Badge>
                         {paymentMethod && (
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full capitalize">
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-xs capitalize text-slate-500">
                             {paymentMethod.replace('_', ' ')}
                           </span>
                         )}
                       </div>
 
-                      <div className="rounded-lg bg-gray-50 p-3 space-y-1">
+                      <div className="space-y-1 rounded-lg border border-cyan-100/70 bg-cyan-50/35 p-3">
                         {contribution.contributionType === 'money' ? (
                           <>
                             <p className="text-lg font-semibold text-[#234D65]">
                               {contribution.payment?.amount ? `${contribution.payment.amount.toLocaleString()} FCFA` : '0 FCFA'}
                             </p>
                             {contribution.notes && (
-                              <p className="text-sm text-gray-600">{contribution.notes}</p>
+                              <p className="text-sm text-slate-600">{contribution.notes}</p>
                             )}
                           </>
                         ) : (
@@ -533,9 +535,9 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                               {contribution.inKindDescription || 'Description non fournie'}
                             </p>
                             {contribution.estimatedValue && (
-                              <p className="text-sm text-gray-500">
-                                Valeur estimée&nbsp;: ~{contribution.estimatedValue.toLocaleString()} FCFA
-                              </p>
+                                <p className="text-sm text-slate-500">
+                                  Valeur estimée&nbsp;: ~{contribution.estimatedValue.toLocaleString()} FCFA
+                                </p>
                             )}
                           </>
                         )}
@@ -547,7 +549,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                             variant="outline"
                             size="sm"
                             onClick={() => handleViewProof(contribution.id)}
-                            className="flex-1"
+                            className="flex-1 border-cyan-100 bg-white"
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Preuve
@@ -557,7 +559,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                           variant="outline"
                           size="sm"
                           onClick={() => handleGenerateReceipt(contribution.id)}
-                          className="flex-1"
+                          className="flex-1 border-cyan-100 bg-white"
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           Reçu
@@ -581,12 +583,12 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
               <div className="hidden md:block">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Contributeur</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Montant / Description</TableHead>
-                      <TableHead>Statut</TableHead>
+                    <TableRow className="bg-cyan-50/70 hover:bg-cyan-50/70">
+                      <TableHead className="text-slate-700">Date</TableHead>
+                      <TableHead className="text-slate-700">Contributeur</TableHead>
+                      <TableHead className="text-slate-700">Type</TableHead>
+                      <TableHead className="text-slate-700">Montant / Description</TableHead>
+                      <TableHead className="text-slate-700">Statut</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -599,7 +601,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                         contribution.updatedAt
                       const paymentMethod = contribution.payment?.mode
                       return (
-                        <TableRow key={contribution.id}>
+                        <TableRow key={contribution.id} className="border-cyan-100/60 hover:bg-cyan-50/35">
                           <TableCell className="font-medium">
                             {formatDateSafe(referenceDate)}
                           </TableCell>
@@ -701,8 +703,8 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="p-4 border-t flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
+                <div className="flex items-center justify-between border-t border-cyan-100/70 p-4">
+                  <div className="text-sm text-slate-600">
                     Page {currentPage} sur {totalPages}
                   </div>
                   <div className="flex gap-2">
@@ -727,9 +729,9 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
               )}
             </>
           ) : (
-            <div className="p-12 text-center text-gray-500">
+            <div className="p-12 text-center text-slate-500">
               <p className="mb-4">Aucune contribution pour le moment</p>
-              <Button onClick={() => setIsAddOpen(true)}>
+              <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
                 <Plus className="w-4 h-4 mr-2" />
                 Ajouter la première contribution
               </Button>
@@ -813,4 +815,3 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
     </div>
   )
 }
-

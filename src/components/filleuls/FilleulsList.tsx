@@ -252,36 +252,42 @@ export default function FilleulsList() {
 
   return (
     <div className="space-y-6">
-      {/* Header avec informations du membre */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+      {/* Header : en mobile = 6 lignes (titre, photo+Parrain, nom, prénom, matricule, boutons) ; en desktop = disposition horizontale */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="flex flex-col gap-3 min-w-0 flex-1">
+          {/* Ligne 1 : Liste des Filleuls */}
+          <h1 className="text-2xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
             Liste des Filleuls
           </h1>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <Avatar className="w-10 h-10">
+
+          {/* Lignes 2 à 5 (mobile) / bloc compact (desktop) : Photo + Parrain, Nom, Prénom, Matricule */}
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+            {/* Ligne 2 : Photo et Parrain */}
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10 shrink-0">
                 <AvatarImage src={memberData.photoURL || undefined} alt={`Photo de ${memberData.firstName} ${memberData.lastName}`} />
                 <AvatarFallback className="bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white">
                   <UserIcon className="w-5 h-5" />
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <p className="text-gray-600 text-lg">
-                  Parrain: <span className="font-semibold text-[#234D65]">{memberData.firstName} {memberData.lastName}</span>
-                </p>
-                <Badge variant="secondary" className="bg-[#234D65]/10 text-[#234D65] border-[#234D65]/20">
-                  {memberData.matricule}
-                </Badge>
-              </div>
+              <span className="text-gray-600 font-medium">Parrain</span>
             </div>
+            {/* Ligne 3 : Nom */}
+            <p className="font-semibold text-lg text-[#234D65]">{memberData.lastName}</p>
+            {/* Ligne 4 : Prénom */}
+            <p className="text-gray-700 text-lg">{memberData.firstName}</p>
+            {/* Ligne 5 : Matricule */}
+            <Badge variant="secondary" className="w-fit bg-[#234D65]/10 text-[#234D65] border-[#234D65]/20">
+              {memberData.matricule}
+            </Badge>
           </div>
         </div>
-        
-        <div className="flex items-center space-x-3">
+
+        {/* Ligne 6 (mobile) : boutons PDF, Excel, Retour */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
           {filleulsData.length > 0 && (
             <>
-              <Button 
+              <Button
                 onClick={handleExportExcel}
                 variant="outline"
                 size="sm"
@@ -290,7 +296,7 @@ export default function FilleulsList() {
                 <Download className="w-4 h-4 mr-2" />
                 Excel
               </Button>
-              <Button 
+              <Button
                 onClick={handleExportPdf}
                 variant="outline"
                 size="sm"
@@ -301,7 +307,7 @@ export default function FilleulsList() {
               </Button>
             </>
           )}
-          <Button 
+          <Button
             onClick={() => window.history.back()}
             variant="outline"
             className="border-[#234D65]/20 text-[#234D65] hover:bg-[#234D65]/5"

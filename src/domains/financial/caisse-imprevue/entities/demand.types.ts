@@ -126,6 +126,8 @@ export type CreateCaisseImprevueDemandInput = Omit<
 
 /**
  * Type pour la mise à jour d'une demande
+ * Inclut status et contractId pour réactivation (ex. après suppression d'un contrat).
+ * contractId peut être null pour réactiver une demande.
  */
 export type UpdateCaisseImprevueDemandInput = Partial<
   Pick<
@@ -138,8 +140,9 @@ export type UpdateCaisseImprevueDemandInput = Partial<
     | 'paymentFrequency'
     | 'desiredStartDate'
     | 'emergencyContact'
+    | 'status'
   >
->
+> & { contractId?: string | null }
 
 /**
  * Type pour l'acceptation d'une demande

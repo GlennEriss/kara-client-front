@@ -306,7 +306,12 @@ export default function EditCharityEventForm({ event }: EditCharityEventFormProp
             >
               <option value="draft">Brouillon</option>
               <option value="upcoming">À venir</option>
-              <option value="ongoing">En cours</option>
+              <option
+                value="ongoing"
+                disabled={event.status === 'closed' || event.status === 'archived'}
+              >
+                En cours
+              </option>
               <option value="closed">Terminé</option>
               <option value="archived">Archivé</option>
             </select>

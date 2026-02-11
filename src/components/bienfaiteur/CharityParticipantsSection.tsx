@@ -73,16 +73,16 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
   return (
     <div className="space-y-6">
       {/* Filtres et actions */}
-      <Card>
+      <Card className="border-cyan-100/70 bg-white/80 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)] backdrop-blur-sm">
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Rechercher un participant..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="h-11 border-cyan-100 bg-white pl-10"
               />
             </div>
 
@@ -90,18 +90,21 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
               <Button
                 variant={typeFilter === 'all' ? 'default' : 'outline'}
                 onClick={() => setTypeFilter('all')}
+                className={typeFilter === 'all' ? 'bg-[#1f4f67] text-white' : 'border-cyan-100 bg-white'}
               >
                 Tous
               </Button>
               <Button
                 variant={typeFilter === 'member' ? 'default' : 'outline'}
                 onClick={() => setTypeFilter('member')}
+                className={typeFilter === 'member' ? 'bg-[#1f4f67] text-white' : 'border-cyan-100 bg-white'}
               >
                 Membres
               </Button>
               <Button
                 variant={typeFilter === 'group' ? 'default' : 'outline'}
                 onClick={() => setTypeFilter('group')}
+                className={typeFilter === 'group' ? 'bg-[#1f4f67] text-white' : 'border-cyan-100 bg-white'}
               >
                 Groupes
               </Button>
@@ -111,7 +114,7 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
           <div className="flex flex-col sm:flex-row sm:justify-end">
             <Button
               onClick={() => setIsAddOpen(true)}
-              className="bg-[#234D65] hover:bg-[#2c5a73] w-full sm:w-auto"
+              className="w-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95 sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
               Ajouter
@@ -124,7 +127,7 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32" />
+            <Skeleton key={i} className="h-32 rounded-xl border border-cyan-100/70" />
           ))}
         </div>
       ) : paginatedParticipants.length > 0 ? (
@@ -134,11 +137,11 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
               const memberInfo = getMemberInfo(participant.memberId)
               
               return (
-                <Card key={participant.id} className="hover:shadow-lg transition-shadow">
+                <Card key={participant.id} className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/45 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)] transition-all hover:-translate-y-0.5">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <Avatar>
+                        <Avatar className="ring-1 ring-cyan-100">
                           <AvatarImage
                             src={memberInfo?.photoURL || ''}
                             alt={participant.participantType === 'member' && memberInfo
@@ -177,11 +180,11 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
 
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Contributions:</span>
+                        <span className="text-slate-600">Contributions:</span>
                         <span className="font-medium">{participant.contributionsCount}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Total donné:</span>
+                        <span className="text-slate-600">Total donné:</span>
                         <span className="font-medium">{participant.totalAmount.toLocaleString()} FCFA</span>
                       </div>
                       {participant.lastContributionAt && (() => {
@@ -190,7 +193,7 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
                           : new Date(participant.lastContributionAt)
                         return !isNaN(safeDate.getTime()) ? (
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Dernière contrib.:</span>
+                            <span className="text-slate-600">Dernière contrib.:</span>
                             <span className="font-medium">
                               {format(safeDate, 'dd/MM/yyyy', { locale: fr })}
                             </span>
@@ -206,9 +209,9 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card>
+            <Card className="border-cyan-100/70 bg-white/80 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)]">
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-slate-600">
                   Page {currentPage} sur {totalPages} ({filtered.length} participants)
                 </div>
                 <div className="flex gap-2">
@@ -234,10 +237,10 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
           )}
         </>
       ) : (
-        <Card>
-          <CardContent className="p-12 text-center text-gray-500">
+        <Card className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/50">
+          <CardContent className="p-12 text-center text-slate-500">
             <p className="mb-4">Aucun participant pour le moment</p>
-            <Button onClick={() => setIsAddOpen(true)}>
+            <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
               <Plus className="w-4 h-4 mr-2" />
               Ajouter le premier participant
             </Button>
@@ -287,4 +290,3 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
     </div>
   )
 }
-

@@ -103,7 +103,7 @@ service firebase.storage {
     // ==========================================
     // DOCUMENTS GÉNÉRIQUES PAR MODULE
     // ==========================================
-    // Chemin pour les documents archivés de chaque module
+    // Chemin pour les documents archivés de chaque module (cleanup suppression contrat crédit spéciale si path utilisé)
     
     match /documents/{module}/{memberId}/{fileName} {
       // Lecture : Admin ou propriétaire
@@ -112,22 +112,25 @@ service firebase.storage {
       // Écriture : Admin uniquement
       allow write: if isAdmin();
       
-      // Suppression : Admin uniquement
+      // Suppression : Admin uniquement (cleanup lors de la suppression d'un contrat crédit spéciale)
       allow delete: if isAdmin();
     }
     
     // ==========================================
     // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
     // ==========================================
-    // Preuves de paiement uploadées par les admins
-    // DONNÉES SENSIBLES - Accès restreint
+    // Preuves de paiement uploadées par les admins (demandes d'adhésion)
+    // Lecture : tout utilisateur authentifié (la page /membership-requests est protégée côté app ;
+    // Firestore isAdmin() utilise un fallback via collection admins que Storage ne peut pas vérifier)
+    // Écriture : utilisateur authentifié avec validation (image, max 5MB)
+    // Suppression : admin uniquement
     
     match /payment-proofs/{fileName} {
-      // Lecture : Admins uniquement (données sensibles)
-      allow read: if isAdmin();
+      // Lecture : utilisateur authentifié (évite storage/unauthorized pour les admins sans custom claim role)
+      allow read: if isAuthenticated();
       
-      // Écriture : Admins uniquement avec validation (image, max 5MB)
-      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      // Écriture : utilisateur authentifié avec validation (image, max 5MB)
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
       
       // Suppression : Admin uniquement
       allow delete: if isAdmin();
@@ -142,6 +145,7 @@ service firebase.storage {
     // - Crédit Spéciale : contrats (CREDIT_SPECIALE_CONTRACT), signés (CREDIT_SPECIALE_CONTRACT_SIGNED),
     //   reçus (CREDIT_SPECIALE_RECEIPT), quittances (CREDIT_SPECIALE_QUITTANCE, CREDIT_SPECIALE_QUITTANCE_SIGNED)
     // - Page /credit-speciale/demandes/[id] : affichage documentPhotoUrl du contact d'urgence (contracts-ci ou emergency-contacts)
+    // - Suppression contrat crédit spéciale V2 : cleanup des fichiers référencés par le contrat
     // - PDF max 5MB, Images max 5MB
     
     match /contracts-ci/{memberId}/{fileName} {
@@ -154,7 +158,7 @@ service firebase.storage {
         (isImage() && isImageSizeValid())
       );
       
-      // Suppression : Admins uniquement
+      // Suppression : Admins uniquement (cleanup lors de la suppression d'un contrat crédit spéciale)
       allow delete: if isAdmin();
     }
     
@@ -175,6 +179,7 @@ service firebase.storage {
     
     // Photos de pièces d'identité des contacts d'urgence (chemin avec contractId)
     // Chemin : contracts-ci/{memberId}/{contractId}/{fileName}
+    // Suppression : inclut cleanup lors de la suppression d'un contrat crédit spéciale si des docs sont sous ce chemin
     
     match /contracts-ci/{memberId}/{contractId}/{fileName} {
       // Lecture : Admins uniquement
@@ -272,7 +277,7 @@ service firebase.storage {
     // CRÉDIT SPÉCIALE - CONTRATS PDF (FALLBACK)
     // ==========================================
     // Chemin alternatif : credit-contracts/{contractId}/{fileName}
-    // Utilisé si génération PDF directe (placeholder ou futur)
+    // Utilisé si génération PDF directe (placeholder ou futur). Cleanup lors de la suppression d'un contrat (V2).
     
     match /credit-contracts/{contractId}/{fileName} {
       allow read: if isAdmin();
