@@ -555,10 +555,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
 
         <Text style={styles.paragraph12}>
-          Je soussigné M/Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName} de nationalité {member.nationality} membre de l’Association LE KARA par la présente, je reconnais avoir reçu de la mutuelle un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de {formatAmount(contract.amount)} FCFA (chiffres),
+          Je soussigné M/Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName} de nationalité {member.nationality} membre de l’Association LE KARA par la présente, je reconnais avoir reçu de la mutuelle un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de {formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres),
         </Text>
         <Text style={styles.paragraph12}>
-          {numberToWords(contract.amount)} FCFA (lettres), en date du {formatDate(firstPaymentDate)}.
+          {numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres), en date du {formatDate(firstPaymentDate)}.
         </Text>
         <Text style={styles.paragraph12}>
           Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de {contract.duration} mois à compter du {formatDate(firstPaymentDate)}. Jusqu’au {formatDate(endDate)} date de fin de créance.
