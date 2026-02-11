@@ -82,9 +82,17 @@ const styles = StyleSheet.create({
   },
   tableHeaderText: {
     fontFamily: 'Times New Roman',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  tableSectionText: {
+    fontFamily: 'Times New Roman',
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
   tableLabelText: {
     fontFamily: 'Times New Roman',
@@ -101,25 +109,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title16: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
+    textDecoration: 'underline',
     marginTop: 4,
     marginBottom: 6,
     color: COLORS.primary,
   },
   title14Center: {
-    fontSize: 14,
+   fontSize: 15,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 8,
+    textDecoration: 'underline',
+    marginTop: 12,
     marginBottom: 6,
-    color: COLORS.primary,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: '#224d62',
   },
   paragraph12: {
     fontSize: 12,
     textAlign: 'justify',
-    marginBottom: 4,
+    marginBottom: 20,
   },
   paragraph14: {
     fontSize: 12,
@@ -152,10 +163,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   signatureText14: {
-    fontSize: 14,
+    fontSize: 13,
   },
   signatureTextRight: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'right',
   },
   indent: {
@@ -437,7 +448,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
                 content: 'Informations Personnelles du Membre',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: COLORS.tableHeaderBg,
+                backgroundColor: '#224d62',
               },
             ]}
           />
@@ -502,7 +513,6 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           />
           <TableRow
             height={26.15}
-            isLastRow
             cells={withBand([
               { content: 'NATIONALITÉ :', textStyle: styles.tableLabelText },
               { content: member.nationality, textStyle: styles.tableValueText },
@@ -512,24 +522,85 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           />
         </View>
 
+        <View style={styles.table}>
+          <TableRow
+            height={43.35}
+            cells={[
+              {
+                content: 'Information Concernant le Garant',
+                span: 4,
+                textStyle: styles.tableSectionText,
+                backgroundColor: '#224d62',
+              },
+            ]}
+          />
+          <TableRow
+            height={26.15}
+            cells={withBand([
+              { content: 'NOM :', textStyle: styles.tableLabelText },
+              { content: guarantor.lastName, textStyle: styles.tableValueText },
+              { content: 'PRÉNOM :', textStyle: styles.tableLabelText },
+              { content: guarantor.firstName, textStyle: styles.tableValueText },
+            ], true)}
+          />
+          <TableRow
+            height={26.15}
+            isLastRow
+            cells={withBand([
+              { content: 'TÉLÉPHONE :', textStyle: styles.tableLabelText },
+              { content: guarantor.phone, span: 3, textStyle: styles.tableValueText },
+            ], false)}
+          />
+          <TableRow
+            height={26.15}
+            cells={withBand([
+              { content: 'TYPE DE PIÈCE :', textStyle: styles.tableLabelText },
+              { content: member.identityDocument, textStyle: styles.tableValueText },
+              { content: 'N° DE PIÈCE:', textStyle: styles.tableLabelText },
+              { content: member.identityDocumentNumber, textStyle: styles.tableValueText },
+            ], true)}
+          />
+        </View>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
-
         <Text style={styles.paragraph12}>
-          Je soussigné M/Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName} de nationalité {member.nationality} membre de l’Association LE KARA par la présente, je reconnais avoir reçu de la mutuelle un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de {formatAmount(contract.amount)} FCFA (chiffres),
         </Text>
         <Text style={styles.paragraph12}>
-          {numberToWords(contract.amount)} FCFA (lettres), en date du {formatDate(firstPaymentDate)}.
         </Text>
         <Text style={styles.paragraph12}>
-          Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de {contract.duration} mois à compter du {formatDate(firstPaymentDate)}. Jusqu’au {formatDate(endDate)} date de fin de créance.
         </Text>
         <Text style={styles.paragraph12}>
-          En foi de quoi, la présente reconnaissance de dette est signée par les deux parties pour servir et valoir ce que de droit.
         </Text>
         <Text style={styles.paragraph12}>
-          Fait à …………….…….. Le …………... /…………..…../…………
+          Je soussigné M/Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text> 
+          </Text>
+          <Text style={styles.paragraph12}>
+          de nationalité <Text style={{ fontWeight: 'bold' }}>{member.nationality} </Text>Membre de l’Association LE KARA par la présente, je reconnais avoir reçu de la mutuelle un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de : 
+          </Text>
+          <Text style={styles.paragraph12}>
+         <Text style={{ fontWeight: 'bold',textAlign: 'center' }}> {formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres)</Text>,
         </Text>
-
+        <Text style={styles.paragraph12}>
+          <Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres)</Text>, 
+         </Text>
+         <Text style={styles.paragraph12}> 
+          En date du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)}</Text>.
+        </Text>
+        <Text style={styles.paragraph12}>
+          Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de <Text style={{ fontWeight: 'bold' }}>{contract.duration} mois </Text>à compter du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)}</Text>. Jusqu’au <Text style={{ fontWeight: 'bold' }}>{formatDate(endDate)}</Text> date de fin de créance.
+        </Text>
+        <Text style={styles.paragraph12}>
+         <Text style={{ fontWeight: 'bold' }}> En foi de quoi, la présente reconnaissance de dette est signée par les deux parties pour servir et valoir ce que de droit.</Text>
+        </Text>
+<Text style={styles.paragraph12}>
+        </Text>
+        <Text style={styles.paragraph12}>
+          Fait à …………….….........….. Le …….......……... /………............…..…../………….........
+        </Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <View style={styles.signatureRow}>
           <Text style={styles.signatureText14}>SECRÉTAIRE EXÉCUTIF</Text>
           <Text style={styles.signatureText14}>MEMBRE BÉNÉFICIAIRE</Text>
@@ -544,22 +615,26 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
         <Text style={styles.articleTitle}>ARTICLE 1 : MONTANT ET DURÉE DE LA CRÉANCE</Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.paragraph14}>
           L’Association accorde et consent au membre bénéficiaire un accompagnement
         </Text>
         <View style={styles.checkboxRow}>
           <View style={styles.checkboxBox} />
-          <Text style={styles.paragraph14}>Exceptionnel</Text>
+          <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text></Text>
         </View>
         <View style={styles.checkboxRow}>
           <View style={styles.checkboxBox} />
           <Text style={styles.paragraph14}>Régulier</Text>
         </View>
-        <Text style={styles.paragraph14}>À hauteur de</Text>
-        <Text style={styles.paragraph14}>{formatAmount(contract.amount)} FCFA (chiffres)</Text>
-        <Text style={styles.paragraph14}>{numberToWords(contract.amount)} FCFA (lettres),</Text>
+        <Text style={styles.paragraph14}>À hauteur de :</Text>
+        <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres),</Text></Text>
+        <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres),</Text></Text>
         <Text style={styles.paragraph14}>
-          En date du {formatDate(firstPaymentDate)}. Pour une nécessité sociale.
+          En date du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)}</Text>. Pour une nécessité sociale.
+        </Text>
+        <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
           La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre quelques jours supplémentaires sans que ce délai n’affecte la date de début du prêt.
@@ -597,30 +672,47 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.
         </Text>
-
+<Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.paragraph14}>
           L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur et marque le décompte des intérêts légaux.
         </Text>
         <Text style={styles.paragraph14}>
           Le non-respect des échéanciers expose le membre bénéficiaire à des poursuites judiciaires sous huitaine.
         </Text>
-
+<Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.articleTitle}>ARTICLE 4 : DÉCLARATIONS ET ENGAGEMENTS DU PRÊTEUR</Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.paragraph14}>Le membre bénéficiaire déclare et reconnaît :</Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.paragraph14}>Il est majeur et a la capacité juridique pour conclure le contrat ;</Text>
         <Text style={styles.paragraph14}>Il a compris les termes du contrat et la portée de ses engagements ;</Text>
         <Text style={styles.paragraph14}>Il prend l’engagement de moduler ses capacités financières personnelles afin d’honorer à son remboursement ;</Text>
         <Text style={styles.paragraph14}>Il a pris connaissance du règlement intérieur de KARA et du protocole d’accompagnement ;</Text>
         <Text style={styles.paragraph14}>Le membre bénéficiaire affecte :</Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <Text style={[styles.paragraph14, styles.indent]}>
-          Pour des raisons de prévoyance, M/Mme/Mlle {guarantor.lastName} {guarantor.firstName} Qui se porte caution solidaire en cas de non-exécution de ma part.
+          Pour des raisons de prévoyance, M/Mme/Mlle<Text style={{ fontWeight: 'bold' }}> {guarantor.lastName} {guarantor.firstName}</Text>
+         </Text> 
+         <Text style={[styles.paragraph14, styles.indent]}>
+           Qui se porte caution solidaire en cas de non-exécution de ma part.
         </Text>
         <Text style={[styles.paragraph14, styles.indent]}>
           Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires à l’encontre du débiteur pour le recouvrement de ladite créance.
         </Text>
+        <Text style={styles.paragraph12}>
+        </Text>
 
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
+        <Text style={styles.paragraph12}>
+        </Text>
         <Text style={styles.paragraph14}>
           Afin de garantir toute insolvabilité et non remboursement d’un accompagnement souscrit par le membre, l’Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal s’avère insuffisant, KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
         </Text>
@@ -630,10 +722,13 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Ce protocole d’accompagnement est établi pour servir et valoir ce que de droit.
         </Text>
-        <Text style={styles.paragraph14}>
-          Fait à…………………………Le …………/………/…………….
+        <Text style={styles.paragraph12}>
         </Text>
-
+        <Text style={styles.paragraph14}>
+          Fait à……………………….........…Le ……..........……/……..........…/……........……….
+        </Text>
+<Text style={styles.paragraph12}>
+        </Text>
         <View />
         <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
         <View style={{ height: 80 }} />
@@ -644,56 +739,93 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
 
       <Page size="A4" style={styles.page}>
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
-
-        <Text style={styles.paragraph12}>
-          En date du {formatDate(firstPaymentDate)} le présent acte a été conclu entre les parties suivantes nommément désignées:
+<Text style={styles.paragraph12}>
+        </Text>
+        <Text style={styles.paragraph14}>
+          En date du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)} </Text>le présent acte a été conclu entre les parties suivantes nommément désignées:
+        </Text>
+        <Text style={styles.paragraph14}>
+          L’Association LE KARA et M/Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName}</Text>,
+         
+         </Text> 
+         <Text style={styles.paragraph14}>
+           domicilié à {member.quarter} et Tel : {member.phone1}.
         </Text>
         <Text style={styles.paragraph12}>
-          L’Association LE KARA et M/Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName}, domicilié à {member.quarter} et Tel : {member.phone1}.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           Il a été convenu entre les parties ce qui suit :
         </Text>
-        <Text style={styles.paragraph12}>
-          En date du {formatDate(firstPaymentDate)},
+        <Text style={styles.paragraph14}>
+        </Text>
+        <Text style={styles.paragraph14}>
+          En date du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)}</Text>,
+        </Text>
+        <Text style={styles.paragraph14}>
+          l’Association LE KARA a mis à la disposition de M / Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text>
+          </Text>
+          <Text style={styles.paragraph14}>
+          Une somme de :
+          </Text>
+          <Text style={styles.paragraph14}>
+          <Text style={{ fontWeight: 'bold' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA(Chiffres)</Text>, 
+          </Text>
+          <Text style={styles.paragraph14}>
+          <Text style={{ fontWeight: 'bold' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (Lettres) </Text>,
+          </Text>
+          <Text style={styles.paragraph14}>
+          dans le cadre d’un accompagnement, à charge pour le membre de la lui restituer en date du <Text style={{ fontWeight: 'bold' }}>{formatDate(endDate)}</Text>.
         </Text>
         <Text style={styles.paragraph12}>
-          l’Association LE KARA a mis à la disposition de M / Mme/Mlle {String(member.lastName).toUpperCase()} {member.firstName} Une somme de {formatAmount(contract.amount)} FCFA(Chiffres), {numberToWords(contract.amount)} FCFA (Lettres) dans le cadre d’un accompagnement, à charge pour le membre de la lui restituer en date du {formatDate(endDate)}.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           Que pour garantir le remboursement de ladite somme,
         </Text>
-        <Text style={styles.paragraph12}>
-          Monsieur/ Madame {guarantor.lastName} {guarantor.firstName} Affirme s’être librement et volontairement porté caution solidaire de cette dette à charge pour elle de rembourser à l’Association les sommes indiquées si Monsieur/ Madame {String(member.lastName).toUpperCase()} {member.firstName} N’y satisfait pas elle-même.
+        <Text style={styles.paragraph14}>
+          Monsieur/ Madame <Text style={{ fontWeight: 'bold' }}>{guarantor.lastName} {guarantor.firstName} </Text>Affirme s’être librement et volontairement porté caution solidaire de cette dette à charge pour elle de rembourser à l’Association les sommes indiquées si Monsieur/ Madame <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text>N’y satisfait pas elle-même.
+        </Text>
+        <Text style={styles.paragraph14}>
+          La caution s’engage à garantir le prêt pour une hauteur maximale de :
+          </Text>
+          <Text style={styles.paragraph14}>
+          <Text style={{ fontWeight: 'bold' }}>{formatAmount(guaranteeAmount)} FCFA(Chiffres)</Text>,
+          </Text>
+          <Text style={styles.paragraph14}>
+           <Text style={{ fontWeight: 'bold' }}>{numberToWords(guaranteeAmount)} FCFA (Lettres)</Text>,
+           </Text>
+           <Text style={styles.paragraph14}>
+            somme couvrant l’intégralité de la créance.
         </Text>
         <Text style={styles.paragraph12}>
-          La caution s’engage à garantir le prêt pour une hauteur maximale de {formatAmount(guaranteeAmount)} FCFA(Chiffres), {numberToWords(guaranteeAmount)} FCFA (Lettres), somme couvrant l’intégralité de la créance.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           Le cautionnement vaut tant que la dette principale n’a pas été remboursée.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           La caution affecte principalement en garantie de la dette du débiteur, son nominal correspondant à ses versements mensuels en tant que membre de l’Association. Elle autorise l’Association à y prélever les sommes dues par le débiteur en cas de défaillance de celui-ci.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           Le montant de la caution, à concurrence de la créance garantie, demeurera consigné par l’association jusqu’à l’extinction totale de la dette du débiteur principal.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           La caution s’engage sur simple demande adressée par lettre recommandée à exécuter son engagement, sans qu’elle use du bénéfice de discussion.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           Pour tout litige pouvant naître de l’exécution dudit contrat, les parties donnent compétence territoriale au Tribunal de Libreville.
         </Text>
-        <Text style={styles.paragraph12}>
+        <Text style={styles.paragraph14}>
           Au vue des dispositions réglementaires qui régissent l’Association, les parties attestent avoir pris connaissance de l’étendue de leurs obligations respectives et s’engagent en parfaite connaissance de cause.
         </Text>
         <Text style={styles.paragraph12}>
-          Ce document a été dressé pour faire valoir ce que de droit
         </Text>
-
+        <Text style={styles.paragraph14}>
+         <Text style={{ fontWeight: 'bold' }}> Ce document a été dressé pour faire valoir ce que de droit</Text>
+        </Text>
+<Text style={styles.paragraph12}>
+        </Text>
         <View />
         <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
         <View style={{ height: 40 }} />

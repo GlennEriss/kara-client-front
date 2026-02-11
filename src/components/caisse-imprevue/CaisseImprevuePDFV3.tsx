@@ -58,16 +58,16 @@ const styles = StyleSheet.create({
   },
   tableHeaderText: {
     fontFamily: 'Times New Roman',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableSectionText: {
     fontFamily: 'Times New Roman',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#0070C0',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   tableLabelText: {
@@ -77,21 +77,27 @@ const styles = StyleSheet.create({
   tableValueText: {
     fontFamily: 'Times New Roman',
     fontSize: 12,
+    textAlign: 'center',
   },
   title: {
-    fontSize: 13,
+     fontSize: 20, // Augmenté de 18 à 20
     fontWeight: 'bold',
-    textDecoration: 'underline',
     textAlign: 'center',
-    marginTop: 12,
+    color: '#1f3a4e',
+    textDecoration: 'underline',
     marginBottom: 12,
+    marginTop: 5,
+
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
     textDecoration: 'underline',
     marginTop: 12,
     marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: '#224d62',
   },
   paragraph: {
     fontSize: 12,
@@ -255,7 +261,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
                 content: 'Informations Personnelles du Membre :',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: '#0070C0',
+                backgroundColor: '#224d62',
               },
             ]}
           />
@@ -265,7 +271,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
               { content: 'MATRICULE', textStyle: styles.tableLabelText },
               { content: contract?.memberId || '—', textStyle: styles.tableValueText },
               { content: 'MEMBRE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.membershipType?.toUpperCase() || '—', textStyle: styles.tableValueText },
+             { content: '  ', textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
@@ -307,7 +313,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
               {
                 content:
                   (Array.isArray(contract?.member?.contacts) && contract.member.contacts.length > 0
-                    ? contract.member.contacts.filter(Boolean).join(' / ')
+                    ? contract.member.contacts.filter(Boolean).join(' || ')
                     : '—') as string,
                 span: 3,
                 textStyle: styles.tableValueText,
@@ -320,7 +326,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
               { content: 'SEXE', textStyle: styles.tableLabelText },
               { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
               { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: memberAge, textStyle: styles.tableValueText },
+              { content: memberAge+' ans' , textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
@@ -339,6 +345,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
                 content: 'Informations Concernant Le Contact Urgent :',
                 span: 4,
                 textStyle: styles.tableSectionText,
+                backgroundColor: '#224d62',
               },
             ]}
           />
@@ -386,26 +393,35 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
         </View>
 
         <Text style={styles.title}>VOLET ENTRAIDE</Text>
-
         <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraphIndented}>
           Dans le cadre d’une démarche purement sociale, l’association LE KARA met en place le «Volet
           Entraide», un mécanisme inspiré de la solidarité qui fonde l’âme même de l’association. Ce
           dispositif est le pilier sur lequel sont fondées les actions solidaires telles que les appuis,
           les collectes, les dons que l’association réalise.
         </Text>
-        <Text style={styles.paragraph}>
+        <Text style={styles.paragraphIndented}>
           Le Volet Entraide constitue le système obligatoire de cotisations, garantissant la vie
           financière de l’association et la disponibilité des fonds nécessaires aux aides apportées aux
           membres en difficulté.
         </Text>
         <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraphIndented}>
           A ce titre, le KARA par le canal du Volet Entraide invite tous ses membres à verser
           mensuellement une cotisation de 10 000 FCFA, 20 000 FCFA, 30 000 FCFA, 40 000 FCFA, 50 000 FCFA
           ou plus, selon leurs disponibilités financières.
         </Text>
-        <Text style={styles.paragraph}>
+        <Text style={styles.paragraphIndented}>
           Ces versements réguliers assurent la stabilité de la trésorerie, le financement des activités
           de l’association, la disponibilité des appuis et l’équité entre tous les membres.
+        </Text>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraphIndented}>
           Concernant les appuis, c’est un système où chacun contribue selon ses moyens et reçoit selon
@@ -413,35 +429,43 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
           ou plus selon le forfait souscrit, mais qui sera par la suite reverser dans la caisse de
           l’association après une durée déterminée.
         </Text>
+        <Text style={styles.paragraph}>
+        </Text>
         <Text style={styles.paragraphIndented}>
           Toutefois, pour la bonne tenue de la trésorerie de l’association, les membres bénéficiaires
           sont tenus aux respects des règles suivantes :
         </Text>
+        <Text style={styles.paragraph}>
+        </Text>
 
-        <Text style={styles.sectionTitle}>Fonctionnement général du Volet Entraide</Text>
+        <Text style={styles.sectionTitle}>I.  Fonctionnement général du Volet Entraide</Text>
+        <Text style={styles.paragraph}>
+        </Text>
 
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Début du contrat : </Text>
+          <Text style={styles.bold}>1. Début du contrat : </Text>
           Toute adhésion nouvelle ou renouvellement à l’association le KARA emporte systématiquement
           adhésion au Volet Entraide. En effet, le Volet Entraide assure la vie de l’association par le
           biais de cotisations volontaires conformément au règlement intérieur.
         </Text>
         <Text style={styles.bullet}>• Le refus ou l’abandon pour un membre du Volet Entraide entraine le retrait du membre de l’association car il est considéré comme la rupture de l’aspiration à l’idéologie de l’association.</Text>
-
+<Text style={styles.paragraph}>
+        </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Durée du contrat : </Text>
+          <Text style={styles.bold}>2. Durée du contrat : </Text>
           L’adhésion au Volet Entraide dure aussi longtemps que dure l’adhésion à l’association Le
           KARA, soit sur une année.
         </Text>
         <Text style={styles.bullet}>• Le retrait de l’association entraine automatiquement rupture du contrat du Volet Entraide et emporte remboursement des sommes versées.</Text>
-
+<Text style={styles.paragraph}>
+        </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Déroulement des versements : </Text>
+          <Text style={styles.bold}>3. Déroulement des versements : </Text>
           Le membre se doit de procéder aux versements des cotisations au plus tard le ________________
           de chaque mois durant toute la durée du présent contrat.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Tolérance de retard : </Text>
+          <Text style={styles.bold}>4. Tolérance de retard : </Text>
           L’épargnant dispose d’un délai de grâce de trois jours après la date prévue pour son
           versement mensuel. Aucun frais ni pénalité ne s’applique dans ce délai.
         </Text>
@@ -455,55 +479,78 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
           La perte de tous les avantages liés à la régularité dans les versements conformément aux
           dispositions du règlement intérieur.
         </Text>
-
+<Text style={styles.paragraph}>
+        </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Le retrait de l’association : </Text>
+          <Text style={styles.bold}>5. Le retrait de l’association : </Text>
           À compter du troisième mois suivant l’adhésion à l’association, le membre a la faculté de la
           résilier. Cette résiliation doit être obligatoirement formulée par écrit et déposée auprès du
           Secrétaire Exécutif. À compter de la date de notification, l’association dispose de 30 jours
           pour rembourser les sommes versées au titre du Volet Entraide.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Terme du contrat : </Text>
+          <Text style={styles.bold}>6. Terme du contrat : </Text>
           Le contrat Volet Entraide prend fin à l’expiration de l’adhésion annuelle à l’association. Il
           emporte l’obligation pour le KARA de restituer au membre l’intégralité des sommes versées par
           le membre au cours de l’année au titre du Volet Entraide.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Remboursement du nominal : </Text>
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>7. Remboursement du nominal : </Text>
           Le remboursement des sommes visées au ci-dessus, intervient dans un délai maximal de 30 jours
           suivant la date du terme du contrat.
         </Text>
-
-        <Text style={styles.sectionTitle}>Des accompagnements réguliers  (appuis)</Text>
-
+<Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.sectionTitle}>II.  Des accompagnements réguliers  (appuis)</Text>
+<Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
         <Text style={styles.paragraph}>
           Dans le respect des principes d’équité et de gestion saine de la caisse commune, l’octroi
           d’un appui suit les règles ci-après :
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Délai avant première demande : </Text>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>8. Délai avant première demande : </Text>
           Aucune demande d’appui ne peut être réalisée dans un intervalle de trois mois à compter de la
           date d’adhésion à l’association jusqu’à la date du troisième versement mensuel effectif,
           effectué par le membre. Ce délai permet de stabiliser la caisse et de garantir des appuis
           fiables pour tous.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Conditions d’éligibilité à un appui : </Text>
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>9. Conditions d’éligibilité à un appui : </Text>
           Peut solliciter un accompagnement régulier, le membre qui, en plus d’être à jour dans ses
           cotisations mensuelles, s’est acquitté de sa prime mensuelle pour le mois durant lequel il
           sollicite un accompagnement régulier.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Nombre d’appuis autorisés : </Text>
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>10. Nombre d’appuis autorisés : </Text>
           Tout membre a droit à un appui par mois dans la limite de six appuis maximum pour toute
           l’année, de manière non consécutive. Ce dispositif constitue le volet prévoyance du Volet
           Entraide.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>Remboursement des appuis : </Text>
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>11. Remboursement des appuis : </Text>
           Tout appui accordé doit être remboursé au plus tard avant le versement de la prochaine
           contribution.
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
           En cas de non remboursement de l’accompagnement par un adhérent dans le délai fixé à l’alinéa
@@ -511,11 +558,22 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
           cumulé de l’adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en
           demeure adressée à l’adhérent par le Secrétaire exécutif.
         </Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
 
-        <Text style={styles.sectionTitle}>Catégorie des forfaits</Text>
+        <Text style={styles.sectionTitle}>III. Catégorie des forfaits</Text>
+        <Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
         <Text style={styles.paragraph}>Les appuis octroyés sont plafonnés en fonction du forfait souscrit par le membre.</Text>
         <Text style={styles.paragraph}>Ces appuis sont détaillés dans le tableau ci-après :</Text>
-
+<Text style={styles.paragraph}>
+        </Text>
+        <Text style={styles.paragraph}>
+        </Text>
         <View style={styles.forfaitTable} wrap={false}>
           <View style={styles.forfaitRow}>
             <Text style={styles.forfaitHeaderCell}>Forfait</Text>
@@ -559,7 +617,8 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
         </View>
 
         <Text style={[styles.paragraph, styles.bold]}>NB : LE FORFAIT CHOISIT NE PEUT ÊTRE CHANGEABLE</Text>
-
+<Text style={styles.paragraph}>
+        </Text>
         <View style={styles.signatures}>
           <Text style={styles.paragraph}>Signature membre précédée de la mention « lu et approuvé »</Text>
           <Text style={[styles.paragraph, { marginTop: 150 }]}>Signature du Secrétaire Exécutif</Text>
