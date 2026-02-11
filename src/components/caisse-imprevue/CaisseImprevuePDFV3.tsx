@@ -326,7 +326,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
               { content: 'SEXE', textStyle: styles.tableLabelText },
               { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
               { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: memberAge , textStyle: styles.tableValueText },
+              { content: memberAge+' ans' , textStyle: styles.tableValueText },
             ]}
           />
           <TableRow

@@ -12,10 +12,10 @@ const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
     fontSize: 12,
-    paddingTop: 50, // 1820 twips
-    paddingRight: 62, // 1240 twips
+    paddingTop: 30, // 1820 twips
+    paddingRight: 50, // 1240 twips
     paddingBottom: 14, // 280 twips
-    paddingLeft: 65, // 1300 twips
+    paddingLeft: 50, // 1300 twips
     color: '#000000',
   },
   logo: {
@@ -49,15 +49,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#0070C0',
   },
   tableHeaderText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableSectionText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#0070C0',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   tableLabelText: {
@@ -320,13 +320,9 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
                 content: 'Informations Personnelles du Membre :',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: '#0070C0',
+                backgroundColor: '#224d62',
               },
             ]}
-          />
-          <TableRow
-            height={43.35}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
           />
           <TableRow
             height={26.15}
@@ -395,22 +391,15 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
             ]}
           />
           <TableRow
-            height={26.15}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
-          />
-          <TableRow
             height={41.9}
             cells={[
               {
                 content: 'Informations Concernant Le Contact Urgent :',
                 span: 4,
                 textStyle: styles.tableSectionText,
+                backgroundColor: '#224d62',
               },
             ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
           />
           <TableRow
             height={26.15}
