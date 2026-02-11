@@ -82,9 +82,17 @@ const styles = StyleSheet.create({
   },
   tableHeaderText: {
     fontFamily: 'Times New Roman',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  tableSectionText: {
+    fontFamily: 'Times New Roman',
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
   tableLabelText: {
     fontFamily: 'Times New Roman',
@@ -437,7 +445,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
                 content: 'Informations Personnelles du Membre',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: COLORS.tableHeaderBg,
+                backgroundColor: '#224d62',
               },
             ]}
           />
@@ -502,7 +510,6 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           />
           <TableRow
             height={26.15}
-            isLastRow
             cells={withBand([
               { content: 'NATIONALITÉ :', textStyle: styles.tableLabelText },
               { content: member.nationality, textStyle: styles.tableValueText },
@@ -512,6 +519,39 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           />
         </View>
 
+        <View style={styles.table}>
+          <TableRow
+            height={43.35}
+            cells={[
+              {
+                content: 'Information Concernant le Garant',
+                span: 4,
+                textStyle: styles.tableSectionText,
+                backgroundColor: '#224d62',
+              },
+            ]}
+          />
+          <TableRow
+            height={26.15}
+            cells={withBand([
+              { content: 'NOM :', textStyle: styles.tableLabelText },
+              { content: guarantor.lastName, textStyle: styles.tableValueText },
+              { content: 'PRÉNOM :', textStyle: styles.tableLabelText },
+              { content: guarantor.firstName, textStyle: styles.tableValueText },
+            ], true)}
+          />
+          <TableRow
+            height={26.15}
+            isLastRow
+            cells={withBand([
+              { content: 'TÉLÉPHONE :', textStyle: styles.tableLabelText },
+              { content: guarantor.phone, span: 3, textStyle: styles.tableValueText },
+            ], false)}
+          />
+        </View>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
 
         <Text style={styles.paragraph12}>
