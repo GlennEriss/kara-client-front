@@ -403,6 +403,8 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
     firstName: guarantorData?.firstName || contract.guarantorFirstName || '—',
     phone: guarantorData?.contacts?.[0] || '—',
     address: formatAddress(guarantorData?.address),
+    identityDocument: getIdentityDocumentLabel(guarantorData?.identityDocument),
+    identityDocumentNumber: guarantorData?.identityDocumentNumber || '—',
   }
 
   const firstPaymentDate = contract.firstPaymentDate
@@ -411,14 +413,21 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
       : new Date(contract.firstPaymentDate as any)
     : null
 
+  const customSchedule = contract.customSchedule && contract.customSchedule.length > 0 ? contract.customSchedule : null
   const schedule = firstPaymentDate
-    ? calculateSchedule({
-        amount: contract.amount,
-        interestRate: contract.interestRate,
-        monthlyPayment: contract.monthlyPaymentAmount,
-        firstPaymentDate,
-        maxDuration: contract.duration,
-      })
+    ? customSchedule
+      ? customSchedule.map(({ month, amount }) => {
+          const date = new Date(firstPaymentDate)
+          date.setMonth(date.getMonth() + month - 1)
+          return { month, date, payment: amount, interest: 0, principal: amount, remaining: 0 }
+        })
+      : calculateSchedule({
+          amount: contract.amount,
+          interestRate: contract.interestRate,
+          monthlyPayment: contract.monthlyPaymentAmount,
+          firstPaymentDate,
+          maxDuration: contract.duration,
+        })
     : []
 
   const endDate = firstPaymentDate ? (() => {
@@ -429,8 +438,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
 
   const guaranteeAmount = contract.totalAmount || contract.amount
 
-  const scheduleRows = Array.from({ length: 7 }).map((_, index) => schedule[index])
-  const visibleScheduleRows = scheduleRows.filter((item): item is (typeof schedule)[number] => Boolean(item))
+  const visibleScheduleRows = schedule
   const bandColor = COLORS.rowAlt
   const withBand = (cells: TableCellConfig[], shaded: boolean) =>
     shaded ? cells.map((cell) => ({ ...cell, backgroundColor: bandColor })) : cells
@@ -555,9 +563,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
             height={26.15}
             cells={withBand([
               { content: 'TYPE DE PIÈCE :', textStyle: styles.tableLabelText },
-              { content: member.identityDocument, textStyle: styles.tableValueText },
+              { content: guarantor.identityDocument, textStyle: styles.tableValueText },
               { content: 'N° DE PIÈCE:', textStyle: styles.tableLabelText },
-              { content: member.identityDocumentNumber, textStyle: styles.tableValueText },
+              { content: guarantor.identityDocumentNumber, textStyle: styles.tableValueText },
             ], true)}
           />
         </View>

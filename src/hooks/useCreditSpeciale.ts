@@ -172,11 +172,13 @@ export function useCreditContractMutations() {
         }: { 
             demandId: string
             simulationData: {
+                amount: number
                 interestRate: number
                 monthlyPaymentAmount: number
                 duration: number
                 firstPaymentDate: Date
                 totalAmount: number
+                customSchedule?: Array<{ month: number; amount: number }>
                 emergencyContact?: EmergencyContact
                 guarantorRemunerationPercentage?: number
             }

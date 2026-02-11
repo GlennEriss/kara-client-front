@@ -519,8 +519,17 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     // Ne plus utiliser les installments - toujours calculer théoriquement
     const monthlyRate = contract.interestRate / 100
     const firstDate = new Date(contract.firstPaymentDate)
-    const paymentAmount = contract.monthlyPaymentAmount
+    const defaultPaymentAmount = contract.monthlyPaymentAmount
     const maxDuration = contract.duration
+    const hasCustomSchedule = contract.customSchedule && contract.customSchedule.length > 0
+    
+    // Pour les simulations personnalisées, créer un map pour accès rapide
+    const customPaymentByMonth = new Map<number, number>()
+    if (hasCustomSchedule) {
+      contract.customSchedule!.forEach(entry => {
+        customPaymentByMonth.set(entry.month, entry.amount)
+      })
+    }
     
     // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
     // Mois 1: montantGlobal = Montant emprunté * taux + montant emprunté
@@ -552,6 +561,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       // Après le 7ème mois, les intérêts sont à 0
       const interest = isAfterMonth7 ? 0 : resteDuPrecedent * monthlyRate
       
+      // Obtenir le montant de la mensualité pour ce mois (variable si simulation personnalisée)
+      const paymentAmount = hasCustomSchedule
+        ? (customPaymentByMonth.get(monthIndex + 1) ?? defaultPaymentAmount)
+        : defaultPaymentAmount
+
       // Calculer le paiement selon la même logique que la simulation
       let payment: number
       let resteDu: number
@@ -638,8 +652,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       
       monthIndex++
       
-      // Arrêter si le reste dû est 0 et qu'on a dépassé la durée initiale
-      if (resteDu <= 0 && monthIndex >= maxDuration) {
+      // Arrêter si le reste dû est 0 et qu'on a dépassé la durée effective
+      const effectiveDuration = hasCustomSchedule ? contract.customSchedule!.length : maxDuration
+      if (resteDu <= 0 && monthIndex >= effectiveDuration) {
         break
       }
     }
@@ -696,6 +711,16 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     const monthlyRate = contract.interestRate / 100
     const firstDate = new Date(contract.firstPaymentDate)
     const maxDuration = contract.duration
+    const defaultMonthlyPayment = contract.monthlyPaymentAmount
+    const hasCustomSchedule = contract.customSchedule && contract.customSchedule.length > 0
+    
+    // Pour les simulations personnalisées, créer un map pour accès rapide
+    const customPaymentByMonth = new Map<number, number>()
+    if (hasCustomSchedule) {
+      contract.customSchedule!.forEach(entry => {
+        customPaymentByMonth.set(entry.month, entry.amount)
+      })
+    }
     
     // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
     // Commencer avec le montant initial
@@ -716,8 +741,6 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       .sort((a, b) => 
         new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
       )
-
-    const monthlyPayment = contract.monthlyPaymentAmount
     let monthIndex = 0
     
     // Continuer jusqu'à ce que le reste dû soit 0 ou qu'on atteigne une limite raisonnable (ex: 20 mois)
@@ -737,6 +760,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       const currentMonth = monthIndex + 1
       const hasPayment = hasPaymentForMonth(currentMonth)
       
+      // Obtenir le montant de la mensualité pour ce mois (variable si simulation personnalisée)
+      const monthlyPayment = hasCustomSchedule
+        ? (customPaymentByMonth.get(monthIndex + 1) ?? defaultMonthlyPayment)
+        : defaultMonthlyPayment
+
       // Calculer la mensualité théorique à payer (indépendante du paiement réel)
       let theoreticalPayment: number
       if (monthlyPayment > montantGlobal) {
@@ -833,8 +861,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       
       monthIndex++
       
-      // Arrêter si le reste dû est 0 et qu'on a dépassé la durée initiale
-      if (resteDu <= 0 && monthIndex >= maxDuration) {
+      // Arrêter si le reste dû est 0 et qu'on a dépassé la durée effective
+      const effectiveDuration = hasCustomSchedule ? contract.customSchedule!.length : maxDuration
+      if (resteDu <= 0 && monthIndex >= effectiveDuration) {
         break
       }
     }

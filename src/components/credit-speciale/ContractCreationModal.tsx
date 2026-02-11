@@ -96,15 +96,13 @@ export default function ContractCreationModal({
     }
   }, [isOpen])
 
-  // Calculer l'échéancier pour l'affichage
+  // Calculer l'échéancier pour l'affichage (utilise l'échéancier réel pour simulation personnalisée)
   const schedule = useMemo(() => {
     const result = simulation
     const monthlyRate = result.interestRate / 100
     const firstDate = new Date(result.firstPaymentDate)
-    const monthlyPayment = 'monthlyPayment' in result 
-      ? result.monthlyPayment 
-      : result.monthlyPayments[0]?.amount || 0
-    
+    const isCustom = 'monthlyPayments' in result && result.monthlyPayments?.length > 0
+
     let remaining = result.amount
     const items: Array<{
       month: number
@@ -120,34 +118,40 @@ export default function ContractCreationModal({
 
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
-      
+      const monthNum = i + 1
+
       // 1. Calcul des intérêts sur le solde actuel
       const interest = remaining * monthlyRate
-      // 2. Montant global = reste dû + intérêts
       const balanceWithInterest = remaining + interest
-      
-      // 3. Versement effectué (même logique que dans CreditSimulationModal)
+
       let payment: number
-      
-      if (monthlyPayment > balanceWithInterest) {
-        // Si la mensualité prédéfinie est supérieure au montant global,
-        // la mensualité affichée doit être le montant global (capital + intérêts)
-        payment = balanceWithInterest
-        remaining = 0
-      } else if (remaining < monthlyPayment) {
-        // Le reste dû est inférieur à la mensualité souhaitée
-        // La mensualité affichée = reste dû (sans intérêts)
-        payment = remaining
-        remaining = 0
+      if (isCustom) {
+        // Simulation personnalisée : utiliser le montant prévu pour ce mois
+        const planned = result.monthlyPayments.find((p) => p.month === monthNum) ?? result.monthlyPayments[i]
+        payment = planned?.amount ?? 0
+        if (payment >= balanceWithInterest) {
+          payment = balanceWithInterest
+          remaining = 0
+        } else {
+          remaining = Math.max(0, customRound(balanceWithInterest - payment))
+        }
       } else {
-        // Le reste dû est supérieur ou égal à la mensualité souhaitée
-        payment = monthlyPayment
-        // 4. Nouveau solde après versement
-        remaining = Math.max(0, balanceWithInterest - payment)
+        // Simulation standard ou proposée : une seule mensualité
+        const monthlyPayment = 'monthlyPayment' in result ? result.monthlyPayment : 0
+        if (monthlyPayment > balanceWithInterest) {
+          payment = balanceWithInterest
+          remaining = 0
+        } else if (remaining < monthlyPayment) {
+          payment = remaining
+          remaining = 0
+        } else {
+          payment = monthlyPayment
+          remaining = Math.max(0, balanceWithInterest - payment)
+        }
       }
 
       items.push({
-        month: i + 1,
+        month: monthNum,
         date,
         payment: customRound(payment),
         interest: customRound(interest),
@@ -286,16 +290,19 @@ export default function ContractCreationModal({
     try {
       setIsSubmitting(true)
 
+      const isCustom = 'monthlyPayments' in simulation && simulation.monthlyPayments?.length > 0
       const simulationData = {
+        amount: simulation.amount,
         interestRate: simulation.interestRate,
         monthlyPaymentAmount: 'monthlyPayment' in simulation 
           ? simulation.monthlyPayment 
-          : simulation.monthlyPayments.length > 0 
+          : isCustom 
             ? simulation.monthlyPayments[0].amount 
             : simulation.amount / simulation.duration,
         duration: simulation.duration,
         firstPaymentDate: simulation.firstPaymentDate,
         totalAmount: simulation.totalAmount,
+        ...(isCustom ? { customSchedule: simulation.monthlyPayments } : {}),
         emergencyContact: emergencyContact as EmergencyContact,
         guarantorRemunerationPercentage: guarantorIsMember ? guarantorRemunerationPercentage : 0,
       }

@@ -36,11 +36,14 @@ export interface ICreditSpecialeService {
         demandId: string, 
         adminId: string, 
         simulationData: {
+            amount: number; // Montant du crédit (principal) issu de la simulation
             interestRate: number;
             monthlyPaymentAmount: number;
             duration: number;
             firstPaymentDate: Date;
             totalAmount: number;
+            /** Échéancier personnalisé (simulation personnalisée uniquement) */
+            customSchedule?: Array<{ month: number; amount: number }>;
         }
     ): Promise<CreditContract>;
     getContractById(id: string): Promise<CreditContract | null>;
