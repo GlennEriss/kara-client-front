@@ -28,9 +28,10 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
-import { useContractsCI, ContractsCIFilters } from '@/hooks/caisse-imprevue/useContractsCI'
+import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
+import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import StatisticsCI from './StatisticsCI'
-import FiltersCI from './FiltersCI'
+import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
 import routes from '@/constantes/routes'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -114,10 +115,11 @@ export default function ListContractsCISection() {
   const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'>('all')
   
   // États
-  const [filters, setFilters] = useState<ContractsCIFilters>({
+  const [filters, setFilters] = useState<ContractCIFilters>({
     search: '',
     status: 'ACTIVE' as ContractCIStatus | 'all',
-    paymentFrequency: 'all'
+    paymentFrequency: 'all',
+    subscriptionCIID: undefined,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -137,6 +139,7 @@ export default function ListContractsCISection() {
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<ContractCI | null>(null)
   const [showReplaceContractCIModal, setShowReplaceContractCIModal] = useState(false)
   const [selectedContractForReplace, setSelectedContractForReplace] = useState<ContractCI | null>(null)
+  const { data: subscriptions } = useSubscriptionsCICache()
 
   /**
    * Vérifie si un contrat CI a une échéance dans le mois actuel
@@ -189,7 +192,7 @@ export default function ListContractsCISection() {
   }
 
   // Construire les filtres : dans l'onglet "Tous" (et Retard / Mois en cours), utiliser le filtre "Type de contrat" ; sinon l'onglet impose le type (Journalier / Mensuel)
-  const effectiveFilters: ContractsCIFilters = {
+  const effectiveFilters: ContractCIFilters = {
     ...filters,
     paymentFrequency:
       activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : (filters.paymentFrequency || 'all'),
@@ -210,13 +213,23 @@ export default function ListContractsCISection() {
     return contracts
   }, [contracts, activeTab])
 
+  const subscriptionOptions = useMemo(
+    () =>
+      (subscriptions || []).map((subscription) => ({
+        id: subscription.id,
+        code: subscription.code,
+        label: subscription.label,
+      })),
+    [subscriptions]
+  )
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters.status, filters.search, activeTab])
+  }, [filters.status, filters.search, filters.subscriptionCIID, activeTab])
 
   // Gestionnaires d'événements
-  const handleFiltersChange = (newFilters: any) => {
+  const handleFiltersChange = (newFilters: ContractCIFilters) => {
     setFilters(newFilters)
     setCurrentPage(1)
   }
@@ -225,7 +238,8 @@ export default function ListContractsCISection() {
     setFilters({ 
       search: '', 
       status: 'ACTIVE',
-      paymentFrequency: 'all'
+      paymentFrequency: 'all',
+      subscriptionCIID: undefined,
     })
     setCurrentPage(1)
   }
@@ -513,10 +527,11 @@ export default function ListContractsCISection() {
       </Tabs>
 
       {/* Filtres : filtre "Type de contrat" visible uniquement dans l'onglet Tous (et Retard / Mois en cours) */}
-      <FiltersCI
+      <ContractsFiltersV2
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        subscriptions={subscriptionOptions}
         showPaymentFrequencyFilter={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth'}
       />
 

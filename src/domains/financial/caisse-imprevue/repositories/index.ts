@@ -4,3 +4,5 @@
 
 export * from './IDemandCIRepository'
 export * from './DemandCIRepository'
+export * from './IContractCIRepository'
+export * from './ContractCIRepository'

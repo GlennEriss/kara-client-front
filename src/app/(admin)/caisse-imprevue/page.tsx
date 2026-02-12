@@ -1,5 +1,5 @@
 import React from 'react'
-import ListContractsCISection from '@/components/caisse-imprevue/ListContractsCISection'
+import ListContractsCIV2 from '@/domains/financial/caisse-imprevue/components/contracts/ListContractsCIV2'
 
 export default function CaisseImprevuePage() {
   return (
@@ -16,7 +16,7 @@ export default function CaisseImprevuePage() {
         </div>
 
         {/* Composant principal */}
-        <ListContractsCISection />
+        <ListContractsCIV2 />
       </div>
     </div>
   )

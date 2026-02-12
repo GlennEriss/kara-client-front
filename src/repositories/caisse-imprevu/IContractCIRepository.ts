@@ -5,6 +5,7 @@ export interface ContractsCIFilters {
     search?: string;
     status?: ContractCIStatus | 'all';
     paymentFrequency?: CaisseImprevuePaymentFrequency | 'all';
+    subscriptionCIID?: string;
     overdueOnly?: boolean; // Nouveau : filtrer uniquement les contrats en retard
 }
 
@@ -29,4 +30,3 @@ export interface IContractCIRepository extends IRepository {
     updateContract(id: string, data: Partial<Omit<ContractCI, 'id' | 'createdAt'>>): Promise<ContractCI | null>;
     deleteContract(id: string): Promise<void>;
 }
-

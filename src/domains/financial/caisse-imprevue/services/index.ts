@@ -3,5 +3,6 @@
  */
 
 export * from './CaisseImprevueService'
+export * from './CaisseImprevueContractsService'
 export * from './DemandSimulationService'
 export * from './DemandExportService'
