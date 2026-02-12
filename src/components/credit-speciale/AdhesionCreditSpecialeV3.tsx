@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
   tableValueText: {
     fontFamily: 'Times New Roman',
     fontSize: 10,
+    textAlign: 'center',
   },
   associationLabel: {
     fontFamily: 'Times New Roman',
@@ -466,7 +467,8 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
               { content: 'MATRICULE :', textStyle: styles.tableLabelText },
               { content: member.matricule, textStyle: styles.tableValueText },
               { content: 'MEMBRE :', textStyle: styles.tableLabelText },
-              { content: String(member.membershipType).toUpperCase(), textStyle: styles.tableValueText },
+              //{ content: String(member.membershipType).toUpperCase(), textStyle: styles.tableValueText },
+              { content: '', textStyle: styles.tableValueText },
             ], true)}
           />
           <TableRow
@@ -525,7 +527,8 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
               { content: 'NATIONALITÉ :', textStyle: styles.tableLabelText },
               { content: member.nationality, textStyle: styles.tableValueText },
               { content: 'ASSOCIATION', textStyle: styles.tableLabelText },
-              { content: member.association, textStyle: styles.tableValueText },
+              //{ content: member.association, textStyle: styles.tableValueText },
+              { content: '', textStyle: styles.tableValueText },
             ], false)}
           />
         </View>
