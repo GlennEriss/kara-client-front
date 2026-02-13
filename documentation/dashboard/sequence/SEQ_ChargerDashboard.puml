@@ -1,0 +1,60 @@
+@startuml
+
+title Sequence - Charger dashboard (tabs-first)
+
+autonumber
+
+actor Admin
+participant "DashboardPage" as UI
+participant "DashboardTabs" as Tabs
+participant "useDashboard" as Hook
+participant "ReactQuery Cache" as Cache
+participant "DashboardAggregationService" as Service
+participant "DashboardAggregateRepo" as Repo
+participant "Cloud Function\ngetDashboardSnapshot" as CF
+participant "Firestore\nCollections source" as DB
+
+Admin -> UI : Ouvre /dashboard
+UI -> Tabs : initialiser activeTab = executive
+Tabs --> UI : activeTab
+UI -> Hook : useDashboard(activeTab, filters)
+Hook -> Cache : get(queryKey + activeTab)
+
+alt Cache hit
+  Cache --> Hook : snapshot tab frais
+  Hook --> UI : data(source=cache_ui)
+  UI --> Admin : Tab actif affiche instantanement
+else Cache miss/stale
+  Hook -> Service : getSnapshot(activeTab, filters)
+  Service -> Repo : getAggregate(periodKey, filtersHash, activeTab)
+
+  alt Snapshot Firestore frais
+    Repo --> Service : aggregate snapshot tab
+    Service --> Hook : data(source=cache_firestore)
+    Hook -> Cache : set(queryKey + activeTab, snapshot)
+    Hook --> UI : snapshot tab
+    UI --> Admin : Tab actif affiche
+  else Snapshot absent/stale
+    Service -> CF : getDashboardSnapshot(activeTab, filters)
+
+    alt Cloud Function OK
+      CF -> DB : lire/aggreger sources du tab actif
+      DB --> CF : datasets tab
+      CF -> Repo : upsert dashboardAggregates(tab)
+      CF --> Service : snapshot tab
+      Service --> Hook : data(source=cloud_function)
+      Hook -> Cache : set(queryKey + activeTab, snapshot)
+      Hook --> UI : snapshot tab
+      UI --> Admin : Tab actif affiche complet
+    else Cloud Function KO
+      Service -> DB : lectures live paralleles du tab actif
+      DB --> Service : datasets partiels tab
+      Service --> Hook : data(source=live_fallback, stale=true)
+      Hook -> Cache : set(queryKey + activeTab, partialSnapshot)
+      Hook --> UI : partialSnapshot + warning
+      UI --> Admin : Tab actif partiel + alerte
+    end
+  end
+end
+
+@enduml

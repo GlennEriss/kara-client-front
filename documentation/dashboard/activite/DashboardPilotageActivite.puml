@@ -1,0 +1,47 @@
+@startuml
+skinparam shadowing false
+
+start
+:Admin ouvre /dashboard;
+if (Utilisateur admin ?) then (oui)
+  :Initialiser filtres + activeTab (defaut: executive);
+
+  :Demander snapshot du tab actif;
+  if (Cache React Query valide pour activeTab ?) then (oui)
+    :Afficher snapshot cache du tab actif;
+  else (non)
+    :Lire snapshot Firestore (dashboardAggregates);
+    if (Snapshot frais ?) then (oui)
+      :Hydrater cache UI;
+      :Afficher tab actif;
+    else (non)
+      :Appeler Cloud Function getDashboardSnapshot(activeTab, filtres);
+      if (Function OK ?) then (oui)
+        :Recevoir snapshot du tab actif;
+        :Ecrire dashboardAggregates;
+        :Hydrater cache UI;
+        :Afficher tab actif;
+      else (non)
+        :Fallback lecture live des sources du tab actif;
+        :Afficher tab partiel + alerte fraicheur;
+      endif
+    endif
+  endif
+
+  if (Admin change de tab ?) then (oui)
+    :Mettre a jour activeTab;
+    :Recalculer queryKey avec activeTab;
+    :Relancer flux de chargement du nouveau tab;
+  endif
+
+  if (Admin change filtres ?) then (oui)
+    :Invalider cache du tab actif;
+    :Relancer flux de chargement;
+  endif
+
+  stop
+else (non)
+  :Afficher 403;
+  stop
+endif
+@enduml
