@@ -2,12 +2,14 @@ import { customRound } from '@/utils/credit-speciale-calculations'
 import type {
   FixedCustomSimulationInput,
   FixedMonthlyPaymentInput,
+  FixedSimulationOptions,
   FixedSimulationResult,
   FixedSimulationScheduleRow,
   FixedStandardSimulationInput,
 } from '../entities/fixed-simulation.types'
 
 const MAX_FIXED_DURATION = 14
+const MAX_FIXED_INTEREST_RATE = 50
 
 export class CreditFixeSimulationService {
   private static instance: CreditFixeSimulationService
@@ -22,20 +24,27 @@ export class CreditFixeSimulationService {
     return CreditFixeSimulationService.instance
   }
 
-  calculateStandardSimulation(input: FixedStandardSimulationInput): FixedSimulationResult {
+  calculateStandardSimulation(
+    input: FixedStandardSimulationInput,
+    options?: FixedSimulationOptions
+  ): FixedSimulationResult {
+    const config = this.getConfig(options)
     const amount = Math.round(input.amount)
     const interestRate = input.interestRate
+    if (interestRate > config.maxInterestRate) {
+      throw new Error(`Le taux du crédit ${config.creditLabel} ne peut pas dépasser ${config.maxInterestRate}%`)
+    }
     const interestAmount = this.calculateInterestAmount(amount, interestRate)
     const totalAmount = amount + interestAmount
 
-    const monthlyFloor = Math.floor(totalAmount / MAX_FIXED_DURATION)
+    const monthlyFloor = Math.floor(totalAmount / config.maxDuration)
     const schedule: FixedSimulationScheduleRow[] = []
     let cumulativePaid = 0
 
-    for (let index = 0; index < MAX_FIXED_DURATION; index += 1) {
+    for (let index = 0; index < config.maxDuration; index += 1) {
       const month = index + 1
       const date = this.getScheduleDate(input.firstPaymentDate, month)
-      const isLastMonth = month === MAX_FIXED_DURATION
+      const isLastMonth = month === config.maxDuration
       const payment = isLastMonth ? totalAmount - cumulativePaid : monthlyFloor
 
       cumulativePaid += payment
@@ -50,7 +59,7 @@ export class CreditFixeSimulationService {
 
     return {
       mode: 'STANDARD',
-      maxDuration: MAX_FIXED_DURATION,
+      maxDuration: config.maxDuration,
       isValid: true,
       summary: {
         amount,
@@ -58,8 +67,8 @@ export class CreditFixeSimulationService {
         interestAmount,
         totalAmount,
         firstPaymentDate: new Date(input.firstPaymentDate),
-        duration: MAX_FIXED_DURATION,
-        averageMonthlyPayment: customRound(totalAmount / MAX_FIXED_DURATION),
+        duration: config.maxDuration,
+        averageMonthlyPayment: customRound(totalAmount / config.maxDuration),
         totalPlanned: totalAmount,
         remaining: 0,
         excess: 0,
@@ -68,13 +77,20 @@ export class CreditFixeSimulationService {
     }
   }
 
-  calculateCustomSimulation(input: FixedCustomSimulationInput): FixedSimulationResult {
+  calculateCustomSimulation(
+    input: FixedCustomSimulationInput,
+    options?: FixedSimulationOptions
+  ): FixedSimulationResult {
+    const config = this.getConfig(options)
     const amount = Math.round(input.amount)
     const interestRate = input.interestRate
+    if (interestRate > config.maxInterestRate) {
+      throw new Error(`Le taux du crédit ${config.creditLabel} ne peut pas dépasser ${config.maxInterestRate}%`)
+    }
     const interestAmount = this.calculateInterestAmount(amount, interestRate)
     const totalAmount = amount + interestAmount
     const requestedDuration = input.monthlyPayments.length
-    const monthlyPayments = this.normalizeMonthlyPayments(input.monthlyPayments)
+    const monthlyPayments = this.normalizeMonthlyPayments(input.monthlyPayments, config.maxDuration)
 
     const schedule: FixedSimulationScheduleRow[] = []
     let cumulativePaid = 0
@@ -95,14 +111,14 @@ export class CreditFixeSimulationService {
     const duration = schedule.length
     const remaining = Math.max(0, totalAmount - cumulativePaid)
     const excess = Math.max(0, cumulativePaid - totalAmount)
-    const durationValid = requestedDuration <= MAX_FIXED_DURATION
+    const durationValid = requestedDuration <= config.maxDuration
     const isValid = durationValid && remaining <= 0
 
     return {
       mode: 'CUSTOM',
-      maxDuration: MAX_FIXED_DURATION,
+      maxDuration: config.maxDuration,
       isValid,
-      validationMessage: this.buildValidationMessage(durationValid, remaining),
+      validationMessage: this.buildValidationMessage(durationValid, remaining, config),
       summary: {
         amount,
         interestRate,
@@ -129,18 +145,25 @@ export class CreditFixeSimulationService {
     return date
   }
 
-  private normalizeMonthlyPayments(monthlyPayments: FixedMonthlyPaymentInput[]): FixedMonthlyPaymentInput[] {
+  private normalizeMonthlyPayments(
+    monthlyPayments: FixedMonthlyPaymentInput[],
+    maxDuration: number
+  ): FixedMonthlyPaymentInput[] {
     return monthlyPayments
       .map((payment, index) => ({
         month: index + 1,
         amount: payment.amount,
       }))
-      .slice(0, MAX_FIXED_DURATION)
+      .slice(0, maxDuration)
   }
 
-  private buildValidationMessage(durationValid: boolean, remaining: number): string | undefined {
+  private buildValidationMessage(
+    durationValid: boolean,
+    remaining: number,
+    config: { maxDuration: number; creditLabel: string }
+  ): string | undefined {
     if (!durationValid) {
-      return 'Le Crédit Fixe ne peut pas dépasser 14 mois.'
+      return `Le crédit ${config.creditLabel} ne peut pas dépasser ${config.maxDuration} mois.`
     }
 
     if (remaining > 0) {
@@ -148,5 +171,17 @@ export class CreditFixeSimulationService {
     }
 
     return undefined
+  }
+
+  private getConfig(options?: FixedSimulationOptions): {
+    maxDuration: number
+    maxInterestRate: number
+    creditLabel: string
+  } {
+    return {
+      maxDuration: options?.maxDuration ?? MAX_FIXED_DURATION,
+      maxInterestRate: options?.maxInterestRate ?? MAX_FIXED_INTEREST_RATE,
+      creditLabel: options?.creditLabel ?? 'fixe',
+    }
   }
 }

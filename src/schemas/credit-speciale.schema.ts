@@ -75,16 +75,6 @@ export const creditDemandSchema = z.object({
     }
   }
   
-  if (data.creditType === 'AIDE' && data.monthlyPaymentAmount) {
-    const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
-    if (maxDuration > 3) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Le crédit aide ne peut pas dépasser 3 mois. Augmentez la mensualité ou réduisez le montant.',
-        path: ['monthlyPaymentAmount'],
-      })
-    }
-  }
 })
 
 export type CreditDemandFormData = z.infer<typeof creditDemandSchema>
@@ -156,16 +146,6 @@ export const creditDemandFormSchema = z.object({
     }
   }
   
-  if (data.creditType === 'AIDE' && data.monthlyPaymentAmount) {
-    const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
-    if (maxDuration > 3) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Le crédit aide ne peut pas dépasser 3 mois. Augmentez la mensualité ou réduisez le montant.',
-        path: ['monthlyPaymentAmount'],
-      })
-    }
-  }
 })
 
 export type CreditDemandFormInput = z.infer<typeof creditDemandFormSchema>
@@ -242,6 +222,14 @@ export const standardSimulationSchema = z.object({
       path: ['interestRate'],
     })
   }
+
+  if (data.creditType === 'AIDE' && data.interestRate > 5) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le taux du crédit aide ne peut pas dépasser 5%',
+      path: ['interestRate'],
+    })
+  }
 })
 
 export type StandardSimulationFormData = z.infer<typeof standardSimulationSchema>
@@ -266,7 +254,7 @@ export const customSimulationSchema = z.object({
 }).superRefine((data, ctx) => {
   // Validation : la somme des paiements doit être au moins égale au montant
   const totalPayments = data.monthlyPayments.reduce((sum, p) => sum + p.amount, 0)
-  if (data.creditType !== 'FIXE' && totalPayments < data.amount) {
+  if (data.creditType === 'SPECIALE' && totalPayments < data.amount) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'La somme des paiements mensuels doit être au moins égale au montant emprunté',
@@ -304,6 +292,14 @@ export const customSimulationSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Le taux du crédit fixe ne peut pas dépasser 50%',
+      path: ['interestRate'],
+    })
+  }
+
+  if (data.creditType === 'AIDE' && data.interestRate > 5) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le taux du crédit aide ne peut pas dépasser 5%',
       path: ['interestRate'],
     })
   }
@@ -368,6 +364,14 @@ export const proposedSimulationSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Le taux du crédit fixe ne peut pas dépasser 50%',
+      path: ['interestRate'],
+    })
+  }
+
+  if (data.creditType === 'AIDE' && data.interestRate > 5) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le taux du crédit aide ne peut pas dépasser 5%',
       path: ['interestRate'],
     })
   }

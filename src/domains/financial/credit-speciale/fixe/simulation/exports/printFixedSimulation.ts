@@ -1,5 +1,9 @@
 import type { FixedSimulationResult } from '../entities/fixed-simulation.types'
 
+interface FixedSimulationPrintOptions {
+  moduleTitle?: string
+}
+
 function formatAmount(value: number): string {
   return Math.round(value).toLocaleString('fr-FR')
 }
@@ -12,7 +16,11 @@ function formatDate(value: Date): string {
   })
 }
 
-export function printFixedSimulation(result: FixedSimulationResult): void {
+export function printFixedSimulation(
+  result: FixedSimulationResult,
+  options: FixedSimulationPrintOptions = {}
+): void {
+  const moduleTitle = options.moduleTitle ?? 'Credit Fixe'
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
@@ -34,7 +42,7 @@ export function printFixedSimulation(result: FixedSimulationResult): void {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Simulation Credit Fixe</title>
+        <title>Simulation ${moduleTitle}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; color: #222; }
           h1 { color: #234D65; margin: 0 0 12px; }
@@ -51,7 +59,7 @@ export function printFixedSimulation(result: FixedSimulationResult): void {
         </style>
       </head>
       <body>
-        <h1>Simulation Credit Fixe</h1>
+        <h1>Simulation ${moduleTitle}</h1>
         <div class="meta">Mode: ${result.mode === 'STANDARD' ? 'Standard' : 'Personnalisee'}</div>
         <div class="meta">Montant emprunte: ${formatAmount(result.summary.amount)} FCFA</div>
         <div class="meta">Taux: ${result.summary.interestRate}%</div>

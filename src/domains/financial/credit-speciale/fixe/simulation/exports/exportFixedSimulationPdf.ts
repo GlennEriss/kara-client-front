@@ -1,5 +1,10 @@
 import type { FixedSimulationResult } from '../entities/fixed-simulation.types'
 
+interface FixedSimulationExportOptions {
+  moduleSlug?: string
+  moduleTitle?: string
+}
+
 function formatAmount(value: number): string {
   return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
@@ -14,15 +19,20 @@ function formatDate(value: Date): string {
 
 export async function exportFixedSimulationPdf(
   result: FixedSimulationResult,
-  fileName = `simulation_credit_fixe_${new Date().toISOString().slice(0, 10)}.pdf`
+  fileName?: string,
+  options: FixedSimulationExportOptions = {}
 ): Promise<void> {
+  const moduleSlug = options.moduleSlug ?? 'credit_fixe'
+  const moduleTitle = options.moduleTitle ?? 'Credit Fixe'
+  const resolvedFileName = fileName ?? `simulation_${moduleSlug}_${new Date().toISOString().slice(0, 10)}.pdf`
+
   const { jsPDF } = await import('jspdf')
   const autoTable = (await import('jspdf-autotable')).default
 
   const doc = new jsPDF('portrait', 'mm', 'a4')
   doc.setFontSize(16)
   doc.setTextColor(35, 77, 101)
-  doc.text('Simulation Credit Fixe', 14, 14)
+  doc.text(`Simulation ${moduleTitle}`, 14, 14)
   doc.setFontSize(10)
   doc.setTextColor(80, 80, 80)
   doc.text(`Mode : ${result.mode === 'STANDARD' ? 'Standard' : 'Personnalisee'}`, 14, 20)
@@ -57,5 +67,5 @@ export async function exportFixedSimulationPdf(
   doc.setFont('helvetica', 'bold')
   doc.text(`Total planifie : ${formatAmount(result.summary.totalPlanned)} FCFA`, 14, finalY + 8)
 
-  doc.save(fileName)
+  doc.save(resolvedFileName)
 }

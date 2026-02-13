@@ -55,6 +55,11 @@ const routeLabels: Record<string, string> = {
   '/credit-fixe/simulation': 'Simulation',
   '/credit-fixe/demandes': 'Demandes',
   '/credit-fixe/contrats': 'Contrats',
+  // Crédit Aide
+  '/credit-aide': 'Caisse Aide',
+  '/credit-aide/simulation': 'Simulation',
+  '/credit-aide/demandes': 'Demandes',
+  '/credit-aide/contrats': 'Contrats',
   // Placements
   '/placements': 'Placements',
   '/placements/demandes': 'Demandes',
@@ -104,10 +109,16 @@ const getRouteLabel = (path: string): string => {
   if (path.match(/^\/credit-fixe\/demandes\/[^\/]+$/)) {
     return 'Détails'
   }
+  if (path.match(/^\/credit-aide\/demandes\/[^\/]+$/)) {
+    return 'Détails'
+  }
   if (path.match(/^\/credit-speciale\/contrats\/[^\/]+$/)) {
     return 'Détails'
   }
   if (path.match(/^\/credit-fixe\/contrats\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/credit-aide\/contrats\/[^\/]+$/)) {
     return 'Détails'
   }
   if (path.match(/^\/placements\/[^\/]+$/)) {
@@ -204,6 +215,10 @@ const generateBreadcrumbSegments = (pathname: string) => {
     // Crédit Fixe : /credit-fixe n'a pas de page, rediriger vers la première sous-page (Simulation)
     if (currentPath === '/credit-fixe' && pathname.startsWith('/credit-fixe/')) {
       href = routes.admin.creditFixeSimulation
+    }
+    // Crédit Aide : /credit-aide n'a pas de page, rediriger vers la première sous-page (Simulation)
+    if (currentPath === '/credit-aide' && pathname.startsWith('/credit-aide/')) {
+      href = routes.admin.creditAideSimulation
     }
     
     // Si on est sur une route de contrat et que le segment actuel est "contrats",

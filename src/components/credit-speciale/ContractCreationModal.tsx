@@ -65,9 +65,15 @@ export default function ContractCreationModal({
 }: ContractCreationModalProps) {
   const router = useRouter()
   const { createFromDemand } = useCreditContractMutations()
-  const isFixedCredit = demand.creditType === 'FIXE'
+  const isSimpleCredit = demand.creditType === 'FIXE' || demand.creditType === 'AIDE'
   const resolvedContractListPath = contractListPath
-    || (isFixedCredit ? routes.admin.creditFixeContrats : routes.admin.creditSpecialeContrats)
+    || (
+      demand.creditType === 'FIXE'
+        ? routes.admin.creditFixeContrats
+        : demand.creditType === 'AIDE'
+          ? routes.admin.creditAideContrats
+          : routes.admin.creditSpecialeContrats
+    )
   const creditTypeLabel = demand.creditType === 'FIXE'
     ? 'fixe'
     : demand.creditType === 'AIDE'
@@ -81,7 +87,7 @@ export default function ContractCreationModal({
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
   const hasGuarantor = !!demand.guarantorId
-  const guarantorIsMember = hasGuarantor && demand.guarantorIsMember && !isFixedCredit
+  const guarantorIsMember = hasGuarantor && demand.guarantorIsMember && demand.creditType === 'SPECIALE'
 
   // Calcul des étapes selon le contexte
   const steps = useMemo(() => {
@@ -121,7 +127,7 @@ export default function ContractCreationModal({
     }> = []
 
     // Crédit fixe : intérêt unique (pas d'intérêt mensuel composé)
-    if (isFixedCredit) {
+    if (isSimpleCredit) {
       const totalAmount = customRound(result.totalAmount)
       let cumulativePaid = 0
 
@@ -221,7 +227,7 @@ export default function ContractCreationModal({
     }
 
     return items
-  }, [simulation, isFixedCredit])
+  }, [simulation, isSimpleCredit])
 
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const referenceSchedule = useMemo(() => {
@@ -509,7 +515,7 @@ export default function ContractCreationModal({
                         <TableHead>Mois</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Mensualité</TableHead>
-                        {!isFixedCredit && <TableHead className="text-right">Intérêts</TableHead>}
+                        {!isSimpleCredit && <TableHead className="text-right">Intérêts</TableHead>}
                         <TableHead className="text-right">Reste dû</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -521,7 +527,7 @@ export default function ContractCreationModal({
                           <TableCell className="font-medium">M{row.month}</TableCell>
                           <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                           <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                          {!isFixedCredit && (
+                          {!isSimpleCredit && (
                             <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                           )}
                           <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>

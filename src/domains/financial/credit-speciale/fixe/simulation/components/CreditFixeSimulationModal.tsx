@@ -11,6 +11,7 @@ interface CreditFixeSimulationModalProps {
   onClose: () => void
   initialAmount?: number
   lockAmount?: boolean
+  creditType?: 'FIXE' | 'AIDE'
   onSimulationComplete?: (simulation: StandardSimulation | CustomSimulation) => void
 }
 
@@ -19,8 +20,15 @@ export default function CreditFixeSimulationModal({
   onClose,
   initialAmount,
   lockAmount = true,
+  creditType = 'FIXE',
   onSimulationComplete,
 }: CreditFixeSimulationModalProps) {
+  const isAide = creditType === 'AIDE'
+  const title = isAide ? 'Simulation de crédit Aide' : 'Simulation de crédit Fixe'
+  const description = isAide
+    ? 'Utilisez la simulation Crédit Aide (0% à 5%, 3 mois max) avant la création du contrat.'
+    : 'Utilisez la simulation Crédit Fixe avant la création du contrat.'
+
   if (!isOpen) return null
 
   return (
@@ -29,16 +37,18 @@ export default function CreditFixeSimulationModal({
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
             <Calculator className="h-6 w-6" />
-            Simulation de crédit Fixe
+            {title}
           </DialogTitle>
           <DialogDescription>
-            Utilisez la simulation Crédit Fixe avant la création du contrat.
+            {description}
           </DialogDescription>
         </DialogHeader>
 
         <CreditFixeSimulationSection
+          key={creditType}
           initialAmount={initialAmount}
           lockAmount={lockAmount}
+          creditType={creditType}
           onSimulationSelect={(simulation) => {
             onSimulationComplete?.(simulation)
             onClose()

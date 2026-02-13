@@ -1,5 +1,9 @@
 import type { FixedSimulationResult } from '../entities/fixed-simulation.types'
 
+interface FixedSimulationWhatsAppOptions {
+  moduleTitle?: string
+}
+
 function formatAmount(value: number): string {
   return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
@@ -12,9 +16,13 @@ function formatDate(value: Date): string {
   })
 }
 
-export function shareFixedSimulationWhatsApp(result: FixedSimulationResult): void {
+export function shareFixedSimulationWhatsApp(
+  result: FixedSimulationResult,
+  options: FixedSimulationWhatsAppOptions = {}
+): void {
+  const moduleTitle = options.moduleTitle ?? 'CREDIT FIXE'
   // Même structure que credit-speciale/simulations : titre + tableau 3 colonnes (Échéances | Date | Montant) + Total
-  let message = `*ÉCHÉANCIER DE CRÉDIT*\n\n`
+  let message = `*ÉCHÉANCIER DE ${moduleTitle}*\n\n`
   message += `Echéances | Date | Montant\n`
   message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
 

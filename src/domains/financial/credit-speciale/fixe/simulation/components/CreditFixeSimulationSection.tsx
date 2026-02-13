@@ -42,8 +42,7 @@ import {
 } from '@/components/ui/form'
 import { useCreditFixeSimulation } from '../hooks/useCreditFixeSimulation'
 import {
-  fixedCustomSimulationSchema,
-  fixedStandardSimulationSchema,
+  buildFixedSimulationSchemas,
   type FixedCustomSimulationFormInput,
   type FixedStandardSimulationFormInput,
 } from '../schemas/fixed-simulation.schema'
@@ -54,7 +53,33 @@ import { exportFixedSimulationExcel } from '../exports/exportFixedSimulationExce
 import { printFixedSimulation } from '../exports/printFixedSimulation'
 import { shareFixedSimulationWhatsApp } from '../exports/shareFixedSimulationWhatsApp'
 
-const MAX_DURATION = 14
+type SimpleCreditType = 'FIXE' | 'AIDE'
+
+const simulationConfigByCreditType: Record<
+  SimpleCreditType,
+  {
+    maxDuration: number
+    maxInterestRate: number
+    label: string
+    fileSlug: string
+    whatsappTitle: string
+  }
+> = {
+  FIXE: {
+    maxDuration: 14,
+    maxInterestRate: 50,
+    label: 'Crédit Fixe',
+    fileSlug: 'credit_fixe',
+    whatsappTitle: 'CREDIT FIXE',
+  },
+  AIDE: {
+    maxDuration: 3,
+    maxInterestRate: 5,
+    label: 'Crédit Aide',
+    fileSlug: 'credit_aide',
+    whatsappTitle: 'CREDIT AIDE',
+  },
+}
 
 type SimulationMode = 'STANDARD' | 'CUSTOM'
 
@@ -134,6 +159,7 @@ function formatDate(value: Date): string {
 interface CreditFixeSimulationSectionProps {
   initialAmount?: number
   lockAmount?: boolean
+  creditType?: SimpleCreditType
   onSimulationSelect?: (simulation: StandardSimulation | CustomSimulation) => void
 }
 
@@ -169,14 +195,29 @@ function mapFixedResultToContractSimulation(result: FixedSimulationResult): Stan
 export function CreditFixeSimulationSection({
   initialAmount,
   lockAmount = false,
+  creditType = 'FIXE',
   onSimulationSelect,
 }: CreditFixeSimulationSectionProps = {}) {
+  const config = simulationConfigByCreditType[creditType]
+  const schemas = useMemo(
+    () => buildFixedSimulationSchemas({
+      maxDuration: config.maxDuration,
+      maxInterestRate: config.maxInterestRate,
+      creditLabel: config.label.toLowerCase().replace('crédit ', ''),
+    }),
+    [config]
+  )
+
   const [mode, setMode] = useState<'STANDARD' | 'CUSTOM'>('STANDARD')
   const [result, setResult] = useState<FixedSimulationResult | null>(null)
-  const { calculateStandard, calculateCustom } = useCreditFixeSimulation()
+  const { calculateStandard, calculateCustom } = useCreditFixeSimulation({
+    maxDuration: config.maxDuration,
+    maxInterestRate: config.maxInterestRate,
+    creditLabel: config.label.toLowerCase().replace('crédit ', ''),
+  })
 
   const standardForm = useForm<FixedStandardSimulationFormInput>({
-    resolver: zodResolver(fixedStandardSimulationSchema),
+    resolver: zodResolver(schemas.standardSchema),
     defaultValues: {
       amount: initialAmount ?? 0,
       interestRate: 0,
@@ -186,7 +227,7 @@ export function CreditFixeSimulationSection({
   })
 
   const customForm = useForm<FixedCustomSimulationFormInput>({
-    resolver: zodResolver(fixedCustomSimulationSchema),
+    resolver: zodResolver(schemas.customSchema),
     defaultValues: {
       amount: initialAmount ?? 0,
       interestRate: 0,
@@ -258,8 +299,8 @@ export function CreditFixeSimulationSection({
   }
 
   const addCustomMonth = () => {
-    if (customPayments.length >= MAX_DURATION) {
-      toast.error(`Le Crédit Fixe est limité à ${MAX_DURATION} mois`)
+    if (customPayments.length >= config.maxDuration) {
+      toast.error(`${config.label} est limité à ${config.maxDuration} mois`)
       return
     }
 
@@ -288,7 +329,10 @@ export function CreditFixeSimulationSection({
   const handleExportPdf = async () => {
     if (!result) return
     try {
-      await exportFixedSimulationPdf(result)
+      await exportFixedSimulationPdf(result, undefined, {
+        moduleSlug: config.fileSlug,
+        moduleTitle: config.label.replace('é', 'e'),
+      })
       toast.success('PDF exporté avec succès')
     } catch {
       toast.error("Erreur lors de l'export PDF")
@@ -298,7 +342,9 @@ export function CreditFixeSimulationSection({
   const handleExportExcel = async () => {
     if (!result) return
     try {
-      await exportFixedSimulationExcel(result)
+      await exportFixedSimulationExcel(result, undefined, {
+        moduleSlug: config.fileSlug,
+      })
       toast.success('Excel exporté avec succès')
     } catch {
       toast.error("Erreur lors de l'export Excel")
@@ -308,7 +354,9 @@ export function CreditFixeSimulationSection({
   const handlePrint = () => {
     if (!result) return
     try {
-      printFixedSimulation(result)
+      printFixedSimulation(result, {
+        moduleTitle: config.label.replace('é', 'e'),
+      })
     } catch {
       toast.error("Erreur lors de l'impression")
     }
@@ -317,7 +365,9 @@ export function CreditFixeSimulationSection({
   const handleShareWhatsApp = () => {
     if (!result) return
     try {
-      shareFixedSimulationWhatsApp(result)
+      shareFixedSimulationWhatsApp(result, {
+        moduleTitle: config.whatsappTitle,
+      })
     } catch {
       toast.error("Erreur lors du partage WhatsApp")
     }
@@ -339,10 +389,10 @@ export function CreditFixeSimulationSection({
         <CardHeader className="bg-gradient-to-r from-kara-neutral-50 to-white">
           <CardTitle className="flex items-center gap-2 text-kara-primary-dark">
             <Calculator className="h-5 w-5" />
-            Simulation Crédit Fixe
+            Simulation {config.label}
           </CardTitle>
           <p className="text-sm text-kara-neutral-600">
-            Taux entre 0% et 50%, durée maximale de 14 échéances.
+            Taux entre 0% et {config.maxInterestRate}%, durée maximale de {config.maxDuration} échéances.
           </p>
         </CardHeader>
         <CardContent className="pt-6">
@@ -532,7 +582,7 @@ export function CreditFixeSimulationSection({
                         variant="outline"
                         size="sm"
                         onClick={addCustomMonth}
-                        disabled={customPayments.length >= MAX_DURATION}
+                        disabled={customPayments.length >= config.maxDuration}
                       >
                         Ajouter un mois
                       </Button>
@@ -580,7 +630,7 @@ export function CreditFixeSimulationSection({
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Nombre de mois</span>
-                        <span className="font-semibold">{customPayments.length} / {MAX_DURATION}</span>
+                        <span className="font-semibold">{customPayments.length} / {config.maxDuration}</span>
                       </div>
                       {customTotalToRepay > 0 && (
                         <div className="pt-2 mt-2 border-t border-kara-neutral-200">
@@ -682,7 +732,7 @@ export function CreditFixeSimulationSection({
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  {result.validationMessage ?? 'La simulation personnalisée doit couvrir le total à rembourser en 14 mois maximum.'}
+                  {result.validationMessage ?? `La simulation personnalisée doit couvrir le total à rembourser en ${config.maxDuration} mois maximum.`}
                 </AlertDescription>
               </Alert>
             )}

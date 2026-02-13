@@ -11,6 +11,12 @@ export interface FixedSimulationBaseInput {
   firstPaymentDate: Date
 }
 
+export interface FixedSimulationOptions {
+  maxDuration?: number
+  maxInterestRate?: number
+  creditLabel?: string
+}
+
 export interface FixedStandardSimulationInput extends FixedSimulationBaseInput {}
 
 export interface FixedCustomSimulationInput extends FixedSimulationBaseInput {

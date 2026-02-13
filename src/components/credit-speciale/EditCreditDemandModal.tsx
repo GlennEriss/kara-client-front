@@ -81,13 +81,13 @@ export default function EditCreditDemandModal({
   }, [isOpen, demand, form])
 
   const selectedCreditType = form.watch('creditType')
-  const isFixedCredit = selectedCreditType === 'FIXE'
+  const isSimpleCredit = selectedCreditType === 'FIXE' || selectedCreditType === 'AIDE'
 
   useEffect(() => {
-    if (isFixedCredit) {
+    if (isSimpleCredit) {
       form.setValue('monthlyPaymentAmount', undefined, { shouldValidate: true })
     }
-  }, [form, isFixedCredit])
+  }, [form, isSimpleCredit])
 
   const filteredGuarantors = members.filter(
     (m) =>
@@ -116,7 +116,7 @@ export default function EditCreditDemandModal({
         data: {
           creditType: data.creditType,
           amount: data.amount,
-          monthlyPaymentAmount: data.creditType === 'FIXE' ? undefined : data.monthlyPaymentAmount,
+          monthlyPaymentAmount: (data.creditType === 'FIXE' || data.creditType === 'AIDE') ? undefined : data.monthlyPaymentAmount,
           desiredDate: data.desiredDate,
           cause: data.cause,
           guarantorId: data.guarantorId,
@@ -225,7 +225,7 @@ export default function EditCreditDemandModal({
                       </FormItem>
                     )}
                   />
-                  {!isFixedCredit && (
+                  {!isSimpleCredit && (
                     <FormField
                       control={form.control}
                       name="monthlyPaymentAmount"
