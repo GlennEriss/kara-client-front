@@ -208,16 +208,21 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
       }
     }
 
-    // Ajouter la transformation en crédit fixe
+    // Ajouter la transformation de contrat
     if (history.contract.transformedAt) {
       const transformedDate = toDate(history.contract.transformedAt)
       if (transformedDate) {
+        const isAideContract = history.contract.creditType === 'AIDE'
         timelineItems.push({
           id: `contract-transformed-${history.contract.id}`,
           type: 'contract',
           date: transformedDate,
-          title: 'Contrat transformé en crédit fixe',
-          description: 'Le crédit spéciale a été transformé en crédit fixe après 7 mois. Les intérêts ont été supprimés.',
+          title: isAideContract
+            ? 'Contrat aide transformé en crédit spéciale'
+            : 'Contrat transformé en crédit fixe',
+          description: isAideContract
+            ? (history.contract.blockedReason || 'Le crédit aide a atteint son terme (3 mois) avec un solde restant à transformer en crédit spéciale.')
+            : 'Le crédit spéciale a été transformé en crédit fixe après 7 mois. Les intérêts ont été supprimés.',
           icon: TrendingDown,
           color: '#8b5cf6',
           badge: 'TRANSFORMED',
@@ -364,4 +369,3 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
     </Card>
   )
 }
-

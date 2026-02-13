@@ -1,5 +1,9 @@
 import type { FixedSimulationResult } from '../entities/fixed-simulation.types'
 
+interface FixedSimulationExportOptions {
+  moduleSlug?: string
+}
+
 function formatDate(value: Date): string {
   return new Date(value).toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -10,8 +14,12 @@ function formatDate(value: Date): string {
 
 export async function exportFixedSimulationExcel(
   result: FixedSimulationResult,
-  fileName = `simulation_credit_fixe_${new Date().toISOString().slice(0, 10)}.xlsx`
+  fileName?: string,
+  options: FixedSimulationExportOptions = {}
 ): Promise<void> {
+  const moduleSlug = options.moduleSlug ?? 'credit_fixe'
+  const resolvedFileName = fileName ?? `simulation_${moduleSlug}_${new Date().toISOString().slice(0, 10)}.xlsx`
+
   const XLSX = await import('xlsx')
 
   const rows = result.schedule.map((row) => ({
@@ -24,5 +32,5 @@ export async function exportFixedSimulationExcel(
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Simulation')
 
-  XLSX.writeFile(wb, fileName)
+  XLSX.writeFile(wb, resolvedFileName)
 }

@@ -144,6 +144,27 @@ const adminMenuItems: SidebarItem[] = [
         ],
     },
     {
+        title: "Caisse Aide",
+        icon: CreditCard,
+        children: [
+            {
+                title: "Simulation",
+                url: routes.admin.creditAideSimulation,
+                icon: Calculator,
+            },
+            {
+                title: "Demandes",
+                url: routes.admin.creditAideDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Contrats",
+                url: routes.admin.creditAideContrats,
+                icon: CreditCard,
+            },
+        ],
+    },
+    {
         title: "Bienfaiteur",
         icon: HandCoins,
         children: [

@@ -224,9 +224,9 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
     .reduce((sum, p) => sum + p.amount, 0)
   const unpaidPenaltiesCount = penalties.filter(p => !p.paid).length
 
-  const isFixedCredit = contract.creditType === 'FIXE'
+  const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   // Crédit fixe: intérêt unique appliqué une seule fois
-  const totalInterest = isFixedCredit
+  const totalInterest = isSimpleCredit
     ? Math.max(0, customRound(contract.totalAmount - contract.amount))
     : actualSchedule.reduce((sum, item) => sum + item.interest, 0)
 
@@ -261,9 +261,9 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
       icon: TrendingUp
     },
     {
-      title: isFixedCredit ? 'Intérêt unique' : 'Total intérêts',
+      title: isSimpleCredit ? 'Intérêt unique' : 'Total intérêts',
       value: Math.round(totalInterest).toLocaleString('fr-FR'),
-      subtitle: isFixedCredit
+      subtitle: isSimpleCredit
         ? 'Appliqué une seule fois au démarrage'
         : `Somme des intérêts de l'échéancier`,
       color: '#06b6d4',
@@ -386,7 +386,7 @@ export default function CreditContractDetail({
   const router = useRouter()
   const { user: _user } = useAuth()
   const [activeTab, setActiveTab] = useState<'payments' | 'simulations' | 'guarantor'>('payments')
-  const isFixedCredit = contract.creditType === 'FIXE'
+  const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showPaymentSummaryModal, setShowPaymentSummaryModal] = useState(false)
@@ -408,10 +408,10 @@ export default function CreditContractDetail({
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, closeContract } = useCreditContractMutations()
 
   useEffect(() => {
-    if (isFixedCredit && activeTab === 'guarantor') {
+    if (isSimpleCredit && activeTab === 'guarantor') {
       setActiveTab('payments')
     }
-  }, [isFixedCredit, activeTab])
+  }, [isSimpleCredit, activeTab])
   
   // États pour les modals
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
@@ -537,7 +537,7 @@ export default function CreditContractDetail({
     const firstDate = new Date(contract.firstPaymentDate)
 
     // Crédit fixe: intérêt unique, pas d'intérêt mensuel composé
-    if (isFixedCredit) {
+    if (isSimpleCredit) {
       const totalAmount = customRound(contract.totalAmount)
       const hasCustomSchedule = !!contract.customSchedule?.length
       const items: DueItem[] = []
@@ -754,7 +754,7 @@ export default function CreditContractDetail({
   // Calculer les échéances pour l'affichage
   // actualSchedule sera calculé après et utilisé pour déterminer les mois supplémentaires
   const dueItems = calculateDueItems()
-  const dueItemsForSimulation = isFixedCredit
+  const dueItemsForSimulation = isSimpleCredit
     ? dueItems
     : dueItems.filter((row) => row.payment > 0)
 
@@ -767,7 +767,7 @@ export default function CreditContractDetail({
       p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
     )
 
-    if (isFixedCredit) {
+    if (isSimpleCredit) {
       const totalToRepay = customRound(contract.totalAmount)
       const totalPaid = realPayments.reduce((sum, payment) => sum + payment.amount, 0)
       return Math.max(0, customRound(totalToRepay - totalPaid))
@@ -831,7 +831,7 @@ export default function CreditContractDetail({
       .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
 
     // Crédit fixe: intérêt unique, pas d'intérêt mensuel composé
-    if (isFixedCredit) {
+    if (isSimpleCredit) {
       const totalAmount = customRound(contract.totalAmount)
       const plannedDuration = hasCustomSchedule
         ? Math.max(maxDuration, ...contract.customSchedule!.map((entry, index) => entry.month || index + 1))
@@ -1044,7 +1044,7 @@ export default function CreditContractDetail({
   })
 
   // Calculer le montant total payé
-  const totalPaidFromSchedule = isFixedCredit
+  const totalPaidFromSchedule = isSimpleCredit
     ? payments
         .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
         .reduce((sum, p) => sum + p.amount, 0)
@@ -1053,12 +1053,12 @@ export default function CreditContractDetail({
         .reduce((sum, item) => sum + (item.paidAmount || item.payment || 0), 0)
 
   // Le montant total à rembourser
-  const totalAmountToRepay = isFixedCredit
+  const totalAmountToRepay = isSimpleCredit
     ? customRound(contract.totalAmount)
     : actualSchedule.reduce((sum, item) => sum + item.payment, 0)
 
   // Calculer le montant restant
-  const realRemainingAmount = isFixedCredit
+  const realRemainingAmount = isSimpleCredit
     ? Math.max(0, totalAmountToRepay - totalPaidFromSchedule)
     : totalAmountToRepay - totalPaidFromSchedule
 
@@ -1578,7 +1578,7 @@ export default function CreditContractDetail({
         <Card className="border-0 shadow-xl">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'simulations' | 'guarantor')} className="w-full">
-              <TabsList className={cn('grid w-full rounded-none border-b', isFixedCredit ? 'grid-cols-2' : 'grid-cols-3')}>
+              <TabsList className={cn('grid w-full rounded-none border-b', isSimpleCredit ? 'grid-cols-2' : 'grid-cols-3')}>
                 <TabsTrigger value="payments" className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
                   Versements
@@ -1587,7 +1587,7 @@ export default function CreditContractDetail({
                   <FileText className="h-4 w-4" />
                   Simulations
                 </TabsTrigger>
-                {!isFixedCredit && (
+                {!isSimpleCredit && (
                   <TabsTrigger value="guarantor" className="flex items-center gap-2">
                     <Shield className="h-4 w-4" />
                     Commission du garant
@@ -1763,7 +1763,7 @@ export default function CreditContractDetail({
                               </span>
                             </div>
                           </div>
-                          {!isFixedCredit && (
+                          {!isSimpleCredit && (
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-gray-600">Intérêts:</span>
                               <span className="font-semibold text-gray-900">
@@ -2085,11 +2085,11 @@ export default function CreditContractDetail({
                             <TableHead>Mois</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead className="text-right">
-                              {isFixedCredit ? 'Mensualité prévue / versée' : 'Montant versé'}
+                              {isSimpleCredit ? 'Mensualité prévue / versée' : 'Montant versé'}
                             </TableHead>
-                            {!isFixedCredit && <TableHead className="text-right">Intérêts</TableHead>}
+                            {!isSimpleCredit && <TableHead className="text-right">Intérêts</TableHead>}
                             <TableHead className="text-right">
-                              {isFixedCredit ? 'Capital de départ' : 'Montant global'}
+                              {isSimpleCredit ? 'Capital de départ' : 'Montant global'}
                             </TableHead>
                             <TableHead className="text-right">Reste dû</TableHead>
                           </TableRow>
@@ -2116,7 +2116,7 @@ export default function CreditContractDetail({
                                 <TableCell className="font-medium">M{row.month}</TableCell>
                                 <TableCell>{formatDate(row.date)}</TableCell>
                                 <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                                {!isFixedCredit && (
+                                {!isSimpleCredit && (
                                   <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                                 )}
                                 <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
@@ -2137,7 +2137,7 @@ export default function CreditContractDetail({
                           <FileText className="h-4 w-4" />
                           Échéancier calculé ({dueItemsForSimulation.length} mois)
                         </h3>
-                        {isFixedCredit && contract.customSchedule && contract.customSchedule.length > 0 && (
+                        {isSimpleCredit && contract.customSchedule && contract.customSchedule.length > 0 && (
                           <p className="text-xs text-gray-500 mt-1">
                             Simulation personnalisée enregistrée lors de la création du contrat.
                           </p>
@@ -2166,9 +2166,9 @@ export default function CreditContractDetail({
                             <TableHead>Mois</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead className="text-right">Mensualité</TableHead>
-                            {!isFixedCredit && <TableHead className="text-right">Intérêts</TableHead>}
+                            {!isSimpleCredit && <TableHead className="text-right">Intérêts</TableHead>}
                             <TableHead className="text-right">
-                              {isFixedCredit ? 'Capital de départ' : 'Montant global'}
+                              {isSimpleCredit ? 'Capital de départ' : 'Montant global'}
                             </TableHead>
                             <TableHead className="text-right">Reste dû</TableHead>
                           </TableRow>
@@ -2196,7 +2196,7 @@ export default function CreditContractDetail({
                                 <TableCell className="font-medium">M{row.month}</TableCell>
                                 <TableCell>{formatDate(row.date)}</TableCell>
                                 <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                                {!isFixedCredit && (
+                                {!isSimpleCredit && (
                                   <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                                 )}
                                 <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
@@ -2242,7 +2242,7 @@ export default function CreditContractDetail({
               </TabsContent>
 
               {/* Onglet Commission du garant */}
-              {!isFixedCredit && (
+              {!isSimpleCredit && (
               <TabsContent value="guarantor" className="p-6 m-0">
                 {contract.guarantorId && contract.guarantorIsMember && contract.guarantorRemunerationPercentage !== undefined && contract.guarantorRemunerationPercentage > 0 ? (
                   <div className="space-y-6">

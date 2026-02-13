@@ -49,12 +49,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (creditType === 'FIXE') {
             return 'MK_DEMANDE_CF';
         }
+        if (creditType === 'AIDE') {
+            return 'MK_DEMANDE_CA';
+        }
         return 'MK_DEMANDE_CSP';
     }
 
     private getContractIdPrefixByCreditType(creditType: CreditType): string {
         if (creditType === 'FIXE') {
             return 'MK_CF';
+        }
+        if (creditType === 'AIDE') {
+            return 'MK_CA';
         }
         return 'MK_CSP';
     }
@@ -244,7 +250,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 // Erreur lors de la vérification du parrain - continue sans
             }
         }
-        const shouldApplyGuarantorRemuneration = demand.creditType !== 'FIXE';
+        const shouldApplyGuarantorRemuneration = demand.creditType === 'SPECIALE';
 
         // Calculer la date de la prochaine échéance (premier versement + 1 mois)
         const nextDueAt = new Date(simulationData.firstPaymentDate);
@@ -469,6 +475,42 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             };
         }
 
+        if (creditType === 'AIDE') {
+            if (interestRate > 5) {
+                throw new Error('Le taux du crédit aide ne peut pas dépasser 5%');
+            }
+
+            const maxDuration = 3;
+            const principal = Math.round(amount);
+            const totalAmount = Math.round(principal + (principal * interestRate / 100));
+            const monthlyPaymentAmount = Math.max(0, Math.round(monthlyPayment));
+
+            if (monthlyPaymentAmount <= 0) {
+                throw new Error('La mensualité doit être supérieure à 0');
+            }
+
+            let remaining = totalAmount;
+            let duration = 0;
+
+            for (let month = 0; month < maxDuration && remaining > 0; month++) {
+                remaining = Math.max(0, remaining - monthlyPaymentAmount);
+                duration += 1;
+            }
+
+            const isValid = remaining <= 0;
+
+            return {
+                amount: principal,
+                interestRate,
+                monthlyPayment: monthlyPaymentAmount,
+                firstPaymentDate: new Date(firstPaymentDate),
+                duration,
+                totalAmount,
+                isValid,
+                ...(isValid ? {} : { suggestedMinimumAmount: remaining }),
+            };
+        }
+
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
         let duration = 0;
@@ -665,6 +707,34 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             };
         }
 
+        if (creditType === 'AIDE') {
+            if (interestRate > 5) {
+                throw new Error('Le taux du crédit aide ne peut pas dépasser 5%');
+            }
+
+            const maxDuration = 3;
+            const normalizedPayments = monthlyPayments.map((payment, index) => ({
+                month: index + 1,
+                amount: Math.max(0, Math.round(payment.amount)),
+            }));
+            const duration = normalizedPayments.length;
+            const totalAmount = Math.round(amount + (amount * interestRate / 100));
+            const totalPlanned = normalizedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+            const remaining = Math.max(0, totalAmount - totalPlanned);
+            const isValid = duration <= maxDuration && remaining <= 0;
+
+            return {
+                amount: Math.round(amount),
+                interestRate,
+                monthlyPayments: normalizedPayments,
+                firstPaymentDate: new Date(firstPaymentDate),
+                duration,
+                totalAmount,
+                isValid,
+                ...(remaining > 0 ? { suggestedMinimumAmount: remaining } : {}),
+            };
+        }
+
         const duration = monthlyPayments.length;
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
@@ -728,6 +798,28 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 amount: principal,
                 interestRate,
                 monthlyPayment: Math.round(totalAmount / duration),
+                firstPaymentDate: new Date(firstPaymentDate),
+                duration,
+                totalAmount,
+                isValid: true,
+            };
+        }
+
+        if (creditType === 'AIDE') {
+            if (duration > 3) {
+                throw new Error('La durée maximum est de 3 mois pour un crédit aide');
+            }
+            if (interestRate > 5) {
+                throw new Error('Le taux du crédit aide ne peut pas dépasser 5%');
+            }
+
+            const principal = Math.round(amount);
+            const totalAmount = Math.round(principal + (principal * interestRate / 100));
+
+            return {
+                amount: principal,
+                interestRate,
+                monthlyPayment: Math.ceil(totalAmount / duration),
                 firstPaymentDate: new Date(firstPaymentDate),
                 duration,
                 totalAmount,
@@ -915,8 +1007,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
         const matriculeFormatted = matriculePart.padStart(4, '0');
         
-        // Format: MK_PAIEMENT_CSP_matricule_date_heure
-        const reference = `MK_PAIEMENT_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+        // Format: MK_PAIEMENT_{TYPE}_matricule_date_heure
+        const paymentPrefix = contract.creditType === 'FIXE'
+            ? 'MK_PAIEMENT_CF'
+            : contract.creditType === 'AIDE'
+                ? 'MK_PAIEMENT_CA'
+                : 'MK_PAIEMENT_CSP';
+        const reference = `${paymentPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
         // Upload de la preuve si fournie
         let proofUrl: string | undefined = data.proofUrl;
@@ -944,28 +1041,31 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             p.comment?.includes('Paiement de 0 FCFA')
         );
         
-        // Calculer le montant total payé et le reste dû en appliquant la formule
+        const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE';
+        // Calculer le montant total payé et le reste dû
         const monthlyRate = contract.interestRate / 100;
         let remaining = contract.amount;
-        
-        // Appliquer la formule pour chaque paiement : nouveauMontantRestant = MontantRestant - montantVerser
-        // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
+
         const sortedPayments = [...realPayments].sort((a, b) => 
             new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
         );
-        
-        for (const existingPayment of sortedPayments) {
-            // Calculer les intérêts sur le montant restant avant le paiement
-            const interest = remaining * monthlyRate;
-            const totalWithInterest = remaining + interest;
-            
-            // Soustraire le montant versé
-            remaining = Math.max(0, totalWithInterest - existingPayment.amount);
+
+        if (isSimpleCredit) {
+            const totalPaidBefore = sortedPayments.reduce((sum, existingPayment) => sum + existingPayment.amount, 0);
+            remaining = Math.max(0, contract.totalAmount - totalPaidBefore);
+        } else {
+            // Appliquer la formule pour chaque paiement : nouveauMontantRestant = MontantRestant - montantVerser
+            // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
+            for (const existingPayment of sortedPayments) {
+                const interest = remaining * monthlyRate;
+                const totalWithInterest = remaining + interest;
+                remaining = Math.max(0, totalWithInterest - existingPayment.amount);
+            }
         }
         
         // Calculer les intérêts et le principal pour ce nouveau paiement
-        const interestBeforePayment = remaining * monthlyRate;
-        const totalWithInterest = remaining + interestBeforePayment;
+        const interestBeforePayment = isSimpleCredit ? 0 : remaining * monthlyRate;
+        const totalWithInterest = isSimpleCredit ? remaining : remaining + interestBeforePayment;
         
         // Calculer combien d'intérêts et de principal sont payés par ce paiement
         // Un paiement de 0 FCFA peut être soit un paiement de pénalités uniquement, soit un paiement de 0 FCFA normal
@@ -973,9 +1073,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const isZeroPayment = data.amount === 0 && (data.comment?.includes('Paiement de 0 FCFA') || isPenaltyOnlyPayment);
         const paymentAmount = isZeroPayment ? 0 : data.amount;
         
-        // Payer d'abord les intérêts, puis le principal
-        const interestPart = Math.min(paymentAmount, interestBeforePayment);
-        const principalPart = Math.max(0, paymentAmount - interestPart);
+        // Payer d'abord les intérêts, puis le principal (simple crédit: tout en principal)
+        const interestPart = isSimpleCredit ? 0 : Math.min(paymentAmount, interestBeforePayment);
+        const principalPart = isSimpleCredit
+            ? Math.min(paymentAmount, totalWithInterest)
+            : Math.max(0, paymentAmount - interestPart);
         
         // Calculer le mois : utiliser installmentNumber si fourni, sinon calculer à partir de la date
         let monthNumber: number;
@@ -1055,21 +1157,34 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const recalculatedPayments = [...updatedRealPayments].sort((a, b) => 
             new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
         );
-        
-        for (const p of recalculatedPayments) {
-            const interest = calculatedRemaining * monthlyRate;
-            const totalWithInterest = calculatedRemaining + interest;
-            calculatedRemaining = Math.max(0, totalWithInterest - p.amount);
-        }
-        
         const totalPaid = updatedRealPayments.reduce((sum, p) => sum + p.amount, 0);
-        const totalRemaining = calculatedRemaining + (calculatedRemaining * monthlyRate); // Ajouter les intérêts sur le reste actuel
+
+        let totalRemaining = 0;
+        if (isSimpleCredit) {
+            calculatedRemaining = Math.max(0, contract.totalAmount - totalPaid);
+            totalRemaining = calculatedRemaining;
+        } else {
+            for (const p of recalculatedPayments) {
+                const interest = calculatedRemaining * monthlyRate;
+                const totalWithInterest = calculatedRemaining + interest;
+                calculatedRemaining = Math.max(0, totalWithInterest - p.amount);
+            }
+            totalRemaining = calculatedRemaining + (calculatedRemaining * monthlyRate); // Ajouter les intérêts sur le reste actuel
+        }
         
         let newStatus = contract.status;
         if (totalRemaining <= 0 || calculatedRemaining <= 0) {
             newStatus = 'DISCHARGED';
         } else if (totalPaid > 0 && totalPaid < contract.totalAmount) {
             newStatus = 'PARTIAL';
+        }
+
+        const shouldTransformAideToSpeciale = contract.creditType === 'AIDE'
+            && monthNumber >= 3
+            && totalRemaining > 0;
+
+        if (shouldTransformAideToSpeciale) {
+            newStatus = 'TRANSFORMED';
         }
 
         // Calculer le nouveau score uniquement si ce n'est pas un paiement de pénalités uniquement
@@ -1081,7 +1196,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // Calculer la prochaine date d'échéance basée sur les paiements
         // Si le reste dû > 0, la prochaine échéance est dans 1 mois
-        const nextDueAt = calculatedRemaining > 0 
+        const nextDueAt = !shouldTransformAideToSpeciale && calculatedRemaining > 0
             ? (() => {
                 const lastPaymentDate = recalculatedPayments.length > 0 
                     ? new Date(recalculatedPayments[recalculatedPayments.length - 1].paymentDate)
@@ -1097,6 +1212,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             amountRemaining: Math.round(totalRemaining),
             status: newStatus,
             nextDueAt,
+            ...(shouldTransformAideToSpeciale ? {
+                transformedAt: new Date(),
+                blockedReason: `Crédit aide arrivé au terme de 3 mois. Solde restant à transformer en crédit spéciale : ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA.`,
+            } : {}),
             score: newScore,
             scoreUpdatedAt: new Date(),
             updatedBy: data.createdBy,
@@ -1151,6 +1270,27 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 }
             }
 
+        if (shouldTransformAideToSpeciale && contract.status !== 'TRANSFORMED') {
+            try {
+                await this.notificationService.createNotification({
+                    module: 'credit_speciale',
+                    entityId: contract.id,
+                    type: 'contract_finished',
+                    title: 'Crédit aide à transformer',
+                    message: `Le crédit aide de ${contract.clientFirstName} ${contract.clientLastName} a atteint 3 mois avec un solde restant de ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA. Créez un contrat de crédit spéciale pour ce solde.`,
+                    metadata: {
+                        contractId: contract.id,
+                        clientId: contract.clientId,
+                        creditType: contract.creditType,
+                        remainingAmount: Math.round(totalRemaining),
+                        actionRequired: 'transform_to_speciale',
+                    },
+                });
+            } catch {
+                // Erreur lors de la création de la notification de transformation - continue sans
+            }
+        }
+
         // Marquer les pénalités sélectionnées comme payées
         if (penaltyIds && penaltyIds.length > 0) {
                 for (const penaltyId of penaltyIds) {
@@ -1165,7 +1305,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Les pénalités sont déjà calculées dans la nouvelle logique basée sur les installments
 
         // Calculer et créer la rémunération du garant si applicable
-        if (contract.guarantorIsMember && 
+        if (contract.creditType === 'SPECIALE' &&
+                contract.guarantorIsMember && 
                 contract.guarantorId && 
                 contract.guarantorRemunerationPercentage > 0) {
                 
@@ -2818,8 +2959,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 guarantorLastName: parentContract.guarantorLastName,
                 guarantorRelation: parentContract.guarantorRelation,
                 guarantorIsMember: parentContract.guarantorIsMember,
-                guarantorIsParrain: parentContract.creditType === 'FIXE' ? false : parentContract.guarantorIsParrain,
-                guarantorRemunerationPercentage: parentContract.creditType === 'FIXE' ? 0 : parentContract.guarantorRemunerationPercentage,
+                guarantorIsParrain: parentContract.creditType === 'SPECIALE' ? parentContract.guarantorIsParrain : false,
+                guarantorRemunerationPercentage: parentContract.creditType === 'SPECIALE' ? parentContract.guarantorRemunerationPercentage : 0,
                 emergencyContact: emergencyContact || parentContract.emergencyContact,
                 score: parentContract.score || 5,
                 scoreUpdatedAt: new Date(),

@@ -794,7 +794,7 @@ export default function CreditExtensionModal({
                           />
                         </div>
 
-                        {contract.creditType !== 'FIXE' && (
+                        {contract.creditType === 'SPECIALE' && (
                           <Alert>
                             <AlertTriangle className="h-4 w-4" />
                             <AlertDescription>
@@ -1564,4 +1564,3 @@ export default function CreditExtensionModal({
     </Dialog>
   )
 }
-

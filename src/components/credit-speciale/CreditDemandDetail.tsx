@@ -119,12 +119,18 @@ export default function CreditDemandDetail({
   
   // Récupérer les contacts du garant (membre) pour affichage
   const { data: guarantorMember } = useMember(demand.guarantorId)
+  const contractListPathByType =
+    demand.creditType === 'FIXE'
+      ? routes.admin.creditFixeContrats
+      : demand.creditType === 'AIDE'
+        ? routes.admin.creditAideContrats
+        : routes.admin.creditSpecialeContrats
   const resolvedContractDetailsBasePath = (
     contractDetailsBasePath
-    || (demand.creditType === 'FIXE' ? routes.admin.creditFixeContrats : routes.admin.creditSpecialeContrats)
+    || contractListPathByType
   ).replace(/\/$/, '')
   const resolvedContractListPath = contractListPath
-    || (demand.creditType === 'FIXE' ? routes.admin.creditFixeContrats : routes.admin.creditSpecialeContrats)
+    || contractListPathByType
 
   const statusConfig = getStatusConfig(demand.status)
   const formatDate = (date: Date | undefined | null | any) => {
@@ -323,7 +329,7 @@ export default function CreditDemandDetail({
                 <p className="text-sm text-gray-600">Montant demandé</p>
                 <p className="text-lg font-semibold">{demand.amount.toLocaleString('fr-FR')} FCFA</p>
               </div>
-              {demand.creditType !== 'FIXE' && demand.monthlyPaymentAmount && (
+              {demand.creditType === 'SPECIALE' && demand.monthlyPaymentAmount && (
                 <div>
                   <p className="text-sm text-gray-600">Mensualité souhaitée</p>
                   <p className="text-lg font-semibold">{demand.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA</p>
@@ -871,10 +877,11 @@ export default function CreditDemandDetail({
       />
 
       {/* Modal de simulation */}
-      {demand.creditType === 'FIXE' ? (
+      {(demand.creditType === 'FIXE' || demand.creditType === 'AIDE') ? (
         <CreditFixeSimulationModal
           isOpen={simulationModalState.isOpen}
           onClose={() => setSimulationModalState({ isOpen: false })}
+          creditType={demand.creditType}
           initialAmount={demand.amount}
           lockAmount
           onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {

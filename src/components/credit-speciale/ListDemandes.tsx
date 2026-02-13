@@ -1380,10 +1380,11 @@ const ListDemandes = ({
 
       {/* Modal de simulation */}
       {simulationModalState.demand && (
-        simulationModalState.demand.creditType === 'FIXE' ? (
+        (simulationModalState.demand.creditType === 'FIXE' || simulationModalState.demand.creditType === 'AIDE') ? (
           <CreditFixeSimulationModal
             isOpen={simulationModalState.isOpen}
             onClose={() => setSimulationModalState({ isOpen: false, demand: null })}
+            creditType={simulationModalState.demand.creditType}
             initialAmount={simulationModalState.demand.amount}
             lockAmount
             onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
@@ -1426,7 +1427,9 @@ const ListDemandes = ({
           contractListPath={
             contractCreationState.demand.creditType === 'FIXE'
               ? routes.admin.creditFixeContrats
-              : routes.admin.creditSpecialeContrats
+              : contractCreationState.demand.creditType === 'AIDE'
+                ? routes.admin.creditAideContrats
+                : routes.admin.creditSpecialeContrats
           }
         />
       )}

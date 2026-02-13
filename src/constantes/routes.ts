@@ -53,6 +53,13 @@ const routes = {
         creditFixeDemandDetails: (id: string) => `/credit-fixe/demandes/${id}`,
         creditFixeContrats: '/credit-fixe/contrats',
         creditFixeContractDetails: (id: string) => `/credit-fixe/contrats/${id}`,
+        // Crédit aide (module dédié)
+        creditAide: '/credit-aide',
+        creditAideSimulation: '/credit-aide/simulation',
+        creditAideDemandes: '/credit-aide/demandes',
+        creditAideDemandDetails: (id: string) => `/credit-aide/demandes/${id}`,
+        creditAideContrats: '/credit-aide/contrats',
+        creditAideContractDetails: (id: string) => `/credit-aide/contrats/${id}`,
         // Caisse Imprévue
         caisseImprevue: '/caisse-imprevue',
         caisseImprevueDemandes: '/caisse-imprevue/demandes',

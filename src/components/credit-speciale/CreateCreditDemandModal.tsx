@@ -62,13 +62,13 @@ export default function CreateCreditDemandModal({
   }, [form, initialCreditType, isOpen])
 
   const selectedCreditType = form.watch('creditType')
-  const isFixedCredit = selectedCreditType === 'FIXE'
+  const isSimpleCredit = selectedCreditType === 'FIXE' || selectedCreditType === 'AIDE'
 
   useEffect(() => {
-    if (isFixedCredit) {
+    if (isSimpleCredit) {
       form.setValue('monthlyPaymentAmount', undefined, { shouldValidate: true })
     }
-  }, [form, isFixedCredit])
+  }, [form, isSimpleCredit])
 
   // Recherche de membres
   const [clientSearch, setClientSearch] = useState('')
@@ -124,7 +124,7 @@ export default function CreateCreditDemandModal({
       
       await create.mutateAsync({
         ...data,
-        monthlyPaymentAmount: data.creditType === 'FIXE' ? undefined : data.monthlyPaymentAmount,
+        monthlyPaymentAmount: (data.creditType === 'FIXE' || data.creditType === 'AIDE') ? undefined : data.monthlyPaymentAmount,
         createdBy: user.uid,
         guarantorIsMember: data.guarantorIsMember ?? false,
       })
@@ -280,7 +280,7 @@ export default function CreateCreditDemandModal({
                     )}
                   />
 
-                  {!isFixedCredit && (
+                  {!isSimpleCredit && (
                     <FormField
                       control={form.control}
                       name="monthlyPaymentAmount"
