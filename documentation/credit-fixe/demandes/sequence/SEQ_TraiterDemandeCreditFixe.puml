@@ -1,0 +1,130 @@
+@startuml SEQ_TraiterDemandeCreditFixe
+title Sequence : Traiter une demande Credit Fixe (Approuver / Rejeter / Creer contrat)
+' Reference activite : demandes/activite/DemandesCreditFixe.puml
+' Architecture cible : Page -> Domain Component -> Domain Hook -> Domain Service -> Repository -> Firestore
+
+actor "Admin" as Admin
+participant "Detail Page\n(app/(admin)/credit-fixe/demandes/[id])" as Page
+
+box "domains/financial/credit-speciale/fixe/demandes" #E8F4FD
+  participant "CreditFixeDemandDetail\n(Domain Component)" as DetailComponent
+  participant "ValidateDemandModal\n(Domain Component)" as ValidateModal
+  participant "useCreditFixeDemand\n(Domain Hook)" as QueryHook
+  participant "useCreditFixeDemandMutations\n(Domain Hook)" as MutationHook
+  participant "CreditFixeDemandService\n(Domain Service)" as Service
+  participant "CreditFixeDemandRepository\n(Domain Repository)" as Repository
+end box
+
+box "domains/financial/credit-speciale/fixe/simulation" #FFF3E0
+  participant "CreditFixeSimulationModal\n(Simulation)" as SimModal
+  participant "CreditFixeContractCreationModal\n(Contrat)" as ContractModal
+end box
+
+database "Firestore\ncreditDemands" as Firestore
+
+== Consultation du detail ==
+
+Admin -> Page: Ouvre /credit-fixe/demandes/{id}
+activate Page
+
+Page -> DetailComponent: Render detail
+activate DetailComponent
+
+DetailComponent -> QueryHook: useCreditFixeDemand(id)
+activate QueryHook
+QueryHook -> Service: getDemandById(id)
+activate Service
+Service -> Repository: getById(id)
+activate Repository
+Repository -> Firestore: get(demandId)
+Firestore --> Repository: demandData
+Repository --> Service: CreditFixeDemand
+deactivate Repository
+Service --> QueryHook: CreditFixeDemand
+deactivate Service
+QueryHook --> DetailComponent: data
+deactivate QueryHook
+
+DetailComponent --> Admin: Afficher detail complet\n(client, garant, montant, statut, score, actions)
+
+== Cas 1 : Approbation ==
+
+alt Demande PENDING - Approuver
+  Admin -> DetailComponent: Clique "Approuver"
+  DetailComponent -> ValidateModal: Ouvrir modal approbation
+  activate ValidateModal
+  Admin -> ValidateModal: Confirme l'approbation
+
+  ValidateModal -> MutationHook: updateStatus(id, 'APPROVED')
+  activate MutationHook
+  MutationHook -> Service: updateDemandStatus(id, 'APPROVED')
+  activate Service
+  Service -> Service: Verifier statut actuel == PENDING
+  Service -> Repository: update(id, { status: 'APPROVED', ... })
+  Repository -> Firestore: update
+  Firestore --> Repository: OK
+  Service -> Service: createNotification()\n"Demande approuvee"
+  Service --> MutationHook: void
+  deactivate Service
+  MutationHook -> MutationHook: invalidateQueries()
+  MutationHook --> ValidateModal: success
+  deactivate MutationHook
+  ValidateModal --> Admin: Toast "Demande approuvee"
+  deactivate ValidateModal
+
+== Cas 2 : Rejet ==
+
+else Demande PENDING - Rejeter
+  Admin -> DetailComponent: Clique "Rejeter"
+  DetailComponent -> ValidateModal: Ouvrir modal rejet
+  activate ValidateModal
+  Admin -> ValidateModal: Saisit commentaire et confirme
+
+  ValidateModal -> MutationHook: updateStatus(id, 'REJECTED', comment)
+  activate MutationHook
+  MutationHook -> Service: updateDemandStatus(id, 'REJECTED', comment)
+  activate Service
+  Service -> Repository: update(id, { status: 'REJECTED', adminComments, ... })
+  Repository -> Firestore: update
+  Service -> Service: createNotification()\n"Demande rejetee"
+  Service --> MutationHook: void
+  deactivate Service
+  MutationHook --> ValidateModal: success
+  deactivate MutationHook
+  ValidateModal --> Admin: Toast "Demande rejetee"
+  deactivate ValidateModal
+
+== Cas 3 : Creation du contrat ==
+
+else Demande APPROVED - Creer contrat
+  Admin -> DetailComponent: Clique "Creer le contrat"
+
+  DetailComponent -> SimModal: Ouvrir simulation
+  activate SimModal
+  SimModal --> Admin: Afficher simulation Credit Fixe\n(standard ou personnalisee)
+  Admin -> SimModal: Choisit simulation et confirme
+
+  SimModal -> ContractModal: Passer les donnees de simulation
+  activate ContractModal
+  ContractModal --> Admin: Afficher recapitulatif contrat
+  Admin -> ContractModal: Confirme la creation
+
+  ContractModal -> ContractModal: createContractFromDemand()\nCree le contrat + lie contractId a la demande
+
+  ContractModal --> Admin: Toast "Contrat cree avec succes"
+  deactivate ContractModal
+  deactivate SimModal
+
+  note over DetailComponent
+    La demande est maintenant liee
+    au contrat via contractId.
+    Le bouton "Creer le contrat"
+    est remplace par un lien
+    vers le contrat existant.
+  end note
+end
+
+deactivate DetailComponent
+deactivate Page
+
+@enduml

@@ -4,7 +4,7 @@ title Sequence : Lancer une simulation Credit Fixe (Standard / Personnalisee)
 ' Architecture cible : Page -> Domain Component -> Domain Hook -> Domain Service -> Export Service
 
 actor "Admin" as Admin
-participant "Simulation Page\n(app/(admin)/credit-speciale/simulation)" as Page
+participant "Simulation Page\n(app/(admin)/credit-fixe/simulation)" as Page
 
 box "domains/financial/credit-speciale/fixe/simulation" #E8F4FD
   participant "CreditFixeSimulationSection\n(Domain Component)" as Component

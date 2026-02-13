@@ -4,7 +4,7 @@
 
 ## 1. Contexte
 
-- Page : `/credit-speciale/simulation` (mode Credit Fixe)
+- Page : `/credit-fixe/simulation`
 - Viewport cible : `320px` a `767px`
 - Objectif UX : saisie rapide, lecture claire des resultats, actions principales toujours accessibles.
 

@@ -16,6 +16,7 @@ import { ref, deleteObject } from "@/firebase/storage";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { EmergencyContact } from "@/schemas/emergency-contact.schema";
+import { CreditFixeSimulationService } from "@/domains/financial/credit-speciale/fixe/simulation/services/CreditFixeSimulationService";
 
 export class CreditSpecialeService implements ICreditSpecialeService {
     readonly name = "CreditSpecialeService";
@@ -24,6 +25,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     private paymentCIRepository: IPaymentCIRepository;
     private memberRepository: IMemberRepository;
     private documentRepository: IDocumentRepository;
+    private fixedSimulationService: CreditFixeSimulationService;
 
     private creditInstallmentRepository: ICreditInstallmentRepository;
 
@@ -40,6 +42,21 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         this.memberRepository = RepositoryFactory.getMemberRepository();
         this.documentRepository = RepositoryFactory.getDocumentRepository();
         this.creditInstallmentRepository = RepositoryFactory.getCreditInstallmentRepository();
+        this.fixedSimulationService = CreditFixeSimulationService.getInstance();
+    }
+
+    private getDemandIdPrefixByCreditType(creditType: CreditType): string {
+        if (creditType === 'FIXE') {
+            return 'MK_DEMANDE_CF';
+        }
+        return 'MK_DEMANDE_CSP';
+    }
+
+    private getContractIdPrefixByCreditType(creditType: CreditType): string {
+        if (creditType === 'FIXE') {
+            return 'MK_CF';
+        }
+        return 'MK_CSP';
     }
 
     // ==================== DEMANDES ====================
@@ -66,8 +83,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
 
-        // Générer l'ID au format: MK_DEMANDE_CSP_matricule_date_heure
-        const customId = `MK_DEMANDE_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+        // Générer l'ID au format: MK_DEMANDE_{PREFIX}_matricule_date_heure
+        const demandPrefix = this.getDemandIdPrefixByCreditType(data.creditType);
+        const customId = `${demandPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
         // Calculer le score initial basé sur l'historique des crédits précédents
         const initialScore = await this.calculateInitialScore(data.clientId);
@@ -226,6 +244,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 // Erreur lors de la vérification du parrain - continue sans
             }
         }
+        const shouldApplyGuarantorRemuneration = demand.creditType !== 'FIXE';
 
         // Calculer la date de la prochaine échéance (premier versement + 1 mois)
         const nextDueAt = new Date(simulationData.firstPaymentDate);
@@ -236,7 +255,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             ? demand.score
             : await this.calculateInitialScore(demand.clientId);
 
-        // Générer l'ID personnalisé au format: MK_CSP_matricule_date_heure
+        // Générer l'ID personnalisé au format: MK_{PREFIX}_matricule_date_heure
         const member = await this.memberRepository.getMemberById(demand.clientId);
         if (!member || !member.matricule) {
             throw new Error('Membre non trouvé ou matricule manquant');
@@ -257,8 +276,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeFormatted = `${hours}${minutes}`;
 
-        // Générer l'ID au format: MK_CSP_matricule_date_heure
-        const customContractId = `MK_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+        const contractPrefix = this.getContractIdPrefixByCreditType(demand.creditType);
+        const customContractId = `${contractPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
         const contract: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'> = {
             demandId: demand.id,
@@ -287,8 +306,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             guarantorLastName: demand.guarantorLastName,
             guarantorRelation: demand.guarantorRelation,
             guarantorIsMember: demand.guarantorIsMember,
-            guarantorIsParrain,
-            guarantorRemunerationPercentage: simulationData.guarantorRemunerationPercentage || (demand.guarantorIsMember ? 2 : 0),
+            guarantorIsParrain: shouldApplyGuarantorRemuneration ? guarantorIsParrain : false,
+            guarantorRemunerationPercentage: shouldApplyGuarantorRemuneration
+                ? (simulationData.guarantorRemunerationPercentage ?? (demand.guarantorIsMember ? 2 : 0))
+                : 0,
             emergencyContact: simulationData.emergencyContact,
             createdBy: adminId,
             updatedBy: adminId,
@@ -430,6 +451,24 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         firstPaymentDate: Date,
         creditType: CreditType
     ): Promise<StandardSimulation> {
+        if (creditType === 'FIXE') {
+            const fixedResult = this.fixedSimulationService.calculateStandardSimulation({
+                amount,
+                interestRate,
+                firstPaymentDate,
+            });
+
+            return {
+                amount: fixedResult.summary.amount,
+                interestRate: fixedResult.summary.interestRate,
+                monthlyPayment: fixedResult.summary.averageMonthlyPayment,
+                firstPaymentDate: new Date(firstPaymentDate),
+                duration: fixedResult.summary.duration,
+                totalAmount: fixedResult.summary.totalAmount,
+                isValid: fixedResult.isValid,
+            };
+        }
+
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
         let duration = 0;
@@ -601,6 +640,31 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         firstPaymentDate: Date,
         creditType: CreditType
     ): Promise<CustomSimulation> {
+        if (creditType === 'FIXE') {
+            const fixedResult = this.fixedSimulationService.calculateCustomSimulation({
+                amount,
+                interestRate,
+                firstPaymentDate,
+                monthlyPayments,
+            });
+
+            return {
+                amount: fixedResult.summary.amount,
+                interestRate: fixedResult.summary.interestRate,
+                monthlyPayments: fixedResult.schedule.map((row) => ({
+                    month: row.month,
+                    amount: row.payment,
+                })),
+                firstPaymentDate: new Date(firstPaymentDate),
+                duration: fixedResult.summary.duration,
+                totalAmount: fixedResult.summary.totalAmount,
+                isValid: fixedResult.isValid,
+                ...(fixedResult.summary.remaining > 0
+                    ? { suggestedMinimumAmount: fixedResult.summary.remaining }
+                    : {}),
+            };
+        }
+
         const duration = monthlyPayments.length;
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
@@ -652,6 +716,25 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         firstPaymentDate: Date,
         creditType: CreditType
     ): Promise<StandardSimulation> {
+        if (creditType === 'FIXE') {
+            if (duration > 14) {
+                throw new Error('La durée maximum est de 14 mois pour un crédit fixe');
+            }
+
+            const principal = Math.round(amount);
+            const totalAmount = Math.round(principal + (principal * interestRate / 100));
+
+            return {
+                amount: principal,
+                interestRate,
+                monthlyPayment: Math.round(totalAmount / duration),
+                firstPaymentDate: new Date(firstPaymentDate),
+                duration,
+                totalAmount,
+                isValid: true,
+            };
+        }
+
         // Taux d'intérêt mensuel (le taux saisi est mensuel, pas annuel)
         const monthlyRate = interestRate / 100;
         const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity;
@@ -2682,7 +2765,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const timeFormatted = `${hours}${minutes}`;
-            const demandId = `MK_DEMANDE_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+            const demandPrefix = this.getDemandIdPrefixByCreditType(parentContract.creditType);
+            const demandId = `${demandPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
             const newDemandData: Omit<CreditDemand, 'id' | 'createdAt' | 'updatedAt'> = {
                 clientId: parentContract.clientId,
@@ -2709,7 +2793,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const newDemand = await this.creditDemandRepository.createDemand(newDemandData, demandId);
 
             // 5. Créer le nouveau contrat
-            const contractId = `MK_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+            const contractPrefix = this.getContractIdPrefixByCreditType(parentContract.creditType);
+            const contractId = `${contractPrefix}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
             const newContractData = {
                 demandId: newDemand.id,
@@ -2733,8 +2818,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 guarantorLastName: parentContract.guarantorLastName,
                 guarantorRelation: parentContract.guarantorRelation,
                 guarantorIsMember: parentContract.guarantorIsMember,
-                guarantorIsParrain: parentContract.guarantorIsParrain,
-                guarantorRemunerationPercentage: parentContract.guarantorRemunerationPercentage,
+                guarantorIsParrain: parentContract.creditType === 'FIXE' ? false : parentContract.guarantorIsParrain,
+                guarantorRemunerationPercentage: parentContract.creditType === 'FIXE' ? 0 : parentContract.guarantorRemunerationPercentage,
                 emergencyContact: emergencyContact || parentContract.emergencyContact,
                 score: parentContract.score || 5,
                 scoreUpdatedAt: new Date(),
@@ -2863,4 +2948,3 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
     }
 }
-

@@ -22,13 +22,21 @@ import {
   Calculator,
   Loader2,
 } from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
-import { CreditDemand, CreditDemandStatus } from '@/types/types'
-import { useCreditDemands, useCreditDemandsStats, useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
+import { CreditDemand, CreditDemandStatus, CreditType } from '@/types/types'
+import { useCreditDemands, useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import CreateCreditDemandModal from './CreateCreditDemandModal'
 import EditCreditDemandModal from './EditCreditDemandModal'
@@ -38,6 +46,7 @@ import ReopenDemandModal from './ReopenDemandModal'
 import CreditSimulationModal from './CreditSimulationModal'
 import ContractCreationModal from './ContractCreationModal'
 import StatisticsCreditDemandes from './StatisticsCreditDemandes'
+import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import type { StandardSimulation, CustomSimulation } from '@/types/types'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -48,6 +57,23 @@ import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { Shield, CheckCircle2 } from 'lucide-react'
 
 type ViewMode = 'grid' | 'list'
+type DemandTab = 'all' | 'pending' | 'approved' | 'rejected'
+type CreditTypeFilter = CreditType | 'all'
+
+interface DemandFiltersState {
+  search: string
+  status: CreditDemandStatus | 'all'
+  creditType: CreditTypeFilter
+  clientId: string
+  guarantorId: string
+  dateFrom: string
+  dateTo: string
+}
+
+interface ListDemandesProps {
+  forcedCreditType?: CreditType
+  demandDetailsBasePath?: string
+}
 
 // Composant pour afficher les infos garant (Garant: nom, prénom, statut CI sur lignes séparées)
 const GuarantorInfo = ({ 
@@ -134,16 +160,21 @@ const DemandFilters = ({
   onFiltersChange,
   onReset,
   onStatusChange,
-  activeTab
+  activeTab,
+  showCreditTypeFilter,
 }: {
-  filters: any
-  onFiltersChange: (filters: any) => void
+  filters: DemandFiltersState
+  onFiltersChange: (filters: DemandFiltersState) => void
   onReset: () => void
-  onStatusChange?: (status: string) => void
-  activeTab: 'all' | 'pending' | 'approved' | 'rejected'
+  onStatusChange?: (status: CreditDemandStatus | 'all') => void
+  activeTab: DemandTab
+  showCreditTypeFilter: boolean
 }) => {
   const { data: selectedClient } = useMember(filters.clientId)
   const { data: selectedGuarantor } = useMember(filters.guarantorId)
+  const rowCols = activeTab === 'all'
+    ? showCreditTypeFilter ? 'md:grid-cols-3' : 'md:grid-cols-2'
+    : showCreditTypeFilter ? 'md:grid-cols-2' : 'md:grid-cols-1'
 
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
@@ -173,7 +204,7 @@ const DemandFilters = ({
         {/* Grille de filtres organisée */}
         <div className="space-y-4">
           {/* Ligne 1: Recherche générale */}
-          <div className={`grid grid-cols-1 ${activeTab === 'all' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+          <div className={`grid grid-cols-1 ${rowCols} gap-4`}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -189,7 +220,7 @@ const DemandFilters = ({
                 className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.status || 'all'}
                 onChange={(e) => {
-                  const newStatus = e.target.value
+                  const newStatus = e.target.value as CreditDemandStatus | 'all'
                   onFiltersChange({ ...filters, status: newStatus })
                   // Synchroniser l'onglet actif avec le filtre de statut
                   if (onStatusChange) {
@@ -203,16 +234,18 @@ const DemandFilters = ({
               <option value="REJECTED">Refusée</option>
             </select>
             )}
-            <select
-              className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.creditType || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value })}
-            >
-              <option value="all">Tous les types</option>
-              <option value="SPECIALE">Spéciale</option>
-              <option value="FIXE">Fixe</option>
-              <option value="AIDE">Aide</option>
-            </select>
+            {showCreditTypeFilter && (
+              <select
+                className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+                value={filters.creditType || 'all'}
+                onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value as CreditTypeFilter })}
+              >
+                <option value="all">Tous les types</option>
+                <option value="SPECIALE">Spéciale</option>
+                <option value="FIXE">Fixe</option>
+                <option value="AIDE">Aide</option>
+              </select>
+            )}
           </div>
 
           {/* Ligne 2: Membres (Client et Garant) */}
@@ -275,23 +308,38 @@ const DemandFilters = ({
 }
 
 // Composant principal
-const ListDemandes = () => {
+const ListDemandes = ({
+  forcedCreditType,
+  demandDetailsBasePath = routes.admin.creditSpecialeDemandes,
+}: ListDemandesProps) => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isCreditTypeLocked = Boolean(forcedCreditType)
+  const normalizedDetailsBasePath = demandDetailsBasePath.replace(/\/$/, '')
+
+  const searchParamStatus = searchParams.get('status')
+  const initialStatus: CreditDemandStatus | 'all' =
+    searchParamStatus === 'PENDING' || searchParamStatus === 'APPROVED' || searchParamStatus === 'REJECTED'
+      ? searchParamStatus
+      : 'all'
+
+  const searchParamCreditType = searchParams.get('creditType')
+  const initialCreditType: CreditTypeFilter =
+    searchParamCreditType === 'SPECIALE' || searchParamCreditType === 'FIXE' || searchParamCreditType === 'AIDE'
+      ? searchParamCreditType
+      : 'all'
+
+  const searchParamTab = searchParams.get('tab')
+  const initialTab: DemandTab =
+    searchParamTab === 'pending' || searchParamTab === 'approved' || searchParamTab === 'rejected'
+      ? searchParamTab
+      : 'all'
   
   // Initialiser les états depuis l'URL
-  const [filters, setFilters] = useState<{
-    search: string
-    status: string
-    creditType: string
-    clientId: string
-    guarantorId: string
-    dateFrom: string
-    dateTo: string
-  }>({
+  const [filters, setFilters] = useState<DemandFiltersState>({
     search: searchParams.get('search') || '',
-    status: searchParams.get('status') || 'all',
-    creditType: searchParams.get('creditType') || 'all',
+    status: initialStatus,
+    creditType: forcedCreditType || initialCreditType,
     clientId: searchParams.get('clientId') || '',
     guarantorId: searchParams.get('guarantorId') || '',
     dateFrom: searchParams.get('dateFrom') || '',
@@ -300,7 +348,7 @@ const ListDemandes = () => {
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
   const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>((searchParams.get('tab') as 'all' | 'pending' | 'approved' | 'rejected') || 'all')
+  const [activeTab, setActiveTab] = useState<DemandTab>(initialTab)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [validateModalState, setValidateModalState] = useState<{
     isOpen: boolean
@@ -346,10 +394,19 @@ const ListDemandes = () => {
 
   // Synchroniser l'URL avec l'état
   useEffect(() => {
+    if (!forcedCreditType) return
+    setFilters((prev) => {
+      if (prev.creditType === forcedCreditType) return prev
+      return { ...prev, creditType: forcedCreditType }
+    })
+  }, [forcedCreditType])
+
+  // Synchroniser l'URL avec l'état
+  useEffect(() => {
     const params = new URLSearchParams()
     if (filters.search) params.set('search', filters.search)
     if (filters.status !== 'all') params.set('status', filters.status)
-    if (filters.creditType !== 'all') params.set('creditType', filters.creditType)
+    if (!isCreditTypeLocked && filters.creditType !== 'all') params.set('creditType', filters.creditType)
     if (filters.clientId) params.set('clientId', filters.clientId)
     if (filters.guarantorId) params.set('guarantorId', filters.guarantorId)
     if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
@@ -361,18 +418,19 @@ const ListDemandes = () => {
     
     const queryString = params.toString()
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
+    const expectedSearch = queryString ? `?${queryString}` : ''
     
-    if (window.location.search !== `?${queryString}`) {
+    if (window.location.search !== expectedSearch) {
       router.replace(newUrl, { scroll: false })
     }
-  }, [filters, currentPage, itemsPerPage, viewMode, activeTab, router])
+  }, [filters, currentPage, itemsPerPage, viewMode, activeTab, router, isCreditTypeLocked])
 
   // Hooks pour récupérer les données
   // Le filtre de statut dans le formulaire a la priorité sur l'onglet actif
   const getStatusFilter = () => {
     // Si un filtre de statut est défini dans le formulaire, l'utiliser
     if (filters.status && filters.status !== 'all') {
-      return filters.status as CreditDemandStatus
+      return filters.status
     }
     // Sinon, utiliser l'onglet actif
     return activeTab === 'all' 
@@ -384,9 +442,11 @@ const ListDemandes = () => {
           : 'REJECTED'
   }
 
+  const effectiveCreditType: CreditTypeFilter = forcedCreditType || filters.creditType
+
   const queryFilters: CreditDemandFilters = {
     status: getStatusFilter(),
-    creditType: filters.creditType === 'all' ? 'all' : filters.creditType as any,
+    creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
     clientId: filters.clientId || undefined,
     guarantorId: filters.guarantorId || undefined,
@@ -402,11 +462,9 @@ const ListDemandes = () => {
   // Les compteurs doivent toujours afficher le total réel, indépendamment des filtres appliqués
   const globalStatsFilters: CreditDemandFilters = {
     status: 'all', // Pas de filtre de statut pour avoir toutes les stats
-    // Pas d'autres filtres pour avoir les stats globales réelles
+    ...(forcedCreditType ? { creditType: forcedCreditType } : {}),
   }
   const { data: statsData } = useCreditDemandsStats(globalStatsFilters)
-  
-  const { updateStatus } = useCreditDemandMutations()
 
   // Reset page when filters change
   React.useEffect(() => {
@@ -414,8 +472,11 @@ const ListDemandes = () => {
   }, [filters.search, filters.status, filters.creditType, filters.clientId, filters.guarantorId, filters.dateFrom, filters.dateTo, activeTab])
 
   // Gestionnaires d'événements
-  const handleFiltersChange = (newFilters: any) => {
-    setFilters(newFilters)
+  const handleFiltersChange = (newFilters: DemandFiltersState) => {
+    setFilters({
+      ...newFilters,
+      creditType: forcedCreditType || newFilters.creditType,
+    })
     setCurrentPage(1)
   }
 
@@ -423,7 +484,7 @@ const ListDemandes = () => {
     setFilters({ 
       search: '', 
       status: 'all', 
-      creditType: 'all',
+      creditType: forcedCreditType || 'all',
       clientId: '',
       guarantorId: '',
       dateFrom: '',
@@ -488,8 +549,11 @@ const ListDemandes = () => {
           : activeTab === 'approved'
             ? 'Approuvées'
             : 'Rejetées'
+      const exportModuleLabel = forcedCreditType
+        ? `CRÉDIT ${getCreditTypeLabel(forcedCreditType).toUpperCase()}`
+        : 'CRÉDIT SPÉCIALE'
       const sheetData = [
-        ['LISTE DES DEMANDES DE CRÉDIT SPÉCIALE'],
+        [`LISTE DES DEMANDES DE ${exportModuleLabel}`],
         [`Onglet: ${tabLabel}`],
         [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
         [],
@@ -534,7 +598,10 @@ const ListDemandes = () => {
 
       // En-tête
       doc.setFontSize(16)
-      doc.text('Liste des Demandes de Crédit Spéciale', 14, 14)
+      const exportModuleLabel = forcedCreditType
+        ? `Crédit ${getCreditTypeLabel(forcedCreditType)}`
+        : 'Crédit Spéciale'
+      doc.text(`Liste des Demandes de ${exportModuleLabel}`, 14, 14)
       doc.setFontSize(10)
       const tabLabel = activeTab === 'all' 
         ? 'Toutes' 
@@ -609,6 +676,14 @@ const ListDemandes = () => {
 
   // Les demandes sont déjà filtrées par le hook
   const filteredDemandes = demandes
+  const hasActiveFilters =
+    filters.search !== '' ||
+    filters.status !== 'all' ||
+    (!isCreditTypeLocked && filters.creditType !== 'all') ||
+    filters.clientId !== '' ||
+    filters.guarantorId !== '' ||
+    filters.dateFrom !== '' ||
+    filters.dateTo !== ''
 
   // Pagination
   const totalPages = Math.ceil(filteredDemandes.length / itemsPerPage)
@@ -664,7 +739,7 @@ const ListDemandes = () => {
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par statut */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'pending' | 'approved' | 'rejected')} className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -695,7 +770,8 @@ const ListDemandes = () => {
               : activeTab === 'approved'
                 ? 'APPROVED'
                 : 'REJECTED'
-        } 
+        }
+        creditType={forcedCreditType}
       />
 
       {/* Filtres */}
@@ -704,6 +780,7 @@ const ListDemandes = () => {
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
         activeTab={activeTab}
+        showCreditTypeFilter={!isCreditTypeLocked}
         onStatusChange={(status) => {
           // Synchroniser l'onglet actif avec le filtre de statut
           if (status === 'all') {
@@ -825,193 +902,355 @@ const ListDemandes = () => {
         </div>
       ) : currentDemandes.length > 0 ? (
         <>
-          <div className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
-              : 'space-y-6'
-          }>
-            {currentDemandes.map((demande, index) => (
-              <Card
-                key={demande.id}
-                className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
-              >
-                <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
-                  {/* Ligne 1: Matricule complet (sans troncature) */}
-                  <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">
-                    #{demande.id}
-                  </h3>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+              {currentDemandes.map((demande) => (
+                <Card
+                  key={demande.id}
+                  className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
+                >
+                  <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
+                    {/* Ligne 1: Matricule complet (sans troncature) */}
+                    <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">
+                      #{demande.id}
+                    </h3>
 
-                  {/* Ligne 2: Badges alignés horizontalement avec flex-wrap */}
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                      {getCreditTypeLabel(demande.creditType)}
-                    </span>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-                      {getStatusLabel(demande.status)}
-                    </span>
-                  </div>
+                    {/* Ligne 2: Badges alignés horizontalement avec flex-wrap */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                        {getCreditTypeLabel(demande.creditType)}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
+                        {getStatusLabel(demande.status)}
+                      </span>
+                    </div>
 
-                  {/* Nom et prénom du client (espacement réduit) */}
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-gray-900">{demande.clientLastName}</span>
-                    <span className="text-sm font-medium text-gray-900">{demande.clientFirstName}</span>
-                  </div>
+                    {/* Nom et prénom du client (espacement réduit) */}
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium text-gray-900">{demande.clientLastName}</span>
+                      <span className="text-sm font-medium text-gray-900">{demande.clientFirstName}</span>
+                    </div>
 
-                  {/* Ligne 5: Montant */}
-                  <div className="text-sm">
-                    <span className="text-gray-500">Montant: </span>
-                    <span className="font-semibold text-green-600">
-                      {demande.amount.toLocaleString('fr-FR')} FCFA
-                    </span>
-                  </div>
+                    {/* Ligne 5: Montant */}
+                    <div className="text-sm">
+                      <span className="text-gray-500">Montant: </span>
+                      <span className="font-semibold text-green-600">
+                        {demande.amount.toLocaleString('fr-FR')} FCFA
+                      </span>
+                    </div>
 
-                  {/* Ligne 6: Date souhaitée */}
-                  <div className="text-sm flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                    <span className="text-gray-500">Date souhaitée:</span>
-                    <span className="font-medium text-gray-900">
-                      {demande.desiredDate
-                        ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', { 
-                            day: '2-digit', 
-                            month: '2-digit', 
-                            year: 'numeric' 
-                          })
-                        : '—'}
-                    </span>
-                  </div>
+                    {/* Ligne 6: Date souhaitée */}
+                    <div className="text-sm flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                      <span className="text-gray-500">Date souhaitée:</span>
+                      <span className="font-medium text-gray-900">
+                        {demande.desiredDate
+                          ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })
+                          : '—'}
+                      </span>
+                    </div>
 
-                  {/* Lignes 7-9: Garant (nom, prénom) + Statut CI */}
-                  {demande.guarantorId ? (
-                    <>
-                      <GuarantorInfo 
-                        guarantorId={demande.guarantorId}
-                        guarantorFirstName={demande.guarantorFirstName}
-                        guarantorLastName={demande.guarantorLastName}
-                        guarantorIsMember={demande.guarantorIsMember}
-                      />
-                      {!demande.guarantorIsMember && (
+                    {/* Lignes 7-9: Garant (nom, prénom) + Statut CI */}
+                    {demande.guarantorId ? (
+                      <>
+                        <GuarantorInfo
+                          guarantorId={demande.guarantorId}
+                          guarantorFirstName={demande.guarantorFirstName}
+                          guarantorLastName={demande.guarantorLastName}
+                          guarantorIsMember={demande.guarantorIsMember}
+                        />
+                        {!demande.guarantorIsMember && (
+                          <div className="text-sm">
+                            <span className="text-gray-500">Statut CI: </span>
+                            <span className="text-gray-600">—</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm">
+                          <span className="text-gray-500">Garant: </span>
+                          <span className="text-gray-600">—</span>
+                        </div>
                         <div className="text-sm">
                           <span className="text-gray-500">Statut CI: </span>
                           <span className="text-gray-600">—</span>
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-sm">
-                        <span className="text-gray-500">Garant: </span>
-                        <span className="text-gray-600">—</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="text-gray-500">Statut CI: </span>
-                        <span className="text-gray-600">—</span>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Ligne 10: Score */}
-                  <div className="text-sm">
-                    <span className="text-gray-500">Score: </span>
-                    <Badge className={cn(
-                      "font-bold text-sm px-2.5 py-1 ml-1",
-                      demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
-                      demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
-                      demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
-                      "bg-gray-100 text-gray-500 border border-gray-300"
-                    )}>
-                      {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
-                    </Badge>
-                  </div>
-
-                  {/* Actions alignées verticalement */}
-                  <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
-                    {demande.status === 'PENDING' && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => setEditModalState({ isOpen: true, demand: demande })}
-                          variant="outline"
-                          className="w-full border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Modifier
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
-                          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approuver
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'reject' })}
-                          className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Rejeter
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
-                          variant="outline"
-                          className="w-full border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Supprimer
-                        </Button>
                       </>
                     )}
-                    {demande.status === 'APPROVED' && (
-                      demande.contractId ? (
-                        <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Contrat déjà créé
-                        </Badge>
-                      ) : (
+
+                    {/* Ligne 10: Score */}
+                    <div className="text-sm">
+                      <span className="text-gray-500">Score: </span>
+                      <Badge className={cn(
+                        "font-bold text-sm px-2.5 py-1 ml-1",
+                        demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
+                        demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
+                        demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
+                        "bg-gray-100 text-gray-500 border border-gray-300"
+                      )}>
+                        {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
+                      </Badge>
+                    </div>
+
+                    {/* Actions alignées verticalement */}
+                    <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
+                      {demande.status === 'PENDING' && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => setEditModalState({ isOpen: true, demand: demande })}
+                            variant="outline"
+                            className="w-full border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Modifier
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
+                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approuver
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'reject' })}
+                            className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Rejeter
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
+                            variant="outline"
+                            className="w-full border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Supprimer
+                          </Button>
+                        </>
+                      )}
+                      {demande.status === 'APPROVED' && (
+                        demande.contractId ? (
+                          <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Contrat déjà créé
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
+                            disabled={createFromDemand.isPending}
+                            className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          >
+                            {createFromDemand.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Création...
+                              </>
+                            ) : (
+                              <>
+                                <Calculator className="h-4 w-4 mr-1" />
+                                Créer le contrat
+                              </>
+                            )}
+                          </Button>
+                        )
+                      )}
+                      {demande.status === 'REJECTED' && (
                         <Button
                           size="sm"
-                          onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
-                          disabled={createFromDemand.isPending}
-                          className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
+                          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
                         >
-                          {createFromDemand.isPending ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Création...
-                            </>
-                          ) : (
-                            <>
-                              <Calculator className="h-4 w-4 mr-1" />
-                              Créer le contrat
-                            </>
-                          )}
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Réouvrir
                         </Button>
-                      )
-                    )}
-                    {demande.status === 'REJECTED' && (
+                      )}
                       <Button
-                        size="sm"
-                        onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                        onClick={() => router.push(`${normalizedDetailsBasePath}/${demande.id}`)}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        Réouvrir
+                        <Eye className="h-4 w-4" />
+                        Voir détails
                       </Button>
-                    )}
-                    <Button
-                      onClick={() => router.push(`/credit-speciale/demandes/${demande.id}`)}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Voir détails
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-white border-0 shadow-lg overflow-hidden">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead className="min-w-[240px]">Demande</TableHead>
+                        <TableHead className="min-w-[220px]">Client</TableHead>
+                        <TableHead className="min-w-[170px]">Montant / Date</TableHead>
+                        <TableHead className="min-w-[180px]">Garant</TableHead>
+                        <TableHead className="min-w-[120px]">Score</TableHead>
+                        <TableHead className="min-w-[320px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentDemandes.map((demande) => (
+                        <TableRow key={demande.id} className="align-top">
+                          <TableCell>
+                            <div className="space-y-2">
+                              <p className="font-mono text-xs text-gray-700 break-all">#{demande.id}</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                <Badge className="bg-blue-100 text-blue-700 border border-blue-200">
+                                  {getCreditTypeLabel(demande.creditType)}
+                                </Badge>
+                                <Badge className={cn("border", getStatusColor(demande.status))}>
+                                  {getStatusLabel(demande.status)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p className="font-medium text-gray-900">{demande.clientLastName} {demande.clientFirstName}</p>
+                              <p className="text-xs text-gray-500">{demande.clientContacts?.[0] || 'Sans contact'}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p className="font-semibold text-green-600">{demande.amount.toLocaleString('fr-FR')} FCFA</p>
+                              <p className="text-xs text-gray-500">
+                                {demande.desiredDate
+                                  ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric'
+                                    })
+                                  : 'Date souhaitée: —'}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {demande.guarantorId
+                                  ? `${demande.guarantorLastName || ''} ${demande.guarantorFirstName || ''}`.trim()
+                                  : '—'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {demande.guarantorId
+                                  ? (demande.guarantorIsMember ? 'Membre' : 'Externe')
+                                  : 'Sans garant'}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cn(
+                              "font-bold text-xs px-2 py-1",
+                              demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
+                              demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
+                              demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
+                              "bg-gray-100 text-gray-500 border border-gray-300"
+                            )}>
+                              {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              {demande.status === 'PENDING' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditModalState({ isOpen: true, demand: demande })}
+                                    className="h-8 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                  >
+                                    <Edit className="h-3.5 w-3.5 mr-1" />
+                                    Modifier
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
+                                    className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  >
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                    Approuver
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'reject' })}
+                                    className="h-8 bg-red-600 hover:bg-red-700 text-white"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5 mr-1" />
+                                    Rejeter
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
+                                    className="h-8 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                    Supprimer
+                                  </Button>
+                                </>
+                              )}
+                              {demande.status === 'APPROVED' && !demande.contractId && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
+                                  disabled={createFromDemand.isPending}
+                                  className="h-8 bg-[#234D65] hover:bg-[#2c5a73] text-white"
+                                >
+                                  {createFromDemand.isPending ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                      Création...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Calculator className="h-3.5 w-3.5 mr-1" />
+                                      Créer contrat
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                              {demande.status === 'REJECTED' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
+                                  className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                  Réouvrir
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => router.push(`${normalizedDetailsBasePath}/${demande.id}`)}
+                                className="h-8 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                Voir détails
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -1061,14 +1300,14 @@ const ListDemandes = () => {
                   Aucune demande trouvée
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '')
+                  {hasActiveFilters
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de demandes enregistrées dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {hasActiveFilters && (
                   <Button
                     variant="outline"
                     onClick={handleResetFilters}
@@ -1095,6 +1334,8 @@ const ListDemandes = () => {
       <CreateCreditDemandModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        initialCreditType={forcedCreditType}
+        lockCreditType={isCreditTypeLocked}
       />
 
       {/* Modal de modification */}
@@ -1103,6 +1344,7 @@ const ListDemandes = () => {
           isOpen={editModalState.isOpen}
           onClose={() => setEditModalState({ isOpen: false, demand: null })}
           demand={editModalState.demand}
+          lockCreditType={isCreditTypeLocked}
         />
       )}
 
@@ -1138,22 +1380,40 @@ const ListDemandes = () => {
 
       {/* Modal de simulation */}
       {simulationModalState.demand && (
-        <CreditSimulationModal
-          isOpen={simulationModalState.isOpen}
-          onClose={() => setSimulationModalState({ isOpen: false, demand: null })}
-          creditType={simulationModalState.demand.creditType}
-          initialAmount={simulationModalState.demand.amount}
-          initialMonthlyPayment={simulationModalState.demand.monthlyPaymentAmount}
-          onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
-            // Fermer le modal de simulation et ouvrir le modal de création de contrat
-            setSimulationModalState({ isOpen: false, demand: null })
-            setContractCreationState({
-              isOpen: true,
-              demand: simulationModalState.demand,
-              simulation,
-            })
-          }}
-        />
+        simulationModalState.demand.creditType === 'FIXE' ? (
+          <CreditFixeSimulationModal
+            isOpen={simulationModalState.isOpen}
+            onClose={() => setSimulationModalState({ isOpen: false, demand: null })}
+            initialAmount={simulationModalState.demand.amount}
+            lockAmount
+            onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
+              setSimulationModalState({ isOpen: false, demand: null })
+              setContractCreationState({
+                isOpen: true,
+                demand: simulationModalState.demand,
+                simulation,
+              })
+            }}
+          />
+        ) : (
+          <CreditSimulationModal
+            isOpen={simulationModalState.isOpen}
+            onClose={() => setSimulationModalState({ isOpen: false, demand: null })}
+            creditType={simulationModalState.demand.creditType}
+            initialAmount={simulationModalState.demand.amount}
+            initialMonthlyPayment={simulationModalState.demand.monthlyPaymentAmount}
+            lockAmount
+            onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
+              // Fermer le modal de simulation et ouvrir le modal de création de contrat
+              setSimulationModalState({ isOpen: false, demand: null })
+              setContractCreationState({
+                isOpen: true,
+                demand: simulationModalState.demand,
+                simulation,
+              })
+            }}
+          />
+        )
       )}
 
       {/* Modal de création de contrat multi-étapes */}
@@ -1163,6 +1423,11 @@ const ListDemandes = () => {
           onClose={() => setContractCreationState({ isOpen: false, demand: null, simulation: null })}
           demand={contractCreationState.demand}
           simulation={contractCreationState.simulation}
+          contractListPath={
+            contractCreationState.demand.creditType === 'FIXE'
+              ? routes.admin.creditFixeContrats
+              : routes.admin.creditSpecialeContrats
+          }
         />
       )}
     </div>
@@ -1170,4 +1435,3 @@ const ListDemandes = () => {
 }
 
 export default ListDemandes
-

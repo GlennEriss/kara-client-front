@@ -123,6 +123,27 @@ const adminMenuItems: SidebarItem[] = [
         ],
     },
     {
+        title: "Crédit Fixe",
+        icon: CreditCard,
+        children: [
+            {
+                title: "Simulation",
+                url: routes.admin.creditFixeSimulation,
+                icon: Calculator,
+            },
+            {
+                title: "Demandes",
+                url: routes.admin.creditFixeDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Contrats",
+                url: routes.admin.creditFixeContrats,
+                icon: CreditCard,
+            },
+        ],
+    },
+    {
         title: "Bienfaiteur",
         icon: HandCoins,
         children: [

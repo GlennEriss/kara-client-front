@@ -164,15 +164,28 @@ Deux modes possibles (à cadrer à l'implémentation) :
 
 ---
 
-## 7. Ce qui sera fait (scope de développement)
+## 7. Liste des taches harmonisee
 
-- Ajouter/adapter les validations Crédit Fixe pour la simulation (`0-50%`, `max 14 mois`).
-- Finaliser les règles de calcul standard sur 14 échéances.
-- Finaliser les règles de simulation personnalisée avec limite 14 mois.
-- Afficher clairement les écarts (reste à planifier / dépassement).
-- Ajouter les actions d'export PDF et Excel.
-- Ajouter l'action d'impression.
-- Ajouter l'action de partage WhatsApp.
+### 7.1 Documentation realisee
+
+- [x] Specification fonctionnelle de la simulation (standard + personnalisee).
+- [x] Documentation des regles de calcul (`0-50%`, max `14` echeances).
+- [x] Documentation des sorties (PDF, Excel, impression, WhatsApp).
+- [x] Diagramme d'activite cree : `documentation/credit-fixe/simulation/activite/SimulationCreditFixe.puml`.
+- [x] Diagramme de sequence cree : `documentation/credit-fixe/simulation/sequence/SEQ_LancerSimulationCreditFixe.puml`.
+- [x] Architecture domains detaillee : `documentation/credit-fixe/simulation/architecture/README.md`.
+- [x] Wireframes responsive crees : `documentation/credit-fixe/simulation/wireframes/mobile.md` et `documentation/credit-fixe/simulation/wireframes/desktop.md`.
+- [x] Referencement de tous les artefacts dans ce README.
+
+### 7.2 Implementation a faire
+
+- [x] Ajouter/adapter les validations Credit Fixe dans le code (`0-50%`, max `14` mois).
+- [x] Implementer le calcul standard sur 14 echeances avec ajustement final.
+- [x] Implementer le calcul personnalise (max 14 lignes, gestion reste/depassement).
+- [x] Afficher clairement les ecarts (reste a planifier / depassement).
+- [x] Implementer les actions d'export PDF et Excel.
+- [x] Implementer l'action d'impression.
+- [x] Implementer l'action de partage WhatsApp.
 
 ---
 

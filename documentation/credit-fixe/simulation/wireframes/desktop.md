@@ -4,7 +4,7 @@
 
 ## 1. Contexte
 
-- Page : `/credit-speciale/simulation` (mode Credit Fixe)
+- Page : `/credit-fixe/simulation`
 - Viewport cible desktop : `>= 1024px`
 - Transition tablette : `768px` a `1023px` (layout compact du desktop)
 

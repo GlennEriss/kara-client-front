@@ -234,6 +234,14 @@ export const standardSimulationSchema = z.object({
       path: ['monthlyPayment'],
     })
   }
+
+  if (data.creditType === 'FIXE' && data.interestRate > 50) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le taux du crédit fixe ne peut pas dépasser 50%',
+      path: ['interestRate'],
+    })
+  }
 })
 
 export type StandardSimulationFormData = z.infer<typeof standardSimulationSchema>
@@ -258,7 +266,7 @@ export const customSimulationSchema = z.object({
 }).superRefine((data, ctx) => {
   // Validation : la somme des paiements doit être au moins égale au montant
   const totalPayments = data.monthlyPayments.reduce((sum, p) => sum + p.amount, 0)
-  if (totalPayments < data.amount) {
+  if (data.creditType !== 'FIXE' && totalPayments < data.amount) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'La somme des paiements mensuels doit être au moins égale au montant emprunté',
@@ -281,6 +289,22 @@ export const customSimulationSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: 'Le crédit aide ne peut pas dépasser 3 mois',
       path: ['monthlyPayments'],
+    })
+  }
+
+  if (data.creditType === 'FIXE' && duration > 14) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le crédit fixe ne peut pas dépasser 14 mois',
+      path: ['monthlyPayments'],
+    })
+  }
+
+  if (data.creditType === 'FIXE' && data.interestRate > 50) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le taux du crédit fixe ne peut pas dépasser 50%',
+      path: ['interestRate'],
     })
   }
   
@@ -308,7 +332,7 @@ export const proposedSimulationSchema = z.object({
     .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
   duration: z.number()
     .min(1, 'La durée minimum est de 1 mois')
-    .max(7, 'La durée maximum est de 7 mois pour crédit spéciale'),
+    .max(14, 'La durée maximum est de 14 mois'),
   interestRate: z.number()
     .min(0, 'Le taux d\'intérêt ne peut pas être négatif')
     .max(100, 'Le taux d\'intérêt ne peut pas dépasser 100%'),
@@ -329,6 +353,22 @@ export const proposedSimulationSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: 'Le crédit aide ne peut pas dépasser 3 mois',
       path: ['duration'],
+    })
+  }
+
+  if (data.creditType === 'FIXE' && data.duration > 14) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le crédit fixe ne peut pas dépasser 14 mois',
+      path: ['duration'],
+    })
+  }
+
+  if (data.creditType === 'FIXE' && data.interestRate > 50) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Le taux du crédit fixe ne peut pas dépasser 50%',
+      path: ['interestRate'],
     })
   }
 })
@@ -375,4 +415,3 @@ export const closeContractSchema = z.object({
 })
 
 export type CloseContractFormData = z.infer<typeof closeContractSchema>
-

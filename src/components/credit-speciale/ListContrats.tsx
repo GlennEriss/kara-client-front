@@ -38,7 +38,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import routes from '@/constantes/routes'
-import { CreditContract, CreditContractStatus } from '@/types/types'
+import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
 import { useCreditContracts, useCreditContractsStats, useCreditContractMutations, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import StatisticsCreditContrats from './StatisticsCreditContrats'
@@ -49,6 +49,12 @@ import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
 import DeleteCreditContractModal from './DeleteCreditContractModal'
 
 type ViewMode = 'grid' | 'list'
+type CreditTypeFilter = CreditType | 'all'
+
+interface ListContratsProps {
+  forcedCreditType?: CreditType
+  contractDetailsBasePath?: string
+}
 
 /** Contrat supprimable uniquement si PENDING/DRAFT et aucun versement (doc § 2.1) */
 function canDeleteContract(contract: CreditContract): boolean {
@@ -160,12 +166,16 @@ const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
 const ContractFilters = ({
   filters,
   onFiltersChange,
-  onReset
+  onReset,
+  showCreditTypeFilter,
 }: {
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
+  showCreditTypeFilter: boolean
 }) => {
+  const gridCols = showCreditTypeFilter ? 'md:grid-cols-3' : 'md:grid-cols-2'
+
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
@@ -192,7 +202,7 @@ const ContractFilters = ({
           </div>
 
         {/* Grille de filtres organisée */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`grid grid-cols-1 ${gridCols} gap-4`}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -219,16 +229,18 @@ const ContractFilters = ({
               <option value="CLOSED">Clos</option>
             </select>
 
-            <select
-            className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.creditType || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value })}
-            >
-              <option value="all">Tous les types</option>
-              <option value="SPECIALE">Spéciale</option>
-              <option value="FIXE">Fixe</option>
-              <option value="AIDE">Aide</option>
-            </select>
+            {showCreditTypeFilter && (
+              <select
+              className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+                value={filters.creditType || 'all'}
+                onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value as CreditTypeFilter })}
+              >
+                <option value="all">Tous les types</option>
+                <option value="SPECIALE">Spéciale</option>
+                <option value="FIXE">Fixe</option>
+                <option value="AIDE">Aide</option>
+              </select>
+            )}
         </div>
       </CardContent>
     </Card>
@@ -236,32 +248,51 @@ const ContractFilters = ({
 }
 
 // Composant principal
-const ListContrats = () => {
+const ListContrats = ({
+  forcedCreditType,
+  contractDetailsBasePath = routes.admin.creditSpecialeContrats,
+}: ListContratsProps) => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isCreditTypeLocked = Boolean(forcedCreditType)
+  const normalizedContractDetailsBasePath = contractDetailsBasePath.replace(/\/$/, '')
+
+  const searchParamCreditType = searchParams.get('creditType')
+  const initialCreditType: CreditTypeFilter =
+    searchParamCreditType === 'SPECIALE' || searchParamCreditType === 'FIXE' || searchParamCreditType === 'AIDE'
+      ? searchParamCreditType
+      : 'all'
   
   // Initialiser les états depuis l'URL
   const [activeTab, setActiveTab] = useState<'all' | 'overdue'>((searchParams.get('tab') as 'all' | 'overdue') || 'all')
   const [filters, setFilters] = useState<{
     search: string
     status: string
-    creditType: string
+    creditType: CreditTypeFilter
   }>({
     search: searchParams.get('search') || '',
     status: searchParams.get('status') || 'all',
-    creditType: searchParams.get('creditType') || 'all'
+    creditType: forcedCreditType || initialCreditType
   })
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
   const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isExporting, setIsExporting] = useState(false)
 
+  useEffect(() => {
+    if (!forcedCreditType) return
+    setFilters((prev) => {
+      if (prev.creditType === forcedCreditType) return prev
+      return { ...prev, creditType: forcedCreditType }
+    })
+  }, [forcedCreditType])
+
   // Synchroniser l'URL avec l'état
   useEffect(() => {
     const params = new URLSearchParams()
     if (filters.search) params.set('search', filters.search)
     if (filters.status !== 'all') params.set('status', filters.status)
-    if (filters.creditType !== 'all') params.set('creditType', filters.creditType)
+    if (!isCreditTypeLocked && filters.creditType !== 'all') params.set('creditType', filters.creditType)
     if (currentPage > 1) params.set('page', currentPage.toString())
     if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
     if (viewMode !== 'grid') params.set('view', viewMode)
@@ -269,16 +300,19 @@ const ListContrats = () => {
     
     const queryString = params.toString()
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
+    const expectedSearch = queryString ? `?${queryString}` : ''
     
-    if (window.location.search !== `?${queryString}`) {
+    if (window.location.search !== expectedSearch) {
       router.replace(newUrl, { scroll: false })
     }
-  }, [filters, currentPage, itemsPerPage, viewMode, activeTab, router])
+  }, [filters, currentPage, itemsPerPage, viewMode, activeTab, router, isCreditTypeLocked])
 
   // Hooks pour récupérer les données
+  const effectiveCreditType: CreditTypeFilter = forcedCreditType || filters.creditType
+
   const queryFilters: CreditContractFilters = {
     status: filters.status === 'all' ? 'all' : filters.status as any,
-    creditType: filters.creditType === 'all' ? 'all' : filters.creditType as any,
+    creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
     overdueOnly: activeTab === 'overdue',
     page: currentPage,
@@ -310,12 +344,15 @@ const ListContrats = () => {
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: any) => {
-    setFilters(newFilters)
+    setFilters({
+      ...newFilters,
+      creditType: forcedCreditType || newFilters.creditType,
+    })
     setCurrentPage(1)
   }
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'all', creditType: 'all' })
+    setFilters({ search: '', status: 'all', creditType: forcedCreditType || 'all' })
     setCurrentPage(1)
   }
 
@@ -358,8 +395,11 @@ const ListContrats = () => {
       ]
 
       const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
+      const exportModuleLabel = forcedCreditType
+        ? `CRÉDIT ${getCreditTypeLabel(forcedCreditType).toUpperCase()}`
+        : 'CRÉDIT SPÉCIALE'
       const sheetData = [
-        ['LISTE DES CONTRATS DE CRÉDIT SPÉCIALE'],
+        [`LISTE DES CONTRATS DE ${exportModuleLabel}`],
         [`Onglet: ${tabLabel}`],
         [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
         [],
@@ -407,7 +447,10 @@ const ListContrats = () => {
 
       // En-tête
       doc.setFontSize(16)
-      doc.text('Liste des Contrats de Crédit Spéciale', 14, 14)
+      const exportModuleLabel = forcedCreditType
+        ? `Crédit ${getCreditTypeLabel(forcedCreditType)}`
+        : 'Crédit Spéciale'
+      doc.text(`Liste des Contrats de ${exportModuleLabel}`, 14, 14)
       doc.setFontSize(10)
       const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
       doc.text(`Onglet: ${tabLabel}`, 14, 20)
@@ -611,7 +654,7 @@ const ListContrats = () => {
     <>
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
-      <StatisticsCreditContrats />
+      <StatisticsCreditContrats creditType={forcedCreditType} />
 
       {/* Onglets pour filtrer par retard */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
@@ -632,6 +675,7 @@ const ListContrats = () => {
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        showCreditTypeFilter={!isCreditTypeLocked}
       />
 
       {/* Barre d'actions moderne */}
@@ -876,7 +920,7 @@ const ListContrats = () => {
 
                   <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
                     <Button
-                      onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)}
+                      onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
                       className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                     >
                       <Eye className="h-4 w-4" />
@@ -1006,7 +1050,7 @@ const ListContrats = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="min-w-[200px]">
-                              <DropdownMenuItem onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)} className="cursor-pointer">
+                              <DropdownMenuItem onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)} className="cursor-pointer">
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ouvrir
                               </DropdownMenuItem>
@@ -1107,7 +1151,7 @@ const ListContrats = () => {
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '')
+                  {(filters.search !== '' || filters.status !== 'all' || (!isCreditTypeLocked && filters.creditType !== 'all'))
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
@@ -1355,4 +1399,3 @@ const ListContrats = () => {
 }
 
 export default ListContrats
-

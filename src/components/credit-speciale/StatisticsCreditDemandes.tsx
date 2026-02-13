@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
-import { CreditDemandStatus } from '@/types/types'
+import { CreditDemandStatus, CreditType } from '@/types/types'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 
 // Composant pour les statistiques modernes
@@ -134,14 +134,23 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
 
 interface StatisticsCreditDemandesProps {
   status?: CreditDemandStatus | 'all'
+  creditType?: CreditType | 'all'
 }
 
-export default function StatisticsCreditDemandes({ status }: StatisticsCreditDemandesProps = {}) {
-  const filters: CreditDemandFilters | undefined = status && status !== 'all'
-    ? { status }
-    : undefined
+export default function StatisticsCreditDemandes({ status, creditType }: StatisticsCreditDemandesProps = {}) {
+  const filters: CreditDemandFilters = {}
+
+  if (status && status !== 'all') {
+    filters.status = status
+  }
+
+  if (creditType && creditType !== 'all') {
+    filters.creditType = creditType
+  }
+
+  const hasFilters = Object.keys(filters).length > 0
   
-  const { data: stats, isLoading } = useCreditDemandsStats(filters)
+  const { data: stats, isLoading } = useCreditDemandsStats(hasFilters ? filters : undefined)
 
   const [itemsPerView, setItemsPerView] = useState(1)
   
@@ -299,4 +308,3 @@ export default function StatisticsCreditDemandes({ status }: StatisticsCreditDem
     </div>
   )
 }
-

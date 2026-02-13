@@ -1,0 +1,101 @@
+@startuml SEQ_CreerDemandeCreditFixe
+title Sequence : Creer une demande Credit Fixe
+' Reference activite : demandes/activite/DemandesCreditFixe.puml
+' Architecture cible : Page -> Domain Component -> Domain Hook -> Domain Service -> Repository -> Firestore
+
+actor "Admin" as Admin
+participant "Demandes Page\n(app/(admin)/credit-fixe/demandes)" as Page
+
+box "domains/financial/credit-speciale/fixe/demandes" #E8F4FD
+  participant "CreditFixeDemandList\n(Domain Component)" as ListComponent
+  participant "CreateCreditFixeDemandModal\n(Domain Component)" as CreateModal
+  participant "useCreditFixeDemandMutations\n(Domain Hook)" as Hook
+  participant "CreditFixeDemandService\n(Domain Service)" as Service
+  participant "CreditFixeDemandRepository\n(Domain Repository)" as Repository
+end box
+
+database "Firestore\ncreditDemands" as Firestore
+
+Admin -> Page: Ouvre la page Demandes
+activate Page
+
+Page -> ListComponent: Render liste + bouton "Nouvelle demande"
+activate ListComponent
+
+ListComponent --> Admin: Afficher liste des demandes
+
+Admin -> ListComponent: Clique "Nouvelle demande"
+ListComponent -> CreateModal: Ouvrir modal
+activate CreateModal
+
+== Etape 1 : Selection du membre ==
+
+CreateModal --> Admin: Afficher champ de recherche membre
+Admin -> CreateModal: Recherche et selectionne un membre
+CreateModal -> CreateModal: Charger infos membre\n(nom, prenom, matricule, contacts)
+
+== Etape 2 : Details de la demande ==
+
+CreateModal --> Admin: Afficher formulaire\n(type = FIXE pre-selectionne)
+Admin -> CreateModal: Saisit montant, date souhaitee, motif
+CreateModal -> CreateModal: Validation Zod\n(montant 1k-10M, motif 10-500 car.)
+
+alt Validation echouee
+  CreateModal --> Admin: Afficher erreurs de validation
+else Validation OK
+
+== Etape 3 : Selection du garant ==
+
+  CreateModal --> Admin: Afficher recherche garant
+  Admin -> CreateModal: Recherche et selectionne un garant
+  CreateModal -> CreateModal: Charger infos garant
+
+== Etape 4 : Confirmation ==
+
+  Admin -> CreateModal: Clique "Creer la demande"
+
+  CreateModal -> Hook: create(formData)
+  activate Hook
+
+  Hook -> Service: createDemand(data)
+  activate Service
+
+  Service -> Service: generateDemandId(matricule)\nFormat: MK_DEMANDE_CF_{matricule}_{date}_{heure}
+
+  Service -> Service: calculateInitialScore(clientId)\nBasé sur historique credit
+
+  Service -> Repository: create(demand)
+  activate Repository
+
+  Repository -> Firestore: set(demandId, demandData)
+  activate Firestore
+  Firestore --> Repository: OK
+  deactivate Firestore
+
+  Repository --> Service: void
+  deactivate Repository
+
+  Service -> Service: createNotification()\n"Nouvelle demande Credit Fixe creee"
+
+  Service --> Hook: CreditFixeDemand
+  deactivate Service
+
+  Hook -> Hook: invalidateQueries()\n['creditDemands', 'creditDemandsStats']
+  Hook --> CreateModal: success
+  deactivate Hook
+
+  CreateModal --> Admin: Toast "Demande creee avec succes"
+  CreateModal -> CreateModal: Fermer modal
+end
+
+deactivate CreateModal
+deactivate ListComponent
+deactivate Page
+
+note over Admin, Firestore
+  La demande est creee en statut PENDING.
+  Le creditType est toujours 'FIXE'.
+  L'ID est genere cote service (pas auto-genere par Firestore).
+end note
+
+@enduml

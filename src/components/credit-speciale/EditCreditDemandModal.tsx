@@ -22,6 +22,7 @@ interface EditCreditDemandModalProps {
   isOpen: boolean
   onClose: () => void
   demand: CreditDemand
+  lockCreditType?: boolean
 }
 
 function demandToFormValues(demand: CreditDemand): CreditDemandFormInput {
@@ -57,6 +58,7 @@ export default function EditCreditDemandModal({
   isOpen,
   onClose,
   demand,
+  lockCreditType = false,
 }: EditCreditDemandModalProps) {
   const { updateDemand } = useCreditDemandMutations()
   const { data: membersData } = useAllMembers({}, 1, 1000)
@@ -77,6 +79,15 @@ export default function EditCreditDemandModal({
       setSelectedGuarantorId(demand.guarantorId ?? undefined)
     }
   }, [isOpen, demand, form])
+
+  const selectedCreditType = form.watch('creditType')
+  const isFixedCredit = selectedCreditType === 'FIXE'
+
+  useEffect(() => {
+    if (isFixedCredit) {
+      form.setValue('monthlyPaymentAmount', undefined, { shouldValidate: true })
+    }
+  }, [form, isFixedCredit])
 
   const filteredGuarantors = members.filter(
     (m) =>
@@ -105,7 +116,7 @@ export default function EditCreditDemandModal({
         data: {
           creditType: data.creditType,
           amount: data.amount,
-          monthlyPaymentAmount: data.monthlyPaymentAmount,
+          monthlyPaymentAmount: data.creditType === 'FIXE' ? undefined : data.monthlyPaymentAmount,
           desiredDate: data.desiredDate,
           cause: data.cause,
           guarantorId: data.guarantorId,
@@ -146,7 +157,7 @@ export default function EditCreditDemandModal({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Type de crédit</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={lockCreditType}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Sélectionnez un type" />
@@ -159,6 +170,9 @@ export default function EditCreditDemandModal({
                         </SelectContent>
                       </Select>
                       <FormDescription>
+                        {lockCreditType
+                          ? 'Type verrouillé pour ce module. '
+                          : ''}
                         {form.watch('creditType') === 'SPECIALE' && 'Crédit spéciale : durée maximale de 7 mois'}
                         {form.watch('creditType') === 'FIXE' && "Crédit fixe : durée illimitée jusqu'au remboursement complet"}
                         {form.watch('creditType') === 'AIDE' && 'Crédit aide : durée maximale de 3 mois'}
@@ -211,25 +225,27 @@ export default function EditCreditDemandModal({
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="monthlyPaymentAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Ex: 100000"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {!isFixedCredit && (
+                    <FormField
+                      control={form.control}
+                      name="monthlyPaymentAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Ex: 100000"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                              value={field.value ?? ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   <FormField
                     control={form.control}
                     name="desiredDate"

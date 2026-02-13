@@ -50,9 +50,14 @@ import { Percent, Users, Phone, ExternalLink } from 'lucide-react'
 import MemberActivitySummary from './MemberActivitySummary'
 import { useMember } from '@/hooks/useMembers'
 import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
+import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
 
 interface CreditDemandDetailProps {
   demand: CreditDemand
+  listPath?: string
+  contractDetailsBasePath?: string
+  contractListPath?: string
+  lockCreditType?: boolean
 }
 
 const getStatusConfig = (status: CreditDemandStatus) => {
@@ -73,7 +78,13 @@ const getCreditTypeLabel = (type: string) => {
   return labels[type] || type
 }
 
-export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) {
+export default function CreditDemandDetail({
+  demand,
+  listPath = routes.admin.creditSpecialeDemandes,
+  contractDetailsBasePath,
+  contractListPath,
+  lockCreditType = false,
+}: CreditDemandDetailProps) {
   const router = useRouter()
   const [validateModalState, setValidateModalState] = useState<{
     isOpen: boolean
@@ -108,6 +119,12 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
   
   // Récupérer les contacts du garant (membre) pour affichage
   const { data: guarantorMember } = useMember(demand.guarantorId)
+  const resolvedContractDetailsBasePath = (
+    contractDetailsBasePath
+    || (demand.creditType === 'FIXE' ? routes.admin.creditFixeContrats : routes.admin.creditSpecialeContrats)
+  ).replace(/\/$/, '')
+  const resolvedContractListPath = contractListPath
+    || (demand.creditType === 'FIXE' ? routes.admin.creditFixeContrats : routes.admin.creditSpecialeContrats)
 
   const statusConfig = getStatusConfig(demand.status)
   const formatDate = (date: Date | undefined | null | any) => {
@@ -272,7 +289,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
-            onClick={() => router.push(routes.admin.creditSpecialeDemandes)}
+            onClick={() => router.push(listPath)}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -306,7 +323,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                 <p className="text-sm text-gray-600">Montant demandé</p>
                 <p className="text-lg font-semibold">{demand.amount.toLocaleString('fr-FR')} FCFA</p>
               </div>
-              {demand.monthlyPaymentAmount && (
+              {demand.creditType !== 'FIXE' && demand.monthlyPaymentAmount && (
                 <div>
                   <p className="text-sm text-gray-600">Mensualité souhaitée</p>
                   <p className="text-lg font-semibold">{demand.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA</p>
@@ -559,6 +576,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           demand={demand}
+          lockCreditType={lockCreditType}
         />
 
         {/* Modal de suppression */}
@@ -566,7 +584,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
           demand={demand}
-          onSuccess={() => router.push(routes.admin.creditSpecialeDemandes)}
+          onSuccess={() => router.push(listPath)}
         />
 
         {/* Informations du contrat créé */}
@@ -593,7 +611,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                   </div>
                   <Button
                     variant="outline"
-                    onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)}
+                    onClick={() => router.push(`${resolvedContractDetailsBasePath}/${contract.id}`)}
                     className="flex items-center gap-2"
                   >
                     Voir le contrat
@@ -838,7 +856,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
         demand={demand}
         action={validateModalState.action}
         onSuccess={() => {
-          router.push(routes.admin.creditSpecialeDemandes)
+          router.push(listPath)
         }}
       />
 
@@ -848,26 +866,43 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
         onClose={() => setReopenModalState({ isOpen: false })}
         demand={demand}
         onSuccess={() => {
-          router.push(routes.admin.creditSpecialeDemandes)
+          router.push(listPath)
         }}
       />
 
       {/* Modal de simulation */}
-      <CreditSimulationModal
-        isOpen={simulationModalState.isOpen}
-        onClose={() => setSimulationModalState({ isOpen: false })}
-        creditType={demand.creditType}
-        initialAmount={demand.amount}
-        initialMonthlyPayment={demand.monthlyPaymentAmount}
-        onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
-          // Fermer le modal de simulation et ouvrir le modal de création de contrat
-          setSimulationModalState({ isOpen: false })
-          setContractCreationState({
-            isOpen: true,
-            simulation,
-          })
-        }}
-      />
+      {demand.creditType === 'FIXE' ? (
+        <CreditFixeSimulationModal
+          isOpen={simulationModalState.isOpen}
+          onClose={() => setSimulationModalState({ isOpen: false })}
+          initialAmount={demand.amount}
+          lockAmount
+          onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
+            setSimulationModalState({ isOpen: false })
+            setContractCreationState({
+              isOpen: true,
+              simulation,
+            })
+          }}
+        />
+      ) : (
+        <CreditSimulationModal
+          isOpen={simulationModalState.isOpen}
+          onClose={() => setSimulationModalState({ isOpen: false })}
+          creditType={demand.creditType}
+          initialAmount={demand.amount}
+          initialMonthlyPayment={demand.monthlyPaymentAmount}
+          lockAmount
+          onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
+            // Fermer le modal de simulation et ouvrir le modal de création de contrat
+            setSimulationModalState({ isOpen: false })
+            setContractCreationState({
+              isOpen: true,
+              simulation,
+            })
+          }}
+        />
+      )}
 
       {/* Modal de création de contrat multi-étapes */}
       {contractCreationState.simulation && (
@@ -876,9 +911,9 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
           onClose={() => setContractCreationState({ isOpen: false, simulation: null })}
           demand={demand}
           simulation={contractCreationState.simulation}
+          contractListPath={resolvedContractListPath}
         />
       )}
     </div>
   )
 }
-
