@@ -50,6 +50,7 @@ interface CreditSimulationModalProps {
   creditType: CreditType
   initialAmount?: number
   initialMonthlyPayment?: number
+  lockAmount?: boolean
   onSimulationComplete?: (simulation: StandardSimulation | CustomSimulation) => void
 }
 
@@ -59,6 +60,7 @@ export default function CreditSimulationModal({
   creditType,
   initialAmount,
   initialMonthlyPayment,
+  lockAmount = false,
   onSimulationComplete
 }: CreditSimulationModalProps) {
   const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed'>('standard')
@@ -96,7 +98,7 @@ export default function CreditSimulationModal({
   const proposedForm = useForm({
     resolver: zodResolver(proposedSimulationSchema) as any,
     defaultValues: {
-      totalAmount: 0,
+      totalAmount: initialAmount || 0,
       duration: 1,
       interestRate: 0,
       firstPaymentDate: new Date(),
@@ -123,7 +125,7 @@ export default function CreditSimulationModal({
         creditType,
       })
       proposedForm.reset({
-        totalAmount: 0,
+        totalAmount: initialAmount || 0,
         duration: 1,
         interestRate: 0,
         firstPaymentDate: new Date(),
@@ -241,6 +243,7 @@ export default function CreditSimulationModal({
                               <Input
                                 type="number"
                                 placeholder="Ex: 500000"
+                                disabled={lockAmount}
                                 {...field}
                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                               />
@@ -383,6 +386,7 @@ export default function CreditSimulationModal({
                               <Input
                                 type="number"
                                 placeholder="Ex: 500000"
+                                disabled={lockAmount}
                                 {...field}
                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                               />
@@ -503,6 +507,7 @@ export default function CreditSimulationModal({
                               <Input
                                 type="number"
                                 placeholder="Ex: 100000"
+                                disabled={lockAmount}
                                 {...field}
                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                               />
@@ -1365,4 +1370,3 @@ function CustomSimulationResults({
     </Card>
   )
 }
-

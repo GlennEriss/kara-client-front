@@ -5,3 +5,4 @@
 export * from './demand.types'
 export * from './demand-filters.types'
 export * from './subscription.types'
+export * from './contract-filters.types'

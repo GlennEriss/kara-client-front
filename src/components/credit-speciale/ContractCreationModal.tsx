@@ -41,6 +41,7 @@ interface ContractCreationModalProps {
   onClose: () => void
   demand: CreditDemand
   simulation: StandardSimulation | CustomSimulation
+  contractListPath?: string
 }
 
 type Step = 'summary' | 'guarantor' | 'emergency' | 'confirm'
@@ -59,10 +60,19 @@ export default function ContractCreationModal({
   isOpen,
   onClose,
   demand,
-  simulation
+  simulation,
+  contractListPath,
 }: ContractCreationModalProps) {
   const router = useRouter()
   const { createFromDemand } = useCreditContractMutations()
+  const isFixedCredit = demand.creditType === 'FIXE'
+  const resolvedContractListPath = contractListPath
+    || (isFixedCredit ? routes.admin.creditFixeContrats : routes.admin.creditSpecialeContrats)
+  const creditTypeLabel = demand.creditType === 'FIXE'
+    ? 'fixe'
+    : demand.creditType === 'AIDE'
+      ? 'aide'
+      : 'spéciale'
   
   const [currentStep, setCurrentStep] = useState<Step>('summary')
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
@@ -71,7 +81,7 @@ export default function ContractCreationModal({
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
   const hasGuarantor = !!demand.guarantorId
-  const guarantorIsMember = hasGuarantor && demand.guarantorIsMember
+  const guarantorIsMember = hasGuarantor && demand.guarantorIsMember && !isFixedCredit
 
   // Calcul des étapes selon le contexte
   const steps = useMemo(() => {
@@ -96,22 +106,76 @@ export default function ContractCreationModal({
     }
   }, [isOpen])
 
-  // Calculer l'échéancier pour l'affichage (utilise l'échéancier réel pour simulation personnalisée)
+  // Calculer l'échéancier pour l'affichage
   const schedule = useMemo(() => {
     const result = simulation
-    const monthlyRate = result.interestRate / 100
     const firstDate = new Date(result.firstPaymentDate)
     const isCustom = 'monthlyPayments' in result && result.monthlyPayments?.length > 0
 
-    let remaining = result.amount
     const items: Array<{
       month: number
       date: Date
       payment: number
       interest: number
-      principal: number
       remaining: number
     }> = []
+
+    // Crédit fixe : intérêt unique (pas d'intérêt mensuel composé)
+    if (isFixedCredit) {
+      const totalAmount = customRound(result.totalAmount)
+      let cumulativePaid = 0
+
+      if (isCustom) {
+        for (let i = 0; i < result.duration; i++) {
+          const monthNum = i + 1
+          const date = new Date(firstDate)
+          date.setMonth(date.getMonth() + i)
+
+          const planned = result.monthlyPayments.find((p) => p.month === monthNum) ?? result.monthlyPayments[i]
+          const payment = Math.max(0, customRound(planned?.amount ?? 0))
+          cumulativePaid += payment
+
+          items.push({
+            month: monthNum,
+            date,
+            payment,
+            interest: 0,
+            remaining: Math.max(0, customRound(totalAmount - cumulativePaid)),
+          })
+        }
+
+        return items
+      }
+
+      const duration = Math.max(1, result.duration)
+      const baseMonthlyPayment = Math.floor(totalAmount / duration)
+
+      for (let i = 0; i < duration; i++) {
+        const monthNum = i + 1
+        const date = new Date(firstDate)
+        date.setMonth(date.getMonth() + i)
+
+        const isLastMonth = monthNum === duration
+        const payment = isLastMonth
+          ? Math.max(0, totalAmount - cumulativePaid)
+          : baseMonthlyPayment
+        cumulativePaid += payment
+
+        items.push({
+          month: monthNum,
+          date,
+          payment: customRound(payment),
+          interest: 0,
+          remaining: Math.max(0, customRound(totalAmount - cumulativePaid)),
+        })
+      }
+
+      return items
+    }
+
+    // Crédit spéciale / aide : intérêts mensuels composés selon la logique historique
+    const monthlyRate = result.interestRate / 100
+    let remaining = result.amount
 
     for (let i = 0; i < result.duration; i++) {
       if (remaining <= 0) break
@@ -120,13 +184,11 @@ export default function ContractCreationModal({
       date.setMonth(date.getMonth() + i)
       const monthNum = i + 1
 
-      // 1. Calcul des intérêts sur le solde actuel
       const interest = remaining * monthlyRate
       const balanceWithInterest = remaining + interest
 
       let payment: number
       if (isCustom) {
-        // Simulation personnalisée : utiliser le montant prévu pour ce mois
         const planned = result.monthlyPayments.find((p) => p.month === monthNum) ?? result.monthlyPayments[i]
         payment = planned?.amount ?? 0
         if (payment >= balanceWithInterest) {
@@ -136,7 +198,6 @@ export default function ContractCreationModal({
           remaining = Math.max(0, customRound(balanceWithInterest - payment))
         }
       } else {
-        // Simulation standard ou proposée : une seule mensualité
         const monthlyPayment = 'monthlyPayment' in result ? result.monthlyPayment : 0
         if (monthlyPayment > balanceWithInterest) {
           payment = balanceWithInterest
@@ -155,13 +216,12 @@ export default function ContractCreationModal({
         date,
         payment: customRound(payment),
         interest: customRound(interest),
-        principal: customRound(balanceWithInterest),
         remaining: customRound(remaining),
       })
     }
 
     return items
-  }, [simulation])
+  }, [simulation, isFixedCredit])
 
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const referenceSchedule = useMemo(() => {
@@ -317,7 +377,7 @@ export default function ContractCreationModal({
       await new Promise(resolve => setTimeout(resolve, 500))
       onClose()
       // Rediriger vers les contrats ou rester sur la page des demandes
-      router.push(routes.admin.creditSpecialeContrats)
+      router.push(resolvedContractListPath)
     } catch (error: any) {
       console.error('Erreur lors de la création du contrat:', error)
       toast.error(error?.message || 'Erreur lors de la création du contrat')
@@ -449,7 +509,7 @@ export default function ContractCreationModal({
                         <TableHead>Mois</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Mensualité</TableHead>
-                        <TableHead className="text-right">Intérêts</TableHead>
+                        {!isFixedCredit && <TableHead className="text-right">Intérêts</TableHead>}
                         <TableHead className="text-right">Reste dû</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -461,7 +521,9 @@ export default function ContractCreationModal({
                           <TableCell className="font-medium">M{row.month}</TableCell>
                           <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                           <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                          <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                          {!isFixedCredit && (
+                            <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                          )}
                           <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                         </TableRow>
                       ))}
@@ -739,7 +801,7 @@ export default function ContractCreationModal({
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-[#234D65] flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Création du contrat de crédit spéciale
+            Création du contrat de crédit {creditTypeLabel}
           </DialogTitle>
           <DialogDescription>
             {getStepTitle()}
@@ -802,4 +864,3 @@ export default function ContractCreationModal({
     </Dialog>
   )
 }
-

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { 
   standardSimulationSchema, 
   customSimulationSchema,
@@ -30,7 +31,9 @@ import {
   Table as TableIcon,
   Download,
   Printer,
-  MessageCircle
+  MessageCircle,
+  LayoutGrid,
+  SlidersHorizontal,
 } from 'lucide-react'
 import type { CreditType, StandardSimulation, CustomSimulation } from '@/types/types'
 import {
@@ -42,6 +45,71 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
+import { CreditFixeSimulationSection } from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationSection'
+
+type SimulationTabValue = 'standard' | 'custom' | 'proposed'
+
+const simulationTabChips: { value: SimulationTabValue; label: string; icon: React.ReactNode }[] = [
+  { value: 'standard', label: 'Simulation standard', icon: <LayoutGrid className="w-4 h-4" /> },
+  { value: 'custom', label: 'Simulation personnalisée', icon: <SlidersHorizontal className="w-4 h-4" /> },
+  { value: 'proposed', label: 'Simulation proposée', icon: <TrendingUp className="w-4 h-4" /> },
+]
+
+function SimulationTypeBadgesCarousel({
+  value,
+  onChange,
+}: {
+  value: SimulationTabValue
+  onChange: (value: SimulationTabValue) => void
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const activeEl = scrollRef.current.querySelector(`[data-value="${value}"]`)
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, [value])
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-1 touch-pan-x"
+        style={{
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {simulationTabChips.map((chip) => {
+          const isActive = value === chip.value
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              data-value={chip.value}
+              onClick={() => onChange(chip.value)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-full border-2 font-medium text-sm whitespace-nowrap transition-all duration-200 shrink-0',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-kara-primary-dark',
+                'active:scale-95',
+                isActive
+                  ? 'bg-kara-primary-dark text-white border-kara-primary-dark shadow-lg shadow-kara-primary-dark/20'
+                  : 'bg-gray-100 text-gray-700 border-gray-200',
+                isActive && 'scale-105'
+              )}
+              style={{ scrollSnapAlign: 'center' }}
+            >
+              {chip.icon}
+              <span>{chip.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function CreditSimulationPage() {
   const [creditType, setCreditType] = useState<CreditType>('SPECIALE')
@@ -222,6 +290,9 @@ export default function CreditSimulationPage() {
         </CardContent>
       </Card>
 
+      {creditType === 'FIXE' ? (
+        <CreditFixeSimulationSection />
+      ) : (
       <Tabs value={simulationType} onValueChange={(v) => {
         setSimulationType(v as 'standard' | 'custom' | 'proposed')
         setShowResults(false)
@@ -229,11 +300,26 @@ export default function CreditSimulationPage() {
         setCustomResult(null)
         setProposedResult(null)
       }}>
-        <TabsList className="grid w-full grid-cols-3">
+        {/* Tabs - Vue desktop uniquement */}
+        <TabsList className="hidden md:grid w-full grid-cols-3">
           <TabsTrigger value="standard">Simulation standard</TabsTrigger>
           <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
           <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>
         </TabsList>
+
+        {/* Badges carousel - Vue mobile et tablette */}
+        <div className="md:hidden">
+          <SimulationTypeBadgesCarousel
+            value={simulationType}
+            onChange={(v) => {
+              setSimulationType(v)
+              setShowResults(false)
+              setStandardResult(null)
+              setCustomResult(null)
+              setProposedResult(null)
+            }}
+          />
+        </div>
 
         {/* Simulation standard */}
         <TabsContent value="standard" className="space-y-6">
@@ -335,14 +421,12 @@ export default function CreditSimulationPage() {
                     />
                   </div>
 
-                  {creditType !== 'FIXE' && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Limite de durée : {maxDuration} mois maximum pour un crédit {creditTypeLabel.toLowerCase()}
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Limite de durée : {maxDuration} mois maximum pour un crédit {creditTypeLabel.toLowerCase()}
+                    </AlertDescription>
+                  </Alert>
 
                   <Button
                     type="submit"
@@ -597,14 +681,12 @@ export default function CreditSimulationPage() {
                     />
                   </div>
 
-                  {creditType !== 'FIXE' && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Limite de durée : {creditType === 'SPECIALE' ? 7 : 3} mois maximum pour un crédit {creditType === 'SPECIALE' ? 'spéciale' : 'aide'}
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Limite de durée : {creditType === 'SPECIALE' ? 7 : 3} mois maximum pour un crédit {creditType === 'SPECIALE' ? 'spéciale' : 'aide'}
+                    </AlertDescription>
+                  </Alert>
 
                   <Button
                     type="submit"
@@ -639,6 +721,7 @@ export default function CreditSimulationPage() {
           )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   )
 }

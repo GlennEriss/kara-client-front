@@ -12,6 +12,7 @@ interface FiltersCIProps {
   filters: ContractsCIFilters
   onFiltersChange: (filters: ContractsCIFilters) => void
   onReset: () => void
+  subscriptions?: Array<{ id: string; code: string; label?: string }>
   /** Quand true, le filtre "Type de contrat" est pris en compte (ex. onglet "Tous"). Quand false, il est masqué ou désactivé (ex. onglet Journalier/Mensuel). */
   showPaymentFrequencyFilter?: boolean
 }
@@ -27,7 +28,13 @@ const PAYMENT_FREQUENCY_LABELS: Record<CaisseImprevuePaymentFrequency | 'all', s
   MONTHLY: 'Mensuel',
 }
 
-export default function FiltersCI({ filters, onFiltersChange, onReset, showPaymentFrequencyFilter = true }: FiltersCIProps) {
+export default function FiltersCI({
+  filters,
+  onFiltersChange,
+  onReset,
+  subscriptions,
+  showPaymentFrequencyFilter = true,
+}: FiltersCIProps) {
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
@@ -74,6 +81,25 @@ export default function FiltersCI({ filters, onFiltersChange, onReset, showPayme
 
             <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              value={filters.subscriptionCIID || 'all'}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...filters,
+                  subscriptionCIID: e.target.value === 'all' ? undefined : e.target.value,
+                })
+              }
+              title="Catégorie"
+            >
+              <option value="all">Toutes les catégories</option>
+              {subscriptions?.map((subscription) => (
+                <option key={subscription.id} value={subscription.id}>
+                  {subscription.code}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.status || 'all'}
               onChange={(e) => onFiltersChange({ ...filters, status: e.target.value as ContractCIStatus | 'all' })}
             >
@@ -97,4 +123,3 @@ export default function FiltersCI({ filters, onFiltersChange, onReset, showPayme
     </Card>
   )
 }
-

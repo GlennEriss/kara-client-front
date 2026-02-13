@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCreditContractsStats } from '@/hooks/useCreditSpeciale'
-import { CreditContractStatus } from '@/types/types'
+import { CreditContractStatus, CreditType } from '@/types/types'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 
 // Composant pour les statistiques modernes
@@ -137,14 +137,25 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
 interface StatisticsCreditContratsProps {
   status?: CreditContractStatus | 'all'
   overdueOnly?: boolean
+  creditType?: CreditType | 'all'
 }
 
-export default function StatisticsCreditContrats({ status, overdueOnly }: StatisticsCreditContratsProps = {}) {
-  const filters: CreditContractFilters | undefined = (status && status !== 'all') || overdueOnly
-    ? { status: status !== 'all' ? status : undefined, overdueOnly }
-    : undefined
+export default function StatisticsCreditContrats({ status, overdueOnly, creditType }: StatisticsCreditContratsProps = {}) {
+  const filters: CreditContractFilters = {}
+
+  if (status && status !== 'all') {
+    filters.status = status
+  }
+  if (overdueOnly) {
+    filters.overdueOnly = true
+  }
+  if (creditType && creditType !== 'all') {
+    filters.creditType = creditType
+  }
+
+  const hasFilters = Object.keys(filters).length > 0
   
-  const { data: stats, isLoading } = useCreditContractsStats(filters)
+  const { data: stats, isLoading } = useCreditContractsStats(hasFilters ? filters : undefined)
 
   const [itemsPerView, setItemsPerView] = useState(1)
   
@@ -308,4 +319,3 @@ export default function StatisticsCreditContrats({ status, overdueOnly }: Statis
     </div>
   )
 }
-

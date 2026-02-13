@@ -244,6 +244,11 @@ export class ContractCIRepository implements IContractCIRepository {
                 constraints.push(where("paymentFrequency", "==", filters.paymentFrequency));
             }
 
+            // Filtrer par catégorie/forfait si spécifié
+            if (filters?.subscriptionCIID) {
+                constraints.push(where("subscriptionCIID", "==", filters.subscriptionCIID));
+            }
+
             // Toujours trier par date de création décroissante
             constraints.push(orderBy("createdAt", "desc"));
 
@@ -305,9 +310,19 @@ export class ContractCIRepository implements IContractCIRepository {
 
             const constraints: any[] = [];
 
+            // Filtrer par statut si spécifié
+            if (filters?.status && filters.status !== 'all') {
+                constraints.push(where("status", "==", filters.status));
+            }
+
             // Filtrer par paymentFrequency si spécifié
             if (filters?.paymentFrequency && filters.paymentFrequency !== 'all') {
                 constraints.push(where("paymentFrequency", "==", filters.paymentFrequency));
+            }
+
+            // Filtrer par catégorie/forfait si spécifié
+            if (filters?.subscriptionCIID) {
+                constraints.push(where("subscriptionCIID", "==", filters.subscriptionCIID));
             }
 
             const q = constraints.length > 0
@@ -447,4 +462,3 @@ export class ContractCIRepository implements IContractCIRepository {
         return overdueContracts;
     }
 }
-

@@ -1,0 +1,136 @@
+@startuml DemandesCreditFixe
+title Workflow : Gestion des Demandes Credit Fixe
+
+start
+
+:Admin ouvre la page Demandes Credit Fixe;
+:Admin clique sur "Nouvelle demande";
+
+#Turquoise:**Creation de la demande**;
+
+:Admin recherche et selectionne un membre;
+:Informations du membre chargees automatiquement;
+
+:Admin saisit:
+- type de credit = **FIXE**
+- montant demande
+- date souhaitee
+- motif de la demande;
+
+if (Montant entre 1 000 et 10 000 000 FCFA ?) then (oui)
+else (non)
+  :Afficher erreur "Le montant doit etre entre 1 000 et 10 000 000 FCFA";
+  stop
+endif
+
+if (Motif entre 10 et 500 caracteres ?) then (oui)
+else (non)
+  :Afficher erreur "Le motif doit contenir entre 10 et 500 caracteres";
+  stop
+endif
+
+:Admin recherche et selectionne un garant;
+note right
+  Le garant peut etre membre
+  ou personne externe.
+  Si membre : recherche par matricule/nom.
+  Si externe : saisie manuelle.
+end note
+
+if (Garant selectionne ?) then (oui)
+else (non)
+  :Afficher erreur "Le garant est obligatoire";
+  stop
+endif
+
+:Admin valide la creation;
+
+:Service genere l'ID :
+MK_DEMANDE_CF_{matricule}_{date}_{heure};
+
+:Score initial calcule a partir
+de l'historique credit du membre;
+
+:Demande creee en statut **PENDING**
+dans Firestore (creditDemands);
+
+:Notification envoyee;
+
+:Admin redirige vers la liste des demandes;
+
+#Turquoise:**Consultation et filtrage**;
+
+:Admin consulte la liste des demandes;
+
+:Filtres disponibles :
+- Statut (PENDING / APPROVED / REJECTED)
+- Type de credit (SPECIALE / FIXE / AIDE)
+- Client
+- Garant
+- Plage de dates;
+
+:Admin peut basculer vue Grille / Liste;
+
+:Admin clique sur une demande
+pour voir les details;
+
+#Turquoise:**Traitement de la demande**;
+
+if (Demande en statut PENDING ?) then (oui)
+  :Admin peut :
+  - Modifier les details
+  - Approuver
+  - Rejeter
+  - Supprimer;
+
+  if (Action = Modifier ?) then (oui)
+    :Admin modifie les champs editables;
+    :Mise a jour en base (PENDING uniquement);
+  elseif (Action = Approuver ?) then (oui)
+    :Admin confirme l'approbation;
+    :Statut passe a **APPROVED**;
+    :Notification envoyee;
+    :Bouton "Creer le contrat" disponible;
+  elseif (Action = Rejeter ?) then (oui)
+    :Admin saisit un commentaire de refus;
+    :Statut passe a **REJECTED**;
+    :Notification envoyee;
+  elseif (Action = Supprimer ?) then (oui)
+    if (Aucun contrat lie ?) then (oui)
+      :Demande supprimee de Firestore;
+    else (non)
+      :Afficher erreur "Impossible de supprimer :
+      un contrat est lie a cette demande";
+    endif
+  endif
+
+elseif (Demande REJECTED ?) then (oui)
+  :Admin peut reouvrir la demande;
+  :Statut repasse a **PENDING**;
+
+elseif (Demande APPROVED ?) then (oui)
+  if (Aucun contrat lie ?) then (oui)
+    :Admin peut creer le contrat;
+    :Lancement du flux de creation
+    de contrat Credit Fixe;
+    note right
+      Ouvre CreditFixeSimulationModal
+      puis CreditFixeContractCreationModal.
+      Le contrat cree est lie a la demande
+      via contractId (relation 1:1).
+    end note
+  else (non)
+    :Contrat deja cree;
+    :Lien vers le contrat existant;
+  endif
+endif
+
+#Turquoise:**Export**;
+
+:Admin peut exporter la liste :
+- Excel
+- PDF;
+
+stop
+
+@enduml

@@ -309,11 +309,28 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
   }
 
   const caisseType = contract?.caisseType
+  const isDailyType = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
   const isChangeable =
     caisseType === 'LIBRE' ||
     caisseType === 'JOURNALIERE' ||
     caisseType === 'LIBRE_CHARITABLE' ||
     caisseType === 'JOURNALIERE_CHARITABLE'
+
+  const shiftOneMonthForDailyType = (date: any) => {
+    if (!isDailyType || !date) return date
+    try {
+      const baseDate = date?.toDate ? date.toDate() : new Date(date)
+      if (isNaN(baseDate.getTime())) return date
+      const shifted = new Date(baseDate)
+      shifted.setMonth(shifted.getMonth() + 1)
+      return shifted
+    } catch {
+      return date
+    }
+  }
+
+  const displayFirstPaymentDate = shiftOneMonthForDailyType(contract?.firstPaymentDate)
+  const displayLastPaymentDate = shiftOneMonthForDailyType(contract?.lastPaymentDate)
   const memberFullName = `${contract?.member?.lastName ?? ''} ${contract?.member?.firstName ?? ''}`.trim() || '—'
   const memberAddress = contract?.member?.address?.district || '—'
   const memberPhones =
@@ -600,10 +617,10 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={styles.articleTitle}>ARTICLE 2 : DUREE DU CONTRAT</Text>
         <Text style={styles.paragraphIndented}>Que cet engagement est valable pour une durée de {durationMonths} mois ;</Text>
         <Text style={styles.paragraphIndented}>
-          Qu’il a été Conclu en date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(contract?.firstPaymentDate)}</Text>  et prend donc fin en
+          Qu’il a été Conclu en date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayFirstPaymentDate)}</Text>  et prend donc fin en
         </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          Date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(contract?.lastPaymentDate)}</Text> 
+          Date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayLastPaymentDate)}</Text> 
         </Text>
 <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
         </Text>
@@ -633,7 +650,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
           </>
         )}
         <Text style={[styles.paragraphIndented, { marginTop: 6 }]}>
-          A l’échéance prévue pour le <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(contract?.firstPaymentDate)}</Text>. Et ce
+          A l’échéance prévue pour le <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayFirstPaymentDate)}</Text>. Et ce
         </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
       </Page>

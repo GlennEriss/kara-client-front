@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -23,12 +23,16 @@ interface CreateCreditDemandModalProps {
   isOpen: boolean
   onClose: () => void
   initialClientId?: string
+  initialCreditType?: 'SPECIALE' | 'FIXE' | 'AIDE'
+  lockCreditType?: boolean
 }
 
 export default function CreateCreditDemandModal({ 
   isOpen, 
   onClose, 
-  initialClientId 
+  initialClientId,
+  initialCreditType,
+  lockCreditType = false,
 }: CreateCreditDemandModalProps) {
   const { create } = useCreditDemandMutations()
   const { data: membersData } = useAllMembers({}, 1, 1000)
@@ -44,12 +48,27 @@ export default function CreateCreditDemandModal({
     defaultValues: {
       ...creditDemandDefaultValues,
       clientId: initialClientId || '',
-      creditType: 'SPECIALE',
+      creditType: initialCreditType || 'SPECIALE',
       status: 'PENDING',
       clientContacts: [],
       guarantorIsMember: false,
     },
   })
+
+  useEffect(() => {
+    if (isOpen && initialCreditType) {
+      form.setValue('creditType', initialCreditType, { shouldValidate: true })
+    }
+  }, [form, initialCreditType, isOpen])
+
+  const selectedCreditType = form.watch('creditType')
+  const isFixedCredit = selectedCreditType === 'FIXE'
+
+  useEffect(() => {
+    if (isFixedCredit) {
+      form.setValue('monthlyPaymentAmount', undefined, { shouldValidate: true })
+    }
+  }, [form, isFixedCredit])
 
   // Recherche de membres
   const [clientSearch, setClientSearch] = useState('')
@@ -105,6 +124,7 @@ export default function CreateCreditDemandModal({
       
       await create.mutateAsync({
         ...data,
+        monthlyPaymentAmount: data.creditType === 'FIXE' ? undefined : data.monthlyPaymentAmount,
         createdBy: user.uid,
         guarantorIsMember: data.guarantorIsMember ?? false,
       })
@@ -142,7 +162,7 @@ export default function CreateCreditDemandModal({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Type de crédit</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={lockCreditType}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Sélectionnez un type" />
@@ -155,6 +175,9 @@ export default function CreateCreditDemandModal({
                         </SelectContent>
                       </Select>
                       <FormDescription>
+                        {lockCreditType
+                          ? 'Type verrouillé pour ce module. '
+                          : ''}
                         {form.watch('creditType') === 'SPECIALE' && 'Crédit spéciale : durée maximale de 7 mois'}
                         {form.watch('creditType') === 'FIXE' && 'Crédit fixe : durée illimitée jusqu\'au remboursement complet'}
                         {form.watch('creditType') === 'AIDE' && 'Crédit aide : durée maximale de 3 mois'}
@@ -257,25 +280,27 @@ export default function CreateCreditDemandModal({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="monthlyPaymentAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Ex: 100000"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
-                            value={field.value || ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {!isFixedCredit && (
+                    <FormField
+                      control={form.control}
+                      name="monthlyPaymentAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Ex: 100000"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   <FormField
                     control={form.control}
@@ -431,4 +456,3 @@ export default function CreateCreditDemandModal({
     </Dialog>
   )
 }
-
