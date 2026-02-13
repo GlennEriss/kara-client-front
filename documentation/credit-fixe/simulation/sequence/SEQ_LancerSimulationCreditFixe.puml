@@ -1,0 +1,102 @@
+@startuml SEQ_LancerSimulationCreditFixe
+title Sequence : Lancer une simulation Credit Fixe (Standard / Personnalisee)
+' Reference activite : simulation/activite/SimulationCreditFixe.puml
+' Architecture cible : Page -> Domain Component -> Domain Hook -> Domain Service -> Export Service
+
+actor "Admin" as Admin
+participant "Simulation Page\n(app/(admin)/credit-speciale/simulation)" as Page
+
+box "domains/financial/credit-speciale/fixe/simulation" #E8F4FD
+  participant "CreditFixeSimulationSection\n(Domain Component)" as Component
+  participant "useCreditFixeSimulation\n(Domain Hook)" as Hook
+  participant "CreditFixeSimulationService\n(Domain Service)" as SimService
+  participant "SimulationExportService\n(Domain Service)" as ExportService
+end box
+
+Admin -> Page: Ouvre la page Simulation Credit Fixe
+activate Page
+
+Page -> Component: Render formulaire + zone resultats
+activate Component
+
+Component --> Admin: Afficher champs (montant, date 1er versement, taux, type simulation)
+Admin -> Component: Saisit les informations et clique "Calculer"
+
+Component -> Hook: runSimulation(input)
+activate Hook
+
+Hook -> SimService: calculate(input)
+activate SimService
+SimService -> SimService: Valider taux (0..50) et max 14 mois
+
+alt Input invalide
+  SimService --> Hook: Error(validation)
+  Hook --> Component: setError(message)
+  Component --> Admin: Afficher erreur de validation
+else Input valide
+  alt Simulation standard
+    SimService -> SimService: M = C + (C * T / 100)
+    SimService -> SimService: Repartir M sur 14 echeances max
+    SimService -> SimService: Ajuster derniere echeance
+  else Simulation personnalisee
+    SimService -> SimService: M = C + (C * T / 100)
+    SimService -> SimService: Verifier mensualites <= 14 mois
+    SimService -> SimService: Calculer reste a planifier ou depassement
+  end
+
+  SimService --> Hook: FixedSimulationResult(rows, totals, summary)
+  deactivate SimService
+  Hook --> Component: result
+  deactivate Hook
+  Component --> Admin: Afficher echeancier + totaux + actions (PDF/Excel/Imprimer/WhatsApp)
+end
+
+== Actions post-simulation ==
+
+alt Export PDF
+  Admin -> Component: Clique "Exporter PDF"
+  Component -> ExportService: exportPdf(result)
+  activate ExportService
+  ExportService --> Component: Fichier PDF genere
+  deactivate ExportService
+  Component --> Admin: Telechargement PDF
+end
+
+alt Export Excel
+  Admin -> Component: Clique "Exporter Excel"
+  Component -> ExportService: exportExcel(result)
+  activate ExportService
+  ExportService --> Component: Fichier Excel genere
+  deactivate ExportService
+  Component --> Admin: Telechargement Excel
+end
+
+alt Impression
+  Admin -> Component: Clique "Imprimer"
+  Component -> ExportService: print(result)
+  activate ExportService
+  ExportService --> Component: Vue impression prete
+  deactivate ExportService
+  Component --> Admin: Lancement window.print()
+end
+
+alt WhatsApp
+  Admin -> Component: Clique "Partager WhatsApp"
+  Component -> ExportService: buildWhatsAppMessage(result)
+  activate ExportService
+  ExportService --> Component: Message + lien wa.me
+  deactivate ExportService
+  Component --> Admin: Ouvrir WhatsApp
+end
+
+deactivate Component
+deactivate Page
+
+note over Admin, ExportService
+  Cette sequence suit l'approche domains :
+  - la logique metier reste dans SimService
+  - la logique technique d'export reste dans ExportService
+  - le composant se limite a l'orchestration UI
+end note
+
+@enduml

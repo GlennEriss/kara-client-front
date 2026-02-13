@@ -1,0 +1,73 @@
+@startuml SimulationCreditFixe
+title Workflow : Simulation Credit Fixe (Standard + Personnalisee)
+
+start
+
+:Admin ouvre le module Simulation Credit Fixe;
+:Membre communique montant a emprunter et date du 1er versement;
+
+:Admin saisit:
+- montant emprunte
+- date du 1er versement
+- taux d'interet;
+
+if (Taux entre 0 et 50 ?) then (oui)
+else (non)
+  :Afficher erreur "Le taux doit etre entre 0 et 50%";
+  stop
+endif
+
+:Admin choisit le type de simulation;
+
+if (Type = Standard ?) then (oui)
+  :Calcul interet unique = capital * taux / 100;
+  :Calcul montant global = capital + interet;
+  :Repartir montant global sur 14 echeances;
+  :Ajuster la derniere echeance pour respecter le total;
+  :Afficher echeancier standard (14 mois);
+else (non = Personnalisee)
+  :Admin saisit les montants mensuels proposes par le membre;
+  if (Nombre de mois <= 14 ?) then (oui)
+  else (non)
+    :Afficher erreur "Maximum 14 mois";
+    stop
+  endif
+
+  :Calcul interet unique = capital * taux / 100;
+  :Calcul montant global = capital + interet;
+  :Calcul somme des montants saisis;
+
+  if (Somme < montant global ?) then (oui)
+    :Afficher le reste a planifier;
+  elseif (Somme > montant global ?) then (oui)
+    :Afficher alerte de depassement;
+    :Ajuster ou corriger la derniere ligne;
+  else (egal)
+    :Validation du plan personnalise;
+  endif
+
+  :Afficher echeancier personnalise (<= 14 mois);
+endif
+
+:Admin choisit une action de sortie;
+
+if (Exporter PDF ?) then (oui)
+  :Generer PDF de simulation;
+endif
+
+if (Exporter Excel ?) then (oui)
+  :Generer fichier Excel;
+endif
+
+if (Imprimer ?) then (oui)
+  :Ouvrir vue impression;
+endif
+
+if (Envoyer WhatsApp ?) then (oui)
+  :Preparer message WhatsApp avec resume simulation;
+  :Inclure le lien PDF si disponible;
+endif
+
+stop
+
+@enduml
