@@ -1,0 +1,49 @@
+@startuml
+
+title Sequence - Changer filtres ou tab dashboard
+
+autonumber
+
+actor Admin
+participant "DashboardFiltersBar" as Filters
+participant "DashboardTabs" as Tabs
+participant "DashboardPage" as UI
+participant "useDashboard" as Hook
+participant "ReactQuery Cache" as Cache
+participant "DashboardAggregationService" as Service
+participant "DashboardAggregateRepo" as Repo
+participant "Cloud Function\ngetDashboardSnapshot" as CF
+
+alt Changement de tab
+  Admin -> Tabs : Clique tab module (ex: Caisse speciale)
+  Tabs -> UI : onTabChange(newTab)
+  UI -> Hook : refetch(newTab, currentFilters)
+else Changement de filtres
+  Admin -> Filters : Modifie periode/module/zone/type membre
+  Filters -> UI : onFiltersChanged(newFilters)
+  UI -> Hook : refetch(activeTab, newFilters)
+end
+
+Hook -> Cache : get(newQueryKey)
+alt Nouveau queryKey en cache
+  Cache --> Hook : snapshot deja calcule
+  Hook --> UI : render(snapshot)
+  UI --> Admin : Tab actif mis a jour
+else Pas de cache
+  Hook -> Service : getSnapshot(activeTab, filters)
+  Service -> Repo : getAggregate(periodKey, filtersHash, activeTab)
+
+  alt Snapshot present
+    Repo --> Service : snapshot
+  else Snapshot absent
+    Service -> CF : getDashboardSnapshot(activeTab, filters)
+    CF --> Service : snapshot
+  end
+
+  Service --> Hook : snapshot
+  Hook -> Cache : set(newQueryKey, snapshot)
+  Hook --> UI : render(snapshot)
+  UI --> Admin : Tab actif mis a jour
+end
+
+@enduml

@@ -1,8 +1,6 @@
-import Dashboard from '@/components/dashboard/Dashboard'
 import React from 'react'
+import DashboardPage from '@/domains/dashboard/components/DashboardPage'
 
-export default function page() {
-  return (
-    <Dashboard/>
-  )
+export default function Page() {
+  return <DashboardPage />
 }

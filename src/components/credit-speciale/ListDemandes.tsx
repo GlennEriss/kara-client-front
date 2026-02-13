@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -59,6 +59,72 @@ import { Shield, CheckCircle2 } from 'lucide-react'
 type ViewMode = 'grid' | 'list'
 type DemandTab = 'all' | 'pending' | 'approved' | 'rejected'
 type CreditTypeFilter = CreditType | 'all'
+
+/** Carousel de badges pour les onglets (vue mobile), comme credit-fixe/simulation et caisse-speciale/demandes */
+function DemandTabBadgesCarousel({
+  value,
+  onChange,
+  stats,
+}: {
+  value: DemandTab
+  onChange: (tab: DemandTab) => void
+  stats: { total: number; pending: number; approved: number; rejected: number }
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const activeEl = scrollRef.current.querySelector(`[data-value="${value}"]`)
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, [value])
+
+  const tabs: { value: DemandTab; label: string; icon: React.ReactNode; count: number }[] = [
+    { value: 'all', label: 'Toutes', icon: <FileText className="w-4 h-4" />, count: stats.total },
+    { value: 'pending', label: 'En attente', icon: <Clock className="w-4 h-4" />, count: stats.pending },
+    { value: 'approved', label: 'Approuvées', icon: <CheckCircle className="w-4 h-4" />, count: stats.approved },
+    { value: 'rejected', label: 'Rejetées', icon: <XCircle className="w-4 h-4" />, count: stats.rejected },
+  ]
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-1 touch-pan-x"
+        style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}
+      >
+        {tabs.map((tab) => {
+          const isActive = value === tab.value
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              data-value={tab.value}
+              onClick={() => onChange(tab.value)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-full border-2 font-medium text-sm whitespace-nowrap transition-all duration-200 shrink-0',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-kara-primary-dark',
+                'active:scale-95',
+                isActive
+                  ? 'bg-kara-primary-dark text-white border-kara-primary-dark shadow-lg shadow-kara-primary-dark/20'
+                  : 'bg-gray-100 text-gray-700 border-gray-200',
+                isActive && 'scale-105'
+              )}
+              style={{ scrollSnapAlign: 'center' }}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              <span className={cn('ml-1 px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center', isActive ? 'bg-white/30' : 'bg-white/80 text-gray-700')}>
+                {tab.count > 99 ? '99+' : tab.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 interface DemandFiltersState {
   search: string
@@ -740,7 +806,8 @@ const ListDemandes = ({
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par statut */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
+        {/* Tabs - Vue desktop uniquement */}
+        <TabsList className="hidden md:grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Toutes ({stats.total})
@@ -758,6 +825,15 @@ const ListDemandes = ({
             Rejetées ({stats.rejected})
           </TabsTrigger>
         </TabsList>
+
+        {/* Badges carousel - Vue mobile et tablette */}
+        <div className="md:hidden">
+          <DemandTabBadgesCarousel
+            value={activeTab}
+            onChange={(tab) => setActiveTab(tab)}
+            stats={stats}
+          />
+        </div>
       </Tabs>
 
       {/* Statistiques */}
