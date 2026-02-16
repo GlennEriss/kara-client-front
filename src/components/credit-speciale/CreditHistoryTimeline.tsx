@@ -29,6 +29,18 @@ import { fr } from 'date-fns/locale'
 import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, Notification } from '@/types/types'
 import { useCreditHistory } from '@/hooks/useCreditSpeciale'
 
+const PAYMENT_MODE_LABELS: Record<string, string> = {
+  airtel_money: 'Airtel Money',
+  mobicash: 'Mobicash',
+  cash: 'Espèce',
+  bank_transfer: 'Virement bancaire',
+  CASH: 'Espèces',
+  MOBILE_MONEY: 'Mobile Money',
+  BANK_TRANSFER: 'Virement bancaire',
+  CHEQUE: 'Chèque',
+}
+const getPaymentModeLabel = (mode: string) => PAYMENT_MODE_LABELS[mode] ?? mode
+
 interface CreditHistoryTimelineProps {
   contractId: string
 }
@@ -241,7 +253,7 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
         type: 'payment',
         date: paymentDate,
         title: `Paiement de ${payment.amount.toLocaleString('fr-FR')} FCFA`,
-        description: `Paiement effectué par ${payment.mode}${payment.reference ? ` - Réf: ${payment.reference}` : ''}`,
+        description: `Paiement effectué par ${getPaymentModeLabel(payment.mode)}${payment.reference ? ` - Réf: ${payment.reference}` : ''}`,
         icon: DollarSign,
         color: '#10b981',
         badge: 'PAYÉ',

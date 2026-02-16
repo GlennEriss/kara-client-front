@@ -1475,6 +1475,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             };
 
             const paymentModeLabels: Record<string, string> = {
+                airtel_money: 'Airtel Money',
+                mobicash: 'Mobicash',
+                cash: 'Espèce',
+                bank_transfer: 'Virement bancaire',
                 CASH: 'Espèces',
                 MOBILE_MONEY: 'Mobile Money',
                 BANK_TRANSFER: 'Virement bancaire',
@@ -3004,7 +3008,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         penaltyAmount: 0,
                         paymentDate: new Date(),
                         paymentTime: `${hours}:${minutes}`,
-                        mode: 'CASH',
+                        mode: 'cash',
                         comment: `Transfert de la première échéance du contrat parent ${parentContractId}`,
                         createdBy: adminId,
                     }, transferPaymentId);

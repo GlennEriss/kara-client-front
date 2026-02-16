@@ -152,7 +152,8 @@ export type CreditDemandFormInput = z.infer<typeof creditDemandFormSchema>
 
 // ================== SCHÉMA PAIEMENT ==================
 
-export const creditPaymentModeEnum = z.enum(['CASH', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHEQUE'])
+// Aligné sur caisse spéciale / caisse imprévue : Airtel Money, Mobicash, Espèce, Virement bancaire
+export const creditPaymentModeEnum = z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer'])
 
 export const creditPaymentSchema = z.object({
   creditId: z.string().min(1, 'L\'ID du crédit est requis'),
@@ -391,7 +392,7 @@ export const creditDemandDefaultValues: Partial<CreditDemandFormInput> = {
 export const creditPaymentDefaultValues: Partial<CreditPaymentFormData> = {
   paymentDate: new Date(),
   paymentTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-  mode: 'CASH',
+  mode: 'airtel_money',
 }
 
 // ================== SCHÉMAS CLÔTURE DE CONTRAT ==================

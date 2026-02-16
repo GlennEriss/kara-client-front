@@ -175,10 +175,10 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
                 total: payments.length,
                 totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
                 byMode: {
-                    cash: payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + p.amount, 0),
-                    mobile_money: payments.filter(p => p.mode === 'MOBILE_MONEY').reduce((sum, p) => sum + p.amount, 0),
-                    bank_transfer: payments.filter(p => p.mode === 'BANK_TRANSFER').reduce((sum, p) => sum + p.amount, 0),
-                    cheque: payments.filter(p => p.mode === 'CHEQUE').reduce((sum, p) => sum + p.amount, 0),
+                    cash: payments.filter(p => (p.mode as string) === 'cash' || (p.mode as string) === 'CASH').reduce((sum, p) => sum + p.amount, 0),
+                    mobile_money: payments.filter(p => (p.mode as string) === 'airtel_money' || (p.mode as string) === 'mobicash' || (p.mode as string) === 'MOBILE_MONEY').reduce((sum, p) => sum + p.amount, 0),
+                    bank_transfer: payments.filter(p => (p.mode as string) === 'bank_transfer' || (p.mode as string) === 'BANK_TRANSFER').reduce((sum, p) => sum + p.amount, 0),
+                    cheque: payments.filter(p => (p.mode as string) === 'CHEQUE').reduce((sum, p) => sum + p.amount, 0),
                 },
             };
 

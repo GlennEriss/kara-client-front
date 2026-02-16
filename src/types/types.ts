@@ -1473,9 +1473,9 @@ export type CreditContractStatus =
   | 'EXTENDED'         // Étendu (remplacé par une augmentation de crédit)
 
 /**
- * Moyen de paiement pour crédit spéciale
+ * Moyen de paiement pour crédit spéciale (aligné sur caisse spéciale / caisse imprévue)
  */
-export type CreditPaymentMode = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CHEQUE'
+export type CreditPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
 
 /**
  * Type pour une demande de crédit

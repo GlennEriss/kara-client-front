@@ -64,6 +64,18 @@ interface CreditContractDetailProps {
   contractDetailsBasePath?: string
 }
 
+// Libellés moyen de paiement (alignés caisse spéciale + rétrocompatibilité)
+const CREDIT_PAYMENT_MODE_LABELS: Record<string, string> = {
+  airtel_money: 'Airtel Money',
+  mobicash: 'Mobicash',
+  cash: 'Espèce',
+  bank_transfer: 'Virement bancaire',
+  CASH: 'Espèces',
+  MOBILE_MONEY: 'Mobile Money',
+  BANK_TRANSFER: 'Virement bancaire',
+  CHEQUE: 'Chèque',
+}
+
 // Fonction d'arrondi personnalisée
 const customRound = (num: number): number => {
   const decimal = num - Math.floor(num)
@@ -1918,7 +1930,7 @@ export default function CreditContractDetail({
                                     <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                       Pénalités uniquement
                                     </Badge>
-                                    <span>Mode : {payment.mode}</span>
+                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}</span>
                                     {payment.note !== undefined && (
                                       <span>Note pénalités : {payment.note}/10</span>
                                     )}
@@ -1926,7 +1938,7 @@ export default function CreditContractDetail({
                                 ) : (
                                   <>
                                     <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                                    <span>Mode : {payment.mode}</span>
+                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}</span>
                                     {payment.note !== undefined && (
                                       <span>Note : {payment.note}/10</span>
                                     )}
