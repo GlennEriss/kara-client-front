@@ -36,8 +36,9 @@ import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditContractStatus } from '@/types/types'
 import routes from '@/constantes/routes'
 import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
+import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useGuarantorPaymentsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
 import CreditPaymentModal from './CreditPaymentModal'
+import GuarantorPaymentModal from './GuarantorPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
 import PaymentSummaryModal from './PaymentSummaryModal'
 import CreditExtensionModal from './CreditExtensionModal'
@@ -437,6 +438,8 @@ export default function CreditContractDetail({
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
   const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
+  const { data: guarantorPayments = [], isLoading: isLoadingGuarantorPayments } = useGuarantorPaymentsByCreditId(contract.id)
+  const [showGuarantorPaymentModal, setShowGuarantorPaymentModal] = useState(false)
   const queryClient = useQueryClient()
 
   // Vérifier et créer les pénalités manquantes au chargement
@@ -2374,6 +2377,63 @@ export default function CreditContractDetail({
                         </div>
                       </div>
                     )}
+
+                      {/* Paiement au garant */}
+                      <div className="border-t pt-6 mt-6">
+                        <h4 className="font-semibold mb-1">Paiement au garant</h4>
+                        <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={() => setShowGuarantorPaymentModal(true)}
+                        >
+                          <HandCoins className="h-4 w-4 mr-2" />
+                          Enregistrer un paiement au garant
+                        </Button>
+                        {/* Historique des paiements au garant */}
+                        <div className="mt-4">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Historique des paiements au garant</h5>
+                          {isLoadingGuarantorPayments ? (
+                            <p className="text-sm text-gray-500">Chargement...</p>
+                          ) : guarantorPayments.length === 0 ? (
+                            <p className="text-sm text-gray-500">Aucun paiement enregistré</p>
+                          ) : (
+                            <div className="border rounded-lg overflow-hidden">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead className="text-right">Montant</TableHead>
+                                    <TableHead>Moyen</TableHead>
+                                    <TableHead>Preuve</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {guarantorPayments.map((gp) => (
+                                    <TableRow key={gp.id}>
+                                      <TableCell>
+                                        {format(new Date(gp.paymentDate), 'dd/MM/yyyy', { locale: fr })} à {gp.paymentTime}
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium">{gp.amount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell>{CREDIT_PAYMENT_MODE_LABELS[gp.mode] ?? gp.mode}</TableCell>
+                                      <TableCell>
+                                        {gp.proofUrl ? (
+                                          <a href={gp.proofUrl} target="_blank" rel="noopener noreferrer" className="text-[#234D65] hover:underline text-sm">
+                                            Voir
+                                          </a>
+                                        ) : (
+                                          <span className="text-gray-400">—</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2658,6 +2718,14 @@ export default function CreditContractDetail({
           console.log('[CreditContractDetail] Refetch terminé - Payments:', paymentsResult, 'Installments:', installmentsResult, 'Contract:', contractResult)
           setSelectedDueIndex(null)
           setPenaltyOnlyMode(false)
+        }}
+      />
+      <GuarantorPaymentModal
+        isOpen={showGuarantorPaymentModal}
+        onClose={() => setShowGuarantorPaymentModal(false)}
+        creditId={contract.id}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', contract.id] })
         }}
       />
       {((getSelectedPaymentForReceipt() && selectedDueIndexForReceipt !== null) || selectedPayment) && (

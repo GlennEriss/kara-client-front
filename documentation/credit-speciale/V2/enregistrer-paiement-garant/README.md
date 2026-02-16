@@ -1,7 +1,7 @@
 # Enregistrer le paiement au garant – Crédit Spéciale V2
 
 > Documentation de la fonctionnalité **Enregistrer le paiement au garant** sur la page détail d’un contrat crédit spéciale (`/credit-speciale/contrats/[id]`), onglet **Commission du garant**.  
-> **Statut :** réflexion / spécification (implémentation à faire après validation).
+> **Statut :** spécification + implémentation réalisée.
 
 ---
 
@@ -246,7 +246,7 @@ Les repositories restent dans **`src/repositories/credit-speciale/`** et sont ut
 - [ ] Créer les **hooks du domaine** dans `contrats/hooks/` : `useGuarantorPaymentsByCreditId`, mutation d’enregistrement + invalidation des queries.
 - [ ] Créer le modal **GuarantorPaymentModal** dans `src/components/credit-speciale/` (formulaire date, heure, montant, mode, preuve, référence, commentaire) ; il utilise les hooks du domaine.
 - [ ] Dans **CreditContractDetail.tsx**, onglet Commission du garant : ajouter le bloc « Paiement au garant » + bouton + section « Historique des paiements au garant » (données via hook du domaine).
-- [ ] Règles Firestore et Storage pour `guarantorPayments` et le chemin Storage des preuves.
+- [ ] Règles Firestore et Storage pour `guarantorPayments` et le chemin `credit/{creditId}/guarantor-payments/*` (aligner sur règles crédit). Index composite si besoin : `creditId` + `createdAt` (desc).
 - [ ] Tests manuels : enregistrer un paiement avec/sans preuve, vérifier l’affichage de l’historique.
 
 ---
