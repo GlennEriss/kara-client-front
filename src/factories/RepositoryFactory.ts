@@ -29,12 +29,14 @@ import { ICreditPaymentRepository } from '@/repositories/credit-speciale/ICredit
 import { ICreditPenaltyRepository } from '@/repositories/credit-speciale/ICreditPenaltyRepository'
 import { ICreditInstallmentRepository } from '@/repositories/credit-speciale/ICreditInstallmentRepository'
 import { IGuarantorRemunerationRepository } from '@/repositories/credit-speciale/IGuarantorRemunerationRepository'
+import { IGuarantorPaymentRepository } from '@/repositories/credit-speciale/IGuarantorPaymentRepository'
 import { CreditDemandRepository } from '@/repositories/credit-speciale/CreditDemandRepository'
 import { CreditContractRepository } from '@/repositories/credit-speciale/CreditContractRepository'
 import { CreditPaymentRepository } from '@/repositories/credit-speciale/CreditPaymentRepository'
 import { CreditPenaltyRepository } from '@/repositories/credit-speciale/CreditPenaltyRepository'
 import { CreditInstallmentRepository } from '@/repositories/credit-speciale/CreditInstallmentRepository'
 import { GuarantorRemunerationRepository } from '@/repositories/credit-speciale/GuarantorRemunerationRepository'
+import { GuarantorPaymentRepository } from '@/repositories/credit-speciale/GuarantorPaymentRepository'
 import { ICaisseSpecialeDemandRepository } from '@/repositories/caisse-speciale/ICaisseSpecialeDemandRepository'
 import { CaisseSpecialeDemandRepository } from '@/repositories/caisse-speciale/CaisseSpecialeDemandRepository'
 import { IPlacementDemandRepository } from '@/repositories/placement/IPlacementDemandRepository'
@@ -334,6 +336,14 @@ export class RepositoryFactory {
       this.repositories.set(key, new GuarantorRemunerationRepository())
     }
     return this.repositories.get(key) as IGuarantorRemunerationRepository
+  }
+
+  static getGuarantorPaymentRepository(): IGuarantorPaymentRepository {
+    const key = 'GuarantorPaymentRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new GuarantorPaymentRepository())
+    }
+    return this.repositories.get(key) as IGuarantorPaymentRepository
   }
 
   /**

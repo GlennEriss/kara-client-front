@@ -9,6 +9,7 @@ import type {
     CreditPenalty,
     CreditInstallment,
     GuarantorRemuneration,
+    GuarantorPayment,
     CreditDemandStatus,
     CreditContractStatus,
     StandardSimulation,
@@ -482,6 +483,60 @@ export function useGuarantorRemunerationsByGuarantorId(guarantorId: string) {
         queryFn: () => service.getRemunerationsByGuarantorId(guarantorId),
         enabled: !!guarantorId,
         staleTime: 2 * 60 * 1000,
+    })
+}
+
+// ==================== PAIEMENTS AU GARANT ====================
+
+export function useGuarantorPaymentsByCreditId(creditId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    return useQuery<GuarantorPayment[]>({
+        queryKey: ['guarantorPayments', 'creditId', creditId],
+        queryFn: () => service.getGuarantorPaymentsByCreditId(creditId),
+        enabled: !!creditId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
+export function useRecordGuarantorPayment() {
+    const qc = useQueryClient()
+    const { user } = useAuth()
+    const service = ServiceFactory.getCreditSpecialeService()
+
+    return useMutation({
+        mutationFn: (params: {
+            creditId: string
+            paymentDate: Date
+            paymentTime: string
+            amount: number
+            mode: GuarantorPayment['mode']
+            reference?: string
+            comment?: string
+            proofFile?: File
+        }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.recordGuarantorPayment(
+                params.creditId,
+                {
+                    paymentDate: params.paymentDate,
+                    paymentTime: params.paymentTime,
+                    amount: params.amount,
+                    mode: params.mode,
+                    reference: params.reference,
+                    comment: params.comment,
+                },
+                params.proofFile,
+                user.uid
+            )
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', variables.creditId] })
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.creditId] })
+            toast.success('Paiement au garant enregistré')
+        },
+        onError: (error: unknown) => {
+            toast.error((error as Error)?.message ?? 'Erreur lors de l\'enregistrement du paiement au garant')
+        },
     })
 }
 

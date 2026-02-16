@@ -1657,6 +1657,31 @@ export interface GuarantorRemuneration {
 }
 
 /**
+ * Mode de paiement pour le versement au garant (aligné caisse / crédit spéciale)
+ */
+export type GuarantorPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+
+/**
+ * Enregistrement du paiement effectué par la mutuelle au garant (preuve de versement de la commission)
+ */
+export interface GuarantorPayment {
+  id: string
+  creditId: string
+  guarantorId: string
+  paymentDate: Date
+  paymentTime: string
+  amount: number
+  mode: GuarantorPaymentMode
+  proofUrl?: string
+  proofPath?: string
+  reference?: string
+  comment?: string
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
  * Type pour une simulation standard
  */
 export interface StandardSimulation {

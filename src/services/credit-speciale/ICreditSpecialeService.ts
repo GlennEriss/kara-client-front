@@ -1,4 +1,4 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -87,6 +87,15 @@ export interface ICreditSpecialeService {
     getRemunerationsByCreditId(creditId: string): Promise<GuarantorRemuneration[]>;
     getRemunerationsByGuarantorId(guarantorId: string): Promise<GuarantorRemuneration[]>;
     getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]>;
+
+    // Paiement au garant (preuve du versement effectué par la mutuelle)
+    recordGuarantorPayment(
+        creditId: string,
+        data: { paymentDate: Date; paymentTime: string; amount: number; mode: GuarantorPayment['mode']; reference?: string; comment?: string },
+        proofFile: File | undefined,
+        adminId: string
+    ): Promise<GuarantorPayment>;
+    getGuarantorPaymentsByCreditId(creditId: string): Promise<GuarantorPayment[]>;
     
     // Éligibilité
     checkEligibility(clientId: string, guarantorId?: string): Promise<{ eligible: boolean; reason?: string }>;
