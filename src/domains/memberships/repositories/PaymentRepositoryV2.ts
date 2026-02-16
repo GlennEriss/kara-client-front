@@ -52,9 +52,14 @@ export class PaymentRepositoryV2 {
   }
 
   /**
-   * Crée un paiement dans la collection centralisée
+   * Crée un paiement dans la collection centralisée.
+   * @param payment - Données du paiement
+   * @param customId - ID du document (ex. MK_PYMT_Matricule_date_heure pour adhésion). Si absent, Firestore génère un ID.
    */
-  async createPayment(payment: Omit<CentralizedPayment, 'id' | 'createdAt' | 'updatedAt'>): Promise<CentralizedPayment> {
+  async createPayment(
+    payment: Omit<CentralizedPayment, 'id' | 'createdAt' | 'updatedAt'>,
+    customId?: string
+  ): Promise<CentralizedPayment> {
     try {
       const paymentData: any = {
         ...payment,
@@ -71,7 +76,9 @@ export class PaymentRepositoryV2 {
         }
       })
 
-      const docRef = doc(collection(db, this.collectionName))
+      const docRef = customId
+        ? doc(db, this.collectionName, customId)
+        : doc(collection(db, this.collectionName))
       await setDoc(docRef, paymentData)
 
       const created = await this.getPaymentById(docRef.id)

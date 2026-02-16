@@ -6,6 +6,25 @@ import * as crypto from 'crypto'
 import { getSubscriptionAmountFromPayments } from './utils/getSubscriptionAmountFromPayments'
 
 /**
+ * Génère l'ID d'un abonnement au format MK_SUB_MatriculeMembre_date_heure
+ * Exemple : MK_SUB_1614.MK.220126_160226_1604 pour le 16/02/2026 à 16:04
+ */
+function buildMembershipSubscriptionId(matricule: string, now: Date): string {
+  const matriculeClean = (matricule || '').replace(/^#/, '').trim()
+  if (!matriculeClean) {
+    throw new Error('Le matricule est requis pour générer l\'ID d\'abonnement')
+  }
+  const day = String(now.getDate()).padStart(2, '0')
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const year = String(now.getFullYear() % 100).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const dateStr = `${day}${month}${year}`
+  const timeStr = `${hours}${minutes}`
+  return `MK_SUB_${matriculeClean}_${dateStr}_${timeStr}`
+}
+
+/**
  * Cloud Function pour approuver une demande d'adhésion de manière atomique
  * 
  * Cette fonction effectue une opération atomique avec rollback automatique pour :
@@ -279,8 +298,13 @@ export const approveMembershipRequest = onCall(
         updatedAt: Timestamp.now(),
       }
 
-      // Créer l'abonnement
-      subscriptionRef = await db.collection('subscriptions').add(subscriptionData)
+      // ID au format MK_SUB_MatriculeMembre_date_heure (ex. MK_SUB_1614.MK.220126_160226_1604)
+      const now = new Date()
+      const subscriptionId = buildMembershipSubscriptionId(matricule, now)
+
+      // Créer l'abonnement avec l'ID personnalisé
+      subscriptionRef = db.collection('subscriptions').doc(subscriptionId)
+      await subscriptionRef.set(subscriptionData)
       console.log(`[approveMembershipRequest] Abonnement créé: ${subscriptionRef.id}`)
 
       // Ajouter action de rollback
