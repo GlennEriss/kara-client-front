@@ -44,7 +44,13 @@ interface PaymentReceiptModalProps {
   installmentNumber?: number // Numéro d'échéance pour affichage
 }
 
-const PAYMENT_MODE_LABELS: Record<CreditPaymentMode, { label: string; icon: any; color: string; bg: string }> = {
+// Nouveaux modes (alignés caisse spéciale) + anciens (rétrocompatibilité)
+const PAYMENT_MODE_LABELS: Record<string, { label: string; icon: any; color: string; bg: string }> = {
+  airtel_money: { label: 'Airtel Money', icon: Smartphone, color: 'text-red-600', bg: 'bg-red-100' },
+  mobicash: { label: 'Mobicash', icon: Banknote, color: 'text-blue-600', bg: 'bg-blue-100' },
+  cash: { label: 'Espèce', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100' },
+  bank_transfer: { label: 'Virement bancaire', icon: Building2, color: 'text-purple-600', bg: 'bg-purple-100' },
+  // Anciennes valeurs (données déjà en base)
   CASH: { label: 'Espèces', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100' },
   MOBILE_MONEY: { label: 'Mobile Money', icon: Smartphone, color: 'text-blue-600', bg: 'bg-blue-100' },
   BANK_TRANSFER: { label: 'Virement bancaire', icon: Building2, color: 'text-purple-600', bg: 'bg-purple-100' },
@@ -173,7 +179,7 @@ export default function PaymentReceiptModal({
       const paymentData = [
         ['Date et heure', formatDateTime(payment.paymentDate, payment.paymentTime)],
         ['Montant', `${formatAmount(payment.amount)} FCFA`],
-        ['Moyen de paiement', PAYMENT_MODE_LABELS[payment.mode].label],
+        ['Moyen de paiement', PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode],
         ['Référence', payment.reference || 'N/A'],
       ]
 
@@ -242,7 +248,7 @@ export default function PaymentReceiptModal({
     }
   }
 
-  const paymentModeConfig = PAYMENT_MODE_LABELS[payment.mode]
+  const paymentModeConfig = PAYMENT_MODE_LABELS[payment.mode] ?? { label: payment.mode, icon: DollarSign, color: 'text-gray-600', bg: 'bg-gray-100' }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

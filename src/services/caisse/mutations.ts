@@ -253,12 +253,14 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   }
   // Sinon (versement futur), pas de pénalités : window reste 'LATE_NO_PENALTY' et delayDays reste 0
 
-  if (delayDays > 12) {
-    // Refus et résiliation
-    await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
-    await updateContract(input.contractId, { status: 'RESCINDED' })
-    return { status: 'RESCINDED' }
-  }
+  // Désactivé temporairement : résiliation du contrat quand le paiement est en retard de plus de 12 jours.
+  // On réactivera cette logique plus tard (enregistrement des anciennes données en cours).
+  // if (delayDays > 12) {
+  //   // Refus et résiliation
+  //   await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
+  //   await updateContract(input.contractId, { status: 'RESCINDED' })
+  //   return { status: 'RESCINDED' }
+  // }
 
   let proofUrl: string | undefined
   if (input.file) {
@@ -810,12 +812,14 @@ export async function payGroup(input: {
   }
   // Sinon (versement futur), pas de pénalités : window reste 'LATE_NO_PENALTY' et delayDays reste 0
 
-  if (delayDays > 12) {
-    // Refus et résiliation
-    await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
-    await updateContract(input.contractId, { status: 'RESCINDED' })
-    return { status: 'RESCINDED' }
-  }
+  // Désactivé temporairement : résiliation du contrat quand le paiement est en retard de plus de 12 jours.
+  // On réactivera cette logique plus tard (enregistrement des anciennes données en cours).
+  // if (delayDays > 12) {
+  //   // Refus et résiliation
+  //   await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
+  //   await updateContract(input.contractId, { status: 'RESCINDED' })
+  //   return { status: 'RESCINDED' }
+  // }
 
   // Calculer les pénalités pour cette contribution
   const settings = await getActiveSettings((contract as any).caisseType)

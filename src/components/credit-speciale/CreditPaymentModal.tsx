@@ -150,7 +150,7 @@ export default function CreditPaymentModal({
       amount: defaultAmount || 0,
       paymentDate: defaultPaymentDate || new Date(),
       paymentTime: format(new Date(), 'HH:mm'),
-      mode: 'CASH',
+      mode: 'airtel_money',
       comment: autoComment,
       note: autoNote,
     },
@@ -572,10 +572,10 @@ export default function CreditPaymentModal({
                   <SelectValue placeholder="Sélectionner un moyen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CASH">Espèces</SelectItem>
-                  <SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem>
-                  <SelectItem value="BANK_TRANSFER">Virement bancaire</SelectItem>
-                  <SelectItem value="CHEQUE">Chèque</SelectItem>
+                  <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                  <SelectItem value="mobicash">Mobicash</SelectItem>
+                  <SelectItem value="cash">Espèce</SelectItem>
+                  <SelectItem value="bank_transfer">Virement bancaire</SelectItem>
                 </SelectContent>
               </Select>
               {form.formState.errors.mode && (

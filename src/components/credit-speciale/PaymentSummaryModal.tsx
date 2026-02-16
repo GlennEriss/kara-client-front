@@ -42,6 +42,10 @@ interface PaymentSummaryModalProps {
 }
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
+  airtel_money: 'Airtel Money',
+  mobicash: 'Mobicash',
+  cash: 'Espèce',
+  bank_transfer: 'Virement bancaire',
   CASH: 'Espèces',
   MOBILE_MONEY: 'Mobile Money',
   BANK_TRANSFER: 'Virement bancaire',
