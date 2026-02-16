@@ -48,6 +48,7 @@ export const firebaseCollectionNames = {
     creditPayments: "creditPayments",
     creditPenalties: "creditPenalties",
     guarantorRemunerations: "guarantorRemunerations",
+    guarantorPayments: "guarantorPayments",
     // Collection centralisée pour tous les versements
     payments: "payments",
     // Agents de recouvrement
@@ -97,6 +98,7 @@ export const FIREBASE_COLLECTION_NAMES = {
     CREDIT_PAYMENTS: firebaseCollectionNames.creditPayments,
     CREDIT_PENALTIES: firebaseCollectionNames.creditPenalties,
     GUARANTOR_REMUNERATIONS: firebaseCollectionNames.guarantorRemunerations,
+    GUARANTOR_PAYMENTS: firebaseCollectionNames.guarantorPayments,
     // Collection centralisée pour tous les versements
     PAYMENTS: firebaseCollectionNames.payments,
     // Agents de recouvrement

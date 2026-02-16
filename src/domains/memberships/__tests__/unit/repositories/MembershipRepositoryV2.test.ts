@@ -894,7 +894,7 @@ describe('MembershipRepositoryV2', () => {
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
 
-      // Assert
+      // Assert: createPayment(data, customPaymentId) avec ID au format MK_PYMT_Matricule_date_heure
       expect(mockCreatePayment).toHaveBeenCalledWith(
         expect.objectContaining({
           sourceType: 'membership-request',
@@ -904,7 +904,8 @@ describe('MembershipRepositoryV2', () => {
           recordedBy: 'admin-123',
           recordedByName: 'Admin Test',
           recordedAt: expect.any(Date),
-        })
+        }),
+        expect.stringMatching(/^MK_PYMT_/)
       )
     })
 

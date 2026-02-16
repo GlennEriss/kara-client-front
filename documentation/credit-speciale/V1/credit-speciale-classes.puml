@@ -183,6 +183,23 @@ class GuarantorRemuneration {
   updatedBy?: string
 }
 
+class GuarantorPayment {
+  id: string
+  creditId: string
+  guarantorId: string
+  paymentDate: Date
+  paymentTime: string
+  amount: number
+  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+  proofUrl?: string
+  proofPath?: string
+  reference?: string
+  comment?: string
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 class ReliabilityScore {
   userId: string
   score: number
@@ -214,8 +231,10 @@ CreditContract "0..1" <-- "0..1" CreditContract : parentContractId\n(augmentatio
 CreditPayment "0..1" --> Document : proof/receipt
 CreditContract "0..1" --> Document : contrat/signé/décharge
 CreditPayment "0..*" --> "0..*" GuarantorRemuneration : génère
+CreditContract "1" --> "0..*" GuarantorPayment : paiements au garant\n(preuve versement)
 User "1" --> "0..*" ReliabilityScore : score fiabilité\n(admin-only)
 User "1" --> "0..*" GuarantorRemuneration : rémunérations
+User "1" --> "0..*" GuarantorPayment : enregistre
 
 note right of CreditDemand
   Une demande peut avoir
@@ -272,6 +291,16 @@ note right of GuarantorRemuneration
   
   Uniquement si garant = membre
   et guarantorIsParrain = true
+end note
+
+note right of GuarantorPayment
+  Preuve du versement effectué
+  par la mutuelle au garant
+  (commission).
+  
+  Collection: guarantorPayments
+  Enregistré depuis l’onglet
+  Commission du garant.
 end note
 
 note right of CreditPayment

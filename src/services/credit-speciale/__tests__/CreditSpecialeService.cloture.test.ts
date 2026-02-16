@@ -9,6 +9,7 @@ import type { ICreditContractRepository } from '@/repositories/credit-speciale/I
 import type { ICreditPaymentRepository } from '@/repositories/credit-speciale/ICreditPaymentRepository'
 import type { ICreditPenaltyRepository } from '@/repositories/credit-speciale/ICreditPenaltyRepository'
 import type { IGuarantorRemunerationRepository } from '@/repositories/credit-speciale/IGuarantorRemunerationRepository'
+import type { IGuarantorPaymentRepository } from '@/repositories/credit-speciale/IGuarantorPaymentRepository'
 
 vi.mock('@/factories/RepositoryFactory', () => ({
   RepositoryFactory: {
@@ -74,6 +75,7 @@ describe('CreditSpecialeService - Clôture de contrat', () => {
   let mockCreditPaymentRepository: Partial<ICreditPaymentRepository>
   let mockCreditPenaltyRepository: Partial<ICreditPenaltyRepository>
   let mockGuarantorRemunerationRepository: Partial<IGuarantorRemunerationRepository>
+  let mockGuarantorPaymentRepository: Partial<IGuarantorPaymentRepository>
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -89,13 +91,15 @@ describe('CreditSpecialeService - Clôture de contrat', () => {
     }
     mockCreditPenaltyRepository = {}
     mockGuarantorRemunerationRepository = {}
+    mockGuarantorPaymentRepository = {}
 
     service = new CreditSpecialeService(
       mockCreditDemandRepository as ICreditDemandRepository,
       mockCreditContractRepository as ICreditContractRepository,
       mockCreditPaymentRepository as ICreditPaymentRepository,
       mockCreditPenaltyRepository as ICreditPenaltyRepository,
-      mockGuarantorRemunerationRepository as IGuarantorRemunerationRepository
+      mockGuarantorRemunerationRepository as IGuarantorRemunerationRepository,
+      mockGuarantorPaymentRepository as IGuarantorPaymentRepository
     )
   })
 

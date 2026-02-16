@@ -43,6 +43,7 @@ import type { MembershipRequestStatus, RegisterFormData } from '@/types/types'
 import { PaymentRepositoryV2 } from './PaymentRepositoryV2'
 import { getAlgoliaSearchService } from '@/services/search/AlgoliaSearchService'
 import { generateMatricule } from '@/db/user.db'
+import { buildMembershipPaymentId } from '../utils/membershipPaymentId'
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 import { MembershipErrorHandler } from '../services/MembershipErrorHandler'
 
@@ -326,20 +327,35 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       throw new Error(`Demande avec ID ${id} introuvable`)
     }
 
+    // Date de versement (par défaut: maintenant si absente)
+    const dateForPayment =
+      paymentInfo.date != null
+        ? typeof paymentInfo.date === 'string'
+          ? new Date(paymentInfo.date)
+          : paymentInfo.date
+        : new Date()
+
+    // ID du paiement au format MK_PYMT_MatriculeMembre_date_heure (ex. MK_PYMT_7643.MK.210126_160226_1547)
+    const paymentId = buildMembershipPaymentId(
+      existing.matricule ?? id,
+      dateForPayment,
+      paymentInfo.time || '00:00'
+    )
+
     // Transformer PaymentInfo en Payment pour MembershipRequest
-    // Le mode est déjà dans le bon format (PaymentMode), pas besoin de transformation
+    // Le mode est déjà dans le format PaymentMode, pas besoin de transformation
     // IMPORTANT: Ne pas inclure les champs undefined (Firestore refuse undefined)
     const payment: any = {
-      date: new Date(paymentInfo.date),
-      mode: paymentInfo.mode, // Déjà au format PaymentMode (airtel_money, cash, etc.)
+      id: paymentId,
+      date: dateForPayment,
+      mode: paymentInfo.mode,
       amount: paymentInfo.amount,
-      acceptedBy: paymentInfo.recordedBy || existing.processedBy || 'admin', // ID de l'admin qui a enregistré
+      acceptedBy: paymentInfo.recordedBy || existing.processedBy || 'admin',
       paymentType: paymentInfo.paymentType || 'Membership',
-      time: paymentInfo.time || '', // Obligatoire, ne peut pas être undefined
-      // Traçabilité : qui a enregistré et quand
-      recordedBy: paymentInfo.recordedBy, // ID de l'admin qui a enregistré
-      recordedByName: paymentInfo.recordedByName, // Nom complet de l'admin
-      recordedAt: paymentInfo.recordedAt || new Date(), // Date d'enregistrement
+      time: paymentInfo.time || '',
+      recordedBy: paymentInfo.recordedBy,
+      recordedByName: paymentInfo.recordedByName,
+      recordedAt: paymentInfo.recordedAt || new Date(),
     }
 
     // Ajouter withFees seulement si défini (pour Airtel Money/Mobicash)
@@ -382,15 +398,18 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
     // 1. Mettre à jour le document membership-request (pour compatibilité)
     await updateDoc(docRef, updateData)
 
-    // 2. Enregistrer dans la collection centralisée des paiements
+    // 2. Enregistrer dans la collection centralisée des paiements (avec ID au format MK_PYMT_Matricule_date_heure)
     try {
-      await this.paymentRepository.createPayment({
-        ...payment,
-        sourceType: 'membership-request',
-        sourceId: id,
-        beneficiaryId: existing.id, // ID de la demande
-        beneficiaryName: `${existing.identity.firstName} ${existing.identity.lastName}`.trim(),
-      })
+      await this.paymentRepository.createPayment(
+        {
+          ...payment,
+          sourceType: 'membership-request',
+          sourceId: id,
+          beneficiaryId: existing.id,
+          beneficiaryName: `${existing.identity.firstName} ${existing.identity.lastName}`.trim(),
+        },
+        paymentId
+      )
     } catch (paymentError) {
       // Ignorer l'erreur pour ne pas bloquer la mise à jour du membership-request
       // (pour éviter de casser le flux si la collection centralisée a un problème)

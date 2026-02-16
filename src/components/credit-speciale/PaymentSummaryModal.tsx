@@ -80,8 +80,8 @@ export default function PaymentSummaryModal({
   // Nouveau capital (2ème) : montant global de l'échéance suivante
   const newCapitalTotal = nextDueItem?.principal ?? Math.round(newCapitalAfterPrincipal + (payment.interestAmount || 0))
   
-  // Calculer le taux d'intérêt (en pourcentage)
-  const interestRate = contract.interestRate ? contract.interestRate * 100 : 0
+  // Taux d'intérêt : déjà en % en base (ex. 12 pour 12%), ne pas multiplier par 100
+  const interestRate = contract.interestRate ?? 0
   
   // Formater la date d'échéance (on utilise la date de paiement comme date d'échéance)
   const formatDate = (date: Date) => {
@@ -108,7 +108,7 @@ export default function PaymentSummaryModal({
     { label: 'REMARQUE', value: payment.comment || 'PAS DE VERSEMENT', highlight: 'blue' },
     { label: 'NOTE', value: payment.note?.toString() || '0', highlight: 'blue' },
     { label: 'NOUVEAU CAPITAL', value: `${formatAmount(newCapitalAfterPrincipal)} FCFA`, highlight: 'red' },
-    { label: 'NOUVEAU CAPITAL', value: `${formatAmount(newCapitalTotal)} FCFA`, highlight: 'red' },
+    { label: 'MONTANT GLOBAL MOIS PROCHAIN', value: `${formatAmount(newCapitalTotal)} FCFA`, highlight: 'red' },
   ]
 
   const getHighlightClass = (highlight: string) => {

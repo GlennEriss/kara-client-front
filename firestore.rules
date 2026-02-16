@@ -446,8 +446,13 @@ service cloud.firestore {
     // ==========================================
     
     match /caisseContracts/{contractId} {
-      // Lecture : Admin uniquement
-      allow read: if isAdmin();
+      // Lecture : Admin ou membre propriétaire (memberId = uid ou matricule du user)
+      allow read: if isAdmin() ||
+        (isAuthenticated() && (
+          resource.data.memberId == request.auth.uid ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.matricule == resource.data.memberId)
+        ));
       // Création : Admin uniquement + settingsVersion obligatoire
       allow create: if isAdmin() &&
         request.resource.data.settingsVersion is string &&
@@ -456,9 +461,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
       
       // Sous-collection : versements (échéances mensuelles)
-      // Utilisée lors de la création de contrat depuis une demande acceptée
+      // Lecture : Admin ou membre propriétaire du contrat parent
       match /payments/{paymentId} {
-        allow read, write: if isAdmin();
+        allow read: if isAdmin() ||
+          (isAuthenticated() && (
+            get(/databases/$(database)/documents/caisseContracts/$(contractId)).data.memberId == request.auth.uid ||
+            (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.matricule ==
+               get(/databases/$(database)/documents/caisseContracts/$(contractId)).data.memberId)
+          ));
+        allow write: if isAdmin();
       }
       
       // Sous-collection : remboursements (retrait anticipé, remboursement final)

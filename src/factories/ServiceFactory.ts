@@ -183,12 +183,14 @@ export class ServiceFactory {
       const creditPaymentRepository = RepositoryFactory.getCreditPaymentRepository()
       const creditPenaltyRepository = RepositoryFactory.getCreditPenaltyRepository()
       const guarantorRemunerationRepository = RepositoryFactory.getGuarantorRemunerationRepository()
+      const guarantorPaymentRepository = RepositoryFactory.getGuarantorPaymentRepository()
       this.services.set(key, new CreditSpecialeService(
         creditDemandRepository,
         creditContractRepository,
         creditPaymentRepository,
         creditPenaltyRepository,
-        guarantorRemunerationRepository
+        guarantorRemunerationRepository,
+        guarantorPaymentRepository
       ))
     }
     return this.services.get(key)

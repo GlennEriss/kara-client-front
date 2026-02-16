@@ -1,11 +1,13 @@
 import { ICreditSpecialeService, UpdateCreditDemandInput } from "./ICreditSpecialeService";
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
 import { ICreditPenaltyRepository } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
 import { ICreditInstallmentRepository } from "@/repositories/credit-speciale/ICreditInstallmentRepository";
 import { IGuarantorRemunerationRepository, GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
+import { IGuarantorPaymentRepository } from "@/repositories/credit-speciale/IGuarantorPaymentRepository";
+import { createFile } from "@/db/upload-image.db";
 import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
@@ -34,7 +36,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         private creditContractRepository: ICreditContractRepository,
         private creditPaymentRepository: ICreditPaymentRepository,
         private creditPenaltyRepository: ICreditPenaltyRepository,
-        private guarantorRemunerationRepository: IGuarantorRemunerationRepository
+        private guarantorRemunerationRepository: IGuarantorRemunerationRepository,
+        private guarantorPaymentRepository: IGuarantorPaymentRepository
     ) {
         this.notificationService = ServiceFactory.getNotificationService();
         this.contractCIRepository = RepositoryFactory.getContractCIRepository();
@@ -2220,6 +2223,46 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     async getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]> {
         return await this.guarantorRemunerationRepository.getRemunerationsWithFilters(filters);
+    }
+
+    async recordGuarantorPayment(
+        creditId: string,
+        data: { paymentDate: Date; paymentTime: string; amount: number; mode: GuarantorPayment['mode']; reference?: string; comment?: string },
+        proofFile: File | undefined,
+        adminId: string
+    ): Promise<GuarantorPayment> {
+        const contract = await this.creditContractRepository.getContractById(creditId);
+        if (!contract) throw new Error('Contrat introuvable');
+        if (!contract.guarantorId) throw new Error('Ce contrat n\'a pas de garant');
+        if (contract.creditType !== 'SPECIALE') throw new Error('Le paiement au garant ne s\'applique qu\'aux contrats crédit spéciale');
+        if (data.amount <= 0) throw new Error('Le montant doit être strictement positif');
+
+        let proofUrl: string | undefined;
+        let proofPath: string | undefined;
+        if (proofFile) {
+            const location = `credit/${creditId}/guarantor-payments`;
+            const { url, path } = await createFile(proofFile, creditId, location);
+            proofUrl = url;
+            proofPath = path;
+        }
+
+        return this.guarantorPaymentRepository.createPayment({
+            creditId,
+            guarantorId: contract.guarantorId,
+            paymentDate: data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate),
+            paymentTime: data.paymentTime,
+            amount: data.amount,
+            mode: data.mode,
+            proofUrl,
+            proofPath,
+            reference: data.reference,
+            comment: data.comment,
+            createdBy: adminId,
+        });
+    }
+
+    async getGuarantorPaymentsByCreditId(creditId: string): Promise<GuarantorPayment[]> {
+        return this.guarantorPaymentRepository.getPaymentsByCreditId(creditId);
     }
 
     // ==================== ÉLIGIBILITÉ ====================
