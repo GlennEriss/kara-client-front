@@ -327,10 +327,18 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       throw new Error(`Demande avec ID ${id} introuvable`)
     }
 
+    // Date de versement (par défaut: maintenant si absente)
+    const dateForPayment =
+      paymentInfo.date != null
+        ? typeof paymentInfo.date === 'string'
+          ? new Date(paymentInfo.date)
+          : paymentInfo.date
+        : new Date()
+
     // ID du paiement au format MK_PYMT_MatriculeMembre_date_heure (ex. MK_PYMT_7643.MK.210126_160226_1547)
     const paymentId = buildMembershipPaymentId(
       existing.matricule ?? id,
-      paymentInfo.date,
+      dateForPayment,
       paymentInfo.time || '00:00'
     )
 
@@ -339,7 +347,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
     // IMPORTANT: Ne pas inclure les champs undefined (Firestore refuse undefined)
     const payment: any = {
       id: paymentId,
-      date: new Date(paymentInfo.date),
+      date: dateForPayment,
       mode: paymentInfo.mode,
       amount: paymentInfo.amount,
       acceptedBy: paymentInfo.recordedBy || existing.processedBy || 'admin',
