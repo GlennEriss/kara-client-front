@@ -604,15 +604,15 @@ export default function StandardContract({ id }: Props) {
                       <Download className="h-5 w-5" />
                       Demander retrait anticipé
                     </Button>
-                    <Button
-                      variant="outline"
+                <Button
+                  variant="outline"
                       className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
                       disabled={!hasActiveRefund}
-                      onClick={() => setShowRemboursementPdf(true)}
-                    >
+                  onClick={() => setShowRemboursementPdf(true)}
+                >
                       <FileText className="h-5 w-5" />
-                      PDF Remboursement
-                    </Button>
+                      Générer la quittance
+                </Button>
                   </div>
 
                   {/* Liste des remboursements */}

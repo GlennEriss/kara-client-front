@@ -8,7 +8,7 @@ import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
 import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
-import RemboursementCIPDF from './RemboursementCIPDF'
+import QuittanceCaisseImprevuePDF from './QuittanceCaisseImprevuePDF'
 import { listRefundsCI } from '@/db/caisse/refunds.db'
 
 interface RemboursementCIPDFModalProps {
@@ -74,7 +74,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
 
     try {
       const blob = await pdf(
-        <RemboursementCIPDF 
+        <QuittanceCaisseImprevuePDF 
           contract={contractData} 
           refund={activeRefund}
           memberData={memberData}
@@ -210,7 +210,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                   {/* Boutons d'action mobile */}
                   <BlobProvider 
                     document={
-                      <RemboursementCIPDF 
+                      <QuittanceCaisseImprevuePDF 
                         contract={contractData} 
                         refund={activeRefund}
                         memberData={memberData}
@@ -274,7 +274,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <RemboursementCIPDF 
+                  <QuittanceCaisseImprevuePDF 
                     contract={contractData} 
                     refund={activeRefund}
                     memberData={memberData}
@@ -291,4 +291,3 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
 }
 
 export default RemboursementCIPDFModal
-

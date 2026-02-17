@@ -1532,7 +1532,7 @@ export default function DailyContract({ id }: Props) {
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                       <FileText className="h-5 w-5" />
-                      PDF Remboursement
+                      Générer la quittance
                 </Button>
               </>
             )

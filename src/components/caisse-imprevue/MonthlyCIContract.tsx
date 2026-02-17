@@ -950,7 +950,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileSignature className="h-5 w-5" />
-                PDF Remboursement
+                Générer la quittance
               </Button>
 
               <Button
@@ -1277,4 +1277,3 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
     </div>
   )
 }
-

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
-import RemboursementNormalPDFV2 from './RemboursementNormalPDFV2'
+import QuittanceCaisseSpecialePDF from './QuittanceCaisseSpecialePDF'
 import { listRefunds } from '@/db/caisse/refunds.db'
 
 interface RemboursementNormalPDFModalProps {
@@ -122,7 +122,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<RemboursementNormalPDFV2 contract={enrichedContract} />).toBlob()
+      const blob = await pdf(<QuittanceCaisseSpecialePDF contract={enrichedContract} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -243,7 +243,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider document={<RemboursementNormalPDFV2 contract={enrichedContract} />}>
+                  <BlobProvider document={<QuittanceCaisseSpecialePDF contract={enrichedContract} />}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -300,7 +300,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <RemboursementNormalPDFV2 contract={enrichedContract} />
+                  <QuittanceCaisseSpecialePDF contract={enrichedContract} />
                 </PDFViewer>
               </div>
             </>
