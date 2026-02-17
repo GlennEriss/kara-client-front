@@ -45,7 +45,9 @@ export async function getContractWithComputedState(contractId: string) {
           } else {
             // Sinon, calculer le retard (échéance passée et non payée)
             const { window } = computeDueWindow(dueDate, now)
-            if (window === 'DEFAULTED_AFTER_J12') status = 'RESCINDED'
+            // Désactivé : ne pas résilier automatiquement les contrats (ex. contrats créés avec une date très ancienne)
+            // if (window === 'DEFAULTED_AFTER_J12') status = 'RESCINDED'
+            if (window === 'DEFAULTED_AFTER_J12') status = 'LATE_WITH_PENALTY'
             else if (window === 'LATE_WITH_PENALTY') status = 'LATE_WITH_PENALTY'
             else if (window === 'LATE_NO_PENALTY') status = 'LATE_NO_PENALTY'
             else status = 'ACTIVE'

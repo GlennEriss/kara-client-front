@@ -388,22 +388,22 @@ const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: {
           </Text>
 
           <Text style={styles.articleText}>
-            En vertu de son adhésion à LE KARA en date du {formatDate(membershipDate)}
+            En vertu de son adhésion à LE KARA en date du <Text style={styles.bold}>{formatDate(membershipDate)}</Text>
           </Text>
 
           <Text style={[styles.articleText, { marginTop: 15, marginBottom: 10 }]}>
             Le nominal remboursé s'élève à
           </Text>
 
-          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 5 }]}>
+          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 5, fontWeight: 'bold', textAlign: 'center' }]}>
             {formatAmount(nominalAmount)} FCFA (chiffres),
           </Text>
 
-          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15 }]}>
+          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15, fontWeight: 'bold', textAlign: 'center' }]}>
             {numberToWords(nominalAmount)} FCFA (lettres).
           </Text>
 
-          <Text style={[styles.articleText, { marginTop: 20 }]}>
+          <Text style={[styles.articleText, { marginTop: 20, fontWeight: 'bold' }]}>
             Cette quittance est libératoire de tout engagement de l'Association Kara vis-à-vis du membre. Elle est établie pour faire valoir ce que de droit.
           </Text>
 

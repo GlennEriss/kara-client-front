@@ -4,14 +4,15 @@ const RESET_PASSWORD_API = '/api/auth/admin/reset-member-password'
 
 export interface IdentifiantsPdfData {
   matricule: string
+  email: string | null
   identifiant: string
   motDePasse: string
 }
 
 /**
  * Service pour la fonctionnalité "Générer identifiant" :
- * réinitialise le mot de passe du membre à la valeur du matricule,
- * puis retourne les données pour génération du PDF (matricule, identifiant, mot de passe).
+ * réinitialise le mot de passe du membre à une valeur aléatoire,
+ * puis retourne les données pour génération du PDF (matricule, email, identifiant, mot de passe).
  */
 export class GenererIdentifiantService {
   private static instance: GenererIdentifiantService
@@ -28,8 +29,8 @@ export class GenererIdentifiantService {
   }
 
   /**
-   * Réinitialise le mot de passe du membre à la valeur du matricule,
-   * puis retourne les données pour le PDF (matricule, identifiant, mot de passe).
+   * Réinitialise le mot de passe du membre à une valeur aléatoire,
+   * puis retourne les données pour le PDF (matricule, email, identifiant, mot de passe).
    * @throws Error si le membre est introuvable ou si l'API de réinitialisation échoue
    */
   async resetPasswordAndGetPdfData(
@@ -46,7 +47,6 @@ export class GenererIdentifiantService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         memberId,
-        newPassword: matricule,
       }),
     })
 
@@ -57,11 +57,19 @@ export class GenererIdentifiantService {
       throw new Error(message)
     }
 
-    const identifiant = member.email?.trim() || member.matricule || matricule
+    const data = (await response.json().catch(() => ({}))) as {
+      email?: string | null
+      newPassword?: string
+    }
+    const email = (data?.email ?? null) ? String(data.email).trim() : null
+    const newPassword = data?.newPassword ? String(data.newPassword) : ''
+
+    const identifiant = email || member.email?.trim() || member.matricule || matricule
     return {
       matricule,
+      email,
       identifiant,
-      motDePasse: matricule,
+      motDePasse: newPassword,
     }
   }
 }
