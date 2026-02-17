@@ -27,8 +27,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   logo: {
-    width: 200,
-    height: 200,
+    width: 100,
+    height: 100,
     objectFit: 'cover',
   },
   title: {
@@ -60,7 +60,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   signatureSection: {
-    marginTop: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -72,6 +71,7 @@ const styles = StyleSheet.create({
     borderBottom: '1px solid black',
     height: 30,
     marginBottom: 5,
+    marginTop: 50,
   },
   signatureLabel: {
     fontSize: 10,

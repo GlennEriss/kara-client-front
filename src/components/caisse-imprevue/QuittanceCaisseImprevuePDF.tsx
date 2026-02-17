@@ -3,15 +3,18 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
+import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
 
 // Styles
 const styles = StyleSheet.create({
   page: {
+    // Aligne 1:1 avec `AdhesionCreditSpecialeV2` (page 1)
     fontFamily: 'Times-Roman',
     fontSize: 11,
-    padding: 25,
-    lineHeight: 1.4,
-    position: 'relative',
+    padding: 50,
+    paddingTop: 40,
+    paddingBottom: 40,
+    lineHeight: 1.6,
   },
   pageContainer: {
     width: '100%',
@@ -210,7 +213,7 @@ const calculateAge = (birthDate: string | Date | null | undefined) => {
   }
 }
 
-const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: { contract?: any; refund?: any; memberData?: any; totalAmountPaid?: number }) => {
+const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountPaid }: { contract?: any; refund?: any; memberData?: any; totalAmountPaid?: number }) => {
   // Fonctions utilitaires pour formater les données
   const formatDate = (date: any) => {
     if (!date) return '—'
@@ -257,112 +260,61 @@ const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: {
   const nominalAmount = refund?.amountNominal || totalAmountPaid || 0
   const membershipDate = contract?.createdAt || contract?.firstPaymentDate
 
+  const memberRows: QuittanceCoverRow[] = [
+    {
+      kind: 'pair',
+      left: { label: 'MATRICULE', value: member.matricule },
+      right: { label: 'MEMBRE', value: member.membershipType },
+    },
+    { kind: 'single', label: 'NOM', value: member.lastName.toUpperCase() },
+    { kind: 'single', label: 'PRÉNOM', value: member.firstName },
+    {
+      kind: 'pair',
+      left: { label: 'LIEU / NAISSANCE', value: member.birthPlace },
+      right: { label: 'DATE / NAISSANCE', value: formatDate(member.birthDate) },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'TYPE DE PIÈCE', value: member.identityDocument || '—' },
+      right: { label: 'N° DE PIÈCE', value: member.identityDocumentNumber || '—' },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'TÉLÉPHONE 1', value: member.contacts?.[0] || '—' },
+      right: { label: 'TÉLÉPHONE 2', value: member.contacts?.[1] || '—' },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'SEXE', value: member.gender || '—' },
+      right: { label: 'QUARTIER', value: member.address?.district || '—' },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'NATIONALITÉ', value: getNationalityName(member.nationality) || '—' },
+      right: { label: 'ASSOCIATION', value: 'LE KARA' },
+    },
+  ]
+
+  const emergencyRows: QuittanceCoverRow[] = [
+    {
+      kind: 'pair',
+      left: { label: 'NOM', value: emergencyContact.lastName?.toUpperCase() || '—' },
+      right: { label: 'PRÉNOM', value: emergencyContact.firstName || '—' },
+    },
+    { kind: 'single', label: 'TÉLÉPHONE', value: emergencyContact.phone1 || '—' },
+    { kind: 'single', label: 'LIENS', value: emergencyContact.relationship || '—' },
+  ]
+
   return (
     <Document>
       {/* PAGE 1 - Informations Personnelles du Membre */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          {/* En-tête avec logo */}
-          <View style={styles.header}>
-            <View style={styles.logo}>
-              <Image
-                src={window.location.origin + '/Logo-Kara.jpg'}
-                style={{ width: 70, height: 70, objectFit: 'cover' }}
-                cache={false}
-              />
-            </View>
-            <View style={{ flex: 1 }} />
-          </View>
-
-          <Text style={styles.title}>Informations Personnelles du Membre</Text>
-
-          <View style={styles.section}>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>MATRICULE</Text>
-              <Text style={styles.cellValue}>{member.matricule}</Text>
-              <Text style={styles.cellLabel}>MEMBRE</Text>
-              <Text style={styles.cellValue}>{member.membershipType}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>NOM</Text>
-              <Text style={styles.cellValue}>{member.lastName.toUpperCase()}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>PRÉNOM</Text>
-              <Text style={styles.cellValue}>{member.firstName}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>LIEU / NAISSANCE</Text>
-              <Text style={styles.cellValue}>{member.birthPlace}</Text>
-              <Text style={styles.cellLabel}>DATE / NAISSANCE</Text>
-              <Text style={styles.cellValue}>{formatDate(member.birthDate)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>NATIONALITÉ</Text>
-              <Text style={styles.cellValue}>{getNationalityName(member.nationality)}</Text>
-              <Text style={styles.cellLabel}>N°CNI/PASS/CS</Text>
-              <Text style={styles.cellValue}>{member.identityDocumentNumber || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>TÉLÉPHONE 1</Text>
-              <Text style={styles.cellValue}>{member.contacts?.[0] || '—'}</Text>
-              <Text style={styles.cellLabel}>TÉLÉPHONE 2</Text>
-              <Text style={styles.cellValue}>{member.contacts?.[1] || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>SEXE</Text>
-              <Text style={styles.cellValue}>{member.gender || '—'}</Text>
-              <Text style={styles.cellLabel}>ÂGE</Text>
-              <Text style={styles.cellValue}>{age}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>QUARTIER</Text>
-              <Text style={styles.cellValue}>{member.address?.district || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>PROFESSION</Text>
-              <Text style={styles.cellValue}>{member.profession || '—'}</Text>
-            </View>
-          </View>
-        </View>
-      </Page>
-
-      {/* PAGE 2 - Informations Concernant Le Contact Urgent */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          {/* En-tête avec logo */}
-          <View style={styles.header}>
-            <View style={styles.logo}>
-              <Image
-                src={window.location.origin + '/Logo-Kara.jpg'}
-                style={{ width: 70, height: 70, objectFit: 'cover' }}
-                cache={false}
-              />
-            </View>
-            <View style={{ flex: 1 }} />
-          </View>
-
-          <Text style={styles.title}>Informations Concernant Le Contact Urgent</Text>
-
-          <View style={styles.section}>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>NOM</Text>
-              <Text style={styles.cellValue}>{emergencyContact.lastName?.toUpperCase() || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>PRÉNOM</Text>
-              <Text style={styles.cellValue}>{emergencyContact.firstName || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>LIENS</Text>
-              <Text style={styles.cellValue}>{emergencyContact.relationship || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cellLabel}>TÉLÉPHONE</Text>
-              <Text style={styles.cellValue}>{emergencyContact.phone1 || '—'}</Text>
-            </View>
-          </View>
-        </View>
+        <QuittanceCoverPage
+          memberSectionTitle="Informations Personnelles du Membre"
+          memberRows={memberRows}
+          secondarySectionTitle="Informations Concernant le Contact Urgent"
+          secondaryRows={emergencyRows}
+        />
       </Page>
 
       {/* PAGE 3 - QUITTANCE DE PAIEMENT */}
@@ -388,22 +340,22 @@ const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: {
           </Text>
 
           <Text style={styles.articleText}>
-            En vertu de son adhésion à LE KARA en date du {formatDate(membershipDate)}
+            En vertu de son adhésion à LE KARA en date du <Text style={styles.bold}>{formatDate(membershipDate)}</Text>
           </Text>
 
           <Text style={[styles.articleText, { marginTop: 15, marginBottom: 10 }]}>
             Le nominal remboursé s'élève à
           </Text>
 
-          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 5 }]}>
+          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 5, fontWeight: 'bold', textAlign: 'center' }]}>
             {formatAmount(nominalAmount)} FCFA (chiffres),
           </Text>
 
-          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15 }]}>
+          <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15, fontWeight: 'bold', textAlign: 'center' }]}>
             {numberToWords(nominalAmount)} FCFA (lettres).
           </Text>
 
-          <Text style={[styles.articleText, { marginTop: 20 }]}>
+          <Text style={[styles.articleText, { marginTop: 20, fontWeight: 'bold' }]}>
             Cette quittance est libératoire de tout engagement de l'Association Kara vis-à-vis du membre. Elle est établie pour faire valoir ce que de droit.
           </Text>
 
@@ -420,5 +372,4 @@ const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: {
   )
 }
 
-export default RemboursementCIPDF
-
+export default QuittanceCaisseImprevuePDF

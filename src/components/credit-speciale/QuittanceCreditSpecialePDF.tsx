@@ -1,10 +1,14 @@
 'use client'
 
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import { CreditContract } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
+import { getNationalityName } from '@/constantes/nationality'
+import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
+import type { User } from '@/types/types'
 
 const styles = StyleSheet.create({
   page: {
@@ -12,32 +16,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     padding: 50,
     paddingTop: 40,
-    paddingBottom: 60,
+    paddingBottom: 40,
     lineHeight: 1.6,
-  },
-  // Header avec logo
-  headerSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  tiersSubrogeSection: {
-    flex: 1,
-  },
-  tiersSubrogeTitle: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    textDecoration: 'underline',
-    marginBottom: 15,
-  },
-  tiersSubrogeInfo: {
-    fontSize: 11,
-    marginBottom: 5,
-  },
-  logo: {
-    width: 100,
-    height: 100,
   },
   // Titre principal
   mainTitle: {
@@ -185,9 +165,16 @@ const numberToWords = (num: number): string => {
 interface QuittanceCreditSpecialePDFProps {
   contract: CreditContract
   guarantorPhone?: string
+  memberData?: User | null
+  guarantorData?: User | null
 }
 
-const QuittanceCreditSpecialePDF = ({ contract, guarantorPhone: guarantorPhoneProp }: QuittanceCreditSpecialePDFProps) => {
+const QuittanceCreditSpecialePDF = ({
+  contract,
+  guarantorPhone: guarantorPhoneProp,
+  memberData,
+  guarantorData,
+}: QuittanceCreditSpecialePDFProps) => {
   const formatDate = (date: Date | any) => {
     if (!date) return '../../....'
     try {
@@ -211,6 +198,114 @@ const QuittanceCreditSpecialePDF = ({ contract, guarantorPhone: guarantorPhonePr
   const guarantorName = `${contract.guarantorLastName || ''} ${contract.guarantorFirstName || ''}`.trim() || '—'
   const guarantorPhone = guarantorPhoneProp || '—'
 
+  const formatAddress = (address: any): string => {
+    if (!address) return '—'
+    if (typeof address === 'string') return address
+    if (typeof address === 'object') {
+      const parts: string[] = []
+      if (address.district) parts.push(address.district)
+      if (address.city) parts.push(address.city)
+      if (address.arrondissement) parts.push(address.arrondissement)
+      if (address.province) parts.push(address.province)
+      if (address.additionalInfo) parts.push(address.additionalInfo)
+      return parts.length > 0 ? parts.join(', ') : '—'
+    }
+    return '—'
+  }
+
+  const getGenderLabel = (gender?: string) => {
+    if (!gender) return '—'
+    const g = String(gender).toLowerCase()
+    if (g === 'm' || g === 'male' || g === 'homme') return 'Masculin'
+    if (g === 'f' || g === 'female' || g === 'femme') return 'Féminin'
+    return gender
+  }
+
+  const getIdentityDocumentLabel = (doc?: string) => {
+    if (!doc) return '—'
+    const d = String(doc).toUpperCase()
+    if (d.includes('CNI')) return 'CNI'
+    if (d.includes('PASS') || d.includes('PASSEPORT')) return 'Passeport'
+    if (d.includes('CS')) return 'Carte de séjour'
+    return doc
+  }
+
+  const member = {
+    matricule: memberData?.matricule || contract.clientId || '—',
+    membershipType: memberData?.membershipType
+      ? MEMBERSHIP_TYPE_LABELS[memberData.membershipType as keyof typeof MEMBERSHIP_TYPE_LABELS] || memberData.membershipType
+      : '—',
+    lastName: memberData?.lastName || contract.clientLastName || '—',
+    firstName: memberData?.firstName || contract.clientFirstName || '—',
+    birthPlace: memberData?.birthPlace || '—',
+    birthDate: memberData?.birthDate ? formatDate(memberData.birthDate) : '—',
+    identityDocument: getIdentityDocumentLabel(memberData?.identityDocument),
+    identityDocumentNumber: memberData?.identityDocumentNumber || '—',
+    phone1: memberData?.contacts?.[0] || contract.clientContacts?.[0] || '—',
+    phone2: memberData?.contacts?.[1] || contract.clientContacts?.[1] || '—',
+    gender: getGenderLabel(memberData?.gender),
+    quarter: formatAddress(memberData?.address) || '—',
+    nationality: getNationalityName(memberData?.nationality || '') || '—',
+    association: 'LE KARA',
+  }
+
+  const guarantor = {
+    lastName: guarantorData?.lastName || contract.guarantorLastName || '—',
+    firstName: guarantorData?.firstName || contract.guarantorFirstName || '—',
+    phone: guarantorData?.contacts?.[0] || guarantorPhoneProp || '—',
+    identityDocument: getIdentityDocumentLabel(guarantorData?.identityDocument),
+    identityDocumentNumber: guarantorData?.identityDocumentNumber || '—',
+  }
+
+  const memberRows: QuittanceCoverRow[] = [
+    {
+      kind: 'pair',
+      left: { label: 'MATRICULE', value: member.matricule },
+      right: { label: 'MEMBRE', value: member.membershipType },
+    },
+    { kind: 'single', label: 'NOM', value: member.lastName.toUpperCase() },
+    { kind: 'single', label: 'PRÉNOM', value: member.firstName },
+    {
+      kind: 'pair',
+      left: { label: 'LIEU / NAISSANCE', value: member.birthPlace },
+      right: { label: 'DATE / NAISSANCE', value: member.birthDate },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'TYPE DE PIÈCE', value: member.identityDocument },
+      right: { label: 'N° DE PIÈCE', value: member.identityDocumentNumber },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'TÉLÉPHONE 1', value: member.phone1 },
+      right: { label: 'TÉLÉPHONE 2', value: member.phone2 },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'SEXE', value: member.gender },
+      right: { label: 'QUARTIER', value: member.quarter },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'NATIONALITÉ', value: member.nationality },
+      right: { label: 'ASSOCIATION', value: member.association },
+    },
+  ]
+
+  const guarantorRows: QuittanceCoverRow[] = [
+    {
+      kind: 'pair',
+      left: { label: 'NOM', value: guarantor.lastName.toUpperCase() },
+      right: { label: 'PRÉNOM', value: guarantor.firstName },
+    },
+    { kind: 'single', label: 'TÉLÉPHONE', value: guarantor.phone },
+    {
+      kind: 'pair',
+      left: { label: 'TYPE DE PIÈCE', value: guarantor.identityDocument },
+      right: { label: 'N° DE PIÈCE', value: guarantor.identityDocumentNumber },
+    },
+  ]
+
   // Montants
   const totalAmount = contract.totalAmount || (contract.amount + (contract.amount * (contract.interestRate || 10) / 100))
   const amountInWords = numberToWords(Math.round(totalAmount))
@@ -226,26 +321,12 @@ const QuittanceCreditSpecialePDF = ({ contract, guarantorPhone: guarantorPhonePr
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header : Tiers subrogé + Logo */}
-        <View style={styles.headerSection}>
-          <View style={styles.tiersSubrogeSection}>
-            <Text style={styles.tiersSubrogeTitle}>Tiers subrogé</Text>
-            <Text style={styles.tiersSubrogeInfo}>
-              <Text style={styles.bold}>Nom</Text> : {contract.guarantorLastName || '—'}
-            </Text>
-            <Text style={styles.tiersSubrogeInfo}>
-              <Text style={styles.bold}>Prénom</Text> : {contract.guarantorFirstName || '—'}
-            </Text>
-            <Text style={styles.tiersSubrogeInfo}>
-              <Text style={styles.bold}>Tél</Text> : {guarantorPhone}
-            </Text>
-          </View>
-          <Image
-            src={typeof window !== 'undefined' ? window.location.origin + '/Logo-Kara.jpg' : '/Logo-Kara.jpg'}
-            style={styles.logo}
-            cache={false}
-          />
-        </View>
+        <QuittanceCoverPage
+          memberSectionTitle="Informations Personnelles du Membre"
+          memberRows={memberRows}
+          secondarySectionTitle="Information Concernant le Garant"
+          secondaryRows={guarantorRows}
+        />
 
         {/* Titre */}
         <Text style={styles.mainTitle}>QUITTANCE SUBROGATIVE</Text>
@@ -278,10 +359,12 @@ const QuittanceCreditSpecialePDF = ({ contract, guarantorPhone: guarantorPhonePr
         {/* Signatures */}
         <View style={styles.signatureSection}>
           <View style={styles.signatureBox}>
-            <Text style={styles.signatureLabel}>LE KARA</Text>
+            <Text style={styles.signatureLabel}>Signature du Secrétaire exécutif</Text>
           </View>
           <View style={styles.signatureBox}>
-            <Text style={[styles.signatureLabel, { textAlign: 'right' }]}>LE MEMBRE</Text>
+            <Text style={[styles.signatureLabel, { textAlign: 'right' }]}>
+              Signature de l'épargnant (Précédée de la mention Lu et Approuvé)
+            </Text>
           </View>
         </View>
 

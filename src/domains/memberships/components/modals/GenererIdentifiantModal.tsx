@@ -97,8 +97,8 @@ export function GenererIdentifiantModal({
         <DialogHeader>
           <DialogTitle>Réinitialiser le mot de passe du membre</DialogTitle>
           <DialogDescription>
-            Le mot de passe du membre sera remplacé par son matricule. Recopiez
-            le matricule ci-dessous pour confirmer.
+            Le mot de passe du membre sera remplacé par un mot de passe
+            aléatoire. Recopiez le matricule ci-dessous pour confirmer.
           </DialogDescription>
         </DialogHeader>
 

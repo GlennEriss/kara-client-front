@@ -1416,7 +1416,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileSignature className="h-5 w-5" />
-                PDF Remboursement
+                Générer la quittance
               </Button>
 
               <Button
@@ -1743,4 +1743,3 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
     </div>
   )
 }
-

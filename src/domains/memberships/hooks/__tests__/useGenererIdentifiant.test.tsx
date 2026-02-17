@@ -43,8 +43,9 @@ describe('useGenererIdentifiant', () => {
   it('appelle le service et retourne les données PDF si le matricule est valide', async () => {
     const pdfData = {
       matricule: 'MAT-001',
+      email: 'jean@test.com',
       identifiant: 'jean@test.com',
-      motDePasse: 'MAT-001',
+      motDePasse: 'RANDOM_PWD',
     }
     mockResetPasswordAndGetPdfData.mockResolvedValue(pdfData)
 

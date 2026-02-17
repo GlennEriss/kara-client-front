@@ -1,17 +1,21 @@
 'use client'
 
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
+import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
 
 // Styles - basés sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
 const styles = StyleSheet.create({
   page: {
+    // Aligne 1:1 avec `AdhesionCreditSpecialeV2` (page 1)
     fontFamily: 'Times-Roman',
     fontSize: 11,
-    padding: 25,
-    lineHeight: 1.4,
-    position: 'relative',
+    paddingLeft: 30,
+    paddingRight: 30,
+    paddingTop: 50,
+    paddingBottom: 40,
+    lineHeight: 1.6,
   },
   pageContainer: {
     width: '100%',
@@ -88,7 +92,7 @@ const styles = StyleSheet.create({
 })
 
 // PDF basé sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
-const RemboursementNormalPDFV2 = ({ contract }: { contract?: any }) => {
+const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
   const formatDate = (date: any) => {
     if (!date) return '—'
     try {
@@ -203,107 +207,57 @@ const RemboursementNormalPDFV2 = ({ contract }: { contract?: any }) => {
     }
   }
 
+  const memberRows: QuittanceCoverRow[] = [
+    {
+      kind: 'pair',
+      left: { label: 'MATRICULE', value: contract?.memberId || '—' },
+      right: { label: 'MEMBRE', value: contract?.member?.membershipType?.toUpperCase() || '—' },
+    },
+    { kind: 'single', label: 'NOM', value: (contract?.member?.lastName || '—').toUpperCase() },
+    { kind: 'single', label: 'PRÉNOM', value: contract?.member?.firstName || '—' },
+    {
+      kind: 'pair',
+      left: { label: 'LIEU / NAISSANCE', value: contract?.member?.birthPlace || '—' },
+      right: { label: 'DATE / NAISSANCE', value: formatDate(contract?.member?.birthDate) },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'TYPE DE PIÈCE', value: contract?.member?.identityDocument || '—' },
+      right: { label: 'N° DE PIÈCE', value: contract?.member?.identityDocumentNumber || '—' },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'TÉLÉPHONE 1', value: contract?.member?.contacts?.[0] || '—' },
+      right: { label: 'TÉLÉPHONE 2', value: contract?.member?.contacts?.[1] || '—' },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'SEXE', value: contract?.member?.gender || '—' },
+      right: { label: 'QUARTIER', value: contract?.member?.address?.district || '—' },
+    },
+    {
+      kind: 'pair',
+      left: { label: 'NATIONALITÉ', value: getNationalityName(contract?.member?.nationality) || '—' },
+      right: { label: 'ASSOCIATION', value: 'LE KARA' },
+    },
+  ]
+
+  const emergencyRows: QuittanceCoverRow[] = [
+    { kind: 'pair', left: { label: 'NOM', value: (contract?.emergencyContact?.lastName || '—').toUpperCase() }, right: { label: 'PRÉNOM', value: contract?.emergencyContact?.firstName || '—' } },
+    { kind: 'single', label: 'TÉLÉPHONE', value: contract?.emergencyContact?.phone1 || '—' },
+    { kind: 'single', label: 'LIENS', value: contract?.emergencyContact?.relationship || '—' },
+  ]
+
   return (
     <Document>
       {/* PAGE 1 - Informations personnelles et contact urgent (template) */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          <View style={styles.header}>
-            <View style={styles.logo}>
-              <Image
-                src={window.location.origin + '/Logo-Kara.jpg'}
-                style={{ width: 70, height: 70, objectFit: 'cover' }}
-                cache={false}
-              />
-            </View>
-            <View style={{ flex: 1 }} />
-          </View>
-
-          <Text style={styles.title}>Informations Personnelles du Membre :</Text>
-
-          <View style={styles.section}>
-            <View style={styles.row}>
-              <Text style={styles.cell}>MATRICULE</Text>
-              <Text style={styles.cell}>{contract?.memberId || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>MEMBRE</Text>
-              <Text style={styles.cell}>{contract?.member?.membershipType?.toUpperCase() || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>NOM</Text>
-              <Text style={styles.cell}>{contract?.member?.lastName?.toUpperCase() || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>PRÉNOM</Text>
-              <Text style={styles.cell}>{contract?.member?.firstName || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>LIEU / NAISSANCE</Text>
-              <Text style={styles.cell}>{contract?.member?.birthPlace || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>DATE / NAISSANCE</Text>
-              <Text style={styles.cell}>{formatDate(contract?.member?.birthDate)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>NATIONALITÉ</Text>
-              <Text style={styles.cell}>{getNationalityName(contract?.member?.nationality)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>N°CNI/PASS/CS</Text>
-              <Text style={styles.cell}>
-                {[contract?.member?.identityDocument, contract?.member?.identityDocumentNumber]
-                  .filter(Boolean)
-                  .join(' ') || '—'}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE 1</Text>
-              <Text style={styles.cell}>{contract?.member?.contacts?.[0] || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE 2</Text>
-              <Text style={styles.cell}>{contract?.member?.contacts?.[1] || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>SEXE</Text>
-              <Text style={styles.cell}>{contract?.member?.gender || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>ÂGE</Text>
-              <Text style={styles.cell}>{contract?.member?.age || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>QUARTIER</Text>
-              <Text style={styles.cell}>{contract?.member?.address?.district || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>PROFESSION</Text>
-              <Text style={styles.cell}>{contract?.member?.profession || '—'}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.title}>Informations Concernant Le Contact Urgent :</Text>
-          <View style={styles.section}>
-            <View style={styles.row}>
-              <Text style={styles.cell}>NOM</Text>
-              <Text style={styles.cell}>{contract?.emergencyContact?.lastName || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>PRÉNOM</Text>
-              <Text style={styles.cell}>{contract?.emergencyContact?.firstName || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE</Text>
-              <Text style={styles.cell}>{contract?.emergencyContact?.phone1 || '—'}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>LIENS</Text>
-              <Text style={styles.cell}>{contract?.emergencyContact?.relationship || '—'}</Text>
-            </View>
-          </View>
-        </View>
+        <QuittanceCoverPage
+          memberSectionTitle="Informations Personnelles du Membre"
+          memberRows={memberRows}
+          secondarySectionTitle="Informations Concernant le Contact Urgent"
+          secondaryRows={emergencyRows}
+        />
       </Page>
 
       {/* PAGE 2 - Quittance de paiement (template) */}
@@ -371,4 +325,4 @@ const RemboursementNormalPDFV2 = ({ contract }: { contract?: any }) => {
   )
 }
 
-export default RemboursementNormalPDFV2
+export default QuittanceCaisseSpecialePDF

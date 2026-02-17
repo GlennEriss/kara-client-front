@@ -53,7 +53,7 @@ describe('GenererIdentifiantService', () => {
     mockGetUserById.mockResolvedValue(member)
     vi.mocked(globalThis.fetch).mockResolvedValue({
       ok: true,
-      json: async () => ({}),
+      json: async () => ({ email: 'auth@email.com', newPassword: 'RANDOM_PWD' }),
     } as Response)
 
     const service = GenererIdentifiantService.getInstance()
@@ -64,27 +64,29 @@ describe('GenererIdentifiantService', () => {
       '/api/auth/admin/reset-member-password',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ memberId: 'user-123', newPassword: 'MAT-001' }),
+        body: JSON.stringify({ memberId: 'user-123' }),
       })
     )
     expect(result).toEqual({
       matricule: 'MAT-001',
-      identifiant: 'jean@test.com',
-      motDePasse: 'MAT-001',
+      email: 'auth@email.com',
+      identifiant: 'auth@email.com',
+      motDePasse: 'RANDOM_PWD',
     })
   })
 
   it('utilise le matricule comme identifiant si email absent', async () => {
     const member = createMockUser({ id: 'user-456', matricule: 'MAT-002', email: undefined })
     mockGetUserById.mockResolvedValue(member)
-    vi.mocked(globalThis.fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
+    vi.mocked(globalThis.fetch).mockResolvedValue({ ok: true, json: async () => ({ email: null, newPassword: 'RANDOM_PWD' }) } as Response)
 
     const service = GenererIdentifiantService.getInstance()
     const result = await service.resetPasswordAndGetPdfData('user-456', 'MAT-002')
 
     expect(result.identifiant).toBe('MAT-002')
+    expect(result.email).toBeNull()
     expect(result.matricule).toBe('MAT-002')
-    expect(result.motDePasse).toBe('MAT-002')
+    expect(result.motDePasse).toBe('RANDOM_PWD')
   })
 
   it('lance une erreur si le membre est introuvable', async () => {

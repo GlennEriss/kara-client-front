@@ -32,6 +32,9 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
   )
   const guarantorPhone = guarantorData?.contacts?.[0] || '—'
 
+  // Récupérer les informations complètes du membre (client)
+  const { data: memberData } = useMember(contract.clientId)
+
   // Nom du fichier : Quittance_Empunt_Nom_Prenom_du_membre.pdf
   const lastName = (contract.clientLastName || 'Membre').replace(/[\s/\\?*:|"<>]/g, '_').trim()
   const firstName = (contract.clientFirstName || 'Inconnu').replace(/[\s/\\?*:|"<>]/g, '_').trim()
@@ -53,7 +56,14 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
       setIsExporting(true)
       toast.info('Génération du PDF en cours...')
 
-      const doc = <QuittanceCreditSpecialePDF contract={contract} guarantorPhone={guarantorPhone} />
+      const doc = (
+        <QuittanceCreditSpecialePDF
+          contract={contract}
+          guarantorPhone={guarantorPhone}
+          memberData={memberData}
+          guarantorData={guarantorData}
+        />
+      )
 
       const blob = await pdf(doc).toBlob()
       const url = URL.createObjectURL(blob)
@@ -80,7 +90,14 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
       setIsSaving(true)
       toast.info('Génération et enregistrement de la quittance...')
 
-      const doc = <QuittanceCreditSpecialePDF contract={contract} guarantorPhone={guarantorPhone} />
+      const doc = (
+        <QuittanceCreditSpecialePDF
+          contract={contract}
+          guarantorPhone={guarantorPhone}
+          memberData={memberData}
+          guarantorData={guarantorData}
+        />
+      )
 
       const blob = await pdf(doc).toBlob()
       const file = new File([blob], quittanceFilename, { type: 'application/pdf' })
@@ -177,7 +194,16 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
               </div>
 
               {/* Boutons d'action mobile */}
-              <BlobProvider document={<QuittanceCreditSpecialePDF contract={contract} guarantorPhone={guarantorPhone} />}>
+              <BlobProvider
+                document={
+                  <QuittanceCreditSpecialePDF
+                    contract={contract}
+                    guarantorPhone={guarantorPhone}
+                    memberData={memberData}
+                    guarantorData={guarantorData}
+                  />
+                }
+              >
                 {({ url, loading }) => (
                   <div className="w-full space-y-2">
                     <Button
@@ -234,7 +260,12 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
               border: 'none',
               borderRadius: '0.75rem'
             }}>
-              <QuittanceCreditSpecialePDF contract={contract} guarantorPhone={guarantorPhone} />
+              <QuittanceCreditSpecialePDF
+                contract={contract}
+                guarantorPhone={guarantorPhone}
+                memberData={memberData}
+                guarantorData={guarantorData}
+              />
             </PDFViewer>
           </div>
         </div>

@@ -58,8 +58,8 @@ interface IdentifiantsMembrePDFProps {
 }
 
 /**
- * Document PDF des identifiants de connexion du membre (matricule, identifiant, mot de passe).
- * Utilisé après réinitialisation du mot de passe à la valeur du matricule.
+ * Document PDF des identifiants de connexion du membre (matricule, email, mot de passe).
+ * Utilisé après réinitialisation du mot de passe à une valeur aléatoire.
  */
 export function IdentifiantsMembrePDF({ data }: IdentifiantsMembrePDFProps) {
   return (
@@ -76,8 +76,8 @@ export function IdentifiantsMembrePDF({ data }: IdentifiantsMembrePDFProps) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Identifiant (login)</Text>
-          <Text style={styles.value}>{data.identifiant}</Text>
+          <Text style={styles.sectionTitle}>Email</Text>
+          <Text style={styles.value}>{data.email || '-'}</Text>
         </View>
 
         <View style={styles.section}>
