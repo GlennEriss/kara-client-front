@@ -2,7 +2,7 @@ const routes = {
     public: {
         homepage: '/',
         register: '/register',
-        login: '/login',
+        login: '/', // Page d'accueil = formulaire de connexion
         adminLogin: '/login/admin',
     },
     admin: {

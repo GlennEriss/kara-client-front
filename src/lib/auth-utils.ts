@@ -12,8 +12,8 @@ export async function logout() {
     const logoutService = ServiceFactory.getLogoutService()
     await logoutService.logout()
     
-    // Redirection vers la page de connexion
-    window.location.href = '/login'
+    // Redirection vers la page d'accueil (connexion)
+    window.location.href = '/'
   } catch (error) {
     console.error('Erreur lors de la déconnexion:', error)
     throw error
