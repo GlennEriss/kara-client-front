@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PlacementDemand, PlacementDemandStatus } from '@/types/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { usePlacementDemands, usePlacementDemandsStats, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
 import type { PlacementDemandFilters } from '@/types/types'
 import CreateDemandModal from './CreateDemandModal'
@@ -35,6 +36,7 @@ import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import StatisticsPlacementDemandes from './StatisticsPlacementDemandes'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import routes from '@/constantes/routes'
 
 type ViewMode = 'grid' | 'list'
@@ -63,6 +65,7 @@ const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
 const ListPlacementDemandes = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'converted'>(
     (searchParams.get('tab') as any) || 'all'
@@ -145,8 +148,9 @@ const ListPlacementDemandes = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleRefresh = async () => {
-    // Le refetch est géré automatiquement par React Query
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['placementDemands'] })
+    queryClient.invalidateQueries({ queryKey: ['placementDemandsStats'] })
   }
 
   // Fonctions utilitaires
@@ -176,16 +180,7 @@ const ListPlacementDemandes = () => {
       : 'Capital + Commission en fin'
   }
 
-  // Les demandes sont déjà filtrées par le hook
-  const filteredDemandes = demandes
-
-  // Pagination
-  const totalPages = Math.ceil(filteredDemandes.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentDemandes = filteredDemandes.slice(startIndex, endIndex)
-
-  // Stats
+  // Stats (déclaré avant totalForTab qui en dépend)
   const stats = React.useMemo(() => {
     if (statsData) {
       return {
@@ -204,6 +199,24 @@ const ListPlacementDemandes = () => {
       converted: 0,
     }
   }, [statsData])
+
+  // Les demandes renvoyées par l'API sont déjà la page courante (filtres page/limit)
+  const currentDemandes = demandes
+
+  // Total pour l'onglet actif (pour la pagination et l'affichage)
+  const totalForTab = activeTab === 'all'
+    ? stats.total
+    : activeTab === 'pending'
+      ? stats.pending
+      : activeTab === 'approved'
+        ? stats.approved
+        : activeTab === 'rejected'
+          ? stats.rejected
+          : stats.converted
+
+  const totalPages = Math.max(1, Math.ceil(totalForTab / itemsPerPage))
+  const startIndex = totalForTab === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1
+  const endIndex = Math.min(currentPage * itemsPerPage, totalForTab)
 
   // Gestion des erreurs
   if (error) {
@@ -270,7 +283,15 @@ const ListPlacementDemandes = () => {
                   Liste des Demandes de Placement
                 </h2>
                 <p className="text-gray-600 font-medium">
-                  {filteredDemandes.length.toLocaleString()} demande{filteredDemandes.length !== 1 ? 's' : ''} • Page {currentPage}
+                  {totalForTab.toLocaleString()} demande{totalForTab !== 1 ? 's' : ''} • Page {currentPage}
+                </p>
+                <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-2">
+                  <Link
+                    href={routes.admin.placements}
+                    className="text-[#234D65] hover:underline font-medium"
+                  >
+                    Voir les placements
+                  </Link>
                 </p>
               </div>
             </div>
@@ -522,7 +543,7 @@ const ListPlacementDemandes = () => {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredDemandes.length)} sur {filteredDemandes.length} demandes
+                    Affichage {startIndex}-{endIndex} sur {totalForTab} demande{totalForTab !== 1 ? 's' : ''}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

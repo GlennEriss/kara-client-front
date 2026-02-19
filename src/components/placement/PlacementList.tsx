@@ -30,6 +30,8 @@ import PlacementFinalQuittanceModal from './PlacementFinalQuittanceModal'
 import PlacementEarlyExitQuittanceModal from './PlacementEarlyExitQuittanceModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import routes from '@/constantes/routes'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
@@ -964,8 +966,15 @@ export default function PlacementList() {
             <p className="text-gray-600 text-base md:text-lg mt-1">
               Gestion des placements et suivi des bienfaiteurs
             </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {filteredByTab.length} résultat(s) affiché(s) / {placements.length} au total
+            <p className="text-sm text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+              <span>{filteredByTab.length} résultat(s) affiché(s) / {placements.length} au total</span>
+              <span className="text-gray-300">|</span>
+              <Link
+                href={routes.admin.placementDemandes}
+                className="text-[#234D65] hover:underline font-medium"
+              >
+                Voir les demandes de placement
+              </Link>
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">

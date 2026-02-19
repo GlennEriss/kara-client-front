@@ -85,6 +85,7 @@ const routes = {
         placements: '/placements',
         placementDetails: (id: string) => `/placements/${id}`,
         placementDemandes: '/placements/demandes',
+        placementDemandAdd: '/placements/demandes/add',
         placementDemandDetails: (id: string) => `/placements/demandes/${id}`,
         // Géographie
         geographie: '/geographie',
