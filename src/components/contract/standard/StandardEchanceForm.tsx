@@ -179,6 +179,9 @@ export default function StandardEchanceForm({ payments, isClosed, contractData, 
                       <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
                         <div>Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}</div>
                         <div>Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}</div>
+                        {p.paidAt && (
+                          <div>Payé à: {(p.time ?? p.contribs?.[0]?.time) || new Date(p.paidAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                        )}
                         {p.penaltyApplied ? (
                           <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied} FCFA</div>
                         ) : null}

@@ -22,7 +22,14 @@ import {
   FileSpreadsheet,
   Trash2,
   FileEdit,
+  MoreVertical,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -382,38 +389,73 @@ const DemandTableRow = ({
         </span>
       </TableCell>
       <TableCell><EmergencyContactDisplay demand={demande} /></TableCell>
-      <TableCell className="text-right space-x-2">
-        {demande.status === 'PENDING' && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}>
-              <FileEdit className="h-4 w-4" />
-            </Button>
-            <Button size="sm" variant="default" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}>
-              Accepter
-            </Button>
-            <Button size="sm" variant="destructive" onClick={() => setRejectModalState({ isOpen: true, demand: demande })}>
-              Refuser
-            </Button>
-          </>
-        )}
-        {demande.status === 'REJECTED' && (
-          <Button size="sm" variant="secondary" onClick={() => setReopenModalState({ isOpen: true, demand: demande })}>
-            Réouvrir
-          </Button>
-        )}
-        <Button size="sm" variant="outline" onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}>
-          <Eye className="h-4 w-4" />
-        </Button>
-        {demande.status !== 'CONVERTED' && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
-            className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+      <TableCell className="text-right">
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
+                title="Actions"
+              >
+                <MoreVertical className="h-4 w-4 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuItem
+                onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
+                className="cursor-pointer"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Voir détails
+              </DropdownMenuItem>
+              {demande.status === 'PENDING' && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
+                    className="cursor-pointer"
+                  >
+                    <FileEdit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
+                    className="cursor-pointer"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Accepter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Refuser
+                  </DropdownMenuItem>
+                </>
+              )}
+              {demande.status === 'REJECTED' && (
+                <DropdownMenuItem
+                  onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
+                  className="cursor-pointer"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Réouvrir
+                </DropdownMenuItem>
+              )}
+              {demande.status !== 'CONVERTED' && (
+                <DropdownMenuItem
+                  onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
+                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </TableRow>
   )

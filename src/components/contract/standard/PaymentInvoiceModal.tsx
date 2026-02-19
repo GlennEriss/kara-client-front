@@ -16,6 +16,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { toast } from 'sonner'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { getAdminById } from '@/db/admin.db'
 
 // Helper pour formater les montants correctement dans les PDFs
 const formatAmount = (amount: number): string => {
@@ -299,6 +300,49 @@ export default function PaymentInvoiceModal({
             doc.text('(Image non disponible)', 14, yPos)
             doc.setTextColor(0, 0, 0)
           }
+        }
+      }
+
+      // Section Modification du versement (si applicable)
+      const paymentAny = payment as { modificationReason?: string; updatedAt?: Date | any; updatedBy?: string }
+      if (paymentAny.modificationReason || paymentAny.updatedAt) {
+        if (yPos > doc.internal.pageSize.getHeight() - 50) {
+          doc.addPage()
+          yPos = 20
+        }
+        yPos += 8
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Modification du versement', 14, yPos)
+        yPos += 8
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        if (paymentAny.updatedAt) {
+          const u = paymentAny.updatedAt
+          const modDate = typeof u?.toDate === 'function' ? u.toDate() : u ? new Date(u) : null
+          if (modDate && !isNaN(modDate.getTime())) {
+            doc.text(`Date de modification : ${modDate.toLocaleDateString('fr-FR')} à ${modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 14, yPos)
+            yPos += 6
+          }
+        }
+        if (paymentAny.updatedBy) {
+          try {
+            const admin = await getAdminById(paymentAny.updatedBy)
+            if (admin) {
+              doc.text(`Modifié par : ${admin.firstName} ${admin.lastName} - Matricule : ${admin.id}`, 14, yPos)
+              yPos += 6
+            }
+          } catch {
+            doc.text(`Modifié par : (ID ${paymentAny.updatedBy})`, 14, yPos)
+            yPos += 6
+          }
+        }
+        if (paymentAny.modificationReason) {
+          doc.text('Motif de la modification :', 14, yPos)
+          yPos += 5
+          const lines = doc.splitTextToSize(paymentAny.modificationReason, 180)
+          doc.text(lines, 14, yPos)
+          yPos += lines.length * 5 + 4
         }
       }
 

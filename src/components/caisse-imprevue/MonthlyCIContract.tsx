@@ -23,12 +23,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ContractCI } from '@/types/types'
+import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
 import routes from '@/constantes/routes'
-import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
+import PaymentCIModal, { PaymentFormData, PaymentCIInitialData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
@@ -37,7 +38,7 @@ import EarlyRefundCIModal from './EarlyRefundCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useUpdateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
 import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
@@ -296,10 +297,12 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
   const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
+  const [editVersement, setEditVersement] = useState<{ payment: PaymentCI; versement: VersementCI } | null>(null)
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
+  const updateVersementMutation = useUpdateVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
@@ -414,25 +417,45 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
     if (selectedMonthIndex === null || !user?.uid) return
 
     try {
-      await createVersementMutation.mutateAsync({
-        contractId: contract.id,
-        monthIndex: selectedMonthIndex,
-        versementData: {
-          date: data.date,
-          time: data.time,
-          amount: data.amount,
-          mode: data.mode,
-          agentRecouvrementId: data.agentRecouvrementId,
-        },
-        proofFile: data.proofFile,
-        userId: user.uid,
-      })
-
-      setShowPaymentModal(false)
-      setSelectedMonthIndex(null)
+      if (editVersement) {
+        if (!data.modificationReason?.trim()) return
+        await updateVersementMutation.mutateAsync({
+          contractId: contract.id,
+          monthIndex: editVersement.payment.monthIndex,
+          versementId: editVersement.versement.id,
+          versementData: {
+            date: data.date,
+            time: data.time,
+            amount: data.amount,
+            mode: data.mode,
+            agentRecouvrementId: data.agentRecouvrementId,
+          },
+          proofFile: data.proofFile,
+          modificationReason: data.modificationReason.trim(),
+          userId: user.uid,
+        })
+        setShowPaymentModal(false)
+        setSelectedMonthIndex(null)
+        setEditVersement(null)
+      } else {
+        await createVersementMutation.mutateAsync({
+          contractId: contract.id,
+          monthIndex: selectedMonthIndex,
+          versementData: {
+            date: data.date,
+            time: data.time,
+            amount: data.amount,
+            mode: data.mode,
+            agentRecouvrementId: data.agentRecouvrementId,
+          },
+          proofFile: data.proofFile!,
+          userId: user.uid,
+        })
+        setShowPaymentModal(false)
+        setSelectedMonthIndex(null)
+      }
     } catch (error) {
       console.error('Erreur lors du paiement:', error)
-      // L'erreur est déjà gérée par le hook
       throw error
     }
   }
@@ -819,6 +842,59 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                               </span>
                             </div>
 
+                            {status === 'PAID' && (() => {
+                              const monthPayment = payments.find((p) => p.monthIndex === monthIndex && p.status === 'PAID')
+                              const lastVersement = monthPayment?.versements?.length
+                                ? monthPayment.versements[monthPayment.versements.length - 1]
+                                : null
+                              const paidDate = lastVersement
+                                ? new Date(`${lastVersement.date}T${lastVersement.time || '00:00'}`)
+                                : null
+                              const paidTimeStr = lastVersement?.time
+                              return paidDate ? (
+                                <div className="space-y-1 pt-1 border-t border-gray-200">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Payé le:</span>
+                                    <span className="font-semibold text-green-600">
+                                      {paidDate.toLocaleDateString('fr-FR')}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Payé à:</span>
+                                    <span className="font-semibold text-green-600">
+                                      {paidTimeStr || paidDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : null
+                            })()}
+
+                            {status === 'PAID' && (() => {
+                              const monthPayment = payments.find((p: any) => p.monthIndex === monthIndex) as PaymentCI | undefined
+                              if (!monthPayment?.modificationReason && !monthPayment?.updatedAt) return null
+                              return (
+                                <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                                  {monthPayment?.updatedAt && (() => {
+                                    const u = monthPayment.updatedAt
+                                    const modDate = u instanceof Date ? u : (typeof (u as any)?.toDate === 'function' ? (u as any).toDate() : u ? new Date(u as string | number) : null)
+                                    if (!modDate || isNaN(modDate.getTime())) return null
+                                    return (
+                                      <div className="flex items-center justify-between">
+                                        <span>Modifié le:</span>
+                                        <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                    )
+                                  })()}
+                                  {monthPayment?.modificationReason && (
+                                    <div>
+                                      <span className="font-medium">Motif:</span>
+                                      <span className="ml-1">{monthPayment.modificationReason}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
+
                             <div className="space-y-2">
                               <div className="flex items-center justify-between text-xs">
                                 <span>Progression</span>
@@ -837,6 +913,48 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                 />
                               </div>
                             </div>
+
+                            {/* Boutons Voir la facture + Modifier (mois payé), alignés à la verticale */}
+                            {status === 'PAID' && (() => {
+                              const monthPayment = payments.find((p: any) => p.monthIndex === monthIndex) as PaymentCI | undefined
+                              const lastVersement = monthPayment?.versements?.length
+                                ? monthPayment.versements[monthPayment.versements.length - 1]
+                                : null
+                              if (!lastVersement) return null
+                              return (
+                                <div className="pt-3 border-t border-gray-200 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
+                                    onClick={() => {
+                                      setSelectedMonthIndex(monthIndex)
+                                      setShowReceiptModal(true)
+                                    }}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Voir la facture
+                                  </Button>
+                                  {!isContractTerminated && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                                      onClick={() => {
+                                        setSelectedMonthIndex(monthIndex)
+                                        setEditVersement({ payment: monthPayment!, versement: lastVersement })
+                                        setShowPaymentModal(true)
+                                      }}
+                                    >
+                                      <Pencil className="h-3 w-3 mr-1" />
+                                      Modifier
+                                    </Button>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </div>
                         </CardContent>
                       </Card>
@@ -862,13 +980,16 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           onClose={() => {
             setShowPaymentModal(false)
             setSelectedMonthIndex(null)
+            setEditVersement(null)
           }}
           onSubmit={handlePaymentSubmit}
-          title={`Versement pour le mois M${(selectedMonthIndex ?? 0) + 1}`}
-          description={`Enregistrer le versement mensuel de ${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`}
+          title={editVersement ? `Modifier le versement – Mois M${editVersement.payment.monthIndex + 1}` : `Versement pour le mois M${(selectedMonthIndex ?? 0) + 1}`}
+          description={editVersement ? 'Modifier la date, l\'heure, le montant, le mode ou la preuve du versement.' : `Enregistrer le versement mensuel de ${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`}
           defaultAmount={contract.subscriptionCIAmountPerMonth}
           isMonthly={true}
           contractId={contract.id}
+          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl } : undefined}
+          submitLabel={editVersement ? 'Modifier le versement' : undefined}
         />
 
         {/* Modal de reçu */}
@@ -1052,7 +1173,11 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                         {r.status === 'PAID' && (r.paidByName || r.paidAt) && (
                           <div className="pt-2 space-y-1 text-xs text-gray-500">
                             {r.paidByName && <p>Marqué par: {r.paidByName}</p>}
-                            {r.paidAt && <p>Le {new Date(r.paidAt).toLocaleDateString('fr-FR')} à {new Date(r.paidAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>}
+                            {r.paidAt && (
+                              <p>
+                                Le {new Date(r.paidAt).toLocaleDateString('fr-FR')} à {(r as { paidAtTime?: string; time?: string }).paidAtTime ?? (r as { paidAtTime?: string; time?: string }).time ?? new Date(r.paidAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

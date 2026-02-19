@@ -26,5 +26,16 @@ export interface IPaymentCIRepository extends IRepository {
      * Met à jour le statut et le montant accumulé d'un paiement
      */
     updatePaymentStatus(contractId: string, monthIndex: number, accumulatedAmount: number, status: 'DUE' | 'PAID' | 'PARTIAL', userId: string): Promise<PaymentCI | null>;
+
+    /**
+     * Met à jour un versement existant (date, heure, montant, mode, preuve) et enregistre la modification (motif, admin)
+     */
+    updateVersement(
+        contractId: string,
+        monthIndex: number,
+        versementId: string,
+        updatedVersement: VersementCI,
+        paymentMeta: { modificationReason: string; updatedBy: string }
+    ): Promise<PaymentCI | null>;
 }
 

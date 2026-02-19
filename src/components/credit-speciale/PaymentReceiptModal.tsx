@@ -26,6 +26,7 @@ import {
   Image as ImageIcon,
   Loader2,
   X,
+  Pencil,
 } from 'lucide-react'
 import { CreditContract, CreditPayment, CreditPaymentMode } from '@/types/types'
 import { format } from 'date-fns'
@@ -42,6 +43,8 @@ interface PaymentReceiptModalProps {
   contract: CreditContract
   payment: CreditPayment
   installmentNumber?: number // Numéro d'échéance pour affichage
+  /** Si fourni, affiche un bouton "Modifier le versement" (contrat non clôturé) */
+  onEditClick?: () => void
 }
 
 // Nouveaux modes (alignés caisse spéciale) + anciens (rétrocompatibilité)
@@ -67,6 +70,7 @@ export default function PaymentReceiptModal({
   contract,
   payment,
   installmentNumber,
+  onEditClick,
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -345,7 +349,7 @@ export default function PaymentReceiptModal({
                     <p className="text-sm text-gray-700">{payment.comment}</p>
                   </div>
                 )}
-                {payment.updatedBy && (
+                {payment.updatedBy && !payment.modificationReason && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Agent de liaison</span>
                     <div className="flex items-center gap-2">
@@ -353,6 +357,43 @@ export default function PaymentReceiptModal({
                       <span className="font-semibold">
                         {agent ? `${agent.firstName} ${agent.lastName}`.trim() : payment.updatedBy}
                       </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Modification du versement (si le paiement a été modifié) */}
+                {(payment.modificationReason ?? payment.updatedAt) && (
+                  <div className="mt-4 pt-4 border-t border-amber-200 space-y-2">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Pencil className="h-4 w-4" />
+                      Modification du versement
+                    </h4>
+                    <div className="space-y-2 p-4 rounded-lg border bg-amber-50 border-amber-200 text-sm">
+                      {payment.updatedAt && (() => {
+                        const u = payment.updatedAt
+                        const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
+                        if (!modDate || isNaN(modDate.getTime())) return null
+                        return (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Modifié le :</span>
+                            <span className="font-medium">{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )
+                      })()}
+                      {payment.updatedBy && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Modifié par :</span>
+                          <span className="font-medium">
+                            {agent ? `${agent.firstName} ${agent.lastName}`.trim() : payment.updatedBy}
+                          </span>
+                        </div>
+                      )}
+                      {payment.modificationReason && (
+                        <div className="pt-2 border-t border-amber-200">
+                          <span className="text-gray-600 block mb-1">Motif :</span>
+                          <p className="font-medium text-gray-900 bg-white p-3 rounded border border-amber-100">{payment.modificationReason}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -389,6 +430,18 @@ export default function PaymentReceiptModal({
           <Button variant="outline" onClick={onClose}>
             Fermer
           </Button>
+          {onEditClick && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { onEditClick(); onClose(); }}
+              disabled={isGeneratingPDF}
+              className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              <Pencil className="h-4 w-4" />
+              Modifier le versement
+            </Button>
+          )}
           <Button
             onClick={handleDownloadPDF}
             disabled={isGeneratingPDF}

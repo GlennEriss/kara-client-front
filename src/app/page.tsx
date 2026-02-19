@@ -1,5 +1,5 @@
-import Homepage from "@/components/homepage/homepage";
+import LoginMembershipWithEmailAndPassword from '@/components/login/LoginMembershipWithEmailAndPassword'
 
 export default function Home() {
-  return <Homepage />;
+  return <LoginMembershipWithEmailAndPassword />
 }

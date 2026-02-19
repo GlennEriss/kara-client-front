@@ -24,6 +24,8 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle,
+  FileText,
+  ExternalLink,
 } from 'lucide-react'
 import { PaymentMode } from '@/types/types'
 import { toast } from 'sonner'
@@ -35,8 +37,10 @@ export interface PaymentCSFormData {
   time: string
   amount: number
   mode: PaymentMode
-  proofFile: File
+  proofFile?: File // optionnel en mode modification (conservation de l'ancienne preuve si non fournie)
   agentRecouvrementId?: string
+  /** Motif de la modification (obligatoire en mode modification) */
+  modificationReason?: string
 }
 
 interface PaymentCSModalProps {
@@ -46,9 +50,15 @@ interface PaymentCSModalProps {
   title: string
   description: string
   defaultAmount?: number
+  /** Données initiales pour le mode modification (préremplit le formulaire) */
+  initialData?: { date: string; time: string; amount: number; mode: PaymentMode; proofUrl?: string }
+  /** Libellé du bouton de soumission (ex: "Modifier le versement" en édition) */
+  submitLabel?: string
   isGroupContract?: boolean
   groupMemberName?: string
 }
+
+const isEditMode = (initialData: PaymentCSModalProps['initialData']) => initialData != null
 
 export default function PaymentCSModal({
   isOpen,
@@ -57,9 +67,12 @@ export default function PaymentCSModal({
   title,
   description,
   defaultAmount = 0,
+  initialData,
+  submitLabel,
   isGroupContract = false,
   groupMemberName,
 }: PaymentCSModalProps) {
+  const editMode = isEditMode(initialData)
   const [formData, setFormData] = useState<Partial<PaymentCSFormData>>({
     date: new Date().toISOString().split('T')[0],
     time: (() => {
@@ -73,23 +86,34 @@ export default function PaymentCSModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
+  const [modificationReason, setModificationReason] = useState<string>('')
 
-  // Réinitialiser le formulaire quand le modal s'ouvre
+  // Réinitialiser / préremplir le formulaire quand le modal s'ouvre
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        time: (() => {
-          const now = new Date()
-          return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-        })(),
-        amount: defaultAmount,
-        mode: 'airtel_money',
-      })
+      if (initialData) {
+        setFormData({
+          date: initialData.date,
+          time: initialData.time,
+          amount: initialData.amount,
+          mode: initialData.mode,
+        })
+      } else {
+        setFormData({
+          date: new Date().toISOString().split('T')[0],
+          time: (() => {
+            const now = new Date()
+            return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+          })(),
+          amount: defaultAmount,
+          mode: 'airtel_money',
+        })
+      }
       setProofFile(undefined)
       setAgentRecouvrementId('')
+      setModificationReason('')
     }
-  }, [isOpen, defaultAmount])
+  }, [isOpen, defaultAmount, initialData])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -140,8 +164,16 @@ export default function PaymentCSModal({
   }
 
   const handleSubmit = async () => {
-    if (!formData.date || !formData.time || !formData.amount || !formData.mode || !proofFile) {
+    if (!formData.date || !formData.time || !formData.amount || !formData.mode) {
       toast.error('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+    if (!editMode && !proofFile) {
+      toast.error('Veuillez joindre une preuve de paiement')
+      return
+    }
+    if (editMode && (!modificationReason || !modificationReason.trim())) {
+      toast.error('Veuillez indiquer le motif de la modification')
       return
     }
 
@@ -157,8 +189,9 @@ export default function PaymentCSModal({
         time: formData.time!,
         amount: formData.amount!,
         mode: formData.mode!,
-        proofFile: proofFile!,
+        ...(proofFile && { proofFile }),
         agentRecouvrementId: agentRecouvrementId || undefined,
+        ...(editMode && modificationReason.trim() && { modificationReason: modificationReason.trim() }),
       })
       
       // Réinitialiser le formulaire
@@ -351,18 +384,35 @@ export default function PaymentCSModal({
           <div>
             <Label htmlFor="proof" className="flex items-center gap-2 mb-2">
               <Upload className="h-4 w-4 text-muted-foreground" />
-              Preuve de paiement *
+              {editMode ? 'Preuve de paiement (remplacer si besoin)' : 'Preuve de paiement *'}
             </Label>
+            {editMode && initialData?.proofUrl && (
+              <div className="mb-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <p className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  Preuve actuelle
+                </p>
+                <a
+                  href={initialData.proofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#224D62] hover:underline flex items-center gap-1"
+                >
+                  Voir la preuve actuelle
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
             <Input
               id="proof"
               type="file"
               accept="image/*"
               onChange={handleFileChange}
               disabled={isCompressing || isSubmitting}
-              required
+              required={!editMode}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Formats acceptés : JPEG, PNG, WebP (max 10 MB) • ✨ Compression automatique activée
+              {editMode ? 'Choisir un fichier pour remplacer la preuve (l\'ancienne sera supprimée).' : 'Formats acceptés : JPEG, PNG, WebP (max 10 MB) • ✨ Compression automatique activée'}
             </p>
             
             {isCompressing && (
@@ -378,11 +428,31 @@ export default function PaymentCSModal({
               <Alert className="mt-2 border-green-200 bg-green-50">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-700">
-                  <strong>{proofFile.name}</strong> ({(proofFile.size / 1024).toFixed(2)} KB)
+                  <strong>{proofFile.name}</strong> ({(proofFile.size / 1024).toFixed(2)} KB) — remplacera la preuve actuelle
                 </AlertDescription>
               </Alert>
             )}
           </div>
+
+          {/* Motif de modification (mode édition uniquement) */}
+          {editMode && (
+            <div>
+              <Label htmlFor="modificationReason" className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Motif de la modification *
+              </Label>
+              <textarea
+                id="modificationReason"
+                value={modificationReason}
+                onChange={(e) => setModificationReason(e.target.value)}
+                placeholder="Ex: Correction de la date de paiement, changement de montant suite à erreur..."
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -404,19 +474,20 @@ export default function PaymentCSModal({
               !formData.time ||
               !formData.amount ||
               !formData.mode ||
-              !proofFile
+              (!editMode && !proofFile) ||
+              (editMode && !modificationReason.trim())
             }
             className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Enregistrement...
+                {editMode ? 'Modification...' : 'Enregistrement...'}
               </>
             ) : (
               <>
                 <DollarSign className="h-4 w-4 mr-2" />
-                Enregistrer le versement
+                {submitLabel ?? 'Enregistrer le versement'}
               </>
             )}
           </Button>

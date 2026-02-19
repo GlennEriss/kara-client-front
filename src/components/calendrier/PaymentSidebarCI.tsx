@@ -37,6 +37,10 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
       toast.error("Vous devez être connecté pour enregistrer un paiement")
       return
     }
+    if (!data.proofFile) {
+      toast.error("Veuillez téléverser une preuve de paiement")
+      return
+    }
 
     try {
       const service = ServiceFactory.getCaisseImprevueService()

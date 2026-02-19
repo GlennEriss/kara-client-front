@@ -23,9 +23,10 @@ import {
   TrendingUp,
   Clock,
   Pencil,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ContractCI, PaymentCI } from '@/types/types'
+import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
@@ -37,7 +38,7 @@ import EarlyRefundCIModal from './EarlyRefundCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useUpdateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { format } from 'date-fns'
@@ -305,12 +306,14 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
   const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
+  const [editVersement, setEditVersement] = useState<{ payment: PaymentCI; versement: VersementCI } | null>(null)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
+  const updateVersementMutation = useUpdateVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
@@ -626,29 +629,48 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const handlePaymentSubmit = async (paymentData: PaymentFormData) => {
     if (!selectedDate || !user?.uid) return
 
-    // Calculer le monthIndex correct pour la date sélectionnée
     const dateMonthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
 
     try {
-      await createVersementMutation.mutateAsync({
-        contractId: contract.id,
-        monthIndex: dateMonthIndex,
-        versementData: {
-          date: paymentData.date,
-          time: paymentData.time,
-          amount: paymentData.amount,
-          mode: paymentData.mode,
-          agentRecouvrementId: paymentData.agentRecouvrementId,
-        },
-        proofFile: paymentData.proofFile,
-        userId: user.uid,
-      })
-
-      setShowPaymentModal(false)
-      setSelectedDate(null)
+      if (editVersement) {
+        if (!paymentData.modificationReason?.trim()) return
+        await updateVersementMutation.mutateAsync({
+          contractId: contract.id,
+          monthIndex: editVersement.payment.monthIndex,
+          versementId: editVersement.versement.id,
+          versementData: {
+            date: paymentData.date,
+            time: paymentData.time,
+            amount: paymentData.amount,
+            mode: paymentData.mode,
+            agentRecouvrementId: paymentData.agentRecouvrementId,
+          },
+          proofFile: paymentData.proofFile,
+          modificationReason: paymentData.modificationReason.trim(),
+          userId: user.uid,
+        })
+        setShowPaymentModal(false)
+        setSelectedDate(null)
+        setEditVersement(null)
+      } else {
+        await createVersementMutation.mutateAsync({
+          contractId: contract.id,
+          monthIndex: dateMonthIndex,
+          versementData: {
+            date: paymentData.date,
+            time: paymentData.time,
+            amount: paymentData.amount,
+            mode: paymentData.mode,
+            agentRecouvrementId: paymentData.agentRecouvrementId,
+          },
+          proofFile: paymentData.proofFile!,
+          userId: user.uid,
+        })
+        setShowPaymentModal(false)
+        setSelectedDate(null)
+      }
     } catch (error) {
       console.error('Erreur lors du paiement:', error)
-      // L'erreur est déjà gérée par le hook
       throw error
     }
   }
@@ -1015,10 +1037,47 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                       )
                     } else if (hasPayment) {
                       dayStyle = 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
+                      const mi = calculateMonthIndex(date, contract.firstPaymentDate)
+                      const payment = payments.find((p: any) => p.monthIndex === mi)
+                      const dateStr = date.toISOString().split('T')[0]
+                      const versement = payment?.versements?.find((v: any) => v.date === dateStr)
                       dayContent = (
-                        <div className="flex items-center justify-center gap-1 text-xs text-green-600">
-                          <CheckCircle className="h-3 w-3" />
-                        </div>
+                        <>
+                          <div className="flex items-center justify-center gap-0.5 text-xs text-green-600">
+                            <CheckCircle className="h-3 w-3" />
+                          </div>
+                          <div className="flex flex-col gap-0.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-full text-[10px] px-1 text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
+                              onClick={() => {
+                                setSelectedDate(date)
+                                setShowReceiptModal(true)
+                              }}
+                            >
+                              <Eye className="h-2.5 w-2.5 mr-0.5" />
+                              Facture
+                            </Button>
+                            {!isContractTerminated && versement && payment && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 w-full text-[10px] px-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                                onClick={() => {
+                                  setSelectedDate(date)
+                                  setEditVersement({ payment, versement })
+                                  setShowPaymentModal(true)
+                                }}
+                              >
+                                <Pencil className="h-2.5 w-2.5 mr-0.5" />
+                                Modifier
+                              </Button>
+                            )}
+                          </div>
+                        </>
                       )
                     } else {
                       const today = new Date()
@@ -1179,6 +1238,31 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                               />
                             </div>
                           </div>
+                          {status === 'PAID' && (() => {
+                            const monthPayment = payments.find((p: any) => p.monthIndex === monthIndex) as PaymentCI | undefined
+                            if (!monthPayment?.modificationReason && !monthPayment?.updatedAt) return null
+                            return (
+                              <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                                {monthPayment?.updatedAt && (() => {
+                                  const u = monthPayment.updatedAt
+                                  const modDate = u instanceof Date ? u : (typeof (u as any)?.toDate === 'function' ? (u as any).toDate() : u ? new Date(u as string | number) : null)
+                                  if (!modDate || isNaN(modDate.getTime())) return null
+                                  return (
+                                    <div className="flex items-center justify-between">
+                                      <span>Modifié le:</span>
+                                      <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                  )
+                                })()}
+                                {monthPayment?.modificationReason && (
+                                  <div>
+                                    <span className="font-medium">Motif:</span>
+                                    <span className="ml-1">{monthPayment.modificationReason}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
                           <div className="flex items-center gap-2 pt-1">
                             <Badge
                               variant={
@@ -1291,6 +1375,31 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                                 />
                               </div>
                             </div>
+                            {status === 'PAID' && (() => {
+                              const monthPayment = payments.find((p: any) => p.monthIndex === monthIndex) as PaymentCI | undefined
+                              if (!monthPayment?.modificationReason && !monthPayment?.updatedAt) return null
+                              return (
+                                <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                                  {monthPayment?.updatedAt && (() => {
+                                    const u = monthPayment.updatedAt
+                                    const modDate = u instanceof Date ? u : (typeof (u as any)?.toDate === 'function' ? (u as any).toDate() : u ? new Date(u as string | number) : null)
+                                    if (!modDate || isNaN(modDate.getTime())) return null
+                                    return (
+                                      <div className="flex items-center justify-between">
+                                        <span>Modifié le:</span>
+                                        <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                    )
+                                  })()}
+                                  {monthPayment?.modificationReason && (
+                                    <div>
+                                      <span className="font-medium">Motif:</span>
+                                      <span className="ml-1">{monthPayment.modificationReason}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
                             <div className="flex items-center gap-2 pt-1">
                               <Badge
                                 variant={
@@ -1325,14 +1434,17 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           onClose={() => {
             setShowPaymentModal(false)
             setSelectedDate(null)
+            setEditVersement(null)
           }}
           onSubmit={handlePaymentSubmit}
-          title={`Versement quotidien`}
-          description={selectedDate ? `Enregistrer le versement du ${selectedDate.toLocaleDateString('fr-FR')}` : ''}
-          defaultDate={selectedDate?.toISOString().split('T')[0]}
+          title={editVersement ? `Modifier le versement – ${editVersement.versement.date}` : 'Versement quotidien'}
+          description={editVersement ? 'Modifier la date, l\'heure, le montant, le mode ou la preuve du versement.' : (selectedDate ? `Enregistrer le versement du ${selectedDate.toLocaleDateString('fr-FR')}` : '')}
+          defaultDate={editVersement ? editVersement.versement.date : selectedDate?.toISOString().split('T')[0]}
           isMonthly={false}
-          isDateFixed={true}
+          isDateFixed={!!editVersement}
           contractId={contract.id}
+          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl } : undefined}
+          submitLabel={editVersement ? 'Modifier le versement' : undefined}
         />
 
         {/* Modal de reçu */}
@@ -1346,6 +1458,18 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             contract={contract}
             payment={getSelectedPaymentWithVersement()!}
             isMonthly={false}
+            onEditClick={!isContractTerminated ? () => {
+              if (!selectedDate) return
+              const mi = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+              const payment = payments.find((p: any) => p.monthIndex === mi)
+              const dateStr = selectedDate.toISOString().split('T')[0]
+              const versement = payment?.versements?.find((v: any) => v.date === dateStr)
+              if (payment && versement) {
+                setEditVersement({ payment, versement })
+                setShowReceiptModal(false)
+                setShowPaymentModal(true)
+              }
+            } : undefined}
           />
         )}
 
@@ -1518,7 +1642,11 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                         {r.status === 'PAID' && (r.paidByName || r.paidAt) && (
                           <div className="pt-2 space-y-1 text-xs text-gray-500">
                             {r.paidByName && <p>Marqué par: {r.paidByName}</p>}
-                            {r.paidAt && <p>Le {new Date(r.paidAt).toLocaleDateString('fr-FR')} à {new Date(r.paidAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>}
+                            {r.paidAt && (
+                              <p>
+                                Le {new Date(r.paidAt).toLocaleDateString('fr-FR')} à {(r as { paidAtTime?: string; time?: string }).paidAtTime ?? (r as { paidAtTime?: string; time?: string }).time ?? new Date(r.paidAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

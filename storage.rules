@@ -149,8 +149,15 @@ service firebase.storage {
     // - PDF max 5MB, Images max 5MB
     
     match /contracts-ci/{memberId}/{fileName} {
-      // Lecture : Admins uniquement (documents sensibles)
-      allow read: if isAdmin();
+      // Lecture : Admin ou propriétaire (membre)
+      // Note: memberId est l'UID Firebase côté apps membres.
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          request.auth.uid == memberId ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+        )
+      );
       
       // Écriture : Admins uniquement - PDF (max 5MB) OU image (max 5MB)
       allow write: if isAdmin() && (
@@ -182,8 +189,14 @@ service firebase.storage {
     // Suppression : inclut cleanup lors de la suppression d'un contrat crédit spéciale si des docs sont sous ce chemin
     
     match /contracts-ci/{memberId}/{contractId}/{fileName} {
-      // Lecture : Admins uniquement
-      allow read: if isAdmin();
+      // Lecture : Admin ou propriétaire (membre)
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          request.auth.uid == memberId ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+        )
+      );
       
       // Écriture : Admins uniquement avec validation (image, max 5MB)
       allow write: if isAdmin() && isImage() && isImageSizeValid();

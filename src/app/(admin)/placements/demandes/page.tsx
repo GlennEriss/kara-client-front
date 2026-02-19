@@ -1,12 +1,44 @@
-import ListPlacementDemandes from '@/components/placement/ListPlacementDemandes'
+import { PlacementDemandesSection } from '@/domains/financial/placement/demandes'
 import React, { Suspense } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
+
+export const metadata = {
+  title: 'Demandes de placement | Kara Administration',
+  description: 'Liste des demandes de placement (en attente, acceptées, refusées, converties)',
+}
+
+function ListPlacementDemandesSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="h-12 bg-gray-200 rounded animate-pulse" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Skeleton key={i} className="h-48 w-full" />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function PlacementDemandesPage() {
   return (
-    <div className="space-y-6 p-6">
-      <Suspense fallback={<div>Chargement...</div>}>
-        <ListPlacementDemandes />
-      </Suspense>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+              Demandes de Placement
+            </h1>
+            <p className="text-gray-600 text-base md:text-lg">
+              Gestion des demandes de placement (bienfaiteurs)
+            </p>
+          </div>
+        </div>
+
+        <Suspense fallback={<ListPlacementDemandesSkeleton />}>
+          <PlacementDemandesSection />
+        </Suspense>
+      </div>
     </div>
   )
 }

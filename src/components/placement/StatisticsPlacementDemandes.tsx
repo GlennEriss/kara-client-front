@@ -18,7 +18,7 @@ import { usePlacementDemandsStats } from '@/hooks/placement/usePlacementDemands'
 import { PlacementDemandStatus } from '@/types/types'
 import type { PlacementDemandFilters } from '@/types/types'
 
-// Composant pour les statistiques modernes
+// Composant pour les statistiques modernes (taille uniforme)
 const StatsCard = ({
   title,
   value,
@@ -33,18 +33,22 @@ const StatsCard = ({
   icon: React.ComponentType<any>
 }) => {
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
-      <CardContent className="p-4">
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md h-full min-h-[7rem] w-full min-w-0">
+      <CardContent className="p-4 h-full flex flex-col justify-center">
         <div className="flex items-center space-x-3">
-          <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110`} style={{ backgroundColor: `${color}15`, color: color }}>
+          <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 shrink-0`} style={{ backgroundColor: `${color}15`, color: color }}>
             <Icon className="w-5 h-5" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
-            {subtitle && (
-              <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
-            )}
+            <p className="text-2xl font-bold text-gray-900 mt-0.5 truncate" title={String(value)}>{value}</p>
+            <div className="min-h-[1.25rem] mt-1">
+              {subtitle ? (
+                <p className="text-xs text-gray-500">{subtitle}</p>
+              ) : (
+                <span className="invisible text-xs">—</span>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -146,9 +150,9 @@ export default function StatisticsPlacementDemandes({}: StatisticsPlacementDeman
   useEffect(() => {
     const update = () => {
       const w = window.innerWidth
-      if (w >= 1280) setItemsPerView(6)
-      else if (w >= 1024) setItemsPerView(4)
-      else if (w >= 768) setItemsPerView(3)
+      if (w >= 1280) setItemsPerView(3)
+      else if (w >= 1024) setItemsPerView(2)
+      else if (w >= 768) setItemsPerView(2)
       else setItemsPerView(1)
     }
     update()
@@ -190,8 +194,7 @@ export default function StatisticsPlacementDemandes({}: StatisticsPlacementDeman
     },
     { 
       title: 'Montant total', 
-      value: `${(stats.totalAmount / 1000).toFixed(0)}k FCFA`, 
-      subtitle: `${stats.pendingAmount.toLocaleString('fr-FR')} FCFA en attente`,
+      value: stats.totalAmount.toLocaleString('fr-FR'), 
       color: '#3b82f6', 
       icon: DollarSign
     },
@@ -273,7 +276,7 @@ export default function StatisticsPlacementDemandes({}: StatisticsPlacementDeman
       >
         <div 
           className={cn(
-            'flex transition-transform duration-300 ease-out gap-4',
+            'flex transition-transform duration-300 ease-out gap-4 items-stretch',
             isDragging && 'transition-none'
           )} 
           style={{ 
@@ -284,7 +287,7 @@ export default function StatisticsPlacementDemandes({}: StatisticsPlacementDeman
           {statsData.map((stat, index) => (
             <div 
               key={index} 
-              className="flex-shrink-0" 
+              className="flex-shrink-0 flex-1 min-w-[240px]"
               style={{ 
                 width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` 
               }}

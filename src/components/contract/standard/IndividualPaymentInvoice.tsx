@@ -2,7 +2,7 @@
 
 import React from "react"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, CreditCard, User, Receipt, Shield, UserCircle } from "lucide-react"
+import { CalendarDays, CreditCard, User, Receipt, Shield, UserCircle, Edit3 } from "lucide-react"
 import Image from "next/image"
 import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
 import { useAdmin } from "@/hooks/admin/useAdmin"
@@ -192,6 +192,58 @@ export default function IndividualPaymentInvoice({
           </div>
         </div>
       </div>
+
+      {/* Modification du versement (si le paiement a été modifié) */}
+      {((payment as any).modificationReason ?? (payment as any).updatedAt) && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+            <Edit3 className="h-4 w-4" />
+            Modification du versement
+          </h3>
+          <div className="space-y-3 p-4 rounded-lg border bg-amber-50 border-amber-200">
+            {(payment as any).updatedAt && (() => {
+              const u = (payment as any).updatedAt
+              const modDate = typeof u?.toDate === 'function' ? u.toDate() : u ? new Date(u) : null
+              if (!modDate || isNaN(modDate.getTime())) return null
+              return (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Date de modification :</span>
+                  <span className="font-medium">{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              )
+            })()}
+            {payment.updatedBy && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Modifié par :</span>
+                  <span className="font-medium text-right">
+                    {isLoadingAdmin ? (
+                      <span className="text-slate-500">Chargement...</span>
+                    ) : adminInfo ? (
+                      <>
+                        {adminInfo.firstName} {adminInfo.lastName}
+                        <span className="block text-xs text-slate-500 font-normal mt-0.5">
+                          Matricule : {payment.updatedBy}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">ID: {payment.updatedBy}</span>
+                    )}
+                  </span>
+                </div>
+              </>
+            )}
+            {(payment as any).modificationReason && (
+              <div className="pt-2 border-t border-amber-200">
+                <span className="text-slate-600 block mb-1">Motif de la modification :</span>
+                <p className="font-medium text-slate-900 bg-white p-3 rounded border border-amber-100">
+                  {(payment as any).modificationReason}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Informations de l'administrateur */}
       {payment.updatedBy && (

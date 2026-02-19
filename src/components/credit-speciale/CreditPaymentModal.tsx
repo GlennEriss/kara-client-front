@@ -28,9 +28,9 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { CreditPaymentMode, CreditPenalty } from '@/types/types'
+import { CreditPaymentMode, CreditPenalty, CreditPayment } from '@/types/types'
 import { ImageCompressionService } from '@/services/imageCompressionService'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { creditPaymentFormSchema, type CreditPaymentFormInput } from '@/schemas/credit-speciale.schema'
 import { useCreditPaymentMutations, useCreditContract, useCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
@@ -50,6 +50,10 @@ interface CreditPaymentModalProps {
   defaultPenaltyOnlyMode?: boolean // Activer le mode "pénalités uniquement" par défaut
   installmentId?: string // ID de l'échéance spécifique à payer
   installmentNumber?: number // Numéro du mois de l'échéance (M1, M2, etc.)
+  /** Paiement à modifier (mode édition) */
+  paymentToEdit?: CreditPayment | null
+  /** Libellé du bouton de soumission en mode édition */
+  submitLabel?: string
 }
 
 // Fonction pour calculer la note automatique selon le retard (jours de retard)
@@ -112,7 +116,10 @@ export default function CreditPaymentModal({
   defaultPenaltyOnlyMode = false,
   installmentId,
   installmentNumber,
+  paymentToEdit,
+  submitLabel,
 }: CreditPaymentModalProps) {
+  const editMode = !!paymentToEdit
   const [proofFile, setProofFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -120,9 +127,10 @@ export default function CreditPaymentModal({
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(defaultPenaltyOnlyMode)
   const [penaltyNote, setPenaltyNote] = useState<number | undefined>(undefined)
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
+  const [modificationReason, setModificationReason] = useState<string>('')
 
   const { user } = useAuth()
-  const { create: createPayment } = useCreditPaymentMutations()
+  const { create: createPayment, update: updatePayment } = useCreditPaymentMutations()
   const { data: contract } = useCreditContract(creditId)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
   const queryClient = useQueryClient()
@@ -186,36 +194,63 @@ export default function CreditPaymentModal({
     }
   }, [defaultAmount, form])
 
+  // Normaliser paymentDate (Date ou Firestore Timestamp)
+  const toDate = (v: CreditPayment['paymentDate']): Date => {
+    if (!v) return new Date()
+    if (v instanceof Date) return v
+    const t = v as { toDate?: () => Date }
+    return typeof t.toDate === 'function' ? t.toDate() : new Date(v as string | number)
+  }
+
+  // Normaliser le mode de paiement (valeurs legacy ou API ex. "banque" -> "bank_transfer")
+  const toCreditPaymentMode = (mode: string | undefined): CreditPaymentMode => {
+    const m = (mode ?? '').toLowerCase()
+    if (m === 'bank_transfer' || m === 'banque' || m === 'banktransfer' || m === 'virement') return 'bank_transfer'
+    if (m === 'airtel_money' || m === 'airtelmoney') return 'airtel_money'
+    if (m === 'mobicash') return 'mobicash'
+    if (m === 'cash' || m === 'espèce' || m === 'espece') return 'cash'
+    return 'airtel_money'
+  }
+
   // Nettoyer les pénalités rétroactives et réinitialiser les pénalités sélectionnées quand le modal s'ouvre
   useEffect(() => {
     if (isOpen) {
-      // Nettoyer les pénalités rétroactives avant d'afficher la liste
+      setModificationReason('')
+      if (paymentToEdit) {
+        const date = toDate(paymentToEdit.paymentDate)
+        form.setValue('paymentDate', date)
+        form.setValue('paymentTime', paymentToEdit.paymentTime || format(new Date(), 'HH:mm'))
+        form.setValue('amount', paymentToEdit.amount ?? 0)
+        form.setValue('mode', toCreditPaymentMode(paymentToEdit.mode as string))
+        form.setValue('comment', paymentToEdit.comment ?? '')
+        form.setValue('note', paymentToEdit.note ?? 10)
+        setPenaltyOnlyMode(false)
+        setSelectedPenalties([])
+        setAgentRecouvrementId(paymentToEdit.agentRecouvrementId ?? '')
+        return
+      }
+      // Nettoyer les pénalités rétroactives avant d'afficher la liste (création uniquement)
       const service = ServiceFactory.getCreditSpecialeService()
       service.checkAndCreateMissingPenalties(creditId)
         .then(() => {
-          // Rafraîchir les pénalités après nettoyage
           queryClient.invalidateQueries({ queryKey: ['creditPenalties', creditId] })
         })
         .catch((error: unknown) => {
           console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
         })
-      
       setSelectedPenalties([])
       setPenaltyOnlyMode(defaultPenaltyOnlyMode)
       setPenaltyNote(undefined)
       setAgentRecouvrementId('')
-      // Mettre à jour la date de paiement, la note et le commentaire selon le retard
       if (defaultPaymentDate) {
-        // Convertir la date en format YYYY-MM-DD pour l'input date
-        const dateStr = format(defaultPaymentDate, 'yyyy-MM-dd')
-        form.setValue('paymentDate', dateStr as any)
+        form.setValue('paymentDate', defaultPaymentDate)
       } else {
         form.setValue('paymentDate', new Date())
       }
       form.setValue('note', autoNote)
       form.setValue('comment', autoComment)
     }
-  }, [isOpen, form, defaultPaymentDate, autoNote, autoComment, defaultPenaltyOnlyMode])
+  }, [isOpen, form, defaultPaymentDate, autoNote, autoComment, defaultPenaltyOnlyMode, paymentToEdit])
 
   // Si on passe en mode "pénalités uniquement", mettre le montant à 0
   useEffect(() => {
@@ -329,22 +364,45 @@ export default function CreditPaymentModal({
   }
 
   const onSubmit = async (data: CreditPaymentFormInput) => {
-    console.log('[CreditPaymentModal] onSubmit appelé', { 
-      data, 
-      penaltyOnlyMode, 
-      selectedPenalties,
-      installmentId,
-      creditId 
-    })
-    
-    // La preuve de paiement est optionnelle mais recommandée
-    // if (!proofFile) {
-    //   toast.error('Veuillez téléverser une preuve de paiement')
-    //   return
-    // }
-
     if (!user?.uid) {
       toast.error('Vous devez être connecté pour enregistrer un paiement')
+      return
+    }
+
+    if (editMode) {
+      const reason = (modificationReason ?? '').trim()
+      if (!reason) {
+        toast.error('Veuillez indiquer le motif de la modification')
+        return
+      }
+      try {
+        setIsSubmitting(true)
+        const paymentDate = data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate)
+        await updatePayment.mutateAsync({
+          paymentId: paymentToEdit!.id,
+          creditId,
+          data: {
+            paymentDate,
+            paymentTime: data.paymentTime,
+            amount: data.amount,
+            mode: data.mode,
+            comment: data.comment,
+          },
+          proofFile,
+          modificationReason: reason,
+        })
+        form.reset()
+        setProofFile(undefined)
+        setModificationReason('')
+        setAgentRecouvrementId('')
+        onSuccess?.()
+        onClose()
+      } catch (error: unknown) {
+        console.error('Erreur lors de la modification du paiement:', error)
+        toast.error(error instanceof Error ? error.message : 'Erreur lors de la modification du paiement')
+      } finally {
+        setIsSubmitting(false)
+      }
       return
     }
 
@@ -353,9 +411,6 @@ export default function CreditPaymentModal({
       toast.error('Veuillez sélectionner au moins une pénalité à payer')
       return
     }
-
-    // Validation : si mode normal, le montant doit être >= 0 (sauf si pénalités sélectionnées)
-    // Permettre 0 pour les paiements de pénalités uniquement
     if (!penaltyOnlyMode && data.amount < 0 && selectedPenalties.length === 0) {
       toast.error('Le montant ne peut pas être négatif')
       return
@@ -363,51 +418,33 @@ export default function CreditPaymentModal({
 
     try {
       setIsSubmitting(true)
-      
-      // Utiliser la note spécifique aux pénalités si en mode pénalités uniquement
-      // Sinon, utiliser la note du formulaire (avec valeur par défaut 10 si non définie)
-      const finalNote = penaltyOnlyMode 
-        ? (penaltyNote ?? 10) // Note par défaut 10 pour pénalités si non spécifiée
-        : (data.note ?? 10) // Note par défaut 10 pour paiement normal si non spécifiée
-      
-      // Si le montant est 0, ajouter automatiquement un commentaire pour que le paiement soit correctement traité
-      let finalComment = data.comment;
+      const finalNote = penaltyOnlyMode ? (penaltyNote ?? 10) : (data.note ?? 10)
+      let finalComment = data.comment
       if (data.amount === 0 && !penaltyOnlyMode) {
-        // Montant de 0 sans pénalités : ajouter un commentaire explicite
-        finalComment = `Paiement de 0 FCFA${data.comment ? ` - ${data.comment}` : ''}`;
+        finalComment = `Paiement de 0 FCFA${data.comment ? ` - ${data.comment}` : ''}`
       } else if (penaltyOnlyMode) {
-        finalComment = `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`;
+        finalComment = `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`
       }
 
       const paymentData = {
         ...data,
-        amount: penaltyOnlyMode ? 0 : data.amount, // Montant à 0 si mode pénalités uniquement
-        principalAmount: 0, // Sera calculé par le service
-        interestAmount: 0, // Sera calculé par le service
-        penaltyAmount: totalSelectedPenalties, // Montant des pénalités sélectionnées
+        amount: penaltyOnlyMode ? 0 : data.amount,
+        principalAmount: 0,
+        interestAmount: 0,
+        penaltyAmount: totalSelectedPenalties,
         note: finalNote,
         comment: finalComment,
         createdBy: user.uid,
-        installmentId: installmentId, // Passer l'ID de l'échéance spécifique
+        installmentId,
         agentRecouvrementId: agentRecouvrementId || undefined,
-      };
-      
-      console.log('[CreditPaymentModal] Données du paiement à envoyer:', {
-        ...paymentData,
-        installmentId: paymentData.installmentId,
-        amount: paymentData.amount,
-        creditId: paymentData.creditId,
-        installmentNumber: installmentNumber, // Log pour vérifier
-      });
-      
+      }
+
       await createPayment.mutateAsync({
         data: paymentData,
         proofFile,
-        penaltyIds: selectedPenalties, // Passer les pénalités sélectionnées
-        installmentNumber: installmentNumber, // Passer le numéro du mois
+        penaltyIds: selectedPenalties,
+        installmentNumber,
       })
-      
-      console.log('[CreditPaymentModal] Paiement créé avec succès');
 
       form.reset()
       setProofFile(undefined)
@@ -417,9 +454,9 @@ export default function CreditPaymentModal({
       setAgentRecouvrementId('')
       onSuccess?.()
       onClose()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erreur lors de l\'enregistrement du paiement:', error)
-      toast.error(error?.message || 'Erreur lors de l\'enregistrement du paiement')
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'enregistrement du paiement')
     } finally {
       setIsSubmitting(false)
     }
@@ -431,10 +468,10 @@ export default function CreditPaymentModal({
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
             <DollarSign className="h-6 w-6" />
-            Enregistrer un versement
+            {editMode ? 'Modifier le versement' : 'Enregistrer un versement'}
           </DialogTitle>
           <DialogDescription>
-            Enregistrez un nouveau versement pour ce crédit
+            {editMode ? 'Modifiez les informations du versement et indiquez le motif de la modification.' : 'Enregistrez un nouveau versement pour ce crédit'}
           </DialogDescription>
         </DialogHeader>
 
@@ -446,11 +483,21 @@ export default function CreditPaymentModal({
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 Date de paiement *
               </Label>
-              <Input
-                id="payment-date"
-                type="date"
-                {...form.register('paymentDate', { valueAsDate: true })}
-                required
+              <Controller
+                name="paymentDate"
+                control={form.control}
+                render={({ field }) => (
+                  <Input
+                    id="payment-date"
+                    type="date"
+                    required
+                    value={field.value ? format(field.value instanceof Date ? field.value : new Date(field.value), 'yyyy-MM-dd') : ''}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      field.onChange(v ? new Date(v) : new Date())
+                    }}
+                  />
+                )}
               />
               {form.formState.errors.paymentDate && (
                 <p className="text-sm text-red-600 mt-1">
@@ -477,8 +524,8 @@ export default function CreditPaymentModal({
             </div>
           </div>
 
-          {/* Option : Payer uniquement les pénalités */}
-          {unpaidPenalties.length > 0 && (
+          {/* Option : Payer uniquement les pénalités (masqué en mode édition) */}
+          {!editMode && unpaidPenalties.length > 0 && (
             <Card className="border-purple-200 bg-purple-50/50">
               <CardContent className="pt-4">
                 <div className="flex items-center space-x-2">
@@ -565,7 +612,7 @@ export default function CreditPaymentModal({
             <div>
               <Label htmlFor="mode" className="mb-2">Moyen de paiement *</Label>
               <Select
-                value={form.watch('mode')}
+                value={toCreditPaymentMode(form.watch('mode') as string)}
                 onValueChange={(value) => form.setValue('mode', value as CreditPaymentMode)}
               >
                 <SelectTrigger>
@@ -603,8 +650,16 @@ export default function CreditPaymentModal({
           <div>
             <Label htmlFor="proof" className="flex items-center gap-2 mb-2">
               <Upload className="h-4 w-4 text-muted-foreground" />
-              Preuve de paiement (recommandé)
+              {editMode ? 'Nouvelle preuve (optionnel)' : 'Preuve de paiement (recommandé)'}
             </Label>
+            {editMode && paymentToEdit?.proofUrl && (
+              <p className="text-sm text-gray-600 mb-2">
+                Preuve actuelle :{' '}
+                <a href={paymentToEdit.proofUrl} target="_blank" rel="noopener noreferrer" className="text-[#234D65] underline">
+                  Voir le fichier
+                </a>
+              </p>
+            )}
             <Input
               id="proof"
               type="file"
@@ -628,8 +683,26 @@ export default function CreditPaymentModal({
             )}
           </div>
 
-          {/* Pénalités impayées */}
-          {unpaidPenalties.length > 0 && (
+          {/* Motif de la modification (obligatoire en mode édition) */}
+          {editMode && (
+            <div>
+              <Label htmlFor="modification-reason" className="flex items-center gap-2 mb-2">
+                Motif de la modification *
+              </Label>
+              <Textarea
+                id="modification-reason"
+                value={modificationReason}
+                onChange={(e) => setModificationReason(e.target.value)}
+                rows={3}
+                placeholder="Indiquez le motif de la modification du versement..."
+                required
+                className={!modificationReason.trim() && form.formState.isSubmitted ? 'border-red-500' : ''}
+              />
+            </div>
+          )}
+
+          {/* Pénalités impayées (masqué en mode édition) */}
+          {!editMode && unpaidPenalties.length > 0 && (
             <Card className="border-orange-200 bg-orange-50/50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2 text-orange-800">
@@ -864,10 +937,10 @@ export default function CreditPaymentModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Enregistrement...
+                  {editMode ? 'Modification...' : 'Enregistrement...'}
                 </>
               ) : (
-                'Enregistrer le versement'
+                submitLabel ?? 'Enregistrer le versement'
               )}
             </Button>
           </DialogFooter>

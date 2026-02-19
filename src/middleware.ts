@@ -68,8 +68,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
     }
     
-    // Redirection si token présent sur pages d'auth (login, register)
-    if (hasToken && isAuthRoute(pathname) && pathname !== routes.public.homepage) {
+    // Redirection si token présent sur pages d'auth (accueil/login, register)
+    if (hasToken && isAuthRoute(pathname)) {
         console.log(`[Middleware] Redirection vers dashboard - déjà connecté (${pathname})`);
         return NextResponse.redirect(new URL(routes.admin.dashboard, request.nextUrl));
     }

@@ -435,7 +435,29 @@ export function useCreditPaymentMutations() {
         },
     })
 
-    return { create }
+    const update = useMutation({
+        mutationFn: ({ paymentId, creditId: _creditId, data, proofFile, modificationReason }: { paymentId: string; creditId: string; data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPayment['mode']; comment?: string }; proofFile?: File; modificationReason: string }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.updatePayment(paymentId, data, proofFile, modificationReason, user.uid)
+        },
+        onSuccess: async (_, variables) => {
+            const creditId = variables.creditId
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditPayments'] }),
+                qc.invalidateQueries({ queryKey: ['creditPayments', 'creditId', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditInstallments', 'creditId', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+            ])
+            toast.success('Paiement modifié avec succès')
+        },
+        onError: (error: unknown) => {
+            toast.error(error instanceof Error ? error.message : 'Erreur lors de la modification du paiement')
+        },
+    })
+
+    return { create, update }
 }
 
 // ==================== PÉNALITÉS ====================
