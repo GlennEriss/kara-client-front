@@ -682,6 +682,29 @@ export default function ContractCIPaymentsPage() {
                         </div>
                       </div>
 
+                      {/* Modifié le / Motif (si le paiement a été modifié) */}
+                      {(payment.modificationReason ?? payment.updatedAt) && (
+                        <div className="mb-4 p-4 rounded-lg border border-amber-200 bg-amber-50 space-y-1 text-sm text-gray-600">
+                          {payment.updatedAt && (() => {
+                            const u = payment.updatedAt
+                            const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
+                            if (!modDate || isNaN(modDate.getTime())) return null
+                            return (
+                              <div className="flex items-center justify-between flex-wrap gap-1">
+                                <span className="font-medium">Modifié le:</span>
+                                <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            )
+                          })()}
+                          {payment.modificationReason && (
+                            <div>
+                              <span className="font-medium">Motif:</span>
+                              <span className="ml-1">{payment.modificationReason}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Liste des versements */}
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900 flex items-center gap-2">

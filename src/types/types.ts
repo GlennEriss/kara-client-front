@@ -663,6 +663,7 @@ export interface PaymentCI {
   updatedAt: Date
   createdBy: string
   updatedBy: string
+  modificationReason?: string
 }
 
 /**
@@ -1618,6 +1619,7 @@ export interface CreditPayment {
   updatedAt: Date
   createdBy: string
   updatedBy?: string
+  modificationReason?: string
 }
 
 /**

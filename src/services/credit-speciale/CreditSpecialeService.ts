@@ -1405,6 +1405,47 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return payment;
     }
 
+    /**
+     * Met à jour un paiement existant (date, heure, montant, mode, preuve optionnelle) avec motif de modification.
+     */
+    async updatePayment(
+        paymentId: string,
+        data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: import('@/types/types').CreditPaymentMode; comment?: string },
+        proofFile: File | undefined,
+        modificationReason: string,
+        userId: string
+    ): Promise<CreditPayment> {
+        const payment = await this.creditPaymentRepository.getPaymentById(paymentId);
+        if (!payment) throw new Error('Paiement introuvable');
+        const contract = await this.creditContractRepository.getContractById(payment.creditId);
+        if (!contract) throw new Error('Contrat introuvable');
+
+        let proofUrl: string | undefined = payment.proofUrl;
+        if (proofFile) {
+            const { url } = await this.documentRepository.uploadDocumentFile(
+                proofFile,
+                contract.clientId,
+                'CREDIT_SPECIALE_RECEIPT'
+            );
+            proofUrl = url;
+        }
+
+        const payload: Partial<CreditPayment> = {
+            ...(data.paymentDate != null && { paymentDate: data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate) }),
+            ...(data.paymentTime != null && { paymentTime: data.paymentTime }),
+            ...(data.amount != null && { amount: data.amount }),
+            ...(data.mode != null && { mode: data.mode }),
+            ...(data.comment != null && { comment: data.comment }),
+            ...(proofUrl != null && { proofUrl }),
+            updatedBy: userId,
+            modificationReason,
+        };
+
+        const updated = await this.creditPaymentRepository.updatePayment(paymentId, payload);
+        if (!updated) throw new Error('Échec de la mise à jour du paiement');
+        return updated;
+    }
+
     // ==================== GÉNÉRATION REÇU PDF ====================
 
     async generatePaymentReceiptPDF(payment: CreditPayment, contract: CreditContract): Promise<string> {

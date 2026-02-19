@@ -37,11 +37,17 @@ export async function listPayments(contractId: string) {
   const snap = await getDocs(q)
   return snap.docs.map((d: any) => {
     const data = d.data()
+    const toDate = (v: any) =>
+      v == null ? undefined
+        : typeof v?.toDate === 'function' ? v.toDate()
+        : v instanceof Date ? v
+        : new Date(v)
     return {
       id: d.id,
       ...data,
-      dueAt: (typeof data.dueAt?.toDate === 'function') ? data.dueAt.toDate() : (data.dueAt ? new Date(data.dueAt) : undefined),
-      paidAt: (typeof data.paidAt?.toDate === 'function') ? data.paidAt.toDate() : (data.paidAt ? new Date(data.paidAt) : undefined),
+      dueAt: toDate(data.dueAt),
+      paidAt: toDate(data.paidAt),
+      updatedAt: toDate(data.updatedAt),
     }
   })
 }

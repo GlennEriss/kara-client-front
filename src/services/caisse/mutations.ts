@@ -626,6 +626,9 @@ export async function updatePaymentContribution(input: {
     mode?: PaymentMode
     proofFile?: File
     memberId?: string
+    paidAt?: Date
+    /** Motif de la modification (traçabilité) */
+    modificationReason?: string
   }
 }) {
   const { contractId, paymentId, contributionId, updates } = input
@@ -672,6 +675,8 @@ export async function updatePaymentContribution(input: {
   const newAmount = updates.amount || oldAmount
   const amountDifference = newAmount - oldAmount
   
+  const newPaidAt = updates.paidAt ?? (contribution.paidAt ? (typeof contribution.paidAt?.toDate === 'function' ? contribution.paidAt.toDate() : new Date(contribution.paidAt)) : undefined)
+
   // Mettre à jour la contribution
   const updatedContribution = {
     ...contribution,
@@ -680,6 +685,7 @@ export async function updatePaymentContribution(input: {
     mode: updates.mode || contribution.mode,
     proofUrl: newProofUrl || contribution.proofUrl,
     memberId: updates.memberId || contribution.memberId, // Ajouter l'ID du membre du groupe
+    ...(newPaidAt && { paidAt: newPaidAt }),
     updatedAt: new Date()
   }
   
@@ -690,13 +696,20 @@ export async function updatePaymentContribution(input: {
   // Calculer le nouveau montant accumulé
   const newAccumulatedAmount = updatedContribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
   
-  // Mettre à jour le paiement
-  await updatePayment(contractId, paymentId, {
+  // Mettre à jour le paiement (paidAt, time, admin et date de modification, motif)
+  const paymentPayload: any = {
     contribs: updatedContribs,
     accumulatedAmount: newAccumulatedAmount,
     updatedAt: new Date(),
     updatedBy: auth?.currentUser?.uid || contractId
-  })
+  }
+  if (newPaidAt) paymentPayload.paidAt = newPaidAt
+  // Synchroniser l'heure au niveau paiement pour l'affichage "Payé à"
+  paymentPayload.time = updates.time ?? updatedContribution.time ?? contribution.time
+  if (updates.modificationReason != null && updates.modificationReason !== '') {
+    paymentPayload.modificationReason = updates.modificationReason
+  }
+  await updatePayment(contractId, paymentId, paymentPayload)
   
   // Mettre à jour le contrat si nécessaire (recalculer les totaux)
   const contract = await getContract(contractId)

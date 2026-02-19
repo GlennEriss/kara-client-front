@@ -297,6 +297,65 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         }
     }
 
+    /**
+     * Met à jour un versement existant (date, heure, montant, mode, preuve optionnelle) avec motif de modification.
+     */
+    async updateVersement(
+        contractId: string,
+        monthIndex: number,
+        versementId: string,
+        versementData: VersementFormData,
+        proofFile: File | undefined,
+        modificationReason: string,
+        userId: string
+    ): Promise<PaymentCI> {
+        const payment = await this.paymentCIRepository.getPaymentByMonth(contractId, monthIndex)
+        if (!payment) throw new Error('Paiement du mois non trouvé')
+        const existing = payment.versements.find((v) => v.id === versementId)
+        if (!existing) throw new Error('Versement non trouvé')
+
+        let proofUrl = existing.proofUrl
+        let proofPath = existing.proofPath
+        if (proofFile) {
+            const contract = await this.contractCIRepository.getContractById(contractId)
+            if (!contract) throw new Error('Contrat non trouvé')
+            const result = await this.documentRepository.uploadDocumentFile(
+                proofFile,
+                contract.memberId,
+                'PROOF_PAYMENT_CI'
+            )
+            proofUrl = result.url
+            proofPath = result.path
+        }
+
+        const updatedVersement: VersementCI = {
+            id: existing.id,
+            date: versementData.date,
+            time: versementData.time,
+            amount: versementData.amount,
+            mode: versementData.mode,
+            proofUrl,
+            proofPath,
+            createdAt: existing.createdAt,
+            createdBy: existing.createdBy,
+            ...(existing.supportRepaymentAmount != null && { supportRepaymentAmount: existing.supportRepaymentAmount }),
+            ...(existing.supportRepaymentId && { supportRepaymentId: existing.supportRepaymentId }),
+            ...(versementData.agentRecouvrementId && { agentRecouvrementId: versementData.agentRecouvrementId }),
+            ...(versementData.penalty != null && { penalty: versementData.penalty }),
+            ...(versementData.daysLate != null && { daysLate: versementData.daysLate }),
+        }
+
+        const updatedPayment = await this.paymentCIRepository.updateVersement(
+            contractId,
+            monthIndex,
+            versementId,
+            updatedVersement,
+            { modificationReason, updatedBy: userId }
+        )
+        if (!updatedPayment) throw new Error('Échec de la mise à jour du versement')
+        return updatedPayment
+    }
+
     // ================== MÉTHODES DE GESTION DES SUPPORTS ==================
 
     /**

@@ -1,4 +1,4 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -73,6 +73,7 @@ export interface ICreditSpecialeService {
     
     // Paiements
     createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[], installmentNumber?: number): Promise<CreditPayment>;
+    updatePayment(paymentId: string, data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPaymentMode; comment?: string }, proofFile: File | undefined, modificationReason: string, userId: string): Promise<CreditPayment>;
     getPaymentsByCreditId(creditId: string): Promise<CreditPayment[]>;
     getPaymentsWithFilters(filters?: CreditPaymentFilters): Promise<CreditPayment[]>;
     

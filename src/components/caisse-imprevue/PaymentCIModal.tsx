@@ -24,12 +24,23 @@ import {
   Building2,
   AlertTriangle,
   CheckCircle,
+  FileText,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { PaymentMode } from '@/types/types'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import { useActiveSupport } from '@/hooks/caisse-imprevue'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
+
+/** Données initiales pour le mode modification */
+export interface PaymentCIInitialData {
+  date: string
+  time: string
+  amount: number
+  mode: PaymentMode
+  proofUrl?: string
+}
 
 interface PaymentCIModalProps {
   isOpen: boolean
@@ -42,6 +53,10 @@ interface PaymentCIModalProps {
   isMonthly?: boolean
   isDateFixed?: boolean
   contractId: string
+  /** Données initiales pour le mode modification */
+  initialData?: PaymentCIInitialData
+  /** Libellé du bouton de soumission (ex: "Modifier le versement") */
+  submitLabel?: string
 }
 
 export interface PaymentFormData {
@@ -49,9 +64,13 @@ export interface PaymentFormData {
   time: string
   amount: number
   mode: PaymentMode
-  proofFile: File
+  proofFile?: File
   agentRecouvrementId?: string
+  /** Motif de la modification (obligatoire en mode modification) */
+  modificationReason?: string
 }
+
+const isEditMode = (initialData: PaymentCIInitialData | undefined) => initialData != null
 
 export default function PaymentCIModal({
   isOpen,
@@ -63,8 +82,11 @@ export default function PaymentCIModal({
   defaultAmount,
   isMonthly = false,
   isDateFixed = false,
-  contractId
+  contractId,
+  initialData,
+  submitLabel,
 }: PaymentCIModalProps) {
+  const editMode = isEditMode(initialData)
   const [paymentDate, setPaymentDate] = useState(defaultDate || new Date().toISOString().split('T')[0])
   const [paymentTime, setPaymentTime] = useState(() => {
     const now = new Date()
@@ -76,23 +98,39 @@ export default function PaymentCIModal({
   const [isPaying, setIsPaying] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
+  const [modificationReason, setModificationReason] = useState<string>('')
 
   // Récupérer le support actif
   const { data: activeSupport } = useActiveSupport(contractId)
 
-  // Mettre à jour le montant si defaultAmount change
+  // Réinitialiser / préremplir quand le modal s'ouvre
   useEffect(() => {
-    if (defaultAmount) {
-      setPaymentAmount(String(defaultAmount))
+    if (isOpen) {
+      if (initialData) {
+        setPaymentDate(initialData.date)
+        setPaymentTime(initialData.time)
+        setPaymentAmount(String(initialData.amount))
+        setPaymentMode(initialData.mode)
+      } else {
+        setPaymentDate(defaultDate || new Date().toISOString().split('T')[0])
+        setPaymentTime(() => {
+          const now = new Date()
+          return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+        })
+        setPaymentAmount(defaultAmount ? String(defaultAmount) : '')
+        setPaymentMode('airtel_money')
+      }
+      setPaymentFile(undefined)
+      setModificationReason('')
     }
-  }, [defaultAmount])
+  }, [isOpen, defaultDate, defaultAmount, initialData])
 
-  // Mettre à jour la date si defaultDate change et que la date est fixe
+  // Mettre à jour la date si defaultDate change et que la date est fixe (création)
   useEffect(() => {
-    if (defaultDate && isDateFixed) {
+    if (!editMode && defaultDate && isDateFixed) {
       setPaymentDate(defaultDate)
     }
-  }, [defaultDate, isDateFixed])
+  }, [editMode, defaultDate, isDateFixed])
 
   // Calculer la répartition du paiement (support + versement)
   const paymentBreakdown = React.useMemo(() => {
@@ -125,24 +163,24 @@ export default function PaymentCIModal({
   }, [paymentAmount, activeSupport])
 
   const handleSubmit = async () => {
-    // Validation
     if (!paymentDate) {
       toast.error('Veuillez sélectionner une date')
       return
     }
-
     if (!paymentTime) {
       toast.error('Veuillez sélectionner une heure')
       return
     }
-
     if (!paymentAmount || Number(paymentAmount) <= 0) {
       toast.error('Veuillez saisir un montant valide')
       return
     }
-
-    if (!paymentFile) {
+    if (!editMode && !paymentFile) {
       toast.error('Veuillez téléverser une preuve de paiement')
+      return
+    }
+    if (editMode && (!modificationReason || !modificationReason.trim())) {
+      toast.error('Veuillez indiquer le motif de la modification')
       return
     }
 
@@ -154,13 +192,13 @@ export default function PaymentCIModal({
         time: paymentTime,
         amount: Number(paymentAmount),
         mode: paymentMode,
-        proofFile: paymentFile,
+        ...(paymentFile && { proofFile: paymentFile }),
         agentRecouvrementId: agentRecouvrementId || undefined,
+        ...(editMode && modificationReason.trim() && { modificationReason: modificationReason.trim() }),
       }
 
       await onSubmit(formData)
 
-      // Réinitialiser le formulaire
       setPaymentDate(new Date().toISOString().split('T')[0])
       setPaymentTime(() => {
         const now = new Date()
@@ -170,7 +208,7 @@ export default function PaymentCIModal({
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
       setAgentRecouvrementId('')
-      
+      setModificationReason('')
       onClose()
     } catch (error) {
       console.error('Erreur lors du paiement:', error)
@@ -463,18 +501,35 @@ export default function PaymentCIModal({
           <div>
             <Label htmlFor="payment-proof" className="flex items-center gap-2 mb-2">
               <Upload className="h-4 w-4 text-muted-foreground" />
-              Preuve de paiement *
+              {editMode ? 'Preuve de paiement (remplacer si besoin)' : 'Preuve de paiement *'}
             </Label>
+            {editMode && initialData?.proofUrl && (
+              <div className="mb-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <p className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  Preuve actuelle
+                </p>
+                <a
+                  href={initialData.proofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#224D62] hover:underline flex items-center gap-1"
+                >
+                  Voir la preuve actuelle
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
             <Input
               id="payment-proof"
               type="file"
               accept="image/*"
               onChange={handleFileChange}
               disabled={isCompressing || isPaying}
-              required
+              required={!editMode}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Formats acceptés : JPEG, PNG, WebP (max 10 MB) • ✨ Compression automatique activée
+              {editMode ? 'Choisir un fichier pour remplacer la preuve (l\'ancienne sera remplacée).' : 'Formats acceptés : JPEG, PNG, WebP (max 10 MB) • ✨ Compression automatique activée'}
             </p>
             
             {isCompressing && (
@@ -491,10 +546,31 @@ export default function PaymentCIModal({
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-700">
                   <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
+                  {editMode && ' — remplacera la preuve actuelle'}
                 </AlertDescription>
               </Alert>
             )}
           </div>
+
+          {/* Motif de modification (mode édition uniquement) */}
+          {editMode && (
+            <div>
+              <Label htmlFor="modificationReason" className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Motif de la modification *
+              </Label>
+              <textarea
+                id="modificationReason"
+                value={modificationReason}
+                onChange={(e) => setModificationReason(e.target.value)}
+                placeholder="Ex: Correction de la date de paiement, changement de montant suite à erreur..."
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isPaying}
+                required
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -516,7 +592,8 @@ export default function PaymentCIModal({
               !paymentTime ||
               !paymentAmount ||
               Number(paymentAmount) <= 0 ||
-              !paymentFile ||
+              (!editMode && !paymentFile) ||
+              (editMode && !modificationReason.trim()) ||
               (paymentBreakdown.hasSupport && !paymentBreakdown.isValid)
             }
             className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
@@ -524,12 +601,12 @@ export default function PaymentCIModal({
             {isPaying ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Enregistrement...
+                {editMode ? 'Modification...' : 'Enregistrement...'}
               </>
             ) : (
               <>
                 <DollarSign className="h-4 w-4 mr-2" />
-                Enregistrer le versement
+                {submitLabel ?? 'Enregistrer le versement'}
               </>
             )}
           </Button>

@@ -29,8 +29,11 @@ import {
   Maximize2,
   X,
   Loader2,
+  Pencil,
 } from 'lucide-react'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
+import { useAdmin } from '@/hooks/admin/useAdmin'
+import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Image from 'next/image'
@@ -49,6 +52,8 @@ interface PaymentReceiptCIModalProps {
   contract: ContractCI
   payment: PaymentCI
   isMonthly?: boolean
+  /** Si fourni, affiche un bouton "Modifier le versement" (contrat non terminé) */
+  onEditClick?: () => void
 }
 
 const PAYMENT_MODE_LABELS = {
@@ -64,10 +69,23 @@ export default function PaymentReceiptCIModal({
   onClose,
   contract,
   payment,
-  isMonthly = true
+  isMonthly = true,
+  onEditClick,
 }: PaymentReceiptCIModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy ?? '')
+  const { user } = useAuth()
+
+  const adminInfo = React.useMemo(() => {
+    if (!payment.updatedBy) return null
+    if (user?.uid === payment.updatedBy && user?.displayName) {
+      const parts = user.displayName.split(' ')
+      return { firstName: parts[0] || 'Utilisateur', lastName: parts.slice(1).join(' ') || '' }
+    }
+    if (admin) return { firstName: admin.firstName, lastName: admin.lastName }
+    return null
+  }, [user, admin, payment.updatedBy])
   
   const formatDate = (dateString: string) => {
     try {
@@ -203,6 +221,39 @@ export default function PaymentReceiptCIModal({
       })
 
       yPos = (doc as any).lastAutoTable.finalY + 10
+
+      // Modification du versement (si présent)
+      if (payment.modificationReason ?? payment.updatedAt) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('MODIFICATION DU VERSEMENT', 15, yPos)
+        yPos += 6
+        doc.setDrawColor(245, 158, 11)
+        doc.setFillColor(255, 251, 235)
+        doc.rect(10, yPos - 2, pageWidth - 20, 1, 'F')
+        doc.rect(10, yPos - 2, pageWidth - 20, 28, 'S')
+        yPos += 6
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        if (payment.updatedAt) {
+          const modDate = payment.updatedAt instanceof Date ? payment.updatedAt : new Date(payment.updatedAt as string | number)
+          if (!isNaN(modDate.getTime())) {
+            doc.text(`Date de modification: ${modDate.toLocaleDateString('fr-FR')} à ${modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 15, yPos)
+            yPos += 6
+          }
+        }
+        if (payment.updatedBy) {
+          const modifierName = adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : payment.updatedBy
+          doc.text(`Modifié par: ${modifierName} (${payment.updatedBy})`, 15, yPos)
+          yPos += 6
+        }
+        if (payment.modificationReason) {
+          doc.text('Motif: ' + payment.modificationReason, 15, yPos)
+          yPos += 8
+        }
+        yPos += 6
+      }
 
       // Résumé
       doc.setFillColor(240, 249, 255)
@@ -416,6 +467,56 @@ export default function PaymentReceiptCIModal({
             </div>
           </div>
 
+          {/* Modification du versement (si le paiement a été modifié) */}
+          {(payment.modificationReason ?? payment.updatedAt) && (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Pencil className="h-4 w-4" />
+                Modification du versement
+              </h3>
+              <div className="space-y-3 p-4 rounded-lg border bg-amber-50 border-amber-200">
+                {payment.updatedAt && (() => {
+                  const u = payment.updatedAt
+                  const modDate = u instanceof Date ? u : typeof (u as any)?.toDate === 'function' ? (u as any).toDate() : u ? new Date(u as string | number) : null
+                  if (!modDate || isNaN(modDate.getTime())) return null
+                  return (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Date de modification :</span>
+                      <span className="font-medium">{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )
+                })()}
+                {payment.updatedBy && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Modifié par :</span>
+                    <span className="font-medium text-right">
+                      {isLoadingAdmin ? (
+                        <span className="text-gray-500">Chargement...</span>
+                      ) : adminInfo ? (
+                        <>
+                          {adminInfo.firstName} {adminInfo.lastName}
+                          <span className="block text-xs text-gray-500 font-normal mt-0.5">
+                            Matricule : {payment.updatedBy}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-500">ID: {payment.updatedBy}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {payment.modificationReason && (
+                  <div className="pt-2 border-t border-amber-200">
+                    <span className="text-gray-600 block mb-1">Motif de la modification :</span>
+                    <p className="font-medium text-gray-900 bg-white p-3 rounded border border-amber-100">
+                      {payment.modificationReason}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Résumé */}
           <Card className="border-2 border-[#224D62] bg-gradient-to-r from-[#234D65]/10 to-[#2c5a73]/10">
             <CardContent className="p-6">
@@ -454,7 +555,19 @@ export default function PaymentReceiptCIModal({
           </Card>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex-wrap">
+          {onEditClick && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { onEditClick(); onClose(); }}
+              disabled={isGeneratingPDF}
+              className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              <Pencil className="h-4 w-4" />
+              Modifier le versement
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={handleDownloadPDF}

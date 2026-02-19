@@ -13,6 +13,7 @@ import {
   markRefundPaid,
   cancelEarlyRefund,
   pay,
+  updatePaymentContribution,
 } from "@/services/caisse/mutations"
 import { toast } from "sonner"
 import { listRefunds } from "@/db/caisse/refunds.db"
@@ -107,6 +108,8 @@ export default function StandardContract({ id }: Props) {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
+  /** Paiement en cours de modification (ouverture du formulaire en mode édition) */
+  const [editPayment, setEditPayment] = useState<{ paymentId: string; contributionId: string; payment: any } | null>(null)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundDate, setRefundDate] = useState(() => new Date().toISOString().split("T")[0])
   const [refundTime, setRefundTime] = useState(() => {
@@ -272,6 +275,7 @@ export default function StandardContract({ id }: Props) {
 
   const handleMonthClick = (monthIndex: number, payment: any) => {
     setSelectedMonthIndex(monthIndex)
+    setEditPayment(null)
 
     // Si le paiement est déjà effectué, afficher la facture
     if (payment.status === 'PAID') {
@@ -284,6 +288,32 @@ export default function StandardContract({ id }: Props) {
   }
 
   const handlePaymentSubmit = async (paymentData: PaymentCSFormData) => {
+    if (editPayment) {
+      try {
+        await updatePaymentContribution({
+          contractId: id,
+          paymentId: editPayment.paymentId,
+          contributionId: editPayment.contributionId,
+          updates: {
+            amount: paymentData.amount,
+            time: paymentData.time,
+            mode: paymentData.mode,
+            proofFile: paymentData.proofFile,
+            paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
+            modificationReason: paymentData.modificationReason,
+          },
+        })
+        await refetch()
+        toast.success('Versement modifié')
+        setShowPaymentModal(false)
+        setEditPayment(null)
+      } catch (error) {
+        console.error('Erreur lors de la modification:', error)
+        throw error
+      }
+      return
+    }
+
     if (selectedMonthIndex === null) return
 
     try {
@@ -292,7 +322,7 @@ export default function StandardContract({ id }: Props) {
         dueMonthIndex: selectedMonthIndex,
         memberId: data.memberId,
         amount: paymentData.amount,
-        file: paymentData.proofFile,
+        file: paymentData.proofFile!,
         paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
         time: paymentData.time,
         mode: paymentData.mode,
@@ -307,6 +337,20 @@ export default function StandardContract({ id }: Props) {
       console.error('Erreur lors du paiement:', error)
       throw error
     }
+  }
+
+  const openEditPaymentModal = (e: React.MouseEvent, payment: any) => {
+    e.stopPropagation()
+    const contrib = payment?.contribs?.[0]
+    if (!contrib) return
+    const paidAt = contrib.paidAt ? (typeof contrib.paidAt?.toDate === 'function' ? contrib.paidAt.toDate() : new Date(contrib.paidAt)) : new Date()
+    setEditPayment({
+      paymentId: payment.id,
+      contributionId: contrib.id,
+      payment,
+    })
+    setSelectedMonthIndex(null)
+    setShowPaymentModal(true)
   }
 
   return (
@@ -482,30 +526,84 @@ export default function StandardContract({ id }: Props) {
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Payé le:</span>
-                          <span className="font-semibold text-green-600">
-                            {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}
-                          </span>
-                        </div>
+                        {p.paidAt && (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">Payé le:</span>
+                              <span className="font-semibold text-green-600">
+                                {new Date(p.paidAt).toLocaleDateString("fr-FR")}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">Payé à:</span>
+                              <span className="font-semibold text-green-600">
+                                {(p.time ?? p.contribs?.[0]?.time) || new Date(p.paidAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                          </>
+                        )}
 
-                        {p.penaltyApplied && (
+                        {Number(p.penaltyApplied) > 0 && (
                           <div className="flex items-center justify-between text-sm text-red-600 font-medium">
                             <span>Pénalité:</span>
-                            <span>{p.penaltyApplied} FCFA</span>
+                            <span>{Number(p.penaltyApplied).toLocaleString("fr-FR")} FCFA</span>
+                          </div>
+                        )}
+
+                        {p.status === 'PAID' && ((p as any).modificationReason ?? (p as any).updatedAt) && (
+                          <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                            {(p as any).updatedAt && (() => {
+                              const u = (p as any).updatedAt
+                              const modDate = typeof u?.toDate === 'function' ? u.toDate() : u ? new Date(u) : null
+                              if (!modDate || isNaN(modDate.getTime())) return null
+                              return (
+                                <div className="flex items-center justify-between">
+                                  <span>Modifié le:</span>
+                                  <span>{modDate.toLocaleDateString("fr-FR")} à {modDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                                </div>
+                              )
+                            })()}
+                            {(p as any).modificationReason && (
+                              <div>
+                                <span className="font-medium">Motif:</span>
+                                <span className="ml-1">{(p as any).modificationReason}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
 
                       {!isDisabled && (isSelectable || p.status === 'PAID') && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                            {isSelectable ? (
-                              <span>Cliquez pour payer</span>
-                            ) : p.status === 'PAID' ? (
-                              <span>Cliquez pour voir la facture</span>
-                            ) : null}
-                          </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                          {isSelectable ? (
+                            <div className="text-sm text-[#234D65] font-medium">Cliquez pour payer</div>
+                          ) : p.status === 'PAID' ? (
+                            <>
+                              <div className="flex flex-col gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
+                                  onClick={(e) => { e.stopPropagation(); handleMonthClick(p.dueMonthIndex, p); }}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Voir la facture
+                                </Button>
+                                {!isClosed && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-50"
+                                    onClick={(e) => openEditPaymentModal(e, p)}
+                                  >
+                                    Modifier
+                                  </Button>
+                                )}
+                              </div>
+                            </>
+                          ) : null}
                         </div>
                       )}
                     </CardContent>
@@ -523,17 +621,33 @@ export default function StandardContract({ id }: Props) {
           </CardContent>
         </Card>
 
-        {/* Modal de paiement */}
+        {/* Modal de paiement (création ou modification) */}
         <PaymentCSModal
           isOpen={showPaymentModal}
           onClose={() => {
             setShowPaymentModal(false)
             setSelectedMonthIndex(null)
+            setEditPayment(null)
           }}
           onSubmit={handlePaymentSubmit}
-          title={`Versement pour le mois M${(selectedMonthIndex ?? 0) + 1}`}
-          description="Enregistrer le versement mensuel"
+          title={editPayment
+            ? `Modifier le versement – mois M${(editPayment.payment.dueMonthIndex ?? 0) + 1}`
+            : `Versement pour le mois M${(selectedMonthIndex ?? 0) + 1}`}
+          description={editPayment ? 'Modifier la date, l\'heure, le montant ou la preuve du versement.' : 'Enregistrer le versement mensuel'}
           defaultAmount={data.monthlyAmount || 0}
+          initialData={editPayment ? (() => {
+            const c = editPayment.payment?.contribs?.[0]
+            if (!c) return undefined
+            const paidAt = c.paidAt ? (typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)) : new Date()
+            return {
+              date: paidAt.toISOString().split('T')[0],
+              time: (c.time ?? `${String(paidAt.getHours()).padStart(2, '0')}:${String(paidAt.getMinutes()).padStart(2, '0')}`),
+              amount: Number(c.amount) || 0,
+              mode: (c.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
+              proofUrl: c.proofUrl,
+            }
+          })() : undefined}
+          submitLabel={editPayment ? 'Modifier le versement' : undefined}
           isGroupContract={isGroupContract}
         />
 

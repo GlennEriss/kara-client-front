@@ -46,6 +46,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                 updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
                 createdBy: data.createdBy,
                 updatedBy: data.updatedBy,
+                modificationReason: data.modificationReason,
             } as PaymentCI;
         } catch (error) {
             console.error(`Erreur lors de la récupération du paiement mois ${monthIndex}:`, error);
@@ -86,6 +87,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                     updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
                     createdBy: data.createdBy,
                     updatedBy: data.updatedBy,
+                    modificationReason: data.modificationReason,
                 } as PaymentCI;
             });
         } catch (error) {
@@ -216,6 +218,59 @@ export class PaymentCIRepository implements IPaymentCIRepository {
         } catch (error) {
             console.error("Erreur lors de la mise à jour du statut du paiement:", error);
             return null;
+        }
+    }
+
+    /**
+     * Met à jour un versement existant et enregistre la modification (motif, admin)
+     */
+    async updateVersement(
+        contractId: string,
+        monthIndex: number,
+        versementId: string,
+        updatedVersement: VersementCI,
+        paymentMeta: { modificationReason: string; updatedBy: string }
+    ): Promise<PaymentCI | null> {
+        try {
+            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp } = await getFirestore() as any;
+            const paymentId = `month-${monthIndex}`;
+            const paymentRef = doc(
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
+                "payments",
+                paymentId
+            );
+            const docSnap = await getDoc(paymentRef);
+            if (!docSnap.exists()) return null;
+            const data = docSnap.data();
+            const versements: any[] = Array.isArray(data.versements) ? [...data.versements] : [];
+            const index = versements.findIndex((v: any) => v.id === versementId);
+            if (index === -1) return null;
+
+            const toStore = {
+                ...updatedVersement,
+                createdAt: updatedVersement.createdAt instanceof Date
+                    ? Timestamp.fromDate(updatedVersement.createdAt)
+                    : updatedVersement.createdAt,
+            };
+            versements[index] = toStore;
+            const accumulatedAmount = versements.reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0);
+            const targetAmount = data.targetAmount ?? 0;
+            const newStatus = accumulatedAmount >= targetAmount ? 'PAID' : versements.length > 0 ? 'PARTIAL' : 'DUE';
+
+            await updateDoc(paymentRef, {
+                versements,
+                accumulatedAmount,
+                status: newStatus,
+                updatedAt: serverTimestamp(),
+                updatedBy: paymentMeta.updatedBy,
+                modificationReason: paymentMeta.modificationReason,
+            });
+            return await this.getPaymentByMonth(contractId, monthIndex);
+        } catch (error) {
+            console.error("Erreur lors de la mise à jour du versement:", error);
+            throw error;
         }
     }
 }

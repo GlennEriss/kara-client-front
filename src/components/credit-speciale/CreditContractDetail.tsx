@@ -31,6 +31,8 @@ import {
   Plus,
   ExternalLink,
   Link2,
+  Eye,
+  Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditContractStatus } from '@/types/types'
@@ -97,6 +99,7 @@ interface DueItem {
   status: 'PAID' | 'DUE' | 'FUTURE'
   paidAmount?: number
   paymentDate?: Date
+  paymentTime?: string // Heure du paiement (HH:mm) pour affichage "Payé à"
   installmentId?: string // ID de l'échéance pour lier les paiements
 }
 
@@ -404,6 +407,7 @@ export default function CreditContractDetail({
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showPaymentSummaryModal, setShowPaymentSummaryModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<CreditPayment | null>(null)
+  const [paymentToEdit, setPaymentToEdit] = useState<CreditPayment | null>(null)
   const [selectedDueIndex, setSelectedDueIndex] = useState<number | null>(null)
   const [selectedDueIndexForReceipt, setSelectedDueIndexForReceipt] = useState<number | null>(null)
   const [selectedDueIndexForSummary, setSelectedDueIndexForSummary] = useState<number | null>(null)
@@ -604,6 +608,7 @@ export default function CreditContractDetail({
         const hasPayment = hasPaymentForMonth(month)
         let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
         let paymentDate: Date | undefined
+        let paymentTime: string | undefined
 
         if (hasPayment) {
           status = 'PAID'
@@ -624,6 +629,7 @@ export default function CreditContractDetail({
           })
           if (paymentForThisMonth) {
             paymentDate = new Date(paymentForThisMonth.paymentDate)
+            paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
           }
         } else {
           let allPreviousPaid = true
@@ -646,6 +652,7 @@ export default function CreditContractDetail({
           status,
           paidAmount: status === 'PAID' ? paidForThisMonth : undefined,
           paymentDate,
+          paymentTime,
         })
       }
 
@@ -716,6 +723,7 @@ export default function CreditContractDetail({
       const currentMonth = monthIndex + 1
       const paidForThisMonth = paymentsByMonthMap.get(currentMonth) || 0
 
+      let paymentTime: string | undefined
       if (paidForThisMonth > 0) {
         status = 'PAID'
         paidAmount = paidForThisMonth
@@ -731,6 +739,7 @@ export default function CreditContractDetail({
         })
         if (paymentForThisMonth) {
           paymentDate = new Date(paymentForThisMonth.paymentDate)
+          paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
         }
       } else {
         let allPreviousPaid = true
@@ -753,6 +762,7 @@ export default function CreditContractDetail({
         status,
         paidAmount: status === 'PAID' && paidAmount > 0 ? paidAmount : undefined,
         paymentDate,
+        paymentTime,
       })
 
       monthIndex++
@@ -888,6 +898,7 @@ export default function CreditContractDetail({
 
         let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
         let paymentDate: Date | undefined
+        let paymentTime: string | undefined
 
         if (hasPayment) {
           status = 'PAID'
@@ -908,6 +919,7 @@ export default function CreditContractDetail({
           })
           if (paymentForThisMonth) {
             paymentDate = new Date(paymentForThisMonth.paymentDate)
+            paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
           }
         } else {
           let allPreviousPaid = true
@@ -930,6 +942,7 @@ export default function CreditContractDetail({
           status,
           paidAmount: hasPayment ? actualPayment : undefined,
           paymentDate,
+          paymentTime,
         })
 
         currentRemaining = remaining
@@ -991,6 +1004,7 @@ export default function CreditContractDetail({
 
       let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
       let paymentDate: Date | undefined
+      let paymentTime: string | undefined
 
       if (hasPayment) {
         status = 'PAID'
@@ -1011,6 +1025,7 @@ export default function CreditContractDetail({
         })
         if (paymentForThisMonth) {
           paymentDate = new Date(paymentForThisMonth.paymentDate)
+          paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
         }
       } else {
         let allPreviousPaid = true
@@ -1033,6 +1048,7 @@ export default function CreditContractDetail({
         status,
         paidAmount: hasPayment ? actualPayment : undefined,
         paymentDate,
+        paymentTime,
       })
 
       currentRemaining = resteDu
@@ -1788,14 +1804,47 @@ export default function CreditContractDetail({
                           )}
 
                           {item.status === 'PAID' && item.paymentDate && (
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">Payé le:</span>
-                              <span className="font-semibold text-green-600">
-                                {formatDate(item.paymentDate)}
-                              </span>
-                            </div>
+                            <>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">Payé le:</span>
+                                <span className="font-semibold text-green-600">
+                                  {formatDate(item.paymentDate)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">Payé à:</span>
+                                <span className="font-semibold text-green-600">
+                                  {(item.paymentTime != null && item.paymentTime !== '') ? item.paymentTime : new Date(item.paymentDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            </>
                           )}
 
+                          {item.status === 'PAID' && (() => {
+                            const paymentForCard = getPaymentForScheduleIndex(index)
+                            if (!paymentForCard?.modificationReason && !paymentForCard?.updatedAt) return null
+                            return (
+                              <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                                {paymentForCard?.updatedAt && (() => {
+                                  const u = paymentForCard.updatedAt
+                                  const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
+                                  if (!modDate || isNaN(modDate.getTime())) return null
+                                  return (
+                                    <div className="flex items-center justify-between">
+                                      <span>Modifié le:</span>
+                                      <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                  )
+                                })()}
+                                {paymentForCard?.modificationReason && (
+                                  <div>
+                                    <span className="font-medium">Motif:</span>
+                                    <span className="ml-1">{paymentForCard.modificationReason}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
 
                         {/* Boutons d'action */}
                         <div className="mt-4 pt-4 border-t border-gray-200">
@@ -1821,58 +1870,36 @@ export default function CreditContractDetail({
                           )}
 
                           {item.status === 'PAID' && (
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-2">
                               <Button
                                 onClick={() => {
-                                  console.log('[CreditContractDetail] Clic sur "Voir le reçu" - Échéance:', {
-                                    month: item.month,
-                                    index: index,
-                                    payment: item.payment,
-                                    paidAmount: item.paidAmount,
-                                    paymentDate: item.paymentDate,
-                                    status: item.status
-                                  })
                                   setSelectedDueIndexForReceipt(index)
                                   setShowReceiptModal(true)
                                 }}
-                                className="w-full h-11 font-semibold text-white shadow-md hover:shadow-lg transition-all"
-                                style={{ 
-                                  backgroundColor: '#16a34a',
-                                  borderRadius: '0.5rem'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = '#15803d'
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = '#16a34a'
-                                }}
-                              >
-                                <Receipt className="h-4 w-4 mr-2" />
-                                Voir le reçu
-                              </Button>
-
-                              {/* Sous "Voir le reçu" : résumé de versement */}
-                              <Button
+                                className="w-full h-11 font-semibold text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
                                 variant="outline"
-                                className="w-full h-11 font-semibold border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                                onClick={() => {
-                                  console.log('[CreditContractDetail] Clic sur "Voir le résumé" - Échéance:', {
-                                    month: item.month,
-                                    index: index
-                                  })
-                                  const paymentForThisDue = getPaymentForScheduleIndex(index)
-                                  if (!paymentForThisDue) {
-                                    toast.error('Impossible de retrouver le versement pour cette échéance')
-                                    return
-                                  }
-                                  setSelectedPayment(paymentForThisDue)
-                                  setSelectedDueIndexForSummary(index)
-                                  setShowPaymentSummaryModal(true)
-                                }}
                               >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Voir le résumé
+                                <Eye className="h-4 w-4 mr-2" />
+                                Voir la facture
                               </Button>
+                              {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                                <Button
+                                  variant="outline"
+                                  className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                                  onClick={() => {
+                                    const paymentForThisDue = getPaymentForScheduleIndex(index)
+                                    if (!paymentForThisDue) {
+                                      toast.error('Impossible de retrouver le versement pour cette échéance')
+                                      return
+                                    }
+                                    setPaymentToEdit(paymentForThisDue)
+                                    setShowPaymentModal(true)
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Modifier
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1948,63 +1975,64 @@ export default function CreditContractDetail({
                                   </>
                                 )}
                               </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  console.log('[CreditContractDetail] Clic sur "Voir le résumé" dans l\'historique:', {
-                                    paymentId: payment.id,
-                                    amount: payment.amount,
-                                    paymentDate: payment.paymentDate,
-                                    relatedDueItem: relatedDueItem
-                                  })
-                                  // Trouver l'échéance correspondante au paiement
-                                  if (relatedDueItem) {
-                                    const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
-                                    if (dueIndex !== -1) {
-                                      setSelectedDueIndexForSummary(dueIndex)
+                              {(payment.modificationReason || !!(payment as { updatedAt?: unknown }).updatedAt) && (
+                                <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                                  {(() => {
+                                    const u = (payment as { updatedAt?: unknown }).updatedAt
+                                    const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
+                                    if (modDate && !isNaN(modDate.getTime())) {
+                                      return (
+                                        <div>
+                                          <span>Modifié le : {modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                      )
                                     }
-                                  }
-                                  setSelectedPayment(payment)
-                                  setShowPaymentSummaryModal(true)
-                                }}
-                              >
-                                <FileText className="h-4 w-4 mr-1" />
-                                Voir le résumé
-                              </Button>
+                                    return null
+                                  })()}
+                                  {payment.modificationReason && (
+                                    <div><span className="font-medium">Motif :</span> {payment.modificationReason}</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-green-600 border-green-600 hover:bg-green-50"
+                                className="text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  console.log('[CreditContractDetail] Clic sur "Voir le reçu" dans l\'historique:', {
-                                      paymentId: payment.id,
-                                    relatedDueItem: relatedDueItem
-                                  })
                                   if (relatedDueItem) {
                                     const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
                                     if (dueIndex !== -1) {
-                                      console.log('[CreditContractDetail] Ouverture PaymentReceiptModal pour index:', dueIndex)
                                       setSelectedDueIndexForReceipt(dueIndex)
                                       setShowReceiptModal(true)
                                     } else {
-                                      console.warn('[CreditContractDetail] Index non trouvé pour month:', relatedDueItem.month)
                                       toast.error('Impossible de trouver les détails de cette échéance')
                                     }
                                   } else {
-                                    console.warn('[CreditContractDetail] relatedDueItem non trouvé pour payment:', payment.id)
                                     toast.error('Impossible de trouver les détails de cette échéance')
                                   }
                                 }}
                               >
-                                <Receipt className="h-4 w-4 mr-1" />
-                                Voir le reçu
+                                <Eye className="h-4 w-4 mr-1" />
+                                Voir la facture
                               </Button>
+                              {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setPaymentToEdit(payment)
+                                    setShowPaymentModal(true)
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  Modifier
+                                </Button>
+                              )}
                             </div>
                           </div>
                         )
@@ -2674,26 +2702,16 @@ export default function CreditContractDetail({
           setShowPaymentModal(false)
           setSelectedDueIndex(null)
           setPenaltyOnlyMode(false)
+          setPaymentToEdit(null)
         }}
         creditId={contract.id}
-        defaultAmount={selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount}
-        defaultPaymentDate={selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined}
+        paymentToEdit={paymentToEdit}
+        submitLabel={paymentToEdit ? 'Modifier le versement' : undefined}
+        defaultAmount={paymentToEdit ? paymentToEdit.amount : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount)}
+        defaultPaymentDate={paymentToEdit ? paymentToEdit.paymentDate : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined)}
         defaultPenaltyOnlyMode={penaltyOnlyMode}
-        installmentId={(() => {
-          const installmentId = selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined;
-          console.log('[CreditContractDetail] Ouverture du modal de paiement - selectedDueIndex:', selectedDueIndex, 'installmentId:', installmentId, 'dueItem:', selectedDueIndex !== null ? actualSchedule[selectedDueIndex] : null);
-          return installmentId;
-        })()}
-        installmentNumber={(() => {
-          const month = selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined;
-          console.log('[CreditContractDetail] Passage de installmentNumber au modal:', {
-            selectedDueIndex,
-            month,
-            actualScheduleLength: actualSchedule.length,
-            actualScheduleItem: selectedDueIndex !== null ? actualSchedule[selectedDueIndex] : null
-          });
-          return month;
-        })()}
+        installmentId={paymentToEdit?.installmentId ?? (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined)}
+        installmentNumber={paymentToEdit ? (() => { const m = paymentToEdit.id?.match(/^M(\d+)_/); return m ? parseInt(m[1], 10) : undefined; })() : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined)}
         onSuccess={async () => {
           console.log('[CreditContractDetail] onSuccess du paiement - Invalidation des queries...')
           // Invalider explicitement le cache pour rafraîchir l'affichage
@@ -2718,6 +2736,7 @@ export default function CreditContractDetail({
           console.log('[CreditContractDetail] Refetch terminé - Payments:', paymentsResult, 'Installments:', installmentsResult, 'Contract:', contractResult)
           setSelectedDueIndex(null)
           setPenaltyOnlyMode(false)
+          setPaymentToEdit(null)
         }}
       />
       <GuarantorPaymentModal
@@ -2732,30 +2751,27 @@ export default function CreditContractDetail({
         <PaymentReceiptModal
           isOpen={showReceiptModal}
           onClose={() => {
-            console.log('[CreditContractDetail] Fermeture du modal de reçu')
             setShowReceiptModal(false)
             setSelectedDueIndexForReceipt(null)
             setSelectedPayment(null)
           }}
           contract={contract}
-          payment={(() => {
-            const finalPayment = selectedPayment || getSelectedPaymentForReceipt()!
-            console.log('[CreditContractDetail] Paiement final passé au modal:', {
-              id: finalPayment.id,
-              amount: finalPayment.amount,
-              paymentDate: finalPayment.paymentDate,
-              paymentTime: finalPayment.paymentTime,
-              comment: finalPayment.comment,
-              reference: finalPayment.reference,
-              source: selectedPayment ? 'selectedPayment' : 'getSelectedPaymentForReceipt'
-            })
-            return finalPayment
-          })()}
+          payment={selectedPayment || getSelectedPaymentForReceipt()!}
           installmentNumber={
             selectedPayment && selectedPayment.installmentId
               ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
               : (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
           }
+          onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
+            const p = selectedPayment || getSelectedPaymentForReceipt()
+            if (p) {
+              setPaymentToEdit(p)
+              setShowReceiptModal(false)
+              setSelectedDueIndexForReceipt(null)
+              setSelectedPayment(null)
+              setShowPaymentModal(true)
+            }
+          } : undefined}
         />
       )}
 
