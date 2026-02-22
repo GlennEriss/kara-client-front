@@ -187,10 +187,16 @@ const NATIONALITY_NAMES: Record<string, string> = {
     'KR': 'Sud-coréenne'
 }
 
-// Fonction helper pour obtenir le nom de la nationalité à partir du code
+// Fonction helper pour obtenir le nom de la nationalité à partir du code (toujours au féminin)
 export const getNationalityName = (code: string | undefined | null): string => {
     if (!code) return 'Non renseignée'
     return NATIONALITY_NAMES[code.toUpperCase()] || code
 }
+
+/** Même traduction que getNationalityName : la nationalité s’affiche toujours au féminin. */
+export const getNationalityNameByGender = (
+    code: string | undefined | null,
+    _gender?: string | undefined | null
+): string => getNationalityName(code)
 
 export default NATIONALITY_NAMES;

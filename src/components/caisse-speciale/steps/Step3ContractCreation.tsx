@@ -243,7 +243,7 @@ export function Step3ContractCreation() {
   return (
     <div className="space-y-6">
       {/* Titre de l'étape */}
-      <div className="text-center">
+      <div id="step-3" className="text-center scroll-mt-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Création du contrat
         </h2>

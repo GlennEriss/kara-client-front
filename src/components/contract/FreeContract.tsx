@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useAuth } from '@/hooks/useAuth'
 import { useMember } from '@/hooks/useMembers'
-import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
+import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
 import type { PaymentMode } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
@@ -91,6 +91,7 @@ export default function FreeContract({ id }: Props) {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
+  const [editPayment, setEditPayment] = useState<{ paymentId: string; contributionId: string; payment: any } | null>(null)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundDate, setRefundDate] = useState(() => {
@@ -188,26 +189,69 @@ export default function FreeContract({ id }: Props) {
 
   const handleMonthClick = (monthIndex: number, payment: any) => {
     setSelectedIdx(monthIndex)
-    
-    // Si le paiement est déjà effectué, afficher la facture
+    setEditPayment(null)
+
     if (payment.status === 'PAID') {
       setSelectedPayment(payment)
       setShowInvoiceModal(true)
     } else {
-      // Sinon, afficher le formulaire de paiement
       setShowPaymentModal(true)
     }
   }
 
+  const openEditPaymentModal = (e: React.MouseEvent, payment: any) => {
+    e.stopPropagation()
+    const contribs = Array.isArray(payment?.contribs) ? payment.contribs : []
+    const contrib = contribs[0]
+    const canEdit = contrib || (contribs.length === 0 && payment?.status === 'PAID' && (payment?.amount != null || payment?.accumulatedAmount != null))
+    if (!canEdit) {
+      toast.error('Impossible de modifier ce versement (aucune contribution enregistrée)')
+      return
+    }
+    setEditPayment({
+      paymentId: payment.id,
+      contributionId: contrib?.id ?? '__single__',
+      payment,
+    })
+    setSelectedIdx(null)
+    setShowPaymentModal(true)
+  }
+
   const handlePaymentSubmit = async (paymentData: PaymentCSFormData) => {
+    if (editPayment) {
+      try {
+        await updatePaymentContribution({
+          contractId: id,
+          paymentId: editPayment.paymentId,
+          contributionId: editPayment.contributionId,
+          updates: {
+            amount: paymentData.amount,
+            time: paymentData.time,
+            mode: paymentData.mode,
+            proofFile: paymentData.proofFile,
+            paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
+            modificationReason: paymentData.modificationReason,
+          },
+        })
+        await refetch()
+        toast.success('Versement modifié')
+        setShowPaymentModal(false)
+        setEditPayment(null)
+      } catch (err) {
+        console.error('Erreur lors de la modification:', err)
+        toast.error(err instanceof Error ? err.message : 'Impossible de modifier le versement')
+      }
+      return
+    }
+
     if (selectedIdx === null) return
 
     try {
-      await pay({ 
-        contractId: id, 
-        dueMonthIndex: selectedIdx, 
-        memberId: data.memberId, 
-        amount: paymentData.amount, 
+      await pay({
+        contractId: id,
+        dueMonthIndex: selectedIdx,
+        memberId: data.memberId,
+        amount: paymentData.amount,
         file: paymentData.proofFile,
         paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
         time: paymentData.time,
@@ -357,6 +401,20 @@ export default function FreeContract({ id }: Props) {
   }
 
   const nextDueMonthIndex = getNextDueMonthIndex()
+
+  // Période (début / fin) pour une échéance mensuelle
+  const getMonthlyPeriodBounds = useCallback((dueMonthIndex: number) => {
+    const raw = (data as any)?.contractStartAt ?? (data as any)?.firstPaymentDate
+    if (!raw) return null
+    const startRef = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
+    if (isNaN(startRef.getTime())) return null
+    const start = new Date(startRef)
+    start.setMonth(start.getMonth() + dueMonthIndex)
+    const end = new Date(startRef)
+    end.setMonth(end.getMonth() + dueMonthIndex + 1)
+    end.setDate(end.getDate() - 1)
+    return { start, end }
+  }, [data])
 
   // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
   const currentBonus = data.bonusAccrued || 0
@@ -535,6 +593,15 @@ export default function FreeContract({ id }: Props) {
                         </Badge>
                       </div>
 
+                      {(() => {
+                        const bounds = getMonthlyPeriodBounds(p.dueMonthIndex)
+                        return bounds ? (
+                          <div className="flex flex-col gap-0.5 mb-2 text-xs text-gray-600">
+                            <span>Du {bounds.start.toLocaleDateString('fr-FR')} au {bounds.end.toLocaleDateString('fr-FR')}</span>
+                          </div>
+                        ) : null
+                      })()}
+
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Objectif:</span>
@@ -568,17 +635,82 @@ export default function FreeContract({ id }: Props) {
                             />
                           </div>
                         </div>
+
+                        {((p as any).paidAt ?? (p as any).contribs?.[0]?.paidAt) && (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">Payé le:</span>
+                              <span className="font-semibold text-green-600">
+                                {new Date((p as any).paidAt ?? (p as any).contribs?.[0]?.paidAt).toLocaleDateString("fr-FR")}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">Payé à:</span>
+                              <span className="font-semibold text-green-600">
+                                {(p as any).time ?? (p as any).contribs?.[0]?.time ?? (() => {
+                                  const pa = (p as any).paidAt ?? (p as any).contribs?.[0]?.paidAt
+                                  const d = pa && (typeof pa?.toDate === 'function' ? pa.toDate() : new Date(pa))
+                                  return d && !isNaN(d.getTime()) ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : '—'
+                                })()}
+                              </span>
+                            </div>
+                          </>
+                        )}
+
+                        {p.status === 'PAID' && ((p as any).modificationReason ?? (p as any).updatedAt) && (
+                          <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                            {(p as any).updatedAt && (() => {
+                              const u = (p as any).updatedAt
+                              const modDate = typeof u?.toDate === 'function' ? u.toDate() : u ? new Date(u) : null
+                              if (!modDate || isNaN(modDate.getTime())) return null
+                              return (
+                                <div className="flex items-center justify-between">
+                                  <span>Modifié le:</span>
+                                  <span>{modDate.toLocaleDateString("fr-FR")} à {modDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                                </div>
+                              )
+                            })()}
+                            {(p as any).modificationReason && (
+                              <div>
+                                <span className="font-medium">Motif:</span>
+                                <span className="ml-1">{(p as any).modificationReason}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {!isDisabled && (isSelectable || p.status === 'PAID') && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                            {isSelectable ? (
-                              <span>Cliquez pour payer</span>
-                            ) : p.status === 'PAID' ? (
-                              <span>Cliquez pour voir la facture</span>
-                            ) : null}
-                          </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                          {isSelectable ? (
+                            <div className="text-sm text-[#234D65] font-medium">Cliquez pour payer</div>
+                          ) : p.status === 'PAID' ? (
+                            <>
+                              <div className="flex flex-col gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
+                                  onClick={(e) => { e.stopPropagation(); handleMonthClick(p.dueMonthIndex, p); }}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Voir la facture
+                                </Button>
+                                {!isClosed && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-50"
+                                    onClick={(e) => openEditPaymentModal(e, p)}
+                                  >
+                                    Modifier
+                                  </Button>
+                                )}
+                              </div>
+                            </>
+                          ) : null}
                         </div>
                       )}
                     </CardContent>
@@ -596,17 +728,35 @@ export default function FreeContract({ id }: Props) {
           </CardContent>
         </Card>
 
-        {/* Modal de paiement */}
+        {/* Modal de paiement (création ou modification) */}
         <PaymentCSModal
           isOpen={showPaymentModal}
           onClose={() => {
             setShowPaymentModal(false)
             setSelectedIdx(null)
+            setEditPayment(null)
           }}
           onSubmit={handlePaymentSubmit}
-          title={`Versement pour le mois M${(selectedIdx ?? 0) + 1}`}
-          description="Enregistrer le versement mensuel"
-          defaultAmount={100000}
+          title={editPayment
+            ? `Modifier le versement – mois M${(editPayment.payment.dueMonthIndex ?? 0) + 1}`
+            : `Versement pour le mois M${(selectedIdx ?? 0) + 1}`}
+          description={editPayment ? 'Modifier la date, l\'heure, le montant ou la preuve du versement.' : 'Enregistrer le versement mensuel'}
+          defaultAmount={data.monthlyAmount ?? 100000}
+          initialData={editPayment ? (() => {
+            const p = editPayment.payment
+            const c = p?.contribs?.[0]
+            const source = c ?? p
+            if (!source) return undefined
+            const paidAt = (source.paidAt ? (typeof source.paidAt?.toDate === 'function' ? source.paidAt.toDate() : new Date(source.paidAt)) : new Date()) as Date
+            return {
+              date: paidAt.toISOString().split('T')[0],
+              time: (source.time ?? `${String(paidAt.getHours()).padStart(2, '0')}:${String(paidAt.getMinutes()).padStart(2, '0')}`),
+              amount: Number(source.amount ?? p?.accumulatedAmount) || 0,
+              mode: (source.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
+              proofUrl: source.proofUrl ?? p?.proofUrl,
+            }
+          })() : undefined}
+          submitLabel={editPayment ? 'Modifier le versement' : undefined}
         />
 
         {/* Modal de facture */}
@@ -619,6 +769,10 @@ export default function FreeContract({ id }: Props) {
           }}
           payment={selectedPayment}
           contractData={data}
+          member={member ?? undefined}
+          group={undefined}
+          payments={data.payments ?? []}
+          getAdminDisplayName={(id) => id ?? '—'}
         />
 
         {/* Section Remboursements */}

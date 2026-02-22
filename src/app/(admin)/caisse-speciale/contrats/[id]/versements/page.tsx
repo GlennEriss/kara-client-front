@@ -21,6 +21,7 @@ import { getGroupById } from '@/db/group.db'
 import { getDoc, doc } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import { getNationalityNameByGender } from '@/constantes/nationality'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -472,268 +473,46 @@ export default function ContractPaymentsPage() {
     doc.save(fileName)
   }
 
-  // Fonction pour exporter un versement individuel en PDF
-  const exportSinglePaymentToPDF = async (payment: any) => {
-    const doc = new jsPDF('p', 'mm', 'a4')
-
-    // En-tête du document
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Facture de Versement', 14, 15)
-    
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Contrat #${contractId}`, 14, 22)
-    doc.text(`Échéance M${payment.dueMonthIndex + 1}`, 14, 28)
-    doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
-
-    let yPos = 42
-
-    // Informations du versement
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Informations du versement', 14, yPos)
-    
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    yPos += 6
-    
-    const now = new Date()
-    const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
-    let status = ''
-    if (payment.status === 'PAID') {
-      status = 'Payé'
-    } else if (dueDate && now > dueDate) {
-      status = 'En retard'
-    } else {
-      status = 'En attente'
-    }
-    
-    doc.text(`Statut : ${status}`, 14, yPos)
-    yPos += 6
-    
-    if (payment.dueAt) {
-      doc.text(`Date d'échéance : ${new Date(payment.dueAt).toLocaleDateString('fr-FR')}`, 14, yPos)
-      yPos += 6
-    }
-    
-    if (payment.paidAt) {
-      doc.text(`Date de paiement : ${new Date(payment.paidAt).toLocaleDateString('fr-FR')}`, 14, yPos)
-      yPos += 6
-      if (payment.time) {
-        doc.text(`Heure : ${payment.time}`, 14, yPos)
-        yPos += 6
-      }
-    }
-    
-    doc.text(`Montant : ${formatAmountForPDF(payment.amount || 0)} FCFA`, 14, yPos)
-    yPos += 6
-    
-    if (payment.mode) {
-      const modeLabel = payment.mode === 'airtel_money' ? 'Airtel Money' :
-        payment.mode === 'mobicash' ? 'Mobicash' :
-        payment.mode === 'cash' ? 'Espèce' :
-        payment.mode === 'bank_transfer' ? 'Virement bancaire' : payment.mode
-      doc.text(`Mode de paiement : ${modeLabel}`, 14, yPos)
-      yPos += 6
-    }
-    
-    // Afficher les pénalités si présentes
-    const penaltyApplied = (payment as any).penaltyApplied
-    const penaltyDays = (payment as any).penaltyDays
-    
-    if (penaltyApplied && penaltyApplied > 0) {
-      doc.setTextColor(220, 38, 38) // Rouge
-      doc.text(`Pénalités appliquées : ${formatAmountForPDF(penaltyApplied)} FCFA`, 14, yPos)
-      yPos += 6
-      if (penaltyDays && penaltyDays > 0) {
-        doc.text(`Jours de retard : ${penaltyDays}`, 14, yPos)
-        yPos += 6
-      }
-      doc.setTextColor(0, 0, 0) // Revenir au noir
-    } else if (penaltyDays && penaltyDays > 0 && penaltyDays <= 3) {
-      doc.setTextColor(255, 140, 0) // Orange
-      doc.text(`Période de tolérance : ${penaltyDays} jour(s) de retard`, 14, yPos)
-      yPos += 6
-      doc.setTextColor(0, 0, 0)
-    }
-    
-    // Afficher le bonus si présent
-    const bonusApplied = (payment as any).bonusApplied
-    if (bonusApplied && bonusApplied > 0) {
-      doc.setTextColor(34, 139, 34) // Vert
-      doc.text(`Bonus appliqué : ${formatAmountForPDF(bonusApplied)} FCFA`, 14, yPos)
-      yPos += 6
-      doc.setTextColor(0, 0, 0)
-    }
-    
-    if (payment.updatedBy) {
-      doc.text(`Traité par : ${getAdminDisplayName(payment.updatedBy)}`, 14, yPos)
-      yPos += 6
-    }
-    
-    yPos += 4
-
-    // Détails des contributions
-    if ((payment as any).groupContributions && (payment as any).groupContributions.length > 0) {
-      // Contributions de groupe
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Contributions des membres (${(payment as any).groupContributions.length})`, 14, yPos)
-      yPos += 8
-
-      const tableData = (payment as any).groupContributions.map((contrib: any) => {
-        const row = [
-          `${contrib.memberFirstName} ${contrib.memberLastName}`,
-          contrib.memberMatricule,
-          `${formatAmountForPDF(contrib.amount)} FCFA`,
-          contrib.time || '',
-          contrib.mode === 'airtel_money' ? 'Airtel Money' :
-            contrib.mode === 'mobicash' ? 'Mobicash' :
-            contrib.mode === 'cash' ? 'Espèce' :
-            contrib.mode === 'bank_transfer' ? 'Virement' : contrib.mode || ''
-        ]
-        
-        if (contrib.penalty && contrib.penalty > 0) {
-          row.push(`${formatAmountForPDF(contrib.penalty)} FCFA`)
-        } else {
-          row.push('-')
-        }
-        
-        return row
+  // Chargement du logo pour les PDF (partagé entre export complet et export single)
+  const loadLogoDataUrl = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
+    try {
+      const response = await fetch('/assets/caisse-speciale/caissesp-logo.png')
+      if (!response.ok) return null
+      const blob = await response.blob()
+      const dataUrl = await new Promise<string | null>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
       })
-
-      const hasPenalties = (payment as any).groupContributions.some((c: any) => c.penalty && c.penalty > 0)
-
-      autoTable(doc, {
-        head: [hasPenalties 
-          ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
-          : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
-        ],
-        body: tableData,
-        startY: yPos,
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+      if (!dataUrl) return null
+      const dimensions = await new Promise<{ width: number; height: number } | null>((resolve) => {
+        const img = new window.Image()
+        img.onload = () => (img.naturalWidth && img.naturalHeight ? resolve({ width: img.naturalWidth, height: img.naturalHeight }) : resolve(null))
+        img.onerror = () => resolve(null)
+        img.src = dataUrl
       })
-      
-      yPos = (doc as any).lastAutoTable.finalY + 10
-    } else if (payment.contribs && payment.contribs.length > 0) {
-      // Contributions individuelles
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Détail des contributions', 14, yPos)
-      yPos += 8
-
-      for (const contrib of payment.contribs) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        
-        doc.text(`• Montant : ${formatAmountForPDF(contrib.amount || 0)} FCFA`, 20, yPos)
-        yPos += 6
-        
-        if (contrib.paidAt) {
-          try {
-            const paidAtAny = contrib.paidAt as any
-            const date = paidAtAny?.toDate ? paidAtAny.toDate() : new Date(contrib.paidAt)
-            doc.text(`  Payé le ${date.toLocaleDateString('fr-FR')}`, 20, yPos)
-            yPos += 6
-          } catch (error) {
-            // Ignorer l'erreur de date
-          }
-        }
-        
-        if (contrib.time) {
-          doc.text(`  Heure : ${contrib.time}`, 20, yPos)
-          yPos += 6
-        }
-        
-        if (contrib.mode) {
-          doc.text(`  Mode : ${contrib.mode}`, 20, yPos)
-          yPos += 6
-        }
-        
-        const contribPenalty = (contrib as any).penalty
-        const contribPenaltyDays = (contrib as any).penaltyDays
-        
-        if (contribPenalty && contribPenalty > 0) {
-          doc.setTextColor(220, 38, 38)
-          doc.text(`  Pénalité : ${formatAmountForPDF(contribPenalty)} FCFA`, 20, yPos)
-          yPos += 6
-          if (contribPenaltyDays && contribPenaltyDays > 0) {
-            doc.text(`  Retard : ${contribPenaltyDays} jour(s)`, 20, yPos)
-            yPos += 6
-          }
-          doc.setTextColor(0, 0, 0)
-        }
-        
-        yPos += 3
-      }
+      if (!dimensions) return null
+      return { dataUrl, width: dimensions.width, height: dimensions.height }
+    } catch (error) {
+      console.error('Erreur chargement logo export PDF:', error)
+      return null
     }
-
-    // Footer
-    const pageCount = (doc as any).internal.getNumberOfPages()
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i)
-      doc.setFontSize(8)
-      doc.setTextColor(128, 128, 128)
-      doc.text(
-        `Page ${i} sur ${pageCount} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-        14,
-        doc.internal.pageSize.getHeight() - 10
-      )
-    }
-
-    // Télécharger le PDF
-    const dateStr = new Date().toISOString().split('T')[0]
-    const fileName = `versement_${contractId}_M${payment.dueMonthIndex + 1}_${dateStr}.pdf`
-    doc.save(fileName)
   }
 
-  // Fonction pour exporter les versements en PDF
-  const exportToPDF = async () => {
-    if (!contract) return
-
-    const loadLogoDataUrl = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
-      try {
-        const response = await fetch('/assets/caisse-speciale/caissesp-logo.png')
-        if (!response.ok) return null
-        const blob = await response.blob()
-        const dataUrl = await new Promise<string | null>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null)
-          reader.onerror = () => reject(reader.error)
-          reader.readAsDataURL(blob)
-        })
-        if (!dataUrl) return null
-
-        const dimensions = await new Promise<{ width: number; height: number } | null>((resolve) => {
-          const img = new window.Image()
-          img.onload = () => {
-            if (!img.naturalWidth || !img.naturalHeight) {
-              resolve(null)
-              return
-            }
-            resolve({ width: img.naturalWidth, height: img.naturalHeight })
-          }
-          img.onerror = () => resolve(null)
-          img.src = dataUrl
-        })
-
-        if (!dimensions) return null
-        return {
-          dataUrl,
-          width: dimensions.width,
-          height: dimensions.height,
-        }
-      } catch (error) {
-        console.error('Erreur chargement logo export PDF:', error)
-        return null
-      }
+  // Layout commun : construit les 2 premières pages du PDF (infos membre + caisse spéciale + récap) et retourne drawPaymentBlock
+  const buildVersementPDFFirstTwoPages = (
+    doc: jsPDF,
+    opts: {
+      contract: any
+      contractId: string
+      member: any
+      group: any
+      sortedPayments: any[]
+      logoDataUrl: { dataUrl: string; width: number; height: number } | null
     }
-
-    const logoDataUrl = await loadLogoDataUrl()
-    const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
-    const doc = new jsPDF('l', 'mm', 'a4')
+  ): { drawPaymentBlock: (payment: any, startY: number) => number; pageWidth: number; pageHeight: number; drawPageBackground: () => void; drawMainTitle: (showLogo?: boolean) => void } => {
+    const { contract, contractId, member, group, sortedPayments, logoDataUrl } = opts
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
     const marginX = 14
@@ -744,7 +523,6 @@ export default function ContractPaymentsPage() {
       headerFill: [236, 242, 248] as [number, number, number],
       pageFill: [247, 249, 252] as [number, number, number],
     }
-
     const toDateSafe = (value: unknown): Date | null => {
       if (!value) return null
       if (value instanceof Date) return value
@@ -752,29 +530,15 @@ export default function ContractPaymentsPage() {
       const parsed = new Date(value as any)
       return Number.isNaN(parsed.getTime()) ? null : parsed
     }
-
     const formatLongDate = (value: unknown): string => {
       const date = toDateSafe(value)
       if (!date) return '-'
-      return date.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
+      return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     }
-
     const formatMode = (mode?: string): string => {
-      const modeMap: Record<string, string> = {
-        airtel_money: 'AIRTEL-MONEY',
-        mobicash: 'MOBICASH',
-        cash: 'CASH',
-        bank_transfer: 'VIREMENT',
-      }
-      if (!mode) return '-'
-      return modeMap[mode] || String(mode).toUpperCase()
+      const modeMap: Record<string, string> = { airtel_money: 'AIRTEL-MONEY', mobicash: 'MOBICASH', cash: 'CASH', bank_transfer: 'VIREMENT' }
+      return !mode ? '-' : modeMap[mode] || String(mode).toUpperCase()
     }
-
     const getAge = (birthDate?: string): string => {
       if (!birthDate) return '-'
       const birth = toDateSafe(birthDate)
@@ -785,71 +549,56 @@ export default function ContractPaymentsPage() {
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
       return age > 0 ? `${age} ANS` : '-'
     }
-
     const getPaymentRemark = (payment: any): string => {
-      if (payment.status === 'PAID') {
-        if ((payment.penaltyApplied || 0) > 0) {
-          return `RETARD ${payment.penaltyDays || 0}J`
-        }
-        return 'CONFORME'
-      }
+      if (payment.status === 'PAID') return (payment.penaltyApplied || 0) > 0 ? `RETARD ${payment.penaltyDays || 0}J` : 'CONFORME'
       const dueDate = toDateSafe(payment.dueAt)
       if (dueDate && new Date() > dueDate) return 'IMPAYE'
       return 'EN ATTENTE'
     }
-
     const getAdminNameForExport = (payment: any): string => {
       const label = getAdminDisplayName(payment.updatedBy)
       if (!label || label === 'Chargement...') return payment.updatedBy || '-'
       return label
     }
-
-    const contractTypeLabel = contract.contractType === 'GROUP' ? 'GROUPE' : 'INDIVIDUEL'
     const caisseTypeLabelMap: Record<string, string> = {
-      STANDARD: 'STANDARD',
-      JOURNALIERE: 'JOURNALIERE',
-      LIBRE: 'LIBRE',
-      STANDARD_CHARITABLE: 'STANDARD CHARITABLE',
-      JOURNALIERE_CHARITABLE: 'JOURNALIERE CHARITABLE',
-      LIBRE_CHARITABLE: 'LIBRE CHARITABLE',
+      STANDARD: 'STANDARD', JOURNALIERE: 'JOURNALIERE', LIBRE: 'LIBRE',
+      STANDARD_CHARITABLE: 'STANDARD CHARITABLE', JOURNALIERE_CHARITABLE: 'JOURNALIERE CHARITABLE', LIBRE_CHARITABLE: 'LIBRE CHARITABLE',
     }
     const caisseTypeLabel = caisseTypeLabelMap[contract.caisseType] || contract.caisseType
-
     const memberNameForGroup = group?.name || group?.label || 'GROUPE'
     const memberLastName = contract.contractType === 'GROUP' ? memberNameForGroup : member?.lastName || 'INCONNU'
     const memberFirstName = contract.contractType === 'GROUP' ? '-' : member?.firstName || 'INCONNU'
     const memberMatricule = member?.matricule || contract.memberId || contract.id || '-'
     const memberBirthPlace = contract.contractType === 'GROUP' ? '-' : member?.birthPlace || '-'
     const memberBirthDate = contract.contractType === 'GROUP' ? '-' : formatLongDate(member?.birthDate)
-    const memberNationality = contract.contractType === 'GROUP' ? '-' : member?.nationality || '-'
+    const memberNationality = contract.contractType === 'GROUP' ? '-' : (member?.nationality ? getNationalityNameByGender(member.nationality, member?.gender) : '-')
     const memberIdDocument = contract.contractType === 'GROUP' ? '-' : member?.identityDocumentNumber || '-'
     const memberPhone1 = contract.contractType === 'GROUP' ? '-' : member?.contacts?.[0] || '-'
     const memberPhone2 = contract.contractType === 'GROUP' ? '-' : member?.contacts?.[1] || '-'
     const memberGender = contract.contractType === 'GROUP' ? '-' : (member?.gender ? String(member.gender).toUpperCase() : '-')
     const memberAge = contract.contractType === 'GROUP' ? '-' : getAge(member?.birthDate)
-    const memberQuarter = contract.contractType === 'GROUP'
-      ? '-'
-      : member?.address?.district || member?.address?.arrondissement || member?.address?.city || '-'
-    const memberProfession = contract.contractType === 'GROUP'
-      ? '-'
-      : member?.profession || member?.companyName || '-'
-
-    const emergencyContactName = contract.emergencyContact
-      ? `${contract.emergencyContact.lastName || ''} ${contract.emergencyContact.firstName || ''}`.trim() || 'INCONNU'
-      : 'INCONNU'
+    const memberQuarter = contract.contractType === 'GROUP' ? '-' : member?.address?.district || member?.address?.arrondissement || member?.address?.city || '-'
+    const memberProfession = contract.contractType === 'GROUP' ? '-' : member?.profession || member?.companyName || '-'
+    const emergencyContactName = contract.emergencyContact ? `${contract.emergencyContact.lastName || ''} ${contract.emergencyContact.firstName || ''}`.trim() || 'INCONNU' : 'INCONNU'
     const emergencyRelation = contract.emergencyContact?.relationship || '-'
     const emergencyPhone1 = contract.emergencyContact?.phone1 || '-'
     const emergencyPhone2 = contract.emergencyContact?.phone2 || '-'
     const emergencyId = contract.emergencyContact?.idNumber || '-'
-
-    const unpaidCount = sortedPayments.filter((payment) => payment.status !== 'PAID').length
-    const totalCotisation = sortedPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
-    const totalPaid = sortedPayments
-      .filter((payment) => payment.status === 'PAID')
-      .reduce((sum, payment) => sum + (payment.amount || 0), 0)
+    const unpaidCount = sortedPayments.filter((p) => p.status !== 'PAID').length
+    const isJournalierType = contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
+    const totalCotisation = isJournalierType
+      ? sortedPayments.length * (Number(contract.monthlyAmount) || 0)
+      : sortedPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    const totalPaid = isJournalierType
+      ? sortedPayments.reduce((sum, p) => {
+          if (p.contribs && Array.isArray(p.contribs)) {
+            return sum + (p.contribs as any[]).reduce((s, c) => s + (Number(c.amount) || 0), 0)
+          }
+          return sum + (Number((p as any).accumulatedAmount) || 0)
+        }, 0)
+      : sortedPayments.filter((p) => p.status === 'PAID').reduce((sum, p) => sum + (p.amount || 0), 0)
     const totalUnpaid = Math.max(totalCotisation - totalPaid, 0)
-    const totalPenalties = sortedPayments.reduce((sum, payment) => sum + ((payment as any).penaltyApplied || 0), 0)
-    const firstPaidDate = sortedPayments.find((payment) => payment.paidAt)?.paidAt
+    const totalPenalties = sortedPayments.reduce((sum, p) => sum + ((p as any).penaltyApplied || 0), 0)
 
     const drawPageBackground = () => {
       doc.setFillColor(...colors.pageFill)
@@ -858,18 +607,12 @@ export default function ContractPaymentsPage() {
       doc.setLineWidth(0.7)
       doc.rect(8, 8, pageWidth - 16, pageHeight - 16)
     }
-
     const drawMainTitle = (showLogo = false) => {
       if (showLogo && logoDataUrl) {
-        const maxLogoWidth = 34
-        const maxLogoHeight = 18
+        const maxLogoWidth = 34, maxLogoHeight = 18
         const ratio = logoDataUrl.width / logoDataUrl.height
-        let logoWidth = maxLogoWidth
-        let logoHeight = logoWidth / ratio
-        if (logoHeight > maxLogoHeight) {
-          logoHeight = maxLogoHeight
-          logoWidth = logoHeight * ratio
-        }
+        let logoWidth = maxLogoWidth, logoHeight = logoWidth / ratio
+        if (logoHeight > maxLogoHeight) { logoHeight = maxLogoHeight; logoWidth = logoHeight * ratio }
         const logoY = 10 + (maxLogoHeight - logoHeight) / 2
         doc.addImage(logoDataUrl.dataUrl, 'PNG', marginX, logoY, logoWidth, logoHeight)
       }
@@ -881,7 +624,6 @@ export default function ContractPaymentsPage() {
       doc.setTextColor(45, 45, 45)
       doc.text(`Contrat : ${contract.id || contractId}`, pageWidth / 2, 23, { align: 'center' })
     }
-
     const drawSectionTitle = (title: string, y: number) => {
       doc.setFillColor(...colors.headerFill)
       doc.setDrawColor(...colors.line)
@@ -892,23 +634,14 @@ export default function ContractPaymentsPage() {
       doc.setTextColor(...colors.navy)
       doc.text(title, pageWidth / 2, y + 5.6, { align: 'center' })
     }
-
     const drawGridRows = (
       rows: Array<{ leftLabel: string; leftValue: string; rightLabel: string; rightValue: string }>,
       startY: number,
-      options?: {
-        leftLabelWidth?: number
-        rightLabelWidth?: number
-        labelFontSize?: number
-        valueFontSize?: number
-      }
+      options?: { leftLabelWidth?: number; rightLabelWidth?: number; labelFontSize?: number; valueFontSize?: number }
     ) => {
-      const rowHeight = 8
-      const halfWidth = contentWidth / 2
-      const leftLabelWidth = options?.leftLabelWidth ?? 33
-      const rightLabelWidth = options?.rightLabelWidth ?? 33
-      const labelFontSize = options?.labelFontSize ?? 9.2
-      const valueFontSize = options?.valueFontSize ?? 9.2
+      const rowHeight = 8, halfWidth = contentWidth / 2
+      const leftLabelWidth = options?.leftLabelWidth ?? 33, rightLabelWidth = options?.rightLabelWidth ?? 33
+      const labelFontSize = options?.labelFontSize ?? 9.2, valueFontSize = options?.valueFontSize ?? 9.2
       const totalHeight = rows.length * rowHeight
       doc.setDrawColor(...colors.line)
       doc.setLineWidth(0.2)
@@ -916,7 +649,6 @@ export default function ContractPaymentsPage() {
       doc.line(marginX + halfWidth, startY, marginX + halfWidth, startY + totalHeight)
       doc.line(marginX + leftLabelWidth, startY, marginX + leftLabelWidth, startY + totalHeight)
       doc.line(marginX + halfWidth + rightLabelWidth, startY, marginX + halfWidth + rightLabelWidth, startY + totalHeight)
-
       rows.forEach((row, index) => {
         const y = startY + index * rowHeight
         if (index > 0) doc.line(marginX, y, marginX + contentWidth, y)
@@ -933,13 +665,15 @@ export default function ContractPaymentsPage() {
       })
       return startY + totalHeight
     }
-
+    const rowHeight = 8
     const drawPaymentBlock = (payment: any, startY: number) => {
-      const headerHeight = 8
-      const valuesHeight = 8
-      const titleHeight = 8
-      const totalHeight = titleHeight + headerHeight + valuesHeight
+      const headerHeight = 8, titleHeight = 8
       const columns = [43, 41, 33, 18, 34, 36, 64]
+      const isJournalier =
+        (contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE') &&
+        payment.contribs &&
+        Array.isArray(payment.contribs) &&
+        payment.contribs.length > 0
 
       doc.setFillColor(...colors.headerFill)
       doc.setDrawColor(...colors.line)
@@ -949,13 +683,81 @@ export default function ContractPaymentsPage() {
       doc.setFontSize(10)
       doc.setTextColor(...colors.navy)
       doc.text(`VERSEMENT ${payment.dueMonthIndex + 1} DU ${formatLongDate(payment.dueAt)}`, marginX + 3, startY + 5.4)
-
       const tableY = startY + titleHeight
+
+      if (isJournalier) {
+        const contribs = [...payment.contribs].sort((a: any, b: any) => {
+          const da = toDateSafe(a.paidAt)?.getTime() ?? 0
+          const db = toDateSafe(b.paidAt)?.getTime() ?? 0
+          return da - db
+        })
+        const totalAmount = contribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+        const numDataRows = contribs.length + 1
+        const valuesHeight = numDataRows * rowHeight
+        const totalHeight = titleHeight + headerHeight + valuesHeight
+
+        doc.setDrawColor(...colors.line)
+        doc.rect(marginX, tableY, contentWidth, headerHeight + valuesHeight)
+        doc.setFillColor(225, 235, 245)
+        doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
+        const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
+        let cursorX = marginX
+        headers.forEach((header, index) => {
+          const width = columns[index]
+          if (index > 0) doc.line(cursorX, tableY, cursorX, tableY + headerHeight + valuesHeight)
+          doc.setFont('times', 'bold')
+          doc.setFontSize(8.7)
+          doc.setTextColor(32, 32, 32)
+          doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
+          cursorX += width
+        })
+        doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
+
+        contribs.forEach((contrib: any, idx: number) => {
+          const rowY = tableY + headerHeight + idx * rowHeight
+          if (idx > 0) doc.line(marginX, rowY, marginX + contentWidth, rowY)
+          const contribPaidAt = toDateSafe(contrib.paidAt)
+          const rowValues = [
+            formatLongDate(payment.dueAt),
+            contribPaidAt ? formatLongDate(contrib.paidAt) : '-',
+            `${formatAmountForPDF(Number(contrib.amount) || 0)} FCFA`,
+            contrib.time || '-',
+            formatMode(contrib.mode),
+            getAdminNameForExport(payment),
+            getPaymentRemark(payment),
+          ]
+          cursorX = marginX
+          rowValues.forEach((value, colIndex) => {
+            const width = columns[colIndex]
+            doc.setFont('times', 'normal')
+            doc.setFontSize(8.9)
+            doc.setTextColor(18, 18, 18)
+            doc.text(value, cursorX + width / 2, rowY + 5.3, { align: 'center' })
+            cursorX += width
+          })
+        })
+
+        const totalRowY = tableY + headerHeight + contribs.length * rowHeight
+        doc.line(marginX, totalRowY, marginX + contentWidth, totalRowY)
+        doc.setFont('times', 'bold')
+        doc.setFontSize(8.9)
+        doc.setTextColor(18, 18, 18)
+        const totalRowValues = ['', 'TOTAL', `${formatAmountForPDF(totalAmount)} FCFA`, '', '', '', '']
+        cursorX = marginX
+        totalRowValues.forEach((value, colIndex) => {
+          const width = columns[colIndex]
+          doc.text(value || '', cursorX + width / 2, totalRowY + 5.3, { align: 'center' })
+          cursorX += width
+        })
+        return startY + totalHeight
+      }
+
+      const valuesHeight = rowHeight
+      const totalHeight = titleHeight + headerHeight + valuesHeight
       doc.setDrawColor(...colors.line)
       doc.rect(marginX, tableY, contentWidth, headerHeight + valuesHeight)
       doc.setFillColor(225, 235, 245)
       doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
-
       const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
       let cursorX = marginX
       headers.forEach((header, index) => {
@@ -967,22 +769,13 @@ export default function ContractPaymentsPage() {
         doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
         cursorX += width
       })
-
       doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
-
       const isPaymentCompleted = payment.status === 'PAID' || Boolean(payment.paidAt)
       const displayedAmount = isPaymentCompleted ? (payment.amount || 0) : 0
-
       const rowValues = [
-        formatLongDate(payment.dueAt),
-        formatLongDate(payment.paidAt),
-        `${formatAmountForPDF(displayedAmount)} FCFA`,
-        payment.time || '-',
-        formatMode(payment.mode),
-        getAdminNameForExport(payment),
-        getPaymentRemark(payment),
+        formatLongDate(payment.dueAt), formatLongDate(payment.paidAt), `${formatAmountForPDF(displayedAmount)} FCFA`,
+        payment.time || '-', formatMode(payment.mode), getAdminNameForExport(payment), getPaymentRemark(payment),
       ]
-
       cursorX = marginX
       rowValues.forEach((value, index) => {
         const width = columns[index]
@@ -992,53 +785,27 @@ export default function ContractPaymentsPage() {
         doc.text(value, cursorX + width / 2, tableY + headerHeight + 5.3, { align: 'center' })
         cursorX += width
       })
-
       return startY + totalHeight
     }
 
+    // Page 1
     drawPageBackground()
     drawMainTitle(true)
     drawSectionTitle('Informations Personnelles du Membre', 30)
     let yCursor = 38.2
     yCursor = drawGridRows(
       [
-        {
-          leftLabel: 'MATRICULE',
-          leftValue: memberMatricule,
-          rightLabel: 'ANNEE',
-          rightValue: String(new Date().getFullYear()),
-        },
-        {
-          leftLabel: 'MEMBRE',
-          leftValue: contractTypeLabel,
-          rightLabel: 'CODE',
-          rightValue: (contract.id || contractId).slice(0, 16),
-        },
+        { leftLabel: 'MATRICULE', leftValue: memberMatricule, rightLabel: 'ANNEE', rightValue: String(new Date().getFullYear()) },
+        { leftLabel: 'MEMBRE', leftValue: '', rightLabel: 'CODE', rightValue: (contract.id || contractId).slice(0, 16) },
         { leftLabel: 'NOM', leftValue: memberLastName, rightLabel: 'PRENOM', rightValue: memberFirstName },
-        {
-          leftLabel: 'LIEU / NAISSANCE',
-          leftValue: memberBirthPlace,
-          rightLabel: 'D.NAISS',
-          rightValue: memberBirthDate,
-        },
-        {
-          leftLabel: 'NATIONALITE',
-          leftValue: memberNationality,
-          rightLabel: 'N°CNI/PASS/CS',
-          rightValue: memberIdDocument,
-        },
-        {
-          leftLabel: 'TELEPHONE 1',
-          leftValue: memberPhone1,
-          rightLabel: 'TELEPHONE 2',
-          rightValue: memberPhone2,
-        },
+        { leftLabel: 'LIEU / NAISSANCE', leftValue: memberBirthPlace, rightLabel: 'D.NAISS', rightValue: memberBirthDate },
+        { leftLabel: 'NATIONALITE', leftValue: memberNationality, rightLabel: 'N°CNI/PASS/CS', rightValue: memberIdDocument },
+        { leftLabel: 'TELEPHONE 1', leftValue: memberPhone1, rightLabel: 'TELEPHONE 2', rightValue: memberPhone2 },
         { leftLabel: 'SEXE', leftValue: memberGender, rightLabel: 'AGE', rightValue: memberAge },
         { leftLabel: 'QUARTIER', leftValue: memberQuarter, rightLabel: 'PROFESSION', rightValue: memberProfession },
       ],
       yCursor
     )
-
     drawSectionTitle('Informations Concernant Le Contact Urgent', yCursor + 9)
     drawGridRows(
       [
@@ -1049,50 +816,21 @@ export default function ContractPaymentsPage() {
       yCursor + 17.2
     )
 
+    // Page 2
     doc.addPage()
     drawPageBackground()
     drawMainTitle()
     drawSectionTitle('Informations concernant la Caisse Spéciale', 30)
+    const typesWithEmptyAmount = ['LIBRE', 'LIBRE_CHARITABLE', 'JOURNALIERE', 'JOURNALIERE_CHARITABLE']
+    const hideAmountAndObservation = typesWithEmptyAmount.includes(contract.caisseType || '')
     const contractRows = [
-      {
-        leftLabel: 'PRENOM',
-        leftValue: memberFirstName,
-        rightLabel: 'LIENS',
-        rightValue: emergencyRelation,
-      },
-      {
-        leftLabel: 'DEBUT CAISSE.S',
-        leftValue: formatLongDate(contract.contractStartAt),
-        rightLabel: 'FIN CAISSE.S',
-        rightValue: formatLongDate(contract.contractEndAt),
-      },
-      {
-        leftLabel: 'STATUT',
-        leftValue: translateContractStatus(contract.status || ''),
-        rightLabel: 'CONTRAT',
-        rightValue: contract.id || contractId,
-      },
-      {
-        leftLabel: 'TYPE CAISSE.S',
-        leftValue: caisseTypeLabel,
-        rightLabel: 'MONTANT',
-        rightValue: `${formatAmountForPDF(contract.monthlyAmount || 0)} FCFA`,
-      },
-      {
-        leftLabel: 'ANNEE INSCRIT',
-        leftValue: String(toDateSafe(contract.createdAt)?.getFullYear() || new Date().getFullYear()),
-        rightLabel: 'DUREE',
-        rightValue: `${contract.monthsPlanned || 0} MOIS`,
-      },
-      {
-        leftLabel: 'DATE REMISE',
-        leftValue: formatLongDate(firstPaidDate),
-        rightLabel: 'OBSERVATION',
-        rightValue: 'TABLEAU RECAPITULATIF',
-      },
+      { leftLabel: 'DEBUT CAISSE.S', leftValue: formatLongDate(contract.contractStartAt), rightLabel: 'FIN CAISSE.S', rightValue: formatLongDate(contract.contractEndAt) },
+      { leftLabel: 'STATUT', leftValue: translateContractStatus(contract.status || ''), rightLabel: 'CONTRAT', rightValue: contract.id || contractId },
+      { leftLabel: 'TYPE CAISSE.S', leftValue: caisseTypeLabel, rightLabel: 'MONTANT', rightValue: hideAmountAndObservation ? '' : `${formatAmountForPDF(contract.monthlyAmount || 0)} FCFA` },
+      { leftLabel: 'ANNEE INSCRIT', leftValue: String(toDateSafe(contract.createdAt)?.getFullYear() || new Date().getFullYear()), rightLabel: 'DUREE', rightValue: `${contract.monthsPlanned || 0} MOIS` },
+      { leftLabel: 'DATE REMISE', leftValue: '', rightLabel: 'OBSERVATION', rightValue: '' },
     ]
     drawGridRows(contractRows, 38.2)
-
     doc.setFillColor(...colors.headerFill)
     doc.setDrawColor(...colors.line)
     doc.rect(marginX, 90, contentWidth, 8, 'FD')
@@ -1100,36 +838,48 @@ export default function ContractPaymentsPage() {
     doc.setFontSize(10.5)
     doc.setTextColor(...colors.navy)
     doc.text('GESTION DES VERSEMENTS CAISSE SPECIALE TABLEAU RECAPITULATIF CI-DESSOUS', pageWidth / 2, 95.3, { align: 'center' })
-
     drawGridRows(
       [
-        {
-          leftLabel: 'NOMBRE DE VERSEMENT',
-          leftValue: String(sortedPayments.length),
-          rightLabel: 'MOIS IMPAYE',
-          rightValue: String(unpaidCount),
-        },
-        {
-          leftLabel: 'MONTANT T.COTISATION',
-          leftValue: `${formatAmountForPDF(totalCotisation)} FCFA`,
-          rightLabel: 'MONTANT PAYE',
-          rightValue: `${formatAmountForPDF(totalPaid)} FCFA`,
-        },
-        {
-          leftLabel: 'IMPAYE',
-          leftValue: `${formatAmountForPDF(totalUnpaid)} FCFA`,
-          rightLabel: 'TOTAL PENALITES',
-          rightValue: `${formatAmountForPDF(totalPenalties)} FCFA`,
-        },
+        { leftLabel: 'NOMBRE DE VERSEMENT', leftValue: String(sortedPayments.length), rightLabel: 'MOIS IMPAYE', rightValue: String(unpaidCount) },
+        { leftLabel: 'MONTANT T.COTISATION', leftValue: `${formatAmountForPDF(totalCotisation)} FCFA`, rightLabel: 'MONTANT PAYE', rightValue: `${formatAmountForPDF(totalPaid)} FCFA` },
+        { leftLabel: 'MONTANT IMPAYE', leftValue: `${formatAmountForPDF(totalUnpaid)} FCFA`, rightLabel: 'TOTAL PENALITES', rightValue: `${formatAmountForPDF(totalPenalties)} FCFA` },
+        { leftLabel: 'TAXI', leftValue: '', rightLabel: '', rightValue: '' },
       ],
       99,
-      {
-        leftLabelWidth: 50,
-        rightLabelWidth: 46,
-        labelFontSize: 8.8,
-        valueFontSize: 9.4,
-      }
+      { leftLabelWidth: 50, rightLabelWidth: 46, labelFontSize: 8.8, valueFontSize: 9.4 }
     )
+    return { drawPaymentBlock, pageWidth, pageHeight, drawPageBackground, drawMainTitle }
+  }
+
+  // Export PDF d’un seul versement : même design que "Exporter PDF" (2 premières pages + bloc "VERSEMENT i DU date" pour l’échéance)
+  const exportSinglePaymentToPDF = async (payment: any) => {
+    if (!contract) return
+    const { generateSingleVersementPDF } = await import('@/services/caisse/versementPdfExport')
+    await generateSingleVersementPDF({
+      contract,
+      contractId,
+      member: member ?? undefined,
+      group: group ?? undefined,
+      payments,
+      payment,
+      getAdminDisplayName,
+    })
+  }
+
+  // Fonction pour exporter les versements en PDF
+  const exportToPDF = async () => {
+    if (!contract) return
+    const logoDataUrl = await loadLogoDataUrl()
+    const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
+    const doc = new jsPDF('l', 'mm', 'a4')
+    const { drawPaymentBlock, pageWidth, pageHeight, drawPageBackground, drawMainTitle } = buildVersementPDFFirstTwoPages(doc, {
+      contract,
+      contractId,
+      member,
+      group,
+      sortedPayments,
+      logoDataUrl,
+    })
 
     if (sortedPayments.length > 0) {
       drawPaymentBlock(sortedPayments[0], 130)

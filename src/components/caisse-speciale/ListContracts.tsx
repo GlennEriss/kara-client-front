@@ -1038,12 +1038,15 @@ const ListContracts = () => {
     return labels[status as keyof typeof labels] || status
   }
 
-  /** Contrat éligible à la suppression (DRAFT/ACTIVE, sans versements ni pénalités). */
+  /** Contrat éligible à la suppression : DRAFT/ACTIVE, sans aucun versement (pas de 1er versement) ni pénalités. */
   const canDeleteCaisseContract = (contract: any) => {
     if (!contract?.id) return false
     const status = contract.status
     if (status !== 'DRAFT' && status !== 'ACTIVE') return false
-    if ((contract.nominalPaid ?? 0) !== 0 || (contract.penaltiesTotal ?? 0) !== 0) return false
+    // Masquer Supprimer dès qu'il y a un 1er versement (nominalPaid > 0) ou des pénalités
+    const hasFirstPayment = (contract.nominalPaid ?? 0) > 0
+    const hasPenalties = (contract.penaltiesTotal ?? 0) > 0
+    if (hasFirstPayment || hasPenalties) return false
     return true
   }
 

@@ -9,9 +9,10 @@ import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
+import { useAdmin } from '@/hooks/admin/useAdmin'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, DollarSign, TrendingUp, FileText, CheckCircle, CheckCircle2, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle, CreditCard } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, DollarSign, TrendingUp, FileText, CheckCircle, CheckCircle2, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle, CreditCard, ExternalLink } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import EmergencyContact from './standard/EmergencyContact'
@@ -30,8 +31,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/schemas/schemas'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -84,6 +84,22 @@ export default function DailyContract({ id }: Props) {
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false)
   const [showLatePaymentModal, setShowLatePaymentModal] = useState(false)
   const [paymentDetails, setPaymentDetails] = useState<any>(null)
+  const { data: adminWhoModified, isLoading: isLoadingAdminWhoModified } = useAdmin(paymentDetails?.updatedBy ?? '')
+  /** ID de l'agent de recouvrement pour le versement affiché dans le modal Détails (contribution du jour ou paiement) */
+  const detailsModalAgentId = useMemo(() => {
+    if (!paymentDetails?.contribs?.length || !selectedDate) return paymentDetails?.agentRecouvrementId ?? ''
+    const payment = paymentDetails
+    const contrib = payment.contribs.find((c: any) => {
+      if (!c.paidAt) return false
+      const contribDate = typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+      contribDate.setHours(0, 0, 0, 0)
+      const selected = new Date(selectedDate)
+      selected.setHours(0, 0, 0, 0)
+      return contribDate.getTime() === selected.getTime()
+    }) || payment.contribs[0]
+    return contrib?.agentRecouvrementId ?? payment?.agentRecouvrementId ?? ''
+  }, [paymentDetails, selectedDate])
+  const { data: agentRecouvrementDetails } = useAgentRecouvrement(detailsModalAgentId || undefined)
   const [editingContribution, setEditingContribution] = useState<any>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentTime, setPaymentTime] = useState('')
@@ -91,6 +107,8 @@ export default function DailyContract({ id }: Props) {
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string>('')
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
+  /** Motif de la modification (modal Modifier le versement, journalier) */
+  const [editModificationReason, setEditModificationReason] = useState<string>('')
   const [isEditing, setIsEditing] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
@@ -139,7 +157,16 @@ export default function DailyContract({ id }: Props) {
     if (!contractStartDate) return null
 
     const normalizedTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    if (normalizedTarget < contractStartDate) return null
+    const normalizedStart = new Date(contractStartDate.getFullYear(), contractStartDate.getMonth(), contractStartDate.getDate())
+    if (normalizedTarget < normalizedStart) return null
+
+    const isJournalier = (data as any)?.caisseType === 'JOURNALIERE' || (data as any)?.caisseType === 'JOURNALIERE_CHARITABLE'
+    if (isJournalier) {
+      const msPerDay = 24 * 60 * 60 * 1000
+      const days = Math.floor((normalizedTarget.getTime() - normalizedStart.getTime()) / msPerDay)
+      const periodIndex = Math.floor(days / 30)
+      return periodIndex
+    }
 
     let diffMonths = (normalizedTarget.getFullYear() - contractStartDate.getFullYear()) * 12 +
       (normalizedTarget.getMonth() - contractStartDate.getMonth())
@@ -164,7 +191,7 @@ export default function DailyContract({ id }: Props) {
     }
 
     return diffMonths
-  }, [contractStartDate])
+  }, [contractStartDate, (data as any)?.caisseType])
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
@@ -442,14 +469,22 @@ export default function DailyContract({ id }: Props) {
   const getMonthDateRange = useCallback((monthIndex: number) => {
     if (!contractStartDate) return null
 
+    const isJournalier = (data as any)?.caisseType === 'JOURNALIERE' || (data as any)?.caisseType === 'JOURNALIERE_CHARITABLE'
     const start = new Date(contractStartDate)
-    start.setMonth(start.getMonth() + monthIndex)
+    const end = new Date(contractStartDate)
 
-    const end = new Date(start)
-    end.setMonth(end.getMonth() + 1)
+    if (isJournalier) {
+      // Période de 30 jours : mois i va de (start + i*30) à (start + (i+1)*30 - 1)
+      // Mois 2 commence le lendemain de la fin du mois 1 (22/03 et non 21/03)
+      start.setDate(start.getDate() + monthIndex * 30)
+      end.setDate(end.getDate() + (monthIndex + 1) * 30 - 1)
+    } else {
+      start.setMonth(start.getMonth() + monthIndex)
+      end.setMonth(end.getMonth() + monthIndex + 1)
+    }
 
     return { start, end }
-  }, [contractStartDate])
+  }, [contractStartDate, (data as any)?.caisseType])
 
   const getTotalForMonth = (monthIndex: number) => {
     const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
@@ -534,360 +569,29 @@ export default function DailyContract({ id }: Props) {
     }
   }
 
-  // Fonction pour exporter les détails du versement en PDF
+  // Export PDF "Détails du versement" : même format que la page versements (bouton PDF)
   const exportPaymentDetailsToPDF = async () => {
-    if (!selectedDate || !paymentDetails) {
+    if (!paymentDetails) {
       toast.error('Aucun détail de versement à exporter')
       return
     }
-
     try {
       toast.info('Génération du PDF en cours...')
-      const doc = new jsPDF('p', 'mm', 'a4')
-
-      // En-tête du document
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Détails du Versement', 14, 15)
-
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Contrat #${id}`, 14, 22)
-      doc.text(`Date du versement : ${selectedDate.toLocaleDateString('fr-FR')}`, 14, 28)
-      doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
-
-      const payment = paymentDetails
-      const yStart = 42
-
-      // Informations générales du versement
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Informations générales', 14, yStart)
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      let yPos = yStart + 6
-      doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
-      yPos += 6
-      doc.text(`Total du mois : ${formatAmount(payment.accumulatedAmount || 0)} FCFA`, 14, yPos)
-      yPos += 6
-      doc.text(`Objectif mensuel : ${formatAmount(data.monthlyAmount || 0)} FCFA`, 14, yPos)
-      yPos += 6
-
-      // Afficher les pénalités si elles existent
-      if (payment.penaltyApplied && payment.penaltyApplied > 0) {
-        doc.setTextColor(220, 38, 38) // Rouge
-        doc.text(`Pénalités appliquées : ${formatAmount(payment.penaltyApplied)} FCFA`, 14, yPos)
-        yPos += 6
-        if (payment.penaltyDays && payment.penaltyDays > 0) {
-          doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
-          yPos += 6
-        }
-        doc.setTextColor(0, 0, 0) // Revenir au noir
-      }
-      yPos += 4
-
-      // Détails des contributions
-      if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
-        // Contributions de groupe
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.text(`Contributions des membres (${payment.groupContributions.length})`, 14, yPos)
-        yPos += 8
-
-        const tableData = payment.groupContributions.map((contrib: any) => {
-          const row = [
-            `${contrib.memberFirstName} ${contrib.memberLastName}`,
-            contrib.memberMatricule,
-            `${formatAmount(contrib.amount)} FCFA`,
-            contrib.time || '',
-            contrib.mode === 'airtel_money' ? 'Airtel Money' :
-              contrib.mode === 'mobicash' ? 'Mobicash' :
-                contrib.mode === 'cash' ? 'Espèce' :
-                  contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
-          ]
-
-          // Ajouter les pénalités si présentes
-          if (contrib.penalty && contrib.penalty > 0) {
-            row.push(`${formatAmount(contrib.penalty)} FCFA`)
-          } else {
-            row.push('-')
-          }
-
-          return row
-        })
-
-        // Vérifier si au moins une contribution a des pénalités
-        const hasPenalties = payment.groupContributions.some((c: any) => c.penalty && c.penalty > 0)
-
-        autoTable(doc, {
-          head: [hasPenalties
-            ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
-            : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
-          ],
-          body: tableData,
-          startY: yPos,
-          styles: {
-            fontSize: 9,
-            cellPadding: 2,
-          },
-          headStyles: {
-            fillColor: [35, 77, 101],
-            textColor: 255,
-            fontStyle: 'bold',
-          },
-          columnStyles: hasPenalties ? {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 25 },
-            2: { cellWidth: 30, halign: 'right' },
-            3: { cellWidth: 18, halign: 'center' },
-            4: { cellWidth: 30 },
-            5: { cellWidth: 27, halign: 'right' },
-          } : {
-            0: { cellWidth: 50 },
-            1: { cellWidth: 30 },
-            2: { cellWidth: 35, halign: 'right' },
-            3: { cellWidth: 20, halign: 'center' },
-            4: { cellWidth: 35 },
-          },
-        })
-
-        // Mettre à jour yPos après le tableau
-        yPos = (doc as any).lastAutoTable.finalY + 10
-
-        // Ajouter les preuves de versement pour chaque membre (si disponibles)
-        const contribsWithProof = payment.groupContributions.filter((c: any) => c.proofUrl)
-        if (contribsWithProof.length > 0) {
-          doc.setFontSize(12)
-          doc.setFont('helvetica', 'bold')
-          doc.text('Preuves de versement', 14, yPos)
-          yPos += 8
-
-          for (const contrib of contribsWithProof) {
-            // Vérifier si on doit ajouter une nouvelle page
-            if (yPos > doc.internal.pageSize.getHeight() - 80) {
-              doc.addPage()
-              yPos = 20
-            }
-
-            doc.setFontSize(10)
-            doc.setFont('helvetica', 'bold')
-            doc.text(`${contrib.memberFirstName} ${contrib.memberLastName} (${contrib.memberMatricule})`, 14, yPos)
-            yPos += 6
-
-            try {
-              const imgData = await loadImageAsBase64(contrib.proofUrl)
-              const imgWidth = 80
-              const imgHeight = 60
-
-              // Vérifier à nouveau après avoir chargé l'image
-              if (yPos + imgHeight > doc.internal.pageSize.getHeight() - 20) {
-                doc.addPage()
-                yPos = 20
-                // Répéter le nom du membre sur la nouvelle page
-                doc.setFontSize(10)
-                doc.setFont('helvetica', 'bold')
-                doc.text(`${contrib.memberFirstName} ${contrib.memberLastName} (${contrib.memberMatricule})`, 14, yPos)
-                yPos += 6
-              }
-
-              doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
-              yPos += imgHeight + 8
-            } catch (error) {
-              console.error('Erreur lors du chargement de l\'image:', error)
-              doc.setFontSize(9)
-              doc.setFont('helvetica', 'italic')
-              doc.setTextColor(128, 128, 128)
-              doc.text('(Image non disponible)', 14, yPos)
-              yPos += 8
-              doc.setTextColor(0, 0, 0)
-            }
-          }
-        }
-      } else if (payment.contribs && payment.contribs.length > 0) {
-        // Contribution individuelle - trouver celle correspondant à la date sélectionnée
-        const contrib = payment.contribs.find((c: any) => {
-          if (!c.paidAt) return false
-          const contribDate = typeof c.paidAt.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
-          contribDate.setHours(0, 0, 0, 0)
-          const selected = new Date(selectedDate!)
-          selected.setHours(0, 0, 0, 0)
-          return contribDate.getTime() === selected.getTime()
-        }) || payment.contribs[0] // Fallback sur la première si aucune correspondance
-
-        console.log('📄 Export PDF - Contribution utilisée:', {
-          contributionId: contrib?.id,
-          proofUrl: contrib?.proofUrl,
-          amount: contrib?.amount
-        })
-
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.text('Détail de la contribution', 14, yPos)
-        yPos += 8
-
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`Montant : ${formatAmount(contrib.amount || 0)} FCFA`, 14, yPos)
-        yPos += 6
-        if (contrib.time) {
-          doc.text(`Heure : ${contrib.time}`, 14, yPos)
-          yPos += 6
-        }
-        if (contrib.mode) {
-          const modeLabel = contrib.mode === 'airtel_money' ? 'Airtel Money' :
-            contrib.mode === 'mobicash' ? 'Mobicash' :
-              contrib.mode === 'cash' ? 'Espèce' :
-                contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
-          doc.text(`Mode : ${modeLabel}`, 14, yPos)
-          yPos += 6
-        }
-
-        // Afficher les pénalités de la contribution si présentes
-        if (contrib.penalty && contrib.penalty > 0) {
-          doc.setTextColor(220, 38, 38) // Rouge
-          doc.text(`Pénalité : ${formatAmount(contrib.penalty)} FCFA`, 14, yPos)
-          yPos += 6
-          if (contrib.penaltyDays && contrib.penaltyDays > 0) {
-            doc.text(`Jours de retard : ${contrib.penaltyDays}`, 14, yPos)
-            yPos += 6
-          }
-          doc.setTextColor(0, 0, 0) // Revenir au noir
-        }
-
-        // Ajouter la preuve de versement si disponible
-        if (contrib.proofUrl) {
-          yPos += 4
-          doc.setFontSize(11)
-          doc.setFont('helvetica', 'bold')
-          doc.text('Preuve de versement :', 14, yPos)
-          yPos += 6
-
-          try {
-            // Charger l'image et l'ajouter au PDF
-            const imgData = await loadImageAsBase64(contrib.proofUrl)
-            const imgWidth = 80 // Largeur de l'image en mm
-            const imgHeight = 60 // Hauteur de l'image en mm
-
-            // Vérifier si on doit ajouter une nouvelle page
-            if (yPos + imgHeight > doc.internal.pageSize.getHeight() - 20) {
-              doc.addPage()
-              yPos = 20
-            }
-
-            doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
-            yPos += imgHeight + 5
-          } catch (error) {
-            console.error('Erreur lors du chargement de l\'image:', error)
-            doc.setFontSize(9)
-            doc.setFont('helvetica', 'italic')
-            doc.setTextColor(128, 128, 128)
-            doc.text('(Image non disponible)', 14, yPos)
-            yPos += 6
-            doc.setTextColor(0, 0, 0)
-          }
-        }
-      }
-
-      // Pied de page
-      const pageHeight = doc.internal.pageSize.getHeight()
-      doc.setFontSize(8)
-      doc.setTextColor(128, 128, 128)
-      doc.text(
-        `Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
-        doc.internal.pageSize.getWidth() / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      )
-
-      // Télécharger le PDF
-      const dateStr = selectedDate.toISOString().split('T')[0]
-      const fileName = `versement_${id}_${dateStr}.pdf`
-      doc.save(fileName)
+      const { generateSingleVersementPDF } = await import('@/services/caisse/versementPdfExport')
+      await generateSingleVersementPDF({
+        contract: data,
+        contractId: id,
+        member: member ?? undefined,
+        group: undefined,
+        payments: (data as any)?.payments ?? [],
+        payment: paymentDetails,
+        getAdminDisplayName: (adminId) => adminId || '—',
+      })
       toast.success('PDF téléchargé avec succès')
     } catch (error: any) {
       console.error('Erreur lors de la génération du PDF:', error)
       toast.error('Erreur lors de la génération du PDF')
     }
-  }
-
-  // Fonction helper pour charger une image en base64
-  const loadImageAsBase64 = (url: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      // Si l'URL est déjà en base64, la retourner directement
-      if (url.startsWith('data:')) {
-        resolve(url)
-        return
-      }
-
-      // Pour les images Firebase Storage, on doit d'abord les charger via fetch
-      // car elles nécessitent des tokens d'authentification
-      fetch(url)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          return response.blob()
-        })
-        .then(blob => {
-          const reader = new FileReader()
-
-          reader.onloadend = () => {
-            const result = reader.result as string
-
-            // Créer une image pour la redimensionner si nécessaire
-            const img = new Image()
-
-            img.onload = () => {
-              try {
-                const canvas = document.createElement('canvas')
-
-                // Redimensionner si l'image est trop grande (max 1200px de largeur)
-                const maxWidth = 1200
-                let width = img.width
-                let height = img.height
-
-                if (width > maxWidth) {
-                  height = (height * maxWidth) / width
-                  width = maxWidth
-                }
-
-                canvas.width = width
-                canvas.height = height
-
-                const ctx = canvas.getContext('2d')
-                if (!ctx) {
-                  reject(new Error('Impossible de créer le contexte canvas'))
-                  return
-                }
-
-                ctx.drawImage(img, 0, 0, width, height)
-                const dataURL = canvas.toDataURL('image/jpeg', 0.85)
-                resolve(dataURL)
-              } catch (error) {
-                console.error('Erreur lors du traitement de l\'image:', error)
-                reject(error)
-              }
-            }
-
-            img.onerror = () => {
-              reject(new Error('Erreur lors du chargement de l\'image'))
-            }
-
-            img.src = result
-          }
-
-          reader.onerror = () => {
-            reject(new Error('Erreur lors de la lecture du blob'))
-          }
-
-          reader.readAsDataURL(blob)
-        })
-        .catch(error => {
-          console.error('Erreur lors du chargement de l\'image depuis Firebase:', error)
-          reject(error)
-        })
-    })
   }
 
   const onDateClick = async (date: Date) => {
@@ -1045,6 +749,10 @@ export default function DailyContract({ id }: Props) {
       toast.error('Veuillez remplir tous les champs obligatoires')
       return
     }
+    if (!editModificationReason?.trim()) {
+      toast.error('Veuillez indiquer le motif de la modification')
+      return
+    }
 
     const amount = Number(paymentAmount)
     if (amount <= 0) {
@@ -1056,24 +764,27 @@ export default function DailyContract({ id }: Props) {
       setIsEditing(true)
 
       if (isGroupContract) {
-        // Pour les contrats de groupe, on ne peut pas modifier les contributions individuelles
-        // On peut seulement les supprimer et en créer de nouvelles
         toast.error('Pour les contrats de groupe, vous ne pouvez pas modifier les contributions. Supprimez et recréez si nécessaire.')
         setShowEditPaymentModal(false)
         setEditingContribution(null)
         return
       }
 
+      const paidAt = selectedDate
+        ? new Date(`${selectedDate.toISOString().split('T')[0]}T${paymentTime}`)
+        : undefined
       await updatePaymentContribution({
         contractId: id,
-        paymentId: paymentDetails.payment.id,
+        paymentId: paymentDetails.id,
         contributionId: editingContribution.id,
         updates: {
           amount,
           time: paymentTime,
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
-          proofFile: paymentFile // Optionnel
-        }
+          proofFile: paymentFile,
+          modificationReason: editModificationReason.trim(),
+          ...(paidAt && { paidAt }),
+        },
       })
 
       await refetch()
@@ -1084,6 +795,7 @@ export default function DailyContract({ id }: Props) {
       setPaymentTime('')
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
+      setEditModificationReason('')
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de la modification')
     } finally {
@@ -2308,6 +2020,20 @@ export default function DailyContract({ id }: Props) {
                       </div>
                     )}
 
+                    {/* Agent de recouvrement */}
+                    {(contribution?.agentRecouvrementId ?? (payment as any).agentRecouvrementId) && (
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
+                        <span className="font-medium text-gray-700 text-xs lg:text-sm">Agent de recouvrement:</span>
+                        <span className="text-gray-900 text-xs lg:text-sm">
+                          {agentRecouvrementDetails
+                            ? `${agentRecouvrementDetails.nom} ${agentRecouvrementDetails.prenom}`
+                            : detailsModalAgentId
+                              ? 'Chargement...'
+                              : '—'}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Preuve */}
                     <div className="space-y-1 lg:space-y-2">
                       <span className="font-medium text-gray-700 text-xs lg:text-sm">Preuve de versement:</span>
@@ -2367,6 +2093,57 @@ export default function DailyContract({ id }: Props) {
                         {formatAmount(payment.accumulatedAmount || 0)} FCFA
                       </span>
                     </div>
+
+                    {/* Détails de la modification (comme en Standard) */}
+                    {((payment as any).modificationReason ?? (payment as any).updatedAt) && (
+                      <div className="pt-3 mt-3 border-t border-gray-200 space-y-2 p-3 bg-amber-50/80 rounded-lg">
+                        <h4 className="font-medium text-amber-900 text-xs lg:text-sm flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Détails de la modification
+                        </h4>
+                        {(payment as any).updatedAt && (() => {
+                          const u = (payment as any).updatedAt
+                          const modDate = typeof u?.toDate === 'function' ? u.toDate() : u ? new Date(u) : null
+                          if (!modDate || isNaN(modDate.getTime())) return null
+                          return (
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-xs text-gray-700">
+                              <span className="font-medium text-gray-600">Date de modification:</span>
+                              <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )
+                        })()}
+                        {(payment as any).updatedBy && (
+                          <div className="flex flex-col gap-0.5 text-xs text-gray-700">
+                            <span className="font-medium text-gray-600">Modifié par:</span>
+                            <span className={`font-medium ${isLoadingAdminWhoModified ? 'animate-pulse text-gray-500' : ''}`}>
+                              {isLoadingAdminWhoModified ? (
+                                'Chargement...'
+                              ) : user?.uid === (payment as any).updatedBy && user?.displayName ? (
+                                <>
+                                  {user.displayName}
+                                  <span className="block text-gray-500 font-normal mt-0.5">Matricule: {(payment as any).updatedBy}</span>
+                                </>
+                              ) : adminWhoModified ? (
+                                <>
+                                  {adminWhoModified.firstName} {adminWhoModified.lastName}
+                                  <span className="block text-gray-500 font-normal mt-0.5">Matricule: {adminWhoModified.id}</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-500">ID: {(payment as any).updatedBy}</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {(payment as any).modificationReason && (
+                          <div className="pt-2 border-t border-amber-200/80">
+                            <span className="font-medium text-gray-600 text-xs block mb-1">Motif de la modification:</span>
+                            <p className="text-gray-900 text-xs bg-white p-2 rounded border border-amber-100">
+                              {(payment as any).modificationReason}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               } else {
@@ -2403,13 +2180,12 @@ export default function DailyContract({ id }: Props) {
               </Button>
             )}
 
-            {/* Bouton pour modifier le versement (contrats individuels uniquement) */}
-            {!isGroupContract && paymentDetails?.payment?.contribs?.length > 0 && (() => {
-              // Trouver la contribution correspondant à la date sélectionnée
-              const payment = paymentDetails.payment
+            {/* Bouton Modifier (contrats individuels / journalier) : ouvrir le modal de modification */}
+            {!isGroupContract && paymentDetails?.contribs?.length > 0 && (() => {
+              const payment = paymentDetails
               const contribution = payment.contribs.find((c: any) => {
                 if (!c.paidAt) return false
-                const contribDate = typeof c.paidAt.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+                const contribDate = typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
                 contribDate.setHours(0, 0, 0, 0)
                 const selected = new Date(selectedDate!)
                 selected.setHours(0, 0, 0, 0)
@@ -2420,16 +2196,17 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   onClick={() => {
                     setEditingContribution(contribution)
-                    setPaymentAmount(contribution.amount?.toString() || '')
-                    setPaymentTime(contribution.time || '')
-                    setPaymentMode(contribution.mode || 'airtel_money')
+                    setPaymentAmount(contribution?.amount?.toString() || '')
+                    setPaymentTime(contribution?.time || '')
+                    setPaymentMode((contribution?.mode || 'airtel_money') as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')
                     setPaymentFile(undefined)
+                    setEditModificationReason('')
                     setShowEditPaymentModal(true)
                     setShowPaymentDetailsModal(false)
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+                  className="bg-amber-600 hover:bg-amber-700 text-white w-full sm:w-auto order-1 sm:order-2"
                 >
-                  Modifier le versement
+                  Modifier
                 </Button>
               )
             })()}
@@ -2437,166 +2214,247 @@ export default function DailyContract({ id }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de modification du versement */}
+      {/* Modal de modification du versement — même design que Nouveau versement + motif */}
       <Dialog open={showEditPaymentModal} onOpenChange={setShowEditPaymentModal}>
-        <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-lg lg:text-xl">Modifier le versement</DialogTitle>
-            <DialogDescription className="text-sm lg:text-base">
-              Modifier le versement du {selectedDate?.toLocaleDateString('fr-FR')}
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
+              <DollarSign className="h-6 w-6" />
+              Modifier le versement
+            </DialogTitle>
+            <DialogDescription>
+              Modifier la date, l&apos;heure, le montant ou la preuve du versement du {selectedDate?.toLocaleDateString('fr-FR')}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="space-y-3 lg:space-y-4 p-1">
-              {/* Date du versement (non modifiable) */}
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-100 rounded-lg gap-1 lg:gap-2">
-                <span className="font-medium text-gray-700 text-xs lg:text-sm">Date:</span>
-                <span className="text-gray-900 text-xs lg:text-sm font-medium">{selectedDate?.toLocaleDateString('fr-FR')}</span>
+          <div className="space-y-6 py-4">
+            {/* Date et Heure — même disposition que Nouveau versement */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-date" className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  Date de paiement *
+                  <span className="text-xs text-muted-foreground">(fixe)</span>
+                </Label>
+                <Input
+                  id="edit-date"
+                  type="text"
+                  value={selectedDate?.toLocaleDateString('fr-FR') || ''}
+                  disabled
+                  className="w-full bg-gray-100 cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  La date correspond au jour sélectionné dans le calendrier
+                </p>
               </div>
 
-              {/* Heure du versement */}
               <div>
-                <Label htmlFor="edit-time" className="text-xs lg:text-sm">Heure du versement</Label>
+                <Label htmlFor="edit-time" className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  Heure de paiement *
+                </Label>
                 <Input
                   id="edit-time"
                   type="time"
                   value={paymentTime}
                   onChange={(e) => setPaymentTime(e.target.value)}
                   required
-                  className="w-full mt-1"
                 />
               </div>
+            </div>
 
-              {/* Montant */}
-              <div>
-                <Label htmlFor="edit-amount" className="text-xs lg:text-sm">Montant (FCFA)</Label>
-                <Input
-                  id="edit-amount"
-                  type="number"
-                  placeholder="0"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  min="100"
-                  step="100"
-                  required
-                  className="w-full mt-1"
-                />
+            {/* Montant */}
+            <div>
+              <Label htmlFor="edit-amount" className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                Montant du versement (FCFA) *
+              </Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                placeholder="Ex: 10000"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                min="100"
+                step="100"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Montant minimum: 100 FCFA
+              </p>
+            </div>
+
+            {/* Agent de recouvrement (optionnel) */}
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                Agent de recouvrement (optionnel)
+              </Label>
+              <AgentRecouvrementSelect
+                value={agentRecouvrementId}
+                onValueChange={setAgentRecouvrementId}
+                placeholder="Sélectionner l'agent ayant collecté le versement"
+                required={false}
+              />
+            </div>
+
+            {/* Mode de paiement — même grille que Nouveau versement */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3">
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+                Mode de paiement *
+              </Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                  <input
+                    type="radio"
+                    name="editPaymentMode"
+                    value="airtel_money"
+                    checked={paymentMode === 'airtel_money'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    className="text-[#224D62] focus:ring-[#224D62]"
+                  />
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-red-100 rounded-lg p-2">
+                      <Smartphone className="h-5 w-5 text-red-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Airtel Money</span>
+                  </div>
+                </label>
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                  <input
+                    type="radio"
+                    name="editPaymentMode"
+                    value="mobicash"
+                    checked={paymentMode === 'mobicash'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    className="text-[#224D62] focus:ring-[#224D62]"
+                  />
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-blue-100 rounded-lg p-2">
+                      <Banknote className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Mobicash</span>
+                  </div>
+                </label>
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                  <input
+                    type="radio"
+                    name="editPaymentMode"
+                    value="cash"
+                    checked={paymentMode === 'cash'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    className="text-[#224D62] focus:ring-[#224D62]"
+                  />
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-green-100 rounded-lg p-2">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Espèce</span>
+                  </div>
+                </label>
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                  <input
+                    type="radio"
+                    name="editPaymentMode"
+                    value="bank_transfer"
+                    checked={paymentMode === 'bank_transfer'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    className="text-[#224D62] focus:ring-[#224D62]"
+                  />
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-purple-100 rounded-lg p-2">
+                      <Building2 className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Virement bancaire</span>
+                  </div>
+                </label>
               </div>
+            </div>
 
-              {/* Mode de paiement */}
-              <div>
-                <Label className="text-xs lg:text-sm">Mode de paiement</Label>
-                <div className="flex gap-3 mt-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="editPaymentMode"
-                      value="airtel_money"
-                      checked={paymentMode === 'airtel_money'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                      className="text-blue-600"
-                    />
-                    <span className="text-xs lg:text-sm">Airtel Money</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="editPaymentMode"
-                      value="mobicash"
-                      checked={paymentMode === 'mobicash'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                      className="text-blue-600"
-                    />
-                    <span className="text-xs lg:text-sm">Mobicash</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="editPaymentMode"
-                      value="cash"
-                      checked={paymentMode === 'cash'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                      className="text-blue-600"
-                    />
-                    <span className="text-xs lg:text-sm">Espèce</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="editPaymentMode"
-                      value="bank_transfer"
-                      checked={paymentMode === 'bank_transfer'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                      className="text-blue-600"
-                    />
-                    <span className="text-xs lg:text-sm">Virement bancaire</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Sélection du membre du groupe (si contrat de groupe) */}
-              {isGroupContract && (
-                <div>
-                  <Label htmlFor="edit-groupMember" className="text-xs lg:text-sm">Membre du groupe qui verse *</Label>
-                  <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Sélectionnez le membre qui verse" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {groupMembers && groupMembers.length > 0 ? (
-                        groupMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.firstName} {member.lastName} ({member.matricule})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="" disabled>
-                          Chargement des membres du groupe...
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ce champ permet de tracer qui a effectué le versement dans le groupe
+            {/* Preuve de paiement — remplacer si besoin, comme Standard */}
+            <div>
+              <Label htmlFor="edit-proof" className="flex items-center gap-2 mb-2">
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                Preuve de paiement (remplacer si besoin)
+              </Label>
+              {editingContribution?.proofUrl && (
+                <div className="mb-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                  <p className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    Preuve actuelle
                   </p>
+                  <a
+                    href={editingContribution.proofUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#224D62] hover:underline flex items-center gap-1"
+                  >
+                    Voir la preuve actuelle
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
               )}
+              <Input
+                id="edit-proof"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) {
+                    setPaymentFile(undefined)
+                    return
+                  }
+                  if (file.size > 10 * 1024 * 1024) {
+                    toast.error('Le fichier ne doit pas dépasser 10 MB')
+                    e.target.value = ''
+                    return
+                  }
+                  setPaymentFile(file)
+                  toast.success(`Image "${file.name}" sélectionnée pour remplacer la preuve`)
+                }}
+                disabled={isEditing}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Choisir un fichier pour remplacer la preuve (l&apos;ancienne sera supprimée). Formats : JPEG, PNG, WebP (max 10 MB)
+              </p>
+              {paymentFile && (
+                <Alert className="mt-2 border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700">
+                    <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB) — remplacera la preuve actuelle
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
 
-              {/* Preuve de versement (optionnelle) */}
-              <div>
-                <Label htmlFor="edit-proof" className="text-xs lg:text-sm">
-                  Nouvelle preuve de versement (optionnel)
-                </Label>
-                <Input
-                  id="edit-proof"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file && file.size > 5 * 1024 * 1024) {
-                      toast.error('Le fichier ne doit pas dépasser 5 MB')
-                      e.target.value = ''
-                      return
-                    }
-                    setPaymentFile(file)
-                  }}
-                  className="w-full mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Formats acceptés : JPEG, PNG, WebP (max 5 MB)
-                </p>
-                {editingContribution?.proofUrl && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Preuve actuelle conservée si aucune nouvelle n'est fournie
-                  </p>
-                )}
-              </div>
+            {/* Motif de la modification (obligatoire, traçabilité) */}
+            <div>
+              <Label htmlFor="edit-modificationReason" className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Motif de la modification *
+              </Label>
+              <Textarea
+                id="edit-modificationReason"
+                value={editModificationReason}
+                onChange={(e) => setEditModificationReason(e.target.value)}
+                placeholder="Ex: Correction de la date de paiement, changement de montant suite à erreur..."
+                rows={3}
+                className="w-full resize-y"
+                disabled={isEditing}
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enregistré avec votre identité et la date de modification pour la traçabilité.
+              </p>
             </div>
           </div>
 
-          <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 pt-3 lg:pt-4 border-t">
+          <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 setShowEditPaymentModal(false)
@@ -2605,18 +2463,35 @@ export default function DailyContract({ id }: Props) {
                 setPaymentTime('')
                 setPaymentMode('airtel_money')
                 setPaymentFile(undefined)
+                setEditModificationReason('')
                 setSelectedGroupMemberId('')
               }}
-              className="w-full sm:w-auto order-2 sm:order-1"
+              disabled={isEditing}
             >
               Annuler
             </Button>
             <Button
+              type="button"
               onClick={onEditPaymentSubmit}
-              disabled={isEditing || !paymentAmount || !paymentTime}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+              disabled={
+                isEditing ||
+                !paymentAmount ||
+                !paymentTime ||
+                !editModificationReason?.trim()
+              }
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
             >
-              {isEditing ? 'Modification...' : 'Modifier'}
+              {isEditing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Modifier...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Modifier le versement
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

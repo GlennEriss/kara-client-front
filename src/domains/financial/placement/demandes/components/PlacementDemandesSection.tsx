@@ -60,6 +60,7 @@ import StatisticsPlacementDemandes from '@/components/placement/StatisticsPlacem
 import AcceptDemandModal from '@/components/placement/AcceptDemandModal'
 import RejectDemandModal from '@/components/placement/RejectDemandModal'
 import ReopenDemandModal from '@/components/placement/ReopenDemandModal'
+import { useMember } from '@/hooks/useMembers'
 
 type ViewMode = 'grid' | 'list'
 type TabValue = 'all' | 'pending' | 'approved' | 'rejected' | 'converted'
@@ -85,6 +86,233 @@ const getPayoutModeLabel = (mode: string) =>
   mode === 'MonthlyCommission_CapitalEnd'
     ? 'Commission mensuelle + Capital en fin'
     : 'Capital + Commission en fin'
+
+// Ligne du tableau : une colonne par champ (nom, prénom, matricule, contacts, contact urgent, motif, etc.)
+function PlacementDemandTableRow({
+  demande,
+  getStatusColor,
+  getStatusLabel,
+  setAcceptModalState,
+  setRejectModalState,
+  setReopenModalState,
+}: {
+  demande: PlacementDemand
+  getStatusColor: (s: PlacementDemandStatus) => string
+  getStatusLabel: (s: PlacementDemandStatus) => string
+  setAcceptModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+  setRejectModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+  setReopenModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+}) {
+  const router = useRouter()
+  const { data: member, isLoading: memberLoading } = useMember(demande.benefactorId)
+  const uc = demande.urgentContact
+  const contactsStr = member?.contacts && Array.isArray(member.contacts)
+    ? member.contacts.map((c) => (typeof c === 'string' ? c : String(c))).join(' / ')
+    : member?.contacts
+      ? String(member.contacts)
+      : '—'
+  const urgentPhones = [uc?.phone, uc?.phone2].filter(Boolean).join(' / ') || '—'
+
+  return (
+    <TableRow>
+      <TableCell className="align-top">{memberLoading ? '…' : (member?.lastName ?? '—')}</TableCell>
+      <TableCell className="align-top">{memberLoading ? '…' : (member?.firstName ?? '—')}</TableCell>
+      <TableCell className="align-top">{memberLoading ? '…' : (member?.matricule ?? '—')}</TableCell>
+      <TableCell className="align-top text-sm">{memberLoading ? '…' : contactsStr}</TableCell>
+      <TableCell className="align-top">{uc?.name ?? '—'}</TableCell>
+      <TableCell className="align-top">{uc?.firstName ?? '—'}</TableCell>
+      <TableCell className="align-top text-sm">{urgentPhones}</TableCell>
+      <TableCell className="align-top text-sm max-w-[200px]">{demande.cause ?? '—'}</TableCell>
+      <TableCell className="align-top">{demande.amount.toLocaleString('fr-FR')} FCFA</TableCell>
+      <TableCell className="align-top">{demande.rate}%</TableCell>
+      <TableCell className="align-top">{demande.periodMonths} mois</TableCell>
+      <TableCell className="align-top">{getPayoutModeLabel(demande.payoutMode)}</TableCell>
+      <TableCell className="align-top">{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}</TableCell>
+      <TableCell className="align-top">
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
+          {getStatusLabel(demande.status)}
+        </span>
+      </TableCell>
+      <TableCell className="align-top text-right">
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
+                title="Actions"
+              >
+                <MoreVertical className="h-4 w-4 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuItem
+                onClick={() => router.push(routes.admin.placementDemandDetails(demande.id))}
+                className="cursor-pointer"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Voir détails
+              </DropdownMenuItem>
+              {demande.status === 'PENDING' && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
+                    className="cursor-pointer"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Accepter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Refuser
+                  </DropdownMenuItem>
+                </>
+              )}
+              {demande.status === 'REJECTED' && (
+                <DropdownMenuItem
+                  onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
+                  className="cursor-pointer"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Réouvrir
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+// Carte grille : bloc détaillé (nom, prénom, matricule, contacts, contact urgent, motif) + reste
+function PlacementDemandCard({
+  demande,
+  getStatusColor,
+  getStatusLabel,
+  getPayoutModeLabel,
+  setAcceptModalState,
+  setRejectModalState,
+  setReopenModalState,
+  onConvert,
+  convertPending,
+}: {
+  demande: PlacementDemand
+  getStatusColor: (s: PlacementDemandStatus) => string
+  getStatusLabel: (s: PlacementDemandStatus) => string
+  getPayoutModeLabel: (mode: string) => string
+  setAcceptModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+  setRejectModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+  setReopenModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+  onConvert: (demandId: string) => void
+  convertPending: boolean
+}) {
+  const router = useRouter()
+  const { data: member, isLoading: memberLoading } = useMember(demande.benefactorId)
+  const uc = demande.urgentContact
+  const contactsStr = member?.contacts && Array.isArray(member.contacts)
+    ? member.contacts.map((c) => (typeof c === 'string' ? c : String(c))).join(' / ')
+    : member?.contacts
+      ? String(member.contacts)
+      : '—'
+  const urgentPhones = [uc?.phone, uc?.phone2].filter(Boolean).join(' / ') || '—'
+
+  return (
+    <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
+      <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
+        <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">#{demande.id}</h3>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+            {getPayoutModeLabel(demande.payoutMode)}
+          </span>
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
+            {getStatusLabel(demande.status)}
+          </span>
+        </div>
+        {/* Bloc détaillé bienfaiteur + contact urgent + motif */}
+        <div className="flex flex-col gap-0.5 text-sm border-b border-gray-100 pb-3">
+          {memberLoading ? (
+            <span className="text-gray-400 animate-pulse">Chargement bienfaiteur...</span>
+          ) : (
+            <>
+              <div className="font-medium text-gray-900">{member?.lastName ?? '—'}</div>
+              <div className="text-gray-700">{member?.firstName ?? '—'}</div>
+              <div className="text-gray-600">Matricule: {member?.matricule ?? '—'}</div>
+              <div className="text-gray-600">Contacts: {contactsStr}</div>
+            </>
+          )}
+          <div className="mt-1.5 font-medium text-gray-800">Contact urgent</div>
+          <div className="text-gray-600">Nom: {uc?.name ?? '—'}</div>
+          <div className="text-gray-600">Prénom: {uc?.firstName ?? '—'}</div>
+          <div className="text-gray-600">Contact: {urgentPhones}</div>
+          {demande.cause != null && demande.cause !== '' && (
+            <div className="mt-1.5 text-gray-700">Motif: {demande.cause}</div>
+          )}
+        </div>
+        <div className="text-sm">
+          <span className="text-gray-500">Montant: </span>
+          <span className="font-semibold text-green-600">{demande.amount.toLocaleString('fr-FR')} FCFA</span>
+        </div>
+        <div className="text-sm">
+          <span className="text-gray-500">Taux: </span>
+          <span className="font-medium text-gray-900">{demande.rate}% — {demande.periodMonths} mois</span>
+        </div>
+        {demande.desiredDate && (
+          <div className="text-sm flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+            <span className="text-gray-500">Date souhaitée:</span>
+            <span className="font-medium text-gray-900">{new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+          </div>
+        )}
+        {demande.decisionMadeByName && (
+          <div className="text-sm">
+            <span className="text-gray-500">Décision par: </span>
+            <span className="font-medium text-gray-900">{demande.decisionMadeByName}</span>
+          </div>
+        )}
+        <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
+          {demande.status === 'PENDING' && (
+            <>
+              <Button size="sm" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
+                <CheckCircle className="h-4 w-4 mr-1" /> Accepter
+              </Button>
+              <Button size="sm" onClick={() => setRejectModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
+                <XCircle className="h-4 w-4 mr-1" /> Refuser
+              </Button>
+            </>
+          )}
+          {demande.status === 'REJECTED' && (
+            <Button size="sm" onClick={() => setReopenModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
+              <RotateCcw className="h-4 w-4 mr-1" /> Réouvrir
+            </Button>
+          )}
+          {demande.status === 'APPROVED' && !demande.placementId && (
+            <Button
+              size="sm"
+              onClick={() => onConvert(demande.id)}
+              disabled={convertPending}
+              className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+            >
+              {convertPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Création...</> : <><CreditCard className="h-4 w-4 mr-1" /> Créer le placement</>}
+            </Button>
+          )}
+          {demande.status === 'APPROVED' && demande.placementId && (
+            <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
+              <CheckCircle className="h-4 w-4 mr-1" /> Placement créé
+            </Badge>
+          )}
+          <Button onClick={() => router.push(routes.admin.placementDemandDetails(demande.id))} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white">
+            <Eye className="h-4 w-4" /> Voir détails
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function PlacementDemandesSection() {
   const router = useRouter()
@@ -315,10 +543,18 @@ export function PlacementDemandesSection() {
         <>
           {viewMode === 'list' ? (
             <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Bienfaiteur</TableHead>
+                    <TableHead>Nom</TableHead>
+                    <TableHead>Prénom</TableHead>
+                    <TableHead>Matricule</TableHead>
+                    <TableHead>Contacts</TableHead>
+                    <TableHead>Nom contact urgent</TableHead>
+                    <TableHead>Prénom contact urgent</TableHead>
+                    <TableHead>Contact contact urgent</TableHead>
+                    <TableHead>Motif</TableHead>
                     <TableHead>Montant</TableHead>
                     <TableHead>Taux</TableHead>
                     <TableHead>Durée</TableHead>
@@ -330,155 +566,40 @@ export function PlacementDemandesSection() {
                 </TableHeader>
                 <TableBody>
                   {currentDemandes.map((demande) => (
-                    <TableRow key={demande.id}>
-                      <TableCell className="font-medium">{demande.benefactorName || '—'}</TableCell>
-                      <TableCell>{demande.amount.toLocaleString('fr-FR')} FCFA</TableCell>
-                      <TableCell>{demande.rate}%</TableCell>
-                      <TableCell>{demande.periodMonths} mois</TableCell>
-                      <TableCell>{getPayoutModeLabel(demande.payoutMode)}</TableCell>
-                      <TableCell>{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-                          {getStatusLabel(demande.status)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
-                                title="Actions"
-                              >
-                                <MoreVertical className="h-4 w-4 text-gray-600" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-[200px]">
-                              <DropdownMenuItem
-                                onClick={() => router.push(routes.admin.placementDemandDetails(demande.id))}
-                                className="cursor-pointer"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Voir détails
-                              </DropdownMenuItem>
-                              {demande.status === 'PENDING' && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                                    className="cursor-pointer"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Accepter
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Refuser
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {demande.status === 'REJECTED' && (
-                                <DropdownMenuItem
-                                  onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-                                  className="cursor-pointer"
-                                >
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                  Réouvrir
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <PlacementDemandTableRow
+                      key={demande.id}
+                      demande={demande}
+                      getStatusColor={getStatusColor}
+                      getStatusLabel={getStatusLabel}
+                      setAcceptModalState={setAcceptModalState}
+                      setRejectModalState={setRejectModalState}
+                      setReopenModalState={setReopenModalState}
+                    />
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
               {currentDemandes.map((demande) => (
-                <Card key={demande.id} className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
-                  <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
-                    <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">#{demande.id}</h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                        {getPayoutModeLabel(demande.payoutMode)}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-                        {getStatusLabel(demande.status)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 text-sm font-medium text-gray-900">
-                      <span>Bienfaiteur: {demande.benefactorName || '—'}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-gray-500">Montant: </span>
-                      <span className="font-semibold text-green-600">{demande.amount.toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-gray-500">Taux: </span>
-                      <span className="font-medium text-gray-900">{demande.rate}% — {demande.periodMonths} mois</span>
-                    </div>
-                    {demande.desiredDate && (
-                      <div className="text-sm flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                        <span className="text-gray-500">Date souhaitée:</span>
-                        <span className="font-medium text-gray-900">{new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                      </div>
-                    )}
-                    {demande.decisionMadeByName && (
-                      <div className="text-sm">
-                        <span className="text-gray-500">Décision par: </span>
-                        <span className="font-medium text-gray-900">{demande.decisionMadeByName}</span>
-                      </div>
-                    )}
-                    <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
-                      {demande.status === 'PENDING' && (
-                        <>
-                          <Button size="sm" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
-                            <CheckCircle className="h-4 w-4 mr-1" /> Accepter
-                          </Button>
-                          <Button size="sm" onClick={() => setRejectModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
-                            <XCircle className="h-4 w-4 mr-1" /> Refuser
-                          </Button>
-                        </>
-                      )}
-                      {demande.status === 'REJECTED' && (
-                        <Button size="sm" onClick={() => setReopenModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
-                          <RotateCcw className="h-4 w-4 mr-1" /> Réouvrir
-                        </Button>
-                      )}
-                      {demande.status === 'APPROVED' && !demande.placementId && (
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              const result = await convert.mutateAsync({ demandId: demande.id })
-                              if (result?.placement) router.push(routes.admin.placementDetails(result.placement.id))
-                            } catch (e) { console.error(e) }
-                          }}
-                          disabled={convert.isPending}
-                          className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
-                        >
-                          {convert.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Création...</> : <><CreditCard className="h-4 w-4 mr-1" /> Créer le placement</>}
-                        </Button>
-                      )}
-                      {demande.status === 'APPROVED' && demande.placementId && (
-                        <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
-                          <CheckCircle className="h-4 w-4 mr-1" /> Placement créé
-                        </Badge>
-                      )}
-                      <Button onClick={() => router.push(routes.admin.placementDemandDetails(demande.id))} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white">
-                        <Eye className="h-4 w-4" /> Voir détails
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <PlacementDemandCard
+                  key={demande.id}
+                  demande={demande}
+                  getStatusColor={getStatusColor}
+                  getStatusLabel={getStatusLabel}
+                  getPayoutModeLabel={getPayoutModeLabel}
+                  setAcceptModalState={setAcceptModalState}
+                  setRejectModalState={setRejectModalState}
+                  setReopenModalState={setReopenModalState}
+                  onConvert={async (demandId) => {
+                    try {
+                      const result = await convert.mutateAsync({ demandId })
+                      if (result?.placement) router.push(routes.admin.placementDetails(result.placement.id))
+                    } catch (e) { console.error(e) }
+                  }}
+                  convertPending={convert.isPending}
+                />
               ))}
             </div>
           )}

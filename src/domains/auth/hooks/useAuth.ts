@@ -17,7 +17,7 @@ export interface AuthState {
  * Hook pour gérer l'état d'authentification de l'utilisateur
  * 
  * Écoute les changements d'état Firebase Auth et met à jour l'état local.
- * Le token est géré automatiquement par AuthFirebaseProvider (refresh automatique).
+ * Le token est géré via une session server-side (cookie HttpOnly) créée à la connexion.
  * 
  * @returns L'état d'authentification (user, loading, authenticated)
  * 

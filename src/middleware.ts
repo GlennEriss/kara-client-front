@@ -52,24 +52,65 @@ function isAuthRoute(pathname: string): boolean {
 /**
  * Middleware Next.js pour gérer l'authentification
  * 
- * - Redirige vers /login si pas de token sur routes admin
- * - Redirige vers /dashboard si token présent sur pages d'auth
+ * - Redirige vers /login si session invalide sur routes admin
+ * - Redirige vers /dashboard si session valide sur pages d'auth
  */
 export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     
-    // Récupérer le token depuis les cookies
-    const token = request.cookies.get('auth-token')?.value;
-    const hasToken = Boolean(token);
+    // Session cookie HttpOnly créé par /api/auth/session
+    const sessionCookie = request.cookies.get('__session')?.value;
+    const hasSessionCookie = Boolean(sessionCookie);
+
+    const isAdmin = isAdminRoute(pathname);
+    const isAuth = isAuthRoute(pathname);
+
+    // Éviter les fetch inutiles
+    if (!hasSessionCookie) {
+        if (isAdmin) {
+            console.log(`[Middleware] Redirection vers login - pas de session (${pathname})`);
+            return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
+        }
+        return NextResponse.next();
+    }
+
+    // Vérifier la session via un endpoint server-side (Node) car middleware tourne en Edge
+    let sessionValid = false;
+    let role: string | null = null;
+    try {
+        const verifyUrl = new URL('/api/auth/session/verify', request.nextUrl.origin);
+        const verifyResp = await fetch(verifyUrl, {
+            method: 'GET',
+            headers: {
+                // Transmettre le cookie au endpoint
+                cookie: request.headers.get('cookie') || '',
+            },
+        });
+
+        sessionValid = verifyResp.ok;
+        if (verifyResp.ok) {
+            const body = await verifyResp.json().catch(() => null);
+            role = body?.claims?.role ? String(body.claims.role) : null;
+        }
+    } catch (error) {
+        // En cas de souci réseau/serveur, considérer la session invalide pour les routes protégées
+        sessionValid = false;
+    }
     
     // Redirection si pas de token sur routes admin
-    if (!hasToken && isAdminRoute(pathname)) {
-        console.log(`[Middleware] Redirection vers login - pas de token (${pathname})`);
+    if (!sessionValid && isAdmin) {
+        console.log(`[Middleware] Redirection vers login - session invalide (${pathname})`);
+        return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
+    }
+
+    // Protection admin basique par rôle (si claim existe)
+    if (sessionValid && isAdmin && role && !String(role).toLowerCase().includes('admin')) {
+        console.log(`[Middleware] Accès refusé - role=${role} (${pathname})`);
         return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
     }
     
     // Redirection si token présent sur pages d'auth (accueil/login, register)
-    if (hasToken && isAuthRoute(pathname)) {
+    if (sessionValid && isAuth) {
         console.log(`[Middleware] Redirection vers dashboard - déjà connecté (${pathname})`);
         return NextResponse.redirect(new URL(routes.admin.dashboard, request.nextUrl));
     }

@@ -20,14 +20,12 @@ export class LogoutService implements ILogoutService {
    */
   async logout(): Promise<void> {
     try {
+      // 0. Supprimer la session server-side (cookie HttpOnly)
+      // (On ne peut pas supprimer un cookie HttpOnly depuis le client sans passer par le serveur)
+      await fetch('/api/auth/logout', { method: 'POST' })
+
       // 1. Déconnexion Firebase
       await signOut(auth)
-      
-      // 2. Supprimer le cookie d'authentification
-      // Cookie secure uniquement en production
-      const isProduction = window.location.protocol === 'https:'
-      const cookieOptions = `path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=strict${isProduction ? '; secure' : ''}`
-      document.cookie = `auth-token=; ${cookieOptions}`
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error)
       throw new Error('LOGOUT_FAILED')

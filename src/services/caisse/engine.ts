@@ -41,13 +41,21 @@ export function computeBonus(monthIndex: number, settings?: CaisseSettings | nul
   return (table as any)[key] ?? 0
 }
 
+const JOURNALIER_TYPES = ['JOURNALIERE', 'JOURNALIERE_CHARITABLE'] as const
+const PERIOD_DAYS = 30
+
 export function computeNextDueAt(contract: CaisseContract): Date | undefined {
   if (!contract.contractStartAt) return undefined
   const start = new Date(contract.contractStartAt)
-  // currentMonthIndex représente déjà le prochain mois à payer (0-indexed)
-  const m = contract.currentMonthIndex
+  const m = contract.currentMonthIndex ?? 0
+  const isDaily = contract.caisseType && JOURNALIER_TYPES.includes(contract.caisseType as any)
   const next = new Date(start)
-  next.setMonth(start.getMonth() + m)
+  if (isDaily) {
+    // Prochaine échéance = dernier jour de la période currentMonthIndex (période de 30 jours)
+    next.setDate(next.getDate() + (m + 1) * PERIOD_DAYS - 1)
+  } else {
+    next.setMonth(next.getMonth() + m)
+  }
   return next
 }
 

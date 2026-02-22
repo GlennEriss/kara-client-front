@@ -1,0 +1,33 @@
+@startuml AUTH_SEQUENCE
+title Auth (cible) — Session cookie HttpOnly
+
+actor User as U
+participant "Client (Next.js)" as C
+participant "Firebase Auth (client)" as FA
+participant "API Next (server)" as API
+participant "Firebase Admin" as ADM
+
+U -> C: Saisit identifiants
+C -> FA: signInWithEmailAndPassword()
+FA --> C: user + idToken
+
+C -> API: POST /api/auth/session (idToken)
+API -> ADM: verifyIdToken(idToken)
+ADM --> API: decoded claims
+API -> ADM: createSessionCookie(idToken, ttl)
+ADM --> API: sessionCookie
+API --> C: Set-Cookie: __session (HttpOnly)
+
+U -> C: Navigue vers /dashboard
+C -> API: Request /dashboard (cookie __session)
+API -> ADM: verifySessionCookie(__session)
+ADM --> API: decoded claims
+API --> C: Autorisé
+
+U -> C: Logout
+C -> API: POST /api/auth/logout
+API --> C: Clear-Cookie: __session
+C -> FA: signOut()
+
+@enduml
+

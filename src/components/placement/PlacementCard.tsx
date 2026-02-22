@@ -15,6 +15,7 @@ interface PlacementCardProps {
   onOpenClick?: () => void
   onUploadContractClick?: () => void
   onViewContractClick?: () => void
+  onDownloadContractClick?: () => void
   onEditClick?: () => void
 }
 
@@ -26,6 +27,7 @@ export default function PlacementCard({
   onOpenClick,
   onUploadContractClick,
   onViewContractClick,
+  onDownloadContractClick,
   onEditClick,
 }: PlacementCardProps) {
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
@@ -217,72 +219,70 @@ export default function PlacementCard({
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-2 flex-wrap">
+        <div className="flex flex-col gap-2 pt-2">
           {onOpenClick && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs"
-              onClick={onOpenClick}
-            >
+            <Button size="sm" variant="outline" className="text-xs w-full justify-start" onClick={onOpenClick}>
               <ExternalLink className="w-4 h-4 mr-1" />
               Ouvrir
             </Button>
           )}
+
           {placement.status === 'Draft' && onEditClick && (
             <Button
               size="sm"
               variant="default"
-              className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              className="text-xs w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
               onClick={onEditClick}
             >
               <Edit className="w-4 h-4 mr-1" />
               Modifier
             </Button>
           )}
+
           {placement.status === 'Draft' && onDeleteClick && (
             <Button
               size="sm"
               variant="outline"
-              className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-xs w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
               onClick={onDeleteClick}
             >
               <Trash2 className="w-4 h-4 mr-1" />
               Supprimer
             </Button>
           )}
-          {/* Bouton Téléverser le contrat si pas de contrat */}
+
+          {/* Contrat: télécharger (template ou PDF téléversé) */}
+          {onDownloadContractClick && (
+            <Button size="sm" variant="outline" className="text-xs w-full justify-start" onClick={onDownloadContractClick}>
+              <FileText className="w-4 h-4 mr-1" />
+              Télécharger contrat
+            </Button>
+          )}
+
+          {/* Contrat: téléverser si manquant */}
           {!placement.contractDocumentId && onUploadContractClick && (
             <Button
               size="sm"
               variant="default"
-              className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              className="text-xs w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
               onClick={onUploadContractClick}
             >
               <Upload className="w-4 h-4 mr-1" />
-              Téléverser
+              Téléverser contrat
             </Button>
           )}
-          {/* Bouton Voir le document si contrat existe */}
+
+          {/* Contrat: voir si disponible */}
           {placement.contractDocumentId && onViewContractClick && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs"
-              onClick={onViewContractClick}
-            >
+            <Button size="sm" variant="outline" className="text-xs w-full justify-start" onClick={onViewContractClick}>
               <Eye className="w-4 h-4 mr-1" />
-              Voir le document
+              Voir contrat
             </Button>
           )}
-          {/* Bouton Détails seulement pour les placements actifs avec contrat (pour voir commissions, etc.) */}
+
+          {/* Détails seulement pour les placements actifs avec contrat */}
           {placement.status === 'Active' && placement.contractDocumentId && onDetailsClick && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="text-xs"
-              onClick={onDetailsClick}
-            >
+            <Button size="sm" variant="secondary" className="text-xs w-full justify-start" onClick={onDetailsClick}>
               Détails
             </Button>
           )}
@@ -291,4 +291,3 @@ export default function PlacementCard({
     </Card>
   )
 }
-
