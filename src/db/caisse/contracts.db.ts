@@ -32,9 +32,13 @@ function generateCustomContractId(
   return `MK_CS_${typeFormatted}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`
 }
 
+const JOURNALIER_TYPES = ['JOURNALIERE', 'JOURNALIERE_CHARITABLE']
+const PERIOD_DAYS = 30
+
 /**
  * Calcule nextDueAt pour les contrats qui n'ont pas ce champ (contrats créés avant la correction).
  * Utilise contractStartAt ou firstPaymentDate + currentMonthIndex.
+ * Pour journalier : chaque échéance = 30 jours, la suivante commence le lendemain de la fin.
  */
 function computeNextDueAtFallback(data: any): Date | undefined {
   const start = data.contractStartAt
@@ -43,7 +47,11 @@ function computeNextDueAtFallback(data: any): Date | undefined {
   if (!start || isNaN(start.getTime())) return undefined
   const m = data.currentMonthIndex ?? 0
   const next = new Date(start)
-  next.setMonth(next.getMonth() + m)
+  if (data.caisseType && JOURNALIER_TYPES.includes(data.caisseType)) {
+    next.setDate(next.getDate() + (m + 1) * PERIOD_DAYS - 1)
+  } else {
+    next.setMonth(next.getMonth() + m)
+  }
   return next
 }
 

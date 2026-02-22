@@ -144,8 +144,7 @@ describe('useLogin', () => {
   it('devrait gérer une connexion réussie', async () => {
     const { result } = renderHook(() => useLogin(), { wrapper });
     const { toast } = await import('sonner');
-    const { useRouter } = await import('next/navigation');
-    const router = useRouter();
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as any))
 
     // Mock de auth.currentUser pour useLogin
     const mockCurrentUser = {
@@ -289,6 +288,7 @@ describe('useLogin', () => {
     const { result } = renderHook(() => useLogin(), { wrapper });
 
     mockLoginService.signIn.mockResolvedValueOnce('mock-token-id');
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as any))
 
     result.current.form.setValue('matricule', '0001.MK.110126');
     result.current.form.setValue('email', 'test@example.com');
@@ -300,7 +300,12 @@ describe('useLogin', () => {
     )();
 
     await waitFor(() => {
-      expect(document.cookie).toContain('auth-token=mock-token-id');
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/auth/session',
+        expect.objectContaining({
+          method: 'POST',
+        })
+      )
     });
   });
 });

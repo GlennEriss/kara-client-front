@@ -27,6 +27,7 @@ export function useCaisseContract(contractId?: string) {
     queryKey: ['caisse-contract', contractId],
     queryFn: async () => contractId ? getContractWithComputedState(contractId) : null,
     enabled: !!contractId,
+    refetchOnMount: 'always',
   })
 }
 

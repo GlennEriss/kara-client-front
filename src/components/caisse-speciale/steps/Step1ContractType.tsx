@@ -239,7 +239,7 @@ export function Step1ContractType() {
   return (
     <div className="space-y-6">
       {/* Titre de l'étape */}
-      <div className="text-center">
+      <div id="step-1" className="text-center scroll-mt-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Type de contrat
         </h2>

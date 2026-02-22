@@ -43,11 +43,16 @@ export const useLogin = () => {
     
     try {
       const idToken = await loginService.signIn(userData);
-      
-      // Sauvegarder le token dans un cookie (secure uniquement en production)
-      const isProduction = window.location.protocol === 'https:';
-      const cookieOptions = `path=/; max-age=3600; samesite=strict${isProduction ? '; secure' : ''}`;
-      document.cookie = `auth-token=${idToken}; ${cookieOptions}`;
+
+      // Créer une session server-side (cookie HttpOnly) à partir de l'ID token
+      const sessionResp = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      })
+      if (!sessionResp.ok) {
+        throw new Error('SESSION_CREATE_FAILED')
+      }
 
       toast.success('Connexion réussie !', {
         description: 'Bienvenue dans votre espace membre',

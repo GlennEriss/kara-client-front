@@ -32,11 +32,16 @@ export default function AdminLogin() {
       if (userCred.user) {
         // Obtenir le token ID pour l'authentification côté serveur
         const idToken = await userCred.user.getIdToken()
-        
-        // Sauvegarder le token dans un cookie (secure uniquement en production)
-        const isProduction = window.location.protocol === 'https:';
-        const cookieOptions = `path=/; max-age=3600; samesite=strict${isProduction ? '; secure' : ''}`;
-        document.cookie = `auth-token=${idToken}; ${cookieOptions}`;
+
+        // Créer une session server-side (cookie HttpOnly) à partir de l'ID token
+        const sessionResp = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        })
+        if (!sessionResp.ok) {
+          throw new Error('SESSION_CREATE_FAILED')
+        }
         
         // Toast de succès avec fond vert
         toast.success("Connexion réussie !", {

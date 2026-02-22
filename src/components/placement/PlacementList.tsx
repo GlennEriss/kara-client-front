@@ -24,6 +24,7 @@ import PlacementDocumentUploadModal from './PlacementDocumentUploadModal'
 import PayCommissionModal, { CommissionPaymentFormData } from './PayCommissionModal'
 import CommissionReceiptModal from './CommissionReceiptModal'
 import ViewPlacementDocumentModal from './ViewPlacementDocumentModal'
+import PlacementContractPDFModal from './PlacementContractPDFModal'
 import PlacementCard from './PlacementCard'
 import EarlyExitForm from './EarlyExitForm'
 import PlacementFinalQuittanceModal from './PlacementFinalQuittanceModal'
@@ -192,6 +193,7 @@ export default function PlacementList() {
   const [uploadQuittancePlacementId, setUploadQuittancePlacementId] = useState<string | null>(null)
   const [viewDocumentId, setViewDocumentId] = useState<string | null>(null)
   const [viewDocumentTitle, setViewDocumentTitle] = useState<string>('')
+  const [contractPdfPlacementId, setContractPdfPlacementId] = useState<string | null>(null)
   const [showCommissionReceipt, setShowCommissionReceipt] = useState(false)
   const [selectedCommissionForReceipt, setSelectedCommissionForReceipt] = useState<{ placement: Placement; commission: CommissionPaymentPlacement } | null>(null)
   const [finalQuittancePlacementId, setFinalQuittancePlacementId] = useState<string | null>(null)
@@ -220,6 +222,10 @@ export default function PlacementList() {
   const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null)
   const editingPlacementIdRef = useRef<string | null>(null)
   const pieChartContainerRef = useRef<HTMLDivElement>(null)
+
+  const openPlacementContractModal = (placement: Placement) => {
+    setContractPdfPlacementId(placement.id)
+  }
   
   // Récupérer le placement en cours d'édition
   const editingPlacement = editingPlacementId ? placements.find(p => p.id === editingPlacementId) : null
@@ -1277,6 +1283,7 @@ export default function PlacementList() {
                       } : undefined}
                       onDeleteClick={p.status === 'Draft' ? () => setDeletePlacementId(p.id) : undefined}
                       onUploadContractClick={!p.contractDocumentId ? () => setUploadContractPlacementId(p.id) : undefined}
+                      onDownloadContractClick={() => openPlacementContractModal(p)}
                       onViewContractClick={p.contractDocumentId ? () => {
                         setViewDocumentId(p.contractDocumentId!)
                         setViewDocumentTitle('Contrat de placement')
@@ -2729,6 +2736,13 @@ export default function PlacementList() {
         title={viewDocumentTitle}
       />
 
+      {/* Modal génération contrat (prérempli) */}
+      <PlacementContractPDFModal
+        isOpen={!!contractPdfPlacementId}
+        onClose={() => setContractPdfPlacementId(null)}
+        placement={contractPdfPlacementId ? placements.find(p => p.id === contractPdfPlacementId) ?? null : null}
+      />
+
       {/* Modal de facture de commission */}
       {selectedCommissionForReceipt && (
         <CommissionReceiptModal
@@ -2771,4 +2785,3 @@ export default function PlacementList() {
     </div>
   )
 }
-

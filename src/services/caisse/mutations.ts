@@ -202,9 +202,19 @@ export async function subscribe(input: {
   }
   
   // Pré-générer les paiements DUE avec dueAt calculé (startDate déjà calculé ci-dessus)
+  const isDailyType = input.caisseType === 'JOURNALIERE' || input.caisseType === 'JOURNALIERE_CHARITABLE'
+  const PERIOD_DAYS = 30 // Une échéance journalière = 30 jours ; la suivante commence le lendemain de la fin
+
   for (let i = 0; i < input.monthsPlanned; i++) {
     const dueDate = new Date(startDate)
-    dueDate.setMonth(dueDate.getMonth() + i)
+    if (isDailyType) {
+      // Échéance i : période de 30 jours ; dueAt = dernier jour de la période (jour 30)
+      // Période 0 : startDate..startDate+29 → dueAt = startDate + 29
+      // Période 1 : startDate+30..startDate+59 → dueAt = startDate + 59 (échéance 2 commence à startDate+30)
+      dueDate.setDate(dueDate.getDate() + (i + 1) * PERIOD_DAYS - 1)
+    } else {
+      dueDate.setMonth(dueDate.getMonth() + i)
+    }
     await addPayment(id, { 
       dueMonthIndex: i, 
       amount: input.monthlyAmount, 
@@ -397,12 +407,15 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Backfill des dueAt si premier paiement
   if (isFirstPayment) {
     for (let i = 0; i < payments.length; i++) {
-      const due = new Date(now)
-      due.setMonth(due.getMonth() + i)
+      const due = new Date(contractStartAt)
+      if (isDailyType) {
+        due.setDate(due.getDate() + (i + 1) * 30 - 1)
+      } else {
+        due.setMonth(due.getMonth() + i)
+      }
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
   }
-  // Si on a un start connu, on peut remplir les dueAt des prochains paiements si nécessaire (non requis dans cette itération)
   const incrementNominal = reached
     ? (
         type === 'STANDARD' || type === 'STANDARD_CHARITABLE'
@@ -422,7 +435,11 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Si on connaît le start, calculer fin
   if (contractStartAt && contract.monthsPlanned) {
     const end = new Date(contractStartAt)
-    end.setMonth(end.getMonth() + contract.monthsPlanned)
+    if (type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE') {
+      end.setDate(end.getDate() + contract.monthsPlanned * 30 - 1)
+    } else {
+      end.setMonth(end.getMonth() + contract.monthsPlanned)
+    }
     updated.contractEndAt = end
   }
 
@@ -638,11 +655,30 @@ export async function updatePaymentContribution(input: {
   const payment = payments.find((p: any) => p.id === paymentId)
   if (!payment) throw new Error('Paiement introuvable')
   
-  if (!payment.contribs || !Array.isArray(payment.contribs)) {
-    throw new Error('Aucune contribution trouvée dans ce paiement')
+  // Pour les anciens paiements (ex. Libre) sans tableau contribs, en reconstituer un à partir du paiement
+  if (!payment.contribs || !Array.isArray(payment.contribs) || payment.contribs.length === 0) {
+    if (payment.status === 'PAID' && (payment.amount != null || payment.accumulatedAmount != null)) {
+      const contract = await getContract(contractId)
+      const paidAt = payment.paidAt ? (typeof payment.paidAt?.toDate === 'function' ? payment.paidAt.toDate() : new Date(payment.paidAt)) : new Date()
+      payment.contribs = [{
+        id: contributionId && contributionId !== '__single__' ? contributionId : generateContributionId((contract as any)?.memberId || 'UNKNOWN', paidAt),
+        amount: Number(payment.amount ?? payment.accumulatedAmount ?? 0),
+        paidAt,
+        time: payment.time,
+        mode: payment.mode,
+        proofUrl: payment.proofUrl,
+        memberId: (contract as any)?.memberId,
+      }]
+    } else {
+      throw new Error('Aucune contribution trouvée dans ce paiement')
+    }
   }
   
-  const contributionIndex = payment.contribs.findIndex((c: any) => c.id === contributionId)
+  let contributionIndex = payment.contribs.findIndex((c: any) => c && (c.id === contributionId || String(c.id) === String(contributionId)))
+  // Fallback : une seule contribution (STANDARD/LIBRE avec contrib.id absent ou contributionId === '__single__')
+  if (contributionIndex === -1 && (payment.contribs.length === 1 || contributionId === '__single__')) {
+    contributionIndex = 0
+  }
   if (contributionIndex === -1) {
     throw new Error('Contribution introuvable')
   }
@@ -696,15 +732,29 @@ export async function updatePaymentContribution(input: {
   // Calculer le nouveau montant accumulé
   const newAccumulatedAmount = updatedContribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
   
-  // Mettre à jour le paiement (paidAt, time, admin et date de modification, motif)
+  // Sérialiser les dates pour Firestore (Timestamp) afin que l'écriture persiste correctement
+  const { Timestamp } = await import('firebase/firestore')
+  const contribsForFirestore = updatedContribs.map((c: any) => ({
+    ...c,
+    ...(c.paidAt && { paidAt: c.paidAt instanceof Date ? Timestamp.fromDate(c.paidAt) : c.paidAt }),
+    ...(c.updatedAt && { updatedAt: c.updatedAt instanceof Date ? Timestamp.fromDate(c.updatedAt) : c.updatedAt }),
+    ...(c.createdAt && { createdAt: c.createdAt instanceof Date ? Timestamp.fromDate(c.createdAt) : c.createdAt }),
+  }))
+
+  // Mettre à jour le paiement (contribs, amount, paidAt, time, motif)
   const paymentPayload: any = {
-    contribs: updatedContribs,
+    contribs: contribsForFirestore,
     accumulatedAmount: newAccumulatedAmount,
     updatedAt: new Date(),
     updatedBy: auth?.currentUser?.uid || contractId
   }
-  if (newPaidAt) paymentPayload.paidAt = newPaidAt
-  // Synchroniser l'heure au niveau paiement pour l'affichage "Payé à"
+  // Garder le montant au niveau paiement en sync (affichage "Montant versé" et contrats STANDARD)
+  if (updatedContribs.length === 1) {
+    paymentPayload.amount = newAmount
+  }
+  if (newPaidAt) {
+    paymentPayload.paidAt = newPaidAt instanceof Date ? Timestamp.fromDate(newPaidAt) : newPaidAt
+  }
   paymentPayload.time = updates.time ?? updatedContribution.time ?? contribution.time
   if (updates.modificationReason != null && updates.modificationReason !== '') {
     paymentPayload.modificationReason = updates.modificationReason
@@ -943,11 +993,15 @@ export async function payGroup(input: {
   // Mettre à jour le contrat
   const isFirstPayment = !contract.contractStartAt
   const contractStartAt = isFirstPayment ? now : contract.contractStartAt
-  
+  const isDailyTypePayGroup = type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE'
   if (isFirstPayment) {
     for (let i = 0; i < payments.length; i++) {
-      const due = new Date(now)
-      due.setMonth(due.getMonth() + i)
+      const due = new Date(contractStartAt)
+      if (isDailyTypePayGroup) {
+        due.setDate(due.getDate() + (i + 1) * 30 - 1)
+      } else {
+        due.setMonth(due.getMonth() + i)
+      }
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
   }

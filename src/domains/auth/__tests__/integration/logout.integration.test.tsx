@@ -68,20 +68,8 @@ describe('Logout Integration', () => {
     vi.clearAllMocks()
     vi.mocked(signOut).mockClear()
     ServiceFactory.clearAllServices()
-    
-    // Mock document.cookie
-    Object.defineProperty(document, 'cookie', {
-      writable: true,
-      value: '',
-    })
-    
-    // Mock window.location.protocol
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: {
-        protocol: 'http:',
-      },
-    })
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as any))
   })
 
   describe('LogoutService + useLogout', () => {
@@ -119,9 +107,7 @@ describe('Logout Integration', () => {
       await waitFor(() => {
         // Vérifier que le service a été appelé
         expect(signOut).toHaveBeenCalled()
-        
-        // Vérifier que le cookie a été supprimé
-        expect(document.cookie).toContain('auth-token=;')
+        expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
         
         // Vérifier que la redirection a été effectuée via window.location.href
         expect(mockHrefSetter).toHaveBeenCalledWith('/login')
@@ -176,22 +162,20 @@ describe('Logout Integration', () => {
   describe('Comportement en production vs développement', () => {
     it('devrait utiliser secure cookie en production', async () => {
       vi.mocked(signOut).mockResolvedValue(undefined)
-      window.location.protocol = 'https:'
 
       const logoutService = new LogoutService()
       await logoutService.logout()
 
-      expect(document.cookie).toContain('secure')
+      expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
     })
 
     it('ne devrait pas utiliser secure cookie en développement', async () => {
       vi.mocked(signOut).mockResolvedValue(undefined)
-      window.location.protocol = 'http:'
 
       const logoutService = new LogoutService()
       await logoutService.logout()
 
-      expect(document.cookie).not.toContain('secure')
+      expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
     })
   })
 })

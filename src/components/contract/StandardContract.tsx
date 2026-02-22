@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient, useQuery } from "@tanstack/react-query"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers, useMember } from "@/hooks/useMembers"
+import { getGroupById } from "@/db/group.db"
 import { useAuth } from "@/hooks/useAuth"
 import {
   requestFinalRefund,
@@ -99,9 +101,15 @@ type Props = { id: string }
 
 export default function StandardContract({ id }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
   const { data: member } = useMember((data as any)?.memberId)
+  const { data: group } = useQuery({
+    queryKey: ['group', (data as any)?.groupeId],
+    queryFn: () => getGroupById((data as any)?.groupeId as string),
+    enabled: !!(data as any)?.groupeId,
+  })
 
   const [isRefunding, setIsRefunding] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -303,13 +311,14 @@ export default function StandardContract({ id }: Props) {
             modificationReason: paymentData.modificationReason,
           },
         })
+        await queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
         await refetch()
         toast.success('Versement modifié')
         setShowPaymentModal(false)
         setEditPayment(null)
-      } catch (error) {
-        console.error('Erreur lors de la modification:', error)
-        throw error
+      } catch (err) {
+        console.error('Erreur lors de la modification:', err)
+        toast.error(err instanceof Error ? err.message : 'Impossible de modifier le versement')
       }
       return
     }
@@ -352,6 +361,19 @@ export default function StandardContract({ id }: Props) {
     setSelectedMonthIndex(null)
     setShowPaymentModal(true)
   }
+
+  const getMonthlyPeriodBounds = useCallback((dueMonthIndex: number) => {
+    const raw = (data as any)?.contractStartAt ?? (data as any)?.firstPaymentDate
+    if (!raw) return null
+    const startRef = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
+    if (isNaN(startRef.getTime())) return null
+    const start = new Date(startRef)
+    start.setMonth(start.getMonth() + dueMonthIndex)
+    const end = new Date(startRef)
+    end.setMonth(end.getMonth() + dueMonthIndex + 1)
+    end.setDate(end.getDate() - 1)
+    return { start, end }
+  }, [data])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
@@ -519,10 +541,34 @@ export default function StandardContract({ id }: Props) {
                       </div>
 
                       <div className="space-y-3">
+                        {(() => {
+                          const bounds = getMonthlyPeriodBounds(p.dueMonthIndex)
+                          return bounds ? (
+                            <div className="text-sm">
+                              <span className="text-gray-600">Période: </span>
+                              <span className="font-semibold text-gray-900">
+                                du {bounds.start.toLocaleDateString("fr-FR")} au {bounds.end.toLocaleDateString("fr-FR")}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">Échéance:</span>
+                              <span className="font-semibold text-gray-900">
+                                {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}
+                              </span>
+                            </div>
+                          )
+                        })()}
+
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Échéance:</span>
+                          <span className="text-gray-600">Montant versé:</span>
                           <span className="font-semibold text-gray-900">
-                            {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}
+                            {p.status === "PAID"
+                              ? `${formatAmount(
+                                  Number(p.amount) ||
+                                    (Array.isArray(p.contribs) ? p.contribs.reduce((s: number, c: any) => s + (Number(c?.amount) || 0), 0) : 0)
+                                )} FCFA`
+                              : "—"}
                           </span>
                         </div>
 
@@ -661,6 +707,10 @@ export default function StandardContract({ id }: Props) {
           }}
           payment={selectedPayment}
           contractData={data}
+          member={member ?? undefined}
+          group={group ?? undefined}
+          payments={payments}
+          getAdminDisplayName={(id) => id || '—'}
         />
 
 

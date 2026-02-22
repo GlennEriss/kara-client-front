@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { ContractFormProvider, useContractForm } from '@/providers/ContractFormProvider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,14 @@ function ContractCreationContent() {
   } = useContractForm()
   
   const { currentStep, steps } = state
+
+  // Repositionner la vue sur le titre de l'étape au changement (Précédent/Suivant)
+  useEffect(() => {
+    const el = document.getElementById(`step-${currentStep}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [currentStep])
 
   const renderCurrentStep = () => {
     switch (currentStep) {
