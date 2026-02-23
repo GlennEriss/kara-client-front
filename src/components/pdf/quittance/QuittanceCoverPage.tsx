@@ -81,9 +81,9 @@ function QuittanceSection({ title, rows }: { title: string; rows: Row[] }) {
             return (
               <View key={idx} style={styles.row}>
                 <Text style={[styles.cellLabel, styles.wLabelL]}>{r.left.label} :</Text>
-                <Text style={[styles.cellValue, styles.wValueL]}>{r.left.value || '—'}</Text>
+                <Text style={[styles.cellValue, styles.wValueL]}>{r.left.value}</Text>
                 <Text style={[styles.cellLabel, styles.wLabelR]}>{r.right.label} :</Text>
-                <Text style={[styles.cellValue, styles.wValueR]}>{r.right.value || '—'}</Text>
+                <Text style={[styles.cellValue, styles.wValueR]}>{r.right.value}</Text>
               </View>
             )
           }

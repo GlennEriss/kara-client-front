@@ -211,7 +211,7 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
     {
       kind: 'pair',
       left: { label: 'MATRICULE', value: contract?.memberId || '—' },
-      right: { label: 'MEMBRE', value: contract?.member?.membershipType?.toUpperCase() || '—' },
+      right: { label: 'MEMBRE', value: '' },
     },
     { kind: 'single', label: 'NOM', value: (contract?.member?.lastName || '—').toUpperCase() },
     { kind: 'single', label: 'PRÉNOM', value: contract?.member?.firstName || '—' },
@@ -298,7 +298,7 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           )}
 
           <Text style={styles.articleText}>
-            Le nominal remboursé s'élève à <Text style={styles.bold}>{formatAmount(contract?.nominalPaid || 0)} FCFA</Text> (chiffres),
+            Le nominal remboursé s'élève à <Text style={styles.bold}>{contract?.nominalPaid || 0} FCFA</Text> (chiffres),
             <Text style={styles.bold}> {numberToWords(contract?.nominalPaid || 0)} francs CFA</Text> (lettres).
           </Text>
 

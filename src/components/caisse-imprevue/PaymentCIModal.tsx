@@ -328,10 +328,12 @@ export default function PaymentCIModal({
               min="100"
               step="100"
               required
+              disabled={isMonthly}
+              className={isMonthly ? 'bg-gray-100 cursor-not-allowed' : ''}
             />
             <p className="text-xs text-muted-foreground mt-1">
               {isMonthly 
-                ? 'Montant minimum: 100 FCFA' 
+                ? 'Contrat mensuel : le montant est fixe (montant de l\'abonnement).' 
                 : '💡 Pour les paiements quotidiens, le montant peut varier chaque jour. Montant minimum: 100 FCFA'}
             </p>
           </div>

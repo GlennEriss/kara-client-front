@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, DollarSign, TrendingUp, FileText, CheckCircle, CheckCircle2, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle, CreditCard, ExternalLink } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
+import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import EmergencyContact from './standard/EmergencyContact'
 import type { RefundDocument } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
@@ -868,7 +869,7 @@ export default function DailyContract({ id }: Props) {
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
               </p>
               <p className="text-sm break-words">
-                {member?.firstName || ''} {member?.lastName || ''} - Objectif mensuel: <span className="font-mono text-xs break-all">{formatAmount(data.monthlyAmount || 0)} FCFA</span>
+                {member?.firstName || ''} {member?.lastName || ''} - Objectif mensuel: <span className="font-mono text-xs break-all">Libre</span>
               </p>
               <p className="text-xs break-words">
                 Type de caisse: <span className="font-mono">{String((data as any).caisseType)}</span>
@@ -879,7 +880,7 @@ export default function DailyContract({ id }: Props) {
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
+          <StatCard icon={CreditCard} label="Montant mensuel" value="Libre" accent="brand" />
           <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
           <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(nominalPaid)} FCFA`} />
           <StatCard icon={CalendarDays} label="Bonus" value={`${formatAmount(currentBonus)} FCFA`} accent="emerald" />
@@ -3003,6 +3004,14 @@ export default function DailyContract({ id }: Props) {
           document={currentDocument}
         />
       )}
+
+      {/* Modal Quittance / Document de remboursement */}
+      <RemboursementNormalPDFModal
+        isOpen={showRemboursementPdf}
+        onClose={() => setShowRemboursementPdf(false)}
+        contractId={id}
+        contractData={data}
+      />
     </div>
   )
 }

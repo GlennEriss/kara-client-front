@@ -93,16 +93,31 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     }
 
     // Trouver le refund actif pour récupérer la cause
-    const activeRefund = refunds.find((r: any) => 
-      (r.type === 'FINAL' || r.type === 'EARLY') && 
+    const activeRefund = refunds.find((r: any) =>
+      (r.type === 'FINAL' || r.type === 'EARLY') &&
       (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PAID')
     )
+
+    // Nominal payé : même logique que la page contrat (DailyContract / Standard etc.)
+    // Une valeur par mois (accumulatedAmount du paiement pour ce mois), pas de somme des contribs
+    const payments = contractData.payments || []
+    const totalMonths = Number(contractData.monthsPlanned) || 0
+    const nominalPaidFromPayments =
+      totalMonths > 0
+        ? Array.from({ length: totalMonths }).reduce((sum: number, _, monthIndex: number) => {
+            const payment = payments.find((p: any) => p.dueMonthIndex === monthIndex)
+            return sum + (Number(payment?.accumulatedAmount) || 0)
+          }, 0)
+        : 0
+    const nominalPaid =
+      totalMonths > 0 && payments.length > 0 ? nominalPaidFromPayments : (contractData.nominalPaid ?? 0)
 
     return {
       ...contractData,
       member: memberWithAge,
       lastPaymentDate,
-      refundReason: activeRefund?.reason || ''
+      refundReason: activeRefund?.reason || '',
+      nominalPaid,
     }
   }, [contractData, memberData, refunds])
 
