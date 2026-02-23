@@ -264,7 +264,7 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
     {
       kind: 'pair',
       left: { label: 'MATRICULE', value: member.matricule },
-      right: { label: 'MEMBRE', value: member.membershipType },
+      right: { label: 'MEMBRE', value: '' },
     },
     { kind: 'single', label: 'NOM', value: member.lastName.toUpperCase() },
     { kind: 'single', label: 'PRÉNOM', value: member.firstName },
@@ -348,7 +348,7 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
           </Text>
 
           <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 5, fontWeight: 'bold', textAlign: 'center' }]}>
-            {formatAmount(nominalAmount)} FCFA (chiffres),
+            {nominalAmount} FCFA (chiffres),
           </Text>
 
           <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15, fontWeight: 'bold', textAlign: 'center' }]}>

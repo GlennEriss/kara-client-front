@@ -366,7 +366,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
               { content: 'MATRICULE', textStyle: styles.tableLabelText },
               { content: contract?.memberId || '—', textStyle: styles.tableValueText },
               { content: 'MEMBRE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.membershipType?.toUpperCase() || '—', textStyle: styles.tableValueText },
+              { content: '', textStyle: styles.tableValueText },
             ]}
           />
           <TableRow

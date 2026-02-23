@@ -397,10 +397,12 @@ export function useCreateContractFromDemand() {
       convertedBy: string
     }) => service.createContractFromDemand(demandId, convertedBy),
     onSuccess: (result) => {
-      // Invalider les caches
+      // Invalider les caches (demandes + liste des contrats pour mise à jour immédiate)
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands-stats'] })
       queryClient.invalidateQueries({ queryKey: ['demand-detail', result.demand.id] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
       
       toast.success('Contrat créé avec succès', {
         description: `Le contrat ${result.contractId} a été créé depuis la demande ${result.demand.id}.`,

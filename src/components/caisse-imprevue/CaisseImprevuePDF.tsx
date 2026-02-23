@@ -321,7 +321,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
               <Text style={styles.cell}>MATRICULE :</Text>
               <Text style={styles.cell}>{contract?.memberId || '—'}</Text>
               <Text style={styles.cell}>MEMBRE :</Text>
-              <Text style={styles.cell}>{(contract?.member?.membershipType || getMemberData('membershipType'))?.toUpperCase() || '—'}</Text>
+              <Text style={styles.cell}></Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NOM :</Text>

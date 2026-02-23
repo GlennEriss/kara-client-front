@@ -359,7 +359,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
 
   const memberInfoRows = [
     { label: 'MATRICULE', value: member.matricule },
-    { label: 'MEMBRE', value: member.membershipType },
+    { label: 'MEMBRE', value: '' },
     { label: 'NOM', value: member.lastName.toUpperCase() },
     { label: 'PRÉNOM', value: member.firstName },
     { label: 'LIEU / NAISSANCE', value: member.birthPlace },

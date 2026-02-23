@@ -320,7 +320,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>MEMBRE :</Text>
-              <Text style={styles.cell}>{contract?.member?.membershipType?.toUpperCase() || '—'}</Text>
+              <Text style={styles.cell}></Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NOM :</Text>

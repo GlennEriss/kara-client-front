@@ -229,7 +229,7 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>MEMBRE :</Text>
-              <Text style={styles.cell}>{contract?.member?.membershipType?.toUpperCase() || '—'}</Text>
+              <Text style={styles.cell}></Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NOM :</Text>
@@ -398,7 +398,7 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
           )}
 
           <Text style={styles.articleText}>
-            Le nominal remboursé s'élève à <Text style={styles.bold}>{formatAmount(contract?.nominalPaid || 0)} FCFA</Text> (chiffres),
+            Le nominal remboursé s'élève à <Text style={styles.bold}>{contract?.nominalPaid || 0} FCFA</Text> (chiffres),
             <Text style={styles.bold}> {numberToWords(contract?.nominalPaid || 0)} francs CFA</Text> (lettres).
           </Text>
 
