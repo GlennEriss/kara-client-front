@@ -277,6 +277,12 @@ export default function ContractCIPaymentsPage() {
       })
     }
 
+    const formatShortDate = (value: unknown): string => {
+      const date = toDateSafe(value)
+      if (!date) return '-'
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    }
+
     const formatMode = (mode?: string): string => {
       const modeMap: Record<string, string> = {
         airtel_money: 'AIRTEL-MONEY',
@@ -347,6 +353,17 @@ export default function ContractCIPaymentsPage() {
       return label
     }
 
+    const isQuotidien = contract.paymentFrequency !== 'MONTHLY'
+    const PERIOD_DAYS = 30
+    const getQuotidienPeriodBounds = (p: PaymentCI): { start: Date; end: Date } | null => {
+      const first = toDateSafe(contract.firstPaymentDate)
+      if (!first) return null
+      const start = addMonths(first, p.monthIndex)
+      const end = new Date(start)
+      end.setDate(end.getDate() + PERIOD_DAYS - 1)
+      return { start, end }
+    }
+
     const memberLastName = member?.lastName || contract.memberLastName || 'INCONNU'
     const memberFirstName = member?.firstName || contract.memberFirstName || 'INCONNU'
     const memberMatricule = member?.matricule || contract.memberId || contract.id || '-'
@@ -375,6 +392,7 @@ export default function ContractCIPaymentsPage() {
     const emergencyId = contract.emergencyContact?.idNumber || '-'
 
     const unpaidCount = sortedPayments.filter((payment) => payment.status !== 'PAID').length
+    const paidCount = sortedPayments.filter((payment) => payment.status === 'PAID').length
     const totalCotisation = sortedPayments.reduce((sum, payment) => sum + (payment.targetAmount || 0), 0)
     const totalPaid = sortedPayments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
     const totalUnpaid = Math.max(totalCotisation - totalPaid, 0)
@@ -482,7 +500,15 @@ export default function ContractCIPaymentsPage() {
       doc.setFont('times', 'bold')
       doc.setFontSize(10)
       doc.setTextColor(...colors.navy)
-      doc.text(`VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`, marginX + 3, startY + 5.4)
+      if (isQuotidien) {
+        const bounds = getQuotidienPeriodBounds(payment)
+        const titleText = bounds
+          ? `VERSEMENT ${payment.monthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
+          : `VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`
+        doc.text(titleText, marginX + 3, startY + 5.4)
+      } else {
+        doc.text(`VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`, marginX + 3, startY + 5.4)
+      }
 
       const tableY = startY + titleHeight
       doc.setDrawColor(...colors.line)
@@ -505,10 +531,12 @@ export default function ContractCIPaymentsPage() {
       doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
 
       const isPaymentCompleted = payment.status === 'PAID' || payment.accumulatedAmount >= payment.targetAmount
-      const displayedAmount = isPaymentCompleted ? (payment.targetAmount || 0) : 0
+      const displayedAmount = payment.accumulatedAmount ?? 0
 
       const rowValues = [
-        formatLongDate(getPaymentDueAt(payment)),
+        isQuotidien && getQuotidienPeriodBounds(payment)
+          ? formatLongDate(getQuotidienPeriodBounds(payment)!.end)
+          : formatLongDate(getPaymentDueAt(payment)),
         formatLongDate(getPaymentPaidAt(payment)),
         `${formatAmountForPDF(displayedAmount)} FCFA`,
         getPaymentTime(payment),
@@ -578,7 +606,7 @@ export default function ContractCIPaymentsPage() {
       [
         { leftLabel: 'NOM', leftValue: emergencyContactName, rightLabel: 'LIEN', rightValue: emergencyRelation },
         { leftLabel: 'TELEPHONE 1', leftValue: emergencyPhone1, rightLabel: 'TELEPHONE 2', rightValue: emergencyPhone2 },
-        { leftLabel: 'N°CNI/PASS/CS', leftValue: emergencyId, rightLabel: 'OBSERVATION', rightValue: 'CAISSE IMPREVUE' },
+        { leftLabel: 'N°CNI/PASS/CS', leftValue: emergencyId, rightLabel: '', rightValue: '' },
       ],
       yCursor + 17.2
     )
@@ -644,21 +672,21 @@ export default function ContractCIPaymentsPage() {
       [
         {
           leftLabel: 'NOMBRE DE VERSEMENT',
-          leftValue: String(sortedPayments.length),
+          leftValue: String(paidCount),
           rightLabel: 'MOIS IMPAYE',
           rightValue: String(unpaidCount),
         },
         {
-          leftLabel: 'MONTANT T.COTISATION',
-          leftValue: `${formatAmountForPDF(totalCotisation)} FCFA`,
-          rightLabel: 'MONTANT PAYE',
-          rightValue: `${formatAmountForPDF(totalPaid)} FCFA`,
+          leftLabel: 'MONTANT PAYE',
+          leftValue: `${formatAmountForPDF(totalPaid)} FCFA`,
+          rightLabel: 'MONTANT IMPAYE',
+          rightValue: `${formatAmountForPDF(totalUnpaid)} FCFA`,
         },
         {
-          leftLabel: 'IMPAYE',
-          leftValue: `${formatAmountForPDF(totalUnpaid)} FCFA`,
-          rightLabel: 'TOTAL PENALITES',
-          rightValue: `${formatAmountForPDF(totalPenalties)} FCFA`,
+          leftLabel: 'TOTAL PENALITES',
+          leftValue: `${formatAmountForPDF(totalPenalties)} FCFA`,
+          rightLabel: 'TAXI',
+          rightValue: '',
         },
       ],
       99,
@@ -797,6 +825,23 @@ export default function ContractCIPaymentsPage() {
       return label
     }
 
+    const formatShortDate = (value: unknown): string => {
+      const date = toDateSafe(value)
+      if (!date) return '-'
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    }
+
+    const isQuotidien = contract.paymentFrequency !== 'MONTHLY'
+    const PERIOD_DAYS_CI = 30
+    const getQuotidienPeriodBounds = (p: PaymentCI): { start: Date; end: Date } | null => {
+      const first = toDateSafe(contract.firstPaymentDate)
+      if (!first) return null
+      const start = addMonths(first, p.monthIndex)
+      const end = new Date(start)
+      end.setDate(end.getDate() + PERIOD_DAYS_CI - 1)
+      return { start, end }
+    }
+
     const memberLastName = member?.lastName || contract.memberLastName || 'INCONNU'
     const memberFirstName = member?.firstName || contract.memberFirstName || 'INCONNU'
     const memberMatricule = member?.matricule || contract.memberId || contract.id || '-'
@@ -913,11 +958,12 @@ export default function ContractCIPaymentsPage() {
       return startY + totalHeight
     }
 
-    // Page 1 : identique à Export PDF
+    // Page 1 : identique à Export PDF (même positionnement dynamique pour éviter chevauchement)
     drawPageBackground()
     drawMainTitle(true)
     drawSectionTitle('Informations Personnelles du Membre', 30)
-    drawGridRows(
+    let yCursorPage1 = 38.2
+    yCursorPage1 = drawGridRows(
       [
         { leftLabel: 'MATRICULE', leftValue: memberMatricule, rightLabel: 'ANNEE', rightValue: String(new Date().getFullYear()) },
         { leftLabel: 'MEMBRE', leftValue: 'INDIVIDUEL', rightLabel: 'CODE', rightValue: (contract.id || contractId).slice(0, 16) },
@@ -928,16 +974,16 @@ export default function ContractCIPaymentsPage() {
         { leftLabel: 'SEXE', leftValue: memberGender, rightLabel: 'AGE', rightValue: memberAge },
         { leftLabel: 'QUARTIER', leftValue: memberQuarter, rightLabel: 'PROFESSION', rightValue: memberProfession },
       ],
-      38.2
+      yCursorPage1
     )
-    drawSectionTitle('Informations Concernant Le Contact Urgent', 90.2)
+    drawSectionTitle('Informations Concernant Le Contact Urgent', yCursorPage1 + 9)
     drawGridRows(
       [
         { leftLabel: 'NOM', leftValue: emergencyContactName, rightLabel: 'LIEN', rightValue: emergencyRelation },
         { leftLabel: 'TELEPHONE 1', leftValue: emergencyPhone1, rightLabel: 'TELEPHONE 2', rightValue: emergencyPhone2 },
-        { leftLabel: 'N°CNI/PASS/CS', leftValue: emergencyId, rightLabel: 'OBSERVATION', rightValue: 'CAISSE IMPREVUE' },
+        { leftLabel: 'N°CNI/PASS/CS', leftValue: emergencyId, rightLabel: '', rightValue: '' },
       ],
-      98.2
+      yCursorPage1 + 17.2
     )
 
     // Page 2 : identique à Export PDF (récap adapté à ce paiement uniquement)
@@ -966,89 +1012,218 @@ export default function ContractCIPaymentsPage() {
     drawGridRows(
       [
         { leftLabel: 'NOMBRE DE VERSEMENT', leftValue: '1', rightLabel: 'MOIS IMPAYE', rightValue: String(unpaidCount) },
-        { leftLabel: 'MONTANT T.COTISATION', leftValue: `${formatAmountForPDF(totalCotisation)} FCFA`, rightLabel: 'MONTANT PAYE', rightValue: `${formatAmountForPDF(totalPaid)} FCFA` },
-        { leftLabel: 'IMPAYE', leftValue: `${formatAmountForPDF(totalUnpaid)} FCFA`, rightLabel: 'TOTAL PENALITES', rightValue: `${formatAmountForPDF(totalPenalties)} FCFA` },
+        { leftLabel: 'MONTANT PAYE', leftValue: `${formatAmountForPDF(totalPaid)} FCFA`, rightLabel: 'MONTANT IMPAYE', rightValue: `${formatAmountForPDF(totalUnpaid)} FCFA` },
+        { leftLabel: 'TOTAL PENALITES', leftValue: `${formatAmountForPDF(totalPenalties)} FCFA`, rightLabel: 'TAXI', rightValue: '' },
       ],
       99,
       { leftLabelWidth: 50, rightLabelWidth: 46, labelFontSize: 8.8, valueFontSize: 9.4 }
     )
 
-    // Bloc "VERSEMENT i DU date" avec une ligne par versement (détail)
+    // Bloc "VERSEMENT i DU date" : Quotidien = tableau 30 jours (comme Journalier CS), Mensuel = détail versements
     const headerHeight = 8
     const rowHeight = 8
     const titleHeight = 8
     const columns = [43, 41, 33, 18, 34, 36, 64]
-    const versements = payment.versements || []
-    const dataRows: Array<{ date: string | null; time: string; amount: number; mode?: string; createdBy?: string; penalty?: number; daysLate?: number }> =
-      versements.length > 0
-        ? versements.map((v) => ({
-            date: (v as any).date ?? null,
-            time: (v as any).time ?? '-',
-            amount: Number((v as any).amount) || 0,
-            mode: (v as any).mode,
-            createdBy: (v as any).createdBy,
-            penalty: (v as any).penalty,
-            daysLate: (v as any).daysLate,
-          }))
-        : [{ date: null, time: '-', amount: 0, mode: '', createdBy: undefined, penalty: 0, daysLate: 0 }]
-    const numDataRows = dataRows.length
-    const tableHeight = headerHeight + numDataRows * rowHeight
-    const totalBlockHeight = titleHeight + tableHeight
-
-    let startY = 130
-    doc.setFillColor(...colors.headerFill)
-    doc.setDrawColor(...colors.line)
-    doc.setLineWidth(0.2)
-    doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
-    doc.setFont('times', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(...colors.navy)
-    doc.text(`VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`, marginX + 3, startY + 5.4)
-
-    const tableY = startY + titleHeight
-    doc.setDrawColor(...colors.line)
-    doc.rect(marginX, tableY, contentWidth, tableHeight)
-    doc.setFillColor(225, 235, 245)
-    doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
-
     const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
-    let cursorX = marginX
-    headers.forEach((header, index) => {
-      const width = columns[index]
-      if (index > 0) doc.line(cursorX, tableY, cursorX, tableY + tableHeight)
-      doc.setFont('times', 'bold')
-      doc.setFontSize(8.7)
-      doc.setTextColor(32, 32, 32)
-      doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
-      cursorX += width
-    })
-    doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
+    let startY = 130
 
-    const dueDateStr = formatLongDate(getPaymentDueAt(payment))
-    dataRows.forEach((v, rowIndex) => {
-      const rowY = tableY + headerHeight + rowIndex * rowHeight
-      if (rowIndex > 0) doc.line(marginX, rowY, marginX + contentWidth, rowY)
-      const dateRemise = v.date ? formatLongDate(v.date) : '-'
-      const remark = (v.penalty && v.penalty > 0) || (v.daysLate && v.daysLate > 0) ? `RETARD ${v.daysLate || 0}J` : 'CONFORME'
-      const rowValues = [
-        dueDateStr,
-        dateRemise,
-        `${formatAmountForPDF(v.amount)} FCFA`,
-        v.time || '-',
-        formatMode(v.mode),
-        getAdminNameForExport(v.createdBy),
-        remark,
-      ]
-      cursorX = marginX
-      rowValues.forEach((value, colIndex) => {
-        const width = columns[colIndex]
-        doc.setFont('times', 'normal')
-        doc.setFontSize(8.9)
-        doc.setTextColor(18, 18, 18)
-        doc.text(String(value), cursorX + width / 2, rowY + 5.3, { align: 'center' })
+    if (isQuotidien) {
+      const bounds = getQuotidienPeriodBounds(payment)
+      const versements = payment.versements || []
+      const dates: Date[] = []
+      if (bounds) {
+        for (let d = 0; d < PERIOD_DAYS_CI; d++) {
+          const day = new Date(bounds.start)
+          day.setDate(day.getDate() + d)
+          dates.push(day)
+        }
+      }
+      const findVersementForDate = (date: Date): any => {
+        const y = date.getFullYear()
+        const m = date.getMonth()
+        const d = date.getDate()
+        return versements.find((v: any) => {
+          const paid = toDateSafe(v.date)
+          if (!paid) return false
+          return paid.getFullYear() === y && paid.getMonth() === m && paid.getDate() === d
+        })
+      }
+      const totalAmount = versements.reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0)
+      const ROWS_PER_PAGE = 18
+
+      const drawJournalierChunk = (
+        chunkRows: Date[],
+        chunkStartY: number,
+        options?: { totalAmount?: number }
+      ) => {
+        const hasTotalRow = options?.totalAmount != null
+        const chunkHeight =
+          headerHeight + chunkRows.length * rowHeight + (hasTotalRow ? rowHeight : 0)
+        doc.setLineWidth(0.2)
+        doc.setDrawColor(...colors.line)
+        doc.rect(marginX, chunkStartY, contentWidth, chunkHeight)
+        doc.setFillColor(225, 235, 245)
+        doc.rect(marginX, chunkStartY, contentWidth, headerHeight, 'F')
+        let cursorX = marginX
+        headers.forEach((header, index) => {
+          const width = columns[index]
+          if (index > 0) doc.line(cursorX, chunkStartY, cursorX, chunkStartY + chunkHeight)
+          doc.setFont('times', 'bold')
+          doc.setFontSize(8.7)
+          doc.setTextColor(32, 32, 32)
+          doc.text(header, cursorX + width / 2, chunkStartY + 5.3, { align: 'center' })
+          cursorX += width
+        })
+        doc.line(marginX, chunkStartY + headerHeight, marginX + contentWidth, chunkStartY + headerHeight)
+        chunkRows.forEach((date: Date, idx: number) => {
+          const rowY = chunkStartY + headerHeight + idx * rowHeight
+          if (idx > 0) doc.line(marginX, rowY, marginX + contentWidth, rowY)
+          const v = findVersementForDate(date)
+          const rowValues = v
+            ? [
+                formatShortDate(date),
+                formatShortDate(v.date),
+                `${formatAmountForPDF(Number(v.amount) || 0)} FCFA`,
+                v.time || '-',
+                formatMode(v.mode),
+                getAdminNameForExport(v.createdBy),
+                'CONFORME',
+              ]
+            : [
+                formatShortDate(date),
+                '-',
+                '0 FCFA',
+                '-',
+                '-',
+                '-',
+                'NON CONFORME',
+              ]
+          cursorX = marginX
+          rowValues.forEach((value, colIndex) => {
+            const width = columns[colIndex]
+            doc.setFont('times', 'normal')
+            doc.setFontSize(8.9)
+            doc.setTextColor(18, 18, 18)
+            doc.text(String(value), cursorX + width / 2, rowY + 5.3, { align: 'center' })
+            cursorX += width
+          })
+        })
+        if (hasTotalRow) {
+          const totalRowY = chunkStartY + headerHeight + chunkRows.length * rowHeight
+          doc.line(marginX, totalRowY, marginX + contentWidth, totalRowY)
+          const totalRowValues = [
+            'TOTAL',
+            '-',
+            `${formatAmountForPDF(options!.totalAmount!)} FCFA`,
+            '-',
+            '-',
+            '-',
+            '-',
+          ]
+          cursorX = marginX
+          totalRowValues.forEach((value, colIndex) => {
+            const width = columns[colIndex]
+            doc.setFont('times', 'bold')
+            doc.setFontSize(8.9)
+            doc.setTextColor(18, 18, 18)
+            doc.text(String(value), cursorX + width / 2, totalRowY + 5.3, { align: 'center' })
+            cursorX += width
+          })
+        }
+      }
+
+      doc.setFillColor(...colors.headerFill)
+      doc.setDrawColor(...colors.line)
+      doc.setLineWidth(0.2)
+      doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
+      doc.setFont('times', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...colors.navy)
+      const titleText = bounds
+        ? `VERSEMENT ${payment.monthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
+        : `VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`
+      doc.text(titleText, marginX + 3, startY + 5.4)
+
+      const tableYFirst = startY + titleHeight
+      const firstChunk = dates.slice(0, ROWS_PER_PAGE)
+      const secondChunk = dates.slice(ROWS_PER_PAGE)
+      drawJournalierChunk(firstChunk, tableYFirst)
+      if (secondChunk.length > 0) {
+        doc.addPage()
+        drawPageBackground()
+        drawMainTitle()
+        drawJournalierChunk(secondChunk, 28, { totalAmount })
+      }
+    } else {
+      const versements = payment.versements || []
+      const dataRows: Array<{ date: string | null; time: string; amount: number; mode?: string; createdBy?: string; penalty?: number; daysLate?: number }> =
+        versements.length > 0
+          ? versements.map((v) => ({
+              date: (v as any).date ?? null,
+              time: (v as any).time ?? '-',
+              amount: Number((v as any).amount) || 0,
+              mode: (v as any).mode,
+              createdBy: (v as any).createdBy,
+              penalty: (v as any).penalty,
+              daysLate: (v as any).daysLate,
+            }))
+          : [{ date: null, time: '-', amount: 0, mode: '', createdBy: undefined, penalty: 0, daysLate: 0 }]
+      const numDataRows = dataRows.length
+      const tableHeight = headerHeight + numDataRows * rowHeight
+
+      doc.setFillColor(...colors.headerFill)
+      doc.setDrawColor(...colors.line)
+      doc.setLineWidth(0.2)
+      doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
+      doc.setFont('times', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...colors.navy)
+      doc.text(`VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`, marginX + 3, startY + 5.4)
+
+      const tableY = startY + titleHeight
+      doc.setDrawColor(...colors.line)
+      doc.rect(marginX, tableY, contentWidth, tableHeight)
+      doc.setFillColor(225, 235, 245)
+      doc.rect(marginX, tableY, contentWidth, headerHeight, 'F')
+
+      let cursorX = marginX
+      headers.forEach((header, index) => {
+        const width = columns[index]
+        if (index > 0) doc.line(cursorX, tableY, cursorX, tableY + tableHeight)
+        doc.setFont('times', 'bold')
+        doc.setFontSize(8.7)
+        doc.setTextColor(32, 32, 32)
+        doc.text(header, cursorX + width / 2, tableY + 5.3, { align: 'center' })
         cursorX += width
       })
-    })
+      doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
+
+      const dueDateStr = formatLongDate(getPaymentDueAt(payment))
+      dataRows.forEach((v, rowIndex) => {
+        const rowY = tableY + headerHeight + rowIndex * rowHeight
+        if (rowIndex > 0) doc.line(marginX, rowY, marginX + contentWidth, rowY)
+        const dateRemise = v.date ? formatLongDate(v.date) : '-'
+        const remark = (v.penalty && v.penalty > 0) || (v.daysLate && v.daysLate > 0) ? `RETARD ${v.daysLate || 0}J` : 'CONFORME'
+        const rowValues = [
+          dueDateStr,
+          dateRemise,
+          `${formatAmountForPDF(v.amount)} FCFA`,
+          v.time || '-',
+          formatMode(v.mode),
+          getAdminNameForExport(v.createdBy),
+          remark,
+        ]
+        cursorX = marginX
+        rowValues.forEach((value, colIndex) => {
+          const width = columns[colIndex]
+          doc.setFont('times', 'normal')
+          doc.setFontSize(8.9)
+          doc.setTextColor(18, 18, 18)
+          doc.text(String(value), cursorX + width / 2, rowY + 5.3, { align: 'center' })
+          cursorX += width
+        })
+      })
+    }
 
     const pageCount = doc.getNumberOfPages()
     for (let page = 1; page <= pageCount; page += 1) {

@@ -993,7 +993,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           defaultAmount={contract.subscriptionCIAmountPerMonth}
           isMonthly={true}
           contractId={contract.id}
-          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl } : undefined}
+          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl, agentRecouvrementId: editVersement.versement.agentRecouvrementId } : undefined}
           submitLabel={editVersement ? 'Modifier le versement' : undefined}
         />
 

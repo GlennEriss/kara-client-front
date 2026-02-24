@@ -34,14 +34,14 @@ import {
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { useAdmin } from '@/hooks/admin/useAdmin'
 import { useAuth } from '@/hooks/useAuth'
+import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Image from 'next/image'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { toast } from 'sonner'
+import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
 
-// Helper pour formater les montants correctement dans les PDFs
+// Helper pour formater les montants correctement dans l'UI
 const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
@@ -76,6 +76,8 @@ export default function PaymentReceiptCIModal({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy ?? '')
   const { user } = useAuth()
+  const { data: agents = [] } = useAgentsActifs()
+  const agentsMap = React.useMemo(() => Object.fromEntries(agents.map((a) => [a.id, a])), [agents])
 
   const adminInfo = React.useMemo(() => {
     if (!payment.updatedBy) return null
@@ -115,186 +117,16 @@ export default function PaymentReceiptCIModal({
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
-
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      let yPos = 20
-
-      // En-tête
-      doc.setFillColor(35, 77, 101) // #234D65
-      doc.rect(0, 0, pageWidth, 40, 'F')
-      
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('REÇU DE PAIEMENT', pageWidth / 2, 20, { align: 'center' })
-      
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Caisse Imprévue - KARA', pageWidth / 2, 30, { align: 'center' })
-
-      yPos = 50
-
-      // Informations du contrat
-      doc.setTextColor(0, 0, 0)
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 50, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('INFORMATIONS DU CONTRAT', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Membre: ${contract.memberFirstName} ${contract.memberLastName}`, 15, yPos)
-      doc.text(`N° Contrat: ${contract.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Forfait: ${contract.subscriptionCICode} - ${contract.subscriptionCILabel || 'Caisse Imprévue'}`, 15, yPos)
-      doc.text(`Période: ${isMonthly ? `Mois ${payment.monthIndex + 1}` : formatDate(payment.versements[0]?.date || '')}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Date d'émission: ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}`, 15, yPos)
-
-      yPos += 15
-
-      // Statut du paiement
-      doc.setFillColor(34, 197, 94) // green-600
-      doc.rect(10, yPos, pageWidth - 20, 12, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('✓ PAIEMENT COMPLÉTÉ', 15, yPos + 8)
-      doc.text(`${formatAmount(payment.accumulatedAmount)} FCFA`, pageWidth - 15, yPos + 8, { align: 'right' })
-
-      yPos += 20
-      doc.setTextColor(0, 0, 0)
-
-      // Tableau des versements
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('DÉTAILS DES VERSEMENTS', 15, yPos)
-      
-      yPos += 5
-
-      const tableData = payment.versements.map((versement: VersementCI, index: number) => {
-        const modeConfig = PAYMENT_MODE_LABELS[versement.mode]
-        return [
-          `#${index + 1}`,
-          formatDate(versement.date),
-          versement.time,
-          modeConfig.label,
-          `${formatAmount(versement.amount)} FCFA`,
-          versement.penalty && versement.penalty > 0 ? `${formatAmount(versement.penalty)} FCFA` : '-'
-        ]
-      })
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['#', 'Date', 'Heure', 'Mode', 'Montant', 'Pénalité']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: [35, 77, 101],
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold',
-          halign: 'center'
-        },
-        bodyStyles: {
-          fontSize: 9,
-          halign: 'center'
-        },
-        columnStyles: {
-          0: { cellWidth: 15, halign: 'center' },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' },
-          5: { cellWidth: 35, halign: 'right' }
-        },
-        alternateRowStyles: {
-          fillColor: [245, 245, 245]
-        }
-      })
-
-      yPos = (doc as any).lastAutoTable.finalY + 10
-
-      // Modification du versement (si présent)
-      if (payment.modificationReason ?? payment.updatedAt) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(0, 0, 0)
-        doc.text('MODIFICATION DU VERSEMENT', 15, yPos)
-        yPos += 6
-        doc.setDrawColor(245, 158, 11)
-        doc.setFillColor(255, 251, 235)
-        doc.rect(10, yPos - 2, pageWidth - 20, 1, 'F')
-        doc.rect(10, yPos - 2, pageWidth - 20, 28, 'S')
-        yPos += 6
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        if (payment.updatedAt) {
-          const modDate = payment.updatedAt instanceof Date ? payment.updatedAt : new Date(payment.updatedAt as string | number)
-          if (!isNaN(modDate.getTime())) {
-            doc.text(`Date de modification: ${modDate.toLocaleDateString('fr-FR')} à ${modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 15, yPos)
-            yPos += 6
-          }
-        }
-        if (payment.updatedBy) {
-          const modifierName = adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : payment.updatedBy
-          doc.text(`Modifié par: ${modifierName} (${payment.updatedBy})`, 15, yPos)
-          yPos += 6
-        }
-        if (payment.modificationReason) {
-          doc.text('Motif: ' + payment.modificationReason, 15, yPos)
-          yPos += 8
-        }
-        yPos += 6
+      const getAdminDisplayName = (adminId: string | undefined) => {
+        if (adminId === payment.updatedBy && adminInfo)
+          return `${adminInfo.firstName} ${adminInfo.lastName}`
+        return adminId || '-'
       }
-
-      // Résumé
-      doc.setFillColor(240, 249, 255)
-      doc.rect(10, yPos, pageWidth - 20, 35, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Objectif mensuel:`, 15, yPos)
-      doc.text(`${formatAmount(payment.targetAmount)} FCFA`, pageWidth - 15, yPos, { align: 'right' })
-      
-      yPos += 7
-      doc.text(`Nombre de versements:`, 15, yPos)
-      doc.text(`${payment.versements.length}`, pageWidth - 15, yPos, { align: 'right' })
-      
-      yPos += 10
-      doc.setDrawColor(35, 77, 101)
-      doc.setLineWidth(0.5)
-      doc.line(15, yPos - 2, pageWidth - 15, yPos - 2)
-      
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(35, 77, 101)
-      doc.text('TOTAL VERSÉ:', 15, yPos + 5)
-      doc.text(`${formatAmount(payment.accumulatedAmount)} FCFA`, pageWidth - 15, yPos + 5, { align: 'right' })
-
-      // Footer
-      yPos = pageHeight - 20
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'italic')
-      doc.setTextColor(100, 100, 100)
-      doc.text('Ce document est généré automatiquement par le système KARA', pageWidth / 2, yPos, { align: 'center' })
-      doc.text(`Page 1/1 - Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, pageWidth / 2, yPos + 5, { align: 'center' })
-
-      // Télécharger le PDF
-      const fileName = `Recu_CI_${contract.memberLastName}_${contract.memberFirstName}_M${payment.monthIndex + 1}_${format(new Date(), 'ddMMyyyy')}.pdf`
-      doc.save(fileName)
-      
-      toast.success('PDF téléchargé avec succès', {
-        description: `Fichier: ${fileName}`
+      await generateSingleVersementCIPDF(contract, payment, {
+        contractId: contract.id,
+        getAdminDisplayName,
       })
+      toast.success('PDF téléchargé avec succès')
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error)
       toast.error('Erreur lors de la génération du PDF')
@@ -431,6 +263,16 @@ export default function PaymentReceiptCIModal({
                               </Badge>
                             )}
                           </div>
+
+                          {versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId] && (
+                            <div className="flex items-center gap-2 text-sm text-[#224D62]">
+                              <User className="h-4 w-4" />
+                              <span className="font-medium">Agent de recouvrement :</span>
+                              <span>
+                                {agentsMap[versement.agentRecouvrementId].nom} {agentsMap[versement.agentRecouvrementId].prenom}
+                              </span>
+                            </div>
+                          )}
 
                           <div className="pt-2">
                             <p className="text-2xl font-bold text-[#224D62]">
