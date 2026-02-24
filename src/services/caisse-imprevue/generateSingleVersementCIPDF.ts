@@ -287,30 +287,13 @@ export async function generateSingleVersementCIPDF(
   ]
   drawGridRows(contractRows, 38.2)
 
-  doc.setFillColor(...colors.headerFill)
-  doc.setDrawColor(...colors.line)
-  doc.rect(marginX, 90, contentWidth, 8, 'FD')
-  doc.setFont('times', 'bold')
-  doc.setFontSize(10.5)
-  doc.setTextColor(...colors.navy)
-  doc.text('GESTION DES VERSEMENTS CAISSE IMPREVUE TABLEAU RECAPITULATIF CI-DESSOUS', pageWidth / 2, 95.3, { align: 'center' })
-
-  drawGridRows(
-    [
-      { leftLabel: 'NOMBRE DE VERSEMENT', leftValue: '1', rightLabel: 'MOIS IMPAYE', rightValue: String(unpaidCount) },
-      { leftLabel: 'MONTANT PAYE', leftValue: `${formatAmountForPDF(totalPaid)} FCFA`, rightLabel: 'MONTANT IMPAYE', rightValue: `${formatAmountForPDF(totalUnpaid)} FCFA` },
-      { leftLabel: 'TOTAL PENALITES', leftValue: `${formatAmountForPDF(totalPenalties)} FCFA`, rightLabel: 'TAXI', rightValue: '' },
-    ],
-    99,
-    { leftLabelWidth: 50, rightLabelWidth: 46, labelFontSize: 8.8, valueFontSize: 9.4 }
-  )
-
+  // Section "GESTION DES VERSEMENTS... TABLEAU RECAPITULATIF" réservée à l’export global (Export PDF), pas au PDF single (bouton PDF / Télécharger en PDF)
   const headerHeight = 8
   const rowHeight = 8
   const titleHeight = 8
   const columns = [43, 41, 33, 18, 34, 36, 64]
   const headers = ['DATE ECHEANCE', 'DATE REMISE', 'MONTANT', 'HEURE', 'MOYEN /TRANS', 'AGENT', 'REMARQUE']
-  let startY = 130
+  const startY = 90 // après le grid "Informations concernant la Caisse Imprévue" (38.2 + 6*8 ≈ 86)
 
   if (isQuotidien) {
     const bounds = getQuotidienPeriodBounds(payment)
@@ -334,7 +317,7 @@ export async function generateSingleVersementCIPDF(
       })
     }
     const totalAmount = versements.reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0)
-    const ROWS_PER_PAGE = 18
+    const ROWS_PER_PAGE = 11 // Page 2 : 12 lignes ; page 3 : 18 lignes + TOTAL
 
     const drawJournalierChunk = (
       chunkRows: Date[],
@@ -408,19 +391,24 @@ export async function generateSingleVersementCIPDF(
       }
     }
 
+    // Quotidien : tableau des versements d'échéances sur une page dédiée (évite le découpage en bas de la page 2)
+    doc.addPage()
+    drawPageBackground()
+    drawMainTitle()
+    const tablePageStartY = 28
     doc.setFillColor(...colors.headerFill)
     doc.setDrawColor(...colors.line)
     doc.setLineWidth(0.2)
-    doc.rect(marginX, startY, contentWidth, titleHeight, 'FD')
+    doc.rect(marginX, tablePageStartY, contentWidth, titleHeight, 'FD')
     doc.setFont('times', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(...colors.navy)
     const titleText = bounds
       ? `VERSEMENT ${payment.monthIndex + 1} DU ${formatShortDate(bounds.start)} AU ${formatShortDate(bounds.end)}`
       : `VERSEMENT ${payment.monthIndex + 1} DU ${formatLongDate(getPaymentDueAt(payment))}`
-    doc.text(titleText, marginX + 3, startY + 5.4)
+    doc.text(titleText, marginX + 3, tablePageStartY + 5.4)
 
-    const tableYFirst = startY + titleHeight
+    const tableYFirst = tablePageStartY + titleHeight
     const firstChunk = dates.slice(0, ROWS_PER_PAGE)
     const secondChunk = dates.slice(ROWS_PER_PAGE)
     drawJournalierChunk(firstChunk, tableYFirst)
