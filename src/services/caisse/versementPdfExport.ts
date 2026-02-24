@@ -192,6 +192,7 @@ export function buildVersementPDFFirstTwoPages(
   const emergencyPhone2 = contract.emergencyContact?.phone2 || '-'
   const emergencyId = contract.emergencyContact?.idNumber || '-'
   const unpaidCount = sortedPayments.filter((p) => p.status !== 'PAID').length
+  const paidCount = sortedPayments.filter((p) => p.status === 'PAID').length
   const isJournalierType =
     contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
   const totalCotisation = isJournalierType
@@ -609,7 +610,7 @@ export function buildVersementPDFFirstTwoPages(
       [
         {
           leftLabel: 'NOMBRE DE VERSEMENT',
-          leftValue: String(sortedPayments.length),
+          leftValue: String(paidCount),
           rightLabel: 'MOIS IMPAYE',
           rightValue: String(unpaidCount),
         },

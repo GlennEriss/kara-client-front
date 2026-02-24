@@ -51,7 +51,7 @@ interface PaymentCSModalProps {
   description: string
   defaultAmount?: number
   /** Données initiales pour le mode modification (préremplit le formulaire) */
-  initialData?: { date: string; time: string; amount: number; mode: PaymentMode; proofUrl?: string }
+  initialData?: { date: string; time: string; amount: number; mode: PaymentMode; proofUrl?: string; agentRecouvrementId?: string }
   /** Libellé du bouton de soumission (ex: "Modifier le versement" en édition) */
   submitLabel?: string
   isGroupContract?: boolean
@@ -98,6 +98,7 @@ export default function PaymentCSModal({
           amount: initialData.amount,
           mode: initialData.mode,
         })
+        setAgentRecouvrementId(initialData.agentRecouvrementId ?? '')
       } else {
         setFormData({
           date: new Date().toISOString().split('T')[0],
@@ -108,9 +109,9 @@ export default function PaymentCSModal({
           amount: defaultAmount,
           mode: 'airtel_money',
         })
+        setAgentRecouvrementId('')
       }
       setProofFile(undefined)
-      setAgentRecouvrementId('')
       setModificationReason('')
     }
   }, [isOpen, defaultAmount, initialData])
