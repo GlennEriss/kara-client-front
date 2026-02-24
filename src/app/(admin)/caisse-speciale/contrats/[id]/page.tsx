@@ -66,7 +66,7 @@ export default function AdminCaisseContractDetailsPage() {
 		const type = (data as any).caisseType || 'STANDARD'
 		// Journalière et Journalière Charitable : même interface de saisie journalière
 		if (type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE') return <DailyContract id={id} />
-		if (type === 'LIBRE') return <FreeContract id={id} />
+		if (type === 'LIBRE' || type === 'LIBRE_CHARITABLE') return <FreeContract id={id} />
 		return <StandardContract id={id} />
 	}
 

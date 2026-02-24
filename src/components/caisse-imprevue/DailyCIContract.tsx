@@ -23,7 +23,6 @@ import {
   TrendingUp,
   Clock,
   Pencil,
-  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
@@ -1037,47 +1036,10 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                       )
                     } else if (hasPayment) {
                       dayStyle = 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
-                      const mi = calculateMonthIndex(date, contract.firstPaymentDate)
-                      const payment = payments.find((p: any) => p.monthIndex === mi)
-                      const dateStr = date.toISOString().split('T')[0]
-                      const versement = payment?.versements?.find((v: any) => v.date === dateStr)
                       dayContent = (
-                        <>
-                          <div className="flex items-center justify-center gap-0.5 text-xs text-green-600">
-                            <CheckCircle className="h-3 w-3" />
-                          </div>
-                          <div className="flex flex-col gap-0.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-6 w-full text-[10px] px-1 text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
-                              onClick={() => {
-                                setSelectedDate(date)
-                                setShowReceiptModal(true)
-                              }}
-                            >
-                              <Eye className="h-2.5 w-2.5 mr-0.5" />
-                              Facture
-                            </Button>
-                            {!isContractTerminated && versement && payment && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="h-6 w-full text-[10px] px-1 text-amber-700 border-amber-300 hover:bg-amber-50"
-                                onClick={() => {
-                                  setSelectedDate(date)
-                                  setEditVersement({ payment, versement })
-                                  setShowPaymentModal(true)
-                                }}
-                              >
-                                <Pencil className="h-2.5 w-2.5 mr-0.5" />
-                                Modifier
-                              </Button>
-                            )}
-                          </div>
-                        </>
+                        <div className="flex items-center justify-center gap-0.5 text-xs text-green-600">
+                          <CheckCircle className="h-3 w-3" />
+                        </div>
                       )
                     } else {
                       const today = new Date()
@@ -1443,7 +1405,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           isMonthly={false}
           isDateFixed={!!editVersement}
           contractId={contract.id}
-          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl } : undefined}
+          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl, agentRecouvrementId: editVersement.versement.agentRecouvrementId } : undefined}
           submitLabel={editVersement ? 'Modifier le versement' : undefined}
         />
 

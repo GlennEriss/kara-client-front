@@ -646,6 +646,7 @@ export async function updatePaymentContribution(input: {
     paidAt?: Date
     /** Motif de la modification (traçabilité) */
     modificationReason?: string
+    agentRecouvrementId?: string
   }
 }) {
   const { contractId, paymentId, contributionId, updates } = input
@@ -668,6 +669,7 @@ export async function updatePaymentContribution(input: {
         mode: payment.mode,
         proofUrl: payment.proofUrl,
         memberId: (contract as any)?.memberId,
+        ...((payment as any).agentRecouvrementId && { agentRecouvrementId: (payment as any).agentRecouvrementId }),
       }]
     } else {
       throw new Error('Aucune contribution trouvée dans ce paiement')
@@ -722,6 +724,7 @@ export async function updatePaymentContribution(input: {
     proofUrl: newProofUrl || contribution.proofUrl,
     memberId: updates.memberId || contribution.memberId, // Ajouter l'ID du membre du groupe
     ...(newPaidAt && { paidAt: newPaidAt }),
+    ...(updates.agentRecouvrementId !== undefined && { agentRecouvrementId: updates.agentRecouvrementId || undefined }),
     updatedAt: new Date()
   }
   
@@ -748,9 +751,12 @@ export async function updatePaymentContribution(input: {
     updatedAt: new Date(),
     updatedBy: auth?.currentUser?.uid || contractId
   }
-  // Garder le montant au niveau paiement en sync (affichage "Montant versé" et contrats STANDARD)
+  // Garder le montant et l'agent au niveau paiement en sync (affichage et préremplissage en édition)
   if (updatedContribs.length === 1) {
     paymentPayload.amount = newAmount
+    if (updates.agentRecouvrementId !== undefined) {
+      paymentPayload.agentRecouvrementId = updates.agentRecouvrementId || null
+    }
   }
   if (newPaidAt) {
     paymentPayload.paidAt = newPaidAt instanceof Date ? Timestamp.fromDate(newPaidAt) : newPaidAt

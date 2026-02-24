@@ -378,6 +378,7 @@ export default function ContractPaymentsPage() {
     const emergencyPhone2 = contract.emergencyContact?.phone2 || '-'
     const emergencyId = contract.emergencyContact?.idNumber || '-'
     const unpaidCount = sortedPayments.filter((p) => p.status !== 'PAID').length
+    const paidCount = sortedPayments.filter((p) => p.status === 'PAID').length
     const isJournalierType = contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
     const totalCotisation = isJournalierType
       ? sortedPayments.length * (Number(contract.monthlyAmount) || 0)
@@ -627,7 +628,7 @@ export default function ContractPaymentsPage() {
     doc.text('GESTION DES VERSEMENTS CAISSE SPECIALE TABLEAU RECAPITULATIF CI-DESSOUS', pageWidth / 2, 95.3, { align: 'center' })
     drawGridRows(
       [
-        { leftLabel: 'NOMBRE DE VERSEMENT', leftValue: String(sortedPayments.length), rightLabel: 'MOIS IMPAYE', rightValue: String(unpaidCount) },
+        { leftLabel: 'NOMBRE DE VERSEMENT', leftValue: String(paidCount), rightLabel: 'MOIS IMPAYE', rightValue: String(unpaidCount) },
         { leftLabel: 'MONTANT PAYE', leftValue: `${formatAmountForPDF(totalPaid)} FCFA`, rightLabel: 'MONTANT IMPAYE', rightValue: `${formatAmountForPDF(totalUnpaid)} FCFA` },
         { leftLabel: 'TOTAL PENALITES', leftValue: `${formatAmountForPDF(totalPenalties)} FCFA`, rightLabel: 'TAXI', rightValue: '' },
       ],
@@ -807,7 +808,11 @@ export default function ContractPaymentsPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Montant mensuel</p>
-              <p className="text-base text-gray-900">{contract.monthlyAmount?.toLocaleString()} FCFA</p>
+              <p className="text-base text-gray-900">
+                {['LIBRE', 'LIBRE_CHARITABLE', 'JOURNALIERE', 'JOURNALIERE_CHARITABLE'].includes(contract.caisseType)
+                  ? 'Libre'
+                  : `${contract.monthlyAmount?.toLocaleString() ?? 0} FCFA`}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Durée</p>

@@ -309,6 +309,7 @@ export default function StandardContract({ id }: Props) {
             proofFile: paymentData.proofFile,
             paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
             modificationReason: paymentData.modificationReason,
+            agentRecouvrementId: paymentData.agentRecouvrementId,
           },
         })
         await queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
@@ -682,8 +683,12 @@ export default function StandardContract({ id }: Props) {
           description={editPayment ? 'Modifier la date, l\'heure, le montant ou la preuve du versement.' : 'Enregistrer le versement mensuel'}
           defaultAmount={data.monthlyAmount || 0}
           initialData={editPayment ? (() => {
-            const c = editPayment.payment?.contribs?.[0]
+            const p = editPayment.payment
+            const contribs = p?.contribs ?? []
+            const c = contribs[0]
             if (!c) return undefined
+            const lastContribWithAgent = contribs.length ? [...contribs].reverse().find((x: any) => x.agentRecouvrementId) : null
+            const agentRecouvrementId = (p as any)?.agentRecouvrementId ?? lastContribWithAgent?.agentRecouvrementId ?? c?.agentRecouvrementId ?? ''
             const paidAt = c.paidAt ? (typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)) : new Date()
             return {
               date: paidAt.toISOString().split('T')[0],
@@ -691,6 +696,7 @@ export default function StandardContract({ id }: Props) {
               amount: Number(c.amount) || 0,
               mode: (c.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
               proofUrl: c.proofUrl,
+              agentRecouvrementId: agentRecouvrementId || undefined,
             }
           })() : undefined}
           submitLabel={editPayment ? 'Modifier le versement' : undefined}

@@ -231,6 +231,7 @@ export default function FreeContract({ id }: Props) {
             proofFile: paymentData.proofFile,
             paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
             modificationReason: paymentData.modificationReason,
+            agentRecouvrementId: paymentData.agentRecouvrementId,
           },
         })
         await refetch()
@@ -748,12 +749,14 @@ export default function FreeContract({ id }: Props) {
             const source = c ?? p
             if (!source) return undefined
             const paidAt = (source.paidAt ? (typeof source.paidAt?.toDate === 'function' ? source.paidAt.toDate() : new Date(source.paidAt)) : new Date()) as Date
+            const agentRecouvrementId = (c as any)?.agentRecouvrementId ?? (p as any)?.agentRecouvrementId ?? ''
             return {
               date: paidAt.toISOString().split('T')[0],
               time: (source.time ?? `${String(paidAt.getHours()).padStart(2, '0')}:${String(paidAt.getMinutes()).padStart(2, '0')}`),
               amount: Number(source.amount ?? p?.accumulatedAmount) || 0,
               mode: (source.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
               proofUrl: source.proofUrl ?? p?.proofUrl,
+              agentRecouvrementId: agentRecouvrementId || undefined,
             }
           })() : undefined}
           submitLabel={editPayment ? 'Modifier le versement' : undefined}

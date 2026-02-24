@@ -40,6 +40,7 @@ export interface PaymentCIInitialData {
   amount: number
   mode: PaymentMode
   proofUrl?: string
+  agentRecouvrementId?: string
 }
 
 interface PaymentCIModalProps {
@@ -111,6 +112,7 @@ export default function PaymentCIModal({
         setPaymentTime(initialData.time)
         setPaymentAmount(String(initialData.amount))
         setPaymentMode(initialData.mode)
+        setAgentRecouvrementId(initialData.agentRecouvrementId ?? '')
       } else {
         setPaymentDate(defaultDate || new Date().toISOString().split('T')[0])
         setPaymentTime(() => {
@@ -119,6 +121,7 @@ export default function PaymentCIModal({
         })
         setPaymentAmount(defaultAmount ? String(defaultAmount) : '')
         setPaymentMode('airtel_money')
+        setAgentRecouvrementId('')
       }
       setPaymentFile(undefined)
       setModificationReason('')
