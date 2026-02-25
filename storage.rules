@@ -11,11 +11,13 @@ service firebase.storage {
       return request.auth != null;
     }
     
+    // Important : Storage ne peut pas lire Firestore (pas de get/exists).
+    // Seuls les custom claims (token.role) sont utilisés. Si un admin est reconnu
+    // côté Firestore via la collection admins mais n'a pas token.role, il doit
+    // faire définir son rôle (API update-admin ou script) puis se déconnecter/reconnecter.
     function isAdmin() {
       return isAuthenticated() && (
-        // Vérifier via custom claims (token.role)
-        // Inclut Administrateur pour cohérence avec Firestore
-        (request.auth.token.role != null && 
+        (request.auth.token.role != null &&
          request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur'])
       );
     }

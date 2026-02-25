@@ -542,13 +542,18 @@ export default function ContractPaymentsPage() {
           ? `${formatShortDate(bounds.start)} - ${formatShortDate(bounds.end)}`
           : formatLongDate(payment.dueAt)
         const dateRemise = lastContrib ? formatLongDate(lastContrib.paidAt) : '-'
+        const adminLabelFromContrib = (c: any): string => {
+          const id = c?.updatedBy || c?.createdBy
+          const label = getAdminDisplayName(id)
+          return label && label !== 'Chargement...' ? label : id || '-'
+        }
         rowValues = [
           dateEcheance,
           dateRemise,
           `${formatAmountForPDF(totalAmount)} FCFA`,
-          '-',
-          '-',
-          '-',
+          lastContrib?.time ?? '-',
+          lastContrib ? formatMode(lastContrib.mode) : '-',
+          lastContrib ? adminLabelFromContrib(lastContrib) : '-',
           totalAmount > 0 ? 'CONFORME' : 'NON CONFORME',
         ]
       } else {
