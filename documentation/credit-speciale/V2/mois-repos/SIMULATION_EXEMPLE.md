@@ -4,6 +4,19 @@ Exemple concret : prêt de **1 000 000 FCFA** à **10 %** (taux mensuel), **7 é
 
 ---
 
+## 0. Règle pendant le mois de repos : pas d’intérêts (Option A)
+
+**Question :** Si le mois est au repos, est-ce qu’on ajoute des intérêts ou pas ?
+
+**Réponse (implémentation retenue) :** Pendant un mois de repos, **on n’ajoute pas d’intérêts**. Le capital restant **reste inchangé**. Tout ce que tu devais payer au mois mis au repos (mensualité + intérêts de ce mois) est simplement **reporté** à l’échéance suivante : tu dois toujours le **même capital** au prochain mois.
+
+- **Option A** (retenue) : **pas d’intérêts pendant le repos** → le capital reste inchangé. Ce qui était dû au mois N (repos) est décalé au mois N+1.
+- Option B (non retenue) : intérêts pendant le repos → capital suivant = capital × (1 + taux).
+
+Exemple : après le mois 1 il te reste **105 000 FCFA**. Les mois 2 et 3 sont au repos. En début de mois 4 tu dois **toujours 105 000 FCFA** (aucun intérêt ajouté pendant les repos).
+
+---
+
 ## 1. Sans mois de repos : mensualité
 
 Formule utilisée dans le code (crédit spéciale) :
@@ -70,28 +83,24 @@ Dans les deux cas, **le montant à payer à l’échéance 3 est le même : 278 
 | Contrat basé sur ce remboursement | Oui : 7 échéances × 278 388 ≈ 1 948 716 FCFA (capital + intérêts) |
 | Échéance 1 payée, échéance 2 au repos → combien à l’échéance 3 ? | **278 388 FCFA** (même mensualité) |
 
-La mensualité est **fixe** sur tout le contrat ; le mois de repos décale simplement le calendrier (et éventuellement le reste dû si on choisit l’option B pour les intérêts pendant le repos). Pour la doc “mois de repos”, il reste à acter en règle métier : **option A** (pas d’intérêts pendant le repos) ou **option B** (intérêts courus pendant le repos).
+La mensualité est **fixe** sur tout le contrat ; le mois de repos décale simplement le calendrier. **Option A retenue** : pas d’intérêts pendant le repos, donc le reste dû ne change pas (voir §0).
 
 ---
 
-## 4. Échéances 7 et 8 (option B : intérêts pendant le repos)
+## 4. Échéances avec repos au mois 2 (option A : pas d’intérêts pendant le repos)
 
-On garde le même cas : **1 M**, **10 %**, **échéance 2 au repos**, et on suppose que les **intérêts courent pendant le mois de repos** (option B). Mensualité de référence : **278 388 FCFA**. L’échéancier se déroule sur **8 mois calendaires** (mois 2 = repos).
-
-Suite du tableau après les échéances 1 à 3 (voir §2) :
+On garde le même cas : **1 M**, **10 %**, **échéance 2 au repos**, **pas d’intérêts pendant le repos** (option A). Mensualité de référence : **278 388 FCFA**.
 
 | Mois calendaire | Mois logique | Capital début | Intérêts (10 %) | Montant dû | Versement | Reste dû |
 |-----------------|--------------|---------------|-----------------|------------|-----------|-----------|
 | 1 | 1 | 1 000 000 | 100 000 | 1 100 000 | 278 388 | 821 612 |
-| 2 | repos | — | (capital devient 903 773) | — | 0 | 903 773 |
-| 3 | 2 | 903 773 | 90 377 | 994 150 | 278 388 | 715 762 |
-| 4 | 3 | 715 762 | 71 576 | 787 338 | 278 388 | 508 950 |
-| 5 | 4 | 508 950 | 50 895 | 559 845 | 278 388 | 281 457 |
-| 6 | 5 | 281 457 | 28 146 | 309 603 | 278 388 | **31 215** |
-| 7 | 6 | 31 215 | 3 122 | **34 337** | **34 337** | 0 |
-| 8 | 7 | — | — | — | — | — |
+| 2 | repos | 821 612 | 0 | — | 0 | **821 612** |
+| 3 | 2 | 821 612 | 82 161 | 903 773 | 278 388 | 625 385 |
+| 4 | 3 | 625 385 | 62 539 | 687 924 | 278 388 | 409 536 |
+| 5 | 4 | 409 536 | 40 954 | 450 490 | 278 388 | 172 102 |
+| 6 | 5 | 172 102 | 17 210 | **189 312** | **189 312** | 0 |
 
-À l’**échéance 7** (mois calendaire 7 = **6e mois logique**), le montant dû est **34 337 FCFA** (capital 31 215 + intérêts 3 122). Comme c’est **inférieur à la mensualité** (278 388), on paie **tout le solde** : **34 337 FCFA**. Après ce paiement, le reste dû est 0 ; il n’y a pas d’échéance 8 à payer si tout est réglé à l’échéance 7.
+Avec l’option A, le capital ne bouge pas pendant le repos (mois 2). La dernière échéance est le **mois 6** : montant dû 189 312 FCFA (capital 172 102 + intérêts 17 210), on paie tout le solde. Il n’y a pas d’échéance 7 ou 8 à payer si tout est réglé à l’échéance 6.
 
 ---
 
@@ -169,3 +178,25 @@ Donc :
 - **À l’échéance 11** : si tu as payé **partiellement** au 10, il reste du capital. À l’échéance 11 tu paies ce **capital restant**, **sans intérêt** : il n’y a **pas d’intérêts au 11**.
 
 **Règle générale :** dès que le **7e mois logique** est passé (ici après l’échéance 9), tous les reports (échéances 10, 11, etc.) sont **sans intérêts** — on ne facture que le capital restant jusqu’à solde complet.
+
+---
+
+## 9. Exemple : mensualité 60 000, mois 2 et 3 au repos → combien au mois 4 ?
+
+Données :
+- **Mois 1** : tu paies **60 000 FCFA**. Intérêts du mois : 15 000. Montant global : 165 000. **Reste dû après le mois 1 : 105 000 FCFA.**
+- Mensualité convenue : **60 000 FCFA** par échéance.
+- Taux 10 %.
+
+**Mois 2 au repos :** aucun versement, **pas d’intérêts**. Le capital reste **105 000 FCFA**.
+
+**Mois 3 au repos :** aucun versement, **pas d’intérêts**. Le capital reste **105 000 FCFA**.
+
+**À l’échéance 4 (mois 4) :**
+- Capital en début de mois : **105 000 FCFA** (tu dois toujours 105 000)
+- Intérêts du mois 4 (10 %) : **10 500 FCFA**
+- Montant global dû : **115 500 FCFA**
+- Tu paies la mensualité convenue : **60 000 FCFA**
+- **Reste dû après l’échéance 4 : 55 500 FCFA**
+
+Donc **au mois 4 tu paies 60 000 FCFA** et il te reste **55 500 FCFA** à rembourser. Le capital n’a pas augmenté pendant les mois de repos.

@@ -7,8 +7,9 @@
 ## Sommaire
 
 - [README.md](./README.md) – Ce fichier (vue d’ensemble)
-- [ANALYSE_MOIS_REPOS.md](./ANALYSE_MOIS_REPOS.md) – Analyse détaillée : contraintes, points de casse, conception, plan d’intégration
-- [SIMULATION_EXEMPLE.md](./SIMULATION_EXEMPLE.md) – Exemple chiffré : 1 M FCFA à 10 %, 7 échéances, montant par mois ; cas avec échéance 2 au repos → montant à l’échéance 3
+- [ANALYSE_MOIS_REPOS.md](./ANALYSE_MOIS_REPOS.md) – Analyse détaillée : contraintes, points de casse, conception
+- [PLAN_INTEGRATION_MOIS_REPOS.md](./PLAN_INTEGRATION_MOIS_REPOS.md) – Plan d’intégration global (ordre des lots, fichiers impactés)
+- [SIMULATION_EXEMPLE.md](./SIMULATION_EXEMPLE.md) – Exemple chiffré : 1 M FCFA à 10 %, 7 échéances, montant par mois ; cas avec échéance 2 au repos → montant à l’échéance 3 ; échéances 7–9, deux repos
 
 ---
 

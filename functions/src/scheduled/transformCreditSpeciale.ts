@@ -19,10 +19,6 @@ export async function transformCreditSpecialeToFixe(): Promise<void> {
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
-  // Date de référence : il y a 7 mois
-  const sevenMonthsAgo = new Date(today)
-  sevenMonthsAgo.setMonth(sevenMonthsAgo.getMonth() - 7)
 
   try {
     // Récupérer tous les crédits spéciaux actifs créés il y a plus de 7 mois
@@ -54,8 +50,19 @@ export async function transformCreditSpecialeToFixe(): Promise<void> {
           referenceDate = contract.createdAt?.toDate ? contract.createdAt.toDate() : new Date(contract.createdAt)
         }
 
-        if (!referenceDate || referenceDate > sevenMonthsAgo) {
-          // Le contrat n'a pas encore 7 mois depuis la date de référence, on passe au suivant
+        if (!referenceDate) {
+          continue
+        }
+
+        // Mois calendaires écoulés depuis la date de référence
+        const monthsSinceStart = (today.getFullYear() - referenceDate.getFullYear()) * 12 + (today.getMonth() - referenceDate.getMonth())
+        // Mois de repos déjà passés (monthNumber <= mois calendaire écoulé)
+        const restMonths = contract.restMonths || []
+        const restCountInPeriod = restMonths.filter((r: { monthNumber: number }) => r.monthNumber <= monthsSinceStart).length
+        const logicalMonthsElapsed = monthsSinceStart - restCountInPeriod
+
+        if (logicalMonthsElapsed < 7) {
+          // Pas encore 7 mois logiques écoulés, on passe au suivant
           continue
         }
 
