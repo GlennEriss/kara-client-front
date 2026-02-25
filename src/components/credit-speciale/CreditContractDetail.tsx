@@ -1,67 +1,66 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  ArrowLeft,
-  Calendar,
-  CalendarDays,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  XCircle,
-  History,
-  HandCoins,
-  AlertCircle,
-  FileSignature,
-  Download,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  Shield,
-  FileText,
-  Receipt,
-  Upload,
-  Loader2,
-  Percent,
-  Plus,
-  ExternalLink,
-  Link2,
-  Eye,
-  Pencil,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { CreditContract, CreditPayment, CreditPenalty, CreditContractStatus } from '@/types/types'
-import routes from '@/constantes/routes'
-import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useGuarantorPaymentsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
-import CreditPaymentModal from './CreditPaymentModal'
-import GuarantorPaymentModal from './GuarantorPaymentModal'
-import PaymentReceiptModal from './PaymentReceiptModal'
-import PaymentSummaryModal from './PaymentSummaryModal'
-import CreditExtensionModal from './CreditExtensionModal'
-import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
-import FinalRepaymentModal from './FinalRepaymentModal'
-import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
-import CloseContractModal from './CloseContractModal'
-import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
-import RestMonthModal from './RestMonthModal'
-import { useAuth } from '@/hooks/useAuth'
-import { useQueryClient } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
-import { calculateSchedule } from '@/utils/credit-speciale-calculations'
-import { isRestMonth, getLogicalMonthIndex, isAfterLogicalMonth7 } from '@/utils/credit-speciale-rest-months'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import routes from '@/constantes/routes'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuth } from '@/hooks/useAuth'
+import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract } from '@/hooks/useCreditSpeciale'
+import { cn } from '@/lib/utils'
+import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
+import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import { getLogicalMonthIndex, isAfterLogicalMonth7, isRestMonth } from '@/utils/credit-speciale-rest-months'
+import { useQueryClient } from '@tanstack/react-query'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CalendarDays,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Download,
+    ExternalLink,
+    Eye,
+    FileSignature,
+    FileText,
+    HandCoins,
+    History,
+    Link2,
+    Loader2,
+    Pencil,
+    Percent,
+    Plus,
+    Shield,
+    TrendingUp,
+    Upload,
+    User,
+    XCircle
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import CloseContractModal from './CloseContractModal'
+import CreditExtensionModal from './CreditExtensionModal'
+import CreditPaymentModal from './CreditPaymentModal'
+import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
+import FinalRepaymentModal from './FinalRepaymentModal'
+import GuarantorPaymentModal from './GuarantorPaymentModal'
+import PaymentReceiptModal from './PaymentReceiptModal'
+import PaymentSummaryModal from './PaymentSummaryModal'
+import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
+import RestMonthModal from './RestMonthModal'
+import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -2883,6 +2882,13 @@ export default function CreditContractDetail({
             selectedPayment && selectedPayment.installmentId
               ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
               : (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
+          }
+          schedule={actualSchedule}
+          payments={payments}
+          dueDate={
+            selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
+              ? actualSchedule[selectedDueIndexForReceipt].date
+              : undefined
           }
           onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
             const p = selectedPayment || getSelectedPaymentForReceipt()

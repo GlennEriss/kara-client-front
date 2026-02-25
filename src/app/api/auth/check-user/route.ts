@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/firebase/adminAuth";
 import { adminFirestore } from "@/firebase/adminFirestore";
-import { adminApp } from "@/firebase/admin";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * API Route pour vérifier l'existence d'un utilisateur

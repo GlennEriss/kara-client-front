@@ -1,4 +1,4 @@
-import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
+import { getAuth, type Auth } from "firebase/auth";
 import { app } from "./app";
 
 // Toujours créer auth (même avec config mock pour le build)

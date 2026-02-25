@@ -1,20 +1,20 @@
 'use client'
 
-import React, { useState } from 'react'
-import { finalRepaymentSchema } from '@/schemas/credit-speciale.schema'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { finalRepaymentSchema } from '@/schemas/credit-speciale.schema'
 import { CreditContract } from '@/types/types'
+import { Loader2 } from 'lucide-react'
+import React, { useState } from 'react'
 
 interface FinalRepaymentModalProps {
   isOpen: boolean

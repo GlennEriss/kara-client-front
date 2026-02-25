@@ -1,12 +1,11 @@
 'use client'
 
-import React from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useCreditContract } from '@/hooks/useCreditSpeciale'
 import routes from '@/constantes/routes'
 import { CreditFixeContractDetailSection } from '@/domains/financial/credit-speciale/fixe/contrats/components/CreditFixeContractDetailSection'
+import { useCreditContract } from '@/hooks/useCreditSpeciale'
+import { Loader2 } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
 
 export default function CreditFixeContractDetailPage() {
   const params = useParams()

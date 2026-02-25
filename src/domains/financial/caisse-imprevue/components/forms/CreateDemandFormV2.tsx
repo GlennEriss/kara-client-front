@@ -8,15 +8,15 @@
 
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { UseFormReturn } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Step1Member, Step2Forfait, Step3Contact } from './steps'
-import { ChevronLeft, ChevronRight, Check, Loader2, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Check, ChevronLeft, ChevronRight, Loader2, RotateCcw } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { UseFormReturn } from 'react-hook-form'
 import { toast } from 'sonner'
 import type { CaisseImprevueDemandFormInput } from '../../hooks/useDemandForm'
+import { Step1Member, Step2Forfait, Step3Contact } from './steps'
 
 interface CreateDemandFormV2Props {
   form: UseFormReturn<CaisseImprevueDemandFormInput>

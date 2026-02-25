@@ -1,18 +1,17 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Users, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useCharityParticipants, useRemoveCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import AddParticipantModal from './AddParticipantModal'
 import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { useCharityParticipants, useRemoveCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
+import { ChevronLeft, ChevronRight, Plus, Search, Trash2, Users } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { Trash2 } from 'lucide-react'
+import AddParticipantModal from './AddParticipantModal'
 
 interface CharityGroupsSectionProps {
   eventId: string

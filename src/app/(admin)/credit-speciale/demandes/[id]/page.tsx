@@ -1,10 +1,9 @@
 'use client'
 
-import React from 'react'
-import { useParams } from 'next/navigation'
+import CreditDemandDetail from '@/components/credit-speciale/CreditDemandDetail'
 import { useCreditDemand } from '@/hooks/useCreditSpeciale'
 import { Loader2 } from 'lucide-react'
-import CreditDemandDetail from '@/components/credit-speciale/CreditDemandDetail'
+import { useParams } from 'next/navigation'
 
 export default function CreditDemandDetailPage() {
   const params = useParams()

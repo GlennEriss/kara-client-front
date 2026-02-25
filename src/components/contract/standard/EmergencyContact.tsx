@@ -1,17 +1,17 @@
 "use client"
 
-import React, { useState } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog"
-import { AlertTriangle, Phone, User, Heart, IdCard } from "lucide-react"
-import type { EmergencyContact } from "@/schemas/emergency-contact.schema"
 import { getDocumentTypeLabel } from "@/domains/infrastructure/documents/constants/document-types"
+import type { EmergencyContact } from "@/schemas/emergency-contact.schema"
+import { AlertTriangle, Heart, IdCard, Phone, User } from "lucide-react"
+import { useState } from "react"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI

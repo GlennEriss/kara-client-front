@@ -7,32 +7,32 @@
 
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { Badge } from '@/components/ui/badge'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, Loader2, User, Clock, CheckCircle2, XCircle, RotateCcw, FileSignature } from 'lucide-react'
-import {
-  useDemandDetail,
-  useExportDemandDetails,
-  useAcceptDemand,
-  useRejectDemand,
-  useReopenDemand,
-  useDeleteDemand,
-  useCreateContractFromDemand,
-} from '@/domains/financial/caisse-imprevue/hooks'
-import {
-  AcceptDemandModalV2,
-  RejectDemandModalV2,
-  ReopenDemandModalV2,
-  DeleteDemandModalV2,
-  ConfirmContractModalV2,
-} from '@/domains/financial/caisse-imprevue/components/modals'
-import { DemandDetailV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
-import { useState } from 'react'
+import { DemandDetailV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
+import {
+    AcceptDemandModalV2,
+    ConfirmContractModalV2,
+    DeleteDemandModalV2,
+    RejectDemandModalV2,
+    ReopenDemandModalV2,
+} from '@/domains/financial/caisse-imprevue/components/modals'
+import {
+    useAcceptDemand,
+    useCreateContractFromDemand,
+    useDeleteDemand,
+    useDemandDetail,
+    useExportDemandDetails,
+    useRejectDemand,
+    useReopenDemand,
+} from '@/domains/financial/caisse-imprevue/hooks'
 import { cn } from '@/lib/utils'
+import { ArrowLeft, CheckCircle2, Clock, FileSignature, FileText, Loader2, RotateCcw, User, XCircle } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 const statusConfig: Record<string, { 
   label: string

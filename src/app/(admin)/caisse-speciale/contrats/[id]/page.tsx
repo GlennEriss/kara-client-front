@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useCaisseContract } from '@/hooks/useCaisseContracts'
-import StandardContract from '@/components/contract/StandardContract'
 import DailyContract from '@/components/contract/DailyContract'
 import FreeContract from '@/components/contract/FreeContract'
-import { toast } from 'sonner'
+import StandardContract from '@/components/contract/StandardContract'
+import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { AlertTriangle, Upload } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { toast } from 'sonner'
 
 // Fonction pour vérifier si le contrat a un PDF valide
 const hasValidContractPdf = (contract: any) => {

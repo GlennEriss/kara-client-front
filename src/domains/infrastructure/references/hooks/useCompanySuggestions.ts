@@ -4,9 +4,8 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import { CompanySearchResult } from '../entities/company.types'
 
 export interface CompanySuggestion {
   name: string

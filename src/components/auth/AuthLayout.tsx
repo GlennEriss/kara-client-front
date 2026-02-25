@@ -1,12 +1,12 @@
 'use client'
 
-import React from 'react'
+import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import routes from '@/constantes/routes'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { Logo } from '@/components/logo'
-import routes from '@/constantes/routes'
+import React from 'react'
 
 interface AuthLayoutProps {
   children: React.ReactNode

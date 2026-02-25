@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useEffect } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { X, ChevronLeft, ChevronRight, Download, Video } from 'lucide-react'
-import Image from 'next/image'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { CharityMedia } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react'
+import Image from 'next/image'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 interface CharityMediaLightboxProps {

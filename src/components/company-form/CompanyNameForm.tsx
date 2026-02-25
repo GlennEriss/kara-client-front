@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { UseFormReturn } from 'react-hook-form'
-import { RegisterFormData } from '@/schemas/schemas'
-import { CompanySuggestion } from '@/services/interfaces/IService'
+import SuggestionsInput from '@/components/forms/SuggestionsInput'
 import { CompanyFormMediatorFactory } from '@/factories/CompanyFormMediatorFactory'
 import { useCompanySuggestions } from '@/hooks/company/useCompanySuggestions'
-import SuggestionsInput from '@/components/forms/SuggestionsInput'
+import { RegisterFormData } from '@/schemas/schemas'
+import { CompanySuggestion } from '@/services/interfaces/IService'
 import { Building } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { UseFormReturn } from 'react-hook-form'
 
 interface CompanyNameFormProps {
   form: UseFormReturn<RegisterFormData>

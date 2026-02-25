@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Search, User, X, Phone } from 'lucide-react'
-import { useSearchMembers } from '@/hooks/useMembers'
-import { User as UserType } from '@/types/types'
-import { cn } from '@/lib/utils'
-import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSearchMembers } from '@/hooks/useMembers'
+import { cn } from '@/lib/utils'
+import { User as UserType } from '@/types/types'
+import { Phone, Search, User, X } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 
 interface MemberSearchInputProps {
   value: string // memberId sélectionné

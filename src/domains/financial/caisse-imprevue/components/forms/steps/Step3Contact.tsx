@@ -7,8 +7,8 @@
 
 'use client'
 
-import { UseFormReturn } from 'react-hook-form'
 import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
+import { UseFormReturn } from 'react-hook-form'
 import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
 
 interface Step3ContactProps {

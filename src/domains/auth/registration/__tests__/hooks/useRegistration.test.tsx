@@ -2,14 +2,14 @@
  * Tests unitaires pour useRegistration
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { useRegistration } from '../../hooks/useRegistration'
-import type { IRegistrationService } from '../../services/IRegistrationService'
-import type { IRegistrationCacheService } from '../../services/IRegistrationCacheService'
-import type { RegisterFormData } from '../../entities'
 import { defaultValues } from '@/schemas/schemas'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { RegisterFormData } from '../../entities'
+import { useRegistration } from '../../hooks/useRegistration'
+import type { IRegistrationCacheService } from '../../services/IRegistrationCacheService'
+import type { IRegistrationService } from '../../services/IRegistrationService'
 
 // Mock sonner
 vi.mock('sonner', () => ({

@@ -1,9 +1,9 @@
 "use client"
 
-import React from 'react'
+import { cn } from '@/lib/utils'
 import { useContractForm } from '@/providers/ContractFormProvider'
 import { Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import React from 'react'
 
 export function ContractFormStepper() {
   const { state, goToStep } = useContractForm()

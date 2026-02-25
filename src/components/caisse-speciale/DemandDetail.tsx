@@ -1,49 +1,48 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  ArrowLeft,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Clock,
-  FileText,
-  User,
-  AlertCircle,
-  RotateCcw,
-  FilePlus2,
-  Loader2,
-  FileDown,
-  Phone,
-  Mail,
-  FileEdit,
-} from 'lucide-react'
-import { useRouter } from 'next/navigation'
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+import routes from '@/constantes/routes'
 import { useCaisseSpecialeDemand, useCaisseSpecialeDemandMutations } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
 import { useExportCaisseSpecialeDemandDetails } from '@/hooks/caisse-speciale/useExportCaisseSpecialeDemandDetails'
-import { useMember } from '@/hooks/useMembers'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
-import { CaisseSpecialeDemandStatus } from '@/types/types'
+import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
-import routes from '@/constantes/routes'
+import { CaisseSpecialeDemandStatus } from '@/types/types'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CheckCircle,
+    Clock,
+    FileDown,
+    FileEdit,
+    FilePlus2,
+    FileText,
+    Loader2,
+    Mail,
+    Phone,
+    RotateCcw,
+    User,
+    XCircle,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
-import { useState, useMemo } from 'react'
-import { toast } from 'sonner'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 
 interface DemandDetailProps {
   demandId: string

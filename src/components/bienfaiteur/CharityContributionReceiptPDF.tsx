@@ -1,16 +1,15 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { FileText, Download, Calendar, DollarSign, User, Gift, Loader2, Receipt } from 'lucide-react'
-import { EnrichedCharityContribution, CharityEvent } from '@/types/types'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CharityEvent, EnrichedCharityContribution } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { Calendar, DollarSign, Download, FileText, Loader2, Receipt, User } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 // Helper pour formater les montants

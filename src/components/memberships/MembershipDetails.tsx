@@ -1,19 +1,19 @@
 'use client'
 
-import React from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, Mail, MapPin, User, Briefcase, CarFront, ExternalLink, AlertTriangle } from 'lucide-react'
-import Image from 'next/image'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { useUser } from '@/hooks/useMembers'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getNationalityName } from '@/constantes/nationality'
 import routes from '@/constantes/routes'
 import { listContractsByMember } from '@/db/caisse/contracts.db'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { toast } from 'sonner'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
-import { getNationalityName } from '@/constantes/nationality'
+import { useUser } from '@/hooks/useMembers'
+import { AlertTriangle, ArrowLeft, Briefcase, CarFront, ExternalLink, Mail, MapPin, Phone, User } from 'lucide-react'
+import Image from 'next/image'
+import { useParams, useRouter } from 'next/navigation'
+import React from 'react'
+import { toast } from 'sonner'
 
 export default function MembershipDetails() {
     const params = useParams()

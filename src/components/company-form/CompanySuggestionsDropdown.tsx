@@ -1,18 +1,17 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Building, 
-  MapPin,
-  Briefcase,
-  Plus,
-  Info
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { CompanySuggestion } from '@/hooks/company/useCompanySuggestions'
+import { cn } from '@/lib/utils'
+import {
+    Briefcase,
+    Building,
+    Info,
+    MapPin,
+    Plus
+} from 'lucide-react'
 
 interface CompanySuggestionsDropdownProps {
   suggestions: CompanySuggestion[]

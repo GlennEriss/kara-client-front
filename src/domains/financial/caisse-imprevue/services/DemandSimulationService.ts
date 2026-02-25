@@ -4,7 +4,7 @@
  * Calcule les versements selon la fréquence (DAILY vs MONTHLY)
  */
 
-import type { CaisseImprevueDemand, CaisseImprevuePaymentFrequency } from '../entities/demand.types'
+import type { CaisseImprevueDemand } from '../entities/demand.types'
 
 export interface PaymentScheduleItem {
   monthIndex: number
@@ -84,7 +84,7 @@ export class DemandSimulationService {
       const daysPerMonth = 30 // Approximation
       const dailyAmount = subscriptionCIAmountPerMonth / daysPerMonth
 
-      let currentDate = new Date(startDate)
+      const currentDate = new Date(startDate)
       let monthIndex = 1
       let monthStart = new Date(currentDate)
       let monthCumulative = 0

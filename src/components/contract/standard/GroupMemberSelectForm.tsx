@@ -1,6 +1,5 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
 interface GroupMemberSelectFormProps {
   groupMembers?: any[]

@@ -3,14 +3,14 @@
  * Utilise les fonctions existantes de membership.db.ts
  */
 
-import { IRegistrationRepository } from './IRegistrationRepository'
+import {
+    createMembershipRequest,
+    getMembershipRequestById,
+    updateMembershipRequest,
+} from '@/db/membership.db'
 import type { RegisterFormData } from '@/domains/auth/registration/entities'
 import type { MembershipRequest } from '@/types/types'
-import {
-  createMembershipRequest,
-  getMembershipRequestById,
-  updateMembershipRequest,
-} from '@/db/membership.db'
+import { IRegistrationRepository } from './IRegistrationRepository'
 
 export class RegistrationRepository implements IRegistrationRepository {
   readonly name = 'RegistrationRepository'

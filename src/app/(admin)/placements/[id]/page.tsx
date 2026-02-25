@@ -1,42 +1,42 @@
 "use client"
 
-import React, { useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  ArrowLeft,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  DollarSign,
-  FileDown,
-  FileText,
-  Upload,
-  Calendar,
-  Phone,
-  User,
-  X,
-} from 'lucide-react'
-import { usePlacement, usePlacementCommissions, useEarlyExit } from '@/hooks/usePlacements'
-import { useAuth } from '@/hooks/useAuth'
-import PlacementDocumentUploadModal from '@/components/placement/PlacementDocumentUploadModal'
-import PayCommissionModal, { CommissionPaymentFormData } from '@/components/placement/PayCommissionModal'
-import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocumentModal'
-import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQuittanceModal'
-import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEarlyExitQuittanceModal'
 import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
 import EarlyExitForm from '@/components/placement/EarlyExitForm'
-import type { CommissionPaymentPlacement } from '@/types/types'
-import { toast } from 'sonner'
+import PayCommissionModal, { CommissionPaymentFormData } from '@/components/placement/PayCommissionModal'
+import PlacementDocumentUploadModal from '@/components/placement/PlacementDocumentUploadModal'
+import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEarlyExitQuittanceModal'
+import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQuittanceModal'
+import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocumentModal'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { useAuth } from '@/hooks/useAuth'
+import { useEarlyExit, usePlacement, usePlacementCommissions } from '@/hooks/usePlacements'
 import { cn } from '@/lib/utils'
+import type { CommissionPaymentPlacement } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CheckCircle2,
+    Clock,
+    DollarSign,
+    FileDown,
+    FileText,
+    Phone,
+    Upload,
+    User,
+    X,
+} from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 function PayCommissionWrapper({
   placementId,

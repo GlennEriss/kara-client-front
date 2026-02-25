@@ -1,27 +1,26 @@
 'use client'
 
-import React from 'react'
-import { useParams } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download, TrendingUp } from 'lucide-react'
-import { useCaisseContract, useContractPayments } from '@/domains/financial/caisse-speciale/contrats/hooks'
-import { Skeleton } from '@/components/ui/skeleton'
-import Link from 'next/link'
-import routes from '@/constantes/routes'
-import { useAuth } from '@/hooks/useAuth'
-import { getAdminById } from '@/db/admin.db'
-import { useMember } from '@/hooks/useMembers'
 import { Button } from '@/components/ui/button'
-import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import { getGroupById } from '@/db/group.db'
-import { getDoc, doc } from 'firebase/firestore'
-import { db } from '@/firebase/firestore'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import { getNationalityNameByGender } from '@/constantes/nationality'
+import routes from '@/constantes/routes'
+import { getAdminById } from '@/db/admin.db'
+import { getGroupById } from '@/db/group.db'
+import { useCaisseContract, useContractPayments } from '@/domains/financial/caisse-speciale/contrats/hooks'
+import { db } from '@/firebase/firestore'
+import { useAuth } from '@/hooks/useAuth'
+import { useMember } from '@/hooks/useMembers'
+import { useQuery } from '@tanstack/react-query'
+import { doc, getDoc } from 'firebase/firestore'
+import jsPDF from 'jspdf'
+import { AlertCircle, AlertTriangle, ArrowLeft, Calendar, CheckCircle, Clock, DollarSign, Download, FileText, TrendingUp, Users } from 'lucide-react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import React from 'react'
+import * as XLSX from 'xlsx'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -542,18 +541,17 @@ export default function ContractPaymentsPage() {
           ? `${formatShortDate(bounds.start)} - ${formatShortDate(bounds.end)}`
           : formatLongDate(payment.dueAt)
         const dateRemise = lastContrib ? formatLongDate(lastContrib.paidAt) : '-'
-        const adminLabelFromContrib = (c: any): string => {
-          const id = c?.updatedBy || c?.createdBy
-          const label = getAdminDisplayName(id)
-          return label && label !== 'Chargement...' ? label : id || '-'
-        }
+        // Même logique que Standard : agent = admin ayant traité (updatedBy), avec repli sur payment.updatedBy
+        const agentDisplay = getAdminNameForExport({
+          updatedBy: lastContrib?.updatedBy ?? lastContrib?.createdBy ?? payment.updatedBy,
+        })
         rowValues = [
           dateEcheance,
           dateRemise,
           `${formatAmountForPDF(totalAmount)} FCFA`,
           lastContrib?.time ?? '-',
           lastContrib ? formatMode(lastContrib.mode) : '-',
-          lastContrib ? adminLabelFromContrib(lastContrib) : '-',
+          agentDisplay,
           totalAmount > 0 ? 'CONFORME' : 'NON CONFORME',
         ]
       } else {

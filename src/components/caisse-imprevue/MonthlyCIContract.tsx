@@ -1,51 +1,51 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 import { Badge } from '@/components/ui/badge'
-import {
-  ArrowLeft,
-  Calendar,
-  CalendarDays,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  XCircle,
-  History,
-  HandCoins,
-  AlertCircle,
-  FileSignature,
-  Download,
-  RefreshCw,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Eye,
-} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import routes from '@/constantes/routes'
+import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
+import { useActiveSupport, useCheckEligibilityForSupport, useContractPaymentStats, useCreateVersement, usePaymentsCI, useSupportHistory, useUpdateVersement } from '@/hooks/caisse-imprevue'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
+import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
-import routes from '@/constantes/routes'
-import PaymentCIModal, { PaymentFormData, PaymentCIInitialData } from './PaymentCIModal'
-import PaymentReceiptCIModal from './PaymentReceiptCIModal'
-import RequestSupportCIModal from './RequestSupportCIModal'
-import SupportHistoryCIModal from './SupportHistoryCIModal'
-import RepaySupportCIModal from './RepaySupportCIModal'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CalendarDays,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Download,
+    Eye,
+    FileSignature,
+    HandCoins,
+    History,
+    Pencil,
+    RefreshCw,
+    TrendingUp,
+    XCircle,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
+import { toast } from 'sonner'
 import EarlyRefundCIModal from './EarlyRefundCIModal'
+import EditContractCategoryCIModal from './EditContractCategoryCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
-import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useUpdateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
-import { useAuth } from '@/hooks/useAuth'
-import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
-import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
+import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
+import PaymentReceiptCIModal from './PaymentReceiptCIModal'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+import RepaySupportCIModal from './RepaySupportCIModal'
+import RequestSupportCIModal from './RequestSupportCIModal'
+import SupportHistoryCIModal from './SupportHistoryCIModal'
 import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
-import EmergencyContact from '@/components/contract/standard/EmergencyContact'
-import EditContractCategoryCIModal from './EditContractCategoryCIModal'
 
 interface MonthlyCIContractProps {
   contract: ContractCI

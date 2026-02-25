@@ -1,11 +1,10 @@
 'use client'
 
-import React from 'react'
-import { notFound, useParams } from 'next/navigation'
 import Register from '@/components/register/Register'
-import { RegisterProvider } from '@/providers/RegisterProvider'
 import { useMembershipRequest } from '@/domains/memberships/hooks'
+import { RegisterProvider } from '@/providers/RegisterProvider'
 import { Loader2 } from 'lucide-react'
+import { notFound, useParams } from 'next/navigation'
 
 export default function UpdateMembershipPage() {
     const params = useParams()

@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React from 'react';
 // Simplifier: générer un Blob et déclencher download, évite PDFDownloadLink
 
 export default function PipelinePDFButton({ sections, fileName }: { sections: Array<{ label: string; items: any[] }>; fileName: string }) {

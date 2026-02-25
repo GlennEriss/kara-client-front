@@ -1,33 +1,32 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
+import { useCaisseImprevueDemand, useCaisseImprevueDemandMutations } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
+import { cn } from '@/lib/utils'
+import { CaisseImprevueDemandStatus } from '@/types/types'
 import {
-  ArrowLeft,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Clock,
-  FileText,
-  User,
-  AlertCircle,
-  RotateCcw,
-  CreditCard,
-  Loader2,
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    FileText,
+    Loader2,
+    RotateCcw,
+    User,
+    XCircle,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useCaisseImprevueDemand, useCaisseImprevueDemandMutations } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
-import { CaisseImprevueDemandStatus } from '@/types/types'
-import { cn } from '@/lib/utils'
-import routes from '@/constantes/routes'
+import { useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
-import { useState } from 'react'
 
 interface DemandDetailProps {
   demandId: string

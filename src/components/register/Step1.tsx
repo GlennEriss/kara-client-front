@@ -1,27 +1,26 @@
 'use client'
 
-import React from 'react'
 import {
-  User,
-  Lightbulb
+    Lightbulb,
+    User
 } from 'lucide-react'
 
-import PhotoIdentityForm from '../identity-form/PhotoIdentityForm'
-import CivilityIdentityForm from '@/components/identity-form/CivilityIdentityForm'
-import LastNameIdentityForm from '@/components/identity-form/LastNameIdentityForm'
-import FirstNameIdentityForm from '@/components/identity-form/FirstNameIdentityForm'
-import EmailIdentityForm from '@/components/identity-form/EmailIdentityForm'
+import BirthCertificateNumberIdentityForm from '@/components/identity-form/BirthCertificateNumberIdentityForm'
 import BirthDateIdentityForm from '@/components/identity-form/BirthDateIdentityForm'
 import BirthPlaceIdentityForm from '@/components/identity-form/BirthPlaceIdentityForm'
-import BirthCertificateNumberIdentityForm from '@/components/identity-form/BirthCertificateNumberIdentityForm'
+import CivilityIdentityForm from '@/components/identity-form/CivilityIdentityForm'
+import ContactsIdentityForm from '@/components/identity-form/ContactsIdentityForm'
+import EmailIdentityForm from '@/components/identity-form/EmailIdentityForm'
+import FirstNameIdentityForm from '@/components/identity-form/FirstNameIdentityForm'
+import HasCarIdentityForm from '@/components/identity-form/HasCarIdentityForm'
+import LastNameIdentityForm from '@/components/identity-form/LastNameIdentityForm'
+import MaritalStatusIdentityForm from '@/components/identity-form/MaritalStatusIdentityForm'
+import NationalityIdentityForm from '@/components/identity-form/NationalityIdentityForm'
 import PrayerPlaceIdentityForm from '@/components/identity-form/PrayerPlaceIdentityForm'
 import ReligionIdentityForm from '@/components/identity-form/ReligionIdentityForm'
-import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
-import ContactsIdentityForm from '@/components/identity-form/ContactsIdentityForm'
-import MaritalStatusIdentityForm from '@/components/identity-form/MaritalStatusIdentityForm'
-import HasCarIdentityForm from '@/components/identity-form/HasCarIdentityForm'
-import NationalityIdentityForm from '@/components/identity-form/NationalityIdentityForm'
 import SpouseInfoSection from '@/components/identity-form/SpouseInfoSection'
+import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
+import PhotoIdentityForm from '../identity-form/PhotoIdentityForm'
 interface Step1Props {
   requestId?: string // ID de la demande pour exclure lors de la vérification des numéros
 }

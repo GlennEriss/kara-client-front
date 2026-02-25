@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { MembershipsListPage } from '@/domains/memberships/components/page/MembershipsListPage'
 import MemberVehicleList from '@/components/memberships/MemberVehicleList'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BirthdaysPage } from '@/domains/memberships/components/birthdays/BirthdaysPage'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Users, Car, Cake } from 'lucide-react'
+import { MembershipsListPage } from '@/domains/memberships/components/page/MembershipsListPage'
+import { Cake, Car, Users } from 'lucide-react'
+import { useState } from 'react'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('list')

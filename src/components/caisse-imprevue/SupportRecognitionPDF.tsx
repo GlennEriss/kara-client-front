@@ -1,7 +1,6 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles
 const styles = StyleSheet.create({

@@ -2,8 +2,7 @@
  * Interface du service principal de registration
  */
 
-import type { RegisterFormData } from '@/domains/auth/registration/entities'
-import type { StepValidationResult } from '@/domains/auth/registration/entities'
+import type { RegisterFormData, StepValidationResult } from '@/domains/auth/registration/entities'
 
 export interface IRegistrationService {
   readonly name: string

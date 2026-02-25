@@ -1,6 +1,5 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import SelectRadioApp from '@/components/forms/SelectRadioApp'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { CheckCircle } from 'lucide-react'
 
 const CAR_OPTIONS = [

@@ -1,67 +1,64 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { 
-  Loader2, 
-  CheckCircle,
-  ArrowRight,
-  ArrowLeft,
-  User,
-  DollarSign,
-  Percent,
-  Calendar,
-  AlertTriangle,
-  FileText,
-  TrendingUp,
-  Calculator,
-  Info,
-  XCircle
-} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { CreditContract, StandardSimulation } from '@/types/types'
-import { EmergencyContact } from '@/schemas/emergency-contact.schema'
-import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
-import { 
-  useCheckExtensionEligibility, 
-  useCalculateExtensionAmounts,
-  useExtendContract,
-  useSimulations
-} from '@/hooks/useCreditSpeciale'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { 
-  standardSimulationSchema, 
-  customSimulationSchema,
-  proposedSimulationSchema,
-  type StandardSimulationFormData,
-  type CustomSimulationFormData,
-  type ProposedSimulationFormData
-} from '@/schemas/credit-speciale.schema'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { Textarea } from '@/components/ui/textarea'
 import routes from '@/constantes/routes'
+import {
+    useCalculateExtensionAmounts,
+    useCheckExtensionEligibility,
+    useExtendContract,
+    useSimulations
+} from '@/hooks/useCreditSpeciale'
+import {
+    customSimulationSchema,
+    proposedSimulationSchema,
+    standardSimulationSchema,
+    type CustomSimulationFormData,
+    type ProposedSimulationFormData,
+    type StandardSimulationFormData
+} from '@/schemas/credit-speciale.schema'
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import type { CreditContract, CreditType, StandardSimulation } from '@/types/types'
+import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import type { CreditType } from '@/types/types'
-import { X } from 'lucide-react'
+import {
+    AlertTriangle,
+    ArrowLeft,
+    ArrowRight,
+    Calculator,
+    Calendar,
+    CheckCircle,
+    DollarSign,
+    FileText,
+    Info,
+    Loader2,
+    TrendingUp,
+    X,
+    XCircle
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 // Composant pour saisir les paiements personnalisés
 function CustomPaymentsInput({ 

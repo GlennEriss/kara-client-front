@@ -1,8 +1,8 @@
 'use client'
 
-import React from 'react'
 import { cn } from '@/lib/utils'
 import { LucideIcon } from 'lucide-react'
+import React from 'react'
 
 /**
  * Layout standard pour toutes les pages du dashboard

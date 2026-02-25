@@ -1,5 +1,6 @@
 'use client'
-import React, { Suspense, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
     Stepper,
     StepperIndicator,
@@ -7,11 +8,10 @@ import {
     StepperSeparator,
     StepperTrigger,
 } from "@/components/ui/stepper"
-import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import React, { Suspense, useEffect } from 'react'
 
 const Step1 = React.lazy(() => import('./Step1'))
 const Step2 = React.lazy(() => import('./Step2'))

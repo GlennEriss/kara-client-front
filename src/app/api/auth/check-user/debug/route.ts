@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { isAdminInitialized } from "@/firebase/admin";
 import { adminAuth } from "@/firebase/adminAuth";
 import { adminFirestore } from "@/firebase/adminFirestore";
-import { isAdminInitialized } from "@/firebase/admin";
 import { firebaseAdminConfig } from "@/firebase/firebaseAdminConfig";
 import * as admin from 'firebase-admin';
+import { NextResponse } from "next/server";
 
 /**
  * Route de débogage pour vérifier la configuration Firebase Admin

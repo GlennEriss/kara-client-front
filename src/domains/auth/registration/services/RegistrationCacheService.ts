@@ -3,10 +3,8 @@
  * Utilise localStorage pour persister les données
  */
 
+import type { CacheConfig, RegisterFormData, RegistrationSubmissionData } from '@/domains/auth/registration/entities'
 import { IRegistrationCacheService } from './IRegistrationCacheService'
-import type { RegisterFormData } from '@/domains/auth/registration/entities'
-import type { RegistrationSubmissionData } from '@/domains/auth/registration/entities'
-import type { CacheConfig } from '@/domains/auth/registration/entities'
 
 // Clés de cache
 const CACHE_KEYS = {

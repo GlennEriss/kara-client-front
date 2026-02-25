@@ -1,8 +1,7 @@
 'use client'
-import React from 'react'
-import { Phone, CheckCircle2 } from 'lucide-react'
-import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
 import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
+import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
+import { CheckCircle2, Phone } from 'lucide-react'
 
 export default function Step3() {
   const { form } = useFormCaisseImprevueProvider()

@@ -1,56 +1,55 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  ArrowLeft,
-  User,
-  DollarSign,
-  Calendar,
-  Shield,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  FileText,
-  RotateCcw,
-  Calculator,
-  Loader2,
-  Edit,
-  Trash2,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { CreditDemand, CreditDemandStatus } from '@/types/types'
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 import routes from '@/constantes/routes'
-import ValidateDemandModal from './ValidateDemandModal'
-import ReopenDemandModal from './ReopenDemandModal'
-import CreditSimulationModal from './CreditSimulationModal'
+import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
+import { useCreditContract, useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { useMember } from '@/hooks/useMembers'
+import { cn } from '@/lib/utils'
+import type { CreditContract, CustomSimulation, StandardSimulation } from '@/types/types'
+import { CreditDemand, CreditDemandStatus } from '@/types/types'
+import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { useCreditContractMutations, useCreditContract } from '@/hooks/useCreditSpeciale'
-import { toast } from 'sonner'
-import type { StandardSimulation, CustomSimulation, CreditContract } from '@/types/types'
-import ContractCreationModal from './ContractCreationModal'
-import EditCreditDemandModal from './EditCreditDemandModal'
-import DeleteCreditDemandModal from './DeleteCreditDemandModal'
-import Image from 'next/image'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Percent, Users, Phone, ExternalLink } from 'lucide-react'
+    AlertCircle,
+    ArrowLeft,
+    Calculator,
+    Calendar,
+    CheckCircle,
+    Edit,
+    ExternalLink,
+    FileText,
+    Loader2,
+    Phone,
+    RotateCcw,
+    Shield,
+    Trash2,
+    User,
+    Users,
+    XCircle
+} from 'lucide-react'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import ContractCreationModal from './ContractCreationModal'
+import CreditSimulationModal from './CreditSimulationModal'
+import DeleteCreditDemandModal from './DeleteCreditDemandModal'
+import EditCreditDemandModal from './EditCreditDemandModal'
 import MemberActivitySummary from './MemberActivitySummary'
-import { useMember } from '@/hooks/useMembers'
-import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
-import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
+import ReopenDemandModal from './ReopenDemandModal'
+import ValidateDemandModal from './ValidateDemandModal'
 
 interface CreditDemandDetailProps {
   demand: CreditDemand

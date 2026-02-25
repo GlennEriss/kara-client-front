@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DEFAULT_DASHBOARD_TAB, DASHBOARD_TAB_KEYS, type DashboardTabKey } from '../entities/dashboard-tabs.types'
+import { DASHBOARD_TAB_KEYS, DEFAULT_DASHBOARD_TAB, type DashboardTabKey } from '../entities/dashboard-tabs.types'
 
 const STORAGE_KEY = 'dashboard.activeTab'
 

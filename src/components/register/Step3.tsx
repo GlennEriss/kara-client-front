@@ -1,56 +1,54 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Briefcase, 
-  MapPin, 
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Users,
-  TrendingUp,
-  Coffee,
-  GraduationCap,
-  UserX,
-  Info,
-  Search,
-  Loader2,
-  MapPinIcon,
-  Building2,
-  Home,
-  Plus
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import CompanyCombobox from '@/domains/infrastructure/references/components/forms/CompanyCombobox'
-import AddCompanyModal from '@/domains/infrastructure/references/components/forms/AddCompanyModal'
-import ProfessionCombobox from '@/domains/infrastructure/references/components/forms/ProfessionCombobox'
-import AddProfessionModal from '@/domains/infrastructure/references/components/forms/AddProfessionModal'
-import { useIsAdminContext } from '@/hooks/useIsAdminContext'
-import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
 import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
+import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
 import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
-import type { Province, Commune, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
-import { useQueries } from '@tanstack/react-query'
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useMemo } from 'react'
+import type { Commune, Province, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
+import { useDepartments, useDistricts, useProvinces, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
+import AddCompanyModal from '@/domains/infrastructure/references/components/forms/AddCompanyModal'
+import AddProfessionModal from '@/domains/infrastructure/references/components/forms/AddProfessionModal'
+import CompanyCombobox from '@/domains/infrastructure/references/components/forms/CompanyCombobox'
+import ProfessionCombobox from '@/domains/infrastructure/references/components/forms/ProfessionCombobox'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useIsAdminContext } from '@/hooks/useIsAdminContext'
+import { cn } from '@/lib/utils'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
+import {
+    AlertCircle,
+    Briefcase,
+    Building2,
+    CheckCircle,
+    Clock,
+    Coffee,
+    GraduationCap,
+    Home,
+    Info,
+    Loader2,
+    MapPin,
+    MapPinIcon,
+    Plus,
+    Search,
+    TrendingUp,
+    Users,
+    UserX
+} from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 interface Step3Props {
   form: any // Type du form de react-hook-form

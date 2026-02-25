@@ -1,18 +1,18 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { PDFViewer, pdf } from '@react-pdf/renderer'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { FileText, Download, Loader2 } from 'lucide-react'
-import { ContractCI } from '@/types/types'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useMemberById } from '@/domains/memberships/hooks/useMemberById'
+import { ContractCI } from '@/types/types'
+import { PDFViewer, pdf } from '@react-pdf/renderer'
+import { Download, FileText, Loader2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import CaisseImprevuePDFV3 from './CaisseImprevuePDFV3'
 
 interface DownloadContractCIModalProps {

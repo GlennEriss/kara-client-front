@@ -2,10 +2,10 @@
  * Tests unitaires pour RegistrationRepository
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { RegistrationRepository } from '../../repositories/RegistrationRepository'
-import type { RegisterFormData } from '../../entities'
 import type { MembershipRequest } from '@/types/types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { RegisterFormData } from '../../entities'
+import { RegistrationRepository } from '../../repositories/RegistrationRepository'
 
 // Mock des fonctions de membership.db.ts
 const mockCreateMembershipRequest = vi.fn()

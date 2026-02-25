@@ -20,7 +20,6 @@ import {
   setDoc,
   serverTimestamp,
   getCountFromServer,
-  or,
 } from '@/firebase/firestore'
 import { functions } from '@/firebase/functions'
 import { httpsCallable } from 'firebase/functions'
@@ -39,7 +38,7 @@ import {
   PAYMENT_MODES,
   type PaymentMode,
 } from '@/constantes/membership-requests'
-import type { MembershipRequestStatus, RegisterFormData } from '@/types/types'
+import type { RegisterFormData } from '@/types/types'
 import { PaymentRepositoryV2 } from './PaymentRepositoryV2'
 import { getAlgoliaSearchService } from '@/services/search/AlgoliaSearchService'
 import { generateMatricule } from '@/db/user.db'
@@ -238,7 +237,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
 
     const countQuery = query(collectionRef, ...countConstraints)
     const totalCountSnapshot = await getCountFromServer(countQuery)
-    let totalItems = totalCountSnapshot.data().count
+    const totalItems = totalCountSnapshot.data().count
 
     // Si recherche active et qu'on a filtré côté client, ajuster le total
     // NOTE: Le filtrage côté client est nécessaire pour les cas non couverts par Firestore
@@ -524,7 +523,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       const { photo, ...identityWithoutPhoto } = formData.identity
       const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents
 
-      let membershipData: any = {
+      const membershipData: any = {
         matricule,
         identity: {
           ...identityWithoutPhoto
@@ -667,7 +666,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       const { photo, ...identityWithoutPhoto } = formData.identity
       const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents
 
-      let updateData: any = {
+      const updateData: any = {
         identity: {
           ...identityWithoutPhoto
         },

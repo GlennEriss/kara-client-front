@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProvinceRepositoryV2 } from '../../repositories/ProvinceRepositoryV2'
-import type { Province } from '../../entities/geography.types'
 
 // Mock de BaseGeographyRepository
 vi.mock('../../repositories/BaseGeographyRepository', () => {

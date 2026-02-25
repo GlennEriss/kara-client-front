@@ -1,6 +1,6 @@
-import React, { Suspense } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CreditFixeDemandesSection } from '@/domains/financial/credit-speciale/fixe/demandes/components/CreditFixeDemandesSection'
+import { Suspense } from 'react'
 
 function CreditFixeDemandesSkeleton() {
   return (

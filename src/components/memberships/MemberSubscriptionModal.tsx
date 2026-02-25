@@ -1,25 +1,25 @@
 'use client'
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Calendar,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  XCircle,
-  FileText,
-  Download,
-  Plus,
-  User
-} from 'lucide-react'
 import { useMemberSubscriptions, useMemberWithSubscription } from '@/hooks/useMembers'
 import { Subscription } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    Download,
+    FileText,
+    Plus,
+    User,
+    XCircle
+} from 'lucide-react'
 
 interface MemberSubscriptionModalProps {
   isOpen: boolean

@@ -4,10 +4,10 @@
  * @see https://vitest.dev/
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useAuth } from '../../hooks/useAuth';
 import type { User } from 'firebase/auth';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuth } from '../../hooks/useAuth';
 
 // Mock de Firebase Auth
 let authCallback: ((user: any) => void) | null = null;

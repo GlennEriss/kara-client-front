@@ -1,25 +1,24 @@
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  startAfter,
-  getDocs,
-  getDoc,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  DocumentSnapshot,
-  getCountFromServer,
-  Timestamp,
-} from '@/firebase/firestore'
-import type { QueryConstraint } from 'firebase/firestore'
-import { db } from '@/firebase/firestore'
-import type { AgentRecouvrement, AgentsFilters, AgentsStats } from '@/types/types'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import {
+    addDoc,
+    collection,
+    db,
+    deleteDoc,
+    doc,
+    DocumentSnapshot,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    serverTimestamp,
+    startAfter,
+    Timestamp,
+    updateDoc,
+    where
+} from '@/firebase/firestore'
+import type { AgentRecouvrement, AgentsFilters, AgentsStats } from '@/types/types'
+import type { QueryConstraint } from 'firebase/firestore'
 
 const COLLECTION = firebaseCollectionNames.agentsRecouvrement || 'agentsRecouvrement'
 

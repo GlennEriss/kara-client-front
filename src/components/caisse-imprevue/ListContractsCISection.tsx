@@ -1,53 +1,52 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { useQueries } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import {
-  FileText,
-  RefreshCw,
-  AlertCircle,
-  Plus,
-  Eye,
-  Calendar,
-  CalendarDays,
-  User,
-  Phone,
-  ChevronLeft,
-  ChevronRight,
-  DollarSign,
-  Grid3X3,
-  List,
-  MoreVertical,
-  Trash2,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import routes from '@/constantes/routes'
+import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
 import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
-import StatisticsCI from './StatisticsCI'
-import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
-import routes from '@/constantes/routes'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
+import { useQueries } from '@tanstack/react-query'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import ViewContractCIModal from './ViewContractCIModal'
-import UploadContractCIModal from './UploadContractCIModal'
-import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
-import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
+    AlertCircle,
+    Calendar,
+    CalendarDays,
+    ChevronLeft,
+    ChevronRight,
+    DollarSign,
+    Eye,
+    FileText,
+    Grid3X3,
+    List,
+    MoreVertical,
+    Plus,
+    RefreshCw,
+    Trash2,
+    User
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import DeleteContractCIModal from './DeleteContractCIModal'
 import ReplaceContractCIModal from './ReplaceContractCIModal'
+import StatisticsCI from './StatisticsCI'
+import UploadContractCIModal from './UploadContractCIModal'
+import ViewContractCIModal from './ViewContractCIModal'
+import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
+import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',

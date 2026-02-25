@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CharityMediaService } from '@/services/bienfaiteur/CharityMediaService'
-import { CharityMedia } from '@/types/types'
 import { useAuth } from '@/hooks/useAuth'
 
 /**

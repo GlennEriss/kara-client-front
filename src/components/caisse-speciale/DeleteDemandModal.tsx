@@ -1,21 +1,21 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Trash2, Loader2, AlertTriangle } from 'lucide-react'
-import { CaisseSpecialeDemand } from '@/types/types'
 import { useCaisseSpecialeDemandMutations } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
+import { CaisseSpecialeDemand } from '@/types/types'
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
 
 interface DeleteDemandModalProps {

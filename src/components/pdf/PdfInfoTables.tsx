@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { Image, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Image, StyleSheet, Text, View } from '@react-pdf/renderer';
+import React from 'react';
 
 export type PdfInfoRow = { label: string; value: string }
 

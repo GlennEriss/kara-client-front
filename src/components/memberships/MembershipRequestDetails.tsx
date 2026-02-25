@@ -6,25 +6,25 @@
 
 'use client'
 
-import { useParams } from 'next/navigation'
-import { useState } from 'react'
 import {
-  DetailsSkeleton,
-  DetailsErrorState,
-  DetailsHeaderStatus,
-  DetailsIdentityCard,
-  DetailsContactCard,
-  DetailsAddressCard,
-  DetailsEmploymentCard,
-  DetailsPaymentCard,
-  DetailsDocumentsCard,
-  DetailsMetaCard,
-  DetailsPhotoCard,
+    DetailsAddressCard,
+    DetailsContactCard,
+    DetailsDocumentsCard,
+    DetailsEmploymentCard,
+    DetailsErrorState,
+    DetailsHeaderStatus,
+    DetailsIdentityCard,
+    DetailsMetaCard,
+    DetailsPaymentCard,
+    DetailsPhotoCard,
+    DetailsSkeleton,
 } from '@/domains/memberships/components/details'
 import { ReplaceAdhesionPdfModal } from '@/domains/memberships/components/modals'
 import { useMembershipRequestDetails } from '@/domains/memberships/hooks/useMembershipRequestDetails'
 import { resolveAdhesionPdfUrl } from '@/domains/memberships/utils/details'
 import { useAuth } from '@/hooks/useAuth'
+import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 export default function MembershipRequestDetails() {

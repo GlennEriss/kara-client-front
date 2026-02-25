@@ -1,16 +1,16 @@
 'use client'
 
-import React, { Suspense, lazy } from 'react'
-import { useRegister } from '@/providers/RegisterProvider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useRegister } from '@/providers/RegisterProvider'
+import React, { Suspense, lazy } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield, AlertCircle, Home, Lock, Key } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
+import { cn } from '@/lib/utils'
+import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Home, Key, Lock, RotateCcw, Save, Send, Shield } from 'lucide-react'
 
 // Lazy loading des composants step pour optimiser les performances
 const Step1 = lazy(() => import('./Step1'))

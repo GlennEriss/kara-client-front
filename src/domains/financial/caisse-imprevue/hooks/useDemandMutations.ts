@@ -15,7 +15,6 @@ import type {
   RejectDemandInput,
   ReopenDemandInput,
 } from '../entities/demand.types'
-import type { DemandFilters, PaginationParams, SortParams } from '../entities/demand-filters.types'
 
 const service = CaisseImprevueService.getInstance()
 

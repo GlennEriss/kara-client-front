@@ -1,9 +1,9 @@
 'use client'
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import type { AgentRecouvrement } from '@/types/types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/useAuth'
+import type { AgentRecouvrement } from '@/types/types'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 

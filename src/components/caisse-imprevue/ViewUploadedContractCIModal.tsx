@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ContractCI } from '@/types/types'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
+import { ContractCI } from '@/types/types'
+import { AlertCircle, Eye, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
 
 // Hook pour détecter le mobile

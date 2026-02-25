@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '../useAuth'
 import { toast } from 'sonner'
-import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats } from '@/types/types'
+import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters } from '@/types/types'
 import { CaisseSpecialeDemandFormInput, approveDemandSchema, rejectDemandSchema, reopenDemandSchema } from '@/schemas/caisse-speciale.schema'
 import { z } from 'zod'
 

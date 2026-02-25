@@ -1,11 +1,10 @@
 'use client'
-import React from 'react'
-import { Car, Users, UserPlus, FileText, TrendingUp, Clock, CheckCircle, XCircle, Calendar } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { MembershipRequest, InsurancePolicy, DashboardStats } from '@/types/types'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getNationalityName } from '@/constantes/nationality'
+import type { InsurancePolicy, MembershipRequest } from '@/types/types'
+import { Calendar, Car, CheckCircle, Clock, FileText, TrendingUp, UserPlus, Users, XCircle } from 'lucide-react'
 
 // Fausses données typées pour le dashboard
 const statsData = [

@@ -1,9 +1,8 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import { getNationalityName } from '@/constantes/nationality'
 import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
+import { getNationalityName } from '@/constantes/nationality'
+import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles - basés sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
 const styles = StyleSheet.create({

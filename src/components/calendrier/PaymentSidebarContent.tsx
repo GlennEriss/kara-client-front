@@ -1,11 +1,11 @@
 "use client"
 
-import { format } from "date-fns"
-import { fr } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank, AlertTriangle } from "lucide-react"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
 import { useContractPayments } from "@/hooks/useContractPayments"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { AlertTriangle, Calendar, CheckCircle2, Clock, CreditCard, PiggyBank } from "lucide-react"
 
 interface PaymentSidebarContentProps {
   payment: CalendarPaymentItem

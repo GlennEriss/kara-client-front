@@ -5,18 +5,18 @@
 
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, FileText } from 'lucide-react'
-import { useAuth } from '@/hooks/useAuth'
-import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
-import { toast } from 'sonner'
-import { placementDemandFormSchema, placementDemandDefaultValues, type PlacementDemandFormInput } from '@/schemas/placement.schema'
-import { PlacementDemandForm } from '@/domains/financial/placement/demandes'
 import routes from '@/constantes/routes'
+import { PlacementDemandForm } from '@/domains/financial/placement/demandes'
+import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { useAuth } from '@/hooks/useAuth'
+import { placementDemandDefaultValues, placementDemandFormSchema, type PlacementDemandFormInput } from '@/schemas/placement.schema'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowLeft, FileText } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 export default function AddPlacementDemandPage() {
   const router = useRouter()

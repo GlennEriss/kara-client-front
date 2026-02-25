@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Download, AlertTriangle, FileText, Monitor, Smartphone } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertTriangle, Download, FileText, Monitor, Smartphone } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 type DocumentPreviewModalProps = {
   isOpen: boolean

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/firebase/adminAuth";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
     // Vérifier si Firebase Admin est disponible

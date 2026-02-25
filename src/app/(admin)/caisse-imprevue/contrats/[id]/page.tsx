@@ -1,21 +1,20 @@
 'use client'
 
-import React from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
+import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
 import { useContractCI } from '@/hooks/caisse-imprevue/useContractCI'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
-  ArrowLeft,
-  AlertTriangle,
-  Upload,
-  FileText,
+    AlertTriangle,
+    ArrowLeft,
+    FileText,
+    Upload,
 } from 'lucide-react'
-import routes from '@/constantes/routes'
-import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
-import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
+import { useParams, useRouter } from 'next/navigation'
 
 export default function ContractCIDetailsPage() {
   const params = useParams() as { id: string }

@@ -1,33 +1,28 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  FileText,
-  CheckCircle,
-  XCircle,
-  Clock,
-  DollarSign,
-  AlertCircle,
-  Bell,
-  Calendar,
-  User,
-  Shield,
-  Receipt,
-  FileSignature,
-  TrendingUp,
-  TrendingDown,
-  Loader2,
-  History,
-} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useCreditHistory } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
+import { Notification } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, Notification } from '@/types/types'
-import { useCreditHistory } from '@/hooks/useCreditSpeciale'
+import {
+    AlertCircle,
+    Bell,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    FileSignature,
+    FileText,
+    History,
+    TrendingDown,
+    XCircle
+} from 'lucide-react'
+import React from 'react'
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',

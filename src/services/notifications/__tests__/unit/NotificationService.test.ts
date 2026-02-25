@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NotificationService } from '../../NotificationService'
-import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
 
 // Mock du repository
 vi.mock('@/repositories/notifications/NotificationRepository', () => ({

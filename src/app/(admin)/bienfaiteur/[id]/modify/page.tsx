@@ -1,10 +1,10 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
-import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
-import { Skeleton } from '@/components/ui/skeleton'
 import EditCharityEventForm from '@/components/bienfaiteur/EditCharityEventForm'
+import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
+import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
+import { useParams, useRouter } from 'next/navigation'
 
 export default function ModifyCharityEventPage() {
   const params = useParams()

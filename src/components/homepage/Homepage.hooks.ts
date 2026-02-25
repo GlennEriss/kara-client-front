@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { useAuth } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 // Types pour les états
 export interface HomepageState {

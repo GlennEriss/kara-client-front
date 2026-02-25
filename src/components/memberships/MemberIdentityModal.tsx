@@ -1,15 +1,15 @@
 'use client'
-import React, { useState, useEffect } from 'react'
-import { Download, EyeOff, IdCard, FileImage } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import type { MembershipRequest } from '@/types/types'
+import { Download, EyeOff, FileImage, IdCard } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 // Hook pour détecter le mobile uniquement

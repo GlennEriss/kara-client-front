@@ -1,9 +1,9 @@
 "use client"
 
+import type { DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
+import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import type { DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
 
 interface CalendarDayCIProps {
   day: Date

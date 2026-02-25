@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useEffect } from 'react'
 import Register from '@/components/register/Register'
-import { RegisterProvider } from '@/providers/RegisterProvider'
-import { useRegister } from '@/providers/RegisterProvider'
 import routes from '@/constantes/routes'
+import { RegisterProvider, useRegister } from '@/providers/RegisterProvider'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function AddMemberPage() {
   return (

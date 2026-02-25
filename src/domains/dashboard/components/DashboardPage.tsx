@@ -1,18 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, RefreshCw } from 'lucide-react'
+import { useMemo } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import type { DashboardFilters } from '../entities/dashboard.types'
 import { useDashboard, useDashboardFilterOptions } from '../hooks/useDashboard'
 import { useDashboardFilters } from '../hooks/useDashboardFilters'
 import { useDashboardTabs } from '../hooks/useDashboardTabs'
-import type { DashboardFilters } from '../entities/dashboard.types'
 import { DashboardFiltersBar } from './DashboardFiltersBar'
 import { DashboardTabs } from './DashboardTabs'
 import { DashboardTabContent } from './tabs/DashboardTabContent'

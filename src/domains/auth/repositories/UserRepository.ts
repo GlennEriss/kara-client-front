@@ -1,6 +1,6 @@
-import { IUserRepository } from './IUserRepository';
-import type { User } from '@/types/types';
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names';
+import type { User } from '@/types/types';
+import { IUserRepository } from './IUserRepository';
 
 const getFirestore = () => import('@/firebase/firestore');
 

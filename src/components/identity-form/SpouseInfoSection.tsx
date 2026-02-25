@@ -1,10 +1,10 @@
-import React from 'react'
-import { Label } from '@/components/ui/label'
-import { User } from 'lucide-react'
-import SpouseLastNameIdentityForm from '@/components/identity-form/SpouseLastNameIdentityForm'
 import SpouseFirstNameIdentityForm from '@/components/identity-form/SpouseFirstNameIdentityForm'
+import SpouseLastNameIdentityForm from '@/components/identity-form/SpouseLastNameIdentityForm'
 import SpousePhoneIdentityForm from '@/components/identity-form/SpousePhoneIdentityForm'
+import { Label } from '@/components/ui/label'
 import useStep1Form from '@/hooks/register/useStep1Form'
+import { User } from 'lucide-react'
+import React from 'react'
 
 export default function SpouseInfoSection() {
   const { form } = useStep1Form()

@@ -1,6 +1,6 @@
-import React from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import React from 'react'
 
 export interface SelectOption {
   value: string

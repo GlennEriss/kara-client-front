@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Loader2, Plus, MapPin, LucideIcon } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { CheckCircle, Loader2, LucideIcon, MapPin, Plus } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 
 export interface SuggestionItem {
   name: string

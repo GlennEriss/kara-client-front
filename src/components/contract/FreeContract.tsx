@@ -1,59 +1,55 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import routes from '@/constantes/routes'
+import { listRefunds } from '@/db/caisse/refunds.db'
+import { useAuth } from '@/hooks/useAuth'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
-import { useAuth } from '@/hooks/useAuth'
 import { useMember } from '@/hooks/useMembers'
-import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
+import { approveRefund, cancelEarlyRefund, markRefundPaid, pay, requestEarlyRefund, requestFinalRefund, updatePaymentContribution } from '@/services/caisse/mutations'
+import type { PaymentMode, RefundDocument } from '@/types/types'
+import { getContractStatusConfig } from '@/utils/contract-status'
+import {
+    AlertTriangle,
+    ArrowLeft,
+    Banknote,
+    Building2,
+    Calendar,
+    CalendarDays,
+    CheckCircle,
+    CheckCircle2,
+    Clock,
+    CreditCard,
+    DollarSign,
+    Download,
+    Eye,
+    FileText,
+    History,
+    Loader2,
+    RefreshCw,
+    Smartphone,
+    Trash2,
+    TrendingUp,
+    XCircle
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import type { PaymentMode } from '@/types/types'
-import { listRefunds } from '@/db/caisse/refunds.db'
+import PaymentCSModal, { PaymentCSFormData } from './PaymentCSModal'
+import PdfDocumentModal from './PdfDocumentModal'
+import PdfViewerModal from './PdfViewerModal'
+import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
+import EmergencyContact from './standard/EmergencyContact'
+import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
+import TestPaymentTools from './TestPaymentTools'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
-import { 
-  CreditCard, 
-  Calendar, 
-  Clock, 
-  DollarSign, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Loader2, 
-  Settings, 
-  RefreshCw, 
-  Download, 
-  Upload, 
-  Eye, 
-  X,
-  Smartphone,
-  Banknote,
-  TrendingUp,
-  FileText,
-  Building2,
-  Trash2,
-  CalendarDays,
-  CheckCircle2,
-  ArrowLeft,
-  History
-} from 'lucide-react'
-import PdfDocumentModal from './PdfDocumentModal'
-import PdfViewerModal from './PdfViewerModal'
-import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
-import PaymentCSModal, { PaymentCSFormData } from './PaymentCSModal'
-import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
-import EmergencyContact from './standard/EmergencyContact'
-import type { RefundDocument } from '@/types/types'
-import TestPaymentTools from './TestPaymentTools'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { getContractStatusConfig } from '@/utils/contract-status'
 
 type Props = { id: string }
 

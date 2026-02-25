@@ -1,13 +1,13 @@
 'use client'
 
-import React from 'react'
-import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, FileText, Loader2, Smartphone } from 'lucide-react'
-import { toast } from 'sonner'
-import type { Placement } from '@/types/types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useMember } from '@/hooks/useMembers'
+import type { Placement } from '@/types/types'
+import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
+import { Download, FileText, Loader2, Smartphone } from 'lucide-react'
+import React from 'react'
+import { toast } from 'sonner'
 import PlacementContractPDF from './PlacementContractPDF'
 
 export default function PlacementContractPDFModal({

@@ -1,39 +1,39 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  FileText,
-  RefreshCw,
-  Grid3X3,
-  List,
-  AlertCircle,
-  Plus,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Loader2,
-  Eye,
-  Calendar,
-  RotateCcw,
-  CreditCard,
-} from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { CaisseImprevueDemand, CaisseImprevueDemandStatus } from '@/types/types'
-import { useCaisseImprevueDemands, useCaisseImprevueDemandsStats, useCaisseImprevueDemandMutations } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
+import routes from '@/constantes/routes'
+import { useCaisseImprevueDemandMutations, useCaisseImprevueDemands, useCaisseImprevueDemandsStats } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
 import type { CaisseImprevueDemandFilters } from '@/types/types'
-import CreateDemandModal from './CreateDemandModal'
+import { CaisseImprevueDemand, CaisseImprevueDemandStatus } from '@/types/types'
+import {
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    Eye,
+    FileText,
+    Grid3X3,
+    List,
+    Loader2,
+    Plus,
+    RefreshCw,
+    RotateCcw,
+    XCircle,
+} from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
+import CreateDemandModal from './CreateDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import StatisticsCaisseImprevueDemandes from './StatisticsCaisseImprevueDemandes'
-import { useRouter, useSearchParams } from 'next/navigation'
-import routes from '@/constantes/routes'
 
 type ViewMode = 'grid' | 'list'
 

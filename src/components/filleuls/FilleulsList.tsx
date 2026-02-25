@@ -1,32 +1,28 @@
 'use client'
 
-import React from 'react'
-import { useParams } from 'next/navigation'
-import { useMemberWithFilleuls } from '@/hooks/filleuls'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Users, 
-  User as UserIcon, 
-  Loader2, 
-  AlertCircle, 
-  ArrowLeft,
-  Calendar,
-  UserCheck,
-  TrendingUp,
-  RefreshCw,
-  Download,
-  FileText
-} from 'lucide-react'
+import { useMemberWithFilleuls } from '@/hooks/filleuls'
 import { Filleul } from '@/types/types'
-import { cn } from '@/lib/utils'
-import routes from '@/constantes/routes'
-import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    Download,
+    FileText,
+    RefreshCw,
+    TrendingUp,
+    UserCheck,
+    User as UserIcon,
+    Users
+} from 'lucide-react'
+import { useParams } from 'next/navigation'
+import { toast } from 'sonner'
 
 export default function FilleulsList() {
   const params = useParams()

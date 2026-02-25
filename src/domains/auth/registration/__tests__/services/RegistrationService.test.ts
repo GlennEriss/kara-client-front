@@ -2,11 +2,11 @@
  * Tests unitaires pour RegistrationService
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { RegistrationService } from '../../services/RegistrationService'
-import type { IRegistrationRepository } from '../../repositories/IRegistrationRepository'
-import type { RegisterFormData } from '../../entities'
 import type { MembershipRequest } from '@/types/types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { RegisterFormData } from '../../entities'
+import type { IRegistrationRepository } from '../../repositories/IRegistrationRepository'
+import { RegistrationService } from '../../services/RegistrationService'
 
 // Mock de Firebase Functions
 const mockHttpsCallable = vi.fn()

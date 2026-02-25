@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { VehicleInsuranceStats } from '@/types/types'
-import { Shield, AlertTriangle, Ban, Car, TrendingUp, User, Users, ChevronLeft, ChevronRight } from 'lucide-react'
-import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { cn } from '@/lib/utils'
+import type { VehicleInsuranceStats } from '@/types/types'
+import { AlertTriangle, Ban, Car, ChevronLeft, ChevronRight, Shield, TrendingUp, User, Users } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 
 interface Props {
   stats?: VehicleInsuranceStats

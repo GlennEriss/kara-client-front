@@ -1,10 +1,9 @@
 'use client'
 
-import React from 'react'
-import { Plus, Search, LayoutGrid, List, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CharityEventStatus, CHARITY_EVENT_STATUS_LABELS } from '@/types/types'
+import { CHARITY_EVENT_STATUS_LABELS, CharityEventStatus } from '@/types/types'
+import { LayoutGrid, List, Plus, RefreshCw, Search } from 'lucide-react'
 
 interface CharityFiltersProps {
   statusFilter: CharityEventStatus | 'all'

@@ -1,6 +1,6 @@
+import { adminAuth } from '@/firebase/adminAuth'
 import { cookies } from 'next/headers'
 import type { NextRequest } from 'next/server'
-import { adminAuth } from '@/firebase/adminAuth'
 
 export const SESSION_COOKIE_NAME = '__session'
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 jours

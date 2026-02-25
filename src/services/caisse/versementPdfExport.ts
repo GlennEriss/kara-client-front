@@ -346,8 +346,8 @@ export function buildVersementPDFFirstTwoPages(
           return paid.getFullYear() === y && paid.getMonth() === m && paid.getDate() === d
         })
       }
-      const getAdminNameFromContrib = (contrib: any): string => {
-        const id = (contrib && (contrib.updatedBy || contrib.createdBy)) || ''
+      const getAdminNameFromContrib = (contrib: any, payment: any): string => {
+        const id = contrib?.updatedBy ?? contrib?.createdBy ?? payment?.updatedBy ?? ''
         const label = getAdminDisplayName(id)
         if (!label || label === 'Chargement...') return id || '-'
         return label
@@ -394,7 +394,7 @@ export function buildVersementPDFFirstTwoPages(
                 `${formatAmountForPDF(Number(contrib.amount) || 0)} FCFA`,
                 contrib.time || '-',
                 formatMode(contrib.mode),
-                getAdminNameFromContrib(contrib),
+                getAdminNameFromContrib(contrib, payment),
                 'CONFORME',
               ]
             : [

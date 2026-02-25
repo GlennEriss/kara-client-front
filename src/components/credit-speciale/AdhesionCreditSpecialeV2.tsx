@@ -1,11 +1,9 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
-import { CreditContract } from '@/types/types'
+import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
-import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles conformes au document ADHESION_CREDIT_SPECIALE.docx
 const styles = StyleSheet.create({

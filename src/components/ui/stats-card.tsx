@@ -10,9 +10,9 @@
  * - Autres modules futurs
  */
 
-import React from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import React from 'react'
 
 interface StatsCardProps {
   title: string

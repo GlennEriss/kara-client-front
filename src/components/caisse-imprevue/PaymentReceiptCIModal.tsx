@@ -1,47 +1,47 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  FileText,
-  Download,
-  Calendar,
-  Clock,
-  DollarSign,
-  User,
-  CreditCard,
-  CheckCircle,
-  Receipt,
-  Smartphone,
-  Banknote,
-  Building2,
-  Image as ImageIcon,
-  Maximize2,
-  X,
-  Loader2,
-  Pencil,
-  Trash2,
-} from 'lucide-react'
-import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useAdmin } from '@/hooks/admin/useAdmin'
-import { useAuth } from '@/hooks/useAuth'
 import { useAgentsActifs } from '@/hooks/agent-recouvrement'
+import { useAuth } from '@/hooks/useAuth'
+import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
+import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    Banknote,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    DollarSign,
+    Download,
+    FileText,
+    Image as ImageIcon,
+    Loader2,
+    Maximize2,
+    Pencil,
+    Receipt,
+    Smartphone,
+    Trash2,
+    User,
+    X,
+} from 'lucide-react'
 import Image from 'next/image'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
 
 // Helper pour formater les montants correctement dans l'UI
 const formatAmount = (amount: number): string => {

@@ -13,7 +13,6 @@ import {
   useProvinces,
   useProvince,
   useProvinceMutations,
-  useGeographyStats,
 } from '../../hooks/useGeographie';
 import { ServiceFactory } from '@/factories/ServiceFactory';
 

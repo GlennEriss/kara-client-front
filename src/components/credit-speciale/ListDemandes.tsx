@@ -1,60 +1,63 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  FileText,
-  RefreshCw,
-  Grid3X3,
-  List,
-  AlertCircle,
-  Plus,
-  Search,
-  Filter,
-  Download,
-  CheckCircle,
-  XCircle,
-  Clock,
-  RotateCcw,
-  Calculator,
-  Loader2,
-} from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
-import routes from '@/constantes/routes'
-import { CreditDemand, CreditDemandStatus, CreditType } from '@/types/types'
-import { useCreditDemands, useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
-import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
-import CreateCreditDemandModal from './CreateCreditDemandModal'
-import EditCreditDemandModal from './EditCreditDemandModal'
-import DeleteCreditDemandModal from './DeleteCreditDemandModal'
-import ValidateDemandModal from './ValidateDemandModal'
-import ReopenDemandModal from './ReopenDemandModal'
-import CreditSimulationModal from './CreditSimulationModal'
-import ContractCreationModal from './ContractCreationModal'
-import StatisticsCreditDemandes from './StatisticsCreditDemandes'
-import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
-import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
-import type { StandardSimulation, CustomSimulation } from '@/types/types'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Eye, Calendar, Edit, Trash2 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
-import { useMember } from '@/hooks/useMembers'
+import routes from '@/constantes/routes'
+import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
-import { Shield, CheckCircle2 } from 'lucide-react'
+import { useCreditContractMutations, useCreditDemands, useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
+import { useMember } from '@/hooks/useMembers'
+import { cn } from '@/lib/utils'
+import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
+import type { CustomSimulation, StandardSimulation } from '@/types/types'
+import { CreditDemand, CreditDemandStatus, CreditType } from '@/types/types'
+import {
+    AlertCircle,
+    Calculator,
+    Calendar,
+    CheckCircle,
+    CheckCircle2,
+    Clock,
+    Download,
+    Edit,
+    Eye,
+    FileText,
+    Filter,
+    Grid3X3,
+    List,
+    Loader2,
+    Plus,
+    RefreshCw,
+    RotateCcw,
+    Search,
+    Shield,
+    Trash2,
+    XCircle,
+} from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import ContractCreationModal from './ContractCreationModal'
+import CreateCreditDemandModal from './CreateCreditDemandModal'
+import CreditSimulationModal from './CreditSimulationModal'
+import DeleteCreditDemandModal from './DeleteCreditDemandModal'
+import EditCreditDemandModal from './EditCreditDemandModal'
+import ReopenDemandModal from './ReopenDemandModal'
+import StatisticsCreditDemandes from './StatisticsCreditDemandes'
+import ValidateDemandModal from './ValidateDemandModal'
 
 type ViewMode = 'grid' | 'list'
 type DemandTab = 'all' | 'pending' | 'approved' | 'rejected'

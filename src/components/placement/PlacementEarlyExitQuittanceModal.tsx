@@ -1,30 +1,29 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import {
-  FileText,
-  Download,
-  Loader2,
-  Monitor,
-  Smartphone,
-  AlertCircle,
-} from 'lucide-react'
-import { Placement, EarlyExitPlacement } from '@/types/types'
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { useMember } from '@/hooks/useMembers'
+import { usePlacementCommissions } from '@/hooks/usePlacements'
+import { EarlyExitPlacement, Placement } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import {
+    AlertCircle,
+    Download,
+    FileText,
+    Loader2,
+    Smartphone
+} from 'lucide-react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { useMember } from '@/hooks/useMembers'
-import { usePlacementCommissions } from '@/hooks/usePlacements'
 
 // Helper pour formater les montants
 const formatAmount = (amount: number): string => {

@@ -1,10 +1,10 @@
 'use client'
 
-import React from 'react'
 import { Button } from '@/components/ui/button'
-import { List, LayoutGrid, Inbox } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
+import { Inbox, LayoutGrid, List } from 'lucide-react'
+import React from 'react'
 
 /**
  * Composant pour afficher des données en liste ou en cards

@@ -1,8 +1,8 @@
 'use client'
 
-import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 
 interface AgentRecouvrementSelectProps {
   value?: string

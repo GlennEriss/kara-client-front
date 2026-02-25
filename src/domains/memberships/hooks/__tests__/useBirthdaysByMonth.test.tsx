@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useBirthdaysByMonth } from '../useBirthdaysByMonth'
-import { BirthdaysRepository } from '../../repositories/BirthdaysRepository'
 import { createBirthdayFixture } from '../../__tests__/fixtures/birthday.fixture'
 
 // Mock BirthdaysRepository

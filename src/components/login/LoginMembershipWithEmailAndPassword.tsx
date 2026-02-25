@@ -1,16 +1,16 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
-import { Eye, EyeOff, Mail, Lock, Shield, Loader2, IdCard, CheckCircle2 } from 'lucide-react'
 import { Logo } from '@/components/logo'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import routes from '@/constantes/routes'
-import Link from 'next/link'
 import { useLogin } from '@/domains/auth/hooks/useLogin'
+import { cn } from '@/lib/utils'
+import { CheckCircle2, Eye, EyeOff, IdCard, Loader2, Lock, Mail, Shield } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 export default function LoginMembershipWithEmailAndPassword() {
   const {

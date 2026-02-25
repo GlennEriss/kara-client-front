@@ -1,20 +1,20 @@
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MoreVertical, Eye, Pencil, Pause, Play, Trash2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { AgentRecouvrement } from '@/types/types'
 import routes from '@/constantes/routes'
-import { useRouter } from 'next/navigation'
+import type { AgentRecouvrement } from '@/types/types'
 import { getAgentAge } from '@/utils/agentDateUtils'
+import { Eye, MoreVertical, Pause, Pencil, Play, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface AgentCardProps {
   agent: AgentRecouvrement

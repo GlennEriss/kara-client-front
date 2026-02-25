@@ -1,9 +1,9 @@
 "use client"
 
-import * as React from "react"
-import { createContext, useContext } from "react"
 import { CheckIcon, LoaderCircleIcon } from "lucide-react"
 import { Slot } from "radix-ui"
+import * as React from "react"
+import { createContext, useContext } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -280,11 +280,11 @@ function StepperSeparator({
 }
 
 export {
-  Stepper,
-  StepperDescription,
-  StepperIndicator,
-  StepperItem,
-  StepperSeparator,
-  StepperTitle,
-  StepperTrigger,
+    Stepper,
+    StepperDescription,
+    StepperIndicator,
+    StepperItem,
+    StepperSeparator,
+    StepperTitle,
+    StepperTrigger
 }

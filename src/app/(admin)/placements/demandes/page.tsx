@@ -1,6 +1,6 @@
-import { PlacementDemandesSection } from '@/domains/financial/placement/demandes'
-import React, { Suspense } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PlacementDemandesSection } from '@/domains/financial/placement/demandes'
+import { Suspense } from 'react'
 
 export const metadata = {
   title: 'Demandes de placement | Kara Administration',

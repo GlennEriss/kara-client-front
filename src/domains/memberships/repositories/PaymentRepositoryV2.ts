@@ -10,7 +10,7 @@
  * - etc.
  */
 
-import { collection, doc, setDoc, getDoc, query, where, getDocs, orderBy, limit, serverTimestamp, Timestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, getDoc, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { Payment } from '@/types/types'

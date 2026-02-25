@@ -1,5 +1,4 @@
 import { ReferencesManagement } from '@/domains/infrastructure/references/components'
-import React from 'react'
 
 /**
  * Page de gestion des Entreprises

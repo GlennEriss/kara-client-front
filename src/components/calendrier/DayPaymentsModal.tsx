@@ -1,17 +1,17 @@
 "use client"
 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import type { CalendarPaymentItem, DayPayments } from "@/hooks/useCalendarCaisseSpeciale"
+import { cn } from "@/lib/utils"
+import type { CaisseType } from "@/services/caisse/types"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
-import { Calendar, Wallet, ChevronRight, CheckCircle2, Clock, AlertCircle, XCircle, Users } from "lucide-react"
-import type { DayPayments, CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
-import type { CaisseType } from "@/services/caisse/types"
+import { AlertCircle, Calendar, CheckCircle2, ChevronRight, Clock, Users, Wallet, XCircle } from "lucide-react"
 
 interface DayPaymentsModalProps {
   isOpen: boolean

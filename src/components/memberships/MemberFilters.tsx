@@ -1,37 +1,37 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { 
-  Search, 
-  Filter, 
-  X, 
-  Calendar,
-  Users,
-  Car,
-  ChevronDown,
-  RotateCcw,
-  MapPin,
-  Building,
-  Briefcase
-} from 'lucide-react'
-import { UserFilters, MembershipType, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
-import { useDebounce } from '@/hooks/useDebounce'
-import { useAddresses } from '@/hooks/useAddresses'
+import { Input } from '@/components/ui/input'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select'
 import { useCompanies } from '@/domains/infrastructure/references/hooks/useCompanies'
 import { useProfessions } from '@/domains/infrastructure/references/hooks/useProfessions'
 import type { MembersTab } from '@/domains/memberships/services/MembershipsListService'
+import { useAddresses } from '@/hooks/useAddresses'
+import { useDebounce } from '@/hooks/useDebounce'
+import { MEMBERSHIP_TYPE_LABELS, MembershipType, UserFilters } from '@/types/types'
+import {
+    Briefcase,
+    Building,
+    Calendar,
+    Car,
+    ChevronDown,
+    Filter,
+    MapPin,
+    RotateCcw,
+    Search,
+    Users,
+    X
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface MemberFiltersProps {
   filters: UserFilters

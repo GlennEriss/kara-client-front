@@ -3,8 +3,7 @@
  * Ré-export des types existants pour cohérence
  */
 
-export type { RegisterFormData } from '@/types/types'
-export type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
+export type { MembershipRequest, MembershipRequestStatus, RegisterFormData } from '@/types/types'
 
 /**
  * Section du formulaire d'inscription

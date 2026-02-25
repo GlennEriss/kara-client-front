@@ -1,21 +1,20 @@
 'use client'
 
-import React from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  DollarSign,
-  Calendar,
-  FileText,
-  AlertCircle,
-  TrendingUp,
-} from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useGuarantorRemunerationsByGuarantorId } from '@/hooks/useCreditSpeciale'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import {
+    AlertCircle,
+    Calendar,
+    DollarSign,
+    FileText,
+    TrendingUp,
+} from 'lucide-react'
 
 interface GuarantorRemunerationsListProps {
   guarantorId: string

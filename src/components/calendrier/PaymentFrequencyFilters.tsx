@@ -1,8 +1,8 @@
 "use client"
 
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import type { CaisseImprevuePaymentFrequency } from "@/types/types"
 
 interface PaymentFrequencyFiltersProps {

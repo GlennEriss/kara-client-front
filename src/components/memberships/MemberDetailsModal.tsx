@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Download, Loader2, Eye, FileText, Smartphone, Monitor } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import type { MembershipRequest } from '@/types/types'
-import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image, BlobProvider } from '@react-pdf/renderer'
-import { toast } from 'sonner'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { getNationalityName } from '@/constantes/nationality'
+import type { MembershipRequest } from '@/types/types'
+import { BlobProvider, Document, Image, PDFViewer, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
+import { Download, Eye, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 // Hook pour détecter le mobile uniquement
 const useIsMobile = () => {

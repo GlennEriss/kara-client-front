@@ -2,12 +2,12 @@
  * Hook pour la validation des étapes du formulaire d'inscription
  */
 
+import type { RegisterFormData } from '@/domains/auth/registration/entities'
+import { STEP_TO_SECTION_MAP } from '@/domains/auth/registration/entities/registration-form.types'
+import { stepSchemas } from '@/schemas/schemas'
 import { useCallback } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
-import type { RegisterFormData } from '@/domains/auth/registration/entities'
-import { stepSchemas } from '@/schemas/schemas'
-import { STEP_TO_SECTION_MAP } from '@/domains/auth/registration/entities/registration-form.types'
 
 interface UseRegistrationValidationProps {
   form: UseFormReturn<RegisterFormData>

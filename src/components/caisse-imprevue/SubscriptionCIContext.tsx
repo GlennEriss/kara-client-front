@@ -1,12 +1,12 @@
 'use client'
-import React, { createContext, useContext, useReducer, ReactNode } from 'react'
-import { SubscriptionCI } from '@/types/types'
-import { useSubscriptionsCI } from '@/hooks/caisse-imprevue/useSubscriptionsCI'
 import {
-  useCreateSubscriptionCI,
-  useUpdateSubscriptionCI,
-  useDeleteSubscriptionCI,
+    useCreateSubscriptionCI,
+    useDeleteSubscriptionCI,
+    useUpdateSubscriptionCI,
 } from '@/hooks/caisse-imprevue/useSubscriptionCIMutations'
+import { useSubscriptionsCI } from '@/hooks/caisse-imprevue/useSubscriptionsCI'
+import { SubscriptionCI } from '@/types/types'
+import React, { createContext, ReactNode, useContext, useReducer } from 'react'
 
 // Types d'actions (uniquement pour l'UI maintenant, React Query gère les données)
 type SubscriptionCIAction =

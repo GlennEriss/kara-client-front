@@ -1,27 +1,27 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  AlertCircle,
-  Calendar,
-  DollarSign,
-  Eye,
-  FileText,
-  History,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
 import { useMemberContractsCI } from '@/hooks/caisse-imprevue'
 import { CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import routes from '@/constantes/routes'
+import {
+    AlertCircle,
+    Calendar,
+    ChevronLeft,
+    ChevronRight,
+    DollarSign,
+    Eye,
+    FileText,
+    History,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 interface MemberContractsCIListProps {
   memberId: string

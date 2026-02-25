@@ -8,26 +8,25 @@
 
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useDebounce } from '@/hooks/shared/useDebounce'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { StatusFilterChips } from './StatusFilterChips'
-import { Download, List, Grid, LayoutGrid, Table2 } from 'lucide-react'
-import {
-  StatisticsV2,
-  DemandSearchV2,
-  DemandFiltersV2,
-  DemandSortV2,
-  DemandCardV2,
-  DemandTableV2,
-} from './index'
-import { useCaisseImprevueDemands } from '@/domains/financial/caisse-imprevue/hooks'
 import { PaginationWithEllipses } from '@/components/ui/pagination/PaginationWithEllipses'
-import { ExportDemandsModalV2 } from '../modals/ExportDemandsModalV2'
-import type { DemandFilters, PaginationParams, SortParams } from '../../entities/demand-filters.types'
+import { useCaisseImprevueDemands } from '@/domains/financial/caisse-imprevue/hooks'
+import { useDebounce } from '@/hooks/shared/useDebounce'
 import { cn } from '@/lib/utils'
+import { LayoutGrid, Table2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import type { DemandFilters, PaginationParams, SortParams } from '../../entities/demand-filters.types'
+import { ExportDemandsModalV2 } from '../modals/ExportDemandsModalV2'
+import {
+    DemandCardV2,
+    DemandFiltersV2,
+    DemandSearchV2,
+    DemandSortV2,
+    DemandTableV2,
+    StatisticsV2,
+} from './index'
+import { StatusFilterChips } from './StatusFilterChips'
 
 interface ListDemandesV2Props {
   onViewDetails?: (id: string) => void

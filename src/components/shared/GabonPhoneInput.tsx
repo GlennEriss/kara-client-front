@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react'
-import { X, Phone, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Check, Phone, X } from 'lucide-react'
+import React, { useRef, useState } from 'react'
 
 // Opérateurs gabonais avec leurs préfixes
 const GABON_OPERATORS = [

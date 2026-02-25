@@ -1,9 +1,9 @@
 'use client'
 
-import React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { FileText, Download, ExternalLink } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Download, ExternalLink, FileText } from 'lucide-react'
+import React from 'react'
 
 interface ViewUploadedContractModalProps {
   isOpen: boolean

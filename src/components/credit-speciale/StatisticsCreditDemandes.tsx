@@ -1,22 +1,21 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  FileText,
-  CheckCircle,
-  XCircle,
-  Clock,
-  DollarSign,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
-import { CreditDemandStatus, CreditType } from '@/types/types'
+import { cn } from '@/lib/utils'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
+import { CreditDemandStatus, CreditType } from '@/types/types'
+import {
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    FileText,
+    XCircle
+} from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 
 // Composant pour les statistiques modernes
 const StatsCard = ({

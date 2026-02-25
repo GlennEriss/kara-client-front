@@ -1,14 +1,14 @@
 "use client"
 
-import React from "react"
-import { Badge } from "@/components/ui/badge"
-import { CalendarDays, User, Receipt, Users, Shield, UserCircle, Edit3 } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import Image from "next/image"
-import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
+import { Badge } from "@/components/ui/badge"
 import { useAdmin } from "@/hooks/admin/useAdmin"
-import { useAuth } from "@/hooks/useAuth"
 import { useAgentsActifs } from "@/hooks/agent-recouvrement"
+import { useAuth } from "@/hooks/useAuth"
+import type { CaisseContract, CaissePayment } from "@/services/caisse/types"
+import { CalendarDays, Edit3, Receipt, Shield, User, UserCircle, Users } from "lucide-react"
+import Image from "next/image"
+import React from "react"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI

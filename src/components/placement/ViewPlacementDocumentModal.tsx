@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Download, Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { toast } from 'sonner'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { usePlacementDocument } from '@/hooks/placement/usePlacementDocument'
+import { AlertCircle, Eye, FileText, Loader2, Smartphone } from 'lucide-react'
+import React, { useState } from 'react'
+import { toast } from 'sonner'
 
 // Hook pour détecter le mobile
 const useIsMobile = () => {

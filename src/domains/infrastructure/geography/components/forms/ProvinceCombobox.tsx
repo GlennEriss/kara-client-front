@@ -21,7 +21,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import type { Province } from '../../entities/geography.types'
 
 interface ProvinceComboboxProps {
   form: UseFormReturn<RegisterFormData>

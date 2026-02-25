@@ -1,6 +1,6 @@
+import { readFile } from 'fs/promises'
 import { NextResponse } from 'next/server'
 import path from 'path'
-import { readFile } from 'fs/promises'
 
 export const runtime = 'nodejs'
 

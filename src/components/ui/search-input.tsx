@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { Search, X, Loader2 } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { Loader2, Search, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 
 /**
  * Composant de recherche standardisé avec debounce

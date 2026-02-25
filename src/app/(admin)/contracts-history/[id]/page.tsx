@@ -1,13 +1,13 @@
 'use client'
 
-import React, { lazy, Suspense } from 'react'
-import { useParams } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { AlertCircle, Users, Package } from 'lucide-react'
-import { useMember } from '@/hooks/useMembers'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useMember } from '@/hooks/useMembers'
+import { AlertCircle, Package, Users } from 'lucide-react'
+import { useParams } from 'next/navigation'
+import { lazy, Suspense } from 'react'
 
 // Lazy load components
 const MemberContractsCSList = lazy(() => import('@/components/member/MemberContractsCSList'))

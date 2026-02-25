@@ -1,15 +1,14 @@
 'use client'
 
-import React from 'react'
+import { ArrondissementAddressForm, CityAddressForm, CityCorrectionSearch, DistrictAddressForm, DistrictSearchForm, ProvinceAddressForm } from '@/components/address-form'
+import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { 
-  MapPin, 
-  Search,
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DistrictSearchForm, ProvinceAddressForm, CityAddressForm, DistrictAddressForm, CityCorrectionSearch, ArrondissementAddressForm } from '@/components/address-form'
+import {
+    MapPin,
+    Search,
+} from 'lucide-react'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form

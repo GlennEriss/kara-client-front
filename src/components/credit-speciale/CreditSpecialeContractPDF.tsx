@@ -1,10 +1,9 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
 import { CreditContract } from '@/types/types'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles exactement comme le document original
 const styles = StyleSheet.create({

@@ -1,9 +1,9 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import InputApp from '@/components/forms/InputApp'
 import { Button } from '@/components/ui/button'
-import { Phone, Plus, Trash2, CheckCircle } from 'lucide-react'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import useStep1Form from '@/hooks/register/useStep1Form'
+import { CheckCircle, Phone, Plus, Trash2 } from 'lucide-react'
+import React from 'react'
 
 export default function ContactsIdentityForm() {
   const { form, mediator } = useStep1Form()

@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import type { DashboardTabKey } from '../entities/dashboard-tabs.types'
 import type { DashboardFilters } from '../entities/dashboard.types'
 import {
-  buildDashboardQueryKey,
-  getDashboardFilterOptions,
-  getDashboardSnapshot,
+    buildDashboardQueryKey,
+    getDashboardFilterOptions,
+    getDashboardSnapshot,
 } from '../services/DashboardAggregationService'
 
 export function useDashboard(activeTab: DashboardTabKey, filters: DashboardFilters) {

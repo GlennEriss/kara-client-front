@@ -4,13 +4,12 @@
  * @see https://vitest.dev/
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
-import { useLogin } from '../../hooks/useLogin';
 import { ServiceFactory } from '@/factories/ServiceFactory';
-import { LoginMediatorFactory } from '@/factories/LoginMediatorFactory';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLogin } from '../../hooks/useLogin';
 
 // Mock de next/navigation
 vi.mock('next/navigation', () => ({

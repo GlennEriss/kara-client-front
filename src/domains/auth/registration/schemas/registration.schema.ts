@@ -4,18 +4,15 @@
  */
 
 export {
-  registerSchema,
-  stepSchemas,
-  documentsSchema,
-  defaultValues,
+    defaultValues, documentsSchema, registerSchema,
+    stepSchemas
 } from '@/schemas/schemas'
 
-export { identitySchema } from '@/schemas/identity.schema'
 export { addressSchema } from '@/schemas/address.schema'
 export { companySchema } from '@/schemas/company.schema'
+export { identitySchema } from '@/schemas/identity.schema'
 
 export type {
-  RegisterFormData,
-  AddressFormData,
-  DocumentsFormData,
+    AddressFormData,
+    DocumentsFormData, RegisterFormData
 } from '@/schemas/schemas'

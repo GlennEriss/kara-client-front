@@ -8,7 +8,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { MEMBERSHIP_REQUEST_UI_COLORS, MEMBERSHIP_REQUEST_STATUS_LABELS } from '@/constantes/membership-requests'
+import { MEMBERSHIP_REQUEST_UI_COLORS } from '@/constantes/membership-requests'
 import type { MembershipRequestStatus } from '@/types/types'
 import { Clock, CheckCircle, XCircle, FileSearch } from 'lucide-react'
 

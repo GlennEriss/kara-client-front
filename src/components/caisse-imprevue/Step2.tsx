@@ -1,16 +1,16 @@
 'use client'
-import React, { useCallback } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Wallet, Loader2, CheckCircle2, AlertCircle, Package, Calendar, Clock } from 'lucide-react'
+import { useActiveSubscriptionsCI } from '@/hooks/caisse-imprevue/useActiveSubscriptionsCI'
 import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
 import { SubscriptionCI } from '@/types/types'
+import { AlertCircle, Calendar, CheckCircle2, Clock, Loader2, Package, Wallet } from 'lucide-react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
-import { useActiveSubscriptionsCI } from '@/hooks/caisse-imprevue/useActiveSubscriptionsCI'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function Step2() {
   const { form } = useFormCaisseImprevueProvider()

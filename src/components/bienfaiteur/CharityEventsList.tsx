@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Plus, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
 import { useCharityEventsList, useCharityGlobalStats, useUpdateCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import { CharityEventStatus } from '@/types/types'
-import CharityStatsCards from './CharityStatsCards'
-import CharityFilters from './CharityFilters'
+import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import CharityEventCard from './CharityEventCard'
 import CharityEventTable from './CharityEventTable'
-import { useRouter } from 'next/navigation'
-import routes from '@/constantes/routes'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from 'sonner'
+import CharityFilters from './CharityFilters'
+import CharityStatsCards from './CharityStatsCards'
 
 export default function CharityEventsList() {
   const router = useRouter()

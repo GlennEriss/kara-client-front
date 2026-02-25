@@ -1,7 +1,6 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import SelectApp from '@/components/forms/SelectApp'
 import { MARITAL_STATUS_OPTIONS } from '@/components/register/register.data'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
 export default function MaritalStatusIdentityForm() {
   return (

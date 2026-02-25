@@ -1,5 +1,5 @@
-import { Metadata } from 'next'
 import { VehicleInsuranceList } from '@/components/vehicule/VehicleInsuranceList'
+import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Module Véhicules | KARA Admin',

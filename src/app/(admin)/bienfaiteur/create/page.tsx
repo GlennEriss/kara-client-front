@@ -1,5 +1,5 @@
-import { Metadata } from 'next'
 import CreateCharityEventForm from '@/components/bienfaiteur/CreateCharityEventForm'
+import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Créer un Évènement | KARA Admin',

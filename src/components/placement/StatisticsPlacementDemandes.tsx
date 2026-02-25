@@ -1,22 +1,20 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  FileText,
-  CheckCircle,
-  XCircle,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  DollarSign,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { usePlacementDemandsStats } from '@/hooks/placement/usePlacementDemands'
-import { PlacementDemandStatus } from '@/types/types'
-import type { PlacementDemandFilters } from '@/types/types'
+import { cn } from '@/lib/utils'
+import {
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    FileText,
+    XCircle,
+} from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 
 // Composant pour les statistiques modernes (taille uniforme)
 const StatsCard = ({

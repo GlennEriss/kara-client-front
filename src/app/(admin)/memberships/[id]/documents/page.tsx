@@ -1,4 +1,3 @@
-import React from 'react'
 import ListDocumentsV2 from '@/domains/infrastructure/documents/components/ListDocumentsV2'
 
 interface MemberDocumentsPageProps {

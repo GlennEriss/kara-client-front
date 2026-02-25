@@ -1,9 +1,8 @@
 'use client'
 
-import React from 'react'
+import { RegisterFormData } from '@/schemas/schemas'
 import { useFormContext } from 'react-hook-form'
 import DistrictSearchForm from './DistrictSearchForm'
-import { RegisterFormData } from '@/schemas/schemas'
 
 export default function DistrictFieldForm() {
   const form = useFormContext<RegisterFormData>()

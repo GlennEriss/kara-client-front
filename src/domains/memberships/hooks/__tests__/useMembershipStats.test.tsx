@@ -7,7 +7,6 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useMembershipStats } from '../useMembershipStats'
 import { MembershipStatsService } from '../../services/MembershipStatsService'
-import { MembersRepositoryV2 } from '../../repositories/MembersRepositoryV2'
 import type { MemberWithSubscription, PaginatedMembers } from '@/db/member.db'
 import type { User } from '@/types/types'
 

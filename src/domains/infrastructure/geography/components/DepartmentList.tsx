@@ -11,7 +11,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { departmentSchema, type DepartmentFormData } from '../schemas/geographie.schema'
 import { useDepartments, useDepartmentMutations, useProvinces } from '../hooks/useGeographie'
-import { toast } from 'sonner'
 import { Plus, Search, Edit3, Trash2, Building2, Loader2, Download } from 'lucide-react'
 import type { Department } from '../entities/geography.types'
 

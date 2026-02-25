@@ -1,31 +1,31 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableFooter,
+    Table,
+    TableBody,
+    TableCell,
+    TableFooter,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table'
-import {
-  caisseSpecialeSimulationFormSchema,
-  type CaisseSpecialeSimulationFormInput,
-} from '@/schemas/caisse-speciale.schema'
 import { useCaisseSpecialeSimulation } from '@/hooks/caisse-speciale/useCaisseSpecialeSimulation'
+import {
+    caisseSpecialeSimulationFormSchema,
+    type CaisseSpecialeSimulationFormInput,
+} from '@/schemas/caisse-speciale.schema'
 import type { CaisseSpecialeSimulationResult } from '@/services/caisse-speciale/simulation/types'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AlertTriangle, Download, FileSpreadsheet, Loader2, MessageCircle } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { Loader2, AlertTriangle, Download, FileSpreadsheet, MessageCircle } from 'lucide-react'
 
 const CAISSE_TYPE_OPTIONS = [
   { value: 'STANDARD', label: 'Standard' },

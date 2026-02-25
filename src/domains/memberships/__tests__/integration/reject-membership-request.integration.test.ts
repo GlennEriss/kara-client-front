@@ -12,9 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MembershipServiceV2 } from '../../services/MembershipServiceV2'
 import { MembershipRepositoryV2 } from '../../repositories/MembershipRepositoryV2'
-import { NotificationService } from '@/services/notifications/NotificationService'
-import { AdminRepository } from '@/repositories/admins/AdminRepository'
-import { createMembershipRequestFixture, pendingPaidRequest, rejectedRequest } from '../fixtures'
+import { pendingPaidRequest, rejectedRequest } from '../fixtures'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 
 // Mock Firebase Functions

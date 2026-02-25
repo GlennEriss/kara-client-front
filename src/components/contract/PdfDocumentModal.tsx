@@ -1,17 +1,17 @@
 "use client"
 
-import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { FileText, Upload, Eye, X, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { uploadContractDocument, deleteContractDocument } from '@/db/upload-file.db'
 import { updateRefund } from '@/db/caisse/refunds.db'
-import { useAuth } from '@/hooks/useAuth'
-import type { RefundDocument } from '@/types/types'
+import { deleteContractDocument, uploadContractDocument } from '@/db/upload-file.db'
 import type { DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
 import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
+import { useAuth } from '@/hooks/useAuth'
+import type { RefundDocument } from '@/types/types'
+import { Eye, FileText, Trash2, Upload, X } from 'lucide-react'
+import React, { useState } from 'react'
+import { toast } from 'sonner'
 
 interface PdfDocumentModalProps {
   isOpen: boolean

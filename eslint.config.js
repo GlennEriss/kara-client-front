@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import unusedImports from 'eslint-plugin-unused-imports';
 
 export default tseslint.config(
   js.configs.recommended,
@@ -11,6 +12,7 @@ export default tseslint.config(
     plugins: {
       react,
       'react-hooks': reactHooks,
+      'unused-imports': unusedImports,
     },
     languageOptions: {
       ecmaVersion: 'latest',
@@ -99,6 +101,10 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/ban-ts-comment': 'warn',
+
+      // Remove unused imports (autofix)
+      'unused-imports/no-unused-imports': 'warn',
+      'unused-imports/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       
       // React rules
       'react/react-in-jsx-scope': 'off',

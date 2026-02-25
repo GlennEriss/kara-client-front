@@ -13,38 +13,38 @@
 
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { 
-  User, 
-  Phone, 
-  Banknote, 
-  Calendar, 
-  Clock,
-  Eye, 
-  CheckCircle2, 
-  XCircle, 
-  RotateCcw,
-  FileText,
-  Repeat,
-  CalendarDays,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  FileSignature
-} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import type { CaisseImprevueDemand } from '../../entities/demand.types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    Banknote,
+    Calendar,
+    CalendarDays,
+    CheckCircle2,
+    Clock,
+    Eye,
+    FileSignature,
+    FileText,
+    MoreHorizontal,
+    Pencil,
+    Phone,
+    Repeat,
+    RotateCcw,
+    Trash2,
+    User,
+    XCircle
+} from 'lucide-react'
+import type { CaisseImprevueDemand } from '../../entities/demand.types'
 import { usePrefetchDemandDetail } from '../../hooks/useDemandDetail'
 
 interface DemandCardV2Props {

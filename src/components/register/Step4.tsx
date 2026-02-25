@@ -1,28 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  FileText,
-  Calendar,
-  Camera,
-  Upload,
-  CheckCircle,
-  AlertCircle,
-  CreditCard,
-  MapPin,
-  Loader2
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { DOCUMENT_TYPE_OPTIONS } from '@/domains/infrastructure/documents/constants/document-types'
 import { useDocumentUpload } from '@/domains/memberships/hooks/useDocumentUpload'
 import { useStep4Validation } from '@/domains/memberships/hooks/useStep4Validation'
-import { DOCUMENT_TYPE_OPTIONS } from '@/domains/infrastructure/documents/constants/document-types'
+import { cn } from '@/lib/utils'
+import {
+    AlertCircle,
+    Calendar,
+    Camera,
+    CheckCircle,
+    CreditCard,
+    FileText,
+    Loader2,
+    MapPin,
+    Upload
+} from 'lucide-react'
+import { useState } from 'react'
 
 interface Step4Props {
   form: any // Type du form de react-hook-form

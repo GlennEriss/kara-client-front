@@ -1,9 +1,9 @@
 'use client'
 
-import { useMembershipRequestByDossier } from '@/hooks/useMembershipRequests'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useMembershipRequestByDossier } from '@/hooks/useMembershipRequests'
 import { AlertCircle } from 'lucide-react'
 import MemberDetailsModal from './MemberDetailsModal'
 

@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { MembershipRepositoryV2 } from '../repositories/MembershipRepositoryV2'
 import { MEMBERSHIP_REQUEST_CACHE, MEMBERSHIP_REQUEST_PAGINATION } from '@/constantes/membership-requests'
 import type { MembershipRequestFilters, MembershipRequestsResponse } from '../entities'

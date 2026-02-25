@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Download, ZoomIn, ZoomOut, RotateCw, Maximize2, X, IdCard, FileImage, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Download, ZoomIn, ZoomOut, RotateCw, Maximize2, IdCard, FileImage, AlertCircle, CheckCircle2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,

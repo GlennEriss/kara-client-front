@@ -1,18 +1,18 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Pencil, Pause, Play, Trash2 } from 'lucide-react'
-import { useAgentRecouvrement, useUpdateAgentRecouvrement, useDeactivateAgentRecouvrement, useReactivateAgentRecouvrement, useDeleteAgentRecouvrement } from '@/hooks/agent-recouvrement'
-import { EditAgentModal, DesactiverAgentModal, ReactiverAgentModal, SupprimerAgentModal } from './modals'
 import routes from '@/constantes/routes'
+import { useAgentRecouvrement, useDeactivateAgentRecouvrement, useDeleteAgentRecouvrement, useReactivateAgentRecouvrement, useUpdateAgentRecouvrement } from '@/hooks/agent-recouvrement'
 import { useAuth } from '@/hooks/useAuth'
+import { formatAgentDate, getAgentAge, toAgentDate } from '@/utils/agentDateUtils'
+import { ArrowLeft, Pause, Pencil, Play, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { toAgentDate, formatAgentDate, getAgentAge } from '@/utils/agentDateUtils'
+import { DesactiverAgentModal, EditAgentModal, ReactiverAgentModal, SupprimerAgentModal } from './modals'
 
 const EXPIRATION_WARNING_DAYS = 30
 

@@ -1,5 +1,4 @@
 import { Document } from '../entities/document.types'
-import { DocumentRepository } from '../repositories/DocumentRepository'
 import { IDocumentRepository } from '../repositories/IDocumentRepository'
 import {
   DocumentListQuery,

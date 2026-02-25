@@ -1,13 +1,13 @@
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { VehicleInsurance, VehicleInsuranceListResult } from '@/types/types'
-import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
-import { Eye, Pencil, RefreshCw, Trash2, Phone, MapPin } from 'lucide-react'
 import MembershipPagination from '@/components/memberships/MembershipPagination'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { VehicleInsurance, VehicleInsuranceListResult } from '@/types/types'
+import { Eye, MapPin, Pencil, Phone, RefreshCw, Trash2 } from 'lucide-react'
+import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 
 interface Props {
   data?: VehicleInsuranceListResult

@@ -7,42 +7,40 @@
 
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  Hash, 
-  FileText, 
-  Banknote,
-  Calendar, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  RotateCcw, 
-  Trash2, 
-  Edit, 
-  FileCheck, 
-  BarChart3, 
-  Download, 
-  Loader2,
-  AlertCircle,
-  UserCheck,
-  Repeat,
-  CalendarDays,
-  CreditCard,
-  IdCard
-} from 'lucide-react'
-import { useExportDemandDetails } from '../../hooks/useExportDemandDetails'
-import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PaymentScheduleTable } from '@/domains/financial/caisse-imprevue/components/demandes'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { useDemandSimulation } from '../../hooks/useDemandSimulation'
-import { PaymentScheduleTable } from '@/domains/financial/caisse-imprevue/components/demandes'
+import {
+    AlertCircle,
+    Banknote,
+    BarChart3,
+    Calendar,
+    CalendarDays,
+    CheckCircle2,
+    Clock,
+    CreditCard,
+    Edit,
+    FileCheck,
+    FileText,
+    Hash,
+    IdCard,
+    Mail,
+    Phone,
+    Repeat,
+    RotateCcw,
+    Trash2,
+    User,
+    UserCheck,
+    XCircle
+} from 'lucide-react'
+import { useState } from 'react'
 import type { CaisseImprevueDemand } from '../../entities/demand.types'
-import { cn } from '@/lib/utils'
+import { useDemandSimulation } from '../../hooks/useDemandSimulation'
+import { useExportDemandDetails } from '../../hooks/useExportDemandDetails'
 
 interface DemandDetailV2Props {
   demand: CaisseImprevueDemand

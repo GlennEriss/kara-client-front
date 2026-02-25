@@ -1,14 +1,12 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import { CreditContract } from '@/types/types'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
 import { getNationalityName } from '@/constantes/nationality'
-import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import type { User } from '@/types/types'
+import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
+import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 const styles = StyleSheet.create({
   page: {

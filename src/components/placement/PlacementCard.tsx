@@ -1,11 +1,10 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Clock, CheckCircle, DollarSign, AlertCircle, Trash2, ExternalLink, Phone, User, Upload, FileText, Eye, Edit, Calendar } from 'lucide-react'
-import type { Placement, CommissionPaymentPlacement } from '@/types/types'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
+import type { Placement } from '@/types/types'
+import { AlertCircle, Calendar, CheckCircle, Clock, DollarSign, Edit, ExternalLink, Eye, FileText, Phone, Trash2, Upload, User } from 'lucide-react'
 
 interface PlacementCardProps {
   placement: Placement

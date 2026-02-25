@@ -16,13 +16,11 @@ import { cn } from '@/lib/utils'
 import { 
   AlertCircle, 
   FileText, 
-  Link as LinkIcon, 
   Copy, 
   Eye, 
   EyeOff,
   MessageSquare,
   RotateCcw,
-  CheckCircle2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'

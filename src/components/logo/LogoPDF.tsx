@@ -1,5 +1,5 @@
+import { Path, Svg } from '@react-pdf/renderer'
 import React from 'react'
-import { Svg, Path } from '@react-pdf/renderer'
 
 interface LogoPDFProps {
   width?: number

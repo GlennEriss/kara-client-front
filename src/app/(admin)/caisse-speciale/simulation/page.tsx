@@ -1,8 +1,8 @@
 'use client'
 
-import React, { Suspense } from 'react'
 import CaisseSpecialeSimulationPage from '@/components/caisse-speciale/CaisseSpecialeSimulationPage'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Suspense } from 'react'
 
 function SimulationPageSkeleton() {
   return (

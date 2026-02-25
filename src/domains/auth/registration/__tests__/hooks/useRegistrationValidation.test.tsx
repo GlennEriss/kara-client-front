@@ -2,14 +2,14 @@
  * Tests unitaires pour useRegistrationValidation
  */
 
-import { describe, it, expect } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { useForm, FormProvider, UseFormReturn } from 'react-hook-form'
+import { defaultValues, registerSchema } from '@/schemas/schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRegistrationValidation } from '../../hooks/useRegistrationValidation'
-import { registerSchema, defaultValues } from '@/schemas/schemas'
-import type { RegisterFormData } from '../../entities'
+import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
+import { FormProvider, useForm } from 'react-hook-form'
+import { describe, expect, it } from 'vitest'
+import type { RegisterFormData } from '../../entities'
+import { useRegistrationValidation } from '../../hooks/useRegistrationValidation'
 
 describe('useRegistrationValidation', () => {
   describe('validateStep', () => {

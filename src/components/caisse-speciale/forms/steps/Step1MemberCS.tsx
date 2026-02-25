@@ -5,13 +5,13 @@
 
 'use client'
 
-import { UseFormReturn } from 'react-hook-form'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, UserCheck, X } from 'lucide-react'
 import { useEntitySearch } from '@/hooks/useEntitySearch'
 import { useMember } from '@/hooks/useMembers'
-import { Button } from '@/components/ui/button'
 import type { CaisseSpecialeDemandFormInput } from '@/schemas/caisse-speciale.schema'
+import { Loader2, UserCheck, X } from 'lucide-react'
+import { UseFormReturn } from 'react-hook-form'
 
 interface Step1MemberCSProps {
   form: UseFormReturn<CaisseSpecialeDemandFormInput>

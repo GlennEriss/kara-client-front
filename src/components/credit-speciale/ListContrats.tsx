@@ -1,52 +1,53 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  FileText,
-  RefreshCw,
-  Grid3X3,
-  List,
-  AlertCircle,
-  Search,
-  Filter,
-  Eye,
-  Calendar,
-  Download,
-  Upload,
-  Loader2,
-  User,
-  MoreVertical,
-  Trash2,
-} from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
-import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
-import { useCreditContracts, useCreditContractsStats, useCreditContractMutations, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
-import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
-import StatisticsCreditContrats from './StatisticsCreditContrats'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
-import { Shield, CheckCircle2 } from 'lucide-react'
-import { AlertTriangle } from 'lucide-react'
+import { useCreditContractMutations, useCreditContracts, useCreditContractsStats, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
+import { cn } from '@/lib/utils'
+import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
+import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
+import {
+    AlertCircle,
+    AlertTriangle,
+    Calendar,
+    CheckCircle2,
+    Download,
+    Eye,
+    FileText,
+    Filter,
+    Grid3X3,
+    List,
+    Loader2,
+    MoreVertical,
+    RefreshCw,
+    Search,
+    Shield,
+    Trash2,
+    Upload,
+    User,
+} from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
 import DeleteCreditContractModal from './DeleteCreditContractModal'
+import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 type CreditTypeFilter = CreditType | 'all'

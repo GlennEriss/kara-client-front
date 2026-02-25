@@ -1,4 +1,3 @@
-import React from 'react'
 import ListContractsCIV2 from '@/domains/financial/caisse-imprevue/components/contracts/ListContractsCIV2'
 
 export default function CaisseImprevuePage() {

@@ -1,8 +1,8 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { VEHICLE_INSURANCE_STATUS_LABELS, VehicleInsuranceStatus } from '@/types/types'
 import { cn } from '@/lib/utils'
+import { VEHICLE_INSURANCE_STATUS_LABELS, VehicleInsuranceStatus } from '@/types/types'
 
 const STATUS_STYLES: Record<VehicleInsuranceStatus, string> = {
   active: 'bg-green-100 text-green-800 border border-green-200',

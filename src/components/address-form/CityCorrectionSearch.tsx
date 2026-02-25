@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent } from '@/components/ui/card'
-import { Search, MapPin as MapPinIcon, Loader2, AlertCircle, Building } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { PhotonResult } from '@/types/types'
-import { UseFormReturn } from 'react-hook-form'
-import { RegisterFormData } from '@/schemas/schemas'
 import { AddressFormMediatorFactory } from '@/factories/AddressFormMediatorFactory'
+import { cn } from '@/lib/utils'
+import { RegisterFormData } from '@/schemas/schemas'
+import { PhotonResult } from '@/types/types'
+import { AlertCircle, Building, Loader2, MapPin as MapPinIcon, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { UseFormReturn } from 'react-hook-form'
 
 interface CityCorrectionSearchProps {
   form: UseFormReturn<RegisterFormData>

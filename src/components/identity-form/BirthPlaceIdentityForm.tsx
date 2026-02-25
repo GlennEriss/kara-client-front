@@ -1,7 +1,6 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import InputApp from '@/components/forms/InputApp'
-import { MapPin, CheckCircle } from 'lucide-react'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { CheckCircle, MapPin } from 'lucide-react'
 
 export default function BirthPlaceIdentityForm() {
   return (

@@ -5,15 +5,14 @@
 
 'use client'
 
-import { useEffect } from 'react'
-import { UseFormReturn, useWatch } from 'react-hook-form'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar, Loader2, Heart } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { useMemberCharityEligibility } from '@/domains/financial/caisse-speciale/hooks/useMemberCharityEligibility'
 import type { CaisseSpecialeDemandFormInput } from '@/schemas/caisse-speciale.schema'
+import { Calendar, Heart, Loader2 } from 'lucide-react'
+import { UseFormReturn, useWatch } from 'react-hook-form'
 
 const CHARITABLE_TYPES = ['STANDARD_CHARITABLE', 'JOURNALIERE_CHARITABLE', 'LIBRE_CHARITABLE'] as const
 

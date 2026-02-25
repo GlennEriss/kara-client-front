@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useState } from 'react'
-import { PDFViewer, pdf, BlobProvider } from '@react-pdf/renderer'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, FileText, Monitor, Smartphone, Save } from 'lucide-react'
-import { toast } from 'sonner'
-import { CreditContract } from '@/types/types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMember } from '@/hooks/useMembers'
+import { CreditContract } from '@/types/types'
+import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
+import { Download, FileText, Loader2, Monitor, Save, Smartphone } from 'lucide-react'
+import React, { useState } from 'react'
+import { toast } from 'sonner'
 import QuittanceCreditSpecialePDF from './QuittanceCreditSpecialePDF'
 
 interface QuittanceCreditSpecialePDFModalProps {

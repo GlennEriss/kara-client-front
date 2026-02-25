@@ -1,19 +1,19 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { ContractFormProvider, useContractForm } from '@/providers/ContractFormProvider'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  CheckCircle, 
-  Circle,
-  FileText,
-  Settings,
-  Calendar
-} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { ContractFormProvider, useContractForm } from '@/providers/ContractFormProvider'
+import {
+    Calendar,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Circle,
+    FileText,
+    Settings
+} from 'lucide-react'
+import React, { useEffect } from 'react'
 import { Step1ContractType } from './steps/Step1ContractType'
 import { Step2ContractConfiguration } from './steps/Step2ContractConfiguration'
 import { Step3ContractCreation } from './steps/Step3ContractCreation'

@@ -3,15 +3,14 @@
  * Orchestre les opérations entre le repository et le cache
  */
 
-import { IRegistrationService } from './IRegistrationService'
-import type { RegisterFormData } from '@/domains/auth/registration/entities'
-import type { StepValidationResult } from '@/domains/auth/registration/entities'
-import { IRegistrationRepository } from '../repositories/IRegistrationRepository'
+import type { RegisterFormData, StepValidationResult } from '@/domains/auth/registration/entities'
 import { STEP_TO_SECTION_MAP } from '@/domains/auth/registration/entities/registration-form.types'
-import { stepSchemas } from '@/schemas/schemas'
-import { z } from 'zod'
-import { getFunctions, httpsCallable } from 'firebase/functions'
 import { app } from '@/firebase/app'
+import { stepSchemas } from '@/schemas/schemas'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { z } from 'zod'
+import { IRegistrationRepository } from '../repositories/IRegistrationRepository'
+import { IRegistrationService } from './IRegistrationService'
 
 export class RegistrationService implements IRegistrationService {
   readonly name = 'RegistrationService'

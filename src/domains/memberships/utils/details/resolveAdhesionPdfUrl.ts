@@ -10,7 +10,6 @@
  * @returns URL du PDF ou null si non trouvé
  */
 import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
-import type { MembershipRequest } from '@/types/types'
 
 export interface ResolveAdhesionPdfUrlRequest {
   id: string

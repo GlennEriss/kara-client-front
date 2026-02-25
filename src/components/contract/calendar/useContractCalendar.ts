@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo, useCallback } from 'react'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
+import { useCallback, useMemo } from 'react'
 import { getMonthDays, toDateSafe } from './calendar-utils'
-import type { DayWithStatus, CalendarDayStatus } from './types'
+import type { CalendarDayStatus, DayWithStatus } from './types'
 
 export interface UseContractCalendarResult {
   /** Données du contrat (contrat + payments + refunds) */
@@ -72,16 +72,17 @@ export function useContractCalendar(
   const { data, isLoading, isError, error, refetch } = useCaisseContract(contractId)
 
   const contractStartDate = useMemo(() => {
-    if (!data?.firstPaymentDate) return null
+    const raw = (data as any)?.contractStartAt ?? data?.firstPaymentDate
+    if (!raw) return null
     try {
-      const start = new Date(data.firstPaymentDate)
+      const start = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
       if (isNaN(start.getTime())) return null
       start.setHours(0, 0, 0, 0)
       return start
     } catch {
       return null
     }
-  }, [data?.firstPaymentDate])
+  }, [(data as any)?.contractStartAt, data?.firstPaymentDate])
 
   const caisseType = (data as any)?.caisseType
   const isGroupContract = (data as any)?.contractType === 'GROUP' || !!(data as any)?.groupeId
@@ -201,11 +202,12 @@ export function useContractCalendar(
   }, [])
 
   const firstPaymentDate = useMemo(() => {
-    if (!data?.contractStartAt) return null
-    const d = new Date(data.contractStartAt)
+    const raw = (data as any)?.contractStartAt ?? data?.firstPaymentDate
+    if (!raw) return null
+    const d = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
     d.setHours(0, 0, 0, 0)
     return d
-  }, [data?.contractStartAt])
+  }, [(data as any)?.contractStartAt, data?.firstPaymentDate])
 
   const daysWithStatus = useMemo((): DayWithStatus[] => {
     return monthDays.map((date) => {

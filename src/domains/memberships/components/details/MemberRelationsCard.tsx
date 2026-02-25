@@ -8,7 +8,6 @@
 import { Car, Users, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import type { UseMembershipDetailsResult } from '../../hooks/useMembershipDetails'
 
 interface MemberRelationsCardProps {
   onOpenVehicles: () => void

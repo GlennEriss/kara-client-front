@@ -1,10 +1,9 @@
 "use client"
 
-import React from 'react'
 import { ContractFormProvider } from '@/providers/ContractFormProvider'
+import { ContractFormActions } from './ContractFormActions'
 import { ContractFormStepper } from './ContractFormStepper'
 import { ContractFormSteps } from './ContractFormSteps'
-import { ContractFormActions } from './ContractFormActions'
 
 export default function MultiStepContractForm() {
   return (

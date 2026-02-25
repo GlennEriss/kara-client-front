@@ -1,1 +1,1 @@
-export { CreateDemandFormV2 } from './CreateDemandFormV2'
+export { CreateDemandFormV2 } from './CreateDemandFormV2';

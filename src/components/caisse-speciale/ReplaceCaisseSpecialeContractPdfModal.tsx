@@ -1,21 +1,21 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileText, Loader2 } from 'lucide-react'
 import { useReplaceContractPdf } from '@/domains/financial/caisse-speciale/contrats/hooks'
-import { toast } from 'sonner'
 import type { CaisseContract } from '@/types/types'
+import { FileText, Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface ReplaceCaisseSpecialeContractPdfModalProps {
   isOpen: boolean

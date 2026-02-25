@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import type { Province, Department, Commune, District, Quarter } from '../entities/geography.types'
-import type { ProvinceFormData, DepartmentFormData, CommuneFormData, DistrictFormData, QuarterFormData, DistrictBulkCreateFormData } from '../schemas/geographie.schema'
+import type { ProvinceFormData, DepartmentFormData, CommuneFormData, DistrictFormData, QuarterFormData } from '../schemas/geographie.schema'
 import { toast } from 'sonner'
 
 // ================== PROVINCES ==================

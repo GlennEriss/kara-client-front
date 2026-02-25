@@ -1,35 +1,33 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useFormContext } from 'react-hook-form'
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Globe, 
-  Heart, 
-  FileText, 
-  Church, 
-  Hash, 
-  Car, 
-  Camera,
-  Check,
-  Sparkles,
-  Users
+import {
+    Calendar,
+    Camera,
+    Car,
+    Check,
+    Church,
+    FileText,
+    Globe,
+    Heart,
+    Mail,
+    Phone,
+    Sparkles,
+    User,
+    Users
 } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { useFormContext } from 'react-hook-form'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
+import GabonPhoneInput, { GabonPhoneInputList } from '@/components/shared/GabonPhoneInput'
+import { SelectCountry } from '@/components/ui/select-country'
 import { Switch } from '@/components/ui/switch'
+import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
 import { cn } from '@/lib/utils'
 import type { RegisterFormData } from '@/schemas/schemas'
-import { GabonPhoneInputList } from '@/components/shared/GabonPhoneInput'
-import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
-import { SelectCountry } from '@/components/ui/select-country'
-import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
 
 const CIVILITIES = ['Monsieur', 'Madame', 'Mademoiselle'] as const
 const GENDERS = ['Homme', 'Femme'] as const

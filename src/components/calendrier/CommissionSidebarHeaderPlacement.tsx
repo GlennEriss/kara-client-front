@@ -1,10 +1,10 @@
 "use client"
 
-import { X, Phone, Calendar, TrendingUp, Percent, Clock, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
+import { Calendar, Clock, Percent, Phone, TrendingUp, Wallet, X } from "lucide-react"
 
 interface CommissionSidebarHeaderPlacementProps {
   commission: CalendarCommissionItem

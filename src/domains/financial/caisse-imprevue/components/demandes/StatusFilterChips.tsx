@@ -7,15 +7,15 @@
 
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  RefreshCw, 
-  Layers 
+import {
+    CheckCircle2,
+    Clock,
+    Layers,
+    RefreshCw,
+    XCircle
 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface StatusChip {
   value: string

@@ -1,64 +1,64 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  FileText,
-  RefreshCw,
-  Grid3X3,
-  List,
-  AlertCircle,
-  Plus,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Eye,
-  Calendar,
-  RotateCcw,
-  FileDown,
-  FileSpreadsheet,
-  Trash2,
-  FileEdit,
-  MoreVertical,
-} from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { CaisseSpecialeDemand, CaisseSpecialeDemandStatus } from '@/types/types'
-import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
-import type { CaisseSpecialeDemandFilters } from '@/types/types'
-import { useMember } from '@/hooks/useMembers'
-import { useDebounce } from '@/hooks/useDebounce'
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import CreateDemandModal from './CreateDemandModal'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import routes from '@/constantes/routes'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useMember } from '@/hooks/useMembers'
+import type { CaisseSpecialeDemandFilters } from '@/types/types'
+import { CaisseSpecialeDemand, CaisseSpecialeDemandStatus } from '@/types/types'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    Clock,
+    Eye,
+    FileDown,
+    FileEdit,
+    FileSpreadsheet,
+    FileText,
+    Grid3X3,
+    List,
+    MoreVertical,
+    Plus,
+    RefreshCw,
+    RotateCcw,
+    Trash2,
+    XCircle,
+} from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import AcceptDemandModal from './AcceptDemandModal'
+import CreateDemandModal from './CreateDemandModal'
+import DeleteDemandModal from './DeleteDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
-import DeleteDemandModal from './DeleteDemandModal'
 import StatisticsCaisseSpecialeDemandes from './StatisticsCaisseSpecialeDemandes'
 import { StatusFilterBadgesCarousel } from './StatusFilterBadgesCarousel'
-import { useRouter, useSearchParams } from 'next/navigation'
-import routes from '@/constantes/routes'
-import { useQueryClient } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import { toast } from 'sonner'
 
 type ViewMode = 'grid' | 'list'
 

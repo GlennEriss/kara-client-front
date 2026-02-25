@@ -1,21 +1,21 @@
 'use client'
 
+import { Logo } from '@/components/logo'
+import { Button } from '@/components/ui/button'
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import routes from '@/constantes/routes'
+import { auth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from '@/firebase/auth'
+import { cn } from '@/lib/utils'
+import { ADMIN_ROLES } from '@/types/types'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowLeft, CheckCircle2, ChevronRight, IdCard, Loader2, Lock, Phone, Shield, Zap } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
-import { Phone, Shield, Loader2, IdCard, ArrowLeft, ChevronRight, Sparkles, Lock, Zap, CheckCircle2 } from 'lucide-react'
-import { Logo } from '@/components/logo'
-import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import routes from '@/constantes/routes'
-import { ADMIN_ROLES } from '@/types/types'
 import { z } from 'zod'
-import { auth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from '@/firebase/auth'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 
 // Schémas séparés pour chaque étape
 const step1Schema = z.object({

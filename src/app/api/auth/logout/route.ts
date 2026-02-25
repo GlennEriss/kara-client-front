@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { clearSessionCookieInResponseHeaders } from '@/domains/auth/server/session'
+import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 

@@ -1,10 +1,9 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Filter, Search, RefreshCw } from 'lucide-react'
-import { PlacementStatus, PayoutMode } from '@/types/types'
+import { Card, CardContent } from '@/components/ui/card'
+import { PayoutMode, PlacementStatus } from '@/types/types'
+import { Filter, RefreshCw, Search } from 'lucide-react'
 
 export interface PlacementFilters {
   search: string

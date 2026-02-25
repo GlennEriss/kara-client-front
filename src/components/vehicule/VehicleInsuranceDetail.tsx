@@ -1,11 +1,11 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { VehicleInsurance } from '@/types/types'
-import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
-import { Button } from '@/components/ui/button'
 import { Download, Phone } from 'lucide-react'
+import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',

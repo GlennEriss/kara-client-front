@@ -1,31 +1,31 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Loader2,
-  DollarSign,
-  AlertTriangle,
-  Upload,
-  CheckCircle,
-  Calendar as CalendarIcon,
-  Clock,
-  Image as ImageIcon,
-} from 'lucide-react'
-import { SupportCI } from '@/types/types'
-import { toast } from 'sonner'
 import { ImageCompressionService } from '@/services/imageCompressionService'
+import { SupportCI } from '@/types/types'
+import {
+    AlertTriangle,
+    Calendar as CalendarIcon,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Image as ImageIcon,
+    Loader2,
+    Upload,
+} from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface RepaySupportCIModalProps {
   isOpen: boolean

@@ -1,7 +1,7 @@
 'use client'
 
-import { DASHBOARD_TAB_DEFINITIONS, type DashboardTabKey } from '../entities/dashboard-tabs.types'
 import { cn } from '@/lib/utils'
+import { DASHBOARD_TAB_DEFINITIONS, type DashboardTabKey } from '../entities/dashboard-tabs.types'
 
 interface DashboardTabsProps {
   activeTab: DashboardTabKey

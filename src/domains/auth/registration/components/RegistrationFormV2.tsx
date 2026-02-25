@@ -1,41 +1,40 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Send,
-  Shield,
-  Home,
-  User,
-  MapPin,
-  Briefcase,
-  FileText,
-  Sparkles,
-  RotateCcw,
-  AlertTriangle
+import {
+    Briefcase,
+    ChevronLeft,
+    ChevronRight,
+    FileText,
+    Home,
+    MapPin,
+    RotateCcw,
+    Send,
+    Shield,
+    Sparkles,
+    User
 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { FormProvider, useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { defaultValues, registerSchema, type RegisterFormData } from '@/domains/auth/registration/schemas/registration.schema'
 import { cn } from '@/lib/utils'
-import { registerSchema, defaultValues, type RegisterFormData } from '@/domains/auth/registration/schemas/registration.schema'
 
 // Services et repositories pour la soumission
-import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
 import { RegistrationRepository } from '@/domains/auth/registration/repositories/RegistrationRepository'
+import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
 
+import { getMembershipRequestById } from '@/db/membership.db'
+import { CorrectionBannerV2 } from '@/domains/memberships/components/shared/CorrectionBannerV2'
+import { SecurityCodeFormV2 } from './SecurityCodeFormV2'
 import StepIndicatorV2 from './StepIndicatorV2'
-import IdentityStepV2 from './steps/IdentityStepV2'
 import AddressStepV2 from './steps/AddressStepV2'
 import CompanyStepV2 from './steps/CompanyStepV2'
 import DocumentsStepV2 from './steps/DocumentsStepV2'
+import IdentityStepV2 from './steps/IdentityStepV2'
 import SuccessStepV2 from './steps/SuccessStepV2'
-import { CorrectionBannerV2 } from '@/domains/memberships/components/shared/CorrectionBannerV2'
-import { SecurityCodeFormV2 } from './SecurityCodeFormV2'
-import { getMembershipRequestById } from '@/db/membership.db'
 
 // Instancier le service d'inscription
 const registrationRepository = new RegistrationRepository()
@@ -73,7 +72,7 @@ export default function RegistrationFormV2() {
   const totalSteps = STEPS.length
 
   // Form setup avec react-hook-form
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const methods = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as any,
     defaultValues: defaultValues as RegisterFormData,

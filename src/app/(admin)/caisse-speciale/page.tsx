@@ -1,6 +1,5 @@
 "use client"
 
-import React from 'react'
 import ListContracts from '@/components/caisse-speciale/ListContracts'
 
 export default function AdminCaissePage() {

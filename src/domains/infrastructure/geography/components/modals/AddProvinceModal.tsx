@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
 import { useProvinceMutations } from '../../hooks/useGeographie'
 import { provinceSchema, type ProvinceFormData } from '../../schemas/geographie.schema'
 import type { Province } from '../../entities/geography.types'

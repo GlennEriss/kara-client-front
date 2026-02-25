@@ -1,26 +1,26 @@
 'use client'
 
-import { useState } from 'react'
 import {
-  CheckCircle2,
-  Sparkles,
-  Heart,
-  Phone,
-  CreditCard,
-  MessageCircle,
-  Copy,
-  ExternalLink,
-  Shield,
-  Clock,
-  AlertTriangle,
-  Home,
-  LogIn,
-  PlusCircle
+    AlertTriangle,
+    CheckCircle2,
+    Clock,
+    Copy,
+    CreditCard,
+    ExternalLink,
+    Heart,
+    Home,
+    LogIn,
+    MessageCircle,
+    Phone,
+    PlusCircle,
+    Shield,
+    Sparkles
 } from 'lucide-react'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
+import { cn } from '@/lib/utils'
 
 interface SuccessStepV2Props {
   userData?: {

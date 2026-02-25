@@ -1,5 +1,5 @@
 import { ICaisseSpecialeService } from "./ICaisseSpecialeService";
-import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats, CaisseContract } from "@/types/types";
+import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats } from "@/types/types";
 import { ICaisseSpecialeDemandRepository } from "@/repositories/caisse-speciale/ICaisseSpecialeDemandRepository";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { IAdminRepository } from "@/repositories/admins/IAdminRepository";

@@ -1,40 +1,39 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { 
-  Loader2, 
-  CheckCircle,
-  ArrowRight,
-  ArrowLeft,
-  User,
-  Users,
-  DollarSign,
-  Percent,
-  Calendar,
-  FileText
-} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { CreditDemand, StandardSimulation, CustomSimulation } from '@/types/types'
-import { EmergencyContact } from '@/schemas/emergency-contact.schema'
-import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
-import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 import routes from '@/constantes/routes'
+import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import type { CreditDemand, CustomSimulation, StandardSimulation } from '@/types/types'
+import {
+    ArrowLeft,
+    ArrowRight,
+    CheckCircle,
+    DollarSign,
+    FileText,
+    Loader2,
+    Percent,
+    User,
+    Users
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 interface ContractCreationModalProps {
   isOpen: boolean

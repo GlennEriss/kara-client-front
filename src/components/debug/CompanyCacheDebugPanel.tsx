@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useCompanyCacheManager } from '@/hooks/company/useCompanyCacheManager'
 import { useCompanyCache } from '@/hooks/company/useCompanySuggestions'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { RefreshCw, Trash2, Database, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle, Clock, Database, RefreshCw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 
 /**
  * Composant de debug pour visualiser et gérer le cache des entreprises

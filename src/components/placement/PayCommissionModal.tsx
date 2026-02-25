@@ -1,35 +1,34 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Loader2,
-  Calendar,
-  Clock,
-  DollarSign,
-  Upload,
-  Smartphone,
-  Banknote,
-  Building2,
-  AlertTriangle,
-  CheckCircle,
-  X,
-  Image as ImageIcon,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import type { PaymentMode, CommissionPaymentPlacement } from '@/types/types'
 import { ImageCompressionService } from '@/services/imageCompressionService'
+import type { CommissionPaymentPlacement, PaymentMode } from '@/types/types'
+import {
+    Banknote,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Image as ImageIcon,
+    Loader2,
+    Smartphone,
+    Upload,
+    X
+} from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface PayCommissionModalProps {
   isOpen: boolean

@@ -1,6 +1,6 @@
-import React, { Suspense } from 'react'
 import ListContrats from '@/components/credit-speciale/ListContrats'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Suspense } from 'react'
 
 function ListContratsSkeleton() {
   return (
