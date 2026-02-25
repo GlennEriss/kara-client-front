@@ -4,8 +4,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import routes from '@/constantes/routes'
-import { useCaisseContract } from '@/hooks/useCaisseContracts'
+import { ContractCalendarGrid, useContractCalendar } from '@/components/contract/calendar'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
@@ -74,11 +75,28 @@ type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
   const router = useRouter()
-  const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
+  const queryClient = useQueryClient()
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    daysWithStatus,
+    getPaymentForDate,
+    getMonthIndexFromStart,
+    getMonthDateRange,
+    getTotalForMonth,
+    getMonthStatus,
+    contractStartDate,
+    isGroupContract,
+    totalMonths,
+  } = useContractCalendar(id, currentMonth)
+
   const { user } = useAuth()
   const { data: member } = useMember((data as any)?.memberId)
-
-  const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
@@ -140,59 +158,6 @@ export default function DailyContract({ id }: Props) {
   })
 
   const settings = useActiveCaisseSettingsByType((data as any)?.caisseType)
-
-  const contractStartDate = useMemo(() => {
-    if (!data?.firstPaymentDate) return null
-    try {
-      const start = new Date(data.firstPaymentDate)
-      if (isNaN(start.getTime())) return null
-      start.setHours(0, 0, 0, 0)
-      console.log('[DailyContract] contractStartDate:', start.toISOString())
-      return start
-    } catch {
-      return null
-    }
-  }, [data?.firstPaymentDate])
-
-  const getMonthIndexFromStart = useCallback((date: Date) => {
-    if (!contractStartDate) return null
-
-    const normalizedTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    const normalizedStart = new Date(contractStartDate.getFullYear(), contractStartDate.getMonth(), contractStartDate.getDate())
-    if (normalizedTarget < normalizedStart) return null
-
-    const isJournalier = (data as any)?.caisseType === 'JOURNALIERE' || (data as any)?.caisseType === 'JOURNALIERE_CHARITABLE'
-    if (isJournalier) {
-      const msPerDay = 24 * 60 * 60 * 1000
-      const days = Math.floor((normalizedTarget.getTime() - normalizedStart.getTime()) / msPerDay)
-      const periodIndex = Math.floor(days / 30)
-      return periodIndex
-    }
-
-    let diffMonths = (normalizedTarget.getFullYear() - contractStartDate.getFullYear()) * 12 +
-      (normalizedTarget.getMonth() - contractStartDate.getMonth())
-
-    let boundaryStart = new Date(contractStartDate)
-    boundaryStart.setMonth(boundaryStart.getMonth() + diffMonths)
-
-    while (boundaryStart > normalizedTarget && diffMonths > 0) {
-      diffMonths -= 1
-      boundaryStart = new Date(contractStartDate)
-      boundaryStart.setMonth(boundaryStart.getMonth() + diffMonths)
-    }
-
-    let nextBoundary = new Date(boundaryStart)
-    nextBoundary.setMonth(nextBoundary.getMonth() + 1)
-
-    while (normalizedTarget >= nextBoundary) {
-      diffMonths += 1
-      boundaryStart = nextBoundary
-      nextBoundary = new Date(boundaryStart)
-      nextBoundary.setMonth(nextBoundary.getMonth() + 1)
-    }
-
-    return diffMonths
-  }, [contractStartDate, (data as any)?.caisseType])
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
@@ -295,13 +260,11 @@ export default function DailyContract({ id }: Props) {
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
-  const isGroupContract = data.contractType === 'GROUP' || !!groupeId
-    const { data: groupMembers } = useGroupMembers(groupeId, isGroupContract)
+  const { data: groupMembers } = useGroupMembers(groupeId, isGroupContract)
 
   // Calculer la progression des mois payés
   const payments = data?.payments || []
   const paidCount = payments.filter((payment: any) => payment.status === 'PAID').length
-  const totalMonths = data?.monthsPlanned || 0
   const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
 
   // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
@@ -328,204 +291,10 @@ export default function DailyContract({ id }: Props) {
     </>
   )
 
-  // Fonctions utilitaires pour le calendrier
-  const getMonthDays = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const startDate = new Date(firstDay)
-    startDate.setDate(startDate.getDate() - firstDay.getDay())
-
-    const days = []
-    const currentDate = new Date(startDate)
-
-    while (currentDate <= lastDay || days.length < 42) {
-      days.push(new Date(currentDate))
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
-
-    return days
-  }
-
-  const getPaymentForDate = (date: Date) => {
-    if (!data.payments) return null
-
-    const monthIndex = getMonthIndexFromStart(date)
-    if (monthIndex === null || monthIndex < 0) return null
-
-    if (isGroupContract) {
-      const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
-      if (!payment) return null
-
-      if (payment.groupContributions && payment.groupContributions.length > 0) {
-        const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-        const hasContributionsOnDate = payment.groupContributions.some((contrib: any) => {
-          if (!contrib.createdAt) return false
-          let contribDate: Date
-          if (contrib.createdAt instanceof Date) {
-            contribDate = contrib.createdAt
-          } else if (contrib.createdAt && typeof contrib.createdAt.toDate === 'function') {
-            contribDate = contrib.createdAt.toDate()
-          } else if (typeof contrib.createdAt === 'string') {
-            contribDate = new Date(contrib.createdAt)
-          } else {
-            contribDate = new Date(contrib.createdAt)
-          }
-          const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-          return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
-        })
-
-        return hasContributionsOnDate ? payment : null
-      }
-
-      return null
-    }
-
-    const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
-    if (!payment || !payment.contribs || !Array.isArray(payment.contribs)) return null
-
-    const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    const hasContributionOnDate = payment.contribs.some((c: any) => {
-      if (!c.paidAt) return false
-
-      let contribDate: Date
-      if (c.paidAt instanceof Date) {
-        contribDate = c.paidAt
-      } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
-        contribDate = c.paidAt.toDate()
-      } else if (typeof c.paidAt === 'string') {
-        contribDate = new Date(c.paidAt)
-      } else {
-        contribDate = new Date(c.paidAt)
-      }
-
-      if (isNaN(contribDate.getTime())) return false
-      const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-      return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
-    })
-
-    return hasContributionOnDate ? payment : null
-  }
-
-  const _getPaymentDetailsForDate = (date: Date) => {
-    if (!data.payments) return null
-
-    const monthIndex = getMonthIndexFromStart(date)
-    if (monthIndex === null || monthIndex < 0) return null
-
-    const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
-    if (!payment) return null
-
-    if (payment.contribs && Array.isArray(payment.contribs)) {
-      const contribution = payment.contribs.find((c: any) => {
-        if (!c.paidAt) return false
-
-        let contribDate: Date
-        if (c.paidAt instanceof Date) {
-          contribDate = c.paidAt
-        } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
-          contribDate = c.paidAt.toDate()
-        } else if (typeof c.paidAt === 'string') {
-          contribDate = new Date(c.paidAt)
-        } else {
-          contribDate = new Date(c.paidAt)
-        }
-
-        if (isNaN(contribDate.getTime())) return false
-        const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-        const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-        return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
-      })
-
-      if (contribution) {
-        return { payment, contribution }
-      }
-    }
-
-    if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
-      const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-      const hasContributionsOnDate = payment.groupContributions.some((contrib: any) => {
-        if (!contrib.createdAt) return false
-        let contribDate: Date
-        if (contrib.createdAt instanceof Date) {
-          contribDate = contrib.createdAt
-        } else if (contrib.createdAt && typeof contrib.createdAt.toDate === 'function') {
-          contribDate = contrib.createdAt.toDate()
-        } else if (typeof contrib.createdAt === 'string') {
-          contribDate = new Date(contrib.createdAt)
-        } else {
-          contribDate = new Date(contrib.createdAt)
-        }
-        const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-        return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
-      })
-
-      return hasContributionsOnDate ? { payment } : null
-    }
-
-    return null
-  }
-
-  const getMonthDateRange = useCallback((monthIndex: number) => {
-    if (!contractStartDate) return null
-
-    const isJournalier = (data as any)?.caisseType === 'JOURNALIERE' || (data as any)?.caisseType === 'JOURNALIERE_CHARITABLE'
-    const start = new Date(contractStartDate)
-    const end = new Date(contractStartDate)
-
-    if (isJournalier) {
-      // Période de 30 jours : mois i va de (start + i*30) à (start + (i+1)*30 - 1)
-      // Mois 2 commence le lendemain de la fin du mois 1 (22/03 et non 21/03)
-      start.setDate(start.getDate() + monthIndex * 30)
-      end.setDate(end.getDate() + (monthIndex + 1) * 30 - 1)
-    } else {
-      start.setMonth(start.getMonth() + monthIndex)
-      end.setMonth(end.getMonth() + monthIndex + 1)
-    }
-
-    return { start, end }
-  }, [contractStartDate, (data as any)?.caisseType])
-
-  const getTotalForMonth = (monthIndex: number) => {
-    const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
-    return payment?.accumulatedAmount || 0
-  }
-
   // Calculer le nominal payé en sommant tous les montants versés par mois
   const nominalPaid: number = Array.from({ length: totalMonths }).reduce((sum: number, _, monthIndex: number) => {
     return sum + getTotalForMonth(monthIndex)
   }, 0)
-
-  const getMonthStatus = (monthIndex: number) => {
-    const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
-    if (!payment) return 'DUE'
-
-    // Pour les contrats de groupe, vérifier si TOUS les jours du mois ont des contributions
-    if (isGroupContract && payment.groupContributions) {
-      // Calculer le nombre de jours dans ce mois
-      const contractStartMonth = data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth()
-      const targetMonth = contractStartMonth + monthIndex
-      const year = data.contractStartAt ? new Date(data.contractStartAt).getFullYear() : new Date().getFullYear()
-      const _daysInMonth = new Date(year, targetMonth + 1, 0).getDate()
-
-      // Vérifier si le nombre de contributions correspond au nombre de jours
-      // (ou si le montant total atteint l'objectif mensuel)
-      const totalContributed = payment.groupContributions.reduce((sum: number, contrib: any) => sum + contrib.amount, 0)
-      const monthlyTarget = data.monthlyAmount || 0
-
-      if (totalContributed >= monthlyTarget) {
-        return 'PAID'
-      } else {
-        return 'PARTIAL' // Nouveau statut pour paiement partiel
-      }
-    }
-
-    // Pour les contrats individuels, logique existante
-    return payment.status
-  }
-
-  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
   const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
@@ -729,6 +498,8 @@ export default function DailyContract({ id }: Props) {
         toast.success('Versement enregistré')
       }
 
+      queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
+      await new Promise((r) => setTimeout(r, 300))
       await refetch()
       setShowPaymentModal(false)
       setSelectedDate(null)
@@ -788,6 +559,7 @@ export default function DailyContract({ id }: Props) {
         },
       })
 
+      queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
       await refetch()
       toast.success('Versement modifié avec succès')
       setShowEditPaymentModal(false)
@@ -803,8 +575,6 @@ export default function DailyContract({ id }: Props) {
       setIsEditing(false)
     }
   }
-
-  const monthDays = getMonthDays(currentMonth)
 
   const currentRefund = useMemo(() => {
     return currentRefundId ? refunds.find((r: any) => r.id === currentRefundId) : null
@@ -920,194 +690,26 @@ export default function DailyContract({ id }: Props) {
           }}
         />
 
-      {/* Navigation du calendrier */}
-        <Card className="border-0 shadow-xl">
-          <CardContent className="p-4 lg:p-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const prevMonth = new Date(currentMonth)
-              prevMonth.setMonth(prevMonth.getMonth() - 1)
-              setCurrentMonth(prevMonth)
-            }}
-            className="w-full sm:w-auto"
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Mois précédent</span>
-            <span className="sm:hidden">Précédent</span>
-          </Button>
-
-          <h2 className="text-xl lg:text-2xl font-bold text-gray-900 text-center order-first sm:order-none">
-            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-          </h2>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const nextMonth = new Date(currentMonth)
-              nextMonth.setMonth(nextMonth.getMonth() + 1)
-              setCurrentMonth(nextMonth)
-            }}
-            className="w-full sm:w-auto"
-          >
-            <span className="hidden sm:inline">Mois suivant</span>
-            <span className="sm:hidden">Suivant</span>
-            <ChevronRight className="h-4 w-4 ml-2" />
-          </Button>
-        </div>
-
-        {/* Grille du calendrier */}
-        <div className="grid grid-cols-7 gap-1">
-          {/* En-têtes des jours */}
-          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
-            <div key={day} className="p-2 lg:p-3 text-center text-xs lg:text-sm font-medium text-gray-500 bg-gray-50 rounded-lg">
-              {day}
-            </div>
-          ))}
-
-          {/* Jours du mois */}
-          {monthDays.map((date, index) => {
-            const isCurrentMonth = date.getMonth() === currentMonth.getMonth()
-            const isToday = date.toDateString() === new Date().toDateString()
-            const payment = getPaymentForDate(date)
-            const hasPayment = !!payment
-
-            // Vérifier si la date est antérieure au premier versement
-            const firstPaymentDate = data.contractStartAt ? new Date(data.contractStartAt) : new Date()
-            firstPaymentDate.setHours(0, 0, 0, 0)
-            const dateToCheck = new Date(date)
-            dateToCheck.setHours(0, 0, 0, 0)
-            const isBeforeFirstPayment = dateToCheck < firstPaymentDate
-
-            // Déterminer la couleur et le style selon le statut
-            let dayStyle = ''
-            let dayContent = null
-
-            if (!isCurrentMonth) {
-              // Jours d'autres mois
-              dayStyle = 'bg-gray-50 text-gray-400 cursor-not-allowed'
-              dayContent = null
-            } else if (isBeforeFirstPayment) {
-              // Jours avant la date de début
-              dayStyle = 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-              dayContent = (
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <XCircle className="h-3 w-3" />
-                  <span className="hidden sm:inline">Non disponible</span>
-                  <span className="sm:hidden">N/A</span>
-                </div>
-              )
-            } else if (hasPayment) {
-              // Jours avec versement effectué
-              dayStyle = 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
-              dayContent = (
-                <div className="flex items-center gap-1 text-xs text-green-600">
-                  <CheckCircle className="h-3 w-3" />
-                  <span className="hidden sm:inline">Versé</span>
-                  <span className="sm:hidden">✓</span>
-                </div>
-              )
-            } else {
-              // Vérifier si le jour est dans le passé (après la date de début)
-              const today = new Date()
-              today.setHours(0, 0, 0, 0)
-              const isPastDay = dateToCheck < today
-
-              if (isPastDay) {
-                // Jours passés sans versement (après la date de début)
-                dayStyle = 'bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer'
-                dayContent = (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle className="h-3 w-3" />
-                    <span className="hidden sm:inline">À verser</span>
-                    <span className="sm:hidden">À verser</span>
-                  </div>
-                )
-              } else {
-                // Jours futurs (après la date de début mais pas encore arrivés)
-                dayStyle = 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
-                dayContent = (
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <Calendar className="h-3 w-3" />
-                    <span className="hidden sm:inline">À venir</span>
-                    <span className="sm:hidden">À venir</span>
-                  </div>
-                )
-              }
-            }
-
-            // Style spécial pour aujourd'hui
-            if (isToday && isCurrentMonth && !isBeforeFirstPayment) {
-              // Aujourd'hui hérite de la couleur de son statut mais avec une intensité plus forte
-              if (hasPayment) {
-                dayStyle = 'bg-green-100 border-green-300 hover:bg-green-200 cursor-pointer'
-              } else {
-                // Aujourd'hui sans versement = rouge (car c'est un jour passé)
-                dayStyle = 'bg-red-100 border-red-300 hover:bg-red-200 cursor-pointer'
-              }
-              // Ajouter un indicateur "Aujourd'hui"
-              dayContent = (
-                <div className="space-y-1">
-                  {dayContent}
-                  <div className="text-xs text-blue-600 font-medium">
-                    <span className="hidden sm:inline">Aujourd'hui</span>
-                    <span className="sm:hidden">Auj</span>
-                  </div>
-                </div>
-              )
-            }
-
-            return (
-              <div
-                key={index}
-                className={`p-2 lg:p-3 min-h-[60px] lg:min-h-[80px] border rounded-lg transition-all duration-200 ${dayStyle}`}
-                onClick={() => isCurrentMonth && !isBeforeFirstPayment && onDateClick(date)}
-              >
-                <div className="text-xs lg:text-sm font-medium mb-1">
-                  {date.getDate()}
-                </div>
-
-                {isCurrentMonth && dayContent}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Légende des couleurs */}
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-          <div className="text-xs font-medium text-gray-700 mb-2">Légende des couleurs :</div>
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
-              <span className="text-green-700">Versé</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
-              <span className="text-red-700">À verser (passé)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-white border-2 border-gray-200 rounded"></div>
-              <span className="text-gray-700">À venir</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gray-100 border-2 border-gray-200 rounded"></div>
-              <span className="text-gray-600">Non disponible</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-100 border-2 border-blue-300 rounded"></div>
-              <span className="text-blue-700">Aujourd'hui</span>
-            </div>
-          </div>
-        </div>
-          </CardContent>
-        </Card>
+      <ContractCalendarGrid
+        month={currentMonth}
+        daysWithStatus={daysWithStatus}
+        onDayClick={onDateClick}
+        onPrevMonth={() => {
+          const prev = new Date(currentMonth)
+          prev.setMonth(prev.getMonth() - 1)
+          setCurrentMonth(prev)
+        }}
+        onNextMonth={() => {
+          const next = new Date(currentMonth)
+          next.setMonth(next.getMonth() + 1)
+          setCurrentMonth(next)
+        }}
+        disabled={isClosed}
+      />
 
       {/* Résumé mensuel */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        {Array.from({ length: data.monthsPlanned || 0 }).map((_, monthIndex) => {
+        {Array.from({ length: totalMonths }).map((_, monthIndex) => {
           const total = getTotalForMonth(monthIndex)
           const status = getMonthStatus(monthIndex)
           const target = data.monthlyAmount || 0
@@ -2836,8 +2438,9 @@ export default function DailyContract({ id }: Props) {
                     toast.success('Versement en retard enregistré avec succès')
                   }
 
+                  queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
+                  await new Promise((r) => setTimeout(r, 300))
                   await refetch()
-                  toast.success('Versement en retard enregistré avec succès')
                   setShowLatePaymentModal(false)
                   setSelectedDate(null)
                   setPaymentAmount('')
