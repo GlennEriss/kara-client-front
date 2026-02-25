@@ -5,9 +5,9 @@
  * Il configure l'environnement de test (mocks, utilitaires, etc.)
  */
 
-import { afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
 
 // Nettoyer après chaque test
 afterEach(() => {

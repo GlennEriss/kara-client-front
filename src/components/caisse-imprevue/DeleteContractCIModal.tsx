@@ -1,19 +1,18 @@
 'use client'
 
-import React from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Trash2, Loader2, AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useContractCIMutations } from '@/domains/financial/caisse-imprevue/hooks/useContractCIMutations'
 import type { ContractCI } from '@/types/types'
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
 
 interface DeleteContractCIModalProps {
   isOpen: boolean

@@ -54,7 +54,7 @@ describe('useMembershipDetails', () => {
   })
 
   const createWrapper = () => {
-    // eslint-disable-next-line react/display-name
+     
     const Wrapper = ({ children }: { children: React.ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )

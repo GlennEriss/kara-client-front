@@ -1,11 +1,11 @@
 'use client'
 
-import React, { Suspense } from 'react'
-import { useParams } from 'next/navigation'
 import GuarantorRemunerationsList from '@/components/credit-speciale/GuarantorRemunerationsList'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useMember } from '@/hooks/useMembers'
+import { useParams } from 'next/navigation'
+import { Suspense } from 'react'
 
 export default function GuarantorRemunerationsPage() {
   const params = useParams()

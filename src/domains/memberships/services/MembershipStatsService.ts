@@ -6,7 +6,6 @@
  */
 
 import type { MemberWithSubscription, PaginatedMembers } from '@/db/member.db'
-import type { User } from '@/types/types'
 
 /**
  * Statistiques complètes des membres

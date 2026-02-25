@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useCompanyCacheManager } from '@/hooks/company/useCompanyCacheManager'
+import { useEffect } from 'react'
 
 /**
  * Composant pour initialiser le cache des entreprises

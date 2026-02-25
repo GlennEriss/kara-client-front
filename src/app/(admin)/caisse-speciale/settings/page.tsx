@@ -1,10 +1,10 @@
 "use client"
 
-import React from 'react'
-import { useActiveCaisseSettings, useCaisseSettingsList, useCaisseSettingsMutations } from '@/hooks/useCaisseSettings'
 import { useAuth } from '@/hooks/useAuth'
+import { useActiveCaisseSettings, useCaisseSettingsList, useCaisseSettingsMutations } from '@/hooks/useCaisseSettings'
+import { AlertTriangle, Calendar, Check, DollarSign, Download, Edit3, Loader2, Plus, Power, Settings, Trash2, TrendingUp, X } from 'lucide-react'
+import React from 'react'
 import { toast } from 'sonner'
-import { Plus, Edit3, Power, Trash2, Calendar, Settings, DollarSign, TrendingUp, AlertTriangle, Check, X, Loader2, Download } from 'lucide-react'
 
 export default function AdminCaisseSettingsPage() {
   const { user } = useAuth()

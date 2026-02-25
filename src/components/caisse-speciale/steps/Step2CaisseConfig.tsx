@@ -1,20 +1,20 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { useContractForm } from '@/providers/ContractFormProvider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { 
-  Target, 
-  Calendar, 
-  DollarSign, 
-  TrendingUp,
-  Info,
-  AlertCircle
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useContractForm } from '@/providers/ContractFormProvider'
+import {
+    AlertCircle,
+    Calendar,
+    DollarSign,
+    Info,
+    Target,
+    TrendingUp
+} from 'lucide-react'
+import { useEffect } from 'react'
 
 export function Step2CaisseConfig() {
   const { state, updateFormData, validateCurrentStep } = useContractForm()

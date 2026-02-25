@@ -1,21 +1,21 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  Timestamp,
-  getCountFromServer
-} from 'firebase/firestore'
-import { db } from '@/firebase/firestore'
-import type { Subscription, MembershipType } from '@/types/types'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
+import { db } from '@/firebase/firestore'
+import type { MembershipType, Subscription } from '@/types/types'
+import {
+    collection,
+    deleteDoc,
+    doc,
+    getCountFromServer,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where
+} from 'firebase/firestore'
 
 /**
  * Crée une nouvelle souscription

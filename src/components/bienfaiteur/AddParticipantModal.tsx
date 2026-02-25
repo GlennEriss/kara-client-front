@@ -1,18 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Search } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
 import { useAddCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
 import { useAllMembers } from '@/hooks/useMembers'
-import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
+import { Search } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { Skeleton } from '@/components/ui/skeleton'
 
 interface AddParticipantModalProps {
   eventId: string

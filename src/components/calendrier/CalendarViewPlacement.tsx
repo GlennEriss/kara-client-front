@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameDay } from "date-fns"
-import { fr } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
+import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
+import { fr } from "date-fns/locale"
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
+import { useMemo, useState } from "react"
 import { CalendarDayPlacement } from "./CalendarDayPlacement"
-import { DayCommissionsModalPlacement } from "./DayCommissionsModalPlacement"
 import { CommissionSidebarPlacement } from "./CommissionSidebarPlacement"
-import type { DayCommissions, CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { DayCommissionsModalPlacement } from "./DayCommissionsModalPlacement"
 
 interface CalendarViewPlacementProps {
   month: Date

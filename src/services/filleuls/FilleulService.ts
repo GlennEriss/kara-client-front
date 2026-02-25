@@ -77,7 +77,7 @@ export class FilleulService implements IFilleulService {
     }
 
     // Nettoyer le code (supprimer espaces, convertir en majuscules)
-    let formatted = intermediaryCode.trim().toUpperCase()
+    const formatted = intermediaryCode.trim().toUpperCase()
     
     // S'assurer que le format est correct
     if (!this.validateIntermediaryCode(formatted)) {

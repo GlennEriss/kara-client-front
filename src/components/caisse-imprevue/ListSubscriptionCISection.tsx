@@ -1,10 +1,10 @@
 'use client'
-import React, { lazy, Suspense } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
+import { lazy, Suspense } from 'react'
 import { useSubscriptionCI } from './SubscriptionCIContext'
 
 // Lazy loading des modals et icônes

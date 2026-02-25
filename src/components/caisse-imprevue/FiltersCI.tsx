@@ -1,12 +1,11 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Filter, Search, RefreshCw } from 'lucide-react'
-import { ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
+import { Card, CardContent } from '@/components/ui/card'
 import { ContractsCIFilters } from '@/hooks/caisse-imprevue/useContractsCI'
 import type { CaisseImprevuePaymentFrequency } from '@/types/types'
+import { CONTRACT_CI_STATUS_LABELS, ContractCIStatus } from '@/types/types'
+import { Filter, RefreshCw, Search } from 'lucide-react'
 
 interface FiltersCIProps {
   filters: ContractsCIFilters

@@ -1,18 +1,17 @@
 "use client"
-import React, { useState, useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { useProvinceMutations, useProvinces } from '@/hooks/useGeographie'
 import { provinceSchema, type ProvinceFormData } from '@/schemas/geographie.schema'
-import { useProvinces, useProvinceMutations } from '@/hooks/useGeographie'
-import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, MapPin, RefreshCw, Loader2, Download } from 'lucide-react'
 import type { Province } from '@/types/types'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Download, Edit3, Loader2, MapPin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 
 function ProvinceSkeleton() {
   return (

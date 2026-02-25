@@ -3,7 +3,7 @@
  * 3 étapes : Membre, Infos demande, Contact d'urgence
  */
 
-import { useForm, UseFormReturn } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import {

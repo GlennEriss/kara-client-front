@@ -1,54 +1,52 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useFormContext } from 'react-hook-form'
-import { 
-  Briefcase, 
-  Building2, 
-  GraduationCap, 
-  Clock, 
-  Coffee, 
-  Check, 
-  MapPin,
-  Search,
-  Loader2,
-  CheckCircle,
-  CheckCircle2,
-  AlertCircle,
-  Plus,
-  MapPinIcon,
-  Home,
-  Landmark,
-  Navigation,
-  TreePine
+import {
+    AlertCircle,
+    Briefcase,
+    Building2,
+    Check,
+    CheckCircle,
+    CheckCircle2,
+    Clock,
+    Coffee,
+    GraduationCap,
+    Home,
+    Landmark,
+    Loader2,
+    MapPin,
+    MapPinIcon,
+    Navigation,
+    Plus,
+    Search,
+    TreePine
 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useFormContext } from 'react-hook-form'
 
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
-import type { RegisterFormData } from '@/schemas/schemas'
-import { useIsAdminContext } from '@/hooks/useIsAdminContext'
-import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
-import { useQueries } from '@tanstack/react-query'
-import type { Commune } from '@/domains/infrastructure/geography/entities/geography.types'
-import CompanyCombobox from '@/domains/infrastructure/references/components/forms/CompanyCombobox'
-import AddCompanyModal from '@/domains/infrastructure/references/components/forms/AddCompanyModal'
-import ProfessionCombobox from '@/domains/infrastructure/references/components/forms/ProfessionCombobox'
-import AddProfessionModal from '@/domains/infrastructure/references/components/forms/AddProfessionModal'
-import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
 import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
+import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
 import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
-import type { Province, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
+import type { Commune, Province, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
+import { useDepartments, useDistricts, useProvinces, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
+import AddCompanyModal from '@/domains/infrastructure/references/components/forms/AddCompanyModal'
+import AddProfessionModal from '@/domains/infrastructure/references/components/forms/AddProfessionModal'
+import CompanyCombobox from '@/domains/infrastructure/references/components/forms/CompanyCombobox'
+import ProfessionCombobox from '@/domains/infrastructure/references/components/forms/ProfessionCombobox'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useIsAdminContext } from '@/hooks/useIsAdminContext'
+import { cn } from '@/lib/utils'
+import type { RegisterFormData } from '@/schemas/schemas'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 const SENIORITY_OPTIONS = [
   '6 mois', '1 an', '2 ans', '3 ans', '5 ans', '10 ans', '15 ans', '20 ans'

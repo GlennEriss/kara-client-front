@@ -1,9 +1,9 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { UserCheck, Users, UserX, Cake } from 'lucide-react'
 import type { AgentRecouvrementFilterTab } from '@/types/types'
+import { Cake, UserCheck, Users, UserX } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface AgentFilterBadgesCarouselProps {
   value: AgentRecouvrementFilterTab

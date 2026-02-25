@@ -11,12 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MembershipServiceV2 } from '../../services/MembershipServiceV2'
-import { MembershipRepositoryV2 } from '../../repositories/MembershipRepositoryV2'
-import { AdminRepository } from '@/repositories/admins/AdminRepository'
 import { createMembershipRequestFixture, pendingPaidRequest } from '../fixtures'
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import { app } from '@/firebase/app'
-import { generateCredentialsPDF, downloadPDF } from '@/utils/pdfGenerator'
 
 // Mock des dépendances
 vi.mock('../../repositories/MembershipRepositoryV2')

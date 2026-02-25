@@ -1,10 +1,10 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { validateAgentPhotoFile } from '@/db/upload-image.db'
+import { cn } from '@/lib/utils'
+import { Plus, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface AgentPhotoUploadProps {
   value: File | null

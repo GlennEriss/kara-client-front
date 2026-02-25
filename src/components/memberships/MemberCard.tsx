@@ -1,48 +1,47 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { getNationalityName } from '@/constantes/nationality'
-import Link from 'next/link'
-import {
-  User,
-  Users,
-  Phone,
-  Mail,
-  MapPin,
-  Car,
-  Calendar,
-  FileText,
-  Eye,
-  MoreVertical,
-  CheckCircle,
-  XCircle,
-  Plus,
-  AlertTriangle,
-  ExternalLink,
-  Cake,
-  KeyRound,
-} from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { getNationalityName } from '@/constantes/nationality'
+import routes from '@/constantes/routes'
 import { MemberWithSubscription } from '@/db/member.db'
+import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import routes from '@/constantes/routes'
+import {
+    AlertTriangle,
+    Cake,
+    Calendar,
+    Car,
+    CheckCircle,
+    ExternalLink,
+    Eye,
+    FileText,
+    KeyRound,
+    Mail,
+    MapPin,
+    MoreVertical,
+    Phone,
+    Plus,
+    User,
+    Users,
+    XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
-import React from 'react'
 
 interface MemberCardProps {
   member: MemberWithSubscription

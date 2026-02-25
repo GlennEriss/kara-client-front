@@ -1,51 +1,51 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-import { 
-  standardSimulationSchema, 
-  customSimulationSchema,
-  proposedSimulationSchema,
-  type StandardSimulationFormData,
-  type CustomSimulationFormData,
-  type ProposedSimulationFormData
-} from '@/schemas/credit-speciale.schema'
-import { useSimulations } from '@/hooks/useCreditSpeciale'
-import { toast } from 'sonner'
-import { 
-  Loader2, 
-  Calculator, 
-  AlertTriangle, 
-  CheckCircle, 
-  TrendingUp,
-  Table as TableIcon,
-  Download,
-  Printer,
-  MessageCircle,
-  LayoutGrid,
-  SlidersHorizontal,
-} from 'lucide-react'
-import type { CreditType, StandardSimulation, CustomSimulation } from '@/types/types'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table'
-import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CreditFixeSimulationSection } from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationSection'
+import { useSimulations } from '@/hooks/useCreditSpeciale'
+import { cn } from '@/lib/utils'
+import {
+    customSimulationSchema,
+    proposedSimulationSchema,
+    standardSimulationSchema,
+    type CustomSimulationFormData,
+    type ProposedSimulationFormData,
+    type StandardSimulationFormData
+} from '@/schemas/credit-speciale.schema'
+import type { CreditType, CustomSimulation, StandardSimulation } from '@/types/types'
+import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+    AlertTriangle,
+    Calculator,
+    CheckCircle,
+    Download,
+    LayoutGrid,
+    Loader2,
+    MessageCircle,
+    Printer,
+    SlidersHorizontal,
+    Table as TableIcon,
+    TrendingUp,
+} from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 type SimulationTabValue = 'standard' | 'custom' | 'proposed'
 

@@ -1,36 +1,36 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Calendar,
-  Clock,
-  DollarSign,
-  Smartphone,
-  Banknote,
-  Building2,
-  Upload,
-  Loader2,
-  AlertTriangle,
-  CheckCircle,
-  FileText,
-  ExternalLink,
-} from 'lucide-react'
-import { PaymentMode } from '@/types/types'
-import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
-import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
+import { PaymentMode } from '@/types/types'
+import {
+    AlertTriangle,
+    Banknote,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    ExternalLink,
+    FileText,
+    Loader2,
+    Smartphone,
+    Upload,
+} from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 export interface PaymentCSFormData {
   date: string

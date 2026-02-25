@@ -1,25 +1,25 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { UseFormReturn } from 'react-hook-form'
-import { RegisterFormData } from '@/schemas/schemas'
-import { useCompanies } from '@/domains/infrastructure/references/hooks/useCompanies'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Check, ChevronsUpDown, Loader2, Building2, AlertCircle, Plus } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandList,
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandList,
 } from '@/components/ui/command'
+import { Label } from '@/components/ui/label'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
+import { useCompanies } from '@/domains/infrastructure/references/hooks/useCompanies'
+import { cn } from '@/lib/utils'
+import { RegisterFormData } from '@/schemas/schemas'
+import { AlertCircle, Building2, Check, ChevronsUpDown, Loader2, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { UseFormReturn } from 'react-hook-form'
 
 interface CompanyComboboxProps {
   form: UseFormReturn<RegisterFormData>

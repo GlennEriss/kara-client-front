@@ -2,9 +2,9 @@
  * Tests unitaires pour LogoutService
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { LogoutService } from '../../services/LogoutService'
 import { signOut } from 'firebase/auth'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LogoutService } from '../../services/LogoutService'
 
 // Mock de Firebase Auth
 

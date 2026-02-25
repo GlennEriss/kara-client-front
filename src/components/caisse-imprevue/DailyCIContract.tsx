@@ -1,53 +1,53 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 import { Badge } from '@/components/ui/badge'
-import {
-  ArrowLeft,
-  Calendar,
-  CalendarDays,
-  DollarSign,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  History,
-  HandCoins,
-  FileSignature,
-  Download,
-  RefreshCw,
-  TrendingUp,
-  Clock,
-  Pencil,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
-import { getContractStatusConfig } from '@/utils/contract-status'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import routes from '@/constantes/routes'
-import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
-import PaymentReceiptCIModal from './PaymentReceiptCIModal'
-import RequestSupportCIModal from './RequestSupportCIModal'
-import SupportHistoryCIModal from './SupportHistoryCIModal'
-import RepaySupportCIModal from './RepaySupportCIModal'
-import EarlyRefundCIModal from './EarlyRefundCIModal'
-import FinalRefundCIModal from './FinalRefundCIModal'
-import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
-import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useUpdateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
+import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
+import { useActiveSupport, useCheckEligibilityForSupport, useContractPaymentStats, useCreateVersement, useDeleteVersement, usePaymentsCI, useSupportHistory, useUpdateVersement } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
+import { cn } from '@/lib/utils'
+import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
+import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
+import { getContractStatusConfig } from '@/utils/contract-status'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
-import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
-import RemboursementCIPDFModal from './RemboursementCIPDFModal'
-import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
-import EmergencyContact from '@/components/contract/standard/EmergencyContact'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CalendarDays,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Download,
+    FileSignature,
+    HandCoins,
+    History,
+    Pencil,
+    RefreshCw,
+    TrendingUp,
+    XCircle,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import EarlyRefundCIModal from './EarlyRefundCIModal'
 import EditContractCategoryCIModal from './EditContractCategoryCIModal'
+import FinalRefundCIModal from './FinalRefundCIModal'
+import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
+import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
+import PaymentReceiptCIModal from './PaymentReceiptCIModal'
+import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+import RepaySupportCIModal from './RepaySupportCIModal'
+import RequestSupportCIModal from './RequestSupportCIModal'
+import SupportHistoryCIModal from './SupportHistoryCIModal'
+import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -313,6 +313,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
   const updateVersementMutation = useUpdateVersement()
+  const deleteVersementMutation = useDeleteVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
@@ -1430,6 +1431,25 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 setEditVersement({ payment, versement })
                 setShowReceiptModal(false)
                 setShowPaymentModal(true)
+              }
+            } : undefined}
+            onDeleteClick={!isContractTerminated ? async () => {
+              if (!selectedDate) return
+              const payment = getSelectedPaymentWithVersement()
+              if (!payment) return
+              const dateStr = selectedDate.toISOString().split('T')[0]
+              const versement = payment.versements?.find((v: any) => v.date === dateStr)
+              if (!versement) return
+              try {
+                await deleteVersementMutation.mutateAsync({
+                  contractId: contract.id,
+                  monthIndex: payment.monthIndex,
+                  versementId: versement.id,
+                })
+                setShowReceiptModal(false)
+                setSelectedDate(null)
+              } catch {
+                // Erreur gérée par le hook (toast)
               }
             } : undefined}
           />

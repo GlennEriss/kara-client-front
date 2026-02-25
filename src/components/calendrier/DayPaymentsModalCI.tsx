@@ -1,17 +1,17 @@
 "use client"
 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import type { CalendarPaymentItemCI, DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
+import { cn } from "@/lib/utils"
+import type { CaisseImprevuePaymentFrequency } from "@/types/types"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
-import { Calendar, CalendarClock, ChevronRight, CheckCircle2, Clock, AlertCircle, PiggyBank } from "lucide-react"
-import type { DayPaymentsCI, CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
-import type { CaisseImprevuePaymentFrequency } from "@/types/types"
+import { AlertCircle, Calendar, CalendarClock, CheckCircle2, ChevronRight, Clock, PiggyBank } from "lucide-react"
 
 interface DayPaymentsModalCIProps {
   isOpen: boolean

@@ -1,25 +1,25 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Calendar, MapPin, Users, TrendingUp, PlayCircle, Loader2 } from 'lucide-react'
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { CharityEvent, CHARITY_EVENT_STATUS_LABELS } from '@/types/types'
-import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
+import { CHARITY_EVENT_STATUS_LABELS, CharityEvent } from '@/types/types'
+import { Calendar, Loader2, MapPin, PlayCircle, TrendingUp, Users } from 'lucide-react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 interface CharityEventCardProps {
   event: CharityEvent

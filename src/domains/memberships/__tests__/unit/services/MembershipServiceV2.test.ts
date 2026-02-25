@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MembershipServiceV2 } from '../../../services/MembershipServiceV2'
-import { MembershipRepositoryV2 } from '../../../repositories/MembershipRepositoryV2'
 import { 
   pendingPaidRequest,
   pendingUnpaidRequest,

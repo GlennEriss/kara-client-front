@@ -1,9 +1,8 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { cn } from '@/lib/utils'
-import { CheckCircle } from 'lucide-react'
 import SelectApp from '@/components/forms/SelectApp'
 import { RELIGION_OPTIONS } from '@/components/register/register.data'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { cn } from '@/lib/utils'
+import { CheckCircle } from 'lucide-react'
 
 export default function ReligionIdentityForm() {
   return (

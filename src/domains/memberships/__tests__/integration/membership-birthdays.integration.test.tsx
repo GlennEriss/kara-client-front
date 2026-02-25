@@ -15,8 +15,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BirthdaysPage } from '../../components/birthdays/BirthdaysPage'
-import { BirthdaysRepository } from '../../repositories/BirthdaysRepository'
-import { BirthdaysAlgoliaService } from '../../services/BirthdaysAlgoliaService'
 import { createPaginatedBirthdaysFixture, createBirthdayFixture } from '../fixtures/birthday.fixture'
 
 // Mock Firebase

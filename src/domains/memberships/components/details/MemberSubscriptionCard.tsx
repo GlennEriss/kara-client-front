@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import type { Subscription } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import type { UseMembershipDetailsResult } from '../../hooks/useMembershipDetails'
 
 interface MemberSubscriptionCardProps {
   lastSubscription: Subscription | null

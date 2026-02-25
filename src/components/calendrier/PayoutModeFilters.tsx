@@ -1,8 +1,8 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { TrendingUp, Calendar, Filter } from "lucide-react"
 import type { PayoutMode } from "@/types/types"
+import { Calendar, Filter, TrendingUp } from "lucide-react"
 
 interface PayoutModeFiltersProps {
   selectedModes: PayoutMode[]

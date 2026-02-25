@@ -1,11 +1,11 @@
 "use client"
 
-import { X, Phone, Calendar, Wallet, Clock, TrendingUp, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { translateContractStatus } from "@/utils/contract-status"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
+import { cn } from "@/lib/utils"
 import type { CaisseType } from "@/services/caisse/types"
+import { translateContractStatus } from "@/utils/contract-status"
+import { FileText, Phone, TrendingUp, Wallet, X } from "lucide-react"
 
 interface PaymentSidebarHeaderProps {
   payment: CalendarPaymentItem

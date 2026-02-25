@@ -3,12 +3,9 @@
  * React Query hooks for company and profession operations
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCompanySearch as useCompanySearchNew, useCompanyMutations } from '@/domains/infrastructure/references/hooks/useCompanies'
 import { useProfessionSearch as useProfessionSearchNew, useProfessionMutations } from '@/domains/infrastructure/references/hooks/useProfessions'
-import type { CompanySearchResult } from '@/domains/infrastructure/references/entities/company.types'
-import type { ProfessionSearchResult } from '@/domains/infrastructure/references/entities/profession.types'
 
 /**
  * Hook pour rechercher une entreprise par nom

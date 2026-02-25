@@ -2,8 +2,8 @@
  * Interface du repository pour les opérations de registration
  */
 
-import { IRepository } from '@/repositories/IRepository'
 import type { RegisterFormData } from '@/domains/auth/registration/entities'
+import { IRepository } from '@/repositories/IRepository'
 import type { MembershipRequest } from '@/types/types'
 
 export interface IRegistrationRepository extends IRepository {

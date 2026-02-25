@@ -367,6 +367,27 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return await this.creditContractRepository.getContractsStats(filters);
     }
 
+    async recordRestMonth(creditId: string, monthNumber: number, reason: string, recordedBy: string, recordedByName: string): Promise<void> {
+        const contract = await this.creditContractRepository.getContractById(creditId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        const existing = contract.restMonths ?? [];
+        if (existing.some((r) => r.monthNumber === monthNumber)) {
+            throw new Error(`Le mois ${monthNumber} est déjà enregistré comme mois de repos.`);
+        }
+        const newEntry = {
+            monthNumber,
+            reason: reason.trim(),
+            recordedBy,
+            recordedByName,
+            recordedAt: new Date(),
+        };
+        await this.creditContractRepository.updateContract(creditId, {
+            restMonths: [...existing, newEntry],
+        });
+    }
+
     async deleteContract(id: string, adminId: string): Promise<void> {
         const contract = await this.creditContractRepository.getContractById(id);
         if (!contract) {
@@ -1795,6 +1816,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Date limite : ne pas créer de pénalités rétroactives pour les échéances avant cette date
         const newPenaltyLogicStartDate = new Date('2025-12-16');
         newPenaltyLogicStartDate.setHours(0, 0, 0, 0);
+
+        // Ne pas créer de pénalité pour un mois de repos
+        const restMonths = contract.restMonths ?? [];
+        if (restMonths.some((r) => r.monthNumber === monthNumber)) {
+            console.log('[checkAndCreatePenalties] Mois de repos, pénalité ignorée:', { monthNumber });
+            return;
+        }
 
         // Ne pas créer de pénalité si la date d'échéance est avant la date limite
         if (dueDate < newPenaltyLogicStartDate) {

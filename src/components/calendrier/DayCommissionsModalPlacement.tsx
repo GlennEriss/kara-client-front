@@ -1,17 +1,17 @@
 "use client"
 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
+import { cn } from "@/lib/utils"
+import type { PayoutMode } from "@/types/types"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
-import { Calendar, TrendingUp, ChevronRight, Wallet, CheckCircle2, Clock, AlertCircle } from "lucide-react"
-import type { DayCommissions, CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
-import type { PayoutMode } from "@/types/types"
+import { AlertCircle, Calendar, CheckCircle2, ChevronRight, Clock, TrendingUp, Wallet } from "lucide-react"
 
 interface DayCommissionsModalPlacementProps {
   isOpen: boolean

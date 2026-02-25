@@ -1,7 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useMembershipRequest } from '../../../hooks/useMembershipRequest'
-import { MembershipRepositoryV2 } from '../../../repositories/MembershipRepositoryV2'
 import { createMembershipRequestFixture } from '../../fixtures'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'

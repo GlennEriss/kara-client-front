@@ -1,20 +1,20 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import type { DashboardTabPayload } from '../../entities/dashboard.types'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
 } from 'recharts'
+import type { DashboardTabPayload } from '../../entities/dashboard.types'
 
 interface DashboardTabContentProps {
   payload: DashboardTabPayload

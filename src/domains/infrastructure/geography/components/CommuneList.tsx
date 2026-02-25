@@ -11,7 +11,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { communeSchema, type CommuneFormData } from '../schemas/geographie.schema'
 import { useCommunes, useCommuneMutations, useDepartments, useProvinces } from '../hooks/useGeographie'
-import { toast } from 'sonner'
 import { Plus, Search, Edit3, Trash2, Building2, Loader2, Download } from 'lucide-react'
 import type { Commune } from '../entities/geography.types'
 

@@ -6,26 +6,26 @@
 
 'use client'
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreVertical, Eye, CheckCircle2, XCircle, RotateCcw, Trash2, Edit, FileCheck } from 'lucide-react'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { CheckCircle2, Edit, Eye, FileCheck, MoreVertical, RotateCcw, Trash2, XCircle } from 'lucide-react'
 import type { CaisseImprevueDemand } from '../../entities/demand.types'
 
 interface DemandTableV2Props {

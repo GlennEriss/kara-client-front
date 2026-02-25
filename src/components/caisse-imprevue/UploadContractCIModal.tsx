@@ -1,29 +1,29 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
 } from '@/components/ui/form'
-import { Button } from '@/components/ui/button'
-import { Upload, FileText, Loader2, CheckCircle, XCircle, Zap } from 'lucide-react'
-import { ContractCI } from '@/types/types'
 import { useUploadContractDocument } from '@/hooks/caisse-imprevue/useUploadContractDocument'
 import { useAuth } from '@/hooks/useAuth'
+import { ContractCI } from '@/types/types'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { CheckCircle, FileText, Loader2, Upload, XCircle, Zap } from 'lucide-react'
+import React, { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import * as z from 'zod'
 
 // Schéma de validation
 const uploadSchema = z.object({

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createSessionCookieFromIdToken, setSessionCookieInResponseHeaders } from '@/domains/auth/server/session'
+import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 

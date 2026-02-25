@@ -1,12 +1,12 @@
 "use client"
 
+import { useAgentsActifs } from "@/hooks/agent-recouvrement"
+import { usePaymentsCI } from "@/hooks/caisse-imprevue/usePaymentsCI"
+import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
+import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank, Receipt, User } from "lucide-react"
-import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
-import { usePaymentsCI } from "@/hooks/caisse-imprevue/usePaymentsCI"
-import { useAgentsActifs } from "@/hooks/agent-recouvrement"
+import { Calendar, CheckCircle2, Clock, CreditCard, PiggyBank, Receipt, User } from "lucide-react"
 
 interface PaymentSidebarContentCIProps {
   payment: CalendarPaymentItemCI

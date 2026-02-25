@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameDay } from "date-fns"
-import { fr } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { CalendarPaymentItemCI, DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
+import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
+import { fr } from "date-fns/locale"
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
+import { useMemo, useState } from "react"
 import { CalendarDayCI } from "./CalendarDayCI"
 import { DayPaymentsModalCI } from "./DayPaymentsModalCI"
 import { PaymentSidebarCI } from "./PaymentSidebarCI"
-import type { DayPaymentsCI, CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
 
 interface CalendarViewCIProps {
   month: Date

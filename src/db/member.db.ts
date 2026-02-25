@@ -1,24 +1,23 @@
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  startAfter,
-  getDocs,
-  getDoc,
-  doc,
-  DocumentSnapshot,
-  QueryConstraint,
-  Timestamp,
-  getCountFromServer,
-  serverTimestamp,
-  updateDoc,
-  arrayUnion,
-  arrayRemove
-} from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
-import { User, UserFilters, UserStats, Subscription } from '@/types/types'
+import { Subscription, User, UserFilters, UserStats } from '@/types/types'
+import {
+    arrayRemove,
+    arrayUnion,
+    collection,
+    doc,
+    DocumentSnapshot,
+    getCountFromServer,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    QueryConstraint,
+    serverTimestamp,
+    startAfter,
+    updateDoc,
+    where
+} from 'firebase/firestore'
 
 /**
  * Fonction helper pour convertir les dates Firestore

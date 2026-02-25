@@ -50,6 +50,8 @@ export interface ICreditSpecialeService {
     getContractsWithFilters(filters?: CreditContractFilters): Promise<CreditContract[]>;
     getContractsStats(filters?: CreditContractFilters): Promise<CreditContractStats>;
     updateContractStatus(id: string, status: CreditContractStatus, adminId: string): Promise<CreditContract | null>;
+    /** Enregistre un mois de repos (échéance reportée sans paiement ni pénalité). */
+    recordRestMonth(creditId: string, monthNumber: number, reason: string, recordedBy: string, recordedByName: string): Promise<void>;
     deleteContract(id: string, adminId: string): Promise<void>;
 
     // Génération et upload de contrats PDF

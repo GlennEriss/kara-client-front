@@ -1,43 +1,43 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Search, LayoutGrid, List, MoreVertical, Eye, Pencil, Pause, Play, Trash2 } from 'lucide-react'
-import { AgentsListStats } from './AgentsListStats'
-import { AgentFilterBadgesCarousel } from './AgentFilterBadgesCarousel'
-import { AgentCard } from './AgentCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  CreateAgentModal,
-  EditAgentModal,
-  DesactiverAgentModal,
-  ReactiverAgentModal,
-  SupprimerAgentModal,
-} from './modals'
-import {
-  useAgentsRecouvrement,
-  useAgentsRecouvrementStats,
-  useCreateAgentRecouvrement,
-  useUpdateAgentRecouvrement,
-  useDeactivateAgentRecouvrement,
-  useReactivateAgentRecouvrement,
-  useDeleteAgentRecouvrement,
-} from '@/hooks/agent-recouvrement'
-import type { AgentRecouvrement, AgentRecouvrementFilterTab } from '@/types/types'
-import { useDebounce } from '@/hooks/useDebounce'
-import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
-import { useRouter } from 'next/navigation'
+import {
+    useAgentsRecouvrement,
+    useAgentsRecouvrementStats,
+    useCreateAgentRecouvrement,
+    useDeactivateAgentRecouvrement,
+    useDeleteAgentRecouvrement,
+    useReactivateAgentRecouvrement,
+    useUpdateAgentRecouvrement,
+} from '@/hooks/agent-recouvrement'
+import { useDebounce } from '@/hooks/useDebounce'
+import type { AgentRecouvrement, AgentRecouvrementFilterTab } from '@/types/types'
 import { formatAgentDate } from '@/utils/agentDateUtils'
+import { Eye, LayoutGrid, List, MoreVertical, Pause, Pencil, Play, Plus, Search, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { AgentCard } from './AgentCard'
+import { AgentFilterBadgesCarousel } from './AgentFilterBadgesCarousel'
+import { AgentsListStats } from './AgentsListStats'
+import {
+    CreateAgentModal,
+    DesactiverAgentModal,
+    EditAgentModal,
+    ReactiverAgentModal,
+    SupprimerAgentModal,
+} from './modals'
 
 export function AgentsListPage() {
   const router = useRouter()

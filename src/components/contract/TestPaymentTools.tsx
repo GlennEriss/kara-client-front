@@ -1,9 +1,9 @@
 'use client'
 
+import { pay } from '@/services/caisse/mutations'
+import { AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react'
 import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, Zap, Clock, CheckCircle } from 'lucide-react'
-import { pay } from '@/services/caisse/mutations'
 
 interface TestPaymentToolsProps {
   contractId: string

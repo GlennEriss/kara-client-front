@@ -6,18 +6,17 @@
 
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, FileText, Loader2, Edit } from 'lucide-react'
-import { useDemandForm, useUpdateDemand } from '@/domains/financial/caisse-imprevue/hooks'
-import { useAuth } from '@/domains/auth/hooks/useAuth'
-import { useDemandDetail } from '@/domains/financial/caisse-imprevue/hooks'
-import { toast } from 'sonner'
-import { CreateDemandFormV2 } from '@/domains/financial/caisse-imprevue/components/forms'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useEffect, useMemo } from 'react'
+import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { CreateDemandFormV2 } from '@/domains/financial/caisse-imprevue/components/forms'
+import { useDemandDetail, useDemandForm, useUpdateDemand } from '@/domains/financial/caisse-imprevue/hooks'
 import type { CaisseImprevueDemandFormInput } from '@/domains/financial/caisse-imprevue/hooks/useDemandForm'
+import { ArrowLeft, Edit, FileText } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useMemo } from 'react'
+import { toast } from 'sonner'
 
 export default function EditDemandPage() {
   const params = useParams()

@@ -62,6 +62,15 @@ export async function updatePayment(contractId: string, paymentId: string, updat
 }
 
 /**
+ * Supprime un paiement donné (document dans la sous-collection payments).
+ */
+export async function deletePayment(contractId: string, paymentId: string): Promise<void> {
+  const { db, doc, deleteDoc } = await getFirestore() as any
+  const ref = doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/payments`, paymentId)
+  await deleteDoc(ref)
+}
+
+/**
  * Supprime tous les paiements d'un contrat (sous-collection payments).
  */
 export async function deleteAllPayments(contractId: string): Promise<void> {

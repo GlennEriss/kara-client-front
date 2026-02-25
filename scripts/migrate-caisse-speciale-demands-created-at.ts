@@ -102,7 +102,7 @@ async function migrate() {
 
     for (const doc of snapshot.docs) {
       const data = doc.data()
-      const updates: Record<string, unknown> = {}
+      const updates: Record<string, any> = {}
 
       const hasCreatedAt = data.createdAt != null
       const hasUpdatedAt = data.updatedAt != null

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  DEFAULT_DASHBOARD_FILTERS,
-  type DashboardFilters,
+    DEFAULT_DASHBOARD_FILTERS,
+    type DashboardFilters,
 } from '../entities/dashboard.types'
 
 const STORAGE_KEY = 'dashboard.filters.v1'

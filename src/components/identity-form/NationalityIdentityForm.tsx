@@ -1,5 +1,4 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { SelectCountry } from '@/components/ui/select-country'
 
 export default function NationalityIdentityForm() {

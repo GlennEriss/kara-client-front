@@ -1,8 +1,8 @@
 "use client"
 
-import { Button } from '@/components/ui/button'
-import { Loader2, ChevronDown } from 'lucide-react'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { Button } from '@/components/ui/button';
+import { ChevronDown, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Hook pour détecter si un élément est visible dans le viewport

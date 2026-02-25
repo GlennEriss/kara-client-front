@@ -52,9 +52,19 @@ export class CreditContractRepository implements ICreditContractRepository {
             }
             
             const data = docSnap.data();
+            const restMonthsRaw = (data as any).restMonths as Array<{ monthNumber: number; reason: string; recordedBy: string; recordedByName: string; recordedAt: unknown }> | undefined;
+            const restMonths = restMonthsRaw?.map((r) => ({
+                monthNumber: r.monthNumber,
+                reason: r.reason,
+                recordedBy: r.recordedBy,
+                recordedByName: r.recordedByName,
+                recordedAt: (r.recordedAt as any)?.toDate ? (r.recordedAt as any).toDate() : (r.recordedAt ? new Date(r.recordedAt as string) : new Date()),
+            }));
+
             return {
                 id: docSnap.id,
                 ...(data as any),
+                restMonths,
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
                 firstPaymentDate: (data.firstPaymentDate as any)?.toDate ? (data.firstPaymentDate as any).toDate() : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : undefined),
@@ -97,9 +107,19 @@ export class CreditContractRepository implements ICreditContractRepository {
     }
 
     private mapContractData(id: string, data: any): CreditContract {
+        const restMonthsRaw = (data as any).restMonths as Array<{ monthNumber: number; reason: string; recordedBy: string; recordedByName: string; recordedAt: unknown }> | undefined;
+        const restMonths = restMonthsRaw?.map((r) => ({
+            monthNumber: r.monthNumber,
+            reason: r.reason,
+            recordedBy: r.recordedBy,
+            recordedByName: r.recordedByName,
+            recordedAt: (r.recordedAt as any)?.toDate ? (r.recordedAt as any).toDate() : (r.recordedAt ? new Date(r.recordedAt as string) : new Date()),
+        }));
+
         return {
             id,
             ...(data as any),
+            restMonths,
             createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
             updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             firstPaymentDate: (data.firstPaymentDate as any)?.toDate ? (data.firstPaymentDate as any).toDate() : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : undefined),

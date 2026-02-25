@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { placementDemandFormSchema, placementDemandDefaultValues, type PlacementDemandFormInput } from '@/schemas/placement.schema'
-import { useAuth } from '@/hooks/useAuth'
-import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
-import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PlacementDemandForm } from '@/domains/financial/placement/demandes'
+import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { useAuth } from '@/hooks/useAuth'
 import { useEntitySearch } from '@/hooks/useEntitySearch'
+import { placementDemandDefaultValues, placementDemandFormSchema, type PlacementDemandFormInput } from '@/schemas/placement.schema'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 interface CreateDemandModalProps {
   isOpen: boolean

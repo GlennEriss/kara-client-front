@@ -23,7 +23,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import type { Quarter } from '../../entities/geography.types'
 
 interface QuarterComboboxProps {
   form: UseFormReturn<RegisterFormData>

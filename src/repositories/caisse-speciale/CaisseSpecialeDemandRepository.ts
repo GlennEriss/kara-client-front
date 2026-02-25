@@ -323,7 +323,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
             const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
 
-            const baseUpdate: Record<string, unknown> = {
+            const baseUpdate: Record<string, any> = {
                 status,
                 decisionMadeAt: serverTimestamp(),
                 decisionMadeBy: adminId,
@@ -390,4 +390,3 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
         }
     }
 }
-

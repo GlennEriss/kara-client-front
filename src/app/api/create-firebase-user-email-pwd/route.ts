@@ -1,11 +1,11 @@
-import { adminAuth } from "@/firebase/adminAuth";
-import { NextRequest, NextResponse } from "next/server";
-import { updateMembershipRequestStatus, getMembershipRequestById } from "@/db/membership.db";
-import { createUserWithMatricule, addSubscriptionToUser } from "@/db/user.db";
-import { createDefaultSubscription, updateSubscription } from "@/db/subscription.db";
-import { ServiceFactory } from "@/factories/ServiceFactory";
 import { registerAddress } from "@/db/address.db";
-import type { User, UserRole, MembershipType } from "@/types/types";
+import { getMembershipRequestById, updateMembershipRequestStatus } from "@/db/membership.db";
+import { createDefaultSubscription, updateSubscription } from "@/db/subscription.db";
+import { addSubscriptionToUser, createUserWithMatricule } from "@/db/user.db";
+import { ServiceFactory } from "@/factories/ServiceFactory";
+import { adminAuth } from "@/firebase/adminAuth";
+import type { MembershipType, User, UserRole } from "@/types/types";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Convertit un membershipType en UserRole

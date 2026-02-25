@@ -1,10 +1,10 @@
 "use client"
 
-import { X, Phone, Mail, Calendar, Wallet, TrendingUp, PiggyBank } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
+import { cn } from "@/lib/utils"
 import type { CaisseImprevuePaymentFrequency } from "@/types/types"
+import { Calendar, Mail, Phone, PiggyBank, TrendingUp, Wallet, X } from "lucide-react"
 
 interface PaymentSidebarHeaderCIProps {
   payment: CalendarPaymentItemCI

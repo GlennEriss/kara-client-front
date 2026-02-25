@@ -2,7 +2,6 @@
  * Interface du Service métier pour Membership Requests V2
  */
 
-import type { MembershipRequest } from '../../entities/MembershipRequest'
 import type { PaymentInfo } from '../../entities/MembershipRequest'
 
 export interface ApproveMembershipRequestParams {

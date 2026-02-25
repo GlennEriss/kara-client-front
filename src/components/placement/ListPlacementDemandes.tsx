@@ -1,43 +1,43 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  FileText,
-  RefreshCw,
-  Grid3X3,
-  List,
-  AlertCircle,
-  Plus,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Loader2,
-  Eye,
-  Calendar,
-  RotateCcw,
-  DollarSign,
-  Percent,
-  CreditCard,
-} from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import routes from '@/constantes/routes'
+import { usePlacementDemandMutations, usePlacementDemands, usePlacementDemandsStats } from '@/hooks/placement/usePlacementDemands'
+import type { PlacementDemandFilters } from '@/types/types'
 import { PlacementDemand, PlacementDemandStatus } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePlacementDemands, usePlacementDemandsStats, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
-import type { PlacementDemandFilters } from '@/types/types'
-import CreateDemandModal from './CreateDemandModal'
+import {
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    DollarSign,
+    Eye,
+    FileText,
+    Grid3X3,
+    List,
+    Loader2,
+    Percent,
+    Plus,
+    RefreshCw,
+    RotateCcw,
+    XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
+import CreateDemandModal from './CreateDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import StatisticsPlacementDemandes from './StatisticsPlacementDemandes'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import routes from '@/constantes/routes'
 
 type ViewMode = 'grid' | 'list'
 

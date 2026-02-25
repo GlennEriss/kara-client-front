@@ -110,3 +110,30 @@ export function useReplaceContractPdf() {
     },
   })
 }
+
+/** Indique si la suppression d’un versement est autorisée pour ce contrat (statut actif, pas clos/remboursement). */
+export function canDeletePayment(contract: { status?: string } | null): boolean {
+  return service.canDeletePayment(contract as any)
+}
+
+export function useDeleteContractPayment() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ contractId, paymentId }: { contractId: string; paymentId: string }) => {
+      if (!user?.uid) throw new Error('Utilisateur non authentifié')
+      return service.deleteContractPayment(contractId, paymentId, user.uid)
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['caisse-contract', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['caisse-contract-payments', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['caisse-contracts'] })
+      queryClient.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
+      toast.success('Versement supprimé. Les totaux du contrat ont été recalculés.')
+    },
+    onError: (error: Error) => {
+      toast.error(error?.message ?? 'Erreur lors de la suppression du versement')
+    },
+  })
+}

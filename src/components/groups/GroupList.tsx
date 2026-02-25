@@ -1,19 +1,19 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, RefreshCw, Eye, Search, ChevronLeft, ChevronRight, Sparkles, Target, UserCheck, TrendingUp, BarChart3, Edit, Trash2 } from 'lucide-react'
-import type { Group } from '@/types/types'
-import { createGroup, deleteGroup, listGroups, updateGroup } from '@/db/group.db'
-import { toast } from 'sonner'
-import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import routes from '@/constantes/routes'
+import { createGroup, deleteGroup, listGroups, updateGroup } from '@/db/group.db'
 import { countMembersByGroup } from '@/db/member.db'
 import { cn } from '@/lib/utils'
+import type { Group } from '@/types/types'
+import { BarChart3, Edit, Eye, Plus, RefreshCw, Search, Sparkles, Target, Trash2, TrendingUp, Users } from 'lucide-react'
+import Link from 'next/link'
+import React, { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 // Hook personnalisé pour le carousel avec drag/swipe
 const useCarousel = (itemCount: number, itemsPerView: number = 1) => {

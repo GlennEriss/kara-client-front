@@ -1,19 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { CalendarView } from "@/components/calendrier/CalendarView"
 import { CaisseTypeFilters } from "@/components/calendrier/CaisseTypeFilters"
-import { useCalendarCaisseSpeciale } from "@/hooks/useCalendarCaisseSpeciale"
+import { CalendarView } from "@/components/calendrier/CalendarView"
 import { CalendarViewCI } from "@/components/calendrier/CalendarViewCI"
-import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
-import { useCalendarCaisseImprevue } from "@/hooks/useCalendarCaisseImprevue"
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
+import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useCalendarCaisseImprevue } from "@/hooks/useCalendarCaisseImprevue"
+import { useCalendarCaisseSpeciale } from "@/hooks/useCalendarCaisseSpeciale"
 import { useCalendarPlacement } from "@/hooks/useCalendarPlacement"
 import type { CaisseType } from "@/services/caisse/types"
 import type { CaisseImprevuePaymentFrequency, PayoutMode } from "@/types/types"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Calendar, Wallet, PiggyBank, TrendingUp, Sparkles } from "lucide-react"
+import { Calendar, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export default function CalendrierPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())

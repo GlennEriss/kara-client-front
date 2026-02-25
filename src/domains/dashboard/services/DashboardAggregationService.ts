@@ -1,15 +1,15 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
-import type {
-  DashboardDistributionBlock,
-  DashboardFilterOptions,
-  DashboardFilters,
-  DashboardKpiItem,
-  DashboardRankingBlock,
-  DashboardSnapshot,
-  DashboardTabPayload,
-  DashboardMemberTypeFilter,
-} from '../entities/dashboard.types'
 import type { DashboardTabKey } from '../entities/dashboard-tabs.types'
+import type {
+    DashboardDistributionBlock,
+    DashboardFilterOptions,
+    DashboardFilters,
+    DashboardKpiItem,
+    DashboardMemberTypeFilter,
+    DashboardRankingBlock,
+    DashboardSnapshot,
+    DashboardTabPayload,
+} from '../entities/dashboard.types'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
 

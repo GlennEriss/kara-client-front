@@ -1,18 +1,17 @@
 'use client'
-import React from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { SubscriptionCI } from '@/types/types'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAdmin } from '@/hooks/caisse-imprevue/useAdmin'
+import { SubscriptionCI } from '@/types/types'
 import { User, UserCheck } from 'lucide-react'
 
 interface ViewSubscriptionCIModalProps {

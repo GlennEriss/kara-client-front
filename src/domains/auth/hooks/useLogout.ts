@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
-import { ServiceFactory } from '@/factories/ServiceFactory'
 import routes from '@/constantes/routes'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useCallback, useState } from 'react'
 
 /**
  * Hook pour gérer la déconnexion de l'utilisateur

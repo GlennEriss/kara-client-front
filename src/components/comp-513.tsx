@@ -1,9 +1,9 @@
 import {
-  Stepper,
-  StepperIndicator,
-  StepperItem,
-  StepperSeparator,
-  StepperTrigger,
+    Stepper,
+    StepperIndicator,
+    StepperItem,
+    StepperSeparator,
+    StepperTrigger,
 } from "@/components/ui/stepper"
 
 const steps = [1, 2, 3, 4]

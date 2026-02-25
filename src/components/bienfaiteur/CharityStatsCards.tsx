@@ -1,9 +1,8 @@
 'use client'
 
-import React from 'react'
-import { Calendar, TrendingUp, Users, Clock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CharityGlobalStats } from '@/types/types'
+import { Calendar, Clock, TrendingUp, Users } from 'lucide-react'
 
 interface CharityStatsCardsProps {
   stats: CharityGlobalStats

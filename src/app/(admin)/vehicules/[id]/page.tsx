@@ -1,5 +1,5 @@
-import { Metadata } from 'next'
 import { VehicleInsuranceDetailView } from '@/components/vehicule/VehicleInsuranceDetailView'
+import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Détail assurance véhicule | KARA Admin',

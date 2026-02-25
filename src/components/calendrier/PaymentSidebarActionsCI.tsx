@@ -1,8 +1,8 @@
 "use client"
 
-import { Download, Loader2, CreditCard, FileText, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
+import { CreditCard, Download, Eye, FileText, Loader2 } from "lucide-react"
 
 interface PaymentSidebarActionsCIProps {
   payment: CalendarPaymentItemCI

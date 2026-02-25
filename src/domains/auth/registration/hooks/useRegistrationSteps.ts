@@ -2,8 +2,8 @@
  * Hook pour la gestion de la navigation entre les étapes du formulaire
  */
 
-import { useCallback, useState } from 'react'
 import { TOTAL_STEPS } from '@/domains/auth/registration/entities/registration-form.types'
+import { useCallback, useState } from 'react'
 
 interface UseRegistrationStepsProps {
   initialStep?: number

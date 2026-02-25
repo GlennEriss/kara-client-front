@@ -25,8 +25,6 @@ import {
   Eye,
   Calendar,
   RotateCcw,
-  DollarSign,
-  Percent,
   CreditCard,
   MoreVertical,
 } from 'lucide-react'

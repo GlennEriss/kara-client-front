@@ -1,19 +1,18 @@
 "use client"
 
-import React from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
-import { FileText, Download } from "lucide-react"
-import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
-import IndividualPaymentInvoice from "./IndividualPaymentInvoice"
-import GroupPaymentInvoice from "./GroupPaymentInvoice"
-import { toast } from 'sonner'
+import type { CaisseContract, CaissePayment } from "@/services/caisse/types"
 import { generateSingleVersementPDF } from '@/services/caisse/versementPdfExport'
+import { Download, FileText } from "lucide-react"
+import { toast } from 'sonner'
+import GroupPaymentInvoice from "./GroupPaymentInvoice"
+import IndividualPaymentInvoice from "./IndividualPaymentInvoice"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI

@@ -1,28 +1,28 @@
 'use client'
 
-import React, { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-  CheckCircle2,
-  Smartphone,
-  Camera,
-  MessageCircle,
-  Copy,
-  ExternalLink,
-  Phone,
-  CreditCard,
-  Shield,
-  Clock,
-  AlertTriangle,
-  Sparkles,
-  Heart,
-  LogIn
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
+import { cn } from '@/lib/utils'
 import { useRegister } from '@/providers/RegisterProvider'
+import {
+    AlertTriangle,
+    Camera,
+    CheckCircle2,
+    Clock,
+    Copy,
+    CreditCard,
+    ExternalLink,
+    Heart,
+    LogIn,
+    MessageCircle,
+    Phone,
+    Shield,
+    Smartphone,
+    Sparkles
+} from 'lucide-react'
+import { useState } from 'react'
 
 interface Step5Props {
   userData?: {

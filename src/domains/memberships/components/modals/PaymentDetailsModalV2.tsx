@@ -21,7 +21,6 @@ import {
   CheckCircle2, 
   AlertCircle,
   Loader2,
-  FileText,
   Receipt,
   Shield,
   DollarSign,

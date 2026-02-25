@@ -1,8 +1,8 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
 import { AgentDetailsPage } from '@/components/agent-recouvrement/AgentDetailsPage'
 import routes from '@/constantes/routes'
+import { useParams, useRouter } from 'next/navigation'
 
 export default function AgentRecouvrementDetailsPage() {
   const params = useParams()

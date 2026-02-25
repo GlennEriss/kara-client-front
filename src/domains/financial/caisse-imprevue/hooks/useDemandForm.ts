@@ -5,7 +5,7 @@
  * Conforme à la documentation WORKFLOW.md et SOLUTIONS_PROPOSEES.md
  */
 
-import { useForm, UseFormReturn } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { createDemandSchema } from '../schemas/demand-steps.schema'

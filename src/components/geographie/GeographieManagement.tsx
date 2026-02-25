@@ -1,12 +1,12 @@
 "use client"
-import React, { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import ProvinceList from './ProvinceList'
-import DepartmentList from './DepartmentList'
-import CommuneList from './CommuneList'
-import DistrictList from './DistrictList'
-import QuarterList from './QuarterList'
 import { MapPin } from 'lucide-react'
+import { useState } from 'react'
+import CommuneList from './CommuneList'
+import DepartmentList from './DepartmentList'
+import DistrictList from './DistrictList'
+import ProvinceList from './ProvinceList'
+import QuarterList from './QuarterList'
 
 export default function GeographieManagement() {
   const [activeTab, setActiveTab] = useState('provinces')

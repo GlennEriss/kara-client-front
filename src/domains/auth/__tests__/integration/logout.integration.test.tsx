@@ -4,14 +4,14 @@
  * Ces tests vérifient l'intégration entre LogoutService, useLogout et les composants
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
-import { LogoutService } from '../../services/LogoutService'
-import { useLogout } from '../../hooks/useLogout'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { renderHook, waitFor } from '@testing-library/react'
 import { signOut } from 'firebase/auth'
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useLogout } from '../../hooks/useLogout'
+import { LogoutService } from '../../services/LogoutService'
 
 // Mock de Firebase Auth
 vi.mock('@/firebase/auth', () => ({

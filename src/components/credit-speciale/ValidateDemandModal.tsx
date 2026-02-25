@@ -1,26 +1,26 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
-  CheckCircle,
-  XCircle,
-  Loader2,
-  AlertTriangle,
-} from 'lucide-react'
-import { CreditDemand, CreditDemandStatus } from '@/types/types'
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
+import { CreditDemand, CreditDemandStatus } from '@/types/types'
+import {
+    AlertTriangle,
+    CheckCircle,
+    Loader2,
+    XCircle,
+} from 'lucide-react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
 
 interface ValidateDemandModalProps {

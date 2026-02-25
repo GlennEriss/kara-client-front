@@ -1,42 +1,42 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import PdfViewerModal from '@/components/contract/PdfViewerModal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select'
-import {
-  AlertCircle,
-  FileText,
-  Download,
-  Eye,
-  Search,
-  Filter,
-  X,
-  Calendar,
-  FileArchive,
-  User,
-  Package,
-} from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Document, DocumentFormat, DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
 import { useDocuments } from '@/domains/infrastructure/documents/hooks'
-import { Document, DocumentType, DocumentFormat } from '@/domains/infrastructure/documents/entities/document.types'
+import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import PdfViewerModal from '@/components/contract/PdfViewerModal'
-import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import {
+    AlertCircle,
+    Calendar,
+    Download,
+    Eye,
+    FileArchive,
+    FileText,
+    Filter,
+    Package,
+    Search,
+    User,
+    X,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 
 // Labels pour les types de documents
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {

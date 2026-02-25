@@ -1,31 +1,31 @@
 "use client"
 
-import React from 'react'
-import { useContractForm } from '@/providers/ContractFormProvider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  FileText,
-  Users,
-  User,
-  Calendar,
-  DollarSign,
-  Clock,
-  ArrowLeft
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
-import routes from '@/constantes/routes'
-import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
-import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
-import { useAuth } from '@/hooks/useAuth'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import routes from '@/constantes/routes'
 import { useCreateCaisseContract } from '@/domains/financial/caisse-speciale/contrats/hooks'
+import { useAuth } from '@/hooks/useAuth'
+import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import { cn } from '@/lib/utils'
+import { useContractForm } from '@/providers/ContractFormProvider'
+import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    FileText,
+    Loader2,
+    User,
+    Users
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React from 'react'
+import { toast } from 'sonner'
 
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()

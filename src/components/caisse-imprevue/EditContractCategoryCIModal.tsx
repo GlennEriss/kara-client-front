@@ -1,21 +1,21 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import { useContractCIMutations } from '@/domains/financial/caisse-imprevue/hooks/useContractCIMutations'
-import type { ContractCI } from '@/types/types'
+import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import { cn } from '@/lib/utils'
-import { Package, Check } from 'lucide-react'
+import type { ContractCI } from '@/types/types'
+import { Check, Package } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface EditContractCategoryCIModalProps {
   open: boolean

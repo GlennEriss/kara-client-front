@@ -1,5 +1,5 @@
-import { Metadata } from 'next'
 import GroupList from '@/components/groups/GroupList'
+import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Groupes | KARA Admin',

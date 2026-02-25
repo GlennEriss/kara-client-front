@@ -235,12 +235,47 @@ export async function subscribe(input: {
   return id
 }
 
+const PERIOD_DAYS_JOURNALIER = 30
+
+function getContractStartDate(contract: any): Date | null {
+  const raw = contract?.contractStartAt ?? contract?.firstPaymentDate
+  if (!raw) return null
+  const d = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
+  return isNaN(d.getTime()) ? null : d
+}
+
 export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; agentRecouvrementId?: string }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
-  const payments = await listPayments(input.contractId)
-  const payment = payments.find((p: any) => p.dueMonthIndex === input.dueMonthIndex)
+  let payments = await listPayments(input.contractId)
+  let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
+  const isDailyType = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
+
+  if (!payment && isDailyType) {
+    const startDate = getContractStartDate(contract)
+    const monthsPlanned = (contract as any).monthsPlanned ?? 12
+    if (startDate && input.dueMonthIndex >= 0 && input.dueMonthIndex < monthsPlanned) {
+      const dueDate = new Date(startDate)
+      dueDate.setDate(dueDate.getDate() + (input.dueMonthIndex + 1) * PERIOD_DAYS_JOURNALIER - 1)
+      const newPaymentId = await addPayment(input.contractId, {
+        dueMonthIndex: input.dueMonthIndex,
+        amount: contract.monthlyAmount,
+        status: 'DUE',
+        dueAt: dueDate,
+        memberId: input.memberId,
+      })
+      payment = {
+        id: newPaymentId,
+        dueMonthIndex: input.dueMonthIndex,
+        dueAt: dueDate,
+        accumulatedAmount: 0,
+        status: 'DUE',
+        contribs: [],
+      }
+    }
+  }
+
   if (!payment) throw new Error('Échéance introuvable')
 
   const now = input.paidAt ? new Date(input.paidAt) : new Date()
@@ -305,7 +340,6 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Gestion des montants selon type
   const type = (contract as any).caisseType || 'STANDARD'
   const isLibreType = type === 'LIBRE' || type === 'LIBRE_CHARITABLE'
-  const isDailyType = type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE'
   const targetForMonth = isLibreType ? Math.max(100000, payment.targetAmount || 0) : contract.monthlyAmount
   let newAccumulated = payment.accumulatedAmount || 0
   if (typeof input.amount === 'number' && input.amount > 0) {
@@ -859,7 +893,33 @@ export async function payGroup(input: {
   }
   
   const payments = await listPayments(input.contractId)
-  const payment = payments.find((p: any) => p.dueMonthIndex === input.dueMonthIndex)
+  let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
+  const isDailyTypeGroup = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
+
+  if (!payment && isDailyTypeGroup) {
+    const startDate = getContractStartDate(contract)
+    const monthsPlanned = (contract as any).monthsPlanned ?? 12
+    if (startDate && input.dueMonthIndex >= 0 && input.dueMonthIndex < monthsPlanned) {
+      const dueDate = new Date(startDate)
+      dueDate.setDate(dueDate.getDate() + (input.dueMonthIndex + 1) * PERIOD_DAYS_JOURNALIER - 1)
+      const newPaymentId = await addPayment(input.contractId, {
+        dueMonthIndex: input.dueMonthIndex,
+        amount: contract.monthlyAmount,
+        status: 'DUE',
+        dueAt: dueDate,
+        memberId: input.memberId,
+      })
+      payment = {
+        id: newPaymentId,
+        dueMonthIndex: input.dueMonthIndex,
+        dueAt: dueDate,
+        accumulatedAmount: 0,
+        status: 'DUE',
+        groupContributions: [],
+      }
+    }
+  }
+
   if (!payment) throw new Error('Échéance introuvable')
 
   const now = input.paidAt ? new Date(input.paidAt) : new Date()

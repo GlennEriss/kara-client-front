@@ -1,11 +1,11 @@
 'use client'
 
-import React from 'react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { X, Filter, RotateCcw } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { Filter, RotateCcw, X } from 'lucide-react'
+import React from 'react'
 
 /**
  * Configuration d'un filtre

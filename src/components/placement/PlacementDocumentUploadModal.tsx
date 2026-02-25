@@ -1,18 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react'
-import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import type { PlacementDocumentType } from '@/types/types'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { FileText, Loader2, Upload, X } from 'lucide-react'
+import React, { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
+import * as z from 'zod'
 
 // Schéma de validation
 const uploadSchema = z.object({

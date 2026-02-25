@@ -1,41 +1,41 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  Receipt,
-  Download,
-  Calendar,
-  Clock,
-  DollarSign,
-  User,
-  Smartphone,
-  Banknote,
-  Building2,
-  CreditCard,
-  Image as ImageIcon,
-  Loader2,
-  X,
-  Pencil,
-} from 'lucide-react'
-import { CreditContract, CreditPayment, CreditPaymentMode } from '@/types/types'
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { useAdmin } from '@/hooks/useAdmins'
+import { useMember } from '@/hooks/useMembers'
+import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { generateSingleCreditSpecialeVersementPDF } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
+import type { DueItemLike } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
+import {
+    Banknote,
+    Building2,
+    Calendar,
+    CreditCard,
+    DollarSign,
+    Download,
+    Image as ImageIcon,
+    Loader2,
+    Pencil,
+    Receipt,
+    Smartphone,
+    User,
+    X
+} from 'lucide-react'
 import Image from 'next/image'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { useAdmin } from '@/hooks/useAdmins'
 
 interface PaymentReceiptModalProps {
   isOpen: boolean
@@ -45,6 +45,14 @@ interface PaymentReceiptModalProps {
   installmentNumber?: number // Numéro d'échéance pour affichage
   /** Si fourni, affiche un bouton "Modifier le versement" (contrat non clôturé) */
   onEditClick?: () => void
+  /** Échéancier (pour récap page 2 du PDF) */
+  schedule?: DueItemLike[]
+  /** Tous les versements du contrat (pour récap page 2 du PDF) */
+  payments?: CreditPayment[]
+  /** Date d'échéance de l'échéance concernée (pour le titre du bloc PDF) */
+  dueDate?: Date | null
+  /** Résolution du nom d'admin pour l'export PDF (optionnel) */
+  getAdminDisplayName?: (adminId: string) => string
 }
 
 // Nouveaux modes (alignés caisse spéciale) + anciens (rétrocompatibilité)
@@ -60,10 +68,6 @@ const PAYMENT_MODE_LABELS: Record<string, { label: string; icon: any; color: str
   CHEQUE: { label: 'Chèque', icon: CreditCard, color: 'text-gray-600', bg: 'bg-gray-100' },
 }
 
-const formatAmount = (amount: number): string => {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-}
-
 export default function PaymentReceiptModal({
   isOpen,
   onClose,
@@ -71,12 +75,26 @@ export default function PaymentReceiptModal({
   payment,
   installmentNumber,
   onEditClick,
+  schedule,
+  payments: paymentsList = [],
+  dueDate,
+  getAdminDisplayName: getAdminDisplayNameProp,
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   
+  // Récupérer le membre (collection users) pour le PDF : LIEU/NAISSANCE, D.NAISS, NATIONALITE, N°CNI, SEXE, AGE, QUARTIER, PROFESSION
+  const { data: member } = useMember(contract.clientId)
   // Récupérer les informations de l'agent de liaison
   const { data: agent } = useAdmin(payment.updatedBy || '')
+
+  const getAdminDisplayName = getAdminDisplayNameProp ?? ((adminId: string) => {
+    if (!adminId) return '-'
+    if (adminId === (payment.updatedBy || '') && agent) {
+      return `${agent.firstName} ${agent.lastName}`.trim() || adminId
+    }
+    return adminId
+  })
 
   // Logs de débogage
   React.useEffect(() => {
@@ -104,145 +122,21 @@ export default function PaymentReceiptModal({
     return `${formatDate(date)} à ${time}`
   }
 
-  const loadImageAsBase64 = async (url: string): Promise<string> => {
-    try {
-      const response = await fetch(url)
-      const blob = await response.blob()
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
-    } catch (error) {
-      console.error('Erreur lors du chargement de l\'image:', error)
-      return ''
-    }
-  }
-
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
-
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      let yPos = 20
-
-      // En-tête
-      doc.setFillColor(35, 77, 101) // #234D65
-      doc.rect(0, 0, pageWidth, 40, 'F')
-      
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('REÇU DE PAIEMENT', pageWidth / 2, 20, { align: 'center' })
-      
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Crédit Spéciale - KARA', pageWidth / 2, 30, { align: 'center' })
-
-      yPos = 50
-
-      // Informations du contrat
-      doc.setTextColor(0, 0, 0)
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 50, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('INFORMATIONS DU CRÉDIT', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Client: ${contract.clientFirstName} ${contract.clientLastName}`, 15, yPos)
-      doc.text(`N° Contrat: ${contract.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Type: ${contract.creditType}`, 15, yPos)
-      doc.text(`Montant emprunté: ${formatAmount(contract.amount)} FCFA`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Date d'émission: ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}`, 15, yPos)
-
-      yPos += 15
-
-      // Informations du paiement
-      doc.setFillColor(34, 197, 94) // green-600
-      doc.rect(10, yPos, pageWidth - 20, 12, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('PAIEMENT ENREGISTRÉ', 15, yPos + 8)
-
-      yPos += 20
-
-      // Détails du paiement
-      const paymentData = [
-        ['Date et heure', formatDateTime(payment.paymentDate, payment.paymentTime)],
-        ['Montant', `${formatAmount(payment.amount)} FCFA`],
-        ['Moyen de paiement', PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode],
-        ['Référence', payment.reference || 'N/A'],
-      ]
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Détail', 'Valeur']],
-        body: paymentData,
-        theme: 'striped',
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        styles: { fontSize: 10 },
-        margin: { left: 10, right: 10 },
+      const num = installmentNumber ?? 1
+      await generateSingleCreditSpecialeVersementPDF({
+        contract,
+        payment,
+        installmentNumber: num,
+        dueDate: dueDate ?? (payment.paymentDate ? new Date(payment.paymentDate) : null),
+        member: member ?? undefined,
+        schedule,
+        payments: paymentsList,
+        getAdminDisplayName,
       })
-
-      yPos = (doc as any).lastAutoTable.finalY + 10
-
-      // Preuve de paiement
-      if (payment.proofUrl) {
-        try {
-          const imageBase64 = await loadImageAsBase64(payment.proofUrl)
-          if (imageBase64) {
-            doc.addPage()
-            doc.setFontSize(12)
-            doc.setFont('helvetica', 'bold')
-            doc.text('PREUVE DE PAIEMENT', 15, 20)
-            
-            // Charger l'image pour obtenir ses dimensions
-            const img = document.createElement('img')
-            await new Promise<void>((resolve, reject) => {
-              img.onload = () => resolve()
-              img.onerror = reject
-              img.src = imageBase64
-            })
-            
-            const imgWidth = pageWidth - 30
-            const imgHeight = (img.height * imgWidth) / img.width
-            
-            if (imgHeight > pageHeight - 40) {
-              doc.addImage(imageBase64, 'JPEG', 15, 30, imgWidth, pageHeight - 50)
-            } else {
-              doc.addImage(imageBase64, 'JPEG', 15, 30, imgWidth, imgHeight)
-            }
-          }
-        } catch (error) {
-          console.error('Erreur lors de l\'ajout de l\'image:', error)
-        }
-      }
-
-      // Pied de page
-      doc.setPage(1)
-      doc.setFontSize(8)
-      doc.setTextColor(128, 128, 128)
-      doc.text(
-        'Ce document est généré automatiquement et certifie le paiement enregistré.',
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      )
-
-      doc.save(`recu-paiement-${contract.id.slice(-6)}-${payment.id.slice(-6)}.pdf`)
       toast.success('PDF généré avec succès')
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error)

@@ -5,18 +5,17 @@
 
 'use client'
 
+import { getMembershipRequestById } from '@/db/membership.db'
+import type { CorrectionRequest, RegisterFormData } from '@/domains/auth/registration/entities'
+import { defaultValues, registerSchema } from '@/schemas/schemas'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import type { RegisterFormData } from '@/domains/auth/registration/entities'
-import type { CorrectionRequest } from '@/domains/auth/registration/entities'
-import { registerSchema, defaultValues } from '@/schemas/schemas'
-import { IRegistrationService } from '../services/IRegistrationService'
 import { IRegistrationCacheService } from '../services/IRegistrationCacheService'
+import { IRegistrationService } from '../services/IRegistrationService'
 import { useRegistrationSteps } from './useRegistrationSteps'
 import { useRegistrationValidation } from './useRegistrationValidation'
-import { getMembershipRequestById } from '@/db/membership.db'
 
 interface UseRegistrationProps {
   registrationService: IRegistrationService

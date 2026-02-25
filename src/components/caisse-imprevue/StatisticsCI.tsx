@@ -1,25 +1,24 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  FileText,
-  CheckCircle,
-  XCircle,
-  Clock,
-  DollarSign,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { useContractsCI, useContractsCIStats } from '@/hooks/caisse-imprevue/useContractsCI'
 import { cn } from '@/lib/utils'
-import { useContractsCIStats, useContractsCI } from '@/hooks/caisse-imprevue/useContractsCI'
-import { CaisseImprevuePaymentFrequency } from '@/types/types'
 import { ContractsCIFilters } from '@/repositories/caisse-imprevu/IContractCIRepository'
-import { CardHeader, CardTitle } from '@/components/ui/card'
+import { CaisseImprevuePaymentFrequency } from '@/types/types'
+import {
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    FileText,
+    TrendingUp,
+    XCircle
+} from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 
 // Composant pour les statistiques modernes
 const StatsCard = ({

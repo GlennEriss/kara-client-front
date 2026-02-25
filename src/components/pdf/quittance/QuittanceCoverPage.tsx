@@ -1,7 +1,6 @@
 'use client'
 
-import React from 'react'
-import { Image, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Image, StyleSheet, Text, View } from '@react-pdf/renderer';
 
 type Cell = { label: string; value: string }
 type Row =
@@ -121,4 +120,4 @@ export function QuittanceCoverPage({
   )
 }
 
-export type { Row as QuittanceCoverRow }
+export type { Row as QuittanceCoverRow };

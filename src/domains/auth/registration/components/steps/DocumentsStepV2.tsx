@@ -1,28 +1,28 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useFormContext } from 'react-hook-form'
 import {
-  FileText,
-  Upload,
-  Camera,
-  Calendar,
-  MapPin,
-  CreditCard,
-  Check,
-  AlertCircle,
-  X,
-  Shield,
-  Sparkles,
-  Eye,
-  CheckCircle2,
-  AlertTriangle,
-  IdCard,       
-  Book,
-  Landmark,
-  Badge,
-  Clipboard
+    AlertCircle,
+    AlertTriangle,
+    Badge,
+    Book,
+    Calendar,
+    Camera,
+    Check,
+    CheckCircle2,
+    Clipboard,
+    CreditCard,
+    Eye,
+    FileText,
+    IdCard,
+    Landmark,
+    MapPin,
+    Shield,
+    Sparkles,
+    Upload,
+    X
 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useFormContext } from 'react-hook-form'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

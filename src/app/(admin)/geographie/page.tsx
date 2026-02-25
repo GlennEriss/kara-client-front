@@ -1,5 +1,4 @@
 import { GeographieManagement } from '@/domains/infrastructure/geography/components'
-import React from 'react'
 
 /**
  * Page de gestion géographique

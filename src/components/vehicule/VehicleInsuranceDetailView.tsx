@@ -1,12 +1,12 @@
 'use client'
 
-import { useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
-import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import routes from '@/constantes/routes'
-import Link from 'next/link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
+import { useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
+import Link from 'next/link'
+import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',

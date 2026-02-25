@@ -1,44 +1,42 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import {
-  AlertCircle,
-  FileText,
-  Calendar,
-  DollarSign,
-  Users,
-  ArrowLeft,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Download,
-  TrendingUp,
-  History,
-  Smartphone,
-  Banknote,
-  Building2,
-  User,
-} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 import { useContractCI, usePaymentsCI, usePaymentsCIStats } from '@/hooks/caisse-imprevue'
+import { useMember } from '@/hooks/useMembers'
+import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
 import { CONTRACT_CI_STATUS_LABELS, PaymentCI, VersementCI } from '@/types/types'
 import { addMonths, format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import {
+    AlertCircle,
+    AlertTriangle,
+    ArrowLeft,
+    Banknote,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Download,
+    FileText,
+    History,
+    Smartphone,
+    TrendingUp,
+    User,
+    UserCircle
+} from 'lucide-react'
 import Image from 'next/image'
-import { useAgentsActifs } from '@/hooks/agent-recouvrement'
-import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
-import { UserCircle } from 'lucide-react'
-import { useMember } from '@/hooks/useMembers'
+import { useParams, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import * as XLSX from 'xlsx'
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',

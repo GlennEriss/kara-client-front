@@ -1,6 +1,5 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import FileInput from '@/components/ui/file-input'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { toast } from 'sonner'
 

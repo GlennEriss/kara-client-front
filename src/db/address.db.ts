@@ -1,14 +1,11 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc,
-  arrayUnion,
-  db as firestore,
-  Timestamp
-} from '@/firebase/firestore'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
+import {
+    doc,
+    db as firestore,
+    getDoc,
+    setDoc,
+    Timestamp
+} from '@/firebase/firestore'
 
 /**
  * Type pour la structure hiérarchique des adresses

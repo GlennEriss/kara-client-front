@@ -10,7 +10,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { provinceSchema, type ProvinceFormData } from '../schemas/geographie.schema'
 import { useProvinces, useProvinceMutations } from '../hooks/useGeographie'
-import { toast } from 'sonner'
 import { Plus, Search, Edit3, Trash2, MapPin, Loader2, Download } from 'lucide-react'
 import type { Province } from '../entities/geography.types'
 

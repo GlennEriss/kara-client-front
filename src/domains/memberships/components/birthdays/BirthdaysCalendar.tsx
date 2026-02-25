@@ -21,7 +21,6 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import type { BirthdayMember } from '../../types/birthdays'
 

@@ -356,6 +356,30 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         return updatedPayment
     }
 
+    /**
+     * Supprime un versement (mauvaise date, erreur de saisie).
+     * Autorisé uniquement si le contrat est ACTIVE. Interdit si FINISHED ou CANCELED.
+     */
+    async deleteVersement(contractId: string, monthIndex: number, versementId: string, userId: string): Promise<PaymentCI> {
+        const contract = await this.contractCIRepository.getContractById(contractId)
+        if (!contract) throw new Error('Contrat introuvable')
+        if (contract.status !== 'ACTIVE') {
+            throw new Error(
+                'Impossible de supprimer un versement : le contrat est terminé ou résilié. ' +
+                'Seuls les contrats actifs permettent de supprimer un versement.'
+            )
+        }
+
+        const payment = await this.paymentCIRepository.getPaymentByMonth(contractId, monthIndex)
+        if (!payment) throw new Error('Paiement du mois non trouvé')
+        const versement = payment.versements?.find((v) => v.id === versementId)
+        if (!versement) throw new Error('Versement non trouvé')
+
+        const updatedPayment = await this.paymentCIRepository.deleteVersement(contractId, monthIndex, versementId, userId)
+        if (!updatedPayment) throw new Error('Échec de la suppression du versement')
+        return updatedPayment
+    }
+
     // ================== MÉTHODES DE GESTION DES SUPPORTS ==================
 
     /**

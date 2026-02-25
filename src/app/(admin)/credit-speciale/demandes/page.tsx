@@ -1,6 +1,6 @@
-import React, { Suspense } from 'react'
 import ListDemandes from '@/components/credit-speciale/ListDemandes'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Suspense } from 'react'
 
 function ListDemandesSkeleton() {
   return (

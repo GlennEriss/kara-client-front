@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState } from 'react'
-import { PDFViewer, pdf, BlobProvider } from '@react-pdf/renderer'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, FileSignature, Monitor, Smartphone } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
+import { format } from 'date-fns'
+import { Download, FileSignature, Loader2, Monitor, Smartphone } from 'lucide-react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
 import SupportRecognitionPDF, { type SupportRecognitionContract } from './SupportRecognitionPDF'
-import { format } from 'date-fns'
 
 interface SupportRecognitionPDFModalProps {
   isOpen: boolean

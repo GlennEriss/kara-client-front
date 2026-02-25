@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard, Calendar, Calculator, UserCheck } from "lucide-react"
-import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
+import { Logo } from "@/components/logo"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
     Sidebar,
     SidebarContent,
@@ -16,12 +15,13 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Logo } from "@/components/logo"
 import routes from "@/constantes/routes"
-import { cn } from "@/lib/utils"
 import { useLogout } from "@/domains/auth/hooks"
+import { cn } from "@/lib/utils"
+import { Briefcase, Calculator, Calendar, Car, ChevronDown, CreditCard, FileText, HandCoins, HeartHandshake, Home, LogOut, MapPin, Settings, Shield, UserCheck, UserPlus, Users, Wallet } from "lucide-react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
+import { useState } from "react"
 
 // Menu items pour l'administration
 type SidebarSubItem = {

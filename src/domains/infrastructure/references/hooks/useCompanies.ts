@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { CompanyFilters, PaginatedCompanies } from '../repositories/ICompanyRepository'
 import { Company } from '../entities/company.types'

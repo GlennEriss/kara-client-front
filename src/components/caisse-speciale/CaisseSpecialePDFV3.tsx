@@ -1,8 +1,8 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import React from 'react'
 
 const colWidths = [0.269, 0.307, 0.152, 0.272]
 const sumCols = (start: number, span: number) =>

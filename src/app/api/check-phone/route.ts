@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { checkPhoneNumberExists } from "@/db/membership.db";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
     try {

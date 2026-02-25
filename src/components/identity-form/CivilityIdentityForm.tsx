@@ -1,10 +1,9 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import SelectRadioApp, { RadioOption } from '@/components/forms/SelectRadioApp'
+import SelectRadioApp from '@/components/forms/SelectRadioApp'
 import { CIVILITY_OPTIONS } from '@/components/register/register.data'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { IdentityFormMediatorFactory } from '@/factories/IdentityFormMediatorFactory'
-import { useFormContext } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
+import { useFormContext } from 'react-hook-form'
 
 export default function CivilityIdentityForm() {
   const form = useFormContext<RegisterFormData>()

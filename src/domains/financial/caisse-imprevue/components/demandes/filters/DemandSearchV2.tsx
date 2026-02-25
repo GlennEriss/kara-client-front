@@ -9,9 +9,9 @@
 
 'use client'
 
-import { useState } from 'react'
-import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Search, X } from 'lucide-react'
+import { useState } from 'react'
 
 interface DemandSearchV2Props {
   /** Valeur contrôlée (searchQuery de ListDemandesV2) */

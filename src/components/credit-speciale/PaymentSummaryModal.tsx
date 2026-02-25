@@ -1,23 +1,22 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
-import { Download, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { Download, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface DueItem {
   month: number
@@ -26,7 +25,7 @@ interface DueItem {
   interest: number
   principal: number
   remaining: number
-  status: 'PAID' | 'DUE' | 'FUTURE'
+  status: 'PAID' | 'DUE' | 'FUTURE' | 'REST'
   paidAmount?: number
   paymentDate?: Date
   installmentId?: string

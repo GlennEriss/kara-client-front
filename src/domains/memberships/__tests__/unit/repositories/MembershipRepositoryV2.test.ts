@@ -94,7 +94,7 @@ import {
   rejectedRequest,
   underReviewRequest,
 } from '../../fixtures'
-import type { MembershipRequestFilters, PaymentInfo } from '../../../entities'
+import type { PaymentInfo } from '../../../entities'
 import type { RegisterFormData } from '@/schemas/schemas'
 
 function resetFirestoreMocks() {

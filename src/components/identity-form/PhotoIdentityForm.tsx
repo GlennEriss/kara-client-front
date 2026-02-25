@@ -1,10 +1,10 @@
-import React, { useRef } from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import useStep1Form from '@/hooks/register/useStep1Form'
 import { cn } from '@/lib/utils'
 import { Camera, CheckCircle } from 'lucide-react'
-import useStep1Form from '@/hooks/register/useStep1Form'
+import { useRef } from 'react'
 
 export default function PhotoIdentityForm() {
   const { 

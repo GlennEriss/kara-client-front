@@ -1,13 +1,13 @@
 'use client'
 
-import React from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import ReactCountryFlag from 'react-country-flag'
-import countries from 'world-countries'
-import { Globe, CheckCircle, AlertCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import PRIORITY_COUNTRIES from '@/constantes/country-code'
 import NATIONALITY_NAMES from '@/constantes/nationality'
+import { cn } from '@/lib/utils'
+import { AlertCircle, CheckCircle, Globe } from 'lucide-react'
+import React from 'react'
+import ReactCountryFlag from 'react-country-flag'
+import countries from 'world-countries'
 
 interface SelectCountryProps {
   value?: string
@@ -137,7 +137,7 @@ export const SelectCountry: React.FC<SelectCountryProps> = ({
 }
 
 // Export des utilitaires pour usage externe
-export { NATIONALITY_OPTIONS, NATIONALITY_NAMES }
+export { NATIONALITY_NAMES, NATIONALITY_OPTIONS }
 
 // Helper pour obtenir le nom de nationalité à partir du code pays
 export const getNationalityLabel = (countryCode: string): string => {

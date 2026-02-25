@@ -1,29 +1,29 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
-import { useFormContext } from 'react-hook-form'
-import { 
-  MapPin, 
-  Building2, 
-  Loader2, 
-  Home, 
-  Sparkles,
-  Navigation,
-  Map,
-  Landmark,
-  TreePine,
-  CheckCircle2
+import {
+    Building2,
+    CheckCircle2,
+    Home,
+    Landmark,
+    Loader2,
+    Map,
+    MapPin,
+    Navigation,
+    Sparkles,
+    TreePine
 } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
+import { useFormContext } from 'react-hook-form'
 
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import type { Commune } from '@/domains/infrastructure/geography/entities/geography.types'
+import { useDepartments, useDistricts, useProvinces, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { cn } from '@/lib/utils'
 import type { RegisterFormData } from '@/schemas/schemas'
-import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
 import { useQueries } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import type { Commune } from '@/domains/infrastructure/geography/entities/geography.types'
 
 export default function AddressStepV2() {
   const { register, watch, setValue, formState: { errors, isSubmitted, touchedFields } } = useFormContext<RegisterFormData>()

@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { Download, Loader2, FileText, Smartphone, Monitor } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ContractCI } from '@/types/types'
-import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useMemberById } from '@/domains/memberships/hooks/useMemberById'
+import { ContractCI } from '@/types/types'
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
+import { Download, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
 import CaisseImprevuePDFV3 from './CaisseImprevuePDFV3'
 
 // Hook pour détecter le mobile

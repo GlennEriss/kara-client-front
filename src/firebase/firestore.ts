@@ -1,4 +1,4 @@
-import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { app } from './app';
 
 // Toujours créer db (même avec config mock pour le build)

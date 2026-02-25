@@ -1,9 +1,8 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
-import { getNationalityName } from '@/constantes/nationality'
 import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
+import { getNationalityName } from '@/constantes/nationality'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles
 const styles = StyleSheet.create({
@@ -289,9 +288,9 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
       right: { label: 'QUARTIER', value: member.address?.district || '—' },
     },
     {
-      kind: 'pair',
-      left: { label: 'NATIONALITÉ', value: getNationalityName(member.nationality) || '—' },
-      right: { label: 'ASSOCIATION', value: 'LE KARA' },
+      kind: 'single',
+      label: 'NATIONALITÉ',
+      value: getNationalityName(member.nationality) || '—' ,
     },
   ]
 

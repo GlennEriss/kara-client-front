@@ -7,34 +7,34 @@
 
 'use client'
 
-import { useState } from 'react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { 
-  Download, 
-  FileSpreadsheet, 
-  FileText, 
-  Loader2,
-  CheckCircle2
-} from 'lucide-react'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { PaymentSchedule } from '../../services/DemandSimulationService'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    CheckCircle2,
+    Download,
+    FileSpreadsheet,
+    FileText,
+    Loader2
+} from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import type { PaymentSchedule } from '../../services/DemandSimulationService'
 
 interface PaymentScheduleTableProps {
   schedule: PaymentSchedule

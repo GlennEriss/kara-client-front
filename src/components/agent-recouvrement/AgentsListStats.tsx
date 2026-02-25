@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Users, UserCheck, UserX, Mars, Venus, Cake } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { AgentsStats } from '@/types/types'
+import { Cake, ChevronLeft, ChevronRight, Mars, UserCheck, Users, UserX, Venus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 
 function useCarousel(itemCount: number, itemsPerView: number = 1) {
   const [currentIndex, setCurrentIndex] = useState(0)

@@ -2,8 +2,8 @@
  * Tests unitaires pour useStep4Validation
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
 import { useForm } from 'react-hook-form'
 import { useStep4Validation } from '../../../hooks/useStep4Validation'
 import type { RegisterFormData } from '@/schemas/schemas'

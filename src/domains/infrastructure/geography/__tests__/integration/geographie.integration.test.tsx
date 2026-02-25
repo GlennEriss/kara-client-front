@@ -12,11 +12,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { GeographieService } from '../../services/GeographieService';
-import { ProvinceRepository } from '../../repositories/ProvinceRepository';
-import { DepartmentRepository } from '../../repositories/DepartmentRepository';
-import { CommuneRepository } from '../../repositories/CommuneRepository';
-import { DistrictRepository } from '../../repositories/DistrictRepository';
-import { QuarterRepository } from '../../repositories/QuarterRepository';
 import {
   useProvinces,
   useProvinceMutations,

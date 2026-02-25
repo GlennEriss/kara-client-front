@@ -6,7 +6,6 @@
 
 import { DemandCIRepository } from '../repositories/DemandCIRepository'
 import type { CaisseImprevueDemand } from '../entities/demand.types'
-import type { DemandFilters } from '../entities/demand-filters.types'
 
 export type ExportFormat = 'pdf' | 'excel'
 

@@ -1,8 +1,8 @@
-import { ILoginService } from './ILoginService';
-import { IUserRepository } from '../repositories/IUserRepository';
-import { ZodSafeParseSuccess } from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { ZodSafeParseSuccess } from 'zod';
+import { IUserRepository } from '../repositories/IUserRepository';
+import { ILoginService } from './ILoginService';
 
 /**
  * Service de gestion de l'authentification

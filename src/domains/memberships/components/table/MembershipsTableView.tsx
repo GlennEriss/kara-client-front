@@ -24,7 +24,7 @@ import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { getNationalityName } from '@/constantes/nationality'
-import { User, Phone, Mail, MapPin, Car, Calendar, FileText, CheckCircle, XCircle, Cake, KeyRound } from 'lucide-react'
+import { User, Phone, Mail, MapPin, Calendar, FileText, CheckCircle, XCircle, Cake, KeyRound } from 'lucide-react'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
 

@@ -7,7 +7,7 @@
  * - Réinitialisation en cascade quand un niveau supérieur change
  */
 
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
 import { useProvinces, useDepartments, useDistricts } from '@/domains/infrastructure/geography/hooks/useGeographie'

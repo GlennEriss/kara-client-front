@@ -5,11 +5,16 @@ import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, U
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { deleteFile, createFile } from '@/db/upload-image.db'
 import { removeCaisseContractFromEntity } from '@/db/member.db'
-import { updateContractPdf } from '@/db/caisse/contracts.db'
+import { updateContractPdf, updateContract } from '@/db/caisse/contracts.db'
+import { computeNextDueAt } from '@/services/caisse/engine'
+import { recomputeNow } from '@/services/caisse/readers'
 
 const ALLOWED_DELETE_STATUSES = ['DRAFT', 'ACTIVE'] as const
 
 const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] as const
+
+/** Statuts pour lesquels on peut supprimer un versement (pas terminé, pas en remboursement final/anticipé). */
+const ALLOWED_DELETE_PAYMENT_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] as const
 
 export class CaisseContractsService {
   private static instance: CaisseContractsService
@@ -46,6 +51,69 @@ export class CaisseContractsService {
 
   async getContractPayments(contractId: string): Promise<ContractPayment[]> {
     return this.repo.getContractPayments(contractId)
+  }
+
+  /**
+   * Indique si la suppression d'un versement est autorisée pour ce contrat (selon son statut).
+   */
+  canDeletePayment(contract: CaisseContract | null): boolean {
+    if (!contract) return false
+    return ALLOWED_DELETE_PAYMENT_STATUSES.includes(contract.status as any)
+  }
+
+  /**
+   * Supprime un versement (mauvaise date, erreur de saisie, etc.).
+   * Autorisé uniquement si le contrat est en DRAFT, ACTIVE, LATE_NO_PENALTY ou LATE_WITH_PENALTY.
+   * Interdit si contrat CLOSED, en remboursement final/anticipé, résilié, etc.
+   * Recalcule les totaux du contrat (nominalPaid, bonusAccrued, penaltiesTotal) et la prochaine échéance.
+   */
+  async deleteContractPayment(contractId: string, paymentId: string, adminId: string): Promise<void> {
+    const contract = await this.repo.getContractById(contractId)
+    if (!contract) {
+      throw new Error('Contrat introuvable')
+    }
+    if (!ALLOWED_DELETE_PAYMENT_STATUSES.includes(contract.status as any)) {
+      throw new Error(
+        'Impossible de supprimer un versement : le contrat est terminé, en remboursement final ou anticipé, ou résilié. ' +
+        'Seuls les contrats actifs (Actif, Retard J+0..3, Retard J+4..12) permettent de supprimer un versement.'
+      )
+    }
+
+    const payments = await this.repo.getContractPayments(contractId)
+    const payment = payments.find((p: any) => p.id === paymentId)
+    if (!payment) {
+      throw new Error('Versement introuvable')
+    }
+
+    await this.repo.deletePayment(contractId, paymentId)
+
+    const remaining = await this.repo.getContractPayments(contractId)
+    const nominalPaid = remaining.reduce((sum: number, p: any) => {
+      if (p.status === 'PAID') {
+        return sum + (p.accumulatedAmount ?? p.amount ?? 0)
+      }
+      return sum
+    }, 0)
+    const bonusAccrued = remaining.reduce((sum: number, p: any) => sum + (p.bonusApplied ?? 0), 0)
+    const penaltiesTotal = remaining.reduce((sum: number, p: any) => sum + (p.penaltyApplied ?? 0), 0)
+    const paidIndices = remaining.filter((p: any) => p.status === 'PAID').map((p: any) => p.dueMonthIndex ?? 0)
+    const currentMonthIndex = paidIndices.length > 0 ? Math.max(...paidIndices) + 1 : 0
+    const nextDueAt = computeNextDueAt({
+      ...contract,
+      currentMonthIndex,
+      contractStartAt: contract.contractStartAt,
+    } as any)
+
+    await updateContract(contractId, {
+      nominalPaid,
+      bonusAccrued,
+      penaltiesTotal,
+      currentMonthIndex,
+      nextDueAt,
+      updatedBy: adminId,
+    })
+
+    await recomputeNow(contractId)
   }
 
   /**

@@ -1,8 +1,8 @@
 'use client'
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
+import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import React from 'react'
 
 Font.register({
   family: 'Times New Roman',

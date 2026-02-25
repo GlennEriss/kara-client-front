@@ -4,7 +4,7 @@
  * Tests des fonctions de formatage et de génération de PDF de reçu de paiement
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   formatPaymentMode,
   formatPaymentType,

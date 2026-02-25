@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { auth } from '@/firebase/auth'
 import { onAuthStateChanged, User } from 'firebase/auth'
+import { useEffect, useState } from 'react'
 
 /**
  * État d'authentification

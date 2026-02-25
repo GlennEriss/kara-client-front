@@ -2,9 +2,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Users, UserCheck, UserX, Car, Calendar, TrendingUp } from 'lucide-react'
 import { useMemberStats } from '@/hooks/useMembers'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
+import { Calendar, Car, TrendingUp, UserCheck, Users, UserX } from 'lucide-react'
 
 const MemberStats = () => {
   const { data: stats, isLoading, error } = useMemberStats()

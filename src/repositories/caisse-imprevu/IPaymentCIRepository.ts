@@ -37,5 +37,10 @@ export interface IPaymentCIRepository extends IRepository {
         updatedVersement: VersementCI,
         paymentMeta: { modificationReason: string; updatedBy: string }
     ): Promise<PaymentCI | null>;
+
+    /**
+     * Supprime un versement d'un paiement (mauvaise date, erreur de saisie). Recalcule accumulatedAmount et status.
+     */
+    deleteVersement(contractId: string, monthIndex: number, versementId: string, userId: string): Promise<PaymentCI | null>;
 }
 

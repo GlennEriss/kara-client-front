@@ -1,20 +1,20 @@
 "use client"
 
-import React from "react"
-import Link from "next/link"
 import routes from "@/constantes/routes"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { recomputeNow } from "@/services/caisse/readers"
 import {
-  RefreshCw,
-  UserRound,
-  CalendarDays,
-  BadgeCheck,
-  Wallet,
-  FileText,
-  Users,
-  AlertTriangle,
+    AlertTriangle,
+    BadgeCheck,
+    CalendarDays,
+    FileText,
+    RefreshCw,
+    UserRound,
+    Users,
+    Wallet,
 } from "lucide-react"
+import Link from "next/link"
+import React from "react"
 import EmergencyContact from "./EmergencyContact"
 
 // ————————————————————————————————————————————————————————————

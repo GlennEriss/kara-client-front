@@ -1,9 +1,8 @@
 'use client'
 
-import React from 'react'
-import { ContractCI } from '@/types/types'
-import { getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
 import { getNationalityName } from '@/constantes/nationality'
+import { getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
+import { ContractCI } from '@/types/types'
 
 interface ContractCIViewProps {
   contract: ContractCI

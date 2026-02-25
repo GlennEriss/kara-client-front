@@ -4,10 +4,10 @@
  * @see https://vitest.dev/
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { LoginService } from '../../services/LoginService';
-import { IUserRepository } from '../../repositories/IUserRepository';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { IUserRepository } from '../../repositories/IUserRepository';
+import { LoginService } from '../../services/LoginService';
 
 // Mock de Firebase Auth
 vi.mock('firebase/auth', () => ({

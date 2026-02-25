@@ -1,26 +1,26 @@
 'use client'
-import React, { useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import SelectApp from '@/components/forms/SelectApp'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent } from '@/components/ui/card'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { subscriptionCISchema, defaultSubscriptionCIValues, type SubscriptionCIFormData } from '@/schemas/caisse-imprevue.schema'
-import { useSubscriptionCI } from './SubscriptionCIContext'
-import { Loader2 } from 'lucide-react'
-import { useAuth } from '@/hooks/useAuth'
-import SelectApp from '@/components/forms/SelectApp'
 import { SUBSCRIPTION_CODE_OPTIONS } from '@/constantes/subscription-codes'
+import { useAuth } from '@/hooks/useAuth'
+import { defaultSubscriptionCIValues, subscriptionCISchema, type SubscriptionCIFormData } from '@/schemas/caisse-imprevue.schema'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { useSubscriptionCI } from './SubscriptionCIContext'
 
 interface CreateSubscriptionCIModalProps {
   open: boolean

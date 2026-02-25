@@ -4,7 +4,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { QuarterRepositoryV2 } from '../../repositories/QuarterRepositoryV2'
-import type { Quarter } from '../../entities/geography.types'
 
 vi.mock('../../repositories/BaseGeographyRepository', () => {
   const actual = vi.importActual('../../repositories/BaseGeographyRepository')

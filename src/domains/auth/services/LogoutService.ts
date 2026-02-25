@@ -1,6 +1,6 @@
-import { ILogoutService } from './ILogoutService'
 import { auth } from '@/firebase/auth'
 import { signOut } from 'firebase/auth'
+import { ILogoutService } from './ILogoutService'
 
 /**
  * Service de gestion de la déconnexion

@@ -1,23 +1,23 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Building2, 
-  Briefcase, 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
-  Plus,
-  X
-} from 'lucide-react'
-import { useCompanySearch, useCompanyMutations } from '@/domains/infrastructure/references/hooks/useCompanies'
-import { useProfessionSearch, useProfessionMutations } from '@/domains/infrastructure/references/hooks/useProfessions'
-import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useCompanyMutations, useCompanySearch } from '@/domains/infrastructure/references/hooks/useCompanies'
+import { useProfessionMutations, useProfessionSearch } from '@/domains/infrastructure/references/hooks/useProfessions'
 import type { MembershipRequest } from '@/types/types'
+import {
+    AlertCircle,
+    Briefcase,
+    Building2,
+    CheckCircle,
+    Loader2,
+    Plus,
+    X
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface CompanyProfessionFieldsProps {
   request: MembershipRequest

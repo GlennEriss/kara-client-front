@@ -1,65 +1,66 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  ArrowLeft,
-  Calendar,
-  CalendarDays,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  XCircle,
-  History,
-  HandCoins,
-  AlertCircle,
-  FileSignature,
-  Download,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  Shield,
-  FileText,
-  Receipt,
-  Upload,
-  Loader2,
-  Percent,
-  Plus,
-  ExternalLink,
-  Link2,
-  Eye,
-  Pencil,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { CreditContract, CreditPayment, CreditPenalty, CreditContractStatus } from '@/types/types'
-import routes from '@/constantes/routes'
-import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useGuarantorPaymentsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
-import CreditPaymentModal from './CreditPaymentModal'
-import GuarantorPaymentModal from './GuarantorPaymentModal'
-import PaymentReceiptModal from './PaymentReceiptModal'
-import PaymentSummaryModal from './PaymentSummaryModal'
-import CreditExtensionModal from './CreditExtensionModal'
-import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
-import FinalRepaymentModal from './FinalRepaymentModal'
-import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
-import CloseContractModal from './CloseContractModal'
-import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
-import { useAuth } from '@/hooks/useAuth'
-import { useQueryClient } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
-import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import routes from '@/constantes/routes'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuth } from '@/hooks/useAuth'
+import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract } from '@/hooks/useCreditSpeciale'
+import { cn } from '@/lib/utils'
+import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
+import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import { getLogicalMonthIndex, isAfterLogicalMonth7, isRestMonth } from '@/utils/credit-speciale-rest-months'
+import { useQueryClient } from '@tanstack/react-query'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CalendarDays,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Download,
+    ExternalLink,
+    Eye,
+    FileSignature,
+    FileText,
+    HandCoins,
+    History,
+    Link2,
+    Loader2,
+    Pencil,
+    Percent,
+    Plus,
+    Shield,
+    TrendingUp,
+    Upload,
+    User,
+    XCircle
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import CloseContractModal from './CloseContractModal'
+import CreditExtensionModal from './CreditExtensionModal'
+import CreditPaymentModal from './CreditPaymentModal'
+import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
+import FinalRepaymentModal from './FinalRepaymentModal'
+import GuarantorPaymentModal from './GuarantorPaymentModal'
+import PaymentReceiptModal from './PaymentReceiptModal'
+import PaymentSummaryModal from './PaymentSummaryModal'
+import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
+import RestMonthModal from './RestMonthModal'
+import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -96,11 +97,16 @@ interface DueItem {
   interest: number
   principal: number
   remaining: number
-  status: 'PAID' | 'DUE' | 'FUTURE'
+  status: 'PAID' | 'DUE' | 'FUTURE' | 'REST'
   paidAmount?: number
   paymentDate?: Date
   paymentTime?: string // Heure du paiement (HH:mm) pour affichage "Payé à"
   installmentId?: string // ID de l'échéance pour lier les paiements
+  /** Ligne « Mois de repos » (pas de paiement, pas de pénalité) */
+  isRest?: boolean
+  restReason?: string
+  restRecordedByName?: string
+  restRecordedAt?: Date
 }
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
@@ -388,7 +394,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
     TRANSFORMED: { label: 'Transformé', color: 'text-purple-600', bgColor: 'bg-purple-100' },
     BLOCKED: { label: 'Bloqué', color: 'text-red-600', bgColor: 'bg-red-100' },
     DISCHARGED: { label: 'Déchargé', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
-    CLOSED: { label: 'Clos', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+    CLOSED: { label: 'Contrat clos', color: 'text-white', bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700 shadow-md ring-1 ring-slate-500/30' },
     EXTENDED: { label: 'Étendu', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   }
   return configs[status] || configs.DRAFT
@@ -444,6 +450,8 @@ export default function CreditContractDetail({
   const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
   const { data: guarantorPayments = [], isLoading: isLoadingGuarantorPayments } = useGuarantorPaymentsByCreditId(contract.id)
   const [showGuarantorPaymentModal, setShowGuarantorPaymentModal] = useState(false)
+  const [showRestMonthModal, setShowRestMonthModal] = useState(false)
+  const [selectedRestMonth, setSelectedRestMonth] = useState<number | null>(null)
   const queryClient = useQueryClient()
 
   // Vérifier et créer les pénalités manquantes au chargement
@@ -659,11 +667,12 @@ export default function CreditContractDetail({
       return items
     }
 
-    // Crédit spéciale / aide: logique historique
+    // Crédit spéciale / aide: logique avec mois de repos et mois logique
     const monthlyRate = contract.interestRate / 100
     const defaultPaymentAmount = contract.monthlyPaymentAmount
     const maxDuration = contract.duration
     const hasCustomSchedule = contract.customSchedule && contract.customSchedule.length > 0
+    const restMonths = contract.restMonths ?? []
 
     const customPaymentByMonth = new Map<number, number>()
     if (hasCustomSchedule) {
@@ -673,8 +682,8 @@ export default function CreditContractDetail({
     }
 
     let resteDuPrecedent = contract.amount
-    let montantGlobal = contract.amount * monthlyRate + contract.amount
     const items: DueItem[] = []
+    const maxCalendarMonths = Math.min(20, maxDuration + restMonths.length)
 
     const sortedPayments = [...payments]
       .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
@@ -682,16 +691,38 @@ export default function CreditContractDetail({
 
     const paymentsByMonthMap = getPaymentsByMonth()
 
-    let monthIndex = 0
-    while (montantGlobal > 0 && monthIndex < 20) {
+    for (let calendarMonthIndex = 0; calendarMonthIndex < maxCalendarMonths; calendarMonthIndex++) {
+      const currentMonth = calendarMonthIndex + 1
       const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + monthIndex)
+      date.setMonth(date.getMonth() + calendarMonthIndex)
 
-      const isAfterMonth7 = monthIndex >= 7
+      if (isRestMonth(currentMonth, restMonths)) {
+        // Option A : pas d'intérêts pendant le repos — le capital reste inchangé, tout est reporté au mois suivant
+        const restEntry = restMonths.find((r) => r.monthNumber === currentMonth)!
+        items.push({
+          month: currentMonth,
+          date,
+          payment: 0,
+          interest: 0,
+          principal: customRound(resteDuPrecedent),
+          remaining: customRound(resteDuPrecedent),
+          status: 'REST',
+          isRest: true,
+          restReason: restEntry.reason,
+          restRecordedByName: restEntry.recordedByName,
+          restRecordedAt: restEntry.recordedAt,
+        })
+        // Capital inchangé après le repos
+        continue
+      }
+
+      const logicalIndex = getLogicalMonthIndex(currentMonth, restMonths)
+      const isAfterMonth7 = isAfterLogicalMonth7(currentMonth, restMonths)
       const interest = isAfterMonth7 ? 0 : resteDuPrecedent * monthlyRate
+      const montantGlobal = resteDuPrecedent + interest
 
       const paymentAmount = hasCustomSchedule
-        ? (customPaymentByMonth.get(monthIndex + 1) ?? defaultPaymentAmount)
+        ? (customPaymentByMonth.get(currentMonth) ?? defaultPaymentAmount)
         : defaultPaymentAmount
 
       let payment: number
@@ -709,21 +740,18 @@ export default function CreditContractDetail({
       }
 
       if (isAfterMonth7) {
-        montantGlobal = resteDu
         resteDuPrecedent = resteDu
       } else {
-        montantGlobal = resteDu * monthlyRate + resteDu
         resteDuPrecedent = resteDu
       }
 
       let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
       let paidAmount = 0
       let paymentDate: Date | undefined
+      let paymentTime: string | undefined
 
-      const currentMonth = monthIndex + 1
       const paidForThisMonth = paymentsByMonthMap.get(currentMonth) || 0
 
-      let paymentTime: string | undefined
       if (paidForThisMonth > 0) {
         status = 'PAID'
         paidAmount = paidForThisMonth
@@ -743,8 +771,9 @@ export default function CreditContractDetail({
         }
       } else {
         let allPreviousPaid = true
-        for (let j = 0; j < monthIndex; j++) {
-          if ((paymentsByMonthMap.get(j + 1) || 0) === 0) {
+        for (let j = 0; j < currentMonth - 1; j++) {
+          const prevMonth = j + 1
+          if (!isRestMonth(prevMonth, restMonths) && (paymentsByMonthMap.get(prevMonth) || 0) === 0) {
             allPreviousPaid = false
             break
           }
@@ -753,7 +782,7 @@ export default function CreditContractDetail({
       }
 
       items.push({
-        month: monthIndex + 1,
+        month: currentMonth,
         date,
         payment: customRound(payment),
         interest: customRound(interest),
@@ -765,10 +794,8 @@ export default function CreditContractDetail({
         paymentTime,
       })
 
-      monthIndex++
-
       const effectiveDuration = hasCustomSchedule ? contract.customSchedule!.length : maxDuration
-      if (resteDu <= 0 && monthIndex >= effectiveDuration) {
+      if (resteDu <= 0 && logicalIndex >= effectiveDuration) {
         break
       }
     }
@@ -781,7 +808,7 @@ export default function CreditContractDetail({
   const dueItems = calculateDueItems()
   const dueItemsForSimulation = isSimpleCredit
     ? dueItems
-    : dueItems.filter((row) => row.payment > 0)
+    : dueItems.filter((row) => row.payment > 0 || row.isRest)
 
   // Calculer le montant restant basé sur les paiements réels
   // nouveauMontantRestant = MontantRestant - montantVerser
@@ -956,26 +983,47 @@ export default function CreditContractDetail({
       return items.filter((item) => item.status === 'PAID' || item.payment > 0)
     }
 
-    // Crédit spéciale / aide: logique historique
+    // Crédit spéciale / aide: logique avec mois de repos et mois logique
     const monthlyRate = contract.interestRate / 100
+    const restMonths = contract.restMonths ?? []
+    const maxCalendarMonths = Math.min(20, maxDuration + restMonths.length)
 
     let currentRemaining = contract.amount
-    let monthIndex = 0
 
-    while (currentRemaining > 0 && monthIndex < 20) {
+    for (let calendarMonthIndex = 0; calendarMonthIndex < maxCalendarMonths; calendarMonthIndex++) {
+      const currentMonth = calendarMonthIndex + 1
       const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + monthIndex)
+      date.setMonth(date.getMonth() + calendarMonthIndex)
 
-      const isAfterMonth7 = monthIndex >= 7
+      if (isRestMonth(currentMonth, restMonths)) {
+        // Option A : pas d'intérêts pendant le repos — le capital reste inchangé
+        const restEntry = restMonths.find((r) => r.monthNumber === currentMonth)!
+        items.push({
+          month: currentMonth,
+          date,
+          payment: 0,
+          interest: 0,
+          principal: customRound(currentRemaining),
+          remaining: customRound(currentRemaining),
+          status: 'REST',
+          isRest: true,
+          restReason: restEntry.reason,
+          restRecordedByName: restEntry.recordedByName,
+          restRecordedAt: restEntry.recordedAt,
+        })
+        // currentRemaining inchangé
+        continue
+      }
+
+      const isAfterMonth7 = isAfterLogicalMonth7(currentMonth, restMonths)
       const interest = isAfterMonth7 ? 0 : currentRemaining * monthlyRate
       const montantGlobal = currentRemaining + interest
 
-      const actualPayment = paymentsByMonthMap.get(monthIndex + 1) || 0
-      const currentMonth = monthIndex + 1
+      const actualPayment = paymentsByMonthMap.get(currentMonth) || 0
       const hasPayment = hasPaymentForMonth(currentMonth)
 
       const monthlyPayment = hasCustomSchedule
-        ? (customPaymentByMonth.get(monthIndex + 1) ?? defaultMonthlyPayment)
+        ? (customPaymentByMonth.get(currentMonth) ?? defaultMonthlyPayment)
         : defaultMonthlyPayment
 
       let theoreticalPayment: number
@@ -1029,8 +1077,9 @@ export default function CreditContractDetail({
         }
       } else {
         let allPreviousPaid = true
-        for (let j = 0; j < monthIndex; j++) {
-          if (!hasPaymentForMonth(j + 1)) {
+        for (let j = 0; j < currentMonth - 1; j++) {
+          const prevMonth = j + 1
+          if (!isRestMonth(prevMonth, restMonths) && !hasPaymentForMonth(prevMonth)) {
             allPreviousPaid = false
             break
           }
@@ -1039,7 +1088,7 @@ export default function CreditContractDetail({
       }
 
       items.push({
-        month: monthIndex + 1,
+        month: currentMonth,
         date,
         payment: customRound(displayedPayment),
         interest: customRound(interest),
@@ -1052,15 +1101,15 @@ export default function CreditContractDetail({
       })
 
       currentRemaining = resteDu
-      monthIndex++
 
+      const logicalIndex = getLogicalMonthIndex(currentMonth, restMonths)
       const effectiveDuration = hasCustomSchedule ? contract.customSchedule!.length : maxDuration
-      if (resteDu <= 0 && monthIndex >= effectiveDuration) {
+      if (resteDu <= 0 && logicalIndex >= effectiveDuration) {
         break
       }
     }
 
-    return items.filter((item) => item.status === 'PAID' || item.payment > 0)
+    return items.filter((item) => item.status === 'PAID' || item.status === 'REST' || item.payment > 0)
   }
 
   const actualSchedule = calculateActualSchedule()
@@ -1093,54 +1142,43 @@ export default function CreditContractDetail({
     ? Math.max(0, totalAmountToRepay - totalPaidFromSchedule)
     : totalAmountToRepay - totalPaidFromSchedule
 
-  // Calculer les pertes à partir du mois 8
-  // Les pertes = intérêts non gagnés car les paiements sont faits après le 7ème mois
-  // La perte pour un mois >= 8 = capital restant au début du mois * taux d'intérêt
+  // Calculer les pertes à partir du 8e mois logique (intérêts non appliqués)
   const calculateLosses = (): number => {
     if (contract.creditType !== 'SPECIALE') return 0
     
     const monthlyRate = contract.interestRate / 100
+    const restMonths = contract.restMonths ?? []
     let totalLosses = 0
     
-    // Pour chaque mois >= 8 dans l'échéancier actuel avec un paiement
     for (const item of actualSchedule) {
-      if (item.month >= 8 && item.status === 'PAID') {
-        // Le capital restant au début du mois N = remaining du mois N-1
-        let capitalAtStartOfMonth = 0
-        
-        // Pour tous les mois >= 8, utiliser le remaining du mois précédent dans l'échéancier actuel
-        // Cela reflète les paiements réels, pas théoriques
-        const previousMonth = actualSchedule.find(i => i.month === item.month - 1)
-        if (previousMonth) {
-          capitalAtStartOfMonth = previousMonth.remaining
-        } else if (item.month === 8) {
-          // Si on n'a pas le mois 7 dans l'échéancier actuel, le recalculer
-          // Cela peut arriver si le mois 7 n'a pas de paiement
-          const monthlyRateCalc = contract.interestRate / 100
-          let currentRemaining = contract.amount
-          
-          // Recalculer jusqu'au mois 7 en utilisant les paiements réels
-          for (let monthIndex = 0; monthIndex < 7; monthIndex++) {
+      if (item.status === 'REST' || item.isRest) continue
+      const logicalIndex = getLogicalMonthIndex(item.month, restMonths)
+      if (logicalIndex <= 7 || item.status !== 'PAID') continue
+
+      let capitalAtStartOfMonth = 0
+      const previousMonth = actualSchedule.find(i => i.month === item.month - 1)
+      if (previousMonth) {
+        capitalAtStartOfMonth = previousMonth.remaining
+      } else {
+        const monthlyRateCalc = contract.interestRate / 100
+        let currentRemaining = contract.amount
+        for (const prev of actualSchedule) {
+          if (prev.month >= item.month) break
+          if (prev.isRest || prev.status === 'REST') {
+            currentRemaining = currentRemaining * (1 + monthlyRateCalc)
+          } else {
             const interest = currentRemaining * monthlyRateCalc
             const montantGlobal = currentRemaining + interest
-            const monthlyPayment = contract.monthlyPaymentAmount
-            const payment = Math.min(monthlyPayment, montantGlobal)
-            const resteDu = Math.max(0, montantGlobal - payment)
-            currentRemaining = resteDu
+            const paid = prev.paidAmount ?? prev.payment ?? 0
+            currentRemaining = Math.max(0, montantGlobal - paid)
           }
-          
-          capitalAtStartOfMonth = customRound(currentRemaining)
         }
-        
-        // La perte = capital restant au début du mois * taux d'intérêt
-        if (capitalAtStartOfMonth > 0) {
-          const loss = capitalAtStartOfMonth * monthlyRate
-          totalLosses += loss
-          console.log(`[calculateLosses] Mois ${item.month}: capital=${capitalAtStartOfMonth}, perte=${loss}, total=${totalLosses}`)
-        }
+        capitalAtStartOfMonth = customRound(currentRemaining)
+      }
+      if (capitalAtStartOfMonth > 0) {
+        totalLosses += capitalAtStartOfMonth * monthlyRate
       }
     }
-    
     return customRound(totalLosses)
   }
 
@@ -1643,12 +1681,12 @@ export default function CreditContractDetail({
                   const hasUnpaidInstallments = actualSchedule.some(i => i.status === 'DUE' || i.status === 'FUTURE')
                   const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments
                   
-                  // Vérifier si toutes les échéances précédentes sont payées
+                  // Vérifier si toutes les échéances précédentes sont payées ou en repos
                   let allPreviousPaid = true
                   const previousStatuses: string[] = []
                   for (let j = 0; j < index; j++) {
                     previousStatuses.push(`M${actualSchedule[j].month}:${actualSchedule[j].status}`)
-                    if (actualSchedule[j].status !== 'PAID') {
+                    if (actualSchedule[j].status !== 'PAID' && actualSchedule[j].status !== 'REST') {
                       allPreviousPaid = false
                     }
                   }
@@ -1661,6 +1699,7 @@ export default function CreditContractDetail({
                   const isDisabled = !canMakePayments || 
                                    item.status === 'FUTURE' || 
                                    item.status === 'PAID' ||
+                                   item.status === 'REST' ||
                                    !isPayable
                   
                   // Log de débogage pour l'échéance 8
@@ -1699,6 +1738,8 @@ export default function CreditContractDetail({
                       : { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: AlertCircle, label: 'Payé (insuffisant)' }
                     : item.status === 'DUE'
                     ? { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', icon: Clock, label: 'À payer' }
+                    : item.status === 'REST' || item.isRest
+                    ? { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: Calendar, label: 'Mois de repos' }
                     : { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'À venir' }
                   const StatusIcon = statusConfig.icon
 
@@ -1713,6 +1754,8 @@ export default function CreditContractDetail({
                           ? isPaymentSufficient
                             ? 'border-green-300 bg-white hover:shadow-xl hover:-translate-y-1'
                             : 'border-red-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                          : item.status === 'REST' || item.isRest
+                          ? 'border-blue-200 bg-white'
                           : 'border-gray-300 hover:border-[#224D62] bg-white hover:shadow-xl hover:-translate-y-1'
                       )}
                     >
@@ -1725,12 +1768,17 @@ export default function CreditContractDetail({
                             : 'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
                           : item.status === 'DUE'
                           ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200'
+                          : item.status === 'REST' || item.isRest
+                          ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200'
                           : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200'
                       )}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="bg-[#224D62] text-white rounded-lg px-3 py-1.5 text-sm font-bold shadow-sm">
-                              Échéance {item.month}
+                            <div className={cn(
+                              'rounded-lg px-3 py-1.5 text-sm font-bold shadow-sm',
+                              item.status === 'REST' || item.isRest ? 'bg-blue-600 text-white' : 'bg-[#224D62] text-white'
+                            )}>
+                              {item.status === 'REST' || item.isRest ? `Mois ${item.month} – Repos` : `Échéance ${item.month}`}
                             </div>
                           </div>
                           <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border shadow-sm`}>
@@ -1749,6 +1797,28 @@ export default function CreditContractDetail({
                             </span>
                           </div>
 
+                          {(item.status === 'REST' || item.isRest) ? (
+                            <div className="space-y-2 text-sm">
+                              <p className="text-blue-700 font-medium">Aucun paiement ce mois (repos)</p>
+                              {item.restReason && (
+                                <div>
+                                  <span className="text-gray-600">Motif:</span>
+                                  <span className="ml-1 font-medium text-gray-900">{item.restReason}</span>
+                                </div>
+                              )}
+                              {item.restRecordedByName && (
+                                <div className="text-gray-500 text-xs">
+                                  Enregistré par {item.restRecordedByName}
+                                  {item.restRecordedAt && ` le ${format(item.restRecordedAt, 'dd/MM/yyyy à HH:mm', { locale: fr })}`}
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-100">
+                                <span className="text-gray-600">Capital après repos:</span>
+                                <span className="font-semibold">{item.remaining.toLocaleString('fr-FR')} FCFA</span>
+                              </div>
+                            </div>
+                          ) : (
+                          <>
                           {(() => {
                             // Calculer le montant théorique à payer (mensualité ou montant global si inférieur)
                             const expectedPayment = dueItems.find((due) => due.month === item.month)?.payment
@@ -1785,7 +1855,9 @@ export default function CreditContractDetail({
                             )
                           })()}
                           
-                          {/* Détail principal + intérêts */}
+                          {/* Détail principal + intérêts (masqué pour mois de repos) */}
+                          {!item.isRest && (
+                          <>
                           <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-gray-200">
                             <div className="flex items-center justify-between w-full">
                               <span className="text-gray-600">Capital:</span>
@@ -1801,6 +1873,8 @@ export default function CreditContractDetail({
                                 {item.interest.toLocaleString('fr-FR')} FCFA
                               </span>
                             </div>
+                          )}
+                          </>
                           )}
 
                           {item.status === 'PAID' && item.paymentDate && (
@@ -1845,28 +1919,40 @@ export default function CreditContractDetail({
                               </div>
                             )
                           })()}
+                          </>
+                          )}
 
                         {/* Boutons d'action */}
                         <div className="mt-4 pt-4 border-t border-gray-200">
                           {item.status === 'DUE' && (
-                            <Button
-                              onClick={() => {
-                                console.log('[CreditContractDetail] Clic sur "Payer cette échéance" - Échéance:', {
-                                  month: item.month,
-                                  installmentId: item.installmentId,
-                                  index: index,
-                                  payment: item.payment,
-                                  status: item.status
-                                });
-                                setSelectedDueIndex(index)
-                                setShowPaymentModal(true)
-                              }}
-                              className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white h-11 font-semibold shadow-md hover:shadow-lg transition-all"
-                              disabled={isDisabled}
-                            >
-                              <HandCoins className="h-4 w-4 mr-2" />
-                              Payer cette échéance
-                            </Button>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                onClick={() => {
+                                  setSelectedDueIndex(index)
+                                  setShowPaymentModal(true)
+                                }}
+                                className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white h-11 font-semibold shadow-md hover:shadow-lg transition-all"
+                                disabled={isDisabled}
+                              >
+                                <HandCoins className="h-4 w-4 mr-2" />
+                                Payer cette échéance
+                              </Button>
+                              {contract.creditType === 'SPECIALE' && index === nextDueIndex && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
+                                  onClick={() => {
+                                    setSelectedRestMonth(item.month)
+                                    setShowRestMonthModal(true)
+                                  }}
+                                  disabled={isDisabled}
+                                >
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  Mois de repos
+                                </Button>
+                              )}
+                            </div>
                           )}
 
                           {item.status === 'PAID' && (
@@ -2156,9 +2242,13 @@ export default function CreditContractDetail({
                             
                             return (
                               <TableRow key={row.month} className={rowColor}>
-                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell className="font-medium">
+                                  {row.isRest ? `M${row.month} (repos)` : `M${row.month}`}
+                                </TableCell>
                                 <TableCell>{formatDate(row.date)}</TableCell>
-                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">
+                                  {row.isRest ? '—' : `${row.payment.toLocaleString('fr-FR')} FCFA`}
+                                </TableCell>
                                 {!isSimpleCredit && (
                                   <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                                 )}
@@ -2218,22 +2308,30 @@ export default function CreditContractDetail({
                         </TableHeader>
                         <TableBody>
                           {dueItemsForSimulation.map((row) => {
+                            if (row.isRest) {
+                              return (
+                                <TableRow key={row.month} className="bg-blue-50/50">
+                                  <TableCell className="font-medium">M{row.month} (repos)</TableCell>
+                                  <TableCell>{formatDate(row.date)}</TableCell>
+                                  <TableCell className="text-right">—</TableCell>
+                                  {!isSimpleCredit && (
+                                    <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  )}
+                                  <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                                </TableRow>
+                              )
+                            }
                             // Vérifier si un paiement a été fait (même de 0 FCFA)
                             const hasPayment = row.paidAmount !== undefined || hasPaymentForMonth(row.month)
-                            // Montant payé (peut être 0 FCFA)
                             const paidForMonth = row.paidAmount !== undefined 
                               ? row.paidAmount 
                               : (paymentsByMonth.get(row.month) ?? null)
-                            
-                            // Vert si paiement fait ET montant >= mensualité
-                            // Rouge si paiement fait MAIS montant < mensualité (inclut 0 FCFA)
-                            // Blanc si aucun paiement
                             const rowColor = !hasPayment || paidForMonth === null
-                              ? '' // Aucun paiement = blanc
+                              ? ''
                               : paidForMonth >= row.payment 
                               ? 'bg-green-50 hover:bg-green-100' 
-                              : 'bg-red-50 hover:bg-red-100' // Paiement fait mais < mensualité (inclut 0 FCFA)
-                            
+                              : 'bg-red-50 hover:bg-red-100'
                             return (
                               <TableRow key={row.month} className={rowColor}>
                                 <TableCell className="font-medium">M{row.month}</TableCell>
@@ -2544,11 +2642,19 @@ export default function CreditContractDetail({
 
         {/* Section Déchargé - visible quand contrat DISCHARGED ou CLOSED */}
         {(contract.status === 'DISCHARGED' || contract.status === 'CLOSED') && (
-          <Card className="border-0 shadow-xl bg-gradient-to-r from-blue-50 to-cyan-50">
+          <Card className={cn(
+            'border-0 shadow-xl',
+            contract.status === 'CLOSED'
+              ? 'bg-gradient-to-r from-slate-100 to-slate-200 ring-2 ring-slate-300/50'
+              : 'bg-gradient-to-r from-blue-50 to-cyan-50'
+          )}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-800">
+              <CardTitle className={cn(
+                'flex items-center gap-2',
+                contract.status === 'CLOSED' ? 'text-slate-800' : 'text-blue-800'
+              )}>
                 <FileSignature className="h-5 w-5" />
-                Déchargé
+                {contract.status === 'CLOSED' ? 'Contrat clos' : 'Déchargé'}
               </CardTitle>
               {contract.dischargeMotif && (
                 <div className="space-y-2 text-sm">
@@ -2595,9 +2701,9 @@ export default function CreditContractDetail({
                 )}
               </div>
               {contract.status === 'CLOSED' && contract.closedAt && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="font-medium text-gray-700">Contrat clôturé</p>
-                  <p className="text-sm text-gray-600">
+                <div className="p-4 rounded-lg bg-slate-700 text-white shadow-md ring-1 ring-slate-600/50">
+                  <p className="font-semibold">Contrat clôturé</p>
+                  <p className="text-sm text-slate-200 mt-1">
                     Le {format(new Date(contract.closedAt), 'dd MMMM yyyy', { locale: fr })}
                   </p>
                 </div>
@@ -2739,6 +2845,21 @@ export default function CreditContractDetail({
           setPaymentToEdit(null)
         }}
       />
+      {selectedRestMonth !== null && (
+        <RestMonthModal
+          isOpen={showRestMonthModal}
+          onClose={() => {
+            setShowRestMonthModal(false)
+            setSelectedRestMonth(null)
+          }}
+          creditId={contract.id}
+          monthNumber={selectedRestMonth}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['creditContract', contract.id] })
+            queryClient.invalidateQueries({ queryKey: ['creditPayments', 'creditId', contract.id] })
+          }}
+        />
+      )}
       <GuarantorPaymentModal
         isOpen={showGuarantorPaymentModal}
         onClose={() => setShowGuarantorPaymentModal(false)}
@@ -2761,6 +2882,13 @@ export default function CreditContractDetail({
             selectedPayment && selectedPayment.installmentId
               ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
               : (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
+          }
+          schedule={actualSchedule}
+          payments={payments}
+          dueDate={
+            selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
+              ? actualSchedule[selectedDueIndexForReceipt].date
+              : undefined
           }
           onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
             const p = selectedPayment || getSelectedPaymentForReceipt()
@@ -2786,9 +2914,9 @@ export default function CreditContractDetail({
           }}
           contract={contract}
           payment={selectedPayment}
-          dueItem={selectedDueIndexForSummary !== null ? actualSchedule[selectedDueIndexForSummary] : undefined}
+          dueItem={selectedDueIndexForSummary !== null ? actualSchedule[selectedDueIndexForSummary] as React.ComponentProps<typeof PaymentSummaryModal>['dueItem'] : undefined}
           nextDueItem={selectedDueIndexForSummary !== null && selectedDueIndexForSummary + 1 < actualSchedule.length 
-            ? actualSchedule[selectedDueIndexForSummary + 1] 
+            ? actualSchedule[selectedDueIndexForSummary + 1] as React.ComponentProps<typeof PaymentSummaryModal>['nextDueItem']
             : undefined}
         />
       )}

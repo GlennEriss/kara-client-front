@@ -1,21 +1,21 @@
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  startAfter,
-  getDocs,
-  getDoc,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  DocumentSnapshot,
+    addDoc,
+    collection,
+    db,
+    deleteDoc,
+    doc,
+    DocumentSnapshot,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    serverTimestamp,
+    setDoc,
+    startAfter,
+    updateDoc,
+    where,
 } from '@/firebase/firestore'
-import { db } from '@/firebase/firestore'
-import { setDoc } from '@/firebase/firestore'
 
 // ================== TYPES POUR LES ADMINS ==================
 

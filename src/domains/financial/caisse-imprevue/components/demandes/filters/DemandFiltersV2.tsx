@@ -7,17 +7,17 @@
 
 'use client'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { RotateCcw, CalendarDays, Calendar, Package, X, Filter } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { Calendar, CalendarDays, Filter, Package, X } from 'lucide-react'
 import type { DemandFilters } from '../../../entities/demand-filters.types'
 import type { CaisseImprevuePaymentFrequency } from '../../../entities/demand.types'
 

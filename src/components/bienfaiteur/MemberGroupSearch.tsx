@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Search, User, Users, Loader2, X, Check } from 'lucide-react'
-import { useSearchMembers } from '@/hooks/useMembers'
-import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
-import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
+import { useSearchMembers } from '@/hooks/useMembers'
+import { cn } from '@/lib/utils'
+import { Check, Loader2, Search, User, Users, X } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 
 interface MemberGroupSearchProps {
   participantType: 'member' | 'group'

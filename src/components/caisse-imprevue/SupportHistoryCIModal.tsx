@@ -1,36 +1,35 @@
 'use client'
 
-import React from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
-  History,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  User,
-  Calendar,
-  AlertCircle,
-  Download,
-  FileSpreadsheet,
-  Eye,
-} from 'lucide-react'
-import { useSupportHistory, useAdmin } from '@/hooks/caisse-imprevue'
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAdmin, useSupportHistory } from '@/hooks/caisse-imprevue'
 import { SupportCI } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import * as XLSX from 'xlsx'
+import {
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Download,
+    Eye,
+    FileSpreadsheet,
+    History,
+    User,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import * as XLSX from 'xlsx'
 
 interface SupportHistoryCIModalProps {
   isOpen: boolean

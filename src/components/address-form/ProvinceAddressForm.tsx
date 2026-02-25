@@ -1,13 +1,12 @@
 'use client'
 
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { MapPin, Info } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import InputApp from '../forms/InputApp'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { UseFormReturn } from 'react-hook-form'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { cn } from '@/lib/utils'
 import { RegisterFormData } from '@/schemas/schemas'
+import { Info, MapPin } from 'lucide-react'
+import { UseFormReturn } from 'react-hook-form'
+import InputApp from '../forms/InputApp'
 
 interface ProvinceAddressFormProps {
   form: UseFormReturn<RegisterFormData>

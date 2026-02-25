@@ -1,27 +1,25 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { useMemberActivitySummary, ContractSummary, CharitySummary, PlacementSummary, ContractStats } from '@/hooks/useMemberActivitySummary'
-import { 
-  Wallet, 
-  HeartHandshake, 
-  TrendingUp, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
-  ExternalLink,
-  Loader2,
-  FileText,
-  Calendar,
-  User
-} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CharitySummary, ContractStats, ContractSummary, PlacementSummary, useMemberActivitySummary } from '@/hooks/useMemberActivitySummary'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    ExternalLink,
+    FileText,
+    HeartHandshake,
+    Loader2,
+    TrendingUp,
+    User,
+    Wallet
+} from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 
 interface MemberActivitySummaryProps {
   memberId: string

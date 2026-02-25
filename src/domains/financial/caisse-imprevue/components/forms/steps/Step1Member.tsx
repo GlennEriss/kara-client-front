@@ -4,17 +4,17 @@
 
 'use client'
 
-import { UseFormReturn } from 'react-hook-form'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Phone, X } from 'lucide-react'
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
-import { useEffect, useState } from 'react'
-import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
 import type { User } from '@/types/types'
+import { Phone, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { UseFormReturn } from 'react-hook-form'
+import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
 
 interface Step1MemberProps {
   form: UseFormReturn<CaisseImprevueDemandFormInput>

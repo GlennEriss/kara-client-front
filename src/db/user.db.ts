@@ -1,21 +1,21 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit as firestoreLimit, 
-  Timestamp,
-  getCountFromServer,
-  startAfter
-} from 'firebase/firestore'
-import { db as firestore } from '@/firebase/firestore'
-import type { User, UserFilters, UserStats, UserRole } from '@/types/types'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
+import { db as firestore } from '@/firebase/firestore'
+import type { User, UserFilters, UserRole, UserStats } from '@/types/types'
+import {
+    collection,
+    doc,
+    limit as firestoreLimit,
+    getCountFromServer,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    setDoc,
+    startAfter,
+    Timestamp,
+    updateDoc,
+    where
+} from 'firebase/firestore'
 
 // Supprime récursivement les clés avec valeur undefined (Firestore ne les accepte pas)
 function sanitizeForFirestore<T>(value: T): T {

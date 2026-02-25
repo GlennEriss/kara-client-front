@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/firebase/adminAuth";
+import { NextRequest, NextResponse } from "next/server";
 
 // Recherche un utilisateur Firebase Auth par UID (matricule)
 // Body: { uid: string }

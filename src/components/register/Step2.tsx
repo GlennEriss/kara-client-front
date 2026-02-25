@@ -1,29 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { 
-  MapPin,
-} from 'lucide-react'
-import { useIsAdminContext } from '@/hooks/useIsAdminContext'
-import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
+import {
+    CommuneCombobox,
+    DistrictCombobox,
+    ProvinceCombobox,
+    QuarterCombobox,
+} from '@/domains/infrastructure/geography/components/forms'
 import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
 import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
+import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
 import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
-import type { Province, Commune, District, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
-import { cn } from '@/lib/utils'
-import {
-  ProvinceCombobox,
-  CommuneCombobox,
-  DistrictCombobox,
-  QuarterCombobox,
-} from '@/domains/infrastructure/geography/components/forms'
+import type { Commune, District, Province, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
 import { useAddressCascade } from '@/domains/memberships/hooks/useAddressCascade'
 import { useCascadingEntityCreation } from '@/domains/memberships/hooks/useCascadingEntityCreation'
+import { useIsAdminContext } from '@/hooks/useIsAdminContext'
+import { cn } from '@/lib/utils'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+    MapPin,
+} from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form

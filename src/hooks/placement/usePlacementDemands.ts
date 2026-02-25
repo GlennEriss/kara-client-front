@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '../useAuth'
 import { toast } from 'sonner'
-import { PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
+import { PlacementDemandFilters } from '@/types/types'
 import { PlacementDemandFormInput, approveDemandSchema, rejectDemandSchema, reopenDemandSchema } from '@/schemas/placement.schema'
 import { z } from 'zod'
 

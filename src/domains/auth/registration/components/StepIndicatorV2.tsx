@@ -1,7 +1,7 @@
 'use client'
 
-import { Check, LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Check, LucideIcon } from 'lucide-react'
 
 interface Step {
   id: number

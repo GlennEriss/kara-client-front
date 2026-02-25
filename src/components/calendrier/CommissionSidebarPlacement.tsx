@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { useAuth } from "@/hooks/useAuth"
-import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { ServiceFactory } from "@/factories/ServiceFactory"
-import { CommissionSidebarHeaderPlacement } from "./CommissionSidebarHeaderPlacement"
-import { CommissionSidebarContentPlacement } from "./CommissionSidebarContentPlacement"
-import { CommissionSidebarActionsPlacement } from "./CommissionSidebarActionsPlacement"
 import PayCommissionModal, { CommissionPaymentFormData } from "@/components/placement/PayCommissionModal"
-import { useCommissionReceiptPlacement } from "@/hooks/useCommissionReceiptPlacement"
+import { ServiceFactory } from "@/factories/ServiceFactory"
+import { useAuth } from "@/hooks/useAuth"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { useCommissionReceiptPlacement } from "@/hooks/useCommissionReceiptPlacement"
+import { useQueryClient } from "@tanstack/react-query"
 import { X } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
+import { CommissionSidebarActionsPlacement } from "./CommissionSidebarActionsPlacement"
+import { CommissionSidebarContentPlacement } from "./CommissionSidebarContentPlacement"
+import { CommissionSidebarHeaderPlacement } from "./CommissionSidebarHeaderPlacement"
 
 interface CommissionSidebarPlacementProps {
   commission: CalendarCommissionItem

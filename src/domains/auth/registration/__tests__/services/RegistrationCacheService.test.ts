@@ -2,9 +2,9 @@
  * Tests unitaires pour RegistrationCacheService
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
-import { RegistrationCacheService } from '../../services/RegistrationCacheService'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { RegisterFormData } from '../../entities'
+import { RegistrationCacheService } from '../../services/RegistrationCacheService'
 
 // Mock localStorage
 const localStorageMock = (() => {

@@ -1,17 +1,17 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, Upload, FileText } from 'lucide-react'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { CreditContract } from '@/types/types'
+import { FileText, Loader2, Upload } from 'lucide-react'
+import React, { useState } from 'react'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
 const ACCEPTED_TYPE = 'application/pdf'

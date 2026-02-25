@@ -1,29 +1,29 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Loader2,
-  DollarSign,
-  AlertTriangle,
-  CheckCircle,
-  InfoIcon,
-  FileText,
-} from 'lucide-react'
-import { ContractCI } from '@/types/types'
 import { useRequestSupport } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
+import { ContractCI } from '@/types/types'
+import {
+    AlertTriangle,
+    CheckCircle,
+    DollarSign,
+    FileText,
+    InfoIcon,
+    Loader2,
+} from 'lucide-react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
 
 interface RequestSupportCIModalProps {

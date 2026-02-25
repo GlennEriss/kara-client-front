@@ -1,31 +1,31 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { useContractForm } from '@/providers/ContractFormProvider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { 
-  Settings, 
-  DollarSign, 
-  Calendar, 
-  AlertTriangle,
-  CheckCircle,
-  Loader2,
-  Info,
-  Heart
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 import { useMemberCharityEligibility } from '@/domains/financial/caisse-speciale/hooks/useMemberCharityEligibility'
+import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import { cn } from '@/lib/utils'
+import { useContractForm } from '@/providers/ContractFormProvider'
+import {
+    AlertTriangle,
+    Calendar,
+    CheckCircle,
+    DollarSign,
+    Heart,
+    Info,
+    Loader2,
+    Settings
+} from 'lucide-react'
+import { useEffect } from 'react'
 
 const CHARITABLE_TYPES = ['STANDARD_CHARITABLE', 'JOURNALIERE_CHARITABLE', 'LIBRE_CHARITABLE'] as const
 

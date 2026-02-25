@@ -1,7 +1,7 @@
 'use client'
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Users, UserCheck, UserX, Clock, Heart } from 'lucide-react'
+import { Users, UserCheck, UserX, Heart } from 'lucide-react'
 import type { MembersTab } from '../../services/MembershipsListService'
 
 interface MembershipsListTabsProps {

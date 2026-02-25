@@ -7,14 +7,14 @@
 'use client'
 
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select'
-import { ArrowUpDown, ArrowDown, ArrowUp, ArrowDownAZ, ArrowUpAZ } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ArrowDown, ArrowDownAZ, ArrowUp, ArrowUpAZ, ArrowUpDown } from 'lucide-react'
 import type { SortParams } from '../../../entities/demand-filters.types'
 
 interface DemandSortV2Props {

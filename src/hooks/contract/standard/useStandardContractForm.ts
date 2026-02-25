@@ -8,7 +8,6 @@ import {
   individualContractDefaultValues,
   groupContractDefaultValues
 } from '@/schemas/contract.standard.schema'
-import { PaymentMode } from '@/types/types'
 
 // ————————————————————————————————————————————————————————————
 // Types union pour les deux types de contrats

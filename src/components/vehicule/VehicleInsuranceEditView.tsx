@@ -1,13 +1,13 @@
 'use client'
 
-import { useVehicleInsurance, useUpdateVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
-import { VehicleInsuranceForm } from './VehicleInsuranceForm'
-import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { Button } from '@/components/ui/button'
-import routes from '@/constantes/routes'
-import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
+import { useUpdateVehicleInsurance, useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
+import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
+import Link from 'next/link'
 import { toast } from 'sonner'
+import { VehicleInsuranceForm } from './VehicleInsuranceForm'
 
 interface Props {
   insuranceId: string

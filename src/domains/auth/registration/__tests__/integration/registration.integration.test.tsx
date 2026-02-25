@@ -3,13 +3,13 @@
  * Teste l'intégration entre Repository → Service → Hook → Components
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MembershipRequest, RegisterFormData } from '../../entities'
 import { useRegistration } from '../../hooks/useRegistration'
-import { RegistrationService } from '../../services/RegistrationService'
-import { RegistrationCacheService } from '../../services/RegistrationCacheService'
 import type { IRegistrationRepository } from '../../repositories/IRegistrationRepository'
-import type { RegisterFormData, MembershipRequest } from '../../entities'
+import { RegistrationCacheService } from '../../services/RegistrationCacheService'
+import { RegistrationService } from '../../services/RegistrationService'
 
 // ==================== MOCKS ====================
 
@@ -59,6 +59,7 @@ const createMockFormData = (): RegisterFormData => ({
     civility: 'Monsieur',
     lastName: 'KOUMBA',
     firstName: 'Jean-Pierre',
+    photo: new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' }) as any,
     birthDate: '1990-05-15',
     birthPlace: 'Libreville, Gabon',
     birthCertificateNumber: '1234/2020/LBV',

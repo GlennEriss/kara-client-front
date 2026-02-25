@@ -1,6 +1,5 @@
 "use client"
 
-import React from 'react'
 import { useContractForm } from '@/providers/ContractFormProvider'
 import { Step1ContractType } from './steps/Step1ContractType'
 import { Step2CaisseConfig } from './steps/Step2CaisseConfig'

@@ -1,11 +1,11 @@
 "use client"
 
-import { format } from "date-fns"
-import { fr } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import { Calendar, CheckCircle2, Clock, AlertCircle, TrendingUp, History, BarChart3 } from "lucide-react"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
 import { usePlacementCommissions } from "@/hooks/usePlacements"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { AlertCircle, BarChart3, Calendar, CheckCircle2, Clock, History, TrendingUp } from "lucide-react"
 
 interface CommissionSidebarContentPlacementProps {
   commission: CalendarCommissionItem

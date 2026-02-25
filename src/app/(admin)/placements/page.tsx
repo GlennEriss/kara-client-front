@@ -1,5 +1,4 @@
 import PlacementList from '@/components/placement/PlacementList'
-import React from 'react'
 
 export const metadata = {
   title: 'Placements | Kara Administration',

@@ -10,11 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MembershipServiceV2 } from '../../services/MembershipServiceV2'
-import { MembershipRepositoryV2 } from '../../repositories/MembershipRepositoryV2'
-import { AdminRepository } from '@/repositories/admins/AdminRepository'
 import { createMembershipRequestFixture } from '../fixtures'
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import { generateCredentialsPDF, downloadPDF } from '@/utils/pdfGenerator'
 import type { Payment } from '@/types/types'
 
 // Mock des dépendances

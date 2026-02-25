@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
-import { FinalRefundCIFormData } from '@/schemas/caisse-imprevue/final-refund-ci.schema'
 
 /**
  * Hook pour créer une demande de remboursement final CI

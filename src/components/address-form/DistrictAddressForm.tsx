@@ -1,12 +1,11 @@
 'use client'
 
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { MapPin } from 'lucide-react'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { cn } from '@/lib/utils'
-import InputApp from '../forms/InputApp'
-import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
+import { MapPin } from 'lucide-react'
+import { UseFormReturn } from 'react-hook-form'
+import InputApp from '../forms/InputApp'
 
 interface DistrictAddressFormProps {
   form: UseFormReturn<RegisterFormData>

@@ -1,12 +1,12 @@
 'use client'
 
+import { FooterLogo, NavbarLogo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Star, Home, HeartHandshake } from 'lucide-react'
-import { IconBrandTiktok, IconBrandFacebook, IconBrandInstagram, IconBrandLinkedin, IconBrandTwitter, IconBrandYoutube } from '@tabler/icons-react'
-import { NavbarLogo, FooterLogo } from '@/components/logo'
-import './homepage.css'
 import { useHomepage } from '@/hooks/homepage/useHomepage'
+import { IconBrandFacebook, IconBrandInstagram, IconBrandLinkedin, IconBrandTiktok, IconBrandTwitter, IconBrandYoutube } from '@tabler/icons-react'
+import { CalendarCheck, Cross, Gift, HandHeart, Heart, HeartHandshake, Home, Lightbulb, Mail, MapPin, Menu, MousePointer, Phone, PiggyBank, Star, Users, X } from 'lucide-react'
+import './homepage.css'
 import { TruncatedText } from './TruncatedText'
 
 const Homepage = () => {

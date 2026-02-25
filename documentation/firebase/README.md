@@ -675,6 +675,24 @@ firebase emulators:start --import ./backup   # Importer données
 
 ---
 
+## Dépannage
+
+### "Missing or insufficient permissions" lors de l'enregistrement d'un versement (preuve de paiement)
+
+Si vous voyez cette erreur en enregistrant un versement sur un contrat Crédit Spéciale (upload de la preuve de paiement) :
+
+1. **Cause** : Les règles **Storage** ne peuvent pas lire Firestore. Elles n’utilisent que le **custom claim** `request.auth.token.role`. Si votre compte est admin uniquement via le document dans la collection `admins` (sans claim `role`), ou si le token n’a pas été rafraîchi après la définition du rôle, l’upload est refusé.
+
+2. **Solution** :
+   - Faire définir le **custom claim** `role` pour votre compte (ex. `Administrateur`, `Admin`, `SuperAdmin`, `Secretary`) :
+     - Via l’interface d’administration : modifier votre profil admin (API `update-admin` avec `role`).
+     - Ou via un script (ex. `create-dev-admin-user.ts` / `create-preprod-admin-user.ts`) qui appelle `setCustomUserClaims(uid, { role: 'Administrateur' })`.
+   - Ensuite **se déconnecter puis se reconnecter** pour que le nouveau token (avec `role`) soit utilisé. Sans re-login, l’ancien token sans claim continue d’être envoyé.
+
+3. **Vérification** : Après reconnexion, l’enregistrement d’un versement avec une preuve de paiement doit fonctionner sans "Missing or insufficient permissions".
+
+---
+
 ## Voir aussi
 
 - [FIREBASE_CONFIGURATIONS.md](./FIREBASE_CONFIGURATIONS.md) - Configurations détaillées

@@ -3,12 +3,11 @@
  * Database operations for membership requests (demandes d'adhésion)
  */
 
-import { RegisterFormData } from "@/schemas/schemas";
-import { createModel } from "./generic.db";
-import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
-import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests, Payment } from "@/types/types";
-import { generateMatricule } from './user.db'
+import { RegisterFormData } from "@/schemas/schemas";
+import type { MembershipRequest, MembershipRequestStatus, PaginatedMembershipRequests, Payment } from "@/types/types";
+import { uploadDocumentPhoto, uploadProfilePhoto } from "./upload-image.db";
+import { generateMatricule } from './user.db';
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -135,7 +134,7 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
         // Préparer les documents sans les photos initialement
         const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents;
         
-        let membershipData: Omit<MembershipRequestDB, 'id' | 'createdAt' | 'updatedAt'> = {
+        const membershipData: Omit<MembershipRequestDB, 'id' | 'createdAt' | 'updatedAt'> = {
             matricule, // Ajouter le matricule généré
             identity: {
                 ...identityWithoutPhoto
@@ -440,7 +439,7 @@ async function getMembershipRequestsPaginatedLegacy(options: {
         const collectionRef = collection(db, firebaseCollectionNames.membershipRequests || "membership-requests");
         
         // Construction de la requête de base
-        let constraints: any[] = [
+        const constraints: any[] = [
             orderBy(orderByField, orderByDirection),
             fbLimit(limit)
         ];

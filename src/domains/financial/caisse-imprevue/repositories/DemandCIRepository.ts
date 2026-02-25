@@ -556,7 +556,7 @@ export class DemandCIRepository implements IDemandCIRepository {
       const now = Timestamp.now()
 
       // Firestore rejette les valeurs undefined - ne pas les inclure
-      const updateData: Record<string, unknown> = {
+      const updateData: Record<string, any> = {
         status: 'CONVERTED' as CaisseImprevueDemandStatus,
         priority: this.getStatusPriority('CONVERTED'),
         contractId: input.contractId,

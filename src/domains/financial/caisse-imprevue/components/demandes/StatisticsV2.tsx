@@ -9,14 +9,13 @@
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, BarChart3, Clock, CheckCircle2, XCircle, RotateCcw, Calendar, CalendarDays } from 'lucide-react'
-import { useCaisseImprevueDemandsStats } from '../../hooks/useCaisseImprevueDemandsStats'
-import type { DemandStats } from '../../entities/demand-filters.types'
 import { cn } from '@/lib/utils'
+import { BarChart3, Calendar, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, RotateCcw, XCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useCaisseImprevueDemandsStats } from '../../hooks/useCaisseImprevueDemandsStats'
 
 interface StatisticsV2Props {
   filters?: import('../../entities/demand-filters.types').DemandFilters

@@ -6,11 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeographieService } from '../../services/GeographieService';
-import { ProvinceRepository } from '../../repositories/ProvinceRepository';
-import { DepartmentRepository } from '../../repositories/DepartmentRepository';
-import { CommuneRepository } from '../../repositories/CommuneRepository';
-import { DistrictRepository } from '../../repositories/DistrictRepository';
-import { QuarterRepository } from '../../repositories/QuarterRepository';
 import type { Province } from '../../entities/geography.types';
 
 // Mock des repositories

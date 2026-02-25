@@ -1,39 +1,37 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  FileText,
-  Download,
-  Calendar,
-  Clock,
-  DollarSign,
-  User,
-  CheckCircle,
-  Receipt,
-  Image as ImageIcon,
-  Maximize2,
-  X,
-  Loader2,
-} from 'lucide-react'
-import { Placement, CommissionPaymentPlacement } from '@/types/types'
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { usePlacementDocument } from '@/hooks/placement/usePlacementDocument'
+import { CommissionPaymentPlacement, Placement } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import Image from 'next/image'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import {
+    Calendar,
+    CheckCircle,
+    DollarSign,
+    Download,
+    FileText,
+    Image as ImageIcon,
+    Loader2,
+    Maximize2,
+    Receipt,
+    User,
+    X
+} from 'lucide-react'
+import Image from 'next/image'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { usePlacementDocument } from '@/hooks/placement/usePlacementDocument'
 
 // Helper pour formater les montants correctement dans les PDFs
 const formatAmount = (amount: number): string => {

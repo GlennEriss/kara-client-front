@@ -12,9 +12,7 @@ import { toast } from 'sonner'
 import type { 
     MembershipRequestStatus, 
     PaginatedMembershipRequests,
-    MembershipRequest, 
-    TypePayment,
-    PaymentMode,
+    MembershipRequest,
     Payment
 } from '@/types/types'
 

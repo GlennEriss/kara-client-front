@@ -1,5 +1,5 @@
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "./ICreditDemandRepository";
-import { CreditDemand, CreditDemandStatus } from "@/types/types";
+import { CreditDemand } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 
 const getFirestore = () => import("@/firebase/firestore");

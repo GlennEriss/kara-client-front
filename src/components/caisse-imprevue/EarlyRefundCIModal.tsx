@@ -1,50 +1,49 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Loader2,
-  DollarSign,
-  AlertTriangle,
-  CheckCircle,
-  InfoIcon,
-  FileText,
-  Upload,
-  Calendar,
-  Clock,
-  TrendingUp,
-  CreditCard,
-  Smartphone,
-  Banknote,
-  Building2,
-} from 'lucide-react'
-import { ContractCI } from '@/types/types'
-import { useRequestEarlyRefundCI } from '@/hooks/caisse-imprevue'
+import { Textarea } from '@/components/ui/textarea'
+import { useContractPaymentStats, useRequestEarlyRefundCI } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
-import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
-import { toast } from 'sonner'
-import { earlyRefundCISchema, defaultEarlyRefundCIValues, WITHDRAWAL_MODES, type EarlyRefundCIFormData } from '@/schemas/caisse-imprevue/early-refund-ci.schema'
+import { defaultEarlyRefundCIValues, earlyRefundCISchema, WITHDRAWAL_MODES, type EarlyRefundCIFormData } from '@/schemas/caisse-imprevue/early-refund-ci.schema'
+import { ContractCI } from '@/types/types'
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+    AlertTriangle,
+    Banknote,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    DollarSign,
+    FileText,
+    InfoIcon,
+    Loader2,
+    Smartphone,
+    TrendingUp,
+    Upload,
+} from 'lucide-react'
+import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 interface EarlyRefundCIModalProps {
   isOpen: boolean

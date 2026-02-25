@@ -101,7 +101,6 @@ vi.mock('@/components/memberships/ExportMembershipModal', () => ({
 // Imports après les mocks
 import { MembershipsListPage } from '@/domains/memberships/components/page/MembershipsListPage'
 import { useMembershipsListV2 } from '@/domains/memberships/hooks/useMembershipsListV2'
-import { MembersRepositoryV2 } from '@/domains/memberships/repositories/MembersRepositoryV2'
 import type { PaginatedMembers } from '@/db/member.db'
 import type { MembershipStats, MembersTab } from '@/domains/memberships/services/MembershipsListService'
 

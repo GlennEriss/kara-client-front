@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useState } from "react"
-import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form"
 import { Badge } from "@/components/ui/badge"
+import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useFormContext } from "react-hook-form"
+import type { GroupContractFormData, IndividualContractFormData } from "@/schemas/contract.standard.schema"
+import type { CaisseContract, CaissePayment } from "@/services/caisse/types"
 import { Eye } from "lucide-react"
-import type { IndividualContractFormData, GroupContractFormData } from "@/schemas/contract.standard.schema"
-import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
+import React, { useState } from "react"
+import { useFormContext } from "react-hook-form"
 import PaymentInvoiceModal from "./PaymentInvoiceModal"
 
 // ————————————————————————————————————————————————————————————

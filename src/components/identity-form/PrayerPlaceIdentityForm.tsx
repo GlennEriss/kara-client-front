@@ -1,7 +1,6 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import InputApp from '@/components/forms/InputApp'
-import { Church, CheckCircle } from 'lucide-react'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { CheckCircle, Church } from 'lucide-react'
 
 export default function PrayerPlaceIdentityForm() {
   return (

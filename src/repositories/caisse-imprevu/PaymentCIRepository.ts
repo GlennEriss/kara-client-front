@@ -273,5 +273,45 @@ export class PaymentCIRepository implements IPaymentCIRepository {
             throw error;
         }
     }
+
+    /**
+     * Supprime un versement d'un paiement. Recalcule accumulatedAmount et status (PAID / PARTIAL / DUE).
+     */
+    async deleteVersement(contractId: string, monthIndex: number, versementId: string, userId: string): Promise<PaymentCI | null> {
+        try {
+            const { doc, getDoc, updateDoc, db, serverTimestamp } = await getFirestore() as any;
+            const paymentId = `month-${monthIndex}`;
+            const paymentRef = doc(
+                db,
+                firebaseCollectionNames.contractsCI || "contractsCI",
+                contractId,
+                "payments",
+                paymentId
+            );
+            const docSnap = await getDoc(paymentRef);
+            if (!docSnap.exists()) return null;
+            const data = docSnap.data();
+            const versements: any[] = Array.isArray(data.versements) ? [...data.versements] : [];
+            const index = versements.findIndex((v: any) => v.id === versementId);
+            if (index === -1) return null;
+
+            versements.splice(index, 1);
+            const accumulatedAmount = versements.reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0);
+            const targetAmount = data.targetAmount ?? 0;
+            const newStatus = accumulatedAmount >= targetAmount ? 'PAID' : versements.length > 0 ? 'PARTIAL' : 'DUE';
+
+            await updateDoc(paymentRef, {
+                versements,
+                accumulatedAmount,
+                status: newStatus,
+                updatedAt: serverTimestamp(),
+                updatedBy: userId,
+            });
+            return await this.getPaymentByMonth(contractId, monthIndex);
+        } catch (error) {
+            console.error("Erreur lors de la suppression du versement:", error);
+            throw error;
+        }
+    }
 }
 

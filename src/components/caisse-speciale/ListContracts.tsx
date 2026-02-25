@@ -1,60 +1,59 @@
 'use client'
-import React, { useRef } from 'react'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import {
-  FileText,
-  RefreshCw,
-  Grid3X3,
-  List,
-  AlertCircle,
-  Plus,
-  TrendingUp,
-  CheckCircle,
-  Clock,
-  Search,
-  Filter,
-  Eye,
-  Calendar,
-  DollarSign,
-  User,
-  Users as GroupIcon,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  BarChart3,
-  Upload,
-  MoreVertical,
-  Trash2,
-  FileEdit,
-} from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { cn } from '@/lib/utils'
-import { useClosedNominalSum } from '@/hooks'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import routes from '@/constantes/routes'
+import { listRefunds } from '@/db/caisse/refunds.db'
 import { useCaisseContracts, useCaisseContractsStats } from '@/domains/financial/caisse-speciale/contrats/hooks'
 import { useMembersByIds } from '@/domains/memberships/hooks'
+import { useClosedNominalSum } from '@/hooks'
 import { useDebounce } from '@/hooks/useDebounce'
+import { cn } from '@/lib/utils'
+import {
+    AlertCircle,
+    BarChart3,
+    Calendar,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    Download,
+    Eye,
+    FileEdit,
+    FileText,
+    Filter,
+    Grid3X3,
+    Users as GroupIcon,
+    List,
+    MoreVertical,
+    Plus,
+    RefreshCw,
+    Search,
+    Trash2,
+    TrendingUp,
+    Upload,
+    User,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useRef, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
-import routes from '@/constantes/routes'
 import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
 import ContractPdfUploadModal from './ContractPdfUploadModal'
-import ViewUploadedContractModal from './ViewUploadedContractModal'
 import DeleteCaisseSpecialeContractModal from './DeleteCaisseSpecialeContractModal'
 import ReplaceCaisseSpecialeContractPdfModal from './ReplaceCaisseSpecialeContractPdfModal'
-import { listRefunds } from '@/db/caisse/refunds.db'
+import ViewUploadedContractModal from './ViewUploadedContractModal'
 
 type ViewMode = 'grid' | 'list'
 

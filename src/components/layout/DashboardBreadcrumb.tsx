@@ -1,18 +1,18 @@
 'use client'
 
-import React from 'react'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { ChevronRight, MoreHorizontal } from 'lucide-react'
 import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import routes from '@/constantes/routes'
+import { ChevronRight, MoreHorizontal } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import React from 'react'
 
 // Mapping des routes vers leurs labels pour le breadcrumb
 const routeLabels: Record<string, string> = {

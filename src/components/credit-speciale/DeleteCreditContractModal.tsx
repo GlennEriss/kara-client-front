@@ -1,22 +1,22 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Trash2, Loader2, AlertTriangle } from 'lucide-react'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
-import { toast } from 'sonner'
 import type { CreditContract } from '@/types/types'
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface DeleteCreditContractModalProps {
   isOpen: boolean

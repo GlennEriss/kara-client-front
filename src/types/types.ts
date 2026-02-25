@@ -1515,6 +1515,17 @@ export interface CreditDemand {
 }
 
 /**
+ * Mois de repos (report d'échéance sans paiement ni pénalité)
+ */
+export interface RestMonth {
+  monthNumber: number // Mois calendaire (1, 2, …)
+  reason: string
+  recordedBy: string
+  recordedByName: string
+  recordedAt: Date
+}
+
+/**
  * Type pour un contrat de crédit
  */
 export interface CreditContract {
@@ -1522,6 +1533,8 @@ export interface CreditContract {
   demandId: string
   parentContractId?: string // Référence au contrat parent (si augmentation de crédit)
   clientId: string
+  /** Mois de repos enregistrés (échéances reportées sans pénalité) */
+  restMonths?: RestMonth[]
   clientFirstName: string
   clientLastName: string
   clientContacts: string[]

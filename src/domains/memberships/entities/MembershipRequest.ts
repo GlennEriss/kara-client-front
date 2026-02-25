@@ -7,7 +7,6 @@
 import type { 
   MembershipRequest as LegacyMembershipRequest,
   MembershipRequestStatus,
-  Payment,
 } from '@/types/types'
 
 // Réutiliser le type existant

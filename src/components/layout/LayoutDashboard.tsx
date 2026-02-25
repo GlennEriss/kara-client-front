@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { usePathname } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
 import { AppSidebar } from "./AppSidebar"
 import { DashboardBreadcrumb } from "./DashboardBreadcrumb"
 import NotificationBell from "./NotificationBell"
-import { usePathname } from 'next/navigation'
 
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
   const [currentPage, setCurrentPage] = useState('Dashboard')

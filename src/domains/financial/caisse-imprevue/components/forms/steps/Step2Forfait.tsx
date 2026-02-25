@@ -6,24 +6,24 @@
 
 'use client'
 
-import { UseFormReturn } from 'react-hook-form'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useSubscriptionsCICache } from '../../../hooks/useSubscriptionsCICache'
-import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
 import { cn } from '@/lib/utils'
 import {
-  Package,
-  Check,
-  CalendarDays,
-  Calendar,
-  CalendarClock,
-  Coins,
-  Clock,
-  Shield,
-  Sparkles,
+    Calendar,
+    CalendarClock,
+    CalendarDays,
+    Check,
+    Clock,
+    Coins,
+    Package,
+    Shield,
+    Sparkles,
 } from 'lucide-react'
+import { UseFormReturn } from 'react-hook-form'
+import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
+import { useSubscriptionsCICache } from '../../../hooks/useSubscriptionsCICache'
 
 interface Step2ForfaitProps {
   form: UseFormReturn<CaisseImprevueDemandFormInput>

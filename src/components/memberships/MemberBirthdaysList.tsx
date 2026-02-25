@@ -1,29 +1,28 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Calendar,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Cake,
-  List,
-  Download,
-  AlertCircle,
-  Search,
-} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { MemberWithSubscription, getMembers } from '@/db/member.db'
-import { toast } from 'sonner'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDaysInMonth, startOfWeek, endOfWeek, addMonths, subMonths } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import type { UserFilters } from '@/types/types'
+import { eachDayOfInterval, endOfMonth, format, isSameDay, startOfMonth } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import {
+    AlertCircle,
+    Cake,
+    Calendar,
+    ChevronLeft,
+    ChevronRight,
+    Download,
+    List,
+    Search
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 type ViewMode = 'list' | 'calendar'
 

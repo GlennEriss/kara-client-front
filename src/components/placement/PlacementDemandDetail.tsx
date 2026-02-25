@@ -1,35 +1,32 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
+import { usePlacementDemand, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { cn } from '@/lib/utils'
+import { PlacementDemandStatus } from '@/types/types'
 import {
-  ArrowLeft,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Clock,
-  FileText,
-  User,
-  DollarSign,
-  Percent,
-  AlertCircle,
-  RotateCcw,
-  CreditCard,
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    DollarSign,
+    FileText,
+    RotateCcw,
+    User,
+    XCircle
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { usePlacementDemand } from '@/hooks/placement/usePlacementDemands'
-import { PlacementDemandStatus } from '@/types/types'
-import { cn } from '@/lib/utils'
-import routes from '@/constantes/routes'
+import { useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
-import { useState } from 'react'
-import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
 
 interface PlacementDemandDetailProps {
   demandId: string

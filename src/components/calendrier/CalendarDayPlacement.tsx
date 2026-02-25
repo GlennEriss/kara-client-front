@@ -1,9 +1,9 @@
 "use client"
 
+import type { DayCommissions } from "@/hooks/useCalendarPlacement"
+import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import type { DayCommissions } from "@/hooks/useCalendarPlacement"
 
 interface CalendarDayPlacementProps {
   day: Date

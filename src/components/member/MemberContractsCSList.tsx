@@ -1,23 +1,23 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  AlertCircle,
-  Calendar,
-  DollarSign,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
-import { useContractsByMember } from '@/hooks/useCaisseContracts'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
-import Link from 'next/link'
+import { useContractsByMember } from '@/hooks/useCaisseContracts'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    AlertCircle,
+    Calendar,
+    ChevronLeft,
+    ChevronRight,
+    DollarSign,
+    FileText,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 interface MemberContractsCSListProps {
   memberId: string

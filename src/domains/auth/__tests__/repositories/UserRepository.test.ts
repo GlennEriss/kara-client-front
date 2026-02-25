@@ -4,9 +4,9 @@
  * @see https://vitest.dev/
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { UserRepository } from '../../repositories/UserRepository';
 import type { User } from '@/types/types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { UserRepository } from '../../repositories/UserRepository';
 
 // Mock de Firestore
 vi.mock('@/firebase/firestore', () => ({

@@ -1,7 +1,6 @@
-import React from 'react'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import InputApp from '@/components/forms/InputApp'
-import { Mail, CheckCircle } from 'lucide-react'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { CheckCircle, Mail } from 'lucide-react'
 
 export default function EmailIdentityForm() {
   return (

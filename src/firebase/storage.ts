@@ -1,4 +1,4 @@
-import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { app } from './app';
 
 let storageInstance: FirebaseStorage | null = null;

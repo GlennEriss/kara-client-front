@@ -3,8 +3,7 @@
  * Upload images to Firebase Storage for membership registration
  */
 
-import { ref, uploadBytes, getDownloadURL, deleteObject, updateMetadata } from '@/firebase/storage';
-import { getStorageInstance } from '@/firebase/storage';
+import { deleteObject, getDownloadURL, getStorageInstance, ref, updateMetadata, uploadBytes } from '@/firebase/storage';
 
 interface Image {
   file: File;

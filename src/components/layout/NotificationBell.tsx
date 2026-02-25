@@ -1,26 +1,25 @@
 'use client'
 
-import React from 'react'
-import { Bell, Cake, CheckCheck } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  useUnreadCount,
-  useUnreadNotifications,
-  useMarkNotificationAsRead,
-  useMarkAllNotificationsAsRead,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+    useMarkAllNotificationsAsRead,
+    useMarkNotificationAsRead,
+    useUnreadCount,
+    useUnreadNotifications,
 } from '@/hooks/notifications'
-import { Notification } from '@/types/types'
 import { cn } from '@/lib/utils'
+import { Notification } from '@/types/types'
+import { Bell, Cake, CheckCheck } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 /**
  * Formate une date pour l'affichage

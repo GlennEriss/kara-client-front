@@ -29,7 +29,6 @@ import {
 import { Edit, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { CaisseImprevueDemand } from '../../entities/demand.types'
 import type { UpdateCaisseImprevueDemandInput } from '../../entities/demand.types'
 

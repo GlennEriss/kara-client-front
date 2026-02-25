@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { MemberDetailsPage } from '../../components/details/MemberDetailsPage'
 import { useMembershipDetails } from '../../hooks/useMembershipDetails'
 import type { User, Subscription, UserRole } from '@/types/types'

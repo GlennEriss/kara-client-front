@@ -1,27 +1,27 @@
 "use client"
 
-import React, { useEffect, useState, useRef } from 'react'
-import { useContractForm } from '@/providers/ContractFormProvider'
-import { useEntitySearch } from '@/hooks/useEntitySearch'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Users, 
-  User, 
-  Search, 
-  Loader2, 
-  AlertCircle,
-  CheckCircle,
-  XCircle 
-} from 'lucide-react'
+import { useEntitySearch } from '@/hooks/useEntitySearch'
 import { cn } from '@/lib/utils'
+import { useContractForm } from '@/providers/ContractFormProvider'
 import { EntitySearchResult } from '@/types/types'
-import { createTestUsers } from '@/utils/test-users'
-import { createTestGroups } from '@/utils/test-groups'
 import { debugUsers } from '@/utils/debug-users'
+import { createTestGroups } from '@/utils/test-groups'
+import { createTestUsers } from '@/utils/test-users'
+import {
+    AlertCircle,
+    CheckCircle,
+    Loader2,
+    Search,
+    User,
+    Users,
+    XCircle
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 export function Step1ContractType() {
   const { state, updateFormData, validateCurrentStep } = useContractForm()

@@ -9,7 +9,7 @@
  * sans mocker les dépendances internes.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   formatPaymentMode,
   formatPaymentType,
@@ -22,7 +22,7 @@ import {
   rejectedRequest,
   generateManyRequests,
 } from '../fixtures'
-import type { Payment, PaymentMode, TypePayment } from '@/types/types'
+import type { PaymentMode, TypePayment } from '@/types/types'
 
 describe('Export Integration Tests', () => {
   // ==================== Formatage des données ====================

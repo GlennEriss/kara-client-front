@@ -1,45 +1,47 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  FileText,
-  Download,
-  Calendar,
-  Clock,
-  DollarSign,
-  User,
-  CreditCard,
-  CheckCircle,
-  Receipt,
-  Smartphone,
-  Banknote,
-  Building2,
-  Image as ImageIcon,
-  Maximize2,
-  X,
-  Loader2,
-  Pencil,
-} from 'lucide-react'
-import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { useAdmin } from '@/hooks/admin/useAdmin'
-import { useAuth } from '@/hooks/useAuth'
 import { useAgentsActifs } from '@/hooks/agent-recouvrement'
+import { useAuth } from '@/hooks/useAuth'
+import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
+import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import {
+    Banknote,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    DollarSign,
+    Download,
+    FileText,
+    Image as ImageIcon,
+    Loader2,
+    Maximize2,
+    Pencil,
+    Receipt,
+    Smartphone,
+    Trash2,
+    User,
+    X,
+} from 'lucide-react'
 import Image from 'next/image'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
 
 // Helper pour formater les montants correctement dans l'UI
 const formatAmount = (amount: number): string => {
@@ -54,6 +56,8 @@ interface PaymentReceiptCIModalProps {
   isMonthly?: boolean
   /** Si fourni, affiche un bouton "Modifier le versement" (contrat non terminé) */
   onEditClick?: () => void
+  /** Si fourni et type Quotidien, affiche un bouton "Supprimer le versement" (contrat actif uniquement). Peut être async. */
+  onDeleteClick?: () => void | Promise<void>
 }
 
 const PAYMENT_MODE_LABELS = {
@@ -71,9 +75,11 @@ export default function PaymentReceiptCIModal({
   payment,
   isMonthly = true,
   onEditClick,
+  onDeleteClick,
 }: PaymentReceiptCIModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy ?? '')
   const { user } = useAuth()
   const { data: agents = [] } = useAgentsActifs()
@@ -410,6 +416,18 @@ export default function PaymentReceiptCIModal({
               Modifier le versement
             </Button>
           )}
+          {!isMonthly && onDeleteClick && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowConfirmDelete(true)}
+              disabled={isGeneratingPDF}
+              className="gap-2 border-red-300 text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Supprimer le versement
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={handleDownloadPDF}
@@ -437,6 +455,34 @@ export default function PaymentReceiptCIModal({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Confirmation suppression versement (Quotidien) */}
+      <AlertDialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Supprimer ce versement
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous avez enregistré ce versement à une mauvaise date. La suppression retire le versement et recalcule les totaux du mois. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                await onDeleteClick?.()
+                setShowConfirmDelete(false)
+                onClose()
+              }}
+            >
+              Supprimer le versement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal d'image en plein écran */}
       {selectedImage && (

@@ -1,53 +1,53 @@
 'use client'
-import React, { useState, useRef, useEffect } from 'react'
-import Image from 'next/image'
-import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight, Zap, Target, DollarSign, Copy } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, usePayMembershipRequest, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
-import type { MembershipRequest, MembershipRequestStatus, TypePayment, PaymentMode } from '@/types/types'
-import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
-import { toast } from 'sonner'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getNationalityName } from '@/constantes/nationality'
+import routes from '@/constantes/routes'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuth } from '@/hooks/useAuth'
+import { useMembershipRequests, usePayMembershipRequest, useRenewSecurityCode, useUpdateMembershipRequestStatus, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
+import { cn } from '@/lib/utils'
+import type { MembershipRequest, MembershipRequestStatus, PaymentMode, TypePayment } from '@/types/types'
+import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
+import {
+    createTestMembershipRequestApproved,
+    createTestMembershipRequestPending,
+    createTestMembershipRequestPendingUnpaid,
+    createTestMembershipRequestRejected,
+    createTestMembershipRequestUnderReview,
+    createTestMembershipRequestWithFilters
+} from '@/utils/test-data'
+import { useQueryClient } from '@tanstack/react-query'
+import { AlertCircle, Briefcase, Building2, Calendar, CarFront, CheckCircle, ChevronLeft, ChevronRight, Clock, Copy, DollarSign, Eye, FileText, FileX, Filter, IdCard, Loader2, Mail, MapPin, MoreHorizontal, Phone, RefreshCw, Search, Target, TrendingUp, User, UserCheck, Users, UserX, XCircle, Zap } from 'lucide-react'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useRef, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+import { toast } from 'sonner'
 import MemberDetailsModal from './MemberDetailsModal'
 import MemberIdentityModal from './MemberIdentityModal'
-import { useAuth } from '@/hooks/useAuth'
-import routes from '@/constantes/routes'
-import { useRouter } from 'next/navigation'
-import { ServiceFactory } from '@/factories/ServiceFactory'
-import { cn } from '@/lib/utils'
-import { 
-  createTestMembershipRequestPending, 
-  createTestMembershipRequestPendingUnpaid,
-  createTestMembershipRequestUnderReview, 
-  createTestMembershipRequestRejected, 
-  createTestMembershipRequestApproved, 
-  createTestMembershipRequestWithFilters 
-} from '@/utils/test-data'
-import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 // Import des composants V2
-import { StatusBadgeV2, PaymentBadgeV2, RelativeDateV2 } from '@/domains/memberships/components/shared'
+import { PaymentBadgeV2, RelativeDateV2, StatusBadgeV2 } from '@/domains/memberships/components/shared'
 
 // Couleurs pour les graphiques
 const COLORS = {
