@@ -286,9 +286,9 @@ const QuittanceCreditSpecialePDF = ({
       right: { label: 'QUARTIER', value: member.quarter },
     },
     {
-      kind: 'pair',
-      left: { label: 'NATIONALITÉ', value: member.nationality },
-      right: { label: 'ASSOCIATION', value: member.association },
+      kind: 'single',
+      label: 'NATIONALITÉ',
+      value: member.nationality ,
     },
   ]
 

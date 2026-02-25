@@ -395,7 +395,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
     TRANSFORMED: { label: 'Transformé', color: 'text-purple-600', bgColor: 'bg-purple-100' },
     BLOCKED: { label: 'Bloqué', color: 'text-red-600', bgColor: 'bg-red-100' },
     DISCHARGED: { label: 'Déchargé', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
-    CLOSED: { label: 'Clos', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+    CLOSED: { label: 'Contrat clos', color: 'text-white', bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700 shadow-md ring-1 ring-slate-500/30' },
     EXTENDED: { label: 'Étendu', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   }
   return configs[status] || configs.DRAFT
@@ -1857,7 +1857,7 @@ export default function CreditContractDetail({
                           })()}
                           
                           {/* Détail principal + intérêts (masqué pour mois de repos) */}
-                          {item.status !== 'REST' && !item.isRest && (
+                          {!item.isRest && (
                           <>
                           <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-gray-200">
                             <div className="flex items-center justify-between w-full">
@@ -2643,11 +2643,19 @@ export default function CreditContractDetail({
 
         {/* Section Déchargé - visible quand contrat DISCHARGED ou CLOSED */}
         {(contract.status === 'DISCHARGED' || contract.status === 'CLOSED') && (
-          <Card className="border-0 shadow-xl bg-gradient-to-r from-blue-50 to-cyan-50">
+          <Card className={cn(
+            'border-0 shadow-xl',
+            contract.status === 'CLOSED'
+              ? 'bg-gradient-to-r from-slate-100 to-slate-200 ring-2 ring-slate-300/50'
+              : 'bg-gradient-to-r from-blue-50 to-cyan-50'
+          )}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-800">
+              <CardTitle className={cn(
+                'flex items-center gap-2',
+                contract.status === 'CLOSED' ? 'text-slate-800' : 'text-blue-800'
+              )}>
                 <FileSignature className="h-5 w-5" />
-                Déchargé
+                {contract.status === 'CLOSED' ? 'Contrat clos' : 'Déchargé'}
               </CardTitle>
               {contract.dischargeMotif && (
                 <div className="space-y-2 text-sm">
@@ -2694,9 +2702,9 @@ export default function CreditContractDetail({
                 )}
               </div>
               {contract.status === 'CLOSED' && contract.closedAt && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="font-medium text-gray-700">Contrat clôturé</p>
-                  <p className="text-sm text-gray-600">
+                <div className="p-4 rounded-lg bg-slate-700 text-white shadow-md ring-1 ring-slate-600/50">
+                  <p className="font-semibold">Contrat clôturé</p>
+                  <p className="text-sm text-slate-200 mt-1">
                     Le {format(new Date(contract.closedAt), 'dd MMMM yyyy', { locale: fr })}
                   </p>
                 </div>
@@ -2900,9 +2908,9 @@ export default function CreditContractDetail({
           }}
           contract={contract}
           payment={selectedPayment}
-          dueItem={selectedDueIndexForSummary !== null ? actualSchedule[selectedDueIndexForSummary] : undefined}
+          dueItem={selectedDueIndexForSummary !== null ? actualSchedule[selectedDueIndexForSummary] as React.ComponentProps<typeof PaymentSummaryModal>['dueItem'] : undefined}
           nextDueItem={selectedDueIndexForSummary !== null && selectedDueIndexForSummary + 1 < actualSchedule.length 
-            ? actualSchedule[selectedDueIndexForSummary + 1] 
+            ? actualSchedule[selectedDueIndexForSummary + 1] as React.ComponentProps<typeof PaymentSummaryModal>['nextDueItem']
             : undefined}
         />
       )}

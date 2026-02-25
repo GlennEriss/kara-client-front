@@ -26,7 +26,7 @@ interface DueItem {
   interest: number
   principal: number
   remaining: number
-  status: 'PAID' | 'DUE' | 'FUTURE'
+  status: 'PAID' | 'DUE' | 'FUTURE' | 'REST'
   paidAmount?: number
   paymentDate?: Date
   installmentId?: string

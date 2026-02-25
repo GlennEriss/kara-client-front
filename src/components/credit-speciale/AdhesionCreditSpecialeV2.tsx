@@ -371,7 +371,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
     { label: 'SEXE', value: member.gender },
     { label: 'QUARTIER', value: member.quarter },
     { label: 'NATIONALITÉ', value: member.nationality },
-    { label: 'ASSOCIATION', value: member.association },
+    //{ label: 'ASSOCIATION', value: member.association },
   ]
 
   return (

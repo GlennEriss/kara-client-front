@@ -526,7 +526,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
             cells={withBand([
               { content: 'NATIONALITÉ :', textStyle: styles.tableLabelText },
               { content: member.nationality, textStyle: styles.tableValueText },
-              { content: 'ASSOCIATION', textStyle: styles.tableLabelText },
+              //{ content: 'ASSOCIATION', textStyle: styles.tableLabelText },
               //{ content: member.association, textStyle: styles.tableValueText },
               { content: '', textStyle: styles.tableValueText },
             ], false)}

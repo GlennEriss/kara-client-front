@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getContractStatusConfig } from '@/utils/contract-status'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -34,6 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/schemas/schemas'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
+import { useDeleteContractPayment, canDeletePayment } from '@/domains/financial/caisse-speciale/contrats/hooks'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -139,6 +141,8 @@ export default function DailyContract({ id }: Props) {
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
+  const [confirmDeletePaymentId, setConfirmDeletePaymentId] = useState<string | null>(null)
+  const deletePaymentMutation = useDeleteContractPayment()
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
@@ -1813,9 +1817,57 @@ export default function DailyContract({ id }: Props) {
                 </Button>
               )
             })()}
+
+            {/* Bouton Supprimer le versement (après Modifier) : autorisé seulement si contrat actif */}
+            {!isGroupContract && paymentDetails?.status === 'PAID' && paymentDetails?.id && canDeletePayment(data ?? null) && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeletePaymentId(paymentDetails.id)}
+                className="border-red-300 text-red-700 hover:bg-red-50 w-full sm:w-auto order-1 sm:order-2 flex items-center gap-2"
+                disabled={deletePaymentMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation suppression versement */}
+      <AlertDialog open={!!confirmDeletePaymentId} onOpenChange={(open) => !open && setConfirmDeletePaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Supprimer ce versement
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous avez enregistré ce versement à une mauvaise date. La suppression retire le versement et recalcule les totaux du contrat (nominal, bonus, pénalités, prochaine échéance). Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePaymentMutation.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!confirmDeletePaymentId) return
+                try {
+                  await deletePaymentMutation.mutateAsync({ contractId: id, paymentId: confirmDeletePaymentId })
+                  setConfirmDeletePaymentId(null)
+                  setShowPaymentDetailsModal(false)
+                } catch {
+                  // Erreur gérée par le hook (toast)
+                }
+              }}
+              disabled={deletePaymentMutation.isPending}
+            >
+              {deletePaymentMutation.isPending ? 'Suppression…' : 'Supprimer le versement'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal de modification du versement — même design que Nouveau versement + motif */}
       <Dialog open={showEditPaymentModal} onOpenChange={setShowEditPaymentModal}>

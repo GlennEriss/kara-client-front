@@ -236,9 +236,9 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
       right: { label: 'QUARTIER', value: contract?.member?.address?.district || '—' },
     },
     {
-      kind: 'pair',
-      left: { label: 'NATIONALITÉ', value: getNationalityName(contract?.member?.nationality) || '—' },
-      right: { label: 'ASSOCIATION', value: 'LE KARA' },
+      kind: 'single',
+      label: 'NATIONALITÉ',
+      value: getNationalityName(contract?.member?.nationality) || '—' ,
     },
   ]
 

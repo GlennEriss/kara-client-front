@@ -289,9 +289,9 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
       right: { label: 'QUARTIER', value: member.address?.district || '—' },
     },
     {
-      kind: 'pair',
-      left: { label: 'NATIONALITÉ', value: getNationalityName(member.nationality) || '—' },
-      right: { label: 'ASSOCIATION', value: 'LE KARA' },
+      kind: 'single',
+      label: 'NATIONALITÉ',
+      value: getNationalityName(member.nationality) || '—' ,
     },
   ]
 

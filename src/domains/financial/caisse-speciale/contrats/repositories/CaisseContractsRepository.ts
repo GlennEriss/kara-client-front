@@ -16,7 +16,7 @@ import {
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { CaisseContract } from '@/types/types'
 import { subscribe } from '@/services/caisse/mutations'
-import { listPayments, deleteAllPayments } from '@/db/caisse/payments.db'
+import { listPayments, deleteAllPayments, deletePayment as deletePaymentDoc } from '@/db/caisse/payments.db'
 import { deleteAllRefunds } from '@/db/caisse/refunds.db'
 import { updateContractPdf } from '@/db/caisse/contracts.db'
 import { createFile } from '@/db/upload-image.db'
@@ -385,6 +385,10 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
 
   async getContractPayments(contractId: string): Promise<ContractPayment[]> {
     return listPayments(contractId)
+  }
+
+  async deletePayment(contractId: string, paymentId: string): Promise<void> {
+    await deletePaymentDoc(contractId, paymentId)
   }
 
   async deletePayments(contractId: string): Promise<void> {

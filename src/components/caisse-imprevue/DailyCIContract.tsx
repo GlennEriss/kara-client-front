@@ -37,7 +37,7 @@ import EarlyRefundCIModal from './EarlyRefundCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useUpdateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useUpdateVersement, useDeleteVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { format } from 'date-fns'
@@ -313,6 +313,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
   const updateVersementMutation = useUpdateVersement()
+  const deleteVersementMutation = useDeleteVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
@@ -1430,6 +1431,25 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 setEditVersement({ payment, versement })
                 setShowReceiptModal(false)
                 setShowPaymentModal(true)
+              }
+            } : undefined}
+            onDeleteClick={!isContractTerminated ? async () => {
+              if (!selectedDate) return
+              const payment = getSelectedPaymentWithVersement()
+              if (!payment) return
+              const dateStr = selectedDate.toISOString().split('T')[0]
+              const versement = payment.versements?.find((v: any) => v.date === dateStr)
+              if (!versement) return
+              try {
+                await deleteVersementMutation.mutateAsync({
+                  contractId: contract.id,
+                  monthIndex: payment.monthIndex,
+                  versementId: versement.id,
+                })
+                setShowReceiptModal(false)
+                setSelectedDate(null)
+              } catch {
+                // Erreur gérée par le hook (toast)
               }
             } : undefined}
           />
