@@ -16,7 +16,8 @@ import { useMember } from '@/hooks/useMembers'
 import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { generateSingleCreditSpecialeVersementPDF } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
+import type { FactureCreditSpecialPDFData } from '@/components/credit-speciale/FactureCreditSpecialPDF'
+import { generateFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import type { DueItemLike } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
 import {
     Banknote,
@@ -122,21 +123,50 @@ export default function PaymentReceiptModal({
     return `${formatDate(date)} à ${time}`
   }
 
+  const formatDateYYYYMMDD = (date: Date) => format(new Date(date), 'yyyy-MM-dd')
+
+  const buildFactureData = (): FactureCreditSpecialPDFData => {
+    const num = installmentNumber ?? 1
+    const dueItem = schedule?.find((s) => s.month === num)
+    const nextDueItem = schedule?.find((s) => s.month === num + 1)
+    const prevDueItem = schedule?.find((s) => s.month === num - 1)
+    const capitalStart = num === 1 ? contract.amount : (prevDueItem?.remaining ?? contract.amount)
+    const interest = dueItem?.interest ?? Math.round(payment.interestAmount || 0)
+    const globalAmount = dueItem?.principal ?? Math.round((payment.principalAmount || 0) + (payment.interestAmount || 0))
+    const newCapitalAfter = dueItem?.remaining ?? Math.round(contract.amount - (payment.principalAmount || 0))
+    const newCapitalNext = nextDueItem?.principal ?? Math.round(newCapitalAfter + (payment.interestAmount || 0))
+    const moyenLabel = PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode ?? 'Aucun'
+    const fraisValue =
+      (payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined
+        ? payment.withFees
+        : false
+    const dateEcheance = dueDate ? formatDateYYYYMMDD(dueDate) : formatDateYYYYMMDD(payment.paymentDate)
+    return {
+      paymentDate: formatDateYYYYMMDD(payment.paymentDate),
+      capital: capitalStart,
+      taux: contract.interestRate ?? 0,
+      interets: interest,
+      montantGlobal: globalAmount,
+      dateEcheance,
+      dateRemise: formatDateYYYYMMDD(payment.paymentDate),
+      heureRemise: payment.paymentTime || '12H00',
+      moyen: moyenLabel,
+      frais: fraisValue,
+      montantRemis: payment.amount,
+      penalite: payment.penaltyAmount ?? 0,
+      remarque: payment.comment?.trim() || 'PAS DE VERSEMENT',
+      note: payment.note ?? 0,
+      nouveauCapital1: newCapitalAfter,
+      nouveauCapital2: newCapitalNext,
+    }
+  }
+
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
-      const num = installmentNumber ?? 1
-      await generateSingleCreditSpecialeVersementPDF({
-        contract,
-        payment,
-        installmentNumber: num,
-        dueDate: dueDate ?? (payment.paymentDate ? new Date(payment.paymentDate) : null),
-        member: member ?? undefined,
-        schedule,
-        payments: paymentsList,
-        getAdminDisplayName,
-      })
+      const factureData = buildFactureData()
+      await generateFactureCreditSpecialPDF(factureData)
       toast.success('PDF généré avec succès')
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error)
