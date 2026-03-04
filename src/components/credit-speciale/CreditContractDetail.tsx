@@ -488,6 +488,18 @@ export default function CreditContractDetail({
     return `${format(dateObj, 'dd MMMM yyyy', { locale: fr })} à ${time}`
   }
 
+  // Après un rajout : pour l'échéancier on ne compte que les paiements à partir du jour du rajout (nouveau contrat).
+  // Comparaison à la journée près pour éviter d'exclure un paiement fait le même jour que le rajout (heure différente).
+  // Les paiements d'avant restent dans l'historique pour la traçabilité.
+  const extendedAtDay =
+    contract.rajoutEffectue && contract.extendedAt
+      ? new Date(contract.extendedAt).setHours(0, 0, 0, 0)
+      : null
+  const paymentsForSchedule =
+    extendedAtDay !== null
+      ? payments.filter((p) => new Date(p.paymentDate).setHours(0, 0, 0, 0) >= extendedAtDay)
+      : payments
+
   // Mapper les paiements aux échéances (mois) pour savoir combien a été versé pour chaque échéance
   // Utiliser l'ID du paiement qui contient le numéro du mois (M1, M2, etc.)
   const getPaymentsByMonth = (): Map<number, number> => {
@@ -495,7 +507,7 @@ export default function CreditContractDetail({
     
     // Filtrer les paiements de mensualités
     // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pas seulement pénalités uniquement)
-    const realPayments = payments.filter(p => 
+    const realPayments = paymentsForSchedule.filter(p => 
       p.amount > 0 || 
       p.comment?.includes('Paiement de 0 FCFA') ||
       (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
@@ -532,7 +544,7 @@ export default function CreditContractDetail({
 
   // Fonction pour vérifier s'il y a un paiement (même de 0 FCFA) pour un mois donné
   const hasPaymentForMonth = (month: number): boolean => {
-    const realPayments = payments.filter(p => 
+    const realPayments = paymentsForSchedule.filter(p => 
       p.amount > 0 || 
       p.comment?.includes('Paiement de 0 FCFA') ||
       (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
@@ -571,7 +583,7 @@ export default function CreditContractDetail({
       const items: DueItem[] = []
       const paymentsByMonthMap = getPaymentsByMonth()
 
-      const sortedPayments = [...payments]
+      const sortedPayments = [...paymentsForSchedule]
         .filter(
           (p) =>
             p.amount > 0 ||
@@ -686,7 +698,7 @@ export default function CreditContractDetail({
     const items: DueItem[] = []
     const maxCalendarMonths = Math.min(20, maxDuration + restMonths.length)
 
-    const sortedPayments = [...payments]
+    const sortedPayments = [...paymentsForSchedule]
       .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
       .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
 
@@ -874,7 +886,7 @@ export default function CreditContractDetail({
     const items: DueItem[] = []
     const paymentsByMonthMap = getPaymentsByMonth()
 
-    const sortedPayments = [...payments]
+    const sortedPayments = [...paymentsForSchedule]
       .filter(
         (p) =>
           p.amount > 0 ||
@@ -1472,6 +1484,33 @@ export default function CreditContractDetail({
           </div>
         </div>
         
+        {/* Rappel : même contrat après rajout — tous les versements restent traçables */}
+        {contract.rajoutEffectue && (contract.initialAmount != null || contract.rajoutAmount != null) && (
+          <Card className="shadow-md bg-slate-50 border border-slate-200">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <History className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-700 space-y-1">
+                  <p className="font-medium text-slate-800">Contrat augmenté (rajout) — aucun versement perdu</p>
+                  <p className="text-slate-600">
+                    Montant initial : <strong>{(contract.initialAmount ?? (contract.amount - (contract.rajoutAmount ?? 0))).toLocaleString('fr-FR')} FCFA</strong>
+                    {contract.rajoutAmount != null && contract.rajoutAmount > 0 && (
+                      <> • Rajout : <strong>+{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA</strong></>
+                    )}
+                    {' '}• Total crédit : <strong>{contract.amount.toLocaleString('fr-FR')} FCFA</strong>
+                    {contract.extendedAt && (
+                      <> • Rajout effectué le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>
+                    )}
+                  </p>
+                  <p className="text-slate-600">
+                    Tous les versements (avant et après le rajout) sont conservés dans l’historique ci-dessous. Chaque paiement garde sa facture (reçu) téléchargeable pour justifier les montants déjà payés.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Liens vers contrat parent/enfant (ancienne logique avec contrat enfant) */}
         {(parentContract || childContract) && (
           <Card className="border-0 shadow-lg bg-gradient-to-r from-cyan-50 to-blue-50">
@@ -1732,7 +1771,7 @@ export default function CreditContractDetail({
                     })
                   }
                   
-                  // Déterminer si le paiement est suffisant
+                  // Déterminer si le paiement est suffisant (pour l'échéancier après rajout, seuls les paiements >= extendedAt comptent)
                   const expectedPaymentForCard = dueItems.find((due) => due.month === item.month)?.payment
                     ?? Math.min(contract.monthlyPaymentAmount, item.principal)
                   const paidAmountForCard = item.paidAmount !== undefined ? item.paidAmount : null
@@ -2231,17 +2270,13 @@ export default function CreditContractDetail({
                         </TableHeader>
                         <TableBody>
                           {actualSchedule.map((row) => {
-                            // Calculer si le paiement est suffisant
+                            // Calculer si le paiement est suffisant (après rajout, seuls les paiements >= extendedAt sont dans le schedule)
                             const paidAmount = row.paidAmount !== undefined ? row.paidAmount : null
                             const expectedPayment = dueItems.find((due) => due.month === row.month)?.payment
                               ?? Math.min(contract.monthlyPaymentAmount, row.principal)
-                            
-                            // Vert si payé ET montant suffisant (>= mensualité théorique ou >= montant global)
-                            // Rouge si payé MAIS montant insuffisant (< min(mensualité, montant global))
-                            // Blanc si pas encore payé
                             let rowColor = ''
                             if (row.status === 'PAID' && paidAmount !== null) {
-                              rowColor = paidAmount >= expectedPayment 
+                              rowColor = paidAmount >= expectedPayment
                                 ? 'bg-green-50 hover:bg-green-100'
                                 : 'bg-red-50 hover:bg-red-100'
                             }

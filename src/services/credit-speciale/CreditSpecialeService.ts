@@ -3077,6 +3077,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     /**
      * Rajoute un montant au contrat (augmentation de crédit) — un seul rajout autorisé, même contrat.
      * Met à jour le contrat existant : initialAmount, rajoutAmount, rajoutEffectue, amount, totalAmount, etc.
+     * Aucun nouveau contrat n'est créé : tous les paiements déjà enregistrés restent sur ce contrat (même creditId),
+     * restent visibles dans l'historique des versements et gardent leur facture/reçu téléchargeable.
      */
     async extendContract(
         contractId: string,
