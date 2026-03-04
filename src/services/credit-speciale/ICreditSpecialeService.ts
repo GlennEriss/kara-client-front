@@ -130,8 +130,9 @@ export interface ICreditSpecialeService {
         suggestedMinMonthlyPayment?: number; // Mensualité suggérée pour 7 mois
     }>;
     
+    /** Un seul rajout autorisé par contrat ; met à jour le même contrat (pas de nouveau contrat). */
     extendContract(
-        parentContractId: string,
+        contractId: string,
         additionalAmount: number,
         cause: string,
         simulationData: {
@@ -142,13 +143,9 @@ export interface ICreditSpecialeService {
             totalAmount: number;
         },
         adminId: string,
-        emergencyContact?: any, // EmergencyContact
+        emergencyContact?: any,
         desiredDate?: string
-    ): Promise<{
-        newDemand: CreditDemand;
-        newContract: CreditContract;
-        parentContract: CreditContract;
-    }>;
+    ): Promise<{ updatedContract: CreditContract }>;
     
     // Récupérer le contrat enfant (si extension)
     getChildContract(parentContractId: string): Promise<CreditContract | null>;

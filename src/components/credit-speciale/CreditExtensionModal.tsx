@@ -55,7 +55,6 @@ import {
     X,
     XCircle
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -214,8 +213,6 @@ export default function CreditExtensionModal({
   onClose,
   contract
 }: CreditExtensionModalProps) {
-  const router = useRouter()
-  
   // Hooks pour l'extension
   const { data: eligibility, isLoading: isLoadingEligibility, refetch: refetchEligibility } = useCheckExtensionEligibility(contract.id)
   const { data: amounts, isLoading: isLoadingAmounts, refetch: refetchAmounts } = useCalculateExtensionAmounts(contract.id)
@@ -455,7 +452,7 @@ export default function CreditExtensionModal({
       })
       
       onClose()
-      router.push(routes.admin.creditSpecialeContrats)
+      // Rester sur la page du contrat (même contrat mis à jour, pas de redirection)
     } catch (error) {
       // L'erreur est déjà gérée par le hook
     }

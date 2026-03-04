@@ -745,22 +745,20 @@ export function useExtendContract() {
             )
         },
         onSuccess: async (result) => {
-            // Invalider toutes les queries liées
+            const id = result.updatedContract.id
             await Promise.all([
                 qc.invalidateQueries({ queryKey: ['creditContracts'] }),
                 qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
-                qc.invalidateQueries({ queryKey: ['creditContract', result.parentContract.id] }),
-                qc.invalidateQueries({ queryKey: ['creditContract', result.newContract.id] }),
-                qc.invalidateQueries({ queryKey: ['creditDemands'] }),
-                qc.invalidateQueries({ queryKey: ['creditDemandsStats'] }),
-                qc.invalidateQueries({ queryKey: ['creditPayments'] }),
-                qc.invalidateQueries({ queryKey: ['creditExtensionEligibility'] }),
-                qc.invalidateQueries({ queryKey: ['creditExtensionAmounts'] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', id] }),
+                qc.invalidateQueries({ queryKey: ['creditPayments', 'creditId', id] }),
+                qc.invalidateQueries({ queryKey: ['creditInstallments', 'creditId', id] }),
+                qc.invalidateQueries({ queryKey: ['creditExtensionEligibility', id] }),
+                qc.invalidateQueries({ queryKey: ['creditExtensionAmounts', id] }),
             ])
-            toast.success('Augmentation de crédit créée avec succès')
+            toast.success('Rajout de crédit enregistré avec succès')
         },
         onError: (error: any) => {
-            toast.error(error?.message || 'Erreur lors de l\'augmentation du crédit')
+            toast.error(error?.message || 'Erreur lors du rajout de crédit')
         },
     })
 }
