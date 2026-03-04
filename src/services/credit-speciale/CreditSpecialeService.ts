@@ -1,5 +1,5 @@
 import { ICreditSpecialeService, UpdateCreditDemandInput } from "./ICreditSpecialeService";
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -1431,7 +1431,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
      */
     async updatePayment(
         paymentId: string,
-        data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: import('@/types/types').CreditPaymentMode; comment?: string },
+        data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: import('@/types/types').CreditPaymentMode; comment?: string; withFees?: boolean },
         proofFile: File | undefined,
         modificationReason: string,
         userId: string
@@ -1457,6 +1457,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             ...(data.amount != null && { amount: data.amount }),
             ...(data.mode != null && { mode: data.mode }),
             ...(data.comment != null && { comment: data.comment }),
+            ...(data.withFees !== undefined && { withFees: data.withFees }),
             ...(proofUrl != null && { proofUrl }),
             updatedBy: userId,
             modificationReason,
@@ -2710,8 +2711,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     /**
      * Téléverse la quittance signée par le membre - Phase 3
+     * Enregistre aussi les données du remboursement final (moyen de paiement, date/heure, commentaire).
      */
-    async uploadSignedQuittance(contractId: string, file: File, adminId: string): Promise<CreditContract> {
+    async uploadSignedQuittance(contractId: string, file: File, adminId: string, data: SignedQuittanceUploadData): Promise<CreditContract> {
         const contract = await this.creditContractRepository.getContractById(contractId);
         if (!contract) {
             throw new Error('Contrat introuvable');
@@ -2744,9 +2746,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         });
 
+        const [y, m, d] = data.repaidAtDate.split('-').map(Number);
+        const [h, min] = data.repaidAtTime.split(':').map(Number);
+        const finalRepaymentRepaidAt = new Date(y, m - 1, d, h, min, 0, 0);
+
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             signedQuittanceUrl: url,
             signedQuittanceDocumentId: document.id,
+            finalRepaymentPaymentMode: data.paymentMode,
+            finalRepaymentWithFees: data.paymentMode === 'airtel_money' || data.paymentMode === 'mobicash' ? data.withFees : undefined,
+            finalRepaymentMethodOther: data.paymentMode === 'other' ? (data.methodOther?.trim() ?? '') : undefined,
+            finalRepaymentRepaidAt,
+            finalRepaymentComment: data.comment?.trim() || undefined,
             updatedBy: adminId,
         });
 
@@ -2754,6 +2765,95 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw new Error('Erreur lors de la mise à jour du contrat');
         }
 
+        return updatedContract;
+    }
+
+    /**
+     * Remplace la quittance signée existante : supprime l'ancienne (Storage + document), téléverse la nouvelle,
+     * met à jour les données remboursement final et enregistre l'admin + motif de modification.
+     */
+    async replaceSignedQuittance(
+        contractId: string,
+        file: File,
+        adminId: string,
+        adminDisplayName: string,
+        data: SignedQuittanceUploadData,
+        modificationMotif: string
+    ): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        if (!contract.signedQuittanceUrl || !contract.signedQuittanceDocumentId) {
+            throw new Error('Aucune quittance signée à remplacer');
+        }
+        if (file.type !== 'application/pdf') {
+            throw new Error('Le fichier doit être un PDF');
+        }
+        const maxSize = 5 * 1024 * 1024; // 5 MB
+        if (file.size > maxSize) {
+            throw new Error('Le fichier ne doit pas dépasser 5 MB');
+        }
+        const trimmedMotif = modificationMotif?.trim() ?? '';
+        if (trimmedMotif.length < 10 || trimmedMotif.length > 500) {
+            throw new Error('Le motif de modification doit contenir entre 10 et 500 caractères');
+        }
+
+        const oldDocument = await this.documentRepository.getDocumentById(contract.signedQuittanceDocumentId);
+        if (oldDocument?.path) {
+            try {
+                await this.documentRepository.deleteFile(oldDocument.path);
+            } catch (err) {
+                console.warn('Erreur suppression ancien fichier quittance Storage:', err);
+            }
+            try {
+                await this.documentRepository.deleteDocument(contract.signedQuittanceDocumentId);
+            } catch (err) {
+                console.warn('Erreur suppression ancien document quittance:', err);
+            }
+        }
+
+        const { url, path, size } = await this.documentRepository.uploadDocumentFile(
+            file,
+            contract.clientId,
+            'CREDIT_SPECIALE_QUITTANCE_SIGNED'
+        );
+
+        const document = await this.documentRepository.createDocument({
+            type: 'CREDIT_SPECIALE_QUITTANCE_SIGNED',
+            format: 'pdf',
+            libelle: `Quittance signée crédit ${contract.creditType} - ${contract.clientFirstName} ${contract.clientLastName}`,
+            path,
+            url,
+            size,
+            memberId: contract.clientId,
+            contractId: contract.id,
+            createdBy: adminId,
+            updatedBy: adminId,
+        });
+
+        const [y, m, d] = data.repaidAtDate.split('-').map(Number);
+        const [h, min] = data.repaidAtTime.split(':').map(Number);
+        const finalRepaymentRepaidAt = new Date(y, m - 1, d, h, min, 0, 0);
+
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            signedQuittanceUrl: url,
+            signedQuittanceDocumentId: document.id,
+            finalRepaymentPaymentMode: data.paymentMode,
+            finalRepaymentWithFees: data.paymentMode === 'airtel_money' || data.paymentMode === 'mobicash' ? data.withFees : undefined,
+            finalRepaymentMethodOther: data.paymentMode === 'other' ? (data.methodOther?.trim() ?? '') : undefined,
+            finalRepaymentRepaidAt,
+            finalRepaymentComment: data.comment?.trim() || undefined,
+            finalRepaymentModifiedBy: adminId,
+            finalRepaymentModifiedByName: adminDisplayName.trim() || undefined,
+            finalRepaymentModifiedAt: new Date(),
+            finalRepaymentModificationMotif: trimmedMotif,
+            updatedBy: adminId,
+        });
+
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
         return updatedContract;
     }
 

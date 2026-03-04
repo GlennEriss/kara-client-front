@@ -164,6 +164,7 @@ export const creditPaymentSchema = z.object({
   paymentTime: z.string()
     .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Format d\'heure invalide (HH:mm)'),
   mode: creditPaymentModeEnum,
+  withFees: z.boolean().optional(), // Airtel Money / Mobicash : true = avec frais, false = sans frais
   proofUrl: z.string().url('L\'URL de la preuve doit être valide').optional(),
   comment: z.string().max(500, 'Le commentaire ne peut pas dépasser 500 caractères').optional(),
   note: z.number()
@@ -406,6 +407,42 @@ export const finalRepaymentSchema = z.object({
 })
 
 export type FinalRepaymentFormData = z.infer<typeof finalRepaymentSchema>
+
+/** Valeurs possibles pour le moyen de paiement du remboursement final (inclut "other") */
+const finalRepaymentPaymentModeEnum = z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer', 'other'])
+
+/** Schéma pour le formulaire téléversement quittance signée (données remboursement final) */
+export const signedQuittanceUploadSchema = z
+  .object({
+    paymentMode: finalRepaymentPaymentModeEnum,
+    withFees: z.boolean().optional(),
+    methodOther: z.string().max(200).optional(),
+    repaidAtDate: z.string().min(1, 'La date du remboursement est requise'),
+    repaidAtTime: z
+      .string()
+      .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Format d'heure invalide (HH:mm)"),
+    comment: z.string().max(1000).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.paymentMode === 'airtel_money' || data.paymentMode === 'mobicash') {
+        return data.withFees === true || data.withFees === false
+      }
+      return true
+    },
+    { message: 'Indiquez si le remboursement est avec ou sans frais', path: ['withFees'] }
+  )
+  .refine(
+    (data) => {
+      if (data.paymentMode === 'other') {
+        return typeof data.methodOther === 'string' && data.methodOther.trim().length >= 2
+      }
+      return true
+    },
+    { message: 'Précisez le moyen de remboursement (au moins 2 caractères)', path: ['methodOther'] }
+  )
+
+export type SignedQuittanceUploadFormData = z.infer<typeof signedQuittanceUploadSchema>
 
 /** Schéma pour la clôture du contrat (Phase 4) */
 export const closeContractSchema = z.object({

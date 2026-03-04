@@ -68,12 +68,13 @@ interface CreditContractDetailProps {
   contractDetailsBasePath?: string
 }
 
-// Libellés moyen de paiement (alignés caisse spéciale + rétrocompatibilité)
+// Libellés moyen de paiement (alignés caisse spéciale + rétrocompatibilité + remboursement final)
 const CREDIT_PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',
   mobicash: 'Mobicash',
   cash: 'Espèce',
   bank_transfer: 'Virement bancaire',
+  other: 'Autre',
   CASH: 'Espèces',
   MOBILE_MONEY: 'Mobile Money',
   BANK_TRANSFER: 'Virement bancaire',
@@ -428,7 +429,7 @@ export default function CreditContractDetail({
   const [showSignedQuittanceUploadModal, setShowSignedQuittanceUploadModal] = useState(false)
   const [showCloseContractModal, setShowCloseContractModal] = useState(false)
   const [showQuittanceModal, setShowQuittanceModal] = useState(false)
-  const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, closeContract } = useCreditContractMutations()
+  const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
 
   useEffect(() => {
     if (isSimpleCredit && activeTab === 'guarantor') {
@@ -2046,7 +2047,7 @@ export default function CreditContractDetail({
                                     <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                       Pénalités uniquement
                                     </Badge>
-                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}</span>
+                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
                                     {payment.note !== undefined && (
                                       <span>Note pénalités : {payment.note}/10</span>
                                     )}
@@ -2054,7 +2055,7 @@ export default function CreditContractDetail({
                                 ) : (
                                   <>
                                     <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}</span>
+                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
                                     {payment.note !== undefined && (
                                       <span>Note : {payment.note}/10</span>
                                     )}
@@ -2681,18 +2682,32 @@ export default function CreditContractDetail({
                   <FileText className="h-4 w-4 mr-2" />
                   Générer la quittance
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowSignedQuittanceUploadModal(true)}
-                  disabled={uploadSignedQuittance.isPending}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Téléverser la quittance signée
-                </Button>
-                {contract.signedQuittanceUrl && (
+                {contract.status !== 'CLOSED' && (
                   <Button
                     variant="outline"
-                    onClick={() => setShowCloseContractModal(true)}
+                    onClick={() => setShowSignedQuittanceUploadModal(true)}
+                    disabled={uploadSignedQuittance.isPending || replaceSignedQuittance.isPending}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {contract.signedQuittanceUrl ? 'Modifier la quittance signée' : 'Téléverser la quittance signée'}
+                  </Button>
+                )}
+                {contract.signedQuittanceUrl && (
+                  <Button
+                    variant="default"
+                    className="bg-[#234D65] hover:bg-[#1a3a4a] text-white font-semibold shadow-md px-5 py-2.5"
+                    onClick={() => {
+                      const hasGuarantorCommission = !!(
+                        contract.guarantorId &&
+                        contract.guarantorIsMember &&
+                        (contract.guarantorRemunerationPercentage ?? 0) > 0
+                      )
+                      if (hasGuarantorCommission && guarantorPayments.length === 0) {
+                        toast.error('Veuillez enregistrer d\'abord le paiement du garant')
+                        return
+                      }
+                      setShowCloseContractModal(true)
+                    }}
                     disabled={closeContract.isPending || contract.status === 'CLOSED'}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
@@ -2799,6 +2814,89 @@ export default function CreditContractDetail({
             </div>
           </CardContent>
         </Card>
+
+        {/* Remboursement final enregistré (données saisies lors du téléversement / modification quittance signée) */}
+        {(contract.finalRepaymentPaymentMode ??
+          contract.finalRepaymentRepaidAt ??
+          contract.finalRepaymentComment ??
+          contract.finalRepaymentModifiedBy ??
+          contract.finalRepaymentModificationMotif) && (
+          <Card className="border-0 shadow-xl bg-slate-50/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-800">
+                <HandCoins className="h-5 w-5" />
+                Remboursement final enregistré
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Informations enregistrées lors du téléversement de la quittance signée
+                {contract.finalRepaymentModifiedAt ? ' (dernière modification ci-dessous).' : '.'}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {contract.finalRepaymentPaymentMode && (
+                  <div>
+                    <dt className="font-medium text-slate-600">Moyen de paiement</dt>
+                    <dd className="mt-0.5 text-slate-900">
+                      {CREDIT_PAYMENT_MODE_LABELS[contract.finalRepaymentPaymentMode] ?? contract.finalRepaymentPaymentMode}
+                      {contract.finalRepaymentPaymentMode === 'other' && contract.finalRepaymentMethodOther && (
+                        <span className="text-slate-600"> — {contract.finalRepaymentMethodOther}</span>
+                      )}
+                      {(contract.finalRepaymentPaymentMode === 'airtel_money' || contract.finalRepaymentPaymentMode === 'mobicash') &&
+                        contract.finalRepaymentWithFees !== undefined && (
+                          <span className="text-slate-600">
+                            {' '}
+                            ({contract.finalRepaymentWithFees ? 'Avec frais' : 'Sans frais'})
+                          </span>
+                        )}
+                    </dd>
+                  </div>
+                )}
+                {contract.finalRepaymentRepaidAt && (
+                  <div>
+                    <dt className="font-medium text-slate-600">Date et heure du remboursement</dt>
+                    <dd className="mt-0.5 text-slate-900">
+                      {format(new Date(contract.finalRepaymentRepaidAt), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
+                    </dd>
+                  </div>
+                )}
+                {contract.finalRepaymentComment && (
+                  <div className="sm:col-span-2">
+                    <dt className="font-medium text-slate-600">Commentaire</dt>
+                    <dd className="mt-0.5 text-slate-900 whitespace-pre-wrap">{contract.finalRepaymentComment}</dd>
+                  </div>
+                )}
+              </dl>
+              {(contract.finalRepaymentModifiedBy ?? contract.finalRepaymentModificationMotif) && (
+                <div className="pt-4 border-t border-slate-200">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Dernière modification de la quittance</p>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    {contract.finalRepaymentModifiedByName && (
+                      <div>
+                        <dt className="font-medium text-slate-600">Modifié par</dt>
+                        <dd className="mt-0.5 text-slate-900">{contract.finalRepaymentModifiedByName}</dd>
+                      </div>
+                    )}
+                    {contract.finalRepaymentModifiedAt && (
+                      <div>
+                        <dt className="font-medium text-slate-600">Date de modification</dt>
+                        <dd className="mt-0.5 text-slate-900">
+                          {format(new Date(contract.finalRepaymentModifiedAt), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
+                        </dd>
+                      </div>
+                    )}
+                    {contract.finalRepaymentModificationMotif && (
+                      <div className="sm:col-span-2">
+                        <dt className="font-medium text-slate-600">Motif de modification</dt>
+                        <dd className="mt-0.5 text-slate-900 whitespace-pre-wrap">{contract.finalRepaymentModificationMotif}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Modals */}
@@ -3123,10 +3221,19 @@ export default function CreditContractDetail({
         isOpen={showSignedQuittanceUploadModal}
         onClose={() => setShowSignedQuittanceUploadModal(false)}
         contract={contract}
-        onUpload={async (file) => {
-          await uploadSignedQuittance.mutateAsync({ contractId: contract.id, file })
+        isReplace={!!contract.signedQuittanceUrl}
+        onUpload={async (file, data) => {
+          await uploadSignedQuittance.mutateAsync({ contractId: contract.id, file, data })
         }}
-        isPending={uploadSignedQuittance.isPending}
+        onReplace={async (file, data, modificationMotif) => {
+          await replaceSignedQuittance.mutateAsync({
+            contractId: contract.id,
+            file,
+            data,
+            modificationMotif,
+          })
+        }}
+        isPending={uploadSignedQuittance.isPending || replaceSignedQuittance.isPending}
       />
       <CloseContractModal
         isOpen={showCloseContractModal}

@@ -1479,6 +1479,18 @@ export type CreditContractStatus =
 export type CreditPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
 
 /**
+ * Données du remboursement final (lors du téléversement de la quittance signée)
+ */
+export interface SignedQuittanceUploadData {
+  paymentMode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
+  withFees?: boolean
+  methodOther?: string
+  repaidAtDate: string
+  repaidAtTime: string
+  comment?: string
+}
+
+/**
  * Type pour une demande de crédit
  */
 export interface CreditDemand {
@@ -1568,6 +1580,24 @@ export interface CreditContract {
   dischargedBy?: string // Admin UID ayant validé la décharge
   signedQuittanceUrl?: string // URL de la quittance signée par le membre
   signedQuittanceDocumentId?: string // ID du document quittance signée
+  /** Moyen de paiement du remboursement final (lors du téléversement quittance signée) */
+  finalRepaymentPaymentMode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
+  /** Remboursement avec frais (true) ou sans frais (false) — pour Airtel Money / Mobicash uniquement */
+  finalRepaymentWithFees?: boolean
+  /** Libellé du moyen de remboursement lorsque finalRepaymentPaymentMode === 'other' */
+  finalRepaymentMethodOther?: string
+  /** Date et heure du remboursement final */
+  finalRepaymentRepaidAt?: Date
+  /** Commentaire admin lors de l'enregistrement du remboursement final */
+  finalRepaymentComment?: string
+  /** Dernière modification de la quittance signée : UID de l'admin */
+  finalRepaymentModifiedBy?: string
+  /** Nom et prénom de l'admin ayant modifié la quittance signée */
+  finalRepaymentModifiedByName?: string
+  /** Date de la dernière modification de la quittance signée */
+  finalRepaymentModifiedAt?: Date
+  /** Motif de modification saisi par l'admin */
+  finalRepaymentModificationMotif?: string
   closedAt?: Date // Date de clôture du contrat
   closedBy?: string // Admin UID ayant clôturé le contrat
   motifCloture?: string // Motif de clôture
@@ -1622,6 +1652,8 @@ export interface CreditPayment {
   paymentDate: Date
   paymentTime: string
   mode: CreditPaymentMode
+  /** Airtel Money / Mobicash : true = avec frais, false = sans frais (undefined si autre mode) */
+  withFees?: boolean
   proofUrl?: string
   comment?: string
   note?: number // Note sur 10

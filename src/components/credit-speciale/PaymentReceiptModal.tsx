@@ -212,10 +212,17 @@ export default function PaymentReceiptModal({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Moyen de paiement</span>
-                  <Badge className={`${paymentModeConfig.bg} ${paymentModeConfig.color}`}>
-                    <paymentModeConfig.icon className="h-3 w-3 mr-1" />
-                    {paymentModeConfig.label}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={`${paymentModeConfig.bg} ${paymentModeConfig.color}`}>
+                      <paymentModeConfig.icon className="h-3 w-3 mr-1" />
+                      {paymentModeConfig.label}
+                    </Badge>
+                    {(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined && (
+                      <span className="text-sm text-gray-600">
+                        ({payment.withFees ? 'Avec frais' : 'Sans frais'})
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {installmentNumber && (
                   <div className="flex items-center justify-between">

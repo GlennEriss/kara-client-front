@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from './useAuth'
 import { toast } from 'sonner'
-import type { 
-    CreditDemand, 
-    CreditContract, 
-    CreditPayment, 
+import type {
+    CreditDemand,
+    CreditContract,
+    CreditPayment,
     CreditPenalty,
     CreditInstallment,
     GuarantorRemuneration,
@@ -13,7 +13,8 @@ import type {
     CreditDemandStatus,
     CreditContractStatus,
     StandardSimulation,
-    CustomSimulation
+    CustomSimulation,
+    SignedQuittanceUploadData,
 } from '@/types/types'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
@@ -306,9 +307,17 @@ export function useCreditContractMutations() {
     })
 
     const uploadSignedQuittance = useMutation({
-        mutationFn: ({ contractId, file }: { contractId: string; file: File }) => {
+        mutationFn: ({
+            contractId,
+            file,
+            data,
+        }: {
+            contractId: string
+            file: File
+            data: SignedQuittanceUploadData
+        }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
-            return service.uploadSignedQuittance(contractId, file, user.uid)
+            return service.uploadSignedQuittance(contractId, file, user.uid, data)
         },
         onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
@@ -316,6 +325,31 @@ export function useCreditContractMutations() {
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors du téléversement de la quittance')
+        },
+    })
+
+    const replaceSignedQuittance = useMutation({
+        mutationFn: ({
+            contractId,
+            file,
+            data,
+            modificationMotif,
+        }: {
+            contractId: string
+            file: File
+            data: SignedQuittanceUploadData
+            modificationMotif: string
+        }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            const adminDisplayName = (user.displayName || user.email || 'Admin').trim()
+            return service.replaceSignedQuittance(contractId, file, user.uid, adminDisplayName, data, modificationMotif)
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            toast.success('Quittance signée modifiée')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la modification de la quittance')
         },
     })
 
@@ -353,7 +387,7 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, closeContract, deleteContract }
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, deleteContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
@@ -436,7 +470,7 @@ export function useCreditPaymentMutations() {
     })
 
     const update = useMutation({
-        mutationFn: ({ paymentId, creditId: _creditId, data, proofFile, modificationReason }: { paymentId: string; creditId: string; data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPayment['mode']; comment?: string }; proofFile?: File; modificationReason: string }) => {
+        mutationFn: ({ paymentId, creditId: _creditId, data, proofFile, modificationReason }: { paymentId: string; creditId: string; data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPayment['mode']; comment?: string; withFees?: boolean }; proofFile?: File; modificationReason: string }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.updatePayment(paymentId, data, proofFile, modificationReason, user.uid)
         },
