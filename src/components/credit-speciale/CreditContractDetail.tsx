@@ -1450,8 +1450,8 @@ export default function CreditContractDetail({
             Retour aux contrats
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Bouton d'augmentation - masqué pour DISCHARGED/CLOSED */}
-            {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && (
+            {/* Bouton d'augmentation - un seul rajout autorisé, masqué si déjà fait ou DISCHARGED/CLOSED */}
+            {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && !contract.rajoutEffectue && (
               <Button
                 variant="outline"
                 onClick={() => setShowExtensionModal(true)}
@@ -1464,10 +1464,15 @@ export default function CreditContractDetail({
             <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
               {statusConfig.label}
             </Badge>
+            {contract.rajoutEffectue && contract.rajoutAmount != null && contract.rajoutAmount > 0 && (
+              <span className="text-sm text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-md border border-cyan-200">
+                Rajout effectué : +{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA
+              </span>
+            )}
           </div>
         </div>
         
-        {/* Liens vers contrat parent/enfant */}
+        {/* Liens vers contrat parent/enfant (ancienne logique avec contrat enfant) */}
         {(parentContract || childContract) && (
           <Card className="border-0 shadow-lg bg-gradient-to-r from-cyan-50 to-blue-50">
             <CardContent className="py-4">

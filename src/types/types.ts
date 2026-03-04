@@ -1606,6 +1606,12 @@ export interface CreditContract {
   dischargedAt?: Date
   transformedAt?: Date
   extendedAt?: Date // Date à laquelle le contrat a été étendu (augmentation)
+  /** Montant initial du crédit (avant rajout). Égal à amount si aucun rajout. */
+  initialAmount?: number
+  /** Montant du rajout (une seule augmentation autorisée par contrat). */
+  rajoutAmount?: number
+  /** True si un rajout a déjà été effectué (bouton "Augmenter le crédit" désactivé). */
+  rajoutEffectue?: boolean
   blockedAt?: Date
   blockedReason?: string // Peut contenir le motif ou l'ID du nouveau contrat
   score?: number // Score de fiabilité (0-10, admin-only)
