@@ -77,6 +77,8 @@ export class CreditContractRepository implements ICreditContractRepository {
                 extendedAt: (data.extendedAt as any)?.toDate ? (data.extendedAt as any).toDate() : (data.extendedAt ? new Date(data.extendedAt) : undefined),
                 blockedAt: (data.blockedAt as any)?.toDate ? (data.blockedAt as any).toDate() : (data.blockedAt ? new Date(data.blockedAt) : undefined),
                 scoreUpdatedAt: (data.scoreUpdatedAt as any)?.toDate ? (data.scoreUpdatedAt as any).toDate() : (data.scoreUpdatedAt ? new Date(data.scoreUpdatedAt) : undefined),
+                finalRepaymentRepaidAt: (data.finalRepaymentRepaidAt as any)?.toDate ? (data.finalRepaymentRepaidAt as any).toDate() : (data.finalRepaymentRepaidAt ? new Date(data.finalRepaymentRepaidAt as string) : undefined),
+                finalRepaymentModifiedAt: (data.finalRepaymentModifiedAt as any)?.toDate ? (data.finalRepaymentModifiedAt as any).toDate() : (data.finalRepaymentModifiedAt ? new Date(data.finalRepaymentModifiedAt as string) : undefined),
             } as CreditContract;
         } catch {
             return null;
@@ -132,6 +134,8 @@ export class CreditContractRepository implements ICreditContractRepository {
             extendedAt: (data.extendedAt as any)?.toDate ? (data.extendedAt as any).toDate() : (data.extendedAt ? new Date(data.extendedAt) : undefined),
             blockedAt: (data.blockedAt as any)?.toDate ? (data.blockedAt as any).toDate() : (data.blockedAt ? new Date(data.blockedAt) : undefined),
             scoreUpdatedAt: (data.scoreUpdatedAt as any)?.toDate ? (data.scoreUpdatedAt as any).toDate() : (data.scoreUpdatedAt ? new Date(data.scoreUpdatedAt) : undefined),
+            finalRepaymentRepaidAt: (data.finalRepaymentRepaidAt as any)?.toDate ? (data.finalRepaymentRepaidAt as any).toDate() : (data.finalRepaymentRepaidAt ? new Date(data.finalRepaymentRepaidAt as string) : undefined),
+            finalRepaymentModifiedAt: (data.finalRepaymentModifiedAt as any)?.toDate ? (data.finalRepaymentModifiedAt as any).toDate() : (data.finalRepaymentModifiedAt ? new Date(data.finalRepaymentModifiedAt as string) : undefined),
         } as CreditContract;
     }
 

@@ -72,38 +72,9 @@ const calculateNoteByDelay = (daysLate: number): number => {
   }
 }
 
-// Fonction pour générer un commentaire par défaut selon le retard
-const getDefaultCommentByDelay = (daysLate: number): string => {
-  if (daysLate <= 0) {
-    return 'Paiement effectué à temps. Excellente ponctualité.'
-  } else if (daysLate <= 7) {
-    return 'Paiement effectué avec quelques jours de retard. Ponctualité acceptable.'
-  } else if (daysLate <= 15) {
-    return 'Paiement effectué avec retard (1-2 semaines). Ponctualité à améliorer.'
-  } else if (daysLate <= 30) {
-    return 'Paiement en retard avec rappels nécessaires. Ponctualité à améliorer.'
-  } else if (daysLate <= 60) {
-    return 'Paiement très en retard (1-2 mois) avec plusieurs rappels nécessaires. Client peu fiable.'
-  } else {
-    return `Paiement très en retard (${Math.floor(daysLate / 30)} mois) avec plusieurs rappels nécessaires. Client peu fiable.`
-  }
-}
-
-// Fonction pour générer un commentaire par défaut selon la note (pour compatibilité)
-const getDefaultCommentByNote = (note: number): string => {
-  if (note >= 0 && note < 3) {
-    return 'Paiement très en retard avec plusieurs rappels nécessaires. Client peu fiable.'
-  } else if (note >= 3 && note < 5) {
-    return 'Paiement en retard avec rappels nécessaires. Ponctualité à améliorer.'
-  } else if (note >= 5 && note < 7) {
-    return 'Paiement effectué avec quelques jours de retard. Ponctualité acceptable.'
-  } else if (note >= 7 && note < 10) {
-    return 'Paiement effectué dans les délais. Bonne ponctualité.'
-  } else if (note === 10) {
-    return 'Paiement effectué à temps. Excellente ponctualité.'
-  }
-  return 'Paiement enregistré.'
-}
+// Commentaire : CONFORME si payé, NON CONFORME si non payé
+const getDefaultComment = (isPaid: boolean): string =>
+  isPaid ? 'CONFORME' : 'NON CONFORME'
 
 export default function CreditPaymentModal({
   isOpen,
@@ -126,6 +97,7 @@ export default function CreditPaymentModal({
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(defaultPenaltyOnlyMode)
   const [penaltyNote, setPenaltyNote] = useState<number | undefined>(undefined)
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
+  const [withFees, setWithFees] = useState<boolean | undefined>(undefined) // Airtel Money / Mobicash : true = avec frais, false = sans frais
   const [modificationReason, setModificationReason] = useState<string>('')
 
   const { user } = useAuth()
@@ -146,9 +118,9 @@ export default function CreditPaymentModal({
     return Math.max(0, diffDays) // Retourner 0 si la date est dans le futur
   }, [defaultPaymentDate])
 
-  // Calculer la note et le commentaire automatiques selon le retard
+  // Calculer la note selon le retard ; commentaire par défaut = CONFORME (on enregistre un paiement)
   const autoNote = useMemo(() => calculateNoteByDelay(calculateDelay), [calculateDelay])
-  const autoComment = useMemo(() => getDefaultCommentByDelay(calculateDelay), [calculateDelay])
+  const autoComment = useMemo(() => getDefaultComment(true), [])
 
   const form = useForm<CreditPaymentFormInput>({
     resolver: zodResolver(creditPaymentFormSchema),
@@ -226,6 +198,11 @@ export default function CreditPaymentModal({
         setPenaltyOnlyMode(false)
         setSelectedPenalties([])
         setAgentRecouvrementId(paymentToEdit.agentRecouvrementId ?? '')
+        setWithFees(
+          paymentToEdit.mode === 'airtel_money' || paymentToEdit.mode === 'mobicash'
+            ? paymentToEdit.withFees
+            : undefined
+        )
         return
       }
       // Nettoyer les pénalités rétroactives avant d'afficher la liste (création uniquement)
@@ -241,6 +218,7 @@ export default function CreditPaymentModal({
       setPenaltyOnlyMode(defaultPenaltyOnlyMode)
       setPenaltyNote(undefined)
       setAgentRecouvrementId('')
+      setWithFees(undefined)
       if (defaultPaymentDate) {
         form.setValue('paymentDate', defaultPaymentDate)
       } else {
@@ -377,6 +355,7 @@ export default function CreditPaymentModal({
       try {
         setIsSubmitting(true)
         const paymentDate = data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate)
+        const editMode = form.watch('mode') as CreditPaymentMode
         await updatePayment.mutateAsync({
           paymentId: paymentToEdit!.id,
           creditId,
@@ -386,6 +365,7 @@ export default function CreditPaymentModal({
             amount: data.amount,
             mode: data.mode,
             comment: data.comment,
+            withFees: editMode === 'airtel_money' || editMode === 'mobicash' ? withFees : undefined,
           },
           proofFile,
           modificationReason: reason,
@@ -394,6 +374,7 @@ export default function CreditPaymentModal({
         setProofFile(undefined)
         setModificationReason('')
         setAgentRecouvrementId('')
+        setWithFees(undefined)
         onSuccess?.()
         onClose()
       } catch (error: unknown) {
@@ -402,6 +383,12 @@ export default function CreditPaymentModal({
       } finally {
         setIsSubmitting(false)
       }
+      return
+    }
+
+    const currentMode = form.watch('mode') as CreditPaymentMode
+    if ((currentMode === 'airtel_money' || currentMode === 'mobicash') && withFees === undefined) {
+      toast.error('Veuillez indiquer si le paiement Airtel Money / Mobicash est avec frais ou sans frais')
       return
     }
 
@@ -436,6 +423,7 @@ export default function CreditPaymentModal({
         createdBy: user.uid,
         installmentId,
         agentRecouvrementId: agentRecouvrementId || undefined,
+        withFees: currentMode === 'airtel_money' || currentMode === 'mobicash' ? withFees : undefined,
       }
 
       await createPayment.mutateAsync({
@@ -451,6 +439,7 @@ export default function CreditPaymentModal({
       setPenaltyOnlyMode(false)
       setPenaltyNote(undefined)
       setAgentRecouvrementId('')
+      setWithFees(undefined)
       onSuccess?.()
       onClose()
     } catch (error: unknown) {
@@ -569,7 +558,7 @@ export default function CreditPaymentModal({
                           const finalValue = isNaN(value) ? 10 : value
                           setPenaltyNote(finalValue)
                           // Mettre à jour le commentaire automatiquement selon la note des pénalités
-                          const defaultComment = getDefaultCommentByNote(finalValue)
+                          const defaultComment = getDefaultComment(finalValue > 0)
                           form.setValue('comment', defaultComment)
                         }}
                         placeholder="10"
@@ -612,7 +601,10 @@ export default function CreditPaymentModal({
               <Label htmlFor="mode" className="mb-2">Moyen de paiement *</Label>
               <Select
                 value={toCreditPaymentMode(form.watch('mode') as string)}
-                onValueChange={(value) => form.setValue('mode', value as CreditPaymentMode)}
+                onValueChange={(value) => {
+                  form.setValue('mode', value as CreditPaymentMode)
+                  if (value !== 'airtel_money' && value !== 'mobicash') setWithFees(undefined)
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un moyen" />
@@ -631,6 +623,35 @@ export default function CreditPaymentModal({
               )}
             </div>
           </div>
+
+          {/* Avec frais / Sans frais (Airtel Money et Mobicash uniquement) */}
+          {(form.watch('mode') === 'airtel_money' || form.watch('mode') === 'mobicash') && (
+            <div className="space-y-2">
+              <Label>Frais</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="withFees"
+                    checked={withFees === true}
+                    onChange={() => setWithFees(true)}
+                    className="rounded-full border-gray-300"
+                  />
+                  <span>Avec frais</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="withFees"
+                    checked={withFees === false}
+                    onChange={() => setWithFees(false)}
+                    className="rounded-full border-gray-300"
+                  />
+                  <span>Sans frais</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Agent de recouvrement */}
           <div>
@@ -876,7 +897,7 @@ export default function CreditPaymentModal({
                     onChange: (e) => {
                       const noteValue = parseFloat(e.target.value) || autoNote
                       // Mettre à jour le commentaire automatiquement selon la note
-                      const defaultComment = getDefaultCommentByNote(noteValue)
+                      const defaultComment = getDefaultComment(noteValue > 0)
                       form.setValue('comment', defaultComment)
                     }
                   })}
@@ -901,20 +922,17 @@ export default function CreditPaymentModal({
           {/* Commentaire */}
           <div>
             <Label htmlFor="comment" className="mb-2">
-              Commentaire {penaltyOnlyMode ? '(optionnel)' : '(généré automatiquement selon la note, modifiable)'}
+              Commentaire {penaltyOnlyMode ? '(optionnel)' : '(CONFORME / NON CONFORME, modifiable)'}
             </Label>
             <Textarea
               id="comment"
               {...form.register('comment')}
-              rows={3}
-              placeholder={penaltyOnlyMode 
-                ? "Ajoutez un commentaire si nécessaire..." 
-                : "Le commentaire est généré automatiquement selon la note attribuée..."
-              }
+              rows={2}
+              placeholder="CONFORME ou NON CONFORME"
             />
             {!penaltyOnlyMode && (
               <p className="text-xs text-gray-500 mt-1">
-                Le commentaire est généré automatiquement selon la note. Vous pouvez le modifier si nécessaire.
+                CONFORME si le paiement est effectué, NON CONFORME sinon. Vous pouvez modifier si besoin.
               </p>
             )}
             {form.formState.errors.comment && (

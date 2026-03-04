@@ -1,4 +1,4 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -62,7 +62,8 @@ export interface ICreditSpecialeService {
     // Clôture de contrat (remboursement final, quittance, clôture)
     validateDischarge(contractId: string, motif: string, adminId: string): Promise<CreditContract>;
     generateQuittancePDF(contractId: string, pdfFile: File): Promise<{ url: string; documentId: string }>;
-    uploadSignedQuittance(contractId: string, file: File, adminId: string): Promise<CreditContract>;
+    uploadSignedQuittance(contractId: string, file: File, adminId: string, data: SignedQuittanceUploadData): Promise<CreditContract>;
+    replaceSignedQuittance(contractId: string, file: File, adminId: string, adminDisplayName: string, data: SignedQuittanceUploadData, modificationMotif: string): Promise<CreditContract>;
     closeContract(contractId: string, data: { closedAt: Date; closedBy: string; motifCloture: string }): Promise<CreditContract>;
     
     // Simulations
@@ -75,7 +76,7 @@ export interface ICreditSpecialeService {
     
     // Paiements
     createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[], installmentNumber?: number): Promise<CreditPayment>;
-    updatePayment(paymentId: string, data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPaymentMode; comment?: string }, proofFile: File | undefined, modificationReason: string, userId: string): Promise<CreditPayment>;
+    updatePayment(paymentId: string, data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPaymentMode; comment?: string; withFees?: boolean }, proofFile: File | undefined, modificationReason: string, userId: string): Promise<CreditPayment>;
     getPaymentsByCreditId(creditId: string): Promise<CreditPayment[]>;
     getPaymentsWithFilters(filters?: CreditPaymentFilters): Promise<CreditPayment[]>;
     

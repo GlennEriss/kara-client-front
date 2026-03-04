@@ -326,12 +326,15 @@ export function buildCreditSpecialeVersementPDFFirstTwoPages(
 
     const remark =
       payment.comment && String(payment.comment).trim() ? String(payment.comment).trim().slice(0, 30) : 'CONFORME'
+    const modeLabel = formatMode(payment.mode) + ((payment.mode === 'airtel_money' || payment.mode === 'mobicash') && (payment as { withFees?: boolean }).withFees !== undefined
+      ? ((payment as { withFees?: boolean }).withFees ? ' (Avec frais)' : ' (Sans frais)')
+      : '')
     const rowValues = [
       dueDate ? formatLongDate(dueDate) : formatLongDate(payment.paymentDate),
       formatLongDate(payment.paymentDate),
       `${formatAmountForPDF(payment.amount)} FCFA`,
       payment.paymentTime || '-',
-      formatMode(payment.mode),
+      modeLabel,
       getAdminNameForExport(payment),
       remark,
     ]
