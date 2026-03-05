@@ -11,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
 import { useAdmin } from '@/hooks/useAdmins'
 import { useCreditDemand } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
@@ -91,8 +92,10 @@ export default function PaymentReceiptModal({
 
   // Récupérer le membre (collection users) pour le PDF : LIEU/NAISSANCE, D.NAISS, NATIONALITE, N°CNI, SEXE, AGE, QUARTIER, PROFESSION
   const { data: member } = useMember(contract.clientId)
-  // Récupérer les informations de l'agent de liaison
+  // Récupérer les informations de l'agent de liaison (admin ayant enregistré)
   const { data: agent } = useAdmin(payment.updatedBy || '')
+  // Récupérer l'agent de recouvrement (collecteur du versement) pour l'affichage dans le reçu
+  const { data: agentRecouvrement } = useAgentRecouvrement(payment.agentRecouvrementId ?? undefined)
 
   const getAdminDisplayName = getAdminDisplayNameProp ?? ((adminId: string) => {
     if (!adminId) return '-'
@@ -312,6 +315,19 @@ export default function PaymentReceiptModal({
                       <User className="h-4 w-4 text-gray-500" />
                       <span className="font-semibold">
                         {agent ? `${agent.firstName} ${agent.lastName}`.trim() : payment.updatedBy}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {(payment.agentRecouvrementId || agentRecouvrement) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Agent de recouvrement</span>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <span className="font-semibold">
+                        {agentRecouvrement
+                          ? `${agentRecouvrement.prenom} ${agentRecouvrement.nom}`.trim()
+                          : payment.agentRecouvrementId}
                       </span>
                     </div>
                   </div>

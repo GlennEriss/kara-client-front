@@ -76,7 +76,7 @@ export interface ICreditSpecialeService {
     
     // Paiements
     createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[], installmentNumber?: number): Promise<CreditPayment>;
-    updatePayment(paymentId: string, data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPaymentMode; comment?: string; withFees?: boolean }, proofFile: File | undefined, modificationReason: string, userId: string): Promise<CreditPayment>;
+    updatePayment(paymentId: string, data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPaymentMode; comment?: string; note?: number; withFees?: boolean; agentRecouvrementId?: string }, proofFile: File | undefined, modificationReason: string, userId: string): Promise<CreditPayment>;
     getPaymentsByCreditId(creditId: string): Promise<CreditPayment[]>;
     getPaymentsWithFilters(filters?: CreditPaymentFilters): Promise<CreditPayment[]>;
     

@@ -470,7 +470,7 @@ export function useCreditPaymentMutations() {
     })
 
     const update = useMutation({
-        mutationFn: ({ paymentId, creditId: _creditId, data, proofFile, modificationReason }: { paymentId: string; creditId: string; data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPayment['mode']; comment?: string; withFees?: boolean }; proofFile?: File; modificationReason: string }) => {
+        mutationFn: ({ paymentId, creditId: _creditId, data, proofFile, modificationReason }: { paymentId: string; creditId: string; data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: CreditPayment['mode']; comment?: string; note?: number; withFees?: boolean; agentRecouvrementId?: string }; proofFile?: File; modificationReason: string }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.updatePayment(paymentId, data, proofFile, modificationReason, user.uid)
         },
