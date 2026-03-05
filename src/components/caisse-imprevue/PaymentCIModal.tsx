@@ -73,6 +73,14 @@ export interface PaymentFormData {
 
 const isEditMode = (initialData: PaymentCIInitialData | undefined) => initialData != null
 
+const getTodayDateInputValue = (): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export default function PaymentCIModal({
   isOpen,
   onClose,
@@ -88,7 +96,7 @@ export default function PaymentCIModal({
   submitLabel,
 }: PaymentCIModalProps) {
   const editMode = isEditMode(initialData)
-  const [paymentDate, setPaymentDate] = useState(defaultDate || new Date().toISOString().split('T')[0])
+  const [paymentDate, setPaymentDate] = useState(defaultDate || getTodayDateInputValue())
   const [paymentTime, setPaymentTime] = useState(() => {
     const now = new Date()
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
@@ -114,7 +122,7 @@ export default function PaymentCIModal({
         setPaymentMode(initialData.mode)
         setAgentRecouvrementId(initialData.agentRecouvrementId ?? '')
       } else {
-        setPaymentDate(defaultDate || new Date().toISOString().split('T')[0])
+        setPaymentDate(defaultDate || getTodayDateInputValue())
         setPaymentTime(() => {
           const now = new Date()
           return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
@@ -139,7 +147,7 @@ export default function PaymentCIModal({
   const paymentBreakdown = React.useMemo(() => {
     const amount = Number(paymentAmount) || 0
     
-    if (!activeSupport || activeSupport.status !== 'ACTIVE' || amount <= 0) {
+    if (editMode || !activeSupport || activeSupport.status !== 'ACTIVE' || amount <= 0) {
       return {
         supportRepayment: 0,
         monthlyPayment: amount,
@@ -163,7 +171,7 @@ export default function PaymentCIModal({
         ? '' 
         : `Montant insuffisant. Vous devez verser au minimum ${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA pour rembourser le support.`
     }
-  }, [paymentAmount, activeSupport])
+  }, [paymentAmount, activeSupport, editMode])
 
   const handleSubmit = async () => {
     if (!paymentDate) {
@@ -202,7 +210,7 @@ export default function PaymentCIModal({
 
       await onSubmit(formData)
 
-      setPaymentDate(new Date().toISOString().split('T')[0])
+      setPaymentDate(getTodayDateInputValue())
       setPaymentTime(() => {
         const now = new Date()
         return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
@@ -620,4 +628,3 @@ export default function PaymentCIModal({
     </Dialog>
   )
 }
-

@@ -408,7 +408,7 @@ export default function PaymentReceiptCIModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => { onEditClick(); onClose(); }}
+              onClick={() => onEditClick()}
               disabled={isGeneratingPDF}
               className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
             >
@@ -511,4 +511,3 @@ export default function PaymentReceiptCIModal({
     </Dialog>
   )
 }
-

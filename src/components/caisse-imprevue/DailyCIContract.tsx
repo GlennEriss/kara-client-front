@@ -54,6 +54,8 @@ const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
+const formatDateKey = (date: Date): string => format(date, 'yyyy-MM-dd')
+
 interface DailyCIContractProps {
   contract: ContractCI
   document?: any | null
@@ -558,7 +560,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
     if (!payment) return null
 
     // Chercher un versement pour cette date spécifique
-    const dateString = date.toISOString().split('T')[0]
+    const dateString = formatDateKey(date)
     return payment.versements?.find((v: any) => v.date === dateString) || null
   }
 
@@ -614,7 +616,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
     if (!payment) return null
 
     // Créer une copie du paiement avec uniquement le versement de la date sélectionnée
-    const dateString = selectedDate.toISOString().split('T')[0]
+    const dateString = formatDateKey(selectedDate)
     const versement = payment.versements?.find((v: any) => v.date === dateString)
     
     if (!versement) return null
@@ -627,13 +629,20 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   }
 
   const handlePaymentSubmit = async (paymentData: PaymentFormData) => {
-    if (!selectedDate || !user?.uid) return
-
-    const dateMonthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+    if (!user?.uid) {
+      const err = new Error('Utilisateur non authentifié')
+      toast.error(err.message)
+      throw err
+    }
 
     try {
       if (editVersement) {
-        if (!paymentData.modificationReason?.trim()) return
+        const modificationReason = paymentData.modificationReason?.trim()
+        if (!modificationReason) {
+          const err = new Error('Veuillez indiquer le motif de la modification')
+          toast.error(err.message)
+          throw err
+        }
         await updateVersementMutation.mutateAsync({
           contractId: contract.id,
           monthIndex: editVersement.payment.monthIndex,
@@ -646,13 +655,20 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             agentRecouvrementId: paymentData.agentRecouvrementId,
           },
           proofFile: paymentData.proofFile,
-          modificationReason: paymentData.modificationReason.trim(),
+          modificationReason,
           userId: user.uid,
         })
         setShowPaymentModal(false)
         setSelectedDate(null)
         setEditVersement(null)
       } else {
+        if (!selectedDate) {
+          const err = new Error('Aucune date sélectionnée pour enregistrer le versement')
+          toast.error(err.message)
+          throw err
+        }
+
+        const dateMonthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
         await createVersementMutation.mutateAsync({
           contractId: contract.id,
           monthIndex: dateMonthIndex,
@@ -1401,8 +1417,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           }}
           onSubmit={handlePaymentSubmit}
           title={editVersement ? `Modifier le versement – ${editVersement.versement.date}` : 'Versement quotidien'}
-          description={editVersement ? 'Modifier la date, l\'heure, le montant, le mode ou la preuve du versement.' : (selectedDate ? `Enregistrer le versement du ${selectedDate.toLocaleDateString('fr-FR')}` : '')}
-          defaultDate={editVersement ? editVersement.versement.date : selectedDate?.toISOString().split('T')[0]}
+          description={editVersement ? 'Modifier l\'heure, le montant, le mode ou la preuve du versement (date fixe).' : (selectedDate ? `Enregistrer le versement du ${selectedDate.toLocaleDateString('fr-FR')}` : '')}
+          defaultDate={editVersement ? editVersement.versement.date : (selectedDate ? formatDateKey(selectedDate) : undefined)}
           isMonthly={false}
           isDateFixed={!!editVersement}
           contractId={contract.id}
@@ -1416,7 +1432,9 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             isOpen={showReceiptModal}
             onClose={() => {
               setShowReceiptModal(false)
-              setSelectedDate(null)
+              if (!editVersement) {
+                setSelectedDate(null)
+              }
             }}
             contract={contract}
             payment={getSelectedPaymentWithVersement()!}
@@ -1425,7 +1443,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
               if (!selectedDate) return
               const mi = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
               const payment = payments.find((p: any) => p.monthIndex === mi)
-              const dateStr = selectedDate.toISOString().split('T')[0]
+              const dateStr = formatDateKey(selectedDate)
               const versement = payment?.versements?.find((v: any) => v.date === dateStr)
               if (payment && versement) {
                 setEditVersement({ payment, versement })
@@ -1437,7 +1455,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
               if (!selectedDate) return
               const payment = getSelectedPaymentWithVersement()
               if (!payment) return
-              const dateStr = selectedDate.toISOString().split('T')[0]
+              const dateStr = formatDateKey(selectedDate)
               const versement = payment.versements?.find((v: any) => v.date === dateStr)
               if (!versement) return
               try {
@@ -1479,7 +1497,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             }}
             onSubmit={handleRepaySupportSubmit}
             activeSupport={activeSupport}
-            defaultDate={selectedDate.toISOString().split('T')[0]}
+            defaultDate={formatDateKey(selectedDate)}
             isDateFixed={true}
             monthOrDayLabel={`Jour du ${selectedDate.toLocaleDateString('fr-FR')}`}
           />
