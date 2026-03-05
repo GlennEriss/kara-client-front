@@ -214,7 +214,7 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
               <span className="font-medium">{demand.periodMonths} mois</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Mode de paiement:</span>
+              <span className="text-gray-600">Moyen de paiement:</span>
               <span className="font-medium">{getPayoutModeLabel(demand.payoutMode)}</span>
             </div>
             {demand.desiredDate && (

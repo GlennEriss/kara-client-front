@@ -15,7 +15,7 @@ activate Actions
 Actions -> Modal: Ouvrir modal paiement
 activate Modal
 
-Modal --> Admin: Formulaire:\n- Date\n- Heure\n- Mode de paiement\n- Montant\n- Type de paiement\n- Avec frais ?
+Modal --> Admin: Formulaire:\n- Date\n- Heure\n- Moyen de paiement\n- Montant\n- Type de paiement\n- Avec frais ?
 
 Admin -> Modal: Remplir formulaire\net cliquer "Valider"
 

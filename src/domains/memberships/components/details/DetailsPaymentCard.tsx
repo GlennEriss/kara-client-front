@@ -73,7 +73,7 @@ export function DetailsPaymentCard({ request }: DetailsPaymentCardProps) {
                       data-testid="details-payment-date"
                     />
                     <InfoField
-                      label="Mode de paiement"
+                      label="Moyen de paiement"
                       value={payment.mode || 'Non spécifié'}
                       icon={CreditCard}
                       color="text-purple-600"

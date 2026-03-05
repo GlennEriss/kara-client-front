@@ -105,7 +105,7 @@ export default function AcceptDemandModal({
                 <p><strong>Montant:</strong> {demand.amount.toLocaleString('fr-FR')} FCFA</p>
                 <p><strong>Taux de commission:</strong> {demand.rate}%</p>
                 <p><strong>Durée prévue:</strong> {demand.periodMonths} mois</p>
-                <p><strong>Mode de paiement:</strong> {getPayoutModeLabel(demand.payoutMode)}</p>
+                <p><strong>Moyen de paiement:</strong> {getPayoutModeLabel(demand.payoutMode)}</p>
                 {demand.desiredDate && (
                   <p><strong>Date souhaitée:</strong> {new Date(demand.desiredDate).toLocaleDateString('fr-FR')}</p>
                 )}

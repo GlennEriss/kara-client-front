@@ -681,6 +681,7 @@ export default function StandardContract({ id }: Props) {
             : `Versement pour le mois M${(selectedMonthIndex ?? 0) + 1}`}
           description={editPayment ? 'Modifier la date, l\'heure, le montant ou la preuve du versement.' : 'Enregistrer le versement mensuel'}
           defaultAmount={data.monthlyAmount || 0}
+          amountDisabled={data.caisseType === 'STANDARD' || data.caisseType === 'STANDARD_CHARITABLE'}
           initialData={editPayment ? (() => {
             const p = editPayment.payment
             const contribs = p?.contribs ?? []

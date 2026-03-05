@@ -11,13 +11,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
 import { useAdmin } from '@/hooks/useAdmins'
+import { useCreditDemand } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { FactureCreditSpecialPDFData } from '@/components/credit-speciale/FactureCreditSpecialPDF'
 import { generateFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
+import { buildResumeCreditFixePdfData, generateResumeCreditFixePDF } from '@/services/credit-speciale/resumeCreditFixePdfExport'
 import type { DueItemLike } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
 import {
     Banknote,
@@ -83,11 +86,16 @@ export default function PaymentReceiptModal({
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
-  
+
+  // Pour le PDF « Résumé partie fixe » : motif de la demande (cause) depuis la demande crédit fixe
+  const { data: demand } = useCreditDemand(contract.demandId ?? '')
+
   // Récupérer le membre (collection users) pour le PDF : LIEU/NAISSANCE, D.NAISS, NATIONALITE, N°CNI, SEXE, AGE, QUARTIER, PROFESSION
   const { data: member } = useMember(contract.clientId)
-  // Récupérer les informations de l'agent de liaison
+  // Récupérer les informations de l'agent de liaison (admin ayant enregistré)
   const { data: agent } = useAdmin(payment.updatedBy || '')
+  // Récupérer l'agent de recouvrement (collecteur du versement) pour l'affichage dans le reçu
+  const { data: agentRecouvrement } = useAgentRecouvrement(payment.agentRecouvrementId ?? undefined)
 
   const getAdminDisplayName = getAdminDisplayNameProp ?? ((adminId: string) => {
     if (!adminId) return '-'
@@ -165,8 +173,28 @@ export default function PaymentReceiptModal({
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
-      const factureData = buildFactureData()
-      await generateFactureCreditSpecialPDF(factureData)
+      if (contract.creditType === 'FIXE') {
+        const scheduleForPdf = (schedule ?? []).map((item) => ({
+          month: item.month,
+          date: item.date instanceof Date ? item.date : new Date(item.date),
+          payment: item.payment,
+          remaining: (item as { remaining?: number }).remaining ?? 0,
+          paidAmount: item.paidAmount,
+          paymentDate: item.paymentDate,
+          paymentTime: (item as { paymentTime?: string }).paymentTime,
+        }))
+        const data = buildResumeCreditFixePdfData({
+          contract,
+          schedule: scheduleForPdf,
+          payments: paymentsList,
+          getAdminDisplayName,
+          demandMotif: demand?.cause,
+        })
+        await generateResumeCreditFixePDF(data)
+      } else {
+        const factureData = buildFactureData()
+        await generateFactureCreditSpecialPDF(factureData)
+      }
       toast.success('PDF généré avec succès')
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error)
@@ -287,6 +315,19 @@ export default function PaymentReceiptModal({
                       <User className="h-4 w-4 text-gray-500" />
                       <span className="font-semibold">
                         {agent ? `${agent.firstName} ${agent.lastName}`.trim() : payment.updatedBy}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {(payment.agentRecouvrementId || agentRecouvrement) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Agent de recouvrement</span>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <span className="font-semibold">
+                        {agentRecouvrement
+                          ? `${agentRecouvrement.prenom} ${agentRecouvrement.nom}`.trim()
+                          : payment.agentRecouvrementId}
                       </span>
                     </div>
                   </div>

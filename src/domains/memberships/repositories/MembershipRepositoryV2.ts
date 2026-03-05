@@ -317,7 +317,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
     // Utiliser les constantes centralisées pour la validation
     const validModes = Object.values(PAYMENT_MODES) as PaymentMode[]
     if (!validModes.includes(paymentInfo.mode)) {
-      throw new Error(`Mode de paiement invalide: ${paymentInfo.mode}. Modes autorisés: ${validModes.join(', ')}`)
+      throw new Error(`Moyen de paiement invalide: ${paymentInfo.mode}. Modes autorisés: ${validModes.join(', ')}`)
     }
 
     // Vérifier que le document existe

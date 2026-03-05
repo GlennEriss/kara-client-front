@@ -195,7 +195,7 @@ export function PaymentDetailsModalV2({
                   <p className="text-sm font-semibold text-kara-primary-dark" data-testid="payment-details-time">{payment.time || '—'}</p>
               </div>
 
-              {/* Mode de paiement */}
+              {/* Moyen de paiement */}
                 <div className="bg-white rounded-lg p-3 border border-kara-neutral-200">
                   <div className="flex items-center gap-2 mb-1.5">
                     <CreditCard className="w-3.5 h-3.5 text-kara-neutral-500" />

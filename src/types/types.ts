@@ -1710,7 +1710,7 @@ export interface GuarantorRemuneration {
 }
 
 /**
- * Mode de paiement pour le versement au garant (aligné caisse / crédit spéciale)
+ * Moyen de paiement pour le versement au garant (aligné caisse / crédit spéciale)
  */
 export type GuarantorPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
 
@@ -2150,7 +2150,7 @@ export interface PlacementDemand {
   amount: number // Montant du placement souhaité (FCFA)
   rate: number // Taux de commission souhaité (0-100)
   periodMonths: number // Durée souhaitée (1-7 mois)
-  payoutMode: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' // Mode de paiement souhaité
+  payoutMode: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' // Moyen de paiement souhaité
   desiredDate: string // Date souhaitée pour le début du placement (format: YYYY-MM-DD)
   cause?: string // Raison de la demande (optionnel)
   

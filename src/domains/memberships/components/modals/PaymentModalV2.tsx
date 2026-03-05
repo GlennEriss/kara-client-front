@@ -387,10 +387,10 @@ export function PaymentModalV2({
             <p className="text-xs text-gray-500">Montant par défaut: 10 300 FCFA (cotisation d'adhésion)</p>
           </div>
 
-          {/* 4. Mode de paiement */}
+          {/* 4. Moyen de paiement */}
           <div className="space-y-2">
             <Label htmlFor="mode" className="text-sm font-semibold text-kara-primary-dark">
-              Mode de paiement <span className="text-red-500">*</span>
+              Moyen de paiement <span className="text-red-500">*</span>
             </Label>
             <Select
               value={mode}

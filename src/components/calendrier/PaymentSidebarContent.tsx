@@ -128,7 +128,7 @@ export function PaymentSidebarContent({
 
           {payment.mode && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-emerald-700">Mode de paiement</span>
+              <span className="text-sm text-emerald-700">Moyen de paiement</span>
               <span className="text-sm font-semibold text-emerald-900">
                 {PAYMENT_MODE_LABELS[payment.mode] || payment.mode}
               </span>

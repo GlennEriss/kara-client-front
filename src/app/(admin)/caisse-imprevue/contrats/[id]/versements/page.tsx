@@ -158,7 +158,7 @@ export default function ContractCIPaymentsPage() {
           'Date': versement.date,
           'Heure': versement.time,
           'Montant': versement.amount,
-          'Mode de paiement': PAYMENT_MODE_LABELS[versement.mode] || versement.mode,
+          'Moyen de paiement': PAYMENT_MODE_LABELS[versement.mode] || versement.mode,
           'Pénalité': versement.penalty || 0,
           'Jours de retard': versement.daysLate || 0,
           'Créé par': getAdminDisplayName(versement.createdBy),

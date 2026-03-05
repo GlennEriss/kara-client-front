@@ -335,6 +335,19 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       byCaisseType[type] = caisseCounts[idx]
     })
 
+    // Somme des nominalPaid pour tous les contrats (carte "Montant Total"), tous statuts confondus
+    let totalPaidSum = 0
+    try {
+      const allQuery = query(collectionRef, ...base)
+      const allSnap = await getDocs(allQuery)
+      allSnap.forEach((docSnap) => {
+        const data = docSnap.data()
+        totalPaidSum += Number(data?.nominalPaid ?? 0)
+      })
+    } catch (err) {
+      console.error('[CaisseContractsRepository] getContractsStats totalPaidSum:', err)
+    }
+
     return {
       total,
       draft,
@@ -344,6 +357,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       group,
       individual,
       byCaisseType,
+      totalPaidSum,
     }
   }
 

@@ -1431,7 +1431,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
      */
     async updatePayment(
         paymentId: string,
-        data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: import('@/types/types').CreditPaymentMode; comment?: string; withFees?: boolean },
+        data: { paymentDate?: Date; paymentTime?: string; amount?: number; mode?: import('@/types/types').CreditPaymentMode; comment?: string; note?: number; withFees?: boolean; agentRecouvrementId?: string },
         proofFile: File | undefined,
         modificationReason: string,
         userId: string
@@ -1457,7 +1457,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             ...(data.amount != null && { amount: data.amount }),
             ...(data.mode != null && { mode: data.mode }),
             ...(data.comment != null && { comment: data.comment }),
+            ...(data.note != null && { note: data.note }),
             ...(data.withFees !== undefined && { withFees: data.withFees }),
+            ...(data.agentRecouvrementId !== undefined && { agentRecouvrementId: data.agentRecouvrementId?.trim() || undefined }),
             ...(proofUrl != null && { proofUrl }),
             updatedBy: userId,
             modificationReason,

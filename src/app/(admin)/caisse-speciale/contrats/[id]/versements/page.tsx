@@ -220,7 +220,7 @@ export default function ContractPaymentsPage() {
         'Statut': status,
         'Date de paiement': payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('fr-FR') : '',
         'Heure de paiement': payment.time || '',
-        'Mode de paiement': payment.mode || '',
+        'Moyen de paiement': payment.mode || '',
         'Pénalité appliquée': payment.penaltyApplied || 0,
         'Jours de retard': (payment as any).penaltyDays || 0,
         'Traité par': getAdminDisplayName(payment.updatedBy),
@@ -245,7 +245,7 @@ export default function ContractPaymentsPage() {
       { wch: 12 }, // Statut
       { wch: 15 }, // Date de paiement
       { wch: 15 }, // Heure de paiement
-      { wch: 15 }, // Mode de paiement
+      { wch: 15 }, // Moyen de paiement
       { wch: 18 }, // Pénalité appliquée
       { wch: 15 }, // Jours de retard
       { wch: 20 }, // Traité par

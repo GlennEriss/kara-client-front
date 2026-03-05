@@ -15,7 +15,7 @@ export default function PaymentModeForm() {
       name="paymentMode"
       render={({ field }) => (
         <FormItem>
-          <FormLabel>Mode de paiement *</FormLabel>
+          <FormLabel>Moyen de paiement *</FormLabel>
           <FormControl>
             <RadioGroup
               value={field.value}

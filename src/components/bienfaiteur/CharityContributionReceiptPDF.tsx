@@ -150,7 +150,7 @@ export default function CharityContributionReceiptPDF({
         if (contribution.payment?.mode) {
           yPos += 7
           const modeLabel = PAYMENT_MODE_LABELS[contribution.payment.mode] || contribution.payment.mode
-          doc.text(`Mode de paiement: ${modeLabel}`, 15, yPos)
+          doc.text(`Moyen de paiement: ${modeLabel}`, 15, yPos)
         }
       } else {
         yPos += 7
@@ -313,7 +313,7 @@ export default function CharityContributionReceiptPDF({
                       </div>
                       {contribution.payment?.mode && (
                         <div>
-                          <span className="text-sm text-muted-foreground">Mode de paiement: </span>
+                          <span className="text-sm text-muted-foreground">Moyen de paiement: </span>
                           <span className="font-medium">
                             {PAYMENT_MODE_LABELS[contribution.payment.mode] || contribution.payment.mode}
                           </span>

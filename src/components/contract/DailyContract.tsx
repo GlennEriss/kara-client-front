@@ -1235,11 +1235,11 @@ export default function DailyContract({ id }: Props) {
               </Alert>
             )}
 
-            {/* Mode de paiement */}
+            {/* Moyen de paiement */}
             <div>
               <Label className="flex items-center gap-2 mb-3">
                 <Smartphone className="h-4 w-4 text-muted-foreground" />
-                Mode de paiement *
+                Moyen de paiement *
               </Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
@@ -1614,7 +1614,7 @@ export default function DailyContract({ id }: Props) {
                       </span>
                     </div>
 
-                    {/* Mode de paiement */}
+                    {/* Moyen de paiement */}
                     {contribution?.mode && (
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
                         <span className="font-medium text-gray-700 text-xs lg:text-sm">Mode:</span>
@@ -1952,11 +1952,11 @@ export default function DailyContract({ id }: Props) {
               />
             </div>
 
-            {/* Mode de paiement — même grille que Nouveau versement */}
+            {/* Moyen de paiement — même grille que Nouveau versement */}
             <div>
               <Label className="flex items-center gap-2 mb-3">
                 <Smartphone className="h-4 w-4 text-muted-foreground" />
-                Mode de paiement *
+                Moyen de paiement *
               </Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
@@ -2219,9 +2219,9 @@ export default function DailyContract({ id }: Props) {
                 />
               </div>
 
-              {/* Mode de paiement */}
+              {/* Moyen de paiement */}
               <div>
-                <Label className="text-sm font-medium">Mode de paiement *</Label>
+                <Label className="text-sm font-medium">Moyen de paiement *</Label>
                 <div className="flex gap-3 mt-2">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input
