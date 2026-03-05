@@ -376,7 +376,7 @@ export function MembershipRequestsGridView({
 }: MembershipRequestsGridViewProps) {
   if (isLoading) {
     return (
-      <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4', className)}>
+      <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4', className)}>
         {Array.from({ length: 8 }).map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4">
@@ -407,7 +407,7 @@ export function MembershipRequestsGridView({
   }
 
   return (
-    <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4', className)}>
+    <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4', className)}>
       {requests.map((request) => {
         const createdAt = toDateSafe(request.createdAt)
         const firstName = request.identity?.firstName || ''
