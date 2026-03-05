@@ -72,7 +72,7 @@ export interface PlacementDemand {
   amount: number // Montant du placement souhaité (FCFA)
   rate: number // Taux de commission souhaité (0-100)
   periodMonths: number // Durée souhaitée (1-7 mois)
-  payoutMode: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' // Mode de paiement souhaité
+  payoutMode: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' // Moyen de paiement souhaité
   desiredDate: string // Date souhaitée pour le début du placement (format: YYYY-MM-DD)
   cause?: string // Raison de la demande (optionnel)
   
@@ -167,7 +167,7 @@ export interface PlacementDemandStats {
    - Montant du placement souhaité (FCFA, minimum 1000)
    - Taux de commission souhaité (0-100%)
    - Durée souhaitée (1-7 mois)
-   - Mode de paiement (Commission mensuelle + Capital en fin / Capital + Commission en fin)
+   - Moyen de paiement (Commission mensuelle + Capital en fin / Capital + Commission en fin)
    - Date souhaitée pour le début du placement (obligatoire)
    - Contact d'urgence (optionnel, peut être un membre ou un nouveau contact)
    - Raison de la demande (optionnel)
@@ -325,7 +325,7 @@ export interface PlacementDemandStats {
    - Montant
    - Taux de commission
    - Durée (periodMonths)
-   - Mode de paiement (payoutMode)
+   - Moyen de paiement (payoutMode)
    - Date de début du placement (préremplie avec la date souhaitée de la demande)
    - Contact d'urgence (si renseigné)
 4. L'admin peut modifier les informations si nécessaire
@@ -415,7 +415,7 @@ export interface PlacementDemandStats {
      - Montant souhaité
      - Taux de commission
      - Durée souhaitée
-     - Mode de paiement
+     - Moyen de paiement
      - Date souhaitée pour le début du placement
      - Contact d'urgence (si renseigné)
      - Raison de la demande (si renseignée)
@@ -545,7 +545,7 @@ Colonnes :
 - Montant
 - Taux
 - Durée
-- Mode de paiement
+- Moyen de paiement
 - Date souhaitée
 - Statut
 - Agent décisionnaire (si applicable)

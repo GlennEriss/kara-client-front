@@ -88,7 +88,7 @@ const TestPaymentTools: React.FC<TestPaymentToolsProps> = ({
       const randomMinute = Math.floor(Math.random() * 60)
       const paymentTime = `${randomHour.toString().padStart(2, '0')}:${randomMinute.toString().padStart(2, '0')}`
 
-      // Mode de paiement aléatoire
+      // Moyen de paiement aléatoire
       const paymentModes = ['airtel_money', 'mobicash', 'cash', 'bank_transfer'] as const
       const randomMode = paymentModes[Math.floor(Math.random() * paymentModes.length)]
 

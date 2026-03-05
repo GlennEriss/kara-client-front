@@ -80,7 +80,7 @@ test.describe('E2E: Détails du paiement - Sécurité & Traçabilité (P0)', () 
     await page.locator('[data-testid="payment-amount"]').clear()
     await page.locator('[data-testid="payment-amount"]').fill('10300')
     
-    // Mode de paiement (shadcn Select) - EXACTEMENT comme payment.spec.ts
+    // Moyen de paiement (shadcn Select) - EXACTEMENT comme payment.spec.ts
     const modeSelectTrigger = page.locator('[data-testid="payment-mode"]').first()
     await expect(modeSelectTrigger).toBeVisible({ timeout: 10000 })
     await modeSelectTrigger.click()
@@ -253,7 +253,7 @@ test.describe('E2E: Détails du paiement - Sécurité & Traçabilité (P0)', () 
     await page.locator('[data-testid="payment-amount"]').clear()
     await page.locator('[data-testid="payment-amount"]').fill('10300')
     
-    // Mode de paiement (shadcn Select) - EXACTEMENT comme payment.spec.ts
+    // Moyen de paiement (shadcn Select) - EXACTEMENT comme payment.spec.ts
     const modeSelectTrigger2 = page.locator('[data-testid="payment-mode"]').first()
     await expect(modeSelectTrigger2).toBeVisible({ timeout: 10000 })
     await modeSelectTrigger2.click()

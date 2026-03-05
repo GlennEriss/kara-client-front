@@ -56,6 +56,8 @@ interface PaymentCSModalProps {
   submitLabel?: string
   isGroupContract?: boolean
   groupMemberName?: string
+  /** Désactive le champ montant (ex: Standard / Standard Charitable : montant fixe non modifiable) */
+  amountDisabled?: boolean
 }
 
 const isEditMode = (initialData: PaymentCSModalProps['initialData']) => initialData != null
@@ -71,6 +73,7 @@ export default function PaymentCSModal({
   submitLabel,
   isGroupContract = false,
   groupMemberName,
+  amountDisabled = false,
 }: PaymentCSModalProps) {
   const editMode = isEditMode(initialData)
   const [formData, setFormData] = useState<Partial<PaymentCSFormData>>({
@@ -298,17 +301,19 @@ export default function PaymentCSModal({
               min="100"
               step="100"
               required
+              disabled={amountDisabled}
+              className={amountDisabled ? 'bg-muted cursor-not-allowed' : ''}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Montant minimum: 100 FCFA
+              {amountDisabled ? 'Montant fixe défini par le contrat (Standard / Standard Charitable).' : 'Montant minimum: 100 FCFA'}
             </p>
           </div>
 
-          {/* Mode de paiement */}
+          {/* Moyen de paiement */}
           <div>
             <Label className="flex items-center gap-2 mb-3">
               <Smartphone className="h-4 w-4 text-muted-foreground" />
-              Mode de paiement *
+              Moyen de paiement *
             </Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">

@@ -238,7 +238,7 @@ test.describe('E2E: Paiement d\'une demande V2', () => {
     await amountInput.fill('10300')
     await page.waitForTimeout(500)
 
-    // 5. Mode de paiement (shadcn Select)
+    // 5. Moyen de paiement (shadcn Select)
     const modeSelectTrigger = page.locator('[data-testid="payment-mode"]').first()
     await expect(modeSelectTrigger).toBeVisible({ timeout: 10000 })
     await modeSelectTrigger.click()

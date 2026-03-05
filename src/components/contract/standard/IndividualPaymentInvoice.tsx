@@ -168,7 +168,7 @@ export default function IndividualPaymentInvoice({
             <span className="font-medium">{formatDate(payment.paidAt)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-600">Mode de paiement :</span>
+            <span className="text-slate-600">Moyen de paiement :</span>
             <span className="font-medium">{getPaymentModeLabel(payment.mode)}</span>
           </div>
           <div className="flex justify-between">

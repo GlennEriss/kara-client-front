@@ -425,11 +425,11 @@ export default function PaymentCIModal({
             />
           </div>
 
-          {/* Mode de paiement */}
+          {/* Moyen de paiement */}
           <div>
             <Label className="flex items-center gap-2 mb-3">
               <Smartphone className="h-4 w-4 text-muted-foreground" />
-              Mode de paiement *
+              Moyen de paiement *
             </Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">

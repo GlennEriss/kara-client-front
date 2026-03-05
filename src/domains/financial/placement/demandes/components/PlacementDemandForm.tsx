@@ -185,7 +185,7 @@ export function PlacementDemandForm({
                 name="payoutMode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mode de paiement</FormLabel>
+                    <FormLabel>Moyen de paiement</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>

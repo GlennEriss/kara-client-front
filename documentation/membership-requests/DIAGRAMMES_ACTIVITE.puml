@@ -823,7 +823,7 @@ visible si status = 'pending' ET isPaid = false);
 :Demander informations paiement :
 - Date (Input type="date")
 - Heure (Input type="time")
-- Mode de paiement (Select) :
+- Moyen de paiement (Select) :
   * Espèce
   * Mobile Money
   * Virement

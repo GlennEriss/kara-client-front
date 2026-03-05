@@ -508,7 +508,7 @@ export class MembershipServiceV2 implements IMembershipService {
     ]
 
     if (!validModes.includes(paymentInfo.mode as any)) {
-      throw new Error(`Mode de paiement invalide: ${paymentInfo.mode}. Modes autorisés: ${validModes.join(', ')}`)
+      throw new Error(`Moyen de paiement invalide: ${paymentInfo.mode}. Modes autorisés: ${validModes.join(', ')}`)
     }
 
     // Vérifier que l'heure est fournie (obligatoire)

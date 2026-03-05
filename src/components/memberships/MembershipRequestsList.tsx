@@ -1038,7 +1038,7 @@ const MembershipRequestCard = ({
               <Input type="time" value={paymentTime} onChange={(e) => setPaymentTime(e.target.value)} className="h-10" disabled={isPaying} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
+              <label className="text-sm font-medium text-gray-700">Moyen de paiement</label>
               <Select 
                 value={paymentMode || undefined} 
                 onValueChange={(val) => {

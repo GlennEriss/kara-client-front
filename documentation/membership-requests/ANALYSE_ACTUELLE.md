@@ -133,7 +133,7 @@ NotificationService (notifications)
 - ✅ Enregistrement des paiements sur une demande
 - ✅ Modal de saisie de paiement avec champs :
   - Date et heure du paiement
-  - Mode de paiement : `airtel_money`, `mobicash`, `cash`, `bank_transfer`, `other`
+  - Moyen de paiement : `airtel_money`, `mobicash`, `cash`, `bank_transfer`, `other`
   - Montant
   - Type de paiement : `Membership` (cotisation d'adhésion)
   - Avec ou sans frais

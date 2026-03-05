@@ -267,7 +267,7 @@ describe('paymentPDFUtils', () => {
       })
 
       expect(mockText).toHaveBeenCalledWith(
-        'Mode de paiement: Mobicash',
+        'Moyen de paiement: Mobicash',
         20,
         expect.any(Number)
       )

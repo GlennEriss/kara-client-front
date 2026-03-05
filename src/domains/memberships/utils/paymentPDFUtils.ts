@@ -133,7 +133,7 @@ export async function generatePaymentPDF({
     const paymentDetails = [
       [`Type de paiement: ${formatPaymentType(payment.paymentType)}`, `Montant payé: ${payment.amount.toLocaleString('fr-FR')} FCFA`],
       [`Date de versement: ${paymentDateStr}`, `Heure de versement: ${payment.time || '—'}`],
-      [`Mode de paiement: ${formatPaymentMode(payment.mode)}`, payment.withFees !== undefined ? (payment.withFees ? 'Frais de transaction: Inclus' : 'Frais de transaction: Aucun') : ''],
+      [`Moyen de paiement: ${formatPaymentMode(payment.mode)}`, payment.withFees !== undefined ? (payment.withFees ? 'Frais de transaction: Inclus' : 'Frais de transaction: Aucun') : ''],
       payment.paymentMethodOther ? [`Précision: ${payment.paymentMethodOther}`, ''] : ['', ''],
     ]
 

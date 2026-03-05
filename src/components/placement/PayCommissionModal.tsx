@@ -283,11 +283,11 @@ export default function PayCommissionModal({
             </p>
           </div>
 
-          {/* Mode de paiement */}
+          {/* Moyen de paiement */}
           <div>
             <Label className="flex items-center gap-2 mb-3">
               <Smartphone className="h-4 w-4 text-muted-foreground" />
-              Mode de paiement *
+              Moyen de paiement *
             </Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {Object.entries(PAYMENT_MODE_LABELS).map(([mode, { label, icon: Icon }]) => (

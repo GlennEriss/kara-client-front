@@ -184,7 +184,7 @@
 - Type de contribution : Radio (Espèces, Virement, Don en nature)
 - Si financier :
   - Montant (FCFA)
-  - Mode de paiement (airtel_money, mobicash, cash, bank_transfer)
+  - Moyen de paiement (airtel_money, mobicash, cash, bank_transfer)
   - Date de contribution
 - Si en nature :
   - Description détaillée
