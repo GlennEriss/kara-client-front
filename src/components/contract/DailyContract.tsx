@@ -42,6 +42,13 @@ const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
+const buildPaidAtFromSelectedDate = (selectedDate: Date, time: string): Date => {
+  const [hours, minutes] = time.split(':').map(Number)
+  const paidAt = new Date(selectedDate)
+  paidAt.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0)
+  return paidAt
+}
+
 // ————————————————————————————————————————————————————————————
 // Helpers UI
 // ————————————————————————————————————————————————————————————
@@ -174,6 +181,34 @@ export default function DailyContract({ id }: Props) {
       }
     }
   }, [id])
+
+  const resetEditPaymentForm = React.useCallback(() => {
+    setEditingContribution(null)
+    setPaymentAmount('')
+    setPaymentTime('')
+    setPaymentMode('airtel_money')
+    setPaymentFile(undefined)
+    setEditModificationReason('')
+    setSelectedGroupMemberId('')
+    setAgentRecouvrementId('')
+  }, [])
+
+  const handleEditPaymentModalOpenChange = React.useCallback((open: boolean) => {
+    setShowEditPaymentModal(open)
+    if (!open) {
+      resetEditPaymentForm()
+    }
+  }, [resetEditPaymentForm])
+
+  // Garder les détails synchronisés avec la date sélectionnée et les données refetch.
+  useEffect(() => {
+    if (!selectedDate) {
+      setPaymentDetails(null)
+      return
+    }
+    const currentPaymentDetails = getPaymentForDate(selectedDate)
+    setPaymentDetails(currentPaymentDetails ?? null)
+  }, [selectedDate, getPaymentForDate])
 
   // Load refunds from subcollection
   useEffect(() => {
@@ -525,6 +560,10 @@ export default function DailyContract({ id }: Props) {
       toast.error('Veuillez remplir tous les champs obligatoires')
       return
     }
+    if (!paymentDetails?.id) {
+      toast.error('Versement introuvable pour la date sélectionnée')
+      return
+    }
     if (!editModificationReason?.trim()) {
       toast.error('Veuillez indiquer le motif de la modification')
       return
@@ -541,13 +580,12 @@ export default function DailyContract({ id }: Props) {
 
       if (isGroupContract) {
         toast.error('Pour les contrats de groupe, vous ne pouvez pas modifier les contributions. Supprimez et recréez si nécessaire.')
-        setShowEditPaymentModal(false)
-        setEditingContribution(null)
+        handleEditPaymentModalOpenChange(false)
         return
       }
 
       const paidAt = selectedDate
-        ? new Date(`${selectedDate.toISOString().split('T')[0]}T${paymentTime}`)
+        ? buildPaidAtFromSelectedDate(selectedDate, paymentTime)
         : undefined
       await updatePaymentContribution({
         contractId: id,
@@ -559,6 +597,7 @@ export default function DailyContract({ id }: Props) {
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
           proofFile: paymentFile,
           modificationReason: editModificationReason.trim(),
+          agentRecouvrementId,
           ...(paidAt && { paidAt }),
         },
       })
@@ -566,13 +605,10 @@ export default function DailyContract({ id }: Props) {
       queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
       await refetch()
       toast.success('Versement modifié avec succès')
-      setShowEditPaymentModal(false)
-      setEditingContribution(null)
-      setPaymentAmount('')
-      setPaymentTime('')
-      setPaymentMode('airtel_money')
-      setPaymentFile(undefined)
-      setEditModificationReason('')
+      handleEditPaymentModalOpenChange(false)
+      setShowPaymentDetailsModal(false)
+      setPaymentDetails(null)
+      setSelectedDate(null)
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de la modification')
     } finally {
@@ -1806,6 +1842,7 @@ export default function DailyContract({ id }: Props) {
                     setPaymentAmount(contribution?.amount?.toString() || '')
                     setPaymentTime(contribution?.time || '')
                     setPaymentMode((contribution?.mode || 'airtel_money') as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')
+                    setAgentRecouvrementId((contribution?.agentRecouvrementId ?? payment?.agentRecouvrementId ?? '') as string)
                     setPaymentFile(undefined)
                     setEditModificationReason('')
                     setShowEditPaymentModal(true)
@@ -1870,7 +1907,7 @@ export default function DailyContract({ id }: Props) {
       </AlertDialog>
 
       {/* Modal de modification du versement — même design que Nouveau versement + motif */}
-      <Dialog open={showEditPaymentModal} onOpenChange={setShowEditPaymentModal}>
+      <Dialog open={showEditPaymentModal} onOpenChange={handleEditPaymentModalOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
@@ -1878,7 +1915,7 @@ export default function DailyContract({ id }: Props) {
               Modifier le versement
             </DialogTitle>
             <DialogDescription>
-              Modifier la date, l&apos;heure, le montant ou la preuve du versement du {selectedDate?.toLocaleDateString('fr-FR')}
+              Modifier l&apos;heure, le montant, l&apos;agent ou la preuve du versement du {selectedDate?.toLocaleDateString('fr-FR')} (date fixe)
             </DialogDescription>
           </DialogHeader>
 
@@ -2111,16 +2148,7 @@ export default function DailyContract({ id }: Props) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                setShowEditPaymentModal(false)
-                setEditingContribution(null)
-                setPaymentAmount('')
-                setPaymentTime('')
-                setPaymentMode('airtel_money')
-                setPaymentFile(undefined)
-                setEditModificationReason('')
-                setSelectedGroupMemberId('')
-              }}
+              onClick={() => handleEditPaymentModalOpenChange(false)}
               disabled={isEditing}
             >
               Annuler
