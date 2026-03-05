@@ -45,4 +45,6 @@ export interface ContractStats {
   group: number
   individual: number
   byCaisseType: Record<string, number>
+  /** Somme des nominalPaid de tous les contrats, tous statuts (pour la carte "Montant Total"). */
+  totalPaidSum: number
 }

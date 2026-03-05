@@ -16,7 +16,6 @@ import routes from '@/constantes/routes'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { useCaisseContracts, useCaisseContractsStats } from '@/domains/financial/caisse-speciale/contrats/hooks'
 import { useMembersByIds } from '@/domains/memberships/hooks'
-import { useClosedNominalSum } from '@/hooks'
 import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import {
@@ -235,7 +234,7 @@ const StatsCard = ({
 }
 
 // Composant Carrousel des statistiques avec drag/swipe
-const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalSum: number }) => {
+const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: number }) => {
   const _formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
@@ -245,7 +244,7 @@ const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalS
 
   const statsData = [
     { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
-    { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(closedNominalSum || 0), percentage: 100, color: '#0ea5e9', icon: DollarSign, trend: 'up' as const },
+    { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(totalPaidSum || 0), percentage: 100, color: '#0ea5e9', icon: DollarSign, trend: 'up' as const },
     { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: CheckCircle, trend: 'up' as const },
     { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
@@ -1173,9 +1172,8 @@ const ListContracts = () => {
     }
   }, [stats])
 
-  // Somme des nominalPaid pour les contrats clos
-  const contractsForSum = contractsData?.filter((c) => c.id !== undefined)
-  const { sum: closedNominalSum } = useClosedNominalSum(contractsForSum)
+  // Montant total : somme des nominalPaid de tous les contrats (tous statuts), fournie par les stats
+  const totalPaidSum = stats?.totalPaidSum ?? 0
 
   // Gestion des erreurs
   if (error) {
@@ -1239,7 +1237,7 @@ const ListContracts = () => {
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Carrousel de statistiques */}
-      {computedStats && <StatsCarousel stats={computedStats} closedNominalSum={closedNominalSum || 0} />}
+      {computedStats && <StatsCarousel stats={computedStats} totalPaidSum={totalPaidSum} />}
 
       {/* Onglets pour filtrer par type et période */}
       {/* Tabs desktop (grille) */}
