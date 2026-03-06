@@ -19,6 +19,8 @@ export interface FactureCreditSpecialPDFData {
   note: string | number
   nouveauCapital1: number | string
   nouveauCapital2: number | string
+  /** Montant global de l'échéance suivante (colonne "CAPITAL MOIS PROCHAIN") */
+  capitalMoisProchain: number | string
 }
 
 /** Ex: 6000 -> "6 000", 10000 -> "10 000" (espace comme séparateur de milliers). */
@@ -73,6 +75,7 @@ const ROW_CONFIG: Array<{
   { key: 'remarque', label: 'REMARQUE', bgColor: '#1E6FE8' },
   { key: 'note', label: 'NOTE', bgColor: '#1E6FE8' },
   { key: 'nouveauCapital2', label: 'NOUVEAU CAPITAL', bgColor: '#E31B23', format: formatAmount },
+  { key: 'capitalMoisProchain', label: 'CAPITAL MOIS PROCHAIN', bgColor: '#1E6FE8', format: formatAmount },
 ]
 
 interface FactureCreditSpecialPDFProps {
