@@ -19,7 +19,10 @@ import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { FactureCreditSpecialPDFData } from '@/components/credit-speciale/FactureCreditSpecialPDF'
-import { generateFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
+import {
+  generateFactureCreditSpecialPDF,
+  type FactureCreditSpecialPage1Data,
+} from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import { buildResumeCreditFixePdfData, generateResumeCreditFixePDF } from '@/services/credit-speciale/resumeCreditFixePdfExport'
 import type { DueItemLike } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
 import {
@@ -133,6 +136,59 @@ export default function PaymentReceiptModal({
 
   const formatDateYYYYMMDD = (date: Date) => format(new Date(date), 'yyyy-MM-dd')
 
+  const formatLongDate = (value: Date | string | undefined): string => {
+    if (!value) return '-'
+    const d = typeof value === 'string' ? new Date(value) : value
+    if (Number.isNaN(d.getTime())) return '-'
+    return format(d, 'EEEE d MMMM yyyy', { locale: fr })
+  }
+
+  const getAgeFromBirthDate = (birthDate: string | undefined): string => {
+    if (!birthDate) return '-'
+    const birth = new Date(birthDate)
+    if (Number.isNaN(birth.getTime())) return '-'
+    const today = new Date()
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
+    return age > 0 ? `${age} ANS` : '-'
+  }
+
+  const buildPage1Data = (): FactureCreditSpecialPage1Data | null => {
+    const ec = contract.emergencyContact
+    const emergencyName = ec
+      ? `${ec.lastName || ''} ${ec.firstName || ''}`.trim() || 'INCONNU'
+      : 'INCONNU'
+    const memberPhone1 = member?.contacts?.[0] ?? contract.clientContacts?.[0] ?? '-'
+    const memberPhone2 = member?.contacts?.[1] ?? contract.clientContacts?.[1] ?? '-'
+    const quartier =
+      member?.address?.additionalInfo ??
+      (member?.address ? [member.address.city, member.address.district].filter(Boolean).join(', ') : null) ??
+      '-'
+
+    return {
+      contractId: contract.id,
+      memberMatricule: member?.matricule ?? contract.clientId ?? '-',
+      memberLastName: member?.lastName ?? contract.clientLastName ?? '-',
+      memberFirstName: member?.firstName ?? contract.clientFirstName ?? '-',
+      memberBirthPlace: member?.birthPlace ?? '-',
+      memberBirthDateFormatted: formatLongDate(member?.birthDate),
+      memberNationality: member?.nationality ?? '-',
+      memberIdDocument: member?.identityDocumentNumber ?? '-',
+      memberPhone1,
+      memberPhone2,
+      memberGender: member?.gender ? String(member.gender).toUpperCase() : '-',
+      memberAge: getAgeFromBirthDate(member?.birthDate),
+      memberQuarter: quartier,
+      memberProfession: member?.profession ?? '-',
+      emergencyName,
+      emergencyRelation: ec?.relationship ?? '-',
+      emergencyPhone1: ec?.phone1 ?? '-',
+      emergencyPhone2: ec?.phone2 ?? '-',
+      emergencyId: ec?.idNumber ?? '-',
+    }
+  }
+
   const buildFactureData = (): FactureCreditSpecialPDFData => {
     const num = installmentNumber ?? 1
     const dueItem = schedule?.find((s) => s.month === num)
@@ -193,7 +249,8 @@ export default function PaymentReceiptModal({
         await generateResumeCreditFixePDF(data)
       } else {
         const factureData = buildFactureData()
-        await generateFactureCreditSpecialPDF(factureData)
+        const page1Data = buildPage1Data()
+        await generateFactureCreditSpecialPDF({ factureData, page1Data })
       }
       toast.success('PDF généré avec succès')
     } catch (error) {
