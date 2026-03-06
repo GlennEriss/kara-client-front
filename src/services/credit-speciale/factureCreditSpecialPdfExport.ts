@@ -84,6 +84,7 @@ const ROW_CONFIG: Array<{
   { key: 'remarque', label: 'REMARQUE' },
   { key: 'note', label: 'NOTE' },
   { key: 'nouveauCapital2', label: 'NOUVEAU CAPITAL', format: formatAmount },
+  { key: 'capitalMoisProchain', label: 'CAPITAL MOIS PROCHAIN', format: formatAmount },
 ]
 
 const ROW_HEIGHT_MM = 11
@@ -270,9 +271,10 @@ function drawPage2(doc: jsPDF, data: FactureCreditSpecialPDFData): void {
   for (let i = 0; i < ROW_CONFIG.length; i++) {
     const row = ROW_CONFIG[i]
     const raw = data[row.key]
+    const effectiveRaw = (row.key === 'capitalMoisProchain' && (raw === undefined || raw === null)) ? 0 : raw
     const value = row.format
-      ? row.format(raw as number | string | boolean)
-      : String(raw ?? '')
+      ? row.format(effectiveRaw as number | string | boolean)
+      : String(effectiveRaw ?? '')
 
     const rowY = tableTop + i * ROW_HEIGHT_MM
 

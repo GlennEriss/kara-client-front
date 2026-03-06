@@ -194,11 +194,17 @@ export default function PaymentReceiptModal({
     const dueItem = schedule?.find((s) => s.month === num)
     const nextDueItem = schedule?.find((s) => s.month === num + 1)
     const prevDueItem = schedule?.find((s) => s.month === num - 1)
+    const isLastInstallment = !nextDueItem
     const capitalStart = num === 1 ? contract.amount : (prevDueItem?.remaining ?? contract.amount)
     const interest = dueItem?.interest ?? Math.round(payment.interestAmount || 0)
     const globalAmount = dueItem?.principal ?? Math.round((payment.principalAmount || 0) + (payment.interestAmount || 0))
+    // NOUVEAU CAPITAL = "reste dû" de l'échéancier actuel (Simulations / Échéancier actuel) pour cette échéance
     const newCapitalAfter = dueItem?.remaining ?? Math.round(contract.amount - (payment.principalAmount || 0))
     const newCapitalNext = nextDueItem?.principal ?? Math.round(newCapitalAfter + (payment.interestAmount || 0))
+    const nouveauCapital =
+      dueItem?.remaining !== undefined ? dueItem.remaining : isLastInstallment ? 0 : newCapitalNext
+    // CAPITAL MOIS PROCHAIN = montant global de l'échéance suivante (0 si dernière échéance)
+    const capitalMoisProchain = isLastInstallment ? 0 : (nextDueItem?.principal ?? newCapitalNext)
     const moyenLabel = PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode ?? 'Aucun'
     const fraisValue =
       (payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined
@@ -220,8 +226,9 @@ export default function PaymentReceiptModal({
       penalite: payment.penaltyAmount ?? 0,
       remarque: payment.comment?.trim() || 'PAS DE VERSEMENT',
       note: payment.note ?? 0,
-      nouveauCapital1: newCapitalAfter,
-      nouveauCapital2: newCapitalNext,
+      nouveauCapital1: nouveauCapital,
+      nouveauCapital2: nouveauCapital,
+      capitalMoisProchain,
     }
   }
 
