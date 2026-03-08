@@ -205,7 +205,7 @@ export default function PaymentReceiptModal({
       dueItem?.remaining !== undefined ? dueItem.remaining : isLastInstallment ? 0 : newCapitalNext
     // CAPITAL MOIS PROCHAIN = montant global de l'échéance suivante (0 si dernière échéance)
     const capitalMoisProchain = isLastInstallment ? 0 : (nextDueItem?.principal ?? newCapitalNext)
-    const moyenLabel = PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode ?? 'Aucun'
+    const moyenLabel = payment.amount === 0 ? 'AUCUN' : (PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode ?? 'Aucun')
     const fraisValue =
       (payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined
         ? payment.withFees
@@ -268,7 +268,9 @@ export default function PaymentReceiptModal({
     }
   }
 
-  const paymentModeConfig = PAYMENT_MODE_LABELS[payment.mode] ?? { label: payment.mode, icon: DollarSign, color: 'text-gray-600', bg: 'bg-gray-100' }
+  const paymentModeConfig = payment.amount === 0
+    ? { label: 'Aucun', icon: DollarSign, color: 'text-gray-600', bg: 'bg-gray-100' }
+    : (PAYMENT_MODE_LABELS[payment.mode] ?? { label: payment.mode, icon: DollarSign, color: 'text-gray-600', bg: 'bg-gray-100' })
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -339,7 +341,7 @@ export default function PaymentReceiptModal({
                       <paymentModeConfig.icon className="h-3 w-3 mr-1" />
                       {paymentModeConfig.label}
                     </Badge>
-                    {(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined && (
+                    {payment.amount > 0 && (payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined && (
                       <span className="text-sm text-gray-600">
                         ({payment.withFees ? 'Avec frais' : 'Sans frais'})
                       </span>

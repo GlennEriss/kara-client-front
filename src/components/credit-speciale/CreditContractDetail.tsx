@@ -1778,9 +1778,11 @@ export default function CreditContractDetail({
                   const isPaymentSufficient = paidAmountForCard !== null && paidAmountForCard >= expectedPaymentForCard
                   
                   const statusConfig = item.status === 'PAID' 
-                    ? isPaymentSufficient
-                      ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
-                      : { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: AlertCircle, label: 'Payé (insuffisant)' }
+                    ? paidAmountForCard === 0
+                      ? { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Non payé' }
+                      : isPaymentSufficient
+                        ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
+                        : { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: AlertCircle, label: 'Payé (insuffisant)' }
                     : item.status === 'DUE'
                     ? { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', icon: Clock, label: 'À payer' }
                     : item.status === 'REST' || item.isRest
@@ -1796,9 +1798,11 @@ export default function CreditContractDetail({
                         isDisabled
                           ? 'border-gray-300 bg-white cursor-not-allowed'
                           : item.status === 'PAID'
-                          ? isPaymentSufficient
-                            ? 'border-green-300 bg-white hover:shadow-xl hover:-translate-y-1'
-                            : 'border-red-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                          ? paidAmountForCard === 0
+                            ? 'border-gray-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                            : isPaymentSufficient
+                              ? 'border-green-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                              : 'border-red-300 bg-white hover:shadow-xl hover:-translate-y-1'
                           : item.status === 'REST' || item.isRest
                           ? 'border-blue-200 bg-white'
                           : 'border-gray-300 hover:border-[#224D62] bg-white hover:shadow-xl hover:-translate-y-1'
@@ -1808,9 +1812,11 @@ export default function CreditContractDetail({
                       <div className={cn(
                         'p-4 border-b-2',
                         item.status === 'PAID' 
-                          ? isPaymentSufficient
-                            ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200' 
-                            : 'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
+                          ? paidAmountForCard === 0
+                            ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200'
+                            : isPaymentSufficient
+                              ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200' 
+                              : 'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
                           : item.status === 'DUE'
                           ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200'
                           : item.status === 'REST' || item.isRest
@@ -1905,7 +1911,7 @@ export default function CreditContractDetail({
                           <>
                           <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-gray-200">
                             <div className="flex items-center justify-between w-full">
-                              <span className="text-gray-600">Capital:</span>
+                              <span className="text-gray-600">Capital global:</span>
                               <span className="font-semibold text-gray-900">
                                 {item.principal.toLocaleString('fr-FR')} FCFA
                               </span>
