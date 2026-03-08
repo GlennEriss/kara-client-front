@@ -164,28 +164,49 @@ async function migrate() {
         }
 
         const contractData = contractDoc.data() || {}
+        const hasSearchable = hasSearchableText(contractData)
+        const hasSearchableWords = Array.isArray(contractData.searchableWords) && contractData.searchableWords.length > 0
 
-        if (hasSearchableText(contractData)) {
-          console.log(`   ⏭️  Contrat ${contractId} a déjà des attributs de recherche`)
+        if (hasSearchable && hasSearchableWords) {
+          console.log(`   ⏭️  Contrat ${contractId} a déjà searchableText* et searchableWords`)
           alreadyHasSearchableText++
           skipped++
           continue
         }
 
-        const update = {
-          searchableText: demandData.searchableText,
-          searchableTextFirstNameFirst: demandData.searchableTextFirstNameFirst,
-          searchableTextMatriculeFirst: demandData.searchableTextMatriculeFirst,
+        const raw = String(demandData.searchableText || contractData.searchableText || '')
+        const normalized = raw
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+        const searchableWords = [...new Set(normalized.split(/\s+/).filter(Boolean))]
+
+        const update: Record<string, unknown> = {}
+        if (!hasSearchable) {
+          update.searchableText = demandData.searchableText
+          update.searchableTextFirstNameFirst = demandData.searchableTextFirstNameFirst
+          update.searchableTextMatriculeFirst = demandData.searchableTextMatriculeFirst
+        }
+        if (!hasSearchableWords) {
+          update.searchableWords = searchableWords
         }
 
+        const preview =
+          update.searchableText != null
+            ? String(update.searchableText).slice(0, 40)
+            : Array.isArray(update.searchableWords)
+              ? update.searchableWords.join(' ')
+              : contractId
+        const previewStr = String(preview).slice(0, 50)
+
         if (dryRun) {
-          console.log(`   🔄 [DRY-RUN] Contrat ${contractId} ← searchableText: "${String(update.searchableText).slice(0, 40)}..."`)
+          console.log(`   🔄 [DRY-RUN] Contrat ${contractId} ← ${JSON.stringify(Object.keys(update))}: "${previewStr}..."`)
           updated++
         } else {
           batch.update(contractRef, update)
           batchCount++
           updated++
-          console.log(`   ✅ Contrat ${contractId} ← searchableText: "${String(update.searchableText).slice(0, 40)}..."`)
+          console.log(`   ✅ Contrat ${contractId} ← ${JSON.stringify(Object.keys(update))}: "${previewStr}..."`)
 
           if (batchCount >= MAX_BATCH_SIZE) {
             await batch.commit()

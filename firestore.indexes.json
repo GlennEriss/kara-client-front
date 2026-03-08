@@ -1357,6 +1357,20 @@
       ]
     },
     {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "searchableWords",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [

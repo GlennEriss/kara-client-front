@@ -1271,6 +1271,8 @@ export interface CaisseContract {
   searchableText?: string
   searchableTextFirstNameFirst?: string
   searchableTextMatriculeFirst?: string
+  /** Mots normalisés pour recherche "contient" (ex. MEYE trouve ONDO MEYE) */
+  searchableWords?: string[]
   emergencyContact?: EmergencyContact
   createdAt: Date
   updatedAt: Date

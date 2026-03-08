@@ -157,6 +157,19 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     })
   }
 
+  private getContractSearchWords(c: CaisseContract): string[] {
+    const anyContract = c as any
+    if (Array.isArray(anyContract.searchableWords) && anyContract.searchableWords.length > 0) {
+      return anyContract.searchableWords
+    }
+    const raw = anyContract.searchableText || ''
+    const normalized = raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    return normalized.split(/\s+/).filter(Boolean)
+  }
+
   private async getPaginatedWithSearchMerge(
     filters: ContractFilters,
     pagination: PaginationParams,
@@ -175,8 +188,9 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     const clientSideNextDueFilter = hasCreatedAtRange && hasNextDueRange
 
     const fetchLimit = Math.min(100, pagination.limit * 3)
+    const searchWords = normalizedQuery.split(/\s+/).filter(Boolean)
 
-    const buildConstraints = (searchField: string) => {
+    const buildPrefixConstraints = (searchField: string) => {
       const c: any[] = []
       c.push(...this.buildBaseConstraints(normalizedFilters, { excludeNextDueAt: clientSideNextDueFilter }))
       c.push(where(searchField, '>=', normalizedQuery))
@@ -186,16 +200,31 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       return c
     }
 
-    const [snap1, snap2, snap3] = await Promise.all(
-      searchFields.map((field) =>
-        getDocs(query(collectionRef, ...buildConstraints(field), fbLimit(fetchLimit)))
-      )
+    const queries: Promise<any>[] = searchFields.map((field) =>
+      getDocs(query(collectionRef, ...buildPrefixConstraints(field), fbLimit(fetchLimit)))
     )
+
+    if (searchWords.length >= 1) {
+      const baseForWords = this.buildBaseConstraints(normalizedFilters, { excludeNextDueAt: clientSideNextDueFilter })
+      queries.push(
+        getDocs(
+          query(
+            collectionRef,
+            ...baseForWords,
+            where('searchableWords', 'array-contains', searchWords[0]),
+            orderBy('createdAt', 'desc'),
+            fbLimit(fetchLimit)
+          )
+        )
+      )
+    }
+
+    const results = await Promise.all(queries)
 
     const seen = new Set<string>()
     const merged: CaisseContract[] = []
-    for (const snap of [snap1, snap2, snap3]) {
-      snap.forEach((docSnap) => {
+    for (const snap of results) {
+      snap.forEach((docSnap: any) => {
         if (!seen.has(docSnap.id)) {
           seen.add(docSnap.id)
           merged.push(this.transformDocument(docSnap))
@@ -203,7 +232,15 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       })
     }
 
-    let filtered = this.applyOverdueFilter(merged, normalizedFilters.overdueOnly)
+    const byWords =
+      searchWords.length <= 1
+        ? merged
+        : merged.filter((c) => {
+            const contractWords = this.getContractSearchWords(c)
+            return searchWords.every((w) => contractWords.includes(w))
+          })
+
+    let filtered = this.applyOverdueFilter(byWords, normalizedFilters.overdueOnly)
     if (clientSideNextDueFilter) {
       filtered = this.applyNextDueRangeFilter(filtered, normalizedFilters)
     }
