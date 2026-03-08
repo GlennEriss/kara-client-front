@@ -32,7 +32,7 @@ import {
     Users
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 interface ContractCreationModalProps {
@@ -83,6 +83,7 @@ export default function ContractCreationModal({
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2% (peut aller jusqu'à 5%)
+  const dialogContentRef = useRef<HTMLDivElement | null>(null)
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
   const hasGuarantor = !!demand.guarantorId
@@ -329,12 +330,24 @@ export default function ContractCreationModal({
       [field]: value
     }))
   }
+  const scrollToContractCreationTop = () => {
+    if (dialogContentRef.current) {
+      dialogContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    if (typeof document === 'undefined') return
+    const element = document.getElementById('credit-contract-creation-title')
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
 
   // Navigation entre étapes
   const goToNextStep = () => {
     const nextIndex = currentStepIndex + 1
     if (nextIndex < steps.length) {
       setCurrentStep(steps[nextIndex])
+      scrollToContractCreationTop()
     }
   }
 
@@ -342,6 +355,7 @@ export default function ContractCreationModal({
     const prevIndex = currentStepIndex - 1
     if (prevIndex >= 0) {
       setCurrentStep(steps[prevIndex])
+      scrollToContractCreationTop()
     }
   }
 
@@ -802,9 +816,15 @@ export default function ContractCreationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-[90vw] !w-[90vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent
+        ref={dialogContentRef}
+        className="!max-w-[90vw] !w-[90vw] max-h-[95vh] overflow-y-auto"
+      >
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-[#234D65] flex items-center gap-2">
+          <DialogTitle
+            id="credit-contract-creation-title"
+            className="text-xl font-bold text-[#234D65] flex items-center gap-2"
+          >
             <FileText className="h-5 w-5" />
             Création du contrat de crédit {creditTypeLabel}
           </DialogTitle>

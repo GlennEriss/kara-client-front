@@ -137,11 +137,19 @@ export async function subscribe(input: {
     input.searchableText != null &&
     input.searchableTextFirstNameFirst != null &&
     input.searchableTextMatriculeFirst != null
-      ? {
-          searchableText: input.searchableText,
-          searchableTextFirstNameFirst: input.searchableTextFirstNameFirst,
-          searchableTextMatriculeFirst: input.searchableTextMatriculeFirst,
-        }
+      ? (() => {
+          const normalized = (input.searchableText || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+          const words = normalized.split(/\s+/).filter(Boolean)
+          return {
+            searchableText: input.searchableText,
+            searchableTextFirstNameFirst: input.searchableTextFirstNameFirst,
+            searchableTextMatriculeFirst: input.searchableTextMatriculeFirst,
+            searchableWords: [...new Set(words)],
+          }
+        })()
       : generateAllDemandSearchableTexts(
           groupName || memberLastName,
           groupName ? '' : memberFirstName,

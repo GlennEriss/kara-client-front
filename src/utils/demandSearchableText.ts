@@ -54,6 +54,20 @@ export function generateDemandSearchableTextMatriculeFirst(
 }
 
 /**
+ * Génère la liste des mots normalisés pour recherche "contient" (ex. "MEYE" trouve "ONDO MEYE").
+ * Utilisé avec Firestore array-contains pour ne plus dépendre du seul préfixe.
+ */
+export function getSearchableWords(
+  lastName: string,
+  firstName: string,
+  matricule: string
+): string[] {
+  const full = normalizeForSearch(lastName, firstName, matricule)
+  const words = full.split(/\s+/).filter(Boolean)
+  return [...new Set(words)]
+}
+
+/**
  * Génère les 3 variantes searchableText pour une demande
  */
 export function generateAllDemandSearchableTexts(
@@ -73,5 +87,6 @@ export function generateAllDemandSearchableTexts(
       firstName,
       matricule
     ),
+    searchableWords: getSearchableWords(lastName, firstName, matricule),
   }
 }
