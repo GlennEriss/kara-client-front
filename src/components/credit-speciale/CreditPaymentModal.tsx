@@ -273,10 +273,9 @@ export default function CreditPaymentModal({
     
     const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard (marge de 2 jours)
-    if (daysLate >= 3) {
-      // Règle de 3 : pénalité = (montant mensuel * jours de retard) / 30
-      // Utiliser le montant de l'échéance payée si disponible, sinon monthlyPaymentAmount
+    // Tolérance de 3 jours : pas de pénalité si retard ≤ 3 jours. Au-delà, règle de 3.
+    // Pénalité = (montant mensualité / 30 jours) × jours de retard
+    if (daysLate > 3) {
       const paymentAmount = amount || contract.monthlyPaymentAmount
       const penaltyAmount = (paymentAmount * daysLate) / 30
       return {
