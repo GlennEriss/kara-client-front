@@ -412,7 +412,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          en date du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>.
+          en date du <Text style={styles.bold}>..........................</Text>.
         </Text>
 
         <Text style={styles.paragraph}>
@@ -562,7 +562,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
         <View style={styles.titleUnderline} />
 
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>{formatDate(new Date())}</Text>. Le présent acte a été conclu entre les parties suivantes nommément désignées :
+          En date du <Text style={styles.bold}>....................</Text>. Le présent acte a été conclu entre les parties suivantes nommément désignées :
         </Text>
 
         <View style={styles.cautionHeaderTable}>
@@ -588,7 +588,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph}>Il a été convenu entre les parties ce qui suit :</Text>
 
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>,
+          En date du <Text style={styles.bold}>..........................</Text>,
           l'Association LE KARA a mis à la disposition de M/Mme/Mlle <Text style={styles.bold}>{member.lastName.toUpperCase()} {member.firstName}</Text>
         </Text>
         <Text style={styles.paragraph}>Une somme de</Text>
