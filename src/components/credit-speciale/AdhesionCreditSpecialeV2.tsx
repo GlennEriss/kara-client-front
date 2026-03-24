@@ -462,7 +462,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>. Pour une nécessité sociale.
+          En date du <Text style={styles.bold}></Text>. Pour une nécessité sociale.
         </Text>
         <Text style={styles.paragraph}>
           La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre quelques jours supplémentaires sans que ce délai n'affecte la date de début du prêt.
