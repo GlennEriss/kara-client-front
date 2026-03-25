@@ -389,11 +389,11 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          en date du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>.
+          en date du <Text style={styles.bold}>....................</Text>.
         </Text>
 
         <Text style={styles.paragraph}>
-          Cette somme doit être restituée à la trésorerie de l'Association selon un échéancier de <Text style={styles.bold}>{contract.duration}</Text> mois à compter du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>. Jusqu'au <Text style={styles.bold}>{formatDate(endDate)}</Text> date de fin de créance.
+          Cette somme doit être restituée à la trésorerie de l'Association selon un échéancier de <Text style={styles.bold}>{contract.duration}</Text> mois à compter du <Text style={styles.bold}>....................</Text>. Jusqu'au <Text style={styles.bold}>{formatDate(endDate)}</Text> date de fin de créance.
         </Text>
 
         <Text style={[styles.paragraph, { marginTop: 20 }]}>
@@ -435,7 +435,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>. Pour une nécessité sociale.
+          En date du <Text style={styles.bold}>....................</Text>. Pour une nécessité sociale.
         </Text>
         <Text style={styles.paragraph}>
           La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre quelques jours supplémentaires sans que ce délai n'affecte la date de début du prêt.
@@ -569,7 +569,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
         <Text style={styles.paragraph}>Il a été convenu entre les parties ce qui suit :</Text>
 
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>{formatDate(contract.firstPaymentDate)}</Text>,
+          En date du <Text style={styles.bold}>....................</Text>,
           l'Association LE KARA a mis à la disposition de M/Mme/Mlle <Text style={styles.bold}>{member.lastName.toUpperCase()} {member.firstName}</Text>
         </Text>
         <Text style={styles.paragraph}>Une somme de</Text>
