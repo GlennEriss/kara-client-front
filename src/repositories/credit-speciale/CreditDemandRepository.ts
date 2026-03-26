@@ -219,6 +219,9 @@ export class CreditDemandRepository implements ICreditDemandRepository {
                     delete cleanData[key];
                 }
             });
+            if (cleanData.status === 'APPROVED') {
+                cleanData.approvedAt = serverTimestamp();
+            }
 
             await updateDoc(demandRef, {
                 ...cleanData,
@@ -244,4 +247,3 @@ export class CreditDemandRepository implements ICreditDemandRepository {
         }
     }
 }
-

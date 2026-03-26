@@ -4,6 +4,15 @@ import { firebaseCollectionNames } from "@/constantes/firebase-collection-names"
 
 const getFirestore = () => import("@/firebase/firestore");
 
+const toDateValue = (value: any): Date | undefined => {
+    if (!value) return undefined;
+    if (typeof value.toDate === "function") {
+        return value.toDate();
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
 export class CreditContractRepository implements ICreditContractRepository {
     readonly name = "CreditContractRepository";
 
@@ -69,6 +78,7 @@ export class CreditContractRepository implements ICreditContractRepository {
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
                 firstPaymentDate: (data.firstPaymentDate as any)?.toDate ? (data.firstPaymentDate as any).toDate() : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : undefined),
                 nextDueAt: (data.nextDueAt as any)?.toDate ? (data.nextDueAt as any).toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined),
+                disbursementDate: toDateValue((data as any).disbursementDate),
                 activatedAt: (data.activatedAt as any)?.toDate ? (data.activatedAt as any).toDate() : (data.activatedAt ? new Date(data.activatedAt) : undefined),
                 fundsReleasedAt: (data.fundsReleasedAt as any)?.toDate ? (data.fundsReleasedAt as any).toDate() : (data.fundsReleasedAt ? new Date(data.fundsReleasedAt) : undefined),
                 dischargedAt: (data.dischargedAt as any)?.toDate ? (data.dischargedAt as any).toDate() : (data.dischargedAt ? new Date(data.dischargedAt) : undefined),
@@ -126,6 +136,7 @@ export class CreditContractRepository implements ICreditContractRepository {
             updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             firstPaymentDate: (data.firstPaymentDate as any)?.toDate ? (data.firstPaymentDate as any).toDate() : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : undefined),
             nextDueAt: (data.nextDueAt as any)?.toDate ? (data.nextDueAt as any).toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined),
+            disbursementDate: toDateValue((data as any).disbursementDate),
             activatedAt: (data.activatedAt as any)?.toDate ? (data.activatedAt as any).toDate() : (data.activatedAt ? new Date(data.activatedAt) : undefined),
             fundsReleasedAt: (data.fundsReleasedAt as any)?.toDate ? (data.fundsReleasedAt as any).toDate() : (data.fundsReleasedAt ? new Date(data.fundsReleasedAt) : undefined),
             dischargedAt: (data.dischargedAt as any)?.toDate ? (data.dischargedAt as any).toDate() : (data.dischargedAt ? new Date(data.dischargedAt) : undefined),
@@ -327,4 +338,3 @@ export class CreditContractRepository implements ICreditContractRepository {
         }
     }
 }
-
