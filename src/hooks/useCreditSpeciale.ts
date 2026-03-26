@@ -14,6 +14,8 @@ import type {
     CreditContractStatus,
     StandardSimulation,
     CustomSimulation,
+    CreditPaymentMode,
+    PaymentMode,
     SignedQuittanceUploadData,
 } from '@/types/types'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
@@ -183,6 +185,11 @@ export function useCreditContractMutations() {
                 customSchedule?: Array<{ month: number; amount: number }>
                 emergencyContact?: EmergencyContact
                 guarantorRemunerationPercentage?: number
+                disbursementPaymentMode?: PaymentMode
+                disbursementWithFees?: boolean
+                disbursementLocation?: string
+                disbursementDate?: Date
+                disbursementPaymentMethodOther?: string
             }
         }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
@@ -790,4 +797,3 @@ export function useParentContract(childContractId: string | undefined) {
         staleTime: 2 * 60 * 1000,
     })
 }
-
