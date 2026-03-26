@@ -1,4 +1,5 @@
 import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
+import { EmergencyContact } from "@/schemas/emergency-contact.schema";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -44,6 +45,11 @@ export interface ICreditSpecialeService {
             totalAmount: number;
             /** Échéancier personnalisé (simulation personnalisée uniquement) */
             customSchedule?: Array<{ month: number; amount: number }>;
+            emergencyContact?: EmergencyContact;
+            guarantorRemunerationPercentage?: number;
+            disbursementPaymentMode?: CreditPaymentMode;
+            disbursementWithFees?: boolean;
+            disbursementLocation?: string;
         }
     ): Promise<CreditContract>;
     getContractById(id: string): Promise<CreditContract | null>;
@@ -153,4 +159,3 @@ export interface ICreditSpecialeService {
     // Récupérer le contrat parent (si extension)
     getParentContract(childContractId: string): Promise<CreditContract | null>;
 }
-

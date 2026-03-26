@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import SelectApp from '@/components/forms/SelectApp'
 import {
     Table,
     TableBody,
@@ -19,7 +20,7 @@ import {
 import routes from '@/constantes/routes'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
-import type { CreditDemand, CustomSimulation, StandardSimulation } from '@/types/types'
+import type { CreditDemand, CustomSimulation, StandardSimulation, CreditPaymentMode } from '@/types/types'
 import {
     ArrowLeft,
     ArrowRight,
@@ -33,6 +34,8 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { toast } from 'sonner'
 
 interface ContractCreationModalProps {
@@ -43,7 +46,7 @@ interface ContractCreationModalProps {
   contractListPath?: string
 }
 
-type Step = 'summary' | 'guarantor' | 'emergency' | 'confirm'
+type Step = 'summary' | 'guarantor' | 'emergency' | 'payment' | 'confirm'
 
 // Fonction d'arrondi personnalisée
 const customRound = (num: number): number => {
@@ -53,6 +56,24 @@ const customRound = (num: number): number => {
   } else {
     return Math.floor(num)
   }
+}
+
+const PAYMENT_METHOD_OPTIONS: Array<{ value: CreditPaymentMode; label: string }> = [
+  { value: 'airtel_money', label: PAYMENT_MODE_LABELS.airtel_money },
+  { value: 'mobicash', label: PAYMENT_MODE_LABELS.mobicash },
+  { value: 'cash', label: PAYMENT_MODE_LABELS.cash },
+  { value: 'bank_transfer', label: PAYMENT_MODE_LABELS.bank_transfer },
+  { value: 'other', label: PAYMENT_MODE_LABELS.other },
+]
+
+const MOBILE_MONEY_MODES: CreditPaymentMode[] = ['airtel_money', 'mobicash']
+
+const STEP_LABELS: Record<Step, string> = {
+  summary: 'Récapitulatif',
+  guarantor: 'Rémunération parrain',
+  emergency: 'Contact d\'urgence',
+  payment: 'Moyen de paiement',
+  confirm: 'Confirmation finale',
 }
 
 export default function ContractCreationModal({
@@ -83,6 +104,10 @@ export default function ContractCreationModal({
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2% (peut aller jusqu'à 5%)
+  const [paymentMode, setPaymentMode] = useState<CreditPaymentMode | ''>('')
+  const [paymentWithFees, setPaymentWithFees] = useState<boolean | undefined>(undefined)
+  const [paymentLocation, setPaymentLocation] = useState('')
+  const [paymentMethodOther, setPaymentMethodOther] = useState('')
   const dialogContentRef = useRef<HTMLDivElement | null>(null)
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
@@ -90,12 +115,14 @@ export default function ContractCreationModal({
   const guarantorIsMember = hasGuarantor && demand.guarantorIsMember && demand.creditType === 'SPECIALE'
 
   // Calcul des étapes selon le contexte
+  const isMobileMoneyMode = paymentMode ? MOBILE_MONEY_MODES.includes(paymentMode as CreditPaymentMode) : false
+
   const steps = useMemo(() => {
     const baseSteps: Step[] = ['summary']
     if (guarantorIsMember) {
       baseSteps.push('guarantor')
     }
-    baseSteps.push('emergency', 'confirm')
+    baseSteps.push('emergency', 'payment', 'confirm')
     return baseSteps
   }, [guarantorIsMember])
 
@@ -109,8 +136,17 @@ export default function ContractCreationModal({
       setCurrentStep('summary')
       setEmergencyContact({})
       setGuarantorRemunerationPercentage(2) // Réinitialiser à 2% par défaut (peut aller jusqu'à 5%)
+      setPaymentMode('')
+      setPaymentWithFees(undefined)
+      setPaymentLocation('')
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isMobileMoneyMode) {
+      setPaymentWithFees(undefined)
+    }
+  }, [isMobileMoneyMode])
 
   // Calculer l'échéancier pour l'affichage
   const schedule = useMemo(() => {
@@ -323,6 +359,13 @@ export default function ContractCreationModal({
     )
   }, [emergencyContact])
 
+  const isPaymentStepValid = () => {
+    if (!paymentMode) return false
+    if (!paymentLocation || paymentLocation.trim() === '') return false
+    if (isMobileMoneyMode && paymentWithFees === undefined) return false
+    return true
+  }
+
   // Gérer la mise à jour du contact d'urgence
   const handleEmergencyContactUpdate = (field: string, value: any) => {
     setEmergencyContact(prev => ({
@@ -384,6 +427,9 @@ export default function ContractCreationModal({
         ...(isCustom ? { customSchedule: simulation.monthlyPayments } : {}),
         emergencyContact: emergencyContact as EmergencyContact,
         guarantorRemunerationPercentage: guarantorIsMember ? guarantorRemunerationPercentage : 0,
+        disbursementPaymentMode: paymentMode || undefined,
+        disbursementWithFees: isMobileMoneyMode ? paymentWithFees : undefined,
+        disbursementLocation: paymentLocation.trim() || undefined,
       }
 
       await createFromDemand.mutateAsync({
@@ -415,8 +461,10 @@ export default function ContractCreationModal({
         return guarantorRemunerationPercentage >= 0 && guarantorRemunerationPercentage <= 5
       case 'emergency':
         return isEmergencyContactValid
+      case 'payment':
+        return isPaymentStepValid()
       case 'confirm':
-        return isEmergencyContactValid
+        return isEmergencyContactValid && isPaymentStepValid()
       default:
         return false
     }
@@ -719,13 +767,79 @@ export default function ContractCreationModal({
               firstName={emergencyContact.firstName || ''}
               phone1={emergencyContact.phone1 || ''}
               phone2={emergencyContact.phone2 || ''}
-              relationship={emergencyContact.relationship || 'Autre'}
+              relationship={emergencyContact.relationship || ''}
               idNumber={emergencyContact.idNumber || ''}
               typeId={emergencyContact.typeId || ''}
               documentPhotoUrl={emergencyContact.documentPhotoUrl || ''}
               onUpdate={handleEmergencyContactUpdate}
               excludeMemberIds={demand.clientId ? [demand.clientId] : []}
             />
+          </div>
+        )
+
+      case 'payment':
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-[#234D65]">Moyen de remise</h3>
+              <p className="text-gray-600 text-sm">Indiquez comment les fonds seront remis au membre</p>
+            </div>
+
+            <Card className="border-[#234D65]/20">
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-[#234D65]">Moyen de paiement</Label>
+                  <SelectApp
+                    options={PAYMENT_METHOD_OPTIONS}
+                    value={paymentMode}
+                    onChange={(value) => setPaymentMode(value as CreditPaymentMode)}
+                    placeholder="Sélectionner un moyen de remise"
+                  />
+                </div>
+
+                {isMobileMoneyMode && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-[#234D65]">Frais</Label>
+                    <RadioGroup
+                      className="grid grid-cols-2 gap-3"
+                      value={
+                        paymentWithFees === undefined
+                          ? undefined
+                          : paymentWithFees ? 'with' : 'without'
+                      }
+                      onValueChange={(value) => setPaymentWithFees(value === 'with')}
+                    >
+                      <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer">
+                        <RadioGroupItem value="with" />
+                        Avec frais
+                      </label>
+                      <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer">
+                        <RadioGroupItem value="without" />
+                        Sans frais
+                      </label>
+                    </RadioGroup>
+                    {paymentWithFees === undefined && (
+                      <p className="text-sm text-red-500">Choisissez si la remise inclut des frais ou non</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-[#234D65]">
+                    Lieu de remise de l'argent <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={paymentLocation}
+                    onChange={(e) => setPaymentLocation(e.target.value)}
+                    placeholder="Ex: Siège centrale Kara, Dakar"
+                    className="border-gray-300 focus:border-[#234D65] focus:ring-[#234D65]/20"
+                  />
+                  {!paymentLocation.trim() && (
+                    <p className="text-sm text-red-500">Le lieu de remise est requis</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )
 
@@ -790,6 +904,19 @@ export default function ContractCreationModal({
                   <p className="text-gray-500">{emergencyContact.relationship}</p>
                 </CardContent>
               </Card>
+
+              <Card className="border-gray-200">
+                <CardHeader className="py-2 bg-gray-50">
+                  <CardTitle className="text-sm">Remise des fonds</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 text-sm space-y-1">
+                  <p className="font-medium">{PAYMENT_MODE_LABELS[paymentMode] ?? paymentMode}</p>
+                  {isMobileMoneyMode && (
+                    <p className="text-gray-500">{paymentWithFees ? 'Avec frais' : 'Sans frais'}</p>
+                  )}
+                  <p className="text-gray-500">Lieu : {paymentLocation}</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )
@@ -800,18 +927,9 @@ export default function ContractCreationModal({
   }
 
   const getStepTitle = () => {
-    switch (currentStep) {
-      case 'summary':
-        return 'Étape 1 - Récapitulatif'
-      case 'guarantor':
-        return 'Étape 2 - Rémunération parrain'
-      case 'emergency':
-        return guarantorIsMember ? 'Étape 3 - Contact d\'urgence' : 'Étape 2 - Contact d\'urgence'
-      case 'confirm':
-        return 'Confirmation finale'
-      default:
-        return ''
-    }
+    const stepIndex = steps.indexOf(currentStep)
+    const label = STEP_LABELS[currentStep] ?? currentStep
+    return `Étape ${stepIndex + 1} / ${steps.length} — ${label}`
   }
 
   return (

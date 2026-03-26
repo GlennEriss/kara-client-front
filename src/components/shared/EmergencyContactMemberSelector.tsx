@@ -65,19 +65,38 @@ export default function EmergencyContactMemberSelector({
     })
   }, [memberId, lastName, firstName, phone1, phone2, relationship, typeId, idNumber, documentPhotoUrl])
   
+  const getRelationshipOption = (value?: string) => {
+    if (!value) return ''
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+    const match = RELATIONSHIP_OPTIONS.find((option) => option.value === trimmed)
+    return match ? match.value : 'Autre'
+  }
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(memberId)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isUploading, setIsUploading] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
   const [isLoadingDossier, setIsLoadingDossier] = useState(false)
+  const [relationshipOption, setRelationshipOption] = useState<string>(() => getRelationshipOption(relationship))
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   
   // Synchroniser selectedMemberId avec la prop memberId
   React.useEffect(() => {
     setSelectedMemberId(memberId)
   }, [memberId])
-  
+
+  React.useEffect(() => {
+    setRelationshipOption((previousOption) => {
+      if (!relationship || relationship.trim() === '') {
+        return previousOption === 'Autre' ? 'Autre' : ''
+      }
+
+      return getRelationshipOption(relationship)
+    })
+  }, [relationship])
+
   // Récupérer tous les membres
   const { data: membersData } = useAllMembers({}, 1, 1000)
   const members = membersData?.data || []
@@ -117,6 +136,15 @@ export default function EmergencyContactMemberSelector({
 
     const grouped = normalized.replace(/(\d{2})(?=\d)/g, '$1 ')
     return `${DEFAULT_PHONE_PREFIX}${grouped}`.trimEnd()
+  }
+
+  const handleRelationshipOptionChange = (value: string) => {
+    setRelationshipOption(value)
+    if (value === 'Autre') {
+      handleChange('relationship', '')
+    } else {
+      handleChange('relationship', value)
+    }
   }
 
   // Initialiser le téléphone si vide
@@ -557,8 +585,8 @@ export default function EmergencyContactMemberSelector({
             <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500 z-10 pointer-events-none" />
             <SelectApp
               options={RELATIONSHIP_OPTIONS}
-              value={relationship || ''}
-              onChange={(value) => handleChange('relationship', value)}
+              value={relationshipOption}
+              onChange={handleRelationshipOptionChange}
               placeholder="Sélectionner le lien de parenté"
               className={cn(
                 "pl-10 border-orange-300",
@@ -566,10 +594,33 @@ export default function EmergencyContactMemberSelector({
               )}
             />
           </div>
-          {errors.relationship && (
+          {relationshipOption !== 'Autre' && errors.relationship && (
             <p className="text-red-500 text-xs">{errors.relationship}</p>
           )}
         </div>
+
+        {relationshipOption === 'Autre' && (
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-orange-800">
+              Précisez le lien de parenté <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500" />
+              <Input
+                value={relationship || ''}
+                onChange={(e) => handleChange('relationship', e.target.value)}
+                placeholder="Ex: Tonton par alliance"
+                className={cn(
+                  "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20",
+                  errors.relationship && "border-red-300 focus:border-red-500 bg-red-50/50"
+                )}
+              />
+            </div>
+            {errors.relationship && (
+              <p className="text-red-500 text-xs">{errors.relationship}</p>
+            )}
+          </div>
+        )}
 
         {/* Type de document et Numéro */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -782,4 +833,3 @@ export default function EmergencyContactMemberSelector({
     </Card>
   )
 }
-
