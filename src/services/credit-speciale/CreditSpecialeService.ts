@@ -1,5 +1,5 @@
 import { ICreditSpecialeService, UpdateCreditDemandInput } from "./ICreditSpecialeService";
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, PaymentMode, SignedQuittanceUploadData } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -228,9 +228,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;
             guarantorRemunerationPercentage?: number;
-            disbursementPaymentMode?: CreditPaymentMode;
+            disbursementPaymentMode?: PaymentMode;
             disbursementWithFees?: boolean;
             disbursementLocation?: string;
+            disbursementDate?: Date;
+            disbursementPaymentMethodOther?: string;
         }
     ): Promise<CreditContract> {
         const demand = await this.creditDemandRepository.getDemandById(demandId);
@@ -326,6 +328,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             disbursementPaymentMode: simulationData.disbursementPaymentMode,
             disbursementWithFees: simulationData.disbursementWithFees,
             disbursementLocation: simulationData.disbursementLocation,
+            disbursementDate: simulationData.disbursementDate,
+            disbursementPaymentMethodOther: simulationData.disbursementPaymentMethodOther,
             createdBy: adminId,
             updatedBy: adminId,
         };

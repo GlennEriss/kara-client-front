@@ -1,4 +1,4 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, PaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
 import { EmergencyContact } from "@/schemas/emergency-contact.schema";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
@@ -47,9 +47,11 @@ export interface ICreditSpecialeService {
             customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;
             guarantorRemunerationPercentage?: number;
-            disbursementPaymentMode?: CreditPaymentMode;
+            disbursementPaymentMode?: PaymentMode;
             disbursementWithFees?: boolean;
             disbursementLocation?: string;
+            disbursementDate?: Date;
+            disbursementPaymentMethodOther?: string;
         }
     ): Promise<CreditContract>;
     getContractById(id: string): Promise<CreditContract | null>;

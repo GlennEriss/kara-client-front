@@ -65,12 +65,17 @@ export default function EmergencyContactMemberSelector({
     })
   }, [memberId, lastName, firstName, phone1, phone2, relationship, typeId, idNumber, documentPhotoUrl])
   
-  const getRelationshipOption = (value?: string) => {
-    if (!value) return ''
-    const trimmed = value.trim()
+  const getRelationshipSelection = (value?: string) => {
+    const trimmed = value?.trim() ?? ''
     if (!trimmed) return ''
     const match = RELATIONSHIP_OPTIONS.find((option) => option.value === trimmed)
     return match ? match.value : 'Autre'
+  }
+
+  const isCustomRelationshipValue = (value?: string) => {
+    const trimmed = value?.trim() ?? ''
+    if (!trimmed) return false
+    return !RELATIONSHIP_OPTIONS.some((option) => option.value === trimmed)
   }
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -79,7 +84,10 @@ export default function EmergencyContactMemberSelector({
   const [isUploading, setIsUploading] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
   const [isLoadingDossier, setIsLoadingDossier] = useState(false)
-  const [relationshipOption, setRelationshipOption] = useState<string>(() => getRelationshipOption(relationship))
+  const [relationshipOption, setRelationshipOption] = useState<string>(() => getRelationshipSelection(relationship))
+  const [customRelationship, setCustomRelationship] = useState<string>(() => (
+    isCustomRelationshipValue(relationship) ? (relationship?.trim() ?? '') : ''
+  ))
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   
   // Synchroniser selectedMemberId avec la prop memberId
@@ -88,13 +96,13 @@ export default function EmergencyContactMemberSelector({
   }, [memberId])
 
   React.useEffect(() => {
-    setRelationshipOption((previousOption) => {
-      if (!relationship || relationship.trim() === '') {
-        return previousOption === 'Autre' ? 'Autre' : ''
-      }
-
-      return getRelationshipOption(relationship)
-    })
+    const selection = getRelationshipSelection(relationship)
+    setRelationshipOption(selection)
+    if (selection === 'Autre') {
+      setCustomRelationship(relationship?.trim() ?? '')
+    } else {
+      setCustomRelationship('')
+    }
   }, [relationship])
 
   // Récupérer tous les membres
@@ -139,13 +147,28 @@ export default function EmergencyContactMemberSelector({
   }
 
   const handleRelationshipOptionChange = (value: string) => {
-    setRelationshipOption(value)
-    if (value === 'Autre') {
+    const rawValue = value?.trim() ?? ''
+    const normalizedValue = rawValue.toLowerCase() === 'autre' ? 'Autre' : rawValue
+    setRelationshipOption(normalizedValue)
+
+    if (!normalizedValue) {
+      setCustomRelationship('')
       handleChange('relationship', '')
-    } else {
-      handleChange('relationship', value)
+      return
     }
+
+    if (normalizedValue === 'Autre') {
+      const fallback = customRelationship || relationship?.trim() || ''
+      setCustomRelationship(fallback)
+      handleChange('relationship', fallback)
+      return
+    }
+
+    setCustomRelationship('')
+    handleChange('relationship', normalizedValue)
   }
+
+  const isOtherRelationshipSelected = relationshipOption?.trim().toLowerCase() === 'autre'
 
   // Initialiser le téléphone si vide
   useEffect(() => {
@@ -247,6 +270,11 @@ export default function EmergencyContactMemberSelector({
     
     onUpdate(field, filteredValue)
     validateField(field, filteredValue)
+  }
+
+  const handleCustomRelationshipChange = (value: string) => {
+    setCustomRelationship(value)
+    handleChange('relationship', value)
   }
 
   // Valider un champ
@@ -594,12 +622,12 @@ export default function EmergencyContactMemberSelector({
               )}
             />
           </div>
-          {relationshipOption !== 'Autre' && errors.relationship && (
+          {!isOtherRelationshipSelected && errors.relationship && (
             <p className="text-red-500 text-xs">{errors.relationship}</p>
           )}
         </div>
 
-        {relationshipOption === 'Autre' && (
+        {isOtherRelationshipSelected && (
           <div className="space-y-2">
             <label className="text-sm font-bold text-orange-800">
               Précisez le lien de parenté <span className="text-red-500">*</span>
@@ -607,8 +635,8 @@ export default function EmergencyContactMemberSelector({
             <div className="relative">
               <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500" />
               <Input
-                value={relationship || ''}
-                onChange={(e) => handleChange('relationship', e.target.value)}
+                value={customRelationship}
+                onChange={(e) => handleCustomRelationshipChange(e.target.value)}
                 placeholder="Ex: Tonton par alliance"
                 className={cn(
                   "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20",

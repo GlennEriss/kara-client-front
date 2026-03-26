@@ -20,7 +20,7 @@ import {
 import routes from '@/constantes/routes'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
-import type { CreditDemand, CustomSimulation, StandardSimulation, CreditPaymentMode } from '@/types/types'
+import type { CreditDemand, CustomSimulation, StandardSimulation, PaymentMode } from '@/types/types'
 import {
     ArrowLeft,
     ArrowRight,
@@ -58,7 +58,21 @@ const customRound = (num: number): number => {
   }
 }
 
-const PAYMENT_METHOD_OPTIONS: Array<{ value: CreditPaymentMode; label: string }> = [
+const toDateInputValue = (value?: Date | string | null) => {
+  if (!value) return ''
+  const dateValue = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(dateValue.getTime())) return ''
+  return dateValue.toISOString().slice(0, 10)
+}
+
+const toDisplayDateString = (value?: string | Date | null) => {
+  if (!value) return ''
+  const dateValue = typeof value === 'string' ? new Date(value) : value
+  if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return ''
+  return dateValue.toLocaleDateString('fr-FR')
+}
+
+const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMode; label: string }> = [
   { value: 'airtel_money', label: PAYMENT_MODE_LABELS.airtel_money },
   { value: 'mobicash', label: PAYMENT_MODE_LABELS.mobicash },
   { value: 'cash', label: PAYMENT_MODE_LABELS.cash },
@@ -66,7 +80,7 @@ const PAYMENT_METHOD_OPTIONS: Array<{ value: CreditPaymentMode; label: string }>
   { value: 'other', label: PAYMENT_MODE_LABELS.other },
 ]
 
-const MOBILE_MONEY_MODES: CreditPaymentMode[] = ['airtel_money', 'mobicash']
+const MOBILE_MONEY_MODES: PaymentMode[] = ['airtel_money', 'mobicash']
 
 const STEP_LABELS: Record<Step, string> = {
   summary: 'Récapitulatif',
@@ -104,10 +118,11 @@ export default function ContractCreationModal({
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2% (peut aller jusqu'à 5%)
-  const [paymentMode, setPaymentMode] = useState<CreditPaymentMode | ''>('')
+  const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('')
   const [paymentWithFees, setPaymentWithFees] = useState<boolean | undefined>(undefined)
   const [paymentLocation, setPaymentLocation] = useState('')
   const [paymentMethodOther, setPaymentMethodOther] = useState('')
+  const [disbursementDate, setDisbursementDate] = useState(() => toDateInputValue(demand.approvedAt ?? demand.updatedAt))
   const dialogContentRef = useRef<HTMLDivElement | null>(null)
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
@@ -115,7 +130,7 @@ export default function ContractCreationModal({
   const guarantorIsMember = hasGuarantor && demand.guarantorIsMember && demand.creditType === 'SPECIALE'
 
   // Calcul des étapes selon le contexte
-  const isMobileMoneyMode = paymentMode ? MOBILE_MONEY_MODES.includes(paymentMode as CreditPaymentMode) : false
+  const isMobileMoneyMode = paymentMode ? MOBILE_MONEY_MODES.includes(paymentMode) : false
 
   const steps = useMemo(() => {
     const baseSteps: Step[] = ['summary']
@@ -139,14 +154,22 @@ export default function ContractCreationModal({
       setPaymentMode('')
       setPaymentWithFees(undefined)
       setPaymentLocation('')
+      setPaymentMethodOther('')
+      setDisbursementDate(toDateInputValue(demand.approvedAt ?? demand.updatedAt))
     }
-  }, [isOpen])
+  }, [isOpen, demand.approvedAt, demand.updatedAt])
 
   useEffect(() => {
     if (!isMobileMoneyMode) {
       setPaymentWithFees(undefined)
     }
   }, [isMobileMoneyMode])
+
+  useEffect(() => {
+    if (paymentMode !== 'other') {
+      setPaymentMethodOther('')
+    }
+  }, [paymentMode])
 
   // Calculer l'échéancier pour l'affichage
   const schedule = useMemo(() => {
@@ -361,6 +384,8 @@ export default function ContractCreationModal({
 
   const isPaymentStepValid = () => {
     if (!paymentMode) return false
+    if (paymentMode === 'other' && paymentMethodOther.trim() === '') return false
+    if (!disbursementDate) return false
     if (!paymentLocation || paymentLocation.trim() === '') return false
     if (isMobileMoneyMode && paymentWithFees === undefined) return false
     return true
@@ -376,7 +401,6 @@ export default function ContractCreationModal({
   const scrollToContractCreationTop = () => {
     if (dialogContentRef.current) {
       dialogContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-      return
     }
     if (typeof document === 'undefined') return
     const element = document.getElementById('credit-contract-creation-title')
@@ -384,6 +408,13 @@ export default function ContractCreationModal({
       element.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      scrollToContractCreationTop()
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [currentStep])
 
   // Navigation entre étapes
   const goToNextStep = () => {
@@ -413,24 +444,28 @@ export default function ContractCreationModal({
       setIsSubmitting(true)
 
       const isCustom = 'monthlyPayments' in simulation && simulation.monthlyPayments?.length > 0
-      const simulationData = {
-        amount: simulation.amount,
-        interestRate: simulation.interestRate,
-        monthlyPaymentAmount: 'monthlyPayment' in simulation 
-          ? simulation.monthlyPayment 
-          : isCustom 
-            ? simulation.monthlyPayments[0].amount 
-            : simulation.amount / simulation.duration,
-        duration: simulation.duration,
-        firstPaymentDate: simulation.firstPaymentDate,
-        totalAmount: simulation.totalAmount,
-        ...(isCustom ? { customSchedule: simulation.monthlyPayments } : {}),
-        emergencyContact: emergencyContact as EmergencyContact,
-        guarantorRemunerationPercentage: guarantorIsMember ? guarantorRemunerationPercentage : 0,
-        disbursementPaymentMode: paymentMode || undefined,
-        disbursementWithFees: isMobileMoneyMode ? paymentWithFees : undefined,
-        disbursementLocation: paymentLocation.trim() || undefined,
-      }
+        const simulationData = {
+          amount: simulation.amount,
+          interestRate: simulation.interestRate,
+          monthlyPaymentAmount: 'monthlyPayment' in simulation 
+            ? simulation.monthlyPayment 
+            : isCustom 
+              ? simulation.monthlyPayments[0].amount 
+              : simulation.amount / simulation.duration,
+          duration: simulation.duration,
+          firstPaymentDate: simulation.firstPaymentDate,
+          totalAmount: simulation.totalAmount,
+          ...(isCustom ? { customSchedule: simulation.monthlyPayments } : {}),
+          emergencyContact: emergencyContact as EmergencyContact,
+          guarantorRemunerationPercentage: guarantorIsMember ? guarantorRemunerationPercentage : 0,
+          disbursementPaymentMode: paymentMode || undefined,
+          disbursementWithFees: isMobileMoneyMode ? paymentWithFees : undefined,
+          disbursementLocation: paymentLocation.trim() || undefined,
+          disbursementDate: disbursementDate ? new Date(disbursementDate) : undefined,
+          disbursementPaymentMethodOther: paymentMode === 'other'
+            ? paymentMethodOther.trim() || undefined
+            : undefined,
+        }
 
       await createFromDemand.mutateAsync({
         demandId: demand.id,
@@ -792,10 +827,27 @@ export default function ContractCreationModal({
                   <SelectApp
                     options={PAYMENT_METHOD_OPTIONS}
                     value={paymentMode}
-                    onChange={(value) => setPaymentMode(value as CreditPaymentMode)}
+                    onChange={(value) => setPaymentMode(value as PaymentMode)}
                     placeholder="Sélectionner un moyen de remise"
                   />
                 </div>
+
+                {paymentMode === 'other' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-[#234D65]">
+                      Préciser le moyen de paiement <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      value={paymentMethodOther}
+                      onChange={(e) => setPaymentMethodOther(e.target.value)}
+                      placeholder="Ex: Retrait en espèces chez le responsable"
+                      className="border-gray-300 focus:border-[#234D65] focus:ring-[#234D65]/20"
+                    />
+                    {paymentMethodOther.trim() === '' && (
+                      <p className="text-sm text-red-500">Veuillez préciser le moyen de paiement</p>
+                    )}
+                  </div>
+                )}
 
                 {isMobileMoneyMode && (
                   <div className="space-y-2">
@@ -831,11 +883,33 @@ export default function ContractCreationModal({
                   <Input
                     value={paymentLocation}
                     onChange={(e) => setPaymentLocation(e.target.value)}
-                    placeholder="Ex: Siège centrale Kara, Dakar"
+                    placeholder="Ex: Charbonnages, Libreville"
                     className="border-gray-300 focus:border-[#234D65] focus:ring-[#234D65]/20"
                   />
                   {!paymentLocation.trim() && (
                     <p className="text-sm text-red-500">Le lieu de remise est requis</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-[#234D65]">
+                    Date de remise <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={disbursementDate}
+                    onChange={(e) => setDisbursementDate(e.target.value)}
+                    className="border-gray-300 focus:border-[#234D65] focus:ring-[#234D65]/20"
+                  />
+                  {demand.approvedAt || demand.updatedAt ? (
+                    <p className="text-xs text-gray-500">
+                      Par défaut : {toDisplayDateString(demand.approvedAt ?? demand.updatedAt)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500">Spécifiez la date à laquelle les fonds seront remis.</p>
+                  )}
+                  {!disbursementDate && (
+                    <p className="text-sm text-red-500">La date de remise est requise</p>
                   )}
                 </div>
               </CardContent>
@@ -910,11 +984,21 @@ export default function ContractCreationModal({
                   <CardTitle className="text-sm">Remise des fonds</CardTitle>
                 </CardHeader>
                 <CardContent className="py-2 text-sm space-y-1">
-                  <p className="font-medium">{PAYMENT_MODE_LABELS[paymentMode] ?? paymentMode}</p>
+                  <p className="font-medium">
+                    {paymentMode === 'other'
+                      ? (paymentMethodOther.trim() || PAYMENT_MODE_LABELS.other)
+                      : PAYMENT_MODE_LABELS[paymentMode] ?? paymentMode}
+                  </p>
+                  {paymentMode === 'other' && paymentMethodOther.trim() && (
+                    <p className="text-gray-500">Détail : {paymentMethodOther.trim()}</p>
+                  )}
                   {isMobileMoneyMode && (
                     <p className="text-gray-500">{paymentWithFees ? 'Avec frais' : 'Sans frais'}</p>
                   )}
                   <p className="text-gray-500">Lieu : {paymentLocation}</p>
+                  <p className="text-gray-500">
+                    Date : {disbursementDate ? toDisplayDateString(disbursementDate) : '-'}
+                  </p>
                 </CardContent>
               </Card>
             </div>
