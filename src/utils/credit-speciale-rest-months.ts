@@ -31,11 +31,11 @@ export function getLogicalMonthIndex(
 }
 
 /**
- * Retourne true si on est au-delà du 7e mois logique (plus d'intérêts).
+ * Retourne true si on est au-delà du 7e mois logique (plus d'intérêts à partir du 8e).
  */
 export function isAfterLogicalMonth7(
   calendarMonthNumber: number,
   restMonths: RestMonth[] | undefined
 ): boolean {
-  return getLogicalMonthIndex(calendarMonthNumber, restMonths) >= 7
+  return getLogicalMonthIndex(calendarMonthNumber, restMonths) > 7
 }
