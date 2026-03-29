@@ -19,10 +19,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
-import { useCreditContract, useCreditPaymentMutations, useCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
+import {
+  useCreditContract,
+  useCreditPaymentMutations,
+  useCreditPaymentsByCreditId,
+  useCreditPenaltiesByCreditId,
+} from '@/hooks/useCreditSpeciale'
 import { creditPaymentFormSchema, type CreditPaymentFormInput } from '@/schemas/credit-speciale.schema'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import { CreditPayment, CreditPaymentMode } from '@/types/types'
+import {
+  buildCreditSpecialeHistory,
+  getContractCalendarMonthFromDate,
+} from '@/utils/credit-speciale-history'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
@@ -46,7 +55,6 @@ interface CreditPaymentModalProps {
   defaultAmount?: number
   defaultPaymentDate?: Date // Date de l'échéance pour calculer le retard
   onSuccess?: () => void
-  defaultPenaltyOnlyMode?: boolean // Activer le mode "pénalités uniquement" par défaut
   installmentId?: string // ID de l'échéance spécifique à payer
   installmentNumber?: number // Numéro du mois de l'échéance (M1, M2, etc.)
   /** Paiement à modifier (mode édition) */
@@ -83,7 +91,6 @@ export default function CreditPaymentModal({
   defaultAmount,
   defaultPaymentDate,
   onSuccess,
-  defaultPenaltyOnlyMode = false,
   installmentId,
   installmentNumber,
   paymentToEdit,
@@ -94,8 +101,6 @@ export default function CreditPaymentModal({
   const [isCompressing, setIsCompressing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedPenalties, setSelectedPenalties] = useState<string[]>([])
-  const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(defaultPenaltyOnlyMode)
-  const [penaltyNote, setPenaltyNote] = useState<number | undefined>(undefined)
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
   const [withFees, setWithFees] = useState<boolean | undefined>(undefined) // Airtel Money / Mobicash : true = avec frais, false = sans frais
   const [modificationReason, setModificationReason] = useState<string>('')
@@ -103,23 +108,10 @@ export default function CreditPaymentModal({
   const { user } = useAuth()
   const { create: createPayment, update: updatePayment } = useCreditPaymentMutations()
   const { data: contract } = useCreditContract(creditId)
+  const { data: payments = [] } = useCreditPaymentsByCreditId(creditId)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
   const queryClient = useQueryClient()
 
-  // Calculer le retard en jours si une date d'échéance est fournie
-  const calculateDelay = useMemo(() => {
-    if (!defaultPaymentDate) return 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const dueDate = new Date(defaultPaymentDate)
-    dueDate.setHours(0, 0, 0, 0)
-    const diffTime = today.getTime() - dueDate.getTime()
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-    return Math.max(0, diffDays) // Retourner 0 si la date est dans le futur
-  }, [defaultPaymentDate])
-
-  // Calculer la note selon le retard ; commentaire par défaut = CONFORME (on enregistre un paiement)
-  const autoNote = useMemo(() => calculateNoteByDelay(calculateDelay), [calculateDelay])
   const autoComment = useMemo(() => getDefaultComment(true), [])
 
   const form = useForm<CreditPaymentFormInput>({
@@ -131,26 +123,33 @@ export default function CreditPaymentModal({
       paymentTime: format(new Date(), 'HH:mm'),
       mode: 'airtel_money',
       comment: autoComment,
-      note: autoNote,
+      note: 10,
     },
     mode: 'onChange',
   })
 
-  // Calculer si le paiement est en retard mais sans pénalité (1-2 jours de retard)
-  const isLateButNoPenalty = useMemo(() => {
-    if (!defaultPaymentDate) return false
-    const paymentDate = form.watch('paymentDate')
-    if (!paymentDate) return false
-    
-    const payDate = new Date(paymentDate)
+  const watchedPaymentDate = form.watch('paymentDate')
+  const watchedAmount = form.watch('amount') || 0
+
+  // Calculer le retard réel à partir de la date de versement choisie dans le formulaire.
+  const calculatedDaysLate = useMemo(() => {
+    if (!defaultPaymentDate || !watchedPaymentDate) return 0
+    const payDate = new Date(watchedPaymentDate)
     payDate.setHours(0, 0, 0, 0)
     const dueDate = new Date(defaultPaymentDate)
     dueDate.setHours(0, 0, 0, 0)
-    
-    const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-    // Retard de 1-2 jours : pas de pénalité mais afficher un message informatif
-    return daysLate > 0 && daysLate < 3
-  }, [defaultPaymentDate, form.watch('paymentDate')])
+    const diffTime = payDate.getTime() - dueDate.getTime()
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    return Math.max(0, diffDays)
+  }, [defaultPaymentDate, watchedPaymentDate])
+
+  // Calculer la note selon le retard ; commentaire par défaut = CONFORME (on enregistre un paiement)
+  const autoNote = useMemo(() => calculateNoteByDelay(calculatedDaysLate), [calculatedDaysLate])
+
+  const isLateButNoPenalty = useMemo(
+    () => calculatedDaysLate > 0 && calculatedDaysLate <= 3,
+    [calculatedDaysLate]
+  )
   
   // Log des erreurs du formulaire pour déboguer
   useEffect(() => {
@@ -195,7 +194,6 @@ export default function CreditPaymentModal({
         form.setValue('mode', toCreditPaymentMode(paymentToEdit.mode as string))
         form.setValue('comment', paymentToEdit.comment ?? '')
         form.setValue('note', paymentToEdit.note ?? 10)
-        setPenaltyOnlyMode(false)
         setSelectedPenalties([])
         setAgentRecouvrementId(paymentToEdit.agentRecouvrementId ?? '')
         setWithFees(
@@ -215,8 +213,6 @@ export default function CreditPaymentModal({
           console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
         })
       setSelectedPenalties([])
-      setPenaltyOnlyMode(defaultPenaltyOnlyMode)
-      setPenaltyNote(undefined)
       setAgentRecouvrementId('')
       setWithFees(undefined)
       if (defaultPaymentDate) {
@@ -227,65 +223,60 @@ export default function CreditPaymentModal({
       form.setValue('note', autoNote)
       form.setValue('comment', autoComment)
     }
-  }, [isOpen, form, defaultPaymentDate, autoNote, autoComment, defaultPenaltyOnlyMode, paymentToEdit])
-
-  // Si on passe en mode "pénalités uniquement", mettre le montant à 0
-  useEffect(() => {
-    if (penaltyOnlyMode) {
-      form.setValue('amount', 0)
-    } else if (defaultAmount) {
-      form.setValue('amount', defaultAmount)
-    }
-  }, [penaltyOnlyMode, defaultAmount, form])
+  }, [isOpen, form, defaultPaymentDate, autoNote, autoComment, paymentToEdit])
 
   // Calculer les pénalités impayées
   const unpaidPenalties = useMemo(() => {
     return penalties.filter(p => !p.paid)
   }, [penalties])
 
-  // Calculer les pénalités potentielles si le paiement est en retard
-  // Ne pas calculer si on est en mode "pénalités uniquement" car on ne paie pas de mensualité
+  const currentPaymentMonth = useMemo(() => {
+    if (!contract) return undefined
+    if (installmentNumber && installmentNumber > 0) return installmentNumber
+    if (defaultPaymentDate) {
+      return getContractCalendarMonthFromDate(contract, new Date(defaultPaymentDate))
+    }
+    return undefined
+  }, [contract, installmentNumber, defaultPaymentDate])
+
+  const recordedPayments = useMemo(
+    () =>
+      payments.filter(
+        (payment) =>
+          payment.amount > 0 ||
+          payment.comment?.includes('Paiement de 0 FCFA') ||
+          payment.comment?.includes('Paiement de pénalités uniquement')
+      ),
+    [payments]
+  )
+
+  const currentMonthHistory = useMemo(() => {
+    if (!contract || contract.creditType !== 'SPECIALE' || !currentPaymentMonth) return null
+    const history = buildCreditSpecialeHistory(contract, recordedPayments, {
+      endMonth: currentPaymentMonth,
+      projectUntilZero: false,
+    })
+    return history.find((row) => row.month === currentPaymentMonth) ?? null
+  }, [contract, currentPaymentMonth, recordedPayments])
+
+  const currentVersementPenaltyBase = currentMonthHistory?.interest ?? 0
+  const canSettlePreviousPenalties = watchedAmount > 0
+
+  // Calculer la pénalité potentielle du versement courant selon la règle officielle :
+  // intérêt du mois * nombre de jours de retard / 30.
   const potentialPenalty = useMemo(() => {
-    // Ne pas calculer de pénalité potentielle si on est en mode "pénalités uniquement"
-    if (penaltyOnlyMode) return null
-    
-    if (!contract) return null
-    
-    const paymentDate = form.watch('paymentDate')
-    if (!paymentDate) return null
-
-    const amount = form.watch('amount') || 0
-    // Ne pas calculer si le montant est 0 (pas de paiement de mensualité)
-    if (amount <= 0) return null
-
-    // Utiliser defaultPaymentDate (date de l'échéance payée) si disponible, sinon nextDueAt
-    const dueDate = defaultPaymentDate 
-      ? new Date(defaultPaymentDate)
-      : contract.nextDueAt 
-        ? new Date(contract.nextDueAt)
-        : null
-    
-    if (!dueDate) return null
-
-    const payDate = new Date(paymentDate)
-    payDate.setHours(0, 0, 0, 0)
-    dueDate.setHours(0, 0, 0, 0)
-    
-    const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-
-    // Tolérance de 3 jours : pas de pénalité si retard ≤ 3 jours. Au-delà, règle de 3.
-    // Pénalité = (montant mensualité / 30 jours) × jours de retard
-    if (daysLate > 3) {
-      const paymentAmount = amount || contract.monthlyPaymentAmount
-      const penaltyAmount = (paymentAmount * daysLate) / 30
+    if (editMode || watchedAmount <= 0) return null
+    if (calculatedDaysLate > 3 && currentVersementPenaltyBase > 0) {
+      const penaltyAmount = (currentVersementPenaltyBase * calculatedDaysLate) / 30
       return {
-        daysLate,
+        daysLate: calculatedDaysLate,
         amount: Math.round(penaltyAmount),
+        interestBase: Math.round(currentVersementPenaltyBase),
       }
     }
 
     return null
-  }, [contract, form.watch('paymentDate'), form.watch('amount'), penaltyOnlyMode, defaultPaymentDate])
+  }, [editMode, watchedAmount, calculatedDaysLate, currentVersementPenaltyBase])
 
   // Calculer le total des pénalités sélectionnées
   const totalSelectedPenalties = useMemo(() => {
@@ -295,9 +286,14 @@ export default function CreditPaymentModal({
 
   // Total à payer (montant + pénalités)
   const totalToPay = useMemo(() => {
-    const amount = form.watch('amount') || 0
-    return amount + totalSelectedPenalties
-  }, [form.watch('amount'), totalSelectedPenalties])
+    return watchedAmount + totalSelectedPenalties
+  }, [watchedAmount, totalSelectedPenalties])
+
+  useEffect(() => {
+    if (!canSettlePreviousPenalties && selectedPenalties.length > 0) {
+      setSelectedPenalties([])
+    }
+  }, [canSettlePreviousPenalties, selectedPenalties])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -393,29 +389,26 @@ export default function CreditPaymentModal({
       return
     }
 
-    // Validation : si mode pénalités uniquement, au moins une pénalité doit être sélectionnée
-    if (penaltyOnlyMode && selectedPenalties.length === 0) {
-      toast.error('Veuillez sélectionner au moins une pénalité à payer')
+    if (data.amount < 0) {
+      toast.error('Le montant ne peut pas être négatif')
       return
     }
-    if (!penaltyOnlyMode && data.amount < 0 && selectedPenalties.length === 0) {
-      toast.error('Le montant ne peut pas être négatif')
+    if (data.amount <= 0 && selectedPenalties.length > 0) {
+      toast.error('Ce formulaire ne permet pas de régler uniquement les pénalités. Enregistrez un versement mensuel pour y rattacher des pénalités.')
       return
     }
 
     try {
       setIsSubmitting(true)
-      const finalNote = penaltyOnlyMode ? (penaltyNote ?? 10) : (data.note ?? 10)
+      const finalNote = data.note ?? 10
       let finalComment = data.comment
-      if (data.amount === 0 && !penaltyOnlyMode) {
+      if (data.amount === 0) {
         finalComment = `Paiement de 0 FCFA${data.comment ? ` - ${data.comment}` : ''}`
-      } else if (penaltyOnlyMode) {
-        finalComment = `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`
       }
 
       const paymentData = {
         ...data,
-        amount: penaltyOnlyMode ? 0 : data.amount,
+        amount: data.amount,
         principalAmount: 0,
         interestAmount: 0,
         penaltyAmount: totalSelectedPenalties,
@@ -437,8 +430,6 @@ export default function CreditPaymentModal({
       form.reset()
       setProofFile(undefined)
       setSelectedPenalties([])
-      setPenaltyOnlyMode(false)
-      setPenaltyNote(undefined)
       setAgentRecouvrementId('')
       setWithFees(undefined)
       onSuccess?.()
@@ -513,91 +504,27 @@ export default function CreditPaymentModal({
             </div>
           </div>
 
-          {/* Option : Payer uniquement les pénalités (masqué en mode édition) */}
-          {!editMode && unpaidPenalties.length > 0 && (
-            <Card className="border-purple-200 bg-purple-50/50">
-              <CardContent className="pt-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="penalty-only"
-                    checked={penaltyOnlyMode}
-                    onCheckedChange={(checked) => {
-                      setPenaltyOnlyMode(checked === true)
-                      if (checked) {
-                        form.setValue('amount', 0)
-                      } else if (defaultAmount) {
-                        form.setValue('amount', defaultAmount)
-                      }
-                    }}
-                  />
-                  <Label htmlFor="penalty-only" className="text-sm font-medium cursor-pointer">
-                    Payer uniquement les pénalités (sans mensualité)
-                  </Label>
-                </div>
-                {penaltyOnlyMode && (
-                  <div className="mt-3 space-y-2">
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-xs">
-                        En mode "pénalités uniquement", le montant de la mensualité sera à 0. 
-                        Vous pouvez sélectionner les pénalités à payer ci-dessous.
-                      </AlertDescription>
-                    </Alert>
-                    <div>
-                      <Label htmlFor="penalty-note" className="text-sm">
-                        Note pour le paiement des pénalités (sur 10)
-                      </Label>
-                      <Input
-                        id="penalty-note"
-                        type="number"
-                        min="0"
-                        max="10"
-                        step="0.1"
-                        value={penaltyNote ?? 10}
-                        onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : 10
-                          const finalValue = isNaN(value) ? 10 : value
-                          setPenaltyNote(finalValue)
-                          // Mettre à jour le commentaire automatiquement selon la note des pénalités
-                          const defaultComment = getDefaultComment(finalValue > 0)
-                          form.setValue('comment', defaultComment)
-                        }}
-                        placeholder="10"
-                        className="mt-1"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Note par défaut : 10/10. Vous pouvez modifier cette note si nécessaire.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/* Montant et Mode */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {!penaltyOnlyMode && (
-              <div>
-                <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  Montant de la mensualité (FCFA) *
-                </Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...form.register('amount', { valueAsNumber: true })}
-                  required
-                />
-                {form.formState.errors.amount && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {form.formState.errors.amount.message}
-                  </p>
-                )}
-              </div>
-            )}
+            <div>
+              <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                Montant du versement (FCFA) *
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                {...form.register('amount', { valueAsNumber: true })}
+                required
+              />
+              {form.formState.errors.amount && (
+                <p className="text-sm text-red-600 mt-1">
+                  {form.formState.errors.amount.message}
+                </p>
+              )}
+            </div>
             <div>
               <Label htmlFor="mode" className="mb-2">Moyen de paiement *</Label>
               <Select
@@ -728,10 +655,13 @@ export default function CreditPaymentModal({
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2 text-orange-800">
                   <AlertTriangle className="h-4 w-4" />
-                  Pénalités impayées ({unpaidPenalties.length})
+                  Pénalités déjà en attente ({unpaidPenalties.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                <p className="text-xs text-orange-700">
+                  Ce formulaire enregistre un versement. Vous pouvez rattacher ces pénalités au versement si le montant saisi est supérieur à 0.
+                </p>
                 {unpaidPenalties.map((penalty) => (
                   <div
                     key={penalty.id}
@@ -740,6 +670,7 @@ export default function CreditPaymentModal({
                     <div className="flex items-center gap-3">
                       <Checkbox
                         checked={selectedPenalties.includes(penalty.id)}
+                        disabled={!canSettlePreviousPenalties}
                         onCheckedChange={(checked) => {
                           if (checked) {
                             setSelectedPenalties([...selectedPenalties, penalty.id])
@@ -764,6 +695,14 @@ export default function CreditPaymentModal({
                     </div>
                   </div>
                 ))}
+                {!canSettlePreviousPenalties && (
+                  <Alert className="mt-2 border-orange-200 bg-orange-100/60">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Saisissez une mensualité supérieure à 0 FCFA pour pouvoir régler aussi des pénalités déjà en attente.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {totalSelectedPenalties > 0 && (
                   <Alert className="mt-2">
                     <AlertCircle className="h-4 w-4" />
@@ -783,10 +722,10 @@ export default function CreditPaymentModal({
               <AlertDescription>
                 <div className="space-y-1">
                   <p className="font-medium text-yellow-800">
-                    Paiement en retard de {calculateDelay} jour{calculateDelay > 1 ? 's' : ''}
+                    Paiement en retard de {calculatedDaysLate} jour{calculatedDaysLate > 1 ? 's' : ''}
                   </p>
                   <p className="text-yellow-700">
-                    Aucune pénalité ne sera appliquée. Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard.
+                    Aucune pénalité ne sera appliquée. Les pénalités commencent uniquement à partir du 4e jour de retard.
                   </p>
                   {defaultPaymentDate && (
                     <p className="text-xs text-yellow-600 mt-1">
@@ -805,10 +744,13 @@ export default function CreditPaymentModal({
               <AlertDescription>
                 <div className="space-y-1">
                   <p className="font-medium">
-                    Paiement en retard de {potentialPenalty.daysLate} jour{potentialPenalty.daysLate > 1 ? 's' : ''}
+                    Pénalité de ce versement : {potentialPenalty.daysLate} jour{potentialPenalty.daysLate > 1 ? 's' : ''} de retard
                   </p>
                   <p>
                     Une pénalité de <strong>{potentialPenalty.amount.toLocaleString('fr-FR')} FCFA</strong> sera créée automatiquement pour cette échéance après l'enregistrement du paiement.
+                  </p>
+                  <p className="text-xs text-gray-700">
+                    Calcul : intérêt du mois ({potentialPenalty.interestBase.toLocaleString('fr-FR')} FCFA) × {potentialPenalty.daysLate} / 30.
                   </p>
                   {defaultPaymentDate && (
                     <p className="text-xs text-gray-600 mt-1">
@@ -821,109 +763,86 @@ export default function CreditPaymentModal({
           )}
 
           {/* Total à payer */}
-          {(totalSelectedPenalties > 0 || penaltyOnlyMode) && (
-            <Card className={penaltyOnlyMode ? "border-purple-200 bg-purple-50/50" : "border-blue-200 bg-blue-50/50"}>
+          {(totalSelectedPenalties > 0 || potentialPenalty) && (
+            <Card className="border-blue-200 bg-blue-50/50">
               <CardContent className="pt-4">
-                {penaltyOnlyMode ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-purple-800">Montant de la mensualité :</span>
-                      <span className="text-lg font-bold text-purple-600">
-                        0 FCFA (pénalités uniquement)
-                      </span>
-                    </div>
-                    {totalSelectedPenalties > 0 && (
-                      <>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="font-medium text-purple-800">Pénalités sélectionnées :</span>
-                          <span className="text-lg font-bold text-orange-600">
-                            {totalSelectedPenalties.toLocaleString('fr-FR')} FCFA
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-300">
-                          <span className="text-lg font-bold text-purple-800">Total à payer :</span>
-                          <span className="text-xl font-bold text-purple-600">
-                            {totalSelectedPenalties.toLocaleString('fr-FR')} FCFA
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-blue-800">Montant du versement :</span>
-                      <span className="text-lg font-bold text-blue-600">
-                        {form.watch('amount')?.toLocaleString('fr-FR') || 0} FCFA
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="font-medium text-blue-800">Pénalités sélectionnées :</span>
-                      <span className="text-lg font-bold text-orange-600">
-                        +{totalSelectedPenalties.toLocaleString('fr-FR')} FCFA
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-300">
-                      <span className="text-lg font-bold text-blue-800">Total à payer :</span>
-                      <span className="text-xl font-bold text-blue-600">
-                        {totalToPay.toLocaleString('fr-FR')} FCFA
-                      </span>
-                    </div>
-                  </>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-800">Montant du versement :</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {watchedAmount.toLocaleString('fr-FR')} FCFA
+                  </span>
+                </div>
+                {totalSelectedPenalties > 0 && (
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="font-medium text-blue-800">Pénalités à régler maintenant :</span>
+                    <span className="text-lg font-bold text-orange-600">
+                      +{totalSelectedPenalties.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </div>
+                )}
+                {potentialPenalty && (
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="font-medium text-blue-800">Pénalité générée par ce versement :</span>
+                    <span className="text-lg font-bold text-red-600">
+                      {potentialPenalty.amount.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </div>
+                )}
+                {totalSelectedPenalties > 0 && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-300">
+                    <span className="text-lg font-bold text-blue-800">Total encaissé maintenant :</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      {totalToPay.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </div>
                 )}
               </CardContent>
             </Card>
           )}
 
-          {/* Note pour paiement normal (si pas en mode pénalités uniquement) */}
-          {!penaltyOnlyMode && (
-            <>
-              <div>
-                <Label htmlFor="note" className="mb-2">Note (sur 10)</Label>
-                <Input
-                  id="note"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  {...form.register('note', { 
-                    valueAsNumber: true,
-                    setValueAs: (value) => {
-                      if (value === '' || value === null || value === undefined) {
-                        return autoNote // Valeur par défaut selon le retard
-                      }
-                      const num = typeof value === 'string' ? parseFloat(value) : value
-                      return isNaN(num) ? autoNote : num
-                    },
-                    onChange: (e) => {
-                      const noteValue = parseFloat(e.target.value) || autoNote
-                      // Mettre à jour le commentaire automatiquement selon la note
-                      const defaultComment = getDefaultComment(noteValue > 0)
-                      form.setValue('comment', defaultComment)
-                    }
-                  })}
-                  placeholder={autoNote.toString()}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {calculateDelay > 0 ? (
-                    <>Note automatique : {autoNote}/10 (retard de {calculateDelay} jour{calculateDelay > 1 ? 's' : ''}). Vous pouvez modifier cette note si nécessaire.</>
-                  ) : (
-                    <>Note par défaut : {autoNote}/10 (paiement ponctuel). Vous pouvez modifier cette note si nécessaire.</>
-                  )}
-                </p>
-                {form.formState.errors.note && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {form.formState.errors.note.message}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+          <div>
+            <Label htmlFor="note" className="mb-2">Note (sur 10)</Label>
+            <Input
+              id="note"
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              {...form.register('note', {
+                valueAsNumber: true,
+                setValueAs: (value) => {
+                  if (value === '' || value === null || value === undefined) {
+                    return autoNote
+                  }
+                  const num = typeof value === 'string' ? parseFloat(value) : value
+                  return isNaN(num) ? autoNote : num
+                },
+                onChange: (e) => {
+                  const noteValue = parseFloat(e.target.value) || autoNote
+                  const defaultComment = getDefaultComment(noteValue > 0)
+                  form.setValue('comment', defaultComment)
+                }
+              })}
+              placeholder={autoNote.toString()}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {calculatedDaysLate > 0 ? (
+                <>Note automatique : {autoNote}/10 (retard de {calculatedDaysLate} jour{calculatedDaysLate > 1 ? 's' : ''}). Vous pouvez modifier cette note si nécessaire.</>
+              ) : (
+                <>Note par défaut : {autoNote}/10 (paiement ponctuel). Vous pouvez modifier cette note si nécessaire.</>
+              )}
+            </p>
+            {form.formState.errors.note && (
+              <p className="text-sm text-red-600 mt-1">
+                {form.formState.errors.note.message}
+              </p>
+            )}
+          </div>
 
           {/* Commentaire */}
           <div>
             <Label htmlFor="comment" className="mb-2">
-              Commentaire {penaltyOnlyMode ? '(optionnel)' : '(CONFORME / NON CONFORME, modifiable)'}
+              Commentaire (CONFORME / NON CONFORME, modifiable)
             </Label>
             <Textarea
               id="comment"
@@ -931,11 +850,9 @@ export default function CreditPaymentModal({
               rows={2}
               placeholder="CONFORME ou NON CONFORME"
             />
-            {!penaltyOnlyMode && (
-              <p className="text-xs text-gray-500 mt-1">
-                CONFORME si le paiement est effectué, NON CONFORME sinon. Vous pouvez modifier si besoin.
-              </p>
-            )}
+            <p className="text-xs text-gray-500 mt-1">
+              CONFORME si le paiement est effectué, NON CONFORME sinon. Vous pouvez modifier si besoin.
+            </p>
             {form.formState.errors.comment && (
               <p className="text-sm text-red-600 mt-1">
                 {form.formState.errors.comment.message}
@@ -967,4 +884,3 @@ export default function CreditPaymentModal({
     </Dialog>
   )
 }
-
