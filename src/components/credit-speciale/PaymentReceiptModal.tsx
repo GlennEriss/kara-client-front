@@ -16,6 +16,7 @@ import { useAdmin } from '@/hooks/useAdmins'
 import { useCreditDemand } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract, CreditPayment } from '@/types/types'
+import { getCreditPaymentMonthNumber } from '@/utils/credit-speciale-history'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { FactureCreditSpecialPDFData } from '@/components/credit-speciale/FactureCreditSpecialPDF'
@@ -190,31 +191,48 @@ export default function PaymentReceiptModal({
   }
 
   const buildFactureData = (): FactureCreditSpecialPDFData => {
-    const num = installmentNumber ?? 1
+    const num =
+      installmentNumber && installmentNumber > 0
+        ? installmentNumber
+        : getCreditPaymentMonthNumber(contract, payment)
     const dueItem = schedule?.find((s) => s.month === num)
     const nextDueItem = schedule?.find((s) => s.month === num + 1)
     const prevDueItem = schedule?.find((s) => s.month === num - 1)
     const isLastInstallment = !nextDueItem
-    const capitalStart = num === 1 ? contract.amount : (prevDueItem?.remaining ?? contract.amount)
-    const interest = dueItem?.interest ?? Math.round(payment.interestAmount || 0)
-    const globalAmount = dueItem?.principal ?? Math.round((payment.principalAmount || 0) + (payment.interestAmount || 0))
+    const capitalStartFallback =
+      dueItem
+        ? Math.max(
+            0,
+            (dueItem.principal ?? 0) - (dueItem.interest ?? Math.round(payment.interestAmount || 0))
+          )
+        : contract.amount
+    const capitalStart =
+      num === 1
+        ? Math.round(contract.amount)
+        : Math.round(prevDueItem?.remaining ?? capitalStartFallback)
+    const interest = Math.round(dueItem?.interest ?? payment.interestAmount ?? 0)
+    const globalAmount = Math.round(
+      dueItem?.principal ?? capitalStart + (dueItem?.interest ?? payment.interestAmount ?? 0)
+    )
+    const isFixedExtensionMonth = interest === 0 && globalAmount === capitalStart
     // NOUVEAU CAPITAL = "reste dû" de l'échéancier actuel (Simulations / Échéancier actuel) pour cette échéance
-    const newCapitalAfter = dueItem?.remaining ?? Math.round(contract.amount - (payment.principalAmount || 0))
-    const newCapitalNext = nextDueItem?.principal ?? Math.round(newCapitalAfter + (payment.interestAmount || 0))
-    const nouveauCapital =
-      dueItem?.remaining !== undefined ? dueItem.remaining : isLastInstallment ? 0 : newCapitalNext
+    const newCapitalAfter = Math.round(
+      dueItem?.remaining ?? Math.max(0, globalAmount - (payment.amount || 0))
+    )
+    const newCapitalNext = Math.round(nextDueItem?.principal ?? 0)
+    const nouveauCapital = dueItem?.remaining !== undefined ? Math.round(dueItem.remaining) : newCapitalAfter
     // CAPITAL MOIS PROCHAIN = montant global de l'échéance suivante (0 si dernière échéance)
-    const capitalMoisProchain = isLastInstallment ? 0 : (nextDueItem?.principal ?? newCapitalNext)
+    const capitalMoisProchain = isLastInstallment ? 0 : newCapitalNext
     const moyenLabel = payment.amount === 0 ? 'AUCUN' : (PAYMENT_MODE_LABELS[payment.mode]?.label ?? payment.mode ?? 'Aucun')
     const fraisValue =
       (payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined
         ? payment.withFees
         : false
-    const dateEcheance = dueDate ? formatDateYYYYMMDD(dueDate) : formatDateYYYYMMDD(payment.paymentDate)
+    const dateEcheance = formatDateYYYYMMDD(dueDate ?? dueItem?.date ?? payment.paymentDate)
     return {
       paymentDate: formatDateYYYYMMDD(payment.paymentDate),
       capital: capitalStart,
-      taux: contract.interestRate ?? 0,
+      taux: isFixedExtensionMonth ? 0 : contract.interestRate ?? 0,
       interets: interest,
       montantGlobal: globalAmount,
       dateEcheance,
@@ -528,4 +546,3 @@ export default function PaymentReceiptModal({
     </Dialog>
   )
 }
-

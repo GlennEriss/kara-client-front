@@ -421,7 +421,6 @@ export default function CreditContractDetail({
   const [selectedDueIndex, setSelectedDueIndex] = useState<number | null>(null)
   const [selectedDueIndexForReceipt, setSelectedDueIndexForReceipt] = useState<number | null>(null)
   const [selectedDueIndexForSummary, setSelectedDueIndexForSummary] = useState<number | null>(null)
-  const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(false)
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
   const [showReplaceContractModal, setShowReplaceContractModal] = useState(false)
@@ -1741,19 +1740,6 @@ export default function CreditContractDetail({
                         <AlertCircle className="h-5 w-5 text-orange-600" />
                         Pénalités
                       </h3>
-                      {penalties.filter(p => !p.paid).length > 0 && (
-                        <Button
-                          onClick={() => {
-                            setSelectedDueIndex(null) // Pas d'échéance spécifique pour les pénalités
-                            setPenaltyOnlyMode(true) // Activer le mode pénalités uniquement
-                            setShowPaymentModal(true)
-                          }}
-                          className="bg-orange-600 hover:bg-orange-700 text-white"
-                        >
-                          <HandCoins className="h-4 w-4 mr-2" />
-                          Payer les pénalités
-                        </Button>
-                      )}
                     </div>
                     <div className="space-y-3">
                       {penalties.map((penalty) => (
@@ -1798,9 +1784,6 @@ export default function CreditContractDetail({
                             <FileText className="h-4 w-4" />
                             Historique reconstitué
                           </h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Lecture métier alignée sur les exemples: capital, commission, intérêts, pénalités et nouveau capital.
-                          </p>
                         </div>
                       </div>
 
@@ -2466,7 +2449,6 @@ export default function CreditContractDetail({
         onClose={() => {
           setShowPaymentModal(false)
           setSelectedDueIndex(null)
-          setPenaltyOnlyMode(false)
           setPaymentToEdit(null)
         }}
         creditId={contract.id}
@@ -2474,7 +2456,6 @@ export default function CreditContractDetail({
         submitLabel={paymentToEdit ? 'Modifier le versement' : undefined}
         defaultAmount={paymentToEdit ? paymentToEdit.amount : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount)}
         defaultPaymentDate={paymentToEdit ? paymentToEdit.paymentDate : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined)}
-        defaultPenaltyOnlyMode={penaltyOnlyMode}
         installmentId={paymentToEdit?.installmentId ?? (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined)}
         installmentNumber={paymentToEdit ? (() => { const m = paymentToEdit.id?.match(/^M(\d+)_/); return m ? parseInt(m[1], 10) : undefined; })() : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined)}
         onSuccess={async () => {
@@ -2500,7 +2481,6 @@ export default function CreditContractDetail({
           ])
           console.log('[CreditContractDetail] Refetch terminé - Payments:', paymentsResult, 'Installments:', installmentsResult, 'Contract:', contractResult)
           setSelectedDueIndex(null)
-          setPenaltyOnlyMode(false)
           setPaymentToEdit(null)
         }}
       />

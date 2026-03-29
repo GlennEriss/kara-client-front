@@ -3,6 +3,10 @@
 import { getNationalityName } from '@/constantes/nationality'
 import { CreditContract } from '@/types/types'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import {
+  buildCreditSpecialeHistory,
+  SPECIAL_CREDIT_MAX_LOGICAL_MONTHS,
+} from '@/utils/credit-speciale-history'
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles exactement comme le document original
@@ -289,18 +293,36 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
     return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   }
 
-  // Calculer l'échéancier
-  const schedule = calculateSchedule({
-    amount: contract.amount,
-    interestRate: contract.interestRate,
-    monthlyPayment: contract.monthlyPaymentAmount,
-    firstPaymentDate: new Date(contract.firstPaymentDate),
-    maxDuration: contract.duration,
-  })
+  const displayedDuration =
+    contract.creditType === 'SPECIALE'
+      ? Math.max(1, Math.min(contract.duration, SPECIAL_CREDIT_MAX_LOGICAL_MONTHS))
+      : Math.max(1, contract.duration)
+
+  // Le design reste inchangé, mais l'échéancier affiché suit désormais la même logique
+  // métier que le détail contrat (7 mois max pour la phase spéciale).
+  const schedule =
+    contract.creditType === 'SPECIALE'
+      ? buildCreditSpecialeHistory(contract, [], {
+          endMonth: displayedDuration,
+          projectUntilZero: false,
+        }).map((row) => ({
+          month: row.month,
+          date: row.date,
+          payment: row.expectedPayment,
+        }))
+      : calculateSchedule({
+          amount: contract.amount,
+          interestRate: contract.interestRate,
+          monthlyPayment: contract.monthlyPaymentAmount,
+          firstPaymentDate: new Date(contract.firstPaymentDate),
+          maxDuration: displayedDuration,
+        })
 
   // Calculer la date de fin
-  const endDate = new Date(contract.firstPaymentDate)
-  endDate.setMonth(endDate.getMonth() + contract.duration - 1)
+  const endDate =
+    schedule.length > 0
+      ? new Date(schedule[schedule.length - 1].date)
+      : new Date(contract.firstPaymentDate)
 
   // Données du membre
   const member = {
@@ -393,7 +415,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
         </Text>
 
         <Text style={styles.paragraph}>
-          Cette somme doit être restituée à la trésorerie de l'Association selon un échéancier de <Text style={styles.bold}>{contract.duration}</Text> mois à compter du <Text style={styles.bold}>....................</Text>. Jusqu'au <Text style={styles.bold}>{formatDate(endDate)}</Text> date de fin de créance.
+          Cette somme doit être restituée à la trésorerie de l'Association selon un échéancier de <Text style={styles.bold}>{displayedDuration}</Text> mois à compter du <Text style={styles.bold}>....................</Text>. Jusqu'au <Text style={styles.bold}>{formatDate(endDate)}</Text> date de fin de créance.
         </Text>
 
         <Text style={[styles.paragraph, { marginTop: 20 }]}>
@@ -444,7 +466,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
         {/* ARTICLE 2 */}
         <Text style={styles.articleTitle}>ARTICLE 2 : REMBOURSEMENT DE SOMME</Text>
         <Text style={styles.paragraph}>
-          Le membre s'engage sur l'honneur à rembourser ledit accompagnement en plusieurs échéances mensuelles sous un délai maximum de <Text style={styles.bold}>{contract.duration}</Text> mois.
+          Le membre s'engage sur l'honneur à rembourser ledit accompagnement en plusieurs échéances mensuelles sous un délai maximum de <Text style={styles.bold}>{displayedDuration}</Text> mois.
         </Text>
         <Text style={styles.paragraph}>
           Le tableau ci-dessous représente l'échéancier convenu entre les parties.
