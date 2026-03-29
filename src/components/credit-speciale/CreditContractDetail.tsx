@@ -14,8 +14,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
 import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
-import { calculateSchedule } from '@/utils/credit-speciale-calculations'
-import { getLogicalMonthIndex, isAfterLogicalMonth7, isRestMonth } from '@/utils/credit-speciale-rest-months'
+import {
+  buildCreditSpecialeHistory,
+  getContractCalendarMonthFromDate,
+  getCreditSpecialeLastRecordedMonth,
+} from '@/utils/credit-speciale-history'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -408,7 +411,7 @@ export default function CreditContractDetail({
 }: CreditContractDetailProps) {
   const router = useRouter()
   const { user: _user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'payments' | 'simulations' | 'guarantor'>('payments')
+  const [activeTab, setActiveTab] = useState<'payments' | 'history' | 'guarantor'>('payments')
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
@@ -499,6 +502,29 @@ export default function CreditContractDetail({
     extendedAtDay !== null
       ? payments.filter((p) => new Date(p.paymentDate).setHours(0, 0, 0, 0) >= extendedAtDay)
       : payments
+  const specialHistory =
+    contract.creditType === 'SPECIALE'
+      ? buildCreditSpecialeHistory(contract, paymentsForSchedule, { projectUntilZero: true })
+      : []
+  const lastRecordedSpecialMonth =
+    contract.creditType === 'SPECIALE'
+      ? getCreditSpecialeLastRecordedMonth(contract, paymentsForSchedule)
+      : 0
+  const specialHistoryRecordedRows =
+    contract.creditType === 'SPECIALE'
+      ? specialHistory.filter((row) => row.month <= lastRecordedSpecialMonth)
+      : []
+  const specialHistoryByMonth =
+    contract.creditType === 'SPECIALE'
+      ? new Map(specialHistory.map((row) => [row.month, row]))
+      : new Map<number, (typeof specialHistory)[number]>()
+  const penaltiesByMonth = new Map<number, number>()
+  if (contract.creditType === 'SPECIALE') {
+    penalties.forEach((penalty) => {
+      const month = getContractCalendarMonthFromDate(contract, penalty.dueDate)
+      penaltiesByMonth.set(month, (penaltiesByMonth.get(month) ?? 0) + penalty.amount)
+    })
+  }
 
   // Mapper les paiements aux échéances (mois) pour savoir combien a été versé pour chaque échéance
   // Utiliser l'ID du paiement qui contient le numéro du mois (M1, M2, etc.)
@@ -680,194 +706,30 @@ export default function CreditContractDetail({
       return items
     }
 
-    // Crédit spéciale / aide: logique avec mois de repos et mois logique
-    const monthlyRate = contract.interestRate / 100
-    const defaultPaymentAmount = contract.monthlyPaymentAmount
-    const maxDuration = contract.duration
-    const hasCustomSchedule = contract.customSchedule && contract.customSchedule.length > 0
-    const restMonths = contract.restMonths ?? []
-
-    const customPaymentByMonth = new Map<number, number>()
-    if (hasCustomSchedule) {
-      contract.customSchedule!.forEach((entry) => {
-        customPaymentByMonth.set(entry.month, entry.amount)
-      })
-    }
-
-    let resteDuPrecedent = contract.amount
-    const items: DueItem[] = []
-    const maxCalendarMonths = Math.min(20, maxDuration + restMonths.length)
-
-    const sortedPayments = [...paymentsForSchedule]
-      .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
-      .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
-
-    const paymentsByMonthMap = getPaymentsByMonth()
-
-    for (let calendarMonthIndex = 0; calendarMonthIndex < maxCalendarMonths; calendarMonthIndex++) {
-      const currentMonth = calendarMonthIndex + 1
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + calendarMonthIndex)
-
-      if (isRestMonth(currentMonth, restMonths)) {
-        // Option A : pas d'intérêts pendant le repos — le capital reste inchangé, tout est reporté au mois suivant
-        const restEntry = restMonths.find((r) => r.monthNumber === currentMonth)!
-        items.push({
-          month: currentMonth,
-          date,
-          payment: 0,
-          interest: 0,
-          principal: customRound(resteDuPrecedent),
-          remaining: customRound(resteDuPrecedent),
-          status: 'REST',
-          isRest: true,
-          restReason: restEntry.reason,
-          restRecordedByName: restEntry.recordedByName,
-          restRecordedAt: restEntry.recordedAt,
-        })
-        // Capital inchangé après le repos
-        continue
-      }
-
-      const logicalIndex = getLogicalMonthIndex(currentMonth, restMonths)
-      const isAfterMonth7 = isAfterLogicalMonth7(currentMonth, restMonths)
-      const interest = isAfterMonth7 ? 0 : resteDuPrecedent * monthlyRate
-      const montantGlobal = resteDuPrecedent + interest
-
-      const paymentAmount = hasCustomSchedule
-        ? (customPaymentByMonth.get(currentMonth) ?? defaultPaymentAmount)
-        : defaultPaymentAmount
-
-      let payment: number
-      let resteDu: number
-
-      if (paymentAmount > montantGlobal) {
-        payment = montantGlobal
-        resteDu = 0
-      } else if (resteDuPrecedent < paymentAmount && !isAfterMonth7) {
-        payment = resteDuPrecedent
-        resteDu = 0
-      } else {
-        payment = paymentAmount
-        resteDu = montantGlobal - paymentAmount
-      }
-
-      if (isAfterMonth7) {
-        resteDuPrecedent = resteDu
-      } else {
-        resteDuPrecedent = resteDu
-      }
-
-      let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
-      let paidAmount = 0
-      let paymentDate: Date | undefined
-      let paymentTime: string | undefined
-
-      const paidForThisMonth = paymentsByMonthMap.get(currentMonth) || 0
-
-      if (paidForThisMonth > 0) {
-        status = 'PAID'
-        paidAmount = paidForThisMonth
-        const paymentForThisMonth = sortedPayments.find((p) => {
-          if (p.id) {
-            const match = p.id.match(/^M(\d+)_/)
-            if (match) {
-              const paymentMonth = parseInt(match[1], 10)
-              return paymentMonth === currentMonth
-            }
-          }
-          return false
-        })
-        if (paymentForThisMonth) {
-          paymentDate = new Date(paymentForThisMonth.paymentDate)
-          paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
-        }
-      } else {
-        let allPreviousPaid = true
-        for (let j = 0; j < currentMonth - 1; j++) {
-          const prevMonth = j + 1
-          if (!isRestMonth(prevMonth, restMonths) && (paymentsByMonthMap.get(prevMonth) || 0) === 0) {
-            allPreviousPaid = false
-            break
-          }
-        }
-        status = allPreviousPaid ? 'DUE' : 'FUTURE'
-      }
-
-      items.push({
-        month: currentMonth,
-        date,
-        payment: customRound(payment),
-        interest: customRound(interest),
-        principal: customRound(montantGlobal),
-        remaining: customRound(resteDu),
-        status,
-        paidAmount: status === 'PAID' && paidAmount > 0 ? paidAmount : undefined,
-        paymentDate,
-        paymentTime,
-      })
-
-      const effectiveDuration = hasCustomSchedule ? contract.customSchedule!.length : maxDuration
-      if (resteDu <= 0 && logicalIndex >= effectiveDuration) {
-        break
-      }
-    }
-
-    return items
+    return specialHistory.map((row) => ({
+      month: row.month,
+      date: row.date,
+      payment: row.isRest ? 0 : row.expectedPayment,
+      interest: row.interest,
+      principal: row.amountDue,
+      remaining:
+        row.status === 'PAID' || row.status === 'REST'
+          ? row.nextCapitalActual
+          : row.nextCapitalProjected,
+      status: row.status,
+      paidAmount: row.status === 'PAID' ? row.actualPayment : undefined,
+      paymentDate: row.paymentDate,
+      paymentTime: row.paymentTime,
+      isRest: row.isRest,
+      restReason: row.restReason,
+      restRecordedByName: row.restRecordedByName,
+      restRecordedAt: row.restRecordedAt,
+    }))
   }
 
   // Calculer les échéances pour l'affichage
   // actualSchedule sera calculé après et utilisé pour déterminer les mois supplémentaires
   const dueItems = calculateDueItems()
-  const dueItemsForSimulation = isSimpleCredit
-    ? dueItems
-    : dueItems.filter((row) => row.payment > 0 || row.isRest)
-
-  // Calculer le montant restant basé sur les paiements réels
-  // nouveauMontantRestant = MontantRestant - montantVerser
-  // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
-  const calculateRealRemainingAmount = (): number => {
-    // Filtrer les paiements de mensualités (exclure les pénalités uniquement)
-    const realPayments = payments.filter(p => 
-      p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
-    )
-
-    if (isSimpleCredit) {
-      const totalToRepay = customRound(contract.totalAmount)
-      const totalPaid = realPayments.reduce((sum, payment) => sum + payment.amount, 0)
-      return Math.max(0, customRound(totalToRepay - totalPaid))
-    }
-    
-    if (realPayments.length === 0) {
-      // Pas de paiement, le montant restant est le montant initial avec intérêts
-      const monthlyRate = contract.interestRate / 100
-      return contract.amount * (1 + monthlyRate)
-    }
-
-    // Trier les paiements par date
-    const sortedPayments = [...realPayments].sort((a, b) => 
-      new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
-    )
-
-    // Calculer le montant restant en appliquant la formule pour chaque paiement
-    let remaining = contract.amount
-    const monthlyRate = contract.interestRate / 100
-
-    for (const payment of sortedPayments) {
-      // Calculer les intérêts sur le montant restant avant le paiement
-      const interest = remaining * monthlyRate
-      const totalWithInterest = remaining + interest
-      
-      // Soustraire le montant versé
-      remaining = Math.max(0, totalWithInterest - payment.amount)
-    }
-
-    // Appliquer les intérêts sur le montant restant actuel
-    const currentInterest = remaining * monthlyRate
-    return remaining + currentInterest
-  }
-
-  const paymentsByMonth = getPaymentsByMonth()
 
   // Calculer l'échéancier actuel basé sur les versements réels
   const calculateActualSchedule = (): DueItem[] => {
@@ -996,145 +858,31 @@ export default function CreditContractDetail({
       return items.filter((item) => item.status === 'PAID' || item.payment > 0)
     }
 
-    // Crédit spéciale / aide: logique avec mois de repos et mois logique
-    const monthlyRate = contract.interestRate / 100
-    const restMonths = contract.restMonths ?? []
-    const maxCalendarMonths = Math.min(20, maxDuration + restMonths.length)
-
-    let currentRemaining = contract.amount
-
-    for (let calendarMonthIndex = 0; calendarMonthIndex < maxCalendarMonths; calendarMonthIndex++) {
-      const currentMonth = calendarMonthIndex + 1
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + calendarMonthIndex)
-
-      if (isRestMonth(currentMonth, restMonths)) {
-        // Option A : pas d'intérêts pendant le repos — le capital reste inchangé
-        const restEntry = restMonths.find((r) => r.monthNumber === currentMonth)!
-        items.push({
-          month: currentMonth,
-          date,
-          payment: 0,
-          interest: 0,
-          principal: customRound(currentRemaining),
-          remaining: customRound(currentRemaining),
-          status: 'REST',
-          isRest: true,
-          restReason: restEntry.reason,
-          restRecordedByName: restEntry.recordedByName,
-          restRecordedAt: restEntry.recordedAt,
-        })
-        // currentRemaining inchangé
-        continue
-      }
-
-      const isAfterMonth7 = isAfterLogicalMonth7(currentMonth, restMonths)
-      const interest = isAfterMonth7 ? 0 : currentRemaining * monthlyRate
-      const montantGlobal = currentRemaining + interest
-
-      const actualPayment = paymentsByMonthMap.get(currentMonth) || 0
-      const hasPayment = hasPaymentForMonth(currentMonth)
-
-      const monthlyPayment = hasCustomSchedule
-        ? (customPaymentByMonth.get(currentMonth) ?? defaultMonthlyPayment)
-        : defaultMonthlyPayment
-
-      let theoreticalPayment: number
-      if (monthlyPayment > montantGlobal) {
-        theoreticalPayment = montantGlobal
-      } else if (currentRemaining < monthlyPayment && !isAfterMonth7) {
-        theoreticalPayment = currentRemaining
-      } else {
-        theoreticalPayment = monthlyPayment
-      }
-
-      let resteDu: number
-      if (hasPayment) {
-        if (actualPayment >= montantGlobal) {
-          resteDu = 0
-        } else {
-          resteDu = montantGlobal - actualPayment
-        }
-      } else if (theoreticalPayment >= montantGlobal) {
-        resteDu = 0
-      } else {
-        resteDu = montantGlobal - theoreticalPayment
-      }
-
-      const displayedPayment = hasPayment ? actualPayment : theoreticalPayment
-
-      let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
-      let paymentDate: Date | undefined
-      let paymentTime: string | undefined
-
-      if (hasPayment) {
-        status = 'PAID'
-        const paymentForThisMonth = sortedPayments.find((p) => {
-          if (p.id) {
-            const match = p.id.match(/^M(\d+)_/)
-            if (match) {
-              const paymentMonth = parseInt(match[1], 10)
-              return paymentMonth === currentMonth
-            }
-          }
-          const paymentDateObj = new Date(p.paymentDate)
-          const monthsDiff =
-            (paymentDateObj.getFullYear() - firstDate.getFullYear()) * 12 +
-            (paymentDateObj.getMonth() - firstDate.getMonth())
-          const paymentMonthFromDate = Math.max(1, monthsDiff + 1)
-          return paymentMonthFromDate === currentMonth
-        })
-        if (paymentForThisMonth) {
-          paymentDate = new Date(paymentForThisMonth.paymentDate)
-          paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
-        }
-      } else {
-        let allPreviousPaid = true
-        for (let j = 0; j < currentMonth - 1; j++) {
-          const prevMonth = j + 1
-          if (!isRestMonth(prevMonth, restMonths) && !hasPaymentForMonth(prevMonth)) {
-            allPreviousPaid = false
-            break
-          }
-        }
-        status = allPreviousPaid ? 'DUE' : 'FUTURE'
-      }
-
-      items.push({
-        month: currentMonth,
-        date,
-        payment: customRound(displayedPayment),
-        interest: customRound(interest),
-        principal: customRound(montantGlobal),
-        remaining: customRound(resteDu),
-        status,
-        paidAmount: hasPayment ? actualPayment : undefined,
-        paymentDate,
-        paymentTime,
-      })
-
-      currentRemaining = resteDu
-
-      const logicalIndex = getLogicalMonthIndex(currentMonth, restMonths)
-      const effectiveDuration = hasCustomSchedule ? contract.customSchedule!.length : maxDuration
-      if (resteDu <= 0 && logicalIndex >= effectiveDuration) {
-        break
-      }
-    }
-
-    return items.filter((item) => item.status === 'PAID' || item.status === 'REST' || item.payment > 0)
+    return specialHistory.map((row) => ({
+      month: row.month,
+      date: row.date,
+      payment: row.hasPaymentRecord ? row.actualPayment : row.expectedPayment,
+      interest: row.interest,
+      principal: row.amountDue,
+      remaining:
+        row.status === 'PAID' || row.status === 'REST'
+          ? row.nextCapitalActual
+          : row.nextCapitalProjected,
+      status: row.status,
+      paidAmount: row.hasPaymentRecord ? row.actualPayment : undefined,
+      paymentDate: row.paymentDate,
+      paymentTime: row.paymentTime,
+      isRest: row.isRest,
+      restReason: row.restReason,
+      restRecordedByName: row.restRecordedByName,
+      restRecordedAt: row.restRecordedAt,
+    }))
   }
 
   const actualSchedule = calculateActualSchedule()
 
   // Trouver la prochaine échéance payable : DUE (utiliser actualSchedule comme source de vérité)
   const nextDueIndex = actualSchedule.findIndex(item => item.status === 'DUE')
-
-  // Créer un map de l'échéancier actuel par mois pour accès rapide
-  const actualScheduleByMonth = new Map<number, DueItem>()
-  actualSchedule.forEach(item => {
-    actualScheduleByMonth.set(item.month, item)
-  })
 
   // Calculer le montant total payé
   const totalPaidFromSchedule = isSimpleCredit
@@ -1160,88 +908,19 @@ export default function CreditContractDetail({
     if (contract.creditType !== 'SPECIALE') return 0
     
     const monthlyRate = contract.interestRate / 100
-    const restMonths = contract.restMonths ?? []
     let totalLosses = 0
     
-    for (const item of actualSchedule) {
-      if (item.status === 'REST' || item.isRest) continue
-      const logicalIndex = getLogicalMonthIndex(item.month, restMonths)
-      if (logicalIndex <= 7 || item.status !== 'PAID') continue
-
-      let capitalAtStartOfMonth = 0
-      const previousMonth = actualSchedule.find(i => i.month === item.month - 1)
-      if (previousMonth) {
-        capitalAtStartOfMonth = previousMonth.remaining
-      } else {
-        const monthlyRateCalc = contract.interestRate / 100
-        let currentRemaining = contract.amount
-        for (const prev of actualSchedule) {
-          if (prev.month >= item.month) break
-          if (prev.isRest || prev.status === 'REST') {
-            currentRemaining = currentRemaining * (1 + monthlyRateCalc)
-          } else {
-            const interest = currentRemaining * monthlyRateCalc
-            const montantGlobal = currentRemaining + interest
-            const paid = prev.paidAmount ?? prev.payment ?? 0
-            currentRemaining = Math.max(0, montantGlobal - paid)
-          }
-        }
-        capitalAtStartOfMonth = customRound(currentRemaining)
-      }
-      if (capitalAtStartOfMonth > 0) {
-        totalLosses += capitalAtStartOfMonth * monthlyRate
+    for (const row of specialHistory) {
+      const logicalIndex = row.logicalMonth
+      if (logicalIndex <= 7 || row.status !== 'PAID' || row.capitalStart <= 0) continue
+      if (row.phase === 'FIXE') {
+        totalLosses += row.capitalStart * monthlyRate
       }
     }
     return customRound(totalLosses)
   }
 
   const totalLosses = calculateLosses()
-
-  // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
-  const calculateReferenceSchedule = () => {
-    if (contract.creditType !== 'SPECIALE') return []
-    
-    const monthlyRate = contract.interestRate / 100
-    const firstDate = new Date(contract.firstPaymentDate)
-    
-    // Calculer le montant global avec intérêts composés sur exactement 7 mois
-    let lastMontant = contract.amount
-    for (let i = 1; i <= 7; i++) {
-      lastMontant = lastMontant * monthlyRate + lastMontant
-    }
-    
-    // Le montant global après 7 mois d'intérêts composés
-    const montantGlobal = lastMontant
-    
-    // Diviser ce montant global par 7 pour obtenir la mensualité
-    const monthlyPaymentRaw = montantGlobal / 7
-    
-    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
-    const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
-      ? Math.ceil(monthlyPaymentRaw) 
-      : Math.floor(monthlyPaymentRaw)
-    
-    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
-    const referenceSchedule: Array<{
-      month: number
-      date: Date
-      payment: number
-    }> = []
-
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
-      
-      referenceSchedule.push({
-        month: i + 1,
-        date,
-        payment: monthlyPaymentRef,
-      })
-    }
-    return referenceSchedule
-  }
-
-  const referenceSchedule = calculateReferenceSchedule()
   
   // Debug: log pour comprendre le problème
   useEffect(() => {
@@ -1691,15 +1370,15 @@ export default function CreditContractDetail({
         {/* Onglets */}
         <Card className="border-0 shadow-xl">
           <CardContent className="p-0">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'simulations' | 'guarantor')} className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'history' | 'guarantor')} className="w-full">
               <TabsList className={cn('grid w-full rounded-none border-b', isSimpleCredit ? 'grid-cols-2' : 'grid-cols-3')}>
                 <TabsTrigger value="payments" className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
                   Versements
                 </TabsTrigger>
-                <TabsTrigger value="simulations" className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Simulations
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Historique
                 </TabsTrigger>
                 {!isSimpleCredit && (
                   <TabsTrigger value="guarantor" className="flex items-center gap-2">
@@ -1911,7 +1590,7 @@ export default function CreditContractDetail({
                           <>
                           <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-gray-200">
                             <div className="flex items-center justify-between w-full">
-                              <span className="text-gray-600">Capital global:</span>
+                              <span className="text-gray-600">Montant global:</span>
                               <span className="font-semibold text-gray-900">
                                 {item.principal.toLocaleString('fr-FR')} FCFA
                               </span>
@@ -2054,130 +1733,6 @@ export default function CreditContractDetail({
                     </p>
                   </div>
                 </div>
-
-                {/* Historique des versements */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <History className="h-5 w-5" />
-                    Historique des versements
-                  </h3>
-                  {isLoadingPayments ? (
-                    <div className="text-center py-8 text-gray-500">Chargement...</div>
-                  ) : payments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">Aucun versement enregistré</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {payments.map((payment) => {
-                        // Trouver l'échéance correspondante à ce paiement en utilisant l'ID du paiement
-                        let relatedDueItem = null
-                        if (payment.id) {
-                          // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
-                          const match = payment.id.match(/^M(\d+)_/)
-                          if (match) {
-                            const paymentMonth = parseInt(match[1], 10)
-                            relatedDueItem = actualSchedule.find(item => item.month === paymentMonth) || null
-                          }
-                        }
-
-                        return (
-                          <div
-                            key={payment.id}
-                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Calendar className="h-4 w-4 text-gray-500" />
-                                <span className="font-semibold">
-                                  {formatDateTime(payment.paymentDate, payment.paymentTime)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
-                                  <>
-                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                      Pénalités uniquement
-                                    </Badge>
-                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
-                                    {payment.note !== undefined && (
-                                      <span>Note pénalités : {payment.note}/10</span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                                    <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
-                                    {payment.note !== undefined && (
-                                      <span>Note : {payment.note}/10</span>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                              {(payment.modificationReason || !!(payment as { updatedAt?: unknown }).updatedAt) && (
-                                <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                                  {(() => {
-                                    const u = (payment as { updatedAt?: unknown }).updatedAt
-                                    const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
-                                    if (modDate && !isNaN(modDate.getTime())) {
-                                      return (
-                                        <div>
-                                          <span>Modifié le : {modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                        </div>
-                                      )
-                                    }
-                                    return null
-                                  })()}
-                                  {payment.modificationReason && (
-                                    <div><span className="font-medium">Motif :</span> {payment.modificationReason}</div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (relatedDueItem) {
-                                    const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
-                                    if (dueIndex !== -1) {
-                                      setSelectedDueIndexForReceipt(dueIndex)
-                                      setShowReceiptModal(true)
-                                    } else {
-                                      toast.error('Impossible de trouver les détails de cette échéance')
-                                    }
-                                  } else {
-                                    toast.error('Impossible de trouver les détails de cette échéance')
-                                  }
-                                }}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Voir la facture
-                              </Button>
-                              {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setPaymentToEdit(payment)
-                                    setShowPaymentModal(true)
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4 mr-1" />
-                                  Modifier
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
                 {/* Pénalités */}
                 {penalties.length > 0 && (
                   <div>
@@ -2232,200 +1787,200 @@ export default function CreditContractDetail({
                 )}
               </TabsContent>
 
-              {/* Onglet Simulations */}
-              <TabsContent value="simulations" className="p-6 space-y-6 m-0">
+              {/* Onglet Historique */}
+              <TabsContent value="history" className="p-6 space-y-6 m-0">
                 <div className="space-y-6">
-                  {/* Échéancier actuel */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Échéancier actuel ({actualSchedule.length} mois)
-                      </h3>
-                    </div>
-                    {/* Légende de coloration */}
-                    <div className="mb-3 flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
-                        <span className="text-gray-600">Payé (montant suffisant)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
-                        <span className="text-gray-600">Payé (montant insuffisant)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
-                        <span className="text-gray-600">Non payé</span>
-                      </div>
-                    </div>
-                    <div className="border rounded-lg overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Mois</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">
-                              {isSimpleCredit ? 'Mensualité prévue / versée' : 'Montant versé'}
-                            </TableHead>
-                            {!isSimpleCredit && <TableHead className="text-right">Intérêts</TableHead>}
-                            <TableHead className="text-right">
-                              {isSimpleCredit ? 'Capital de départ' : 'Montant global'}
-                            </TableHead>
-                            <TableHead className="text-right">Reste dû</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {actualSchedule.map((row) => {
-                            // Calculer si le paiement est suffisant (après rajout, seuls les paiements >= extendedAt sont dans le schedule)
-                            const paidAmount = row.paidAmount !== undefined ? row.paidAmount : null
-                            const expectedPayment = dueItems.find((due) => due.month === row.month)?.payment
-                              ?? Math.min(contract.monthlyPaymentAmount, row.principal)
-                            let rowColor = ''
-                            if (row.status === 'PAID' && paidAmount !== null) {
-                              rowColor = paidAmount >= expectedPayment
-                                ? 'bg-green-50 hover:bg-green-100'
-                                : 'bg-red-50 hover:bg-red-100'
-                            }
-                            
-                            return (
-                              <TableRow key={row.month} className={rowColor}>
-                                <TableCell className="font-medium">
-                                  {row.isRest ? `M${row.month} (repos)` : `M${row.month}`}
-                                </TableCell>
-                                <TableCell>{formatDate(row.date)}</TableCell>
-                                <TableCell className="text-right">
-                                  {row.isRest ? '—' : `${row.payment.toLocaleString('fr-FR')} FCFA`}
-                                </TableCell>
-                                {!isSimpleCredit && (
-                                  <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                                )}
-                                <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
-                                <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-
-                  {/* Échéancier calculé */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Échéancier calculé ({dueItemsForSimulation.length} mois)
-                        </h3>
-                        {isSimpleCredit && contract.customSchedule && contract.customSchedule.length > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Simulation personnalisée enregistrée lors de la création du contrat.
+                  {contract.creditType === 'SPECIALE' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Historique reconstitué
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Lecture métier alignée sur les exemples: capital, commission, intérêts, pénalités et nouveau capital.
                           </p>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                    {/* Légende de coloration */}
-                    <div className="mb-3 flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
-                        <span className="text-gray-600">Montant versé ≥ mensualité</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
-                        <span className="text-gray-600">0 ≤ montant versé &lt; mensualité</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
-                        <span className="text-gray-600">Aucun versement</span>
-                      </div>
-                    </div>
-                    <div className="border rounded-lg overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Mois</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Mensualité</TableHead>
-                            {!isSimpleCredit && <TableHead className="text-right">Intérêts</TableHead>}
-                            <TableHead className="text-right">
-                              {isSimpleCredit ? 'Capital de départ' : 'Montant global'}
-                            </TableHead>
-                            <TableHead className="text-right">Reste dû</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {dueItemsForSimulation.map((row) => {
-                            if (row.isRest) {
-                              return (
-                                <TableRow key={row.month} className="bg-blue-50/50">
-                                  <TableCell className="font-medium">M{row.month} (repos)</TableCell>
-                                  <TableCell>{formatDate(row.date)}</TableCell>
-                                  <TableCell className="text-right">—</TableCell>
-                                  {!isSimpleCredit && (
-                                    <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  )}
-                                  <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                                </TableRow>
-                              )
-                            }
-                            // Vérifier si un paiement a été fait (même de 0 FCFA)
-                            const hasPayment = row.paidAmount !== undefined || hasPaymentForMonth(row.month)
-                            const paidForMonth = row.paidAmount !== undefined 
-                              ? row.paidAmount 
-                              : (paymentsByMonth.get(row.month) ?? null)
-                            const rowColor = !hasPayment || paidForMonth === null
-                              ? ''
-                              : paidForMonth >= row.payment 
-                              ? 'bg-green-50 hover:bg-green-100' 
-                              : 'bg-red-50 hover:bg-red-100'
-                            return (
-                              <TableRow key={row.month} className={rowColor}>
-                                <TableCell className="font-medium">M{row.month}</TableCell>
-                                <TableCell>{formatDate(row.date)}</TableCell>
-                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                                {!isSimpleCredit && (
-                                  <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                                )}
-                                <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
-                                <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
 
-                  {/* Échéancier référence (pour crédit spéciale uniquement) */}
-                  {contract.creditType === 'SPECIALE' && referenceSchedule.length > 0 && (
-                    <div className="lg:max-w-md">
-                      <h3 className="font-semibold mb-3 flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Échéancier référence (7 mois)
-                      </h3>
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Mois</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead className="text-right">Mensualité</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {referenceSchedule.map((row) => (
-                              <TableRow key={row.month}>
-                                <TableCell className="font-medium">M{row.month}</TableCell>
-                                <TableCell>{formatDate(row.date)}</TableCell>
-                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                      {specialHistoryRecordedRows.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 border rounded-lg">
+                          Aucun mois enregistré pour le moment
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Mois</TableHead>
+                                <TableHead>Phase</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead className="text-right">Capital</TableHead>
+                                <TableHead className="text-right">Commission</TableHead>
+                                <TableHead className="text-right">Intérêts</TableHead>
+                                <TableHead className="text-right">Montant global</TableHead>
+                                <TableHead className="text-right">Montant remis</TableHead>
+                                <TableHead className="text-right">Pénalité</TableHead>
+                                <TableHead className="text-right">Nouveau capital</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
+                            </TableHeader>
+                            <TableBody>
+                              {specialHistoryRecordedRows.map((row) => (
+                                <TableRow key={row.month} className={row.isRest ? 'bg-blue-50/50' : ''}>
+                                  <TableCell className="font-medium">
+                                    {row.isRest ? `M${row.month} (repos)` : `M${row.month}`}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        row.phase === 'FIXE'
+                                          ? 'bg-slate-50 text-slate-700 border-slate-200'
+                                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                                      }
+                                    >
+                                      {row.phase === 'FIXE' ? 'Partie fixe' : 'Spéciale'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{formatDate(row.date)}</TableCell>
+                                  <TableCell className="text-right">{row.capitalStart.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right">{row.commission.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right font-medium">{row.amountDue.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right">{row.actualPayment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right">{(penaltiesByMonth.get(row.month) ?? 0).toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right font-medium">{row.nextCapitalActual.toLocaleString('fr-FR')} FCFA</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      Versements enregistrés
+                    </h3>
+                    {isLoadingPayments ? (
+                      <div className="text-center py-8 text-gray-500">Chargement...</div>
+                    ) : payments.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 border rounded-lg">Aucun versement enregistré</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {[...payments]
+                          .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+                          .map((payment) => {
+                            let relatedDueItem = null
+                            if (payment.id) {
+                              const match = payment.id.match(/^M(\d+)_/)
+                              if (match) {
+                                const paymentMonth = parseInt(match[1], 10)
+                                relatedDueItem = actualSchedule.find(item => item.month === paymentMonth) || null
+                              }
+                            }
+
+                            return (
+                              <div
+                                key={payment.id}
+                                className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Calendar className="h-4 w-4 text-gray-500" />
+                                    <span className="font-semibold">
+                                      {formatDateTime(payment.paymentDate, payment.paymentTime)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                                    {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
+                                      <>
+                                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                          Pénalités uniquement
+                                        </Badge>
+                                        <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
+                                        {payment.note !== undefined && (
+                                          <span>Note pénalités : {payment.note}/10</span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
+                                        <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
+                                        {payment.note !== undefined && (
+                                          <span>Note : {payment.note}/10</span>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                  {(payment.modificationReason || !!(payment as { updatedAt?: unknown }).updatedAt) && (
+                                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                                      {(() => {
+                                        const u = (payment as { updatedAt?: unknown }).updatedAt
+                                        const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
+                                        if (modDate && !isNaN(modDate.getTime())) {
+                                          return (
+                                            <div>
+                                              <span>Modifié le : {modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                          )
+                                        }
+                                        return null
+                                      })()}
+                                      {payment.modificationReason && (
+                                        <div><span className="font-medium">Motif :</span> {payment.modificationReason}</div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (relatedDueItem) {
+                                        const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
+                                        if (dueIndex !== -1) {
+                                          setSelectedDueIndexForReceipt(dueIndex)
+                                          setShowReceiptModal(true)
+                                        } else {
+                                          toast.error('Impossible de trouver les détails de cette échéance')
+                                        }
+                                      } else {
+                                        toast.error('Impossible de trouver les détails de cette échéance')
+                                      }
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Voir la facture
+                                  </Button>
+                                  {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setPaymentToEdit(payment)
+                                        setShowPaymentModal(true)
+                                      }}
+                                    >
+                                      <Pencil className="h-4 w-4 mr-1" />
+                                      Modifier
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </TabsContent>
 
@@ -2469,34 +2024,12 @@ export default function CreditContractDetail({
                             </TableHeader>
                             <TableBody>
                               {(() => {
-                                // Calculer l'échéancier pour obtenir les restes dus
-                                const schedule = calculateSchedule({
-                                  amount: contract.amount,
-                                  interestRate: contract.interestRate,
-                                  monthlyPayment: contract.monthlyPaymentAmount,
-                                  firstPaymentDate: contract.firstPaymentDate,
-                                  maxDuration: 7, // Limiter à 7 mois pour la rémunération
-                                })
-
                                 return [...guarantorRemunerations]
                                   .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
                                   .map((remuneration) => {
-                                    // Trouver l'échéance correspondante pour obtenir le reste dû au début du mois
-                                    // Pour le mois 1, le reste dû au début = montant emprunté
-                                    // Pour les mois suivants, le reste dû au début = remaining du mois précédent
-                                    let remainingAtStartOfMonth = 0;
-                                    if (remuneration.month === 1) {
-                                      remainingAtStartOfMonth = contract.amount;
-                                    } else {
-                                      const previousInstallment = schedule.find(item => item.month === remuneration.month - 1);
-                                      if (previousInstallment) {
-                                        remainingAtStartOfMonth = previousInstallment.remaining;
-                                      }
-                                    }
-                                    
+                                    const historyMonth = specialHistoryByMonth.get(remuneration.month)
+                                    const remainingAtStartOfMonth = historyMonth?.capitalStart ?? contract.amount
                                     const commissionPercentage = contract.guarantorRemunerationPercentage || 0
-                                    
-                                    // Recalculer la rémunération basée sur le reste dû (cohérence avec le calcul lors du paiement)
                                     const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
 
                                     return (
@@ -2517,29 +2050,11 @@ export default function CreditContractDetail({
                             <span className="font-semibold">Total des commissions :</span>
                             <span className="text-xl font-bold text-[#234D65]">
                               {(() => {
-                                // Recalculer le total basé sur les montants globaux
-                                const schedule = calculateSchedule({
-                                  amount: contract.amount,
-                                  interestRate: contract.interestRate,
-                                  monthlyPayment: contract.monthlyPaymentAmount,
-                                  firstPaymentDate: contract.firstPaymentDate,
-                                  maxDuration: 7,
-                                })
                                 const commissionPercentage = contract.guarantorRemunerationPercentage || 0
                                 
                                 return guarantorRemunerations
                                   .reduce((sum, r) => {
-                                    // Pour le mois 1, le reste dû au début = montant emprunté
-                                    // Pour les mois suivants, le reste dû au début = remaining du mois précédent
-                                    let remainingAtStartOfMonth = 0;
-                                    if (r.month === 1) {
-                                      remainingAtStartOfMonth = contract.amount;
-                                    } else {
-                                      const previousInstallment = schedule.find(item => item.month === r.month - 1);
-                                      if (previousInstallment) {
-                                        remainingAtStartOfMonth = previousInstallment.remaining;
-                                      }
-                                    }
+                                    const remainingAtStartOfMonth = specialHistoryByMonth.get(r.month)?.capitalStart ?? contract.amount
                                     const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
                                     return sum + recalculatedRemuneration
                                   }, 0)

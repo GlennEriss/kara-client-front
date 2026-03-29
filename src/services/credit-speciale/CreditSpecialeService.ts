@@ -19,6 +19,11 @@ import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { EmergencyContact } from "@/schemas/emergency-contact.schema";
 import { CreditFixeSimulationService } from "@/domains/financial/credit-speciale/fixe/simulation/services/CreditFixeSimulationService";
+import {
+    buildCreditSpecialeHistory,
+    getCreditPaymentMonthNumber,
+    getNextDueFromCreditSpecialeHistory,
+} from "@/utils/credit-speciale-history";
 
 export class CreditSpecialeService implements ICreditSpecialeService {
     readonly name = "CreditSpecialeService";
@@ -260,9 +265,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
         const shouldApplyGuarantorRemuneration = demand.creditType === 'SPECIALE';
 
-        // Calculer la date de la prochaine échéance (premier versement + 1 mois)
+        // La prochaine échéance d'un contrat nouvellement créé correspond au premier versement.
         const nextDueAt = new Date(simulationData.firstPaymentDate);
-        nextDueAt.setMonth(nextDueAt.getMonth() + 1);
+        const normalizedDuration = demand.creditType === 'SPECIALE'
+            ? Math.min(Math.max(1, simulationData.duration), 7)
+            : simulationData.duration;
+        const initialAmountRemaining = demand.creditType === 'SPECIALE'
+            ? Math.round(simulationData.amount + (simulationData.amount * simulationData.interestRate / 100))
+            : simulationData.totalAmount;
 
         // Utiliser le score de la demande s'il existe, sinon calculer le score initial basé sur l'historique
         const initialScore = demand.score !== undefined && demand.score !== null
@@ -304,7 +314,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             interestRate: simulationData.interestRate,
             monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
             totalAmount: simulationData.totalAmount,
-            duration: simulationData.duration,
+            duration: normalizedDuration,
             ...(simulationData.customSchedule && simulationData.customSchedule.length > 0
                 ? { customSchedule: simulationData.customSchedule }
                 : {}),
@@ -312,7 +322,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             nextDueAt,
             status: 'PENDING',
             amountPaid: 0,
-            amountRemaining: simulationData.totalAmount,
+            amountRemaining: initialAmountRemaining,
             score: initialScore,
             scoreUpdatedAt: new Date(),
             guarantorId: demand.guarantorId,
@@ -393,8 +403,20 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             recordedByName,
             recordedAt: new Date(),
         };
+        const nextRestMonths = [...existing, newEntry];
+        const payments = await this.creditPaymentRepository.getPaymentsByCreditId(creditId);
+        const history = contract.creditType === 'SPECIALE'
+            ? buildCreditSpecialeHistory({ ...contract, restMonths: nextRestMonths }, payments, {
+                projectUntilZero: true,
+            })
+            : [];
+        const nextDue = getNextDueFromCreditSpecialeHistory(history);
+
         await this.creditContractRepository.updateContract(creditId, {
-            restMonths: [...existing, newEntry],
+            restMonths: nextRestMonths,
+            nextDueAt: nextDue?.date,
+            amountRemaining: nextDue ? Math.round(nextDue.amountDue) : contract.amountRemaining,
+            updatedBy: recordedBy,
         });
     }
 
@@ -1075,44 +1097,6 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             p.comment?.includes('Paiement de 0 FCFA')
         );
         
-        const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE';
-        // Calculer le montant total payé et le reste dû
-        const monthlyRate = contract.interestRate / 100;
-        let remaining = contract.amount;
-
-        const sortedPayments = [...realPayments].sort((a, b) => 
-            new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
-        );
-
-        if (isSimpleCredit) {
-            const totalPaidBefore = sortedPayments.reduce((sum, existingPayment) => sum + existingPayment.amount, 0);
-            remaining = Math.max(0, contract.totalAmount - totalPaidBefore);
-        } else {
-            // Appliquer la formule pour chaque paiement : nouveauMontantRestant = MontantRestant - montantVerser
-            // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
-            for (const existingPayment of sortedPayments) {
-                const interest = remaining * monthlyRate;
-                const totalWithInterest = remaining + interest;
-                remaining = Math.max(0, totalWithInterest - existingPayment.amount);
-            }
-        }
-        
-        // Calculer les intérêts et le principal pour ce nouveau paiement
-        const interestBeforePayment = isSimpleCredit ? 0 : remaining * monthlyRate;
-        const totalWithInterest = isSimpleCredit ? remaining : remaining + interestBeforePayment;
-        
-        // Calculer combien d'intérêts et de principal sont payés par ce paiement
-        // Un paiement de 0 FCFA peut être soit un paiement de pénalités uniquement, soit un paiement de 0 FCFA normal
-        const isPenaltyOnlyPayment = data.amount === 0 && data.comment?.includes('Paiement de pénalités uniquement');
-        const isZeroPayment = data.amount === 0 && (data.comment?.includes('Paiement de 0 FCFA') || isPenaltyOnlyPayment);
-        const paymentAmount = isZeroPayment ? 0 : data.amount;
-        
-        // Payer d'abord les intérêts, puis le principal (simple crédit: tout en principal)
-        const interestPart = isSimpleCredit ? 0 : Math.min(paymentAmount, interestBeforePayment);
-        const principalPart = isSimpleCredit
-            ? Math.min(paymentAmount, totalWithInterest)
-            : Math.max(0, paymentAmount - interestPart);
-        
         // Calculer le mois : utiliser installmentNumber si fourni, sinon calculer à partir de la date
         let monthNumber: number;
         if (installmentNumber !== undefined && installmentNumber > 0) {
@@ -1133,6 +1117,48 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 monthNumber
             });
         }
+
+        const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE';
+        const monthlyRate = contract.interestRate / 100;
+        const sortedPayments = [...realPayments].sort((a, b) => 
+            new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+        );
+
+        // Calculer combien d'intérêts et de principal sont payés par ce paiement
+        // Un paiement de 0 FCFA peut être soit un paiement de pénalités uniquement, soit un paiement de 0 FCFA normal
+        const isPenaltyOnlyPayment = data.amount === 0 && data.comment?.includes('Paiement de pénalités uniquement');
+        const isZeroPayment = data.amount === 0 && (data.comment?.includes('Paiement de 0 FCFA') || isPenaltyOnlyPayment);
+        const paymentAmount = isZeroPayment ? 0 : data.amount;
+
+        let remaining = contract.amount;
+        let interestBeforePayment = 0;
+        let totalWithInterest = contract.amount;
+
+        if (isSimpleCredit) {
+            const totalPaidBefore = sortedPayments.reduce((sum, existingPayment) => sum + existingPayment.amount, 0);
+            remaining = Math.max(0, contract.totalAmount - totalPaidBefore);
+            totalWithInterest = remaining;
+        } else {
+            const historyBeforePayment = buildCreditSpecialeHistory(contract, realPayments, {
+                endMonth: monthNumber,
+                projectUntilZero: false,
+            });
+            const monthHistory = historyBeforePayment.find((month) => month.month === monthNumber);
+
+            if (!monthHistory) {
+                throw new Error(`Impossible de reconstruire l'échéance M${monthNumber} pour ce contrat`);
+            }
+
+            remaining = monthHistory.capitalStart;
+            interestBeforePayment = monthHistory.interest;
+            totalWithInterest = monthHistory.amountDue;
+        }
+        
+        // Payer d'abord les intérêts, puis le principal (simple crédit: tout en principal)
+        const interestPart = isSimpleCredit ? 0 : Math.min(paymentAmount, interestBeforePayment);
+        const principalPart = isSimpleCredit
+            ? Math.min(paymentAmount, totalWithInterest)
+            : Math.max(0, paymentAmount - interestPart);
         
         // Générer l'ID personnalisé au format M{mois}_{idContrat}
         // Utiliser l'ID complet du contrat
@@ -1194,22 +1220,35 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const totalPaid = updatedRealPayments.reduce((sum, p) => sum + p.amount, 0);
 
         let totalRemaining = 0;
+        let nextDueAt: Date | undefined;
         if (isSimpleCredit) {
             calculatedRemaining = Math.max(0, contract.totalAmount - totalPaid);
             totalRemaining = calculatedRemaining;
+            nextDueAt = calculatedRemaining > 0
+                ? (() => {
+                    const lastPaymentDate = recalculatedPayments.length > 0 
+                        ? new Date(recalculatedPayments[recalculatedPayments.length - 1].paymentDate)
+                        : new Date(contract.firstPaymentDate);
+                    const nextDue = new Date(lastPaymentDate);
+                    nextDue.setMonth(nextDue.getMonth() + 1);
+                    return nextDue;
+                })()
+                : undefined;
         } else {
-            for (const p of recalculatedPayments) {
-                const interest = calculatedRemaining * monthlyRate;
-                const totalWithInterest = calculatedRemaining + interest;
-                calculatedRemaining = Math.max(0, totalWithInterest - p.amount);
-            }
-            totalRemaining = calculatedRemaining + (calculatedRemaining * monthlyRate); // Ajouter les intérêts sur le reste actuel
+            const updatedHistory = buildCreditSpecialeHistory(contract, updatedRealPayments, {
+                projectUntilZero: true,
+            });
+            const nextDue = getNextDueFromCreditSpecialeHistory(updatedHistory);
+
+            calculatedRemaining = nextDue ? nextDue.capitalStart : 0;
+            totalRemaining = nextDue ? nextDue.amountDue : 0;
+            nextDueAt = nextDue?.date;
         }
         
         let newStatus = contract.status;
         if (totalRemaining <= 0 || calculatedRemaining <= 0) {
             newStatus = 'DISCHARGED';
-        } else if (totalPaid > 0 && totalPaid < contract.totalAmount) {
+        } else if (totalPaid > 0) {
             newStatus = 'PARTIAL';
         }
 
@@ -1228,24 +1267,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const oldScore = contract.score || 5;
         const scoreVariation = isPenaltyOnlyPayment ? 0 : newScore - oldScore;
 
-        // Calculer la prochaine date d'échéance basée sur les paiements
-        // Si le reste dû > 0, la prochaine échéance est dans 1 mois
-        const nextDueAt = !shouldTransformAideToSpeciale && calculatedRemaining > 0
-            ? (() => {
-                const lastPaymentDate = recalculatedPayments.length > 0 
-                    ? new Date(recalculatedPayments[recalculatedPayments.length - 1].paymentDate)
-                    : new Date(contract.firstPaymentDate);
-                const nextDue = new Date(lastPaymentDate);
-                nextDue.setMonth(nextDue.getMonth() + 1);
-                return nextDue;
-            })()
-            : undefined;
-
         await this.creditContractRepository.updateContract(contract.id, {
             amountPaid: totalPaid,
             amountRemaining: Math.round(totalRemaining),
             status: newStatus,
-            nextDueAt,
+            nextDueAt: shouldTransformAideToSpeciale ? undefined : nextDueAt,
             ...(shouldTransformAideToSpeciale ? {
                 transformedAt: new Date(),
                 blockedReason: `Crédit aide arrivé au terme de 3 mois. Solde restant à transformer en crédit spéciale : ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA.`,
@@ -1344,77 +1370,48 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 contract.guarantorId && 
                 contract.guarantorRemunerationPercentage > 0) {
                 
-                // Calculer le mois à partir de la date du paiement
-                const firstPaymentDate = new Date(contract.firstPaymentDate);
-                const paymentDate = new Date(payment.paymentDate);
-                const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
-                                 (paymentDate.getMonth() - firstPaymentDate.getMonth());
-                const month = Math.max(1, monthsDiff + 1);
+                const month = getCreditPaymentMonthNumber(contract, payment);
+                const historyBeforeCurrentPayment = buildCreditSpecialeHistory(contract, realPayments, {
+                    endMonth: month,
+                    projectUntilZero: false,
+                });
+                const monthHistory = historyBeforeCurrentPayment.find((entry) => entry.month === month);
                 
-                // Limiter à 7 mois maximum pour la rémunération
-                if (month <= 7) {
-                    // Recalculer le montant global pour ce mois en utilisant l'échéancier
-                    const { calculateSchedule } = await import('@/utils/credit-speciale-calculations');
-                    const schedule = calculateSchedule({
-                        amount: contract.amount,
-                        interestRate: contract.interestRate,
-                        monthlyPayment: contract.monthlyPaymentAmount,
-                        firstPaymentDate: contract.firstPaymentDate,
-                        maxDuration: 7, // Limiter à 7 mois
-                    });
-                    
-                    // Trouver l'échéance correspondant au mois du paiement
-                    const installment = schedule.find(item => item.month === month);
-                    
-                    if (installment) {
-                        // Calculer la rémunération sur le reste dû (capital restant au début du mois)
-                        // Pour le mois 1, le reste dû au début = montant emprunté
-                        // Pour les mois suivants, le reste dû au début = remaining du mois précédent
-                        let remainingAtStartOfMonth = 0;
-                        if (month === 1) {
-                            remainingAtStartOfMonth = contract.amount;
-                        } else {
-                            const previousInstallment = schedule.find(item => item.month === month - 1);
-                            if (previousInstallment) {
-                                remainingAtStartOfMonth = previousInstallment.remaining;
-                            }
-                        }
-                        
-                        const remunerationAmount = Math.round(
-                            (remainingAtStartOfMonth * contract.guarantorRemunerationPercentage) / 100
-                        );
+                if (monthHistory && !monthHistory.isRest && monthHistory.phase === 'SPECIALE') {
+                    const remunerationAmount = Math.round(
+                        (monthHistory.capitalStart * contract.guarantorRemunerationPercentage) / 100
+                    );
 
-                        if (remunerationAmount > 0) {
-                            await this.guarantorRemunerationRepository.createRemuneration({
-                                creditId: contract.id,
-                                guarantorId: contract.guarantorId,
-                                paymentId: payment.id,
-                                amount: remunerationAmount,
-                                month,
-                                createdBy: data.createdBy,
-                                updatedBy: data.createdBy,
+                    if (remunerationAmount > 0) {
+                        await this.guarantorRemunerationRepository.createRemuneration({
+                            creditId: contract.id,
+                            guarantorId: contract.guarantorId,
+                            paymentId: payment.id,
+                            amount: remunerationAmount,
+                            month,
+                            createdBy: data.createdBy,
+                            updatedBy: data.createdBy,
+                        });
+
+                        // Notification pour le garant
+                        try {
+                            await this.notificationService.createNotification({
+                                module: 'credit_speciale',
+                                entityId: contract.id,
+                                type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
+                                title: 'Rémunération reçue',
+                                message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
+                                metadata: {
+                                    contractId: contract.id,
+                                    paymentId: payment.id,
+                                    amount: remunerationAmount,
+                                    month,
+                                    guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
+                                    notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
+                                },
                             });
-
-                            // Notification pour le garant
-                            try {
-                                await this.notificationService.createNotification({
-                                    module: 'credit_speciale',
-                                    entityId: contract.id,
-                                    type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
-                                    title: 'Rémunération reçue',
-                                    message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
-                                    metadata: {
-                                        contractId: contract.id,
-                                        paymentId: payment.id,
-                                        amount: remunerationAmount,
-                                        month,
-                                        guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
-                                        notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
-                                    },
-                                });
-                            } catch {
-                                // Erreur lors de la création de la notification de rémunération - continue sans
-                            }
+                        } catch {
+                            // Erreur lors de la création de la notification de rémunération - continue sans
                         }
                     }
                 }
@@ -1769,10 +1766,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     // Utiliser checkAndCreatePenalties() à la place, qui fonctionne avec l'échéancier actuel
 
     async checkAndCreatePenalties(creditId: string, payment: CreditPayment): Promise<void> {
-        console.log('[checkAndCreatePenalties] Début - creditId:', creditId, 'payment.id:', payment.id);
         const contract = await this.creditContractRepository.getContractById(creditId);
         if (!contract) {
-            console.log('[checkAndCreatePenalties] Contrat non trouvé');
             return;
         }
 
@@ -1781,33 +1776,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             payment.comment?.includes('Paiement de pénalités uniquement') ||
             payment.comment?.includes('Paiement de 0 FCFA')
         )) {
-            console.log('[checkAndCreatePenalties] Paiement de 0 FCFA, ignoré');
             return;
         }
 
-        // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
-        let monthNumber: number | undefined;
-        if (payment.id) {
-            const match = payment.id.match(/^M(\d+)_/);
-            if (match) {
-                monthNumber = parseInt(match[1], 10);
-                console.log('[checkAndCreatePenalties] Mois extrait depuis l\'ID:', monthNumber);
-            } else {
-                console.log('[checkAndCreatePenalties] Aucun mois trouvé dans l\'ID:', payment.id);
-            }
-        } else {
-            console.log('[checkAndCreatePenalties] Payment.id est undefined');
-        }
-
-        // Si on n'a pas pu extraire le mois depuis l'ID, calculer à partir de la date
-        if (!monthNumber || isNaN(monthNumber)) {
-            const firstDate = new Date(contract.firstPaymentDate);
-        const paymentDate = new Date(payment.paymentDate);
-            const monthsDiff = (paymentDate.getFullYear() - firstDate.getFullYear()) * 12 + 
-                              (paymentDate.getMonth() - firstDate.getMonth());
-            monthNumber = Math.max(1, monthsDiff + 1);
-            console.log('[checkAndCreatePenalties] Mois calculé depuis la date:', monthNumber, 'firstDate:', firstDate.toISOString(), 'paymentDate:', paymentDate.toISOString());
-        }
+        const monthNumber = getCreditPaymentMonthNumber(contract, payment);
 
         // Calculer la date prévue de l'échéance pour ce mois
         const firstPaymentDate = new Date(contract.firstPaymentDate);
@@ -1819,31 +1791,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const paymentDate = new Date(payment.paymentDate);
         paymentDate.setHours(0, 0, 0, 0);
 
-        console.log('[checkAndCreatePenalties] Dates calculées:', {
-            monthNumber,
-            firstPaymentDate: firstPaymentDate.toISOString(),
-            dueDate: dueDate.toISOString(),
-            paymentDate: paymentDate.toISOString()
-        });
-
-        // Date limite : ne pas créer de pénalités rétroactives pour les échéances avant cette date
-        const newPenaltyLogicStartDate = new Date('2025-12-16');
-        newPenaltyLogicStartDate.setHours(0, 0, 0, 0);
-
         // Ne pas créer de pénalité pour un mois de repos
         const restMonths = contract.restMonths ?? [];
         if (restMonths.some((r) => r.monthNumber === monthNumber)) {
-            console.log('[checkAndCreatePenalties] Mois de repos, pénalité ignorée:', { monthNumber });
-            return;
-        }
-
-        // Ne pas créer de pénalité si la date d'échéance est avant la date limite
-        if (dueDate < newPenaltyLogicStartDate) {
-            console.log('[checkAndCreatePenalties] Échéance avant date limite, pénalité ignorée:', {
-                paymentId: payment.id,
-                dueDate: dueDate.toISOString(),
-                limitDate: newPenaltyLogicStartDate.toISOString()
-            });
             return;
         }
 
@@ -1851,160 +1801,73 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Si datePaiement <= dateEcheancierActuel → pas de pénalité
         // Si datePaiement > dateEcheancierActuel → pénalité
         const daysLate = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-        console.log('[checkAndCreatePenalties] Jours de retard calculés:', daysLate);
 
         // Tolérance de 3 jours : pas de pénalité si retard ≤ 3 jours. Au-delà, règle de 3.
-        if (daysLate > 3) {
-            console.log('[checkAndCreatePenalties] Paiement en retard, calcul du montant de l\'échéance...');
-            // Calculer le montant de l'échéance pour ce mois à partir de l'échéancier actuel
-            // On doit recalculer l'échéancier actuel pour obtenir le montant exact de cette échéance
-            const monthlyRate = contract.interestRate / 100;
-            let currentRemaining = contract.amount;
-            let installmentAmount = 0;
-            console.log('[checkAndCreatePenalties] Paramètres initiaux:', {
-                monthlyRate,
-                currentRemaining,
-                contractAmount: contract.amount
-            });
-
-            // Récupérer tous les paiements une seule fois
-            const allPayments = await this.getPaymentsByCreditId(creditId);
-            const realPayments = allPayments.filter(p => 
-                p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
-            );
-
-            // Créer un map des paiements par mois (exclure le paiement actuel)
-            const paymentsByMonth = new Map<number, number>();
-            for (const p of realPayments) {
-                if (p.id && p.id !== payment.id) {
-                    const match = p.id.match(/^M(\d+)_/);
-                    if (match) {
-                        const pMonth = parseInt(match[1], 10);
-                        const currentAmount = paymentsByMonth.get(pMonth) || 0;
-                        paymentsByMonth.set(pMonth, currentAmount + p.amount);
-                    }
-                }
-            }
-
-            // Recalculer jusqu'au mois concerné pour obtenir le montant de l'échéance
-            for (let i = 0; i < monthNumber; i++) {
-                const isAfterMonth7 = i >= 7;
-                const interest = isAfterMonth7 ? 0 : currentRemaining * monthlyRate;
-                const montantGlobal = currentRemaining + interest;
-                
-                // Récupérer le paiement pour ce mois (s'il existe)
-                const actualPayment = paymentsByMonth.get(i + 1) || 0;
-                
-                let paymentAmount: number;
-                let resteDu: number;
-                
-                if (actualPayment > 0) {
-                    paymentAmount = actualPayment;
-                    resteDu = Math.max(0, montantGlobal - paymentAmount);
-            } else {
-                    const monthlyPayment = contract.monthlyPaymentAmount;
-                    if (monthlyPayment > montantGlobal) {
-                        paymentAmount = montantGlobal;
-                        resteDu = 0;
-                    } else if (currentRemaining < monthlyPayment && !isAfterMonth7) {
-                        paymentAmount = currentRemaining;
-                        resteDu = 0;
-                    } else {
-                        paymentAmount = monthlyPayment;
-                        resteDu = montantGlobal - paymentAmount;
-                    }
-                }
-
-                // Si c'est le mois concerné, sauvegarder le montant théorique de l'échéance
-                if (i + 1 === monthNumber) {
-                    // Utiliser le montant théorique (paymentAmount calculé), pas le montant réellement payé
-                    // Car la pénalité se calcule sur le montant dû, pas sur le montant payé
-                    installmentAmount = paymentAmount;
-                }
-
-                currentRemaining = resteDu;
-            }
-
-            // Calculer la pénalité : (jours de retard * montant de l'échéance) / 30
-            const penaltyAmount = (daysLate * installmentAmount) / 30;
-            console.log('[checkAndCreatePenalties] Pénalité calculée:', {
-                daysLate,
-                installmentAmount,
-                penaltyAmount: Math.round(penaltyAmount),
-                formula: `(${daysLate} * ${installmentAmount}) / 30`
-            });
-
-            if (penaltyAmount > 0) {
-                // Vérifier si une pénalité existe déjà pour ce mois
-                    const existingPenalties = await this.getPenaltiesByCreditId(creditId);
-                    console.log('[checkAndCreatePenalties] Pénalités existantes:', existingPenalties.length);
-                    const existingPenalty = existingPenalties.find(p => {
-                        const pDueDate = new Date(p.dueDate);
-                        pDueDate.setHours(0, 0, 0, 0);
-                    // Vérifier si la pénalité correspond au même mois (même date d'échéance)
-                        const matches = Math.abs(pDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000 && !p.paid;
-                        if (matches) {
-                            console.log('[checkAndCreatePenalties] Pénalité existante trouvée:', {
-                                penaltyId: p.id,
-                                penaltyDueDate: pDueDate.toISOString(),
-                                penaltyAmount: p.amount,
-                                penaltyPaid: p.paid
-                            });
-                        }
-                        return matches;
-                    });
-
-                if (!existingPenalty) {
-                        console.log('[checkAndCreatePenalties] Création de la pénalité...');
-                        const penalty = await this.createPenalty({
-                            creditId,
-                        installmentId: '', // Plus besoin d'installmentId
-                        amount: Math.round(penaltyAmount),
-                            daysLate,
-                            dueDate,
-                            paid: false,
-                            reported: false,
-                            createdBy: payment.createdBy,
-                            updatedBy: payment.createdBy,
-                        });
-                        console.log('[checkAndCreatePenalties] Pénalité créée avec succès:', {
-                            penaltyId: penalty.id,
-                            amount: penalty.amount,
-                            daysLate: penalty.daysLate,
-                            dueDate: penalty.dueDate.toISOString()
-                        });
-
-                        // Notification pour les admins : pénalité créée
-                        try {
-                            await this.notificationService.createNotification({
-                                module: 'credit_speciale',
-                                entityId: creditId,
-                                type: 'reminder',
-                                title: 'Pénalité appliquée',
-                            message: `Une pénalité de ${Math.round(penaltyAmount).toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard sur l'échéance du ${dueDate.toLocaleDateString('fr-FR')}).`,
-                                metadata: {
-                                    contractId: creditId,
-                                    penaltyId: penalty.id,
-                                    clientId: contract.clientId,
-                                amount: Math.round(penaltyAmount),
-                                    daysLate,
-                                    dueDate: dueDate.toISOString(),
-                                month: monthNumber,
-                                },
-                            });
-                        } catch {
-                            // Erreur lors de la création de la notification de pénalité - continue sans
-                        }
-                    } else {
-                        console.log('[checkAndCreatePenalties] Pénalité déjà existante, non créée');
-                    }
-                } else {
-                    console.log('[checkAndCreatePenalties] Montant de pénalité <= 0, non créée');
-                }
-        } else {
-            console.log('[checkAndCreatePenalties] Pas de pénalité (retard ≤ 3 jours, tolérance)');
+        if (daysLate <= 3) {
+            return;
         }
-        console.log('[checkAndCreatePenalties] Fin');
+
+        const allPayments = await this.getPaymentsByCreditId(creditId);
+        const paymentsBeforeCurrent = allPayments.filter((existingPayment) => existingPayment.id !== payment.id);
+        const history = contract.creditType === 'SPECIALE'
+            ? buildCreditSpecialeHistory(contract, paymentsBeforeCurrent, {
+                endMonth: monthNumber,
+                projectUntilZero: false,
+            })
+            : [];
+        const monthHistory = history.find((month) => month.month === monthNumber);
+        const penaltyBase = contract.creditType === 'SPECIALE'
+            ? (monthHistory?.interest ?? payment.interestAmount ?? 0)
+            : (payment.interestAmount ?? 0);
+
+        const penaltyAmount = await this.calculatePenalties(creditId, daysLate, penaltyBase);
+        if (penaltyAmount <= 0) {
+            return;
+        }
+
+        const existingPenalties = await this.getPenaltiesByCreditId(creditId);
+        const existingPenalty = existingPenalties.find((penalty) => {
+            const penaltyDueDate = new Date(penalty.dueDate);
+            penaltyDueDate.setHours(0, 0, 0, 0);
+            return Math.abs(penaltyDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000 && !penalty.paid;
+        });
+
+        if (existingPenalty) {
+            return;
+        }
+
+        const penalty = await this.createPenalty({
+            creditId,
+            installmentId: '',
+            amount: Math.round(penaltyAmount),
+            daysLate,
+            dueDate,
+            paid: false,
+            reported: false,
+            createdBy: payment.createdBy,
+            updatedBy: payment.createdBy,
+        });
+
+        try {
+            await this.notificationService.createNotification({
+                module: 'credit_speciale',
+                entityId: creditId,
+                type: 'reminder',
+                title: 'Pénalité appliquée',
+                message: `Une pénalité de ${Math.round(penaltyAmount).toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard sur l'échéance du ${dueDate.toLocaleDateString('fr-FR')}).`,
+                metadata: {
+                    contractId: creditId,
+                    penaltyId: penalty.id,
+                    clientId: contract.clientId,
+                    amount: Math.round(penaltyAmount),
+                    daysLate,
+                    dueDate: dueDate.toISOString(),
+                    month: monthNumber,
+                },
+            });
+        } catch {
+            // Erreur lors de la création de la notification de pénalité - continue sans
+        }
     }
 
     // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
@@ -2023,265 +1886,37 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== PÉNALITÉS ====================
 
-    async calculatePenalties(creditId: string, daysLate: number, monthlyPaymentAmount: number): Promise<number> {
-        // Règle de 3 : pénalité = (montant mensuel * jours de retard) / 30
-        return (monthlyPaymentAmount * daysLate) / 30;
+    async calculatePenalties(creditId: string, daysLate: number, interestAmountBase: number): Promise<number> {
+        // Règle métier officielle : pénalité = intérêt du mois * jours de retard / 30
+        return (interestAmountBase * daysLate) / 30;
     }
 
     /**
      * Vérifie et crée les pénalités manquantes pour tous les paiements en retard
-     * Cette fonction peut être appelée pour s'assurer que toutes les pénalités sont créées
-     * IMPORTANT: Ne crée des pénalités que pour les paiements faits après l'implémentation de la nouvelle logique
-     * (date limite: 16 décembre 2025 - date d'implémentation de la nouvelle logique)
-     * Supprime également les pénalités rétroactives qui ont été créées par erreur
+     * en appliquant la formule métier officielle sur l'intérêt du mois.
      */
     async checkAndCreateMissingPenalties(creditId: string): Promise<void> {
-        console.log('[checkAndCreateMissingPenalties] Début - creditId:', creditId);
-        const contract = await this.creditContractRepository.getContractById(creditId);
-        if (!contract) {
-            console.log('[checkAndCreateMissingPenalties] Contrat non trouvé');
+        const contractExists = await this.creditContractRepository.getContractById(creditId);
+        if (!contractExists) {
             return;
         }
 
-        // Date limite : ne pas créer de pénalités rétroactives pour les paiements avant cette date
-        // Cette date correspond à l'implémentation de la nouvelle logique de pénalités
-        const newPenaltyLogicStartDate = new Date('2025-12-16');
-        newPenaltyLogicStartDate.setHours(0, 0, 0, 0);
-        console.log('[checkAndCreateMissingPenalties] Date limite pour pénalités rétroactives:', newPenaltyLogicStartDate.toISOString());
-
         // Récupérer tous les paiements
         const allPayments = await this.getPaymentsByCreditId(creditId);
-        let existingPenalties = await this.getPenaltiesByCreditId(creditId);
-        
-        // Supprimer les pénalités rétroactives qui correspondent à des échéances avant la date limite
-        // Une pénalité est rétroactive si sa date d'échéance est avant le 16 décembre 2025
-        // (date d'implémentation de la nouvelle logique)
-        console.log('[checkAndCreateMissingPenalties] Vérification des pénalités rétroactives...', existingPenalties.length, 'pénalités existantes');
-        let deletedCount = 0;
-        for (const penalty of existingPenalties) {
-            const penaltyDueDate = new Date(penalty.dueDate);
-            penaltyDueDate.setHours(0, 0, 0, 0);
-            
-            console.log('[checkAndCreateMissingPenalties] Vérification pénalité:', {
-                penaltyId: penalty.id,
-                penaltyDueDate: penaltyDueDate.toISOString(),
-                penaltyAmount: penalty.amount,
-                penaltyPaid: penalty.paid,
-                isBeforeLimit: penaltyDueDate < newPenaltyLogicStartDate
-            });
-            
-            // Si la date d'échéance de la pénalité est avant la date limite, c'est une pénalité rétroactive
-            // On la supprime si elle n'est pas payée
-            if (penaltyDueDate < newPenaltyLogicStartDate && !penalty.paid) {
-                try {
-                    await this.creditPenaltyRepository.deletePenalty(penalty.id);
-                    deletedCount++;
-                    console.log(`[checkAndCreateMissingPenalties] Pénalité rétroactive supprimée: ${penalty.id} (${penalty.amount} FCFA pour l'échéance du ${penaltyDueDate.toLocaleDateString('fr-FR')})`);
-                } catch {
-                    // Erreur lors de la suppression de la pénalité rétroactive - continue sans
-                }
-            }
-        }
-        console.log(`[checkAndCreateMissingPenalties] ${deletedCount} pénalité(s) rétroactive(s) supprimée(s)`);
-        
-        // Récupérer à nouveau les pénalités après suppression pour avoir la liste à jour
-        existingPenalties = await this.getPenaltiesByCreditId(creditId);
-        
+
         const realPayments = allPayments
             .filter(p => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'));
 
-        // Pour chaque paiement, vérifier s'il y a une pénalité correspondante
-        console.log('[checkAndCreateMissingPenalties] Vérification de', realPayments.length, 'paiements');
         for (const payment of realPayments) {
-            // Ignorer les paiements faits avant l'implémentation de la nouvelle logique
-            const paymentDateCheck = new Date(payment.paymentDate);
-            paymentDateCheck.setHours(0, 0, 0, 0);
-            console.log('[checkAndCreateMissingPenalties] Vérification paiement:', {
-                paymentId: payment.id,
-                paymentDate: paymentDateCheck.toISOString(),
-                isBeforeLimit: paymentDateCheck < newPenaltyLogicStartDate
-            });
-            if (paymentDateCheck < newPenaltyLogicStartDate) {
-                console.log('[checkAndCreateMissingPenalties] Paiement ignoré (avant date limite):', payment.id);
-                continue; // Ne pas créer de pénalités rétroactives
+            try {
+                await this.checkAndCreatePenalties(creditId, payment);
+            } catch (error) {
+                console.error('[checkAndCreateMissingPenalties] Erreur lors de la vérification d\'un paiement:', error);
             }
-            // Extraire le numéro du mois depuis l'ID du paiement
-            let monthNumber: number | undefined;
-            if (payment.id) {
-                const match = payment.id.match(/^M(\d+)_/);
-                if (match) {
-                    monthNumber = parseInt(match[1], 10);
-                }
-            }
-
-            if (!monthNumber || isNaN(monthNumber)) continue;
-
-            // Calculer la date prévue de l'échéance pour ce mois
-            const contractFirstPaymentDate = new Date(contract.firstPaymentDate);
-            const dueDate = new Date(contractFirstPaymentDate);
-            dueDate.setMonth(dueDate.getMonth() + monthNumber - 1);
-            dueDate.setHours(0, 0, 0, 0);
-
-            // Date de paiement
-            const paymentDate = new Date(payment.paymentDate);
-            paymentDate.setHours(0, 0, 0, 0);
-
-            // Calculer le nombre de jours de retard
-            const daysLate = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-            console.log('[checkAndCreateMissingPenalties] Calcul retard pour paiement:', {
-                paymentId: payment.id,
-                monthNumber,
-                dueDate: dueDate.toISOString(),
-                paymentDate: paymentDate.toISOString(),
-                daysLate,
-                dueDateBeforeLimit: dueDate < newPenaltyLogicStartDate
-            });
-
-            // Ne pas créer de pénalité si la date d'échéance est avant la date limite
-            // (même si le paiement a été fait après la date limite)
-            if (dueDate < newPenaltyLogicStartDate) {
-                console.log('[checkAndCreateMissingPenalties] Échéance avant date limite, pénalité ignorée:', {
-                    paymentId: payment.id,
-                    dueDate: dueDate.toISOString(),
-                    limitDate: newPenaltyLogicStartDate.toISOString()
-                });
-                continue;
-            }
-
-            // Si le paiement est en retard, vérifier si une pénalité existe déjà
-            // Tolérance de 3 jours : pénalité à partir du 4ème jour de retard
-                if (daysLate > 3) {
-                // Vérifier si une pénalité existe déjà pour ce mois
-                    const hasPenalty = existingPenalties.some(p => {
-                        const pDueDate = new Date(p.dueDate);
-                        pDueDate.setHours(0, 0, 0, 0);
-                        const matches = Math.abs(pDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000;
-                        if (matches) {
-                            console.log('[checkAndCreateMissingPenalties] Pénalité existante trouvée:', {
-                                penaltyId: p.id,
-                                penaltyDueDate: pDueDate.toISOString(),
-                                penaltyAmount: p.amount
-                            });
-                        }
-                        return matches;
-                    });
-                    console.log('[checkAndCreateMissingPenalties] Pénalité existe déjà?', hasPenalty);
-
-                    if (!hasPenalty) {
-                    // Recalculer le montant de l'échéance pour ce mois (même logique que checkAndCreatePenalties)
-                    const monthlyRate = contract.interestRate / 100;
-                    let currentRemaining = contract.amount;
-                    let installmentAmount = 0;
-
-                    // Créer un map des paiements par mois (exclure le paiement actuel)
-                    const paymentsByMonth = new Map<number, number>();
-                    for (const p of realPayments) {
-                        if (p.id && p.id !== payment.id) {
-                            const match = p.id.match(/^M(\d+)_/);
-                            if (match) {
-                                const pMonth = parseInt(match[1], 10);
-                                const currentAmount = paymentsByMonth.get(pMonth) || 0;
-                                paymentsByMonth.set(pMonth, currentAmount + p.amount);
-                            }
-                        }
-                    }
-
-                    // Recalculer jusqu'au mois concerné
-                    for (let i = 0; i < monthNumber; i++) {
-                        const isAfterMonth7 = i >= 7;
-                        const interest = isAfterMonth7 ? 0 : currentRemaining * monthlyRate;
-                        const montantGlobal = currentRemaining + interest;
-                        
-                        const actualPayment = paymentsByMonth.get(i + 1) || 0;
-                        
-                        let paymentAmount: number;
-                        let resteDu: number;
-                        
-                        if (actualPayment > 0) {
-                            paymentAmount = actualPayment;
-                            resteDu = Math.max(0, montantGlobal - paymentAmount);
-                        } else {
-                            const monthlyPayment = contract.monthlyPaymentAmount;
-                            if (monthlyPayment > montantGlobal) {
-                                paymentAmount = montantGlobal;
-                                resteDu = 0;
-                            } else if (currentRemaining < monthlyPayment && !isAfterMonth7) {
-                                paymentAmount = currentRemaining;
-                                resteDu = 0;
-                            } else {
-                                paymentAmount = monthlyPayment;
-                                resteDu = montantGlobal - paymentAmount;
-                            }
-                        }
-
-                        if (i + 1 === monthNumber) {
-                            installmentAmount = paymentAmount;
-                        }
-
-                        currentRemaining = resteDu;
-                    }
-
-                    // Calculer la pénalité
-                    const penaltyAmount = (daysLate * installmentAmount) / 30;
-                    console.log('[checkAndCreateMissingPenalties] Pénalité calculée:', {
-                        daysLate,
-                        installmentAmount,
-                        penaltyAmount: Math.round(penaltyAmount),
-                        formula: `(${daysLate} * ${installmentAmount}) / 30`
-                    });
-                        
-                        if (penaltyAmount > 0) {
-                            try {
-                                console.log('[checkAndCreateMissingPenalties] Création de la pénalité...');
-                                const penalty = await this.createPenalty({
-                                    creditId,
-                                installmentId: '', // Plus besoin d'installmentId
-                                amount: Math.round(penaltyAmount),
-                                    daysLate,
-                                    dueDate,
-                                    paid: false,
-                                    reported: false,
-                                createdBy: payment.createdBy || contract.createdBy,
-                                updatedBy: payment.updatedBy || contract.updatedBy,
-                                });
-                                console.log('[checkAndCreateMissingPenalties] Pénalité créée avec succès:', {
-                                    penaltyId: penalty.id,
-                                    amount: penalty.amount,
-                                    daysLate: penalty.daysLate,
-                                    dueDate: penalty.dueDate.toISOString()
-                                });
-                            } catch {
-                                // Erreur lors de la création de la pénalité - continue sans
-                            }
-                        } else {
-                            console.log('[checkAndCreateMissingPenalties] Montant de pénalité <= 0, non créée');
-                        }
-                    } else {
-                        console.log('[checkAndCreateMissingPenalties] Pas de pénalité existante trouvée, création...');
-                    }
-                } else {
-                    console.log('[checkAndCreateMissingPenalties] Pas de pénalité (retard ≤ 3 jours, tolérance)');
-                }
         }
-        console.log('[checkAndCreateMissingPenalties] Fin');
     }
 
     async createPenalty(data: Omit<CreditPenalty, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPenalty> {
-        // Protection finale : ne pas créer de pénalité si la date d'échéance est avant le 16 décembre 2025
-        const newPenaltyLogicStartDate = new Date('2025-12-16');
-        newPenaltyLogicStartDate.setHours(0, 0, 0, 0);
-        const penaltyDueDate = new Date(data.dueDate);
-        penaltyDueDate.setHours(0, 0, 0, 0);
-        
-        if (penaltyDueDate < newPenaltyLogicStartDate) {
-            console.log('[createPenalty] BLOCAGE: Tentative de création d\'une pénalité rétroactive bloquée:', {
-                dueDate: penaltyDueDate.toISOString(),
-                limitDate: newPenaltyLogicStartDate.toISOString(),
-                amount: data.amount
-            });
-            throw new Error(`Impossible de créer une pénalité pour une échéance avant le 16 décembre 2025 (échéance: ${penaltyDueDate.toLocaleDateString('fr-FR')})`);
-        }
-        
         return await this.creditPenaltyRepository.createPenalty(data);
     }
 
