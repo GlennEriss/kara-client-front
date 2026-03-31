@@ -62,6 +62,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
                 ...(data as any),
                 dueDate: (data.dueDate as any)?.toDate ? (data.dueDate as any).toDate() : new Date(data.dueDate),
                 paidAt: data.paidAt ? ((data.paidAt as any)?.toDate ? (data.paidAt as any).toDate() : new Date(data.paidAt)) : undefined,
+                paymentRecordedAt: data.paymentRecordedAt ? ((data.paymentRecordedAt as any)?.toDate ? (data.paymentRecordedAt as any).toDate() : new Date(data.paymentRecordedAt)) : undefined,
+                paymentUpdatedAt: data.paymentUpdatedAt ? ((data.paymentUpdatedAt as any)?.toDate ? (data.paymentUpdatedAt as any).toDate() : new Date(data.paymentUpdatedAt)) : undefined,
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             } as CreditPenalty;
@@ -90,6 +92,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
                     ...(data as any),
                     dueDate: (data.dueDate as any)?.toDate ? (data.dueDate as any).toDate() : new Date(data.dueDate),
                     paidAt: data.paidAt ? ((data.paidAt as any)?.toDate ? (data.paidAt as any).toDate() : new Date(data.paidAt)) : undefined,
+                    paymentRecordedAt: data.paymentRecordedAt ? ((data.paymentRecordedAt as any)?.toDate ? (data.paymentRecordedAt as any).toDate() : new Date(data.paymentRecordedAt)) : undefined,
+                    paymentUpdatedAt: data.paymentUpdatedAt ? ((data.paymentUpdatedAt as any)?.toDate ? (data.paymentUpdatedAt as any).toDate() : new Date(data.paymentUpdatedAt)) : undefined,
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
                 } as CreditPenalty);
@@ -137,6 +141,8 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
                     ...(data as any),
                     dueDate: (data.dueDate as any)?.toDate ? (data.dueDate as any).toDate() : new Date(data.dueDate),
                     paidAt: data.paidAt ? ((data.paidAt as any)?.toDate ? (data.paidAt as any).toDate() : new Date(data.paidAt)) : undefined,
+                    paymentRecordedAt: data.paymentRecordedAt ? ((data.paymentRecordedAt as any)?.toDate ? (data.paymentRecordedAt as any).toDate() : new Date(data.paymentRecordedAt)) : undefined,
+                    paymentUpdatedAt: data.paymentUpdatedAt ? ((data.paymentUpdatedAt as any)?.toDate ? (data.paymentUpdatedAt as any).toDate() : new Date(data.paymentUpdatedAt)) : undefined,
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
                 } as CreditPenalty);
@@ -239,4 +245,3 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
         }
     }
 }
-

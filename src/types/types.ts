@@ -1693,6 +1693,17 @@ export interface CreditPenalty {
   dueDate: Date // Date d'échéance de l'installment
   paid: boolean
   paidAt?: Date
+  paymentTime?: string
+  paymentMode?: CreditPaymentMode
+  withFees?: boolean
+  proofUrl?: string
+  proofPath?: string
+  agentRecouvrementId?: string
+  paymentComment?: string
+  paymentRecordedBy?: string
+  paymentRecordedAt?: Date
+  paymentUpdatedBy?: string
+  paymentUpdatedAt?: Date
   paymentId?: string // ID du paiement qui a payé cette pénalité
   reported: boolean // Si le client a choisi de reporter
   createdAt: Date

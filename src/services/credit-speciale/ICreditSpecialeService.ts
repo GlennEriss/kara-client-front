@@ -94,6 +94,34 @@ export interface ICreditSpecialeService {
     getPenaltiesByCreditId(creditId: string): Promise<CreditPenalty[]>;
     getUnpaidPenaltiesByCreditId(creditId: string): Promise<CreditPenalty[]>;
     checkAndCreateMissingPenalties(creditId: string): Promise<void>;
+    payPenalty(
+        penaltyId: string,
+        data: {
+            paymentDate: Date;
+            paymentTime: string;
+            amount: number;
+            mode: CreditPaymentMode;
+            withFees?: boolean;
+            agentRecouvrementId?: string;
+            comment?: string;
+        },
+        proofFile: File | undefined,
+        adminId: string
+    ): Promise<CreditPenalty>;
+    updatePenaltyPayment(
+        penaltyId: string,
+        data: {
+            paymentDate: Date;
+            paymentTime: string;
+            amount: number;
+            mode: CreditPaymentMode;
+            withFees?: boolean;
+            agentRecouvrementId?: string;
+            comment?: string;
+        },
+        proofFile: File | undefined,
+        adminId: string
+    ): Promise<CreditPenalty>;
     
     // Rémunération garant
     getRemunerationsByCreditId(creditId: string): Promise<GuarantorRemuneration[]>;
