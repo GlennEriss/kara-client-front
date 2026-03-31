@@ -81,6 +81,13 @@ export default function PaymentSummaryModal({
   
   // Taux d'intérêt : déjà en % en base (ex. 12 pour 12%), ne pas multiplier par 100
   const interestRate = contract.interestRate ?? 0
+  const capitalStart =
+    dueItem?.principal !== undefined
+      ? Math.max(0, dueItem.principal - interest)
+      : contract.amount
+  const isFixedExtensionMonth =
+    contract.creditType === 'FIXE' ||
+    (contract.creditType === 'SPECIALE' && interest === 0 && globalAmount === capitalStart)
   
   // Formater la date d'échéance (on utilise la date de paiement comme date d'échéance)
   const formatDate = (date: Date) => {
@@ -93,9 +100,13 @@ export default function PaymentSummaryModal({
   }
 
   const summaryData = [
-    { label: 'CAPITAL', value: `${formatAmount(contract.amount)} FCFA`, highlight: 'green' },
-    { label: 'TAUX', value: `${interestRate} %`, highlight: 'blue' },
-    { label: 'INTERETS', value: `${formatAmount(interest)} FCFA`, highlight: 'blue' },
+    ...(!isFixedExtensionMonth
+      ? [
+          { label: 'CAPITAL', value: `${formatAmount(capitalStart)} FCFA`, highlight: 'green' as const },
+          { label: 'TAUX', value: `${interestRate} %`, highlight: 'blue' as const },
+          { label: 'INTERETS', value: `${formatAmount(interest)} FCFA`, highlight: 'blue' as const },
+        ]
+      : []),
     { label: 'MONTANT GLOBAL', value: `${formatAmount(globalAmount)} FCFA`, highlight: 'yellow' },
     { label: 'DATE ECHEANCE', value: formatDate(payment.paymentDate), highlight: 'blue' },
     { label: 'DATE REMISE', value: formatDate(payment.paymentDate), highlight: 'blue' },
@@ -303,4 +314,3 @@ export default function PaymentSummaryModal({
     </Dialog>
   )
 }
-

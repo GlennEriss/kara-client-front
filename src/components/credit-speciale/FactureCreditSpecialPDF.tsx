@@ -21,6 +21,8 @@ export interface FactureCreditSpecialPDFData {
   nouveauCapital2: number | string
   /** Montant global de l'échéance suivante (colonne "CAPITAL MOIS PROCHAIN") */
   capitalMoisProchain: number | string
+  /** Partie fixe issue d'un crédit spéciale : masquer CAPITAL / TAUX / INTERETS */
+  isFixedExtensionMonth?: boolean
 }
 
 /** Ex: 6000 -> "6 000", 10000 -> "10 000" (espace comme séparateur de milliers). */
@@ -55,7 +57,7 @@ function formatFrais(value: string | boolean | number): string {
   return 'NON'
 }
 
-const ROW_CONFIG: Array<{
+const BASE_ROW_CONFIG: Array<{
   key: keyof FactureCreditSpecialPDFData
   label: string
   bgColor: string
@@ -78,12 +80,19 @@ const ROW_CONFIG: Array<{
   { key: 'capitalMoisProchain', label: 'CAPITAL MOIS PROCHAIN', bgColor: '#1E6FE8', format: formatAmount },
 ]
 
+const getRowConfig = (data: FactureCreditSpecialPDFData) =>
+  BASE_ROW_CONFIG.filter((row) => {
+    if (!data.isFixedExtensionMonth) return true
+    return !['capital', 'taux', 'interets'].includes(String(row.key))
+  })
+
 interface FactureCreditSpecialPDFProps {
   data: FactureCreditSpecialPDFData
   className?: string
 }
 
 export default function FactureCreditSpecialPDF({ data, className }: FactureCreditSpecialPDFProps) {
+  const rowConfig = getRowConfig(data)
   return (
     <div className={className}>
       <h2 className="text-left text-base font-normal mb-2" style={{ fontFamily: 'sans-serif' }}>
@@ -95,9 +104,9 @@ export default function FactureCreditSpecialPDF({ data, className }: FactureCred
           border: '1.5px solid black',
           tableLayout: 'fixed',
         }}
-      >
+        >
         <tbody>
-          {ROW_CONFIG.map(({ key, label, bgColor, format }) => {
+          {rowConfig.map(({ key, label, bgColor, format }) => {
             const raw = data[key]
             const value = format
               ? format(raw as number | string | boolean)
