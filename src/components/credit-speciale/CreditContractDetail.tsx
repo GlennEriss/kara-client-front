@@ -450,8 +450,23 @@ export default function CreditContractDetail({
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
-  const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
-  const { data: guarantorPayments = [], isLoading: isLoadingGuarantorPayments } = useGuarantorPaymentsByCreditId(contract.id)
+  const shouldLoadGuarantorTabData =
+    activeTab === 'guarantor' &&
+    !!contract.guarantorId &&
+    !!contract.guarantorIsMember &&
+    (contract.guarantorRemunerationPercentage ?? 0) > 0
+  const {
+    data: guarantorRemunerations = [],
+    isLoading: isLoadingRemunerations,
+    isError: isGuarantorRemunerationsError,
+    error: guarantorRemunerationsError,
+  } = useGuarantorRemunerationsByCreditId(contract.id, shouldLoadGuarantorTabData)
+  const {
+    data: guarantorPayments = [],
+    isLoading: isLoadingGuarantorPayments,
+    isError: isGuarantorPaymentsError,
+    error: guarantorPaymentsError,
+  } = useGuarantorPaymentsByCreditId(contract.id, shouldLoadGuarantorTabData)
   const [showGuarantorPaymentModal, setShowGuarantorPaymentModal] = useState(false)
   const [showRestMonthModal, setShowRestMonthModal] = useState(false)
   const [selectedRestMonth, setSelectedRestMonth] = useState<number | null>(null)
@@ -522,6 +537,14 @@ export default function CreditContractDetail({
     specialHistory.some(
       (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
     )
+  const guarantorRemunerationsErrorMessage =
+    guarantorRemunerationsError instanceof Error
+      ? guarantorRemunerationsError.message
+      : 'Impossible de charger les commissions du garant.'
+  const guarantorPaymentsErrorMessage =
+    guarantorPaymentsError instanceof Error
+      ? guarantorPaymentsError.message
+      : 'Impossible de charger l’historique des paiements au garant.'
   const penaltiesByMonth = new Map<number, number>()
   if (contract.creditType === 'SPECIALE') {
     penalties.forEach((penalty) => {
@@ -1996,6 +2019,10 @@ export default function CreditContractDetail({
 
                     {isLoadingRemunerations ? (
                       <div className="text-center py-8 text-gray-500">Chargement...</div>
+                    ) : isGuarantorRemunerationsError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {guarantorRemunerationsErrorMessage}
+                      </div>
                     ) : guarantorRemunerations.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">Aucune commission enregistrée</div>
                     ) : (
@@ -2089,6 +2116,10 @@ export default function CreditContractDetail({
                           <h5 className="text-sm font-medium text-gray-700 mb-2">Historique des paiements au garant</h5>
                           {isLoadingGuarantorPayments ? (
                             <p className="text-sm text-gray-500">Chargement...</p>
+                          ) : isGuarantorPaymentsError ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                              {guarantorPaymentsErrorMessage}
+                            </div>
                           ) : guarantorPayments.length === 0 ? (
                             <p className="text-sm text-gray-500">Aucun paiement enregistré</p>
                           ) : (
