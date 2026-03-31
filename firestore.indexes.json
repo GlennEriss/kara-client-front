@@ -3653,6 +3653,42 @@
       ]
     },
     {
+      "collectionGroup": "guarantorPayments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "creditId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "guarantorPayments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "guarantorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "caisseSpecialeDemands",
       "queryScope": "COLLECTION",
       "fields": [

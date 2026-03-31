@@ -865,6 +865,14 @@ service cloud.firestore {
     match /guarantorRemunerations/{remunerationId} {
       allow read, write: if isAdmin();
     }
+
+    // ==========================================
+    // CRÉDIT SPÉCIALE - PAIEMENTS AUX GARANTS (GUARANTOR PAYMENTS)
+    // ==========================================
+    
+    match /guarantorPayments/{paymentId} {
+      allow read, write: if isAdmin();
+    }
     
     // ==========================================
     // CHARITÉS / BIENFAITEUR (CHARITY EVENTS)
