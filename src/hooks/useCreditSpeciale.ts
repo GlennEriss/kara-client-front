@@ -525,15 +525,117 @@ export function useUnpaidCreditPenaltiesByCreditId(creditId: string) {
     })
 }
 
+export function usePayCreditPenalty() {
+    const qc = useQueryClient()
+    const { user } = useAuth()
+    const service = ServiceFactory.getCreditSpecialeService()
+
+    return useMutation({
+        mutationFn: (params: {
+            penaltyId: string;
+            creditId: string;
+            paymentDate: Date;
+            paymentTime: string;
+            amount: number;
+            mode: CreditPaymentMode;
+            withFees?: boolean;
+            agentRecouvrementId?: string;
+            comment?: string;
+            proofFile?: File;
+        }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.payPenalty(
+                params.penaltyId,
+                {
+                    paymentDate: params.paymentDate,
+                    paymentTime: params.paymentTime,
+                    amount: params.amount,
+                    mode: params.mode,
+                    withFees: params.withFees,
+                    agentRecouvrementId: params.agentRecouvrementId,
+                    comment: params.comment,
+                },
+                params.proofFile,
+                user.uid
+            )
+        },
+        onSuccess: async (_, variables) => {
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditPenalties'] }),
+                qc.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', variables.creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditPenalties', 'unpaid', 'creditId', variables.creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', variables.creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+            ])
+            toast.success('Pénalité payée avec succès')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors du paiement de la pénalité')
+        },
+    })
+}
+
+export function useUpdateCreditPenaltyPayment() {
+    const qc = useQueryClient()
+    const { user } = useAuth()
+    const service = ServiceFactory.getCreditSpecialeService()
+
+    return useMutation({
+        mutationFn: (params: {
+            penaltyId: string;
+            creditId: string;
+            paymentDate: Date;
+            paymentTime: string;
+            amount: number;
+            mode: CreditPaymentMode;
+            withFees?: boolean;
+            agentRecouvrementId?: string;
+            comment?: string;
+            proofFile?: File;
+        }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.updatePenaltyPayment(
+                params.penaltyId,
+                {
+                    paymentDate: params.paymentDate,
+                    paymentTime: params.paymentTime,
+                    amount: params.amount,
+                    mode: params.mode,
+                    withFees: params.withFees,
+                    agentRecouvrementId: params.agentRecouvrementId,
+                    comment: params.comment,
+                },
+                params.proofFile,
+                user.uid
+            )
+        },
+        onSuccess: async (_, variables) => {
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditPenalties'] }),
+                qc.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', variables.creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditPenalties', 'unpaid', 'creditId', variables.creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', variables.creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+            ])
+            toast.success('Pénalité modifiée avec succès')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la modification de la pénalité')
+        },
+    })
+}
+
 // ==================== RÉMUNÉRATION GARANT ====================
 
-export function useGuarantorRemunerationsByCreditId(creditId: string) {
+export function useGuarantorRemunerationsByCreditId(creditId: string, enabled = true) {
     const service = ServiceFactory.getCreditSpecialeService()
     
     return useQuery<GuarantorRemuneration[]>({
         queryKey: ['guarantorRemunerations', 'creditId', creditId],
         queryFn: () => service.getRemunerationsByCreditId(creditId),
-        enabled: !!creditId,
+        enabled: !!creditId && enabled,
         staleTime: 2 * 60 * 1000,
     })
 }
@@ -551,12 +653,12 @@ export function useGuarantorRemunerationsByGuarantorId(guarantorId: string) {
 
 // ==================== PAIEMENTS AU GARANT ====================
 
-export function useGuarantorPaymentsByCreditId(creditId: string) {
+export function useGuarantorPaymentsByCreditId(creditId: string, enabled = true) {
     const service = ServiceFactory.getCreditSpecialeService()
     return useQuery<GuarantorPayment[]>({
         queryKey: ['guarantorPayments', 'creditId', creditId],
         queryFn: () => service.getGuarantorPaymentsByCreditId(creditId),
-        enabled: !!creditId,
+        enabled: !!creditId && enabled,
         staleTime: 2 * 60 * 1000,
     })
 }

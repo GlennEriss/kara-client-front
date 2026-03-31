@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
+import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract } from '@/hooks/useCreditSpeciale'
@@ -19,7 +20,7 @@ import {
   getContractCalendarMonthFromDate,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -54,6 +55,8 @@ import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import CloseContractModal from './CloseContractModal'
+import CreditPenaltyPaymentModal from './CreditPenaltyPaymentModal'
+import CreditPenaltyReceiptModal from './CreditPenaltyReceiptModal'
 import CreditExtensionModal from './CreditExtensionModal'
 import CreditPaymentModal from './CreditPaymentModal'
 import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
@@ -417,6 +420,8 @@ export default function CreditContractDetail({
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showPaymentSummaryModal, setShowPaymentSummaryModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<CreditPayment | null>(null)
+  const [selectedPenaltyToPay, setSelectedPenaltyToPay] = useState<CreditPenalty | null>(null)
+  const [selectedPenaltyForReceipt, setSelectedPenaltyForReceipt] = useState<CreditPenalty | null>(null)
   const [paymentToEdit, setPaymentToEdit] = useState<CreditPayment | null>(null)
   const [selectedDueIndex, setSelectedDueIndex] = useState<number | null>(null)
   const [selectedDueIndexForReceipt, setSelectedDueIndexForReceipt] = useState<number | null>(null)
@@ -431,6 +436,9 @@ export default function CreditContractDetail({
   const [showSignedQuittanceUploadModal, setShowSignedQuittanceUploadModal] = useState(false)
   const [showCloseContractModal, setShowCloseContractModal] = useState(false)
   const [showQuittanceModal, setShowQuittanceModal] = useState(false)
+  const [showPenaltyPaymentModal, setShowPenaltyPaymentModal] = useState(false)
+  const [showPenaltyReceiptModal, setShowPenaltyReceiptModal] = useState(false)
+  const [penaltyPaymentModalMode, setPenaltyPaymentModalMode] = useState<'pay' | 'edit'>('pay')
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
 
   useEffect(() => {
@@ -450,12 +458,69 @@ export default function CreditContractDetail({
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
-  const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
-  const { data: guarantorPayments = [], isLoading: isLoadingGuarantorPayments } = useGuarantorPaymentsByCreditId(contract.id)
+  const shouldLoadGuarantorTabData =
+    activeTab === 'guarantor' &&
+    !!contract.guarantorId &&
+    !!contract.guarantorIsMember &&
+    (contract.guarantorRemunerationPercentage ?? 0) > 0
+  const {
+    data: guarantorRemunerations = [],
+    isLoading: isLoadingRemunerations,
+    isError: isGuarantorRemunerationsError,
+    error: guarantorRemunerationsError,
+  } = useGuarantorRemunerationsByCreditId(contract.id, shouldLoadGuarantorTabData)
+  const {
+    data: guarantorPayments = [],
+    isLoading: isLoadingGuarantorPayments,
+    isError: isGuarantorPaymentsError,
+    error: guarantorPaymentsError,
+  } = useGuarantorPaymentsByCreditId(contract.id, shouldLoadGuarantorTabData)
   const [showGuarantorPaymentModal, setShowGuarantorPaymentModal] = useState(false)
   const [showRestMonthModal, setShowRestMonthModal] = useState(false)
   const [selectedRestMonth, setSelectedRestMonth] = useState<number | null>(null)
   const queryClient = useQueryClient()
+
+  const penaltyAdminIds = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          penalties
+            .flatMap((penalty) => [
+              penalty.createdBy,
+              penalty.paymentRecordedBy ?? penalty.updatedBy,
+              penalty.paymentUpdatedBy,
+            ])
+            .filter((value): value is string => !!value)
+        )
+      ),
+    [penalties]
+  )
+
+  const penaltyAdminQueries = useQueries({
+    queries: penaltyAdminIds.map((adminId) => ({
+      queryKey: ['admins', adminId],
+      queryFn: () => getAdminById(adminId),
+      enabled: !!adminId,
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+
+  const penaltyAdminNameMap = React.useMemo(() => {
+    const entries = penaltyAdminIds.map((adminId, index) => {
+      const admin = penaltyAdminQueries[index]?.data
+      const fullName = admin ? `${admin.firstName} ${admin.lastName}`.trim() : ''
+      return [adminId, fullName || adminId] as const
+    })
+    return Object.fromEntries(entries) as Record<string, string>
+  }, [penaltyAdminIds, penaltyAdminQueries])
+
+  const getPenaltyAdminDisplayName = React.useCallback(
+    (adminId?: string) => {
+      if (!adminId) return '-'
+      return penaltyAdminNameMap[adminId] ?? adminId
+    },
+    [penaltyAdminNameMap]
+  )
 
   // Vérifier et créer les pénalités manquantes au chargement
   useEffect(() => {
@@ -517,6 +582,19 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
       : new Map<number, (typeof specialHistory)[number]>()
+  const hasEnteredFixedPhase =
+    contract.creditType === 'SPECIALE' &&
+    specialHistory.some(
+      (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
+    )
+  const guarantorRemunerationsErrorMessage =
+    guarantorRemunerationsError instanceof Error
+      ? guarantorRemunerationsError.message
+      : 'Impossible de charger les commissions du garant.'
+  const guarantorPaymentsErrorMessage =
+    guarantorPaymentsError instanceof Error
+      ? guarantorPaymentsError.message
+      : 'Impossible de charger l’historique des paiements au garant.'
   const penaltiesByMonth = new Map<number, number>()
   if (contract.creditType === 'SPECIALE') {
     penalties.forEach((penalty) => {
@@ -1738,36 +1816,191 @@ export default function CreditContractDetail({
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
                         <AlertCircle className="h-5 w-5 text-orange-600" />
-                        Pénalités
+                        Historique des pénalités
                       </h3>
                     </div>
                     <div className="space-y-3">
-                      {penalties.map((penalty) => (
-                        <div
-                          key={penalty.id}
-                          className={cn(
-                            'flex items-center justify-between p-4 border rounded-lg',
-                            penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
-                          )}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold">
-                                {penalty.amount.toLocaleString('fr-FR')} FCFA
-                              </span>
-                              {penalty.paid ? (
-                                <Badge className="bg-green-100 text-green-700">Payée</Badge>
-                              ) : (
-                                <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              <span>Retard : {penalty.daysLate} jours</span>
-                              <span className="ml-4">Échéance : {formatDate(penalty.dueDate)}</span>
+                      {penalties.map((penalty) => {
+                        const paymentRecordedAt = penalty.paymentRecordedAt ?? (penalty.paid ? penalty.updatedAt : undefined)
+                        const paymentRecordedBy = penalty.paymentRecordedBy ?? (penalty.paid ? penalty.updatedBy : undefined)
+                        const paymentUpdatedAt = penalty.paymentUpdatedAt
+                        const paymentUpdatedBy = penalty.paymentUpdatedBy
+                        const hasPaymentUpdate =
+                          !!paymentUpdatedAt &&
+                          !!paymentUpdatedBy &&
+                          (!!paymentRecordedAt || !!paymentRecordedBy) &&
+                          (
+                            (paymentRecordedAt ? paymentUpdatedAt.getTime() !== paymentRecordedAt.getTime() : true) ||
+                            paymentUpdatedBy !== paymentRecordedBy
+                          )
+
+                        return (
+                          <div
+                            key={penalty.id}
+                            className={cn(
+                              'rounded-lg border p-4',
+                              penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                            )}
+                          >
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <span className="font-semibold">
+                                    {penalty.amount.toLocaleString('fr-FR')} FCFA
+                                  </span>
+                                  {penalty.paid ? (
+                                    <Badge className="bg-green-100 text-green-700">Payée</Badge>
+                                  ) : (
+                                    <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
+                                  )}
+                                </div>
+
+                                <div className="grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
+                                  <p>
+                                    Retard : <span className="font-medium text-gray-800">{penalty.daysLate} jours</span>
+                                  </p>
+                                  <p>
+                                    Échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
+                                  </p>
+                                  <p>
+                                    Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
+                                  </p>
+                                  <p className="sm:col-span-2 xl:col-span-1">
+                                    Enregistrée par :{' '}
+                                    <span className="font-medium text-gray-800">
+                                      {getPenaltyAdminDisplayName(penalty.createdBy)}
+                                    </span>
+                                  </p>
+                                </div>
+
+                                {penalty.paid && (
+                                  <div className="mt-3 rounded-md border border-green-200 bg-white/70 p-3 text-sm text-gray-600 space-y-2">
+                                    {penalty.paidAt && (
+                                      <p>
+                                        Payée le :{' '}
+                                        <span className="font-medium text-gray-800">
+                                          {penalty.paymentTime
+                                            ? formatDateTime(penalty.paidAt, penalty.paymentTime)
+                                            : formatDate(penalty.paidAt)}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {penalty.paymentMode && (
+                                      <p>
+                                        Mode :{' '}
+                                        <span className="font-medium text-gray-800">
+                                          {CREDIT_PAYMENT_MODE_LABELS[penalty.paymentMode] ?? penalty.paymentMode}
+                                          {(penalty.paymentMode === 'airtel_money' || penalty.paymentMode === 'mobicash') &&
+                                          penalty.withFees !== undefined
+                                            ? ` (${penalty.withFees ? 'Avec frais' : 'Sans frais'})`
+                                            : ''}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {paymentRecordedAt && (
+                                      <p>
+                                        Paiement saisi le :{' '}
+                                        <span className="font-medium text-gray-800">
+                                          {formatDateTime(
+                                            paymentRecordedAt,
+                                            format(new Date(paymentRecordedAt), 'HH:mm')
+                                          )}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {paymentRecordedBy && (
+                                      <p>
+                                        Paiement saisi par :{' '}
+                                        <span className="font-medium text-gray-800">
+                                          {getPenaltyAdminDisplayName(paymentRecordedBy)}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {hasPaymentUpdate && paymentUpdatedAt && (
+                                      <p>
+                                        Dernière modification :{' '}
+                                        <span className="font-medium text-gray-800">
+                                          {formatDateTime(
+                                            paymentUpdatedAt,
+                                            format(new Date(paymentUpdatedAt), 'HH:mm')
+                                          )}
+                                          {' • '}
+                                          {getPenaltyAdminDisplayName(paymentUpdatedBy)}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {penalty.paymentComment && (
+                                      <p>
+                                        Commentaire : <span className="font-medium text-gray-800">{penalty.paymentComment}</span>
+                                      </p>
+                                    )}
+                                    {penalty.proofUrl && (
+                                      <a
+                                        href={penalty.proofUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex text-[#234D65] hover:underline"
+                                      >
+                                        Voir la preuve de paiement
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-2 lg:w-52">
+                                {penalty.paid ? (
+                                  <>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                                      onClick={() => {
+                                        setSelectedPenaltyForReceipt(penalty)
+                                        setShowPenaltyReceiptModal(true)
+                                      }}
+                                    >
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      Voir la facture
+                                    </Button>
+                                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                                        onClick={() => {
+                                          setPenaltyPaymentModalMode('edit')
+                                          setSelectedPenaltyToPay(penalty)
+                                          setShowPenaltyPaymentModal(true)
+                                        }}
+                                      >
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Modifier
+                                      </Button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="bg-[#234D65] hover:bg-[#1b3c4f]"
+                                    onClick={() => {
+                                      setPenaltyPaymentModalMode('pay')
+                                      setSelectedPenaltyToPay(penalty)
+                                      setShowPenaltyPaymentModal(true)
+                                    }}
+                                  >
+                                    <HandCoins className="mr-2 h-4 w-4" />
+                                    Payer
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -1991,6 +2224,10 @@ export default function CreditContractDetail({
 
                     {isLoadingRemunerations ? (
                       <div className="text-center py-8 text-gray-500">Chargement...</div>
+                    ) : isGuarantorRemunerationsError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {guarantorRemunerationsErrorMessage}
+                      </div>
                     ) : guarantorRemunerations.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">Aucune commission enregistrée</div>
                     ) : (
@@ -2052,21 +2289,42 @@ export default function CreditContractDetail({
                       {/* Paiement au garant */}
                       <div className="border-t pt-6 mt-6">
                         <h4 className="font-semibold mb-1">Paiement au garant</h4>
-                        <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                          onClick={() => setShowGuarantorPaymentModal(true)}
-                        >
-                          <HandCoins className="h-4 w-4 mr-2" />
-                          Enregistrer un paiement au garant
-                        </Button>
+                        {hasEnteredFixedPhase ? (
+                          <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+                            <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+                            <div>
+                              <p className="text-sm font-semibold text-red-700">
+                                Le contrat est déjà passé en partie fixe.
+                              </p>
+                              <p className="mt-1 text-sm text-red-700">
+                                À partir de cette bascule, le garant n&apos;a plus droit à ses commissions.
+                                L&apos;enregistrement d&apos;un paiement au garant est donc désactivé.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                              onClick={() => setShowGuarantorPaymentModal(true)}
+                            >
+                              <HandCoins className="h-4 w-4 mr-2" />
+                              Enregistrer un paiement au garant
+                            </Button>
+                          </>
+                        )}
                         {/* Historique des paiements au garant */}
                         <div className="mt-4">
                           <h5 className="text-sm font-medium text-gray-700 mb-2">Historique des paiements au garant</h5>
                           {isLoadingGuarantorPayments ? (
                             <p className="text-sm text-gray-500">Chargement...</p>
+                          ) : isGuarantorPaymentsError ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                              {guarantorPaymentsErrorMessage}
+                            </div>
                           ) : guarantorPayments.length === 0 ? (
                             <p className="text-sm text-gray-500">Aucun paiement enregistré</p>
                           ) : (
@@ -2483,6 +2741,38 @@ export default function CreditContractDetail({
           setSelectedDueIndex(null)
           setPaymentToEdit(null)
         }}
+      />
+      <CreditPenaltyPaymentModal
+        isOpen={showPenaltyPaymentModal}
+        onClose={() => {
+          setShowPenaltyPaymentModal(false)
+          setSelectedPenaltyToPay(null)
+          setPenaltyPaymentModalMode('pay')
+        }}
+        creditId={contract.id}
+        penalty={selectedPenaltyToPay}
+        modalMode={penaltyPaymentModalMode}
+        onSuccess={async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditPenalties', 'unpaid', 'creditId', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditContract', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditContracts'] }),
+            queryClient.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+          ])
+          setShowPenaltyPaymentModal(false)
+          setSelectedPenaltyToPay(null)
+          setPenaltyPaymentModalMode('pay')
+        }}
+      />
+      <CreditPenaltyReceiptModal
+        isOpen={showPenaltyReceiptModal}
+        onClose={() => {
+          setShowPenaltyReceiptModal(false)
+          setSelectedPenaltyForReceipt(null)
+        }}
+        contract={contract}
+        penalty={selectedPenaltyForReceipt}
       />
       {selectedRestMonth !== null && (
         <RestMonthModal

@@ -4,7 +4,6 @@ import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRe
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
     Dialog,
     DialogContent,
@@ -100,7 +99,6 @@ export default function CreditPaymentModal({
   const [proofFile, setProofFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedPenalties, setSelectedPenalties] = useState<string[]>([])
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
   const [withFees, setWithFees] = useState<boolean | undefined>(undefined) // Airtel Money / Mobicash : true = avec frais, false = sans frais
   const [modificationReason, setModificationReason] = useState<string>('')
@@ -194,7 +192,6 @@ export default function CreditPaymentModal({
         form.setValue('mode', toCreditPaymentMode(paymentToEdit.mode as string))
         form.setValue('comment', paymentToEdit.comment ?? '')
         form.setValue('note', paymentToEdit.note ?? 10)
-        setSelectedPenalties([])
         setAgentRecouvrementId(paymentToEdit.agentRecouvrementId ?? '')
         setWithFees(
           paymentToEdit.mode === 'airtel_money' || paymentToEdit.mode === 'mobicash'
@@ -212,7 +209,6 @@ export default function CreditPaymentModal({
         .catch((error: unknown) => {
           console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
         })
-      setSelectedPenalties([])
       setAgentRecouvrementId('')
       setWithFees(undefined)
       if (defaultPaymentDate) {
@@ -268,7 +264,6 @@ export default function CreditPaymentModal({
   }, [contract, currentPaymentMonth, recordedPayments])
 
   const currentVersementPenaltyBase = currentMonthHistory?.interest ?? 0
-  const canSettlePreviousPenalties = watchedAmount > 0
 
   // Calculer la pénalité potentielle du versement courant selon la règle officielle :
   // intérêt du mois * nombre de jours de retard / 30.
@@ -286,22 +281,10 @@ export default function CreditPaymentModal({
     return null
   }, [editMode, watchedAmount, calculatedDaysLate, currentVersementPenaltyBase])
 
-  // Calculer le total des pénalités sélectionnées
-  const totalSelectedPenalties = useMemo(() => {
-    const selected = unpaidPenalties.filter(p => selectedPenalties.includes(p.id))
-    return selected.reduce((sum, p) => sum + p.amount, 0)
-  }, [unpaidPenalties, selectedPenalties])
-
-  // Total à payer (montant + pénalités)
-  const totalToPay = useMemo(() => {
-    return watchedAmount + totalSelectedPenalties
-  }, [watchedAmount, totalSelectedPenalties])
-
-  useEffect(() => {
-    if (!canSettlePreviousPenalties && selectedPenalties.length > 0) {
-      setSelectedPenalties([])
-    }
-  }, [canSettlePreviousPenalties, selectedPenalties])
+  const totalUnpaidPenalties = useMemo(
+    () => unpaidPenalties.reduce((sum, penalty) => sum + penalty.amount, 0),
+    [unpaidPenalties]
+  )
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -401,10 +384,6 @@ export default function CreditPaymentModal({
       toast.error('Le montant ne peut pas être négatif')
       return
     }
-    if (data.amount <= 0 && selectedPenalties.length > 0) {
-      toast.error('Ce formulaire ne permet pas de régler uniquement les pénalités. Enregistrez un versement mensuel pour y rattacher des pénalités.')
-      return
-    }
 
     try {
       setIsSubmitting(true)
@@ -419,7 +398,7 @@ export default function CreditPaymentModal({
         amount: data.amount,
         principalAmount: 0,
         interestAmount: 0,
-        penaltyAmount: totalSelectedPenalties,
+        penaltyAmount: 0,
         note: finalNote,
         comment: finalComment,
         createdBy: user.uid,
@@ -431,13 +410,11 @@ export default function CreditPaymentModal({
       await createPayment.mutateAsync({
         data: paymentData,
         proofFile,
-        penaltyIds: selectedPenalties,
         installmentNumber,
       })
 
       form.reset()
       setProofFile(undefined)
-      setSelectedPenalties([])
       setAgentRecouvrementId('')
       setWithFees(undefined)
       onSuccess?.()
@@ -657,7 +634,7 @@ export default function CreditPaymentModal({
             </div>
           )}
 
-          {/* Pénalités impayées (masqué en mode édition) */}
+          {/* Pénalités impayées (information seulement, règlement dans la section Pénalités) */}
           {!editMode && unpaidPenalties.length > 0 && (
             <Card className="border-orange-200 bg-orange-50/50">
               <CardHeader className="pb-3">
@@ -668,33 +645,20 @@ export default function CreditPaymentModal({
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-xs text-orange-700">
-                  Ce formulaire enregistre un versement. Vous pouvez rattacher ces pénalités au versement si le montant saisi est supérieur à 0.
+                  Ce formulaire enregistre uniquement la mensualité. Les pénalités déjà en attente se règlent dans la section dédiée du contrat.
                 </p>
                 {unpaidPenalties.map((penalty) => (
                   <div
                     key={penalty.id}
                     className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200"
                   >
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={selectedPenalties.includes(penalty.id)}
-                        disabled={!canSettlePreviousPenalties}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedPenalties([...selectedPenalties, penalty.id])
-                          } else {
-                            setSelectedPenalties(selectedPenalties.filter(id => id !== penalty.id))
-                          }
-                        }}
-                      />
-                      <div>
-                        <p className="text-sm font-medium">
-                          {penalty.daysLate} jour{penalty.daysLate > 1 ? 's' : ''} de retard
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Échéance : {format(new Date(penalty.dueDate), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {penalty.daysLate} jour{penalty.daysLate > 1 ? 's' : ''} de retard
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Échéance : {format(new Date(penalty.dueDate), 'dd/MM/yyyy')}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-orange-600">
@@ -703,22 +667,12 @@ export default function CreditPaymentModal({
                     </div>
                   </div>
                 ))}
-                {!canSettlePreviousPenalties && (
-                  <Alert className="mt-2 border-orange-200 bg-orange-100/60">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Saisissez une mensualité supérieure à 0 FCFA pour pouvoir régler aussi des pénalités déjà en attente.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {totalSelectedPenalties > 0 && (
-                  <Alert className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Total pénalités sélectionnées : <strong>{totalSelectedPenalties.toLocaleString('fr-FR')} FCFA</strong>
-                    </AlertDescription>
-                  </Alert>
-                )}
+                <Alert className="mt-2 border-orange-200 bg-orange-100/60">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Cumul des pénalités impayées : <strong>{totalUnpaidPenalties.toLocaleString('fr-FR')} FCFA</strong>
+                  </AlertDescription>
+                </Alert>
               </CardContent>
             </Card>
           )}
@@ -770,8 +724,8 @@ export default function CreditPaymentModal({
             </Alert>
           )}
 
-          {/* Total à payer */}
-          {(totalSelectedPenalties > 0 || potentialPenalty) && (
+          {/* Résumé informatif */}
+          {(unpaidPenalties.length > 0 || potentialPenalty) && (
             <Card className="border-blue-200 bg-blue-50/50">
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
@@ -780,11 +734,11 @@ export default function CreditPaymentModal({
                     {watchedAmount.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
-                {totalSelectedPenalties > 0 && (
+                {unpaidPenalties.length > 0 && (
                   <div className="flex items-center justify-between mt-2">
-                    <span className="font-medium text-blue-800">Pénalités à régler maintenant :</span>
+                    <span className="font-medium text-blue-800">Pénalités déjà en attente :</span>
                     <span className="text-lg font-bold text-orange-600">
-                      +{totalSelectedPenalties.toLocaleString('fr-FR')} FCFA
+                      {totalUnpaidPenalties.toLocaleString('fr-FR')} FCFA
                     </span>
                   </div>
                 )}
@@ -793,14 +747,6 @@ export default function CreditPaymentModal({
                     <span className="font-medium text-blue-800">Pénalité générée par ce versement :</span>
                     <span className="text-lg font-bold text-red-600">
                       {potentialPenalty.amount.toLocaleString('fr-FR')} FCFA
-                    </span>
-                  </div>
-                )}
-                {totalSelectedPenalties > 0 && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-300">
-                    <span className="text-lg font-bold text-blue-800">Total encaissé maintenant :</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {totalToPay.toLocaleString('fr-FR')} FCFA
                     </span>
                   </div>
                 )}
