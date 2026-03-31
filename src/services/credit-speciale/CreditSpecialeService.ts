@@ -1928,6 +1928,171 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(creditId);
     }
 
+    async payPenalty(
+        penaltyId: string,
+        data: {
+            paymentDate: Date;
+            paymentTime: string;
+            amount: number;
+            mode: CreditPaymentMode;
+            withFees?: boolean;
+            agentRecouvrementId?: string;
+            comment?: string;
+        },
+        proofFile: File | undefined,
+        adminId: string
+    ): Promise<CreditPenalty> {
+        const penalty = await this.creditPenaltyRepository.getPenaltyById(penaltyId);
+        if (!penalty) {
+            throw new Error('Pénalité introuvable');
+        }
+        if (penalty.paid) {
+            throw new Error('Cette pénalité est déjà payée');
+        }
+
+        const expectedAmount = Math.round(penalty.amount);
+        const receivedAmount = Math.round(data.amount);
+        if (receivedAmount !== expectedAmount) {
+            throw new Error('Le montant de la pénalité est fixe et ne peut pas être modifié');
+        }
+
+        if ((data.mode === 'airtel_money' || data.mode === 'mobicash') && data.withFees === undefined) {
+            throw new Error('Veuillez préciser si le paiement mobile money est avec frais ou sans frais');
+        }
+
+        const contract = await this.creditContractRepository.getContractById(penalty.creditId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+
+        let proofUrl: string | undefined;
+        let proofPath: string | undefined;
+        if (proofFile) {
+            if (!proofFile.type.startsWith('image/')) {
+                throw new Error('La preuve de paiement de pénalité doit être une image');
+            }
+            const uploadResult = await this.documentRepository.uploadDocumentFile(
+                proofFile,
+                contract.clientId,
+                'CREDIT_SPECIALE_RECEIPT'
+            );
+            proofUrl = uploadResult.url;
+            proofPath = uploadResult.path;
+        }
+
+        const paidAt = data.paymentDate instanceof Date ? new Date(data.paymentDate) : new Date(data.paymentDate);
+        const [hours, minutes] = data.paymentTime.split(':').map((value) => parseInt(value, 10));
+        paidAt.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+
+        const updatedPenalty = await this.creditPenaltyRepository.updatePenalty(penaltyId, {
+            paid: true,
+            paidAt,
+            paymentTime: data.paymentTime,
+            paymentMode: data.mode,
+            withFees: data.mode === 'airtel_money' || data.mode === 'mobicash' ? data.withFees : undefined,
+            agentRecouvrementId: data.agentRecouvrementId?.trim() || undefined,
+            proofUrl,
+            proofPath,
+            paymentComment: data.comment?.trim() || undefined,
+            paymentRecordedBy: adminId,
+            paymentRecordedAt: new Date(),
+            paymentUpdatedBy: adminId,
+            paymentUpdatedAt: new Date(),
+            updatedBy: adminId,
+        });
+
+        if (!updatedPenalty) {
+            throw new Error('Impossible de mettre à jour la pénalité');
+        }
+
+        return updatedPenalty;
+    }
+
+    async updatePenaltyPayment(
+        penaltyId: string,
+        data: {
+            paymentDate: Date;
+            paymentTime: string;
+            amount: number;
+            mode: CreditPaymentMode;
+            withFees?: boolean;
+            agentRecouvrementId?: string;
+            comment?: string;
+        },
+        proofFile: File | undefined,
+        adminId: string
+    ): Promise<CreditPenalty> {
+        const penalty = await this.creditPenaltyRepository.getPenaltyById(penaltyId);
+        if (!penalty) {
+            throw new Error('Pénalité introuvable');
+        }
+        if (!penalty.paid) {
+            throw new Error('Cette pénalité doit être payée avant d’être modifiée');
+        }
+
+        const expectedAmount = Math.round(penalty.amount);
+        const receivedAmount = Math.round(data.amount);
+        if (receivedAmount !== expectedAmount) {
+            throw new Error('Le montant de la pénalité est fixe et ne peut pas être modifié');
+        }
+
+        if ((data.mode === 'airtel_money' || data.mode === 'mobicash') && data.withFees === undefined) {
+            throw new Error('Veuillez préciser si le paiement mobile money est avec frais ou sans frais');
+        }
+
+        const contract = await this.creditContractRepository.getContractById(penalty.creditId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+
+        let proofUrl = penalty.proofUrl;
+        let proofPath = penalty.proofPath;
+        if (proofFile) {
+            if (!proofFile.type.startsWith('image/')) {
+                throw new Error('La preuve de paiement de pénalité doit être une image');
+            }
+            const uploadResult = await this.documentRepository.uploadDocumentFile(
+                proofFile,
+                contract.clientId,
+                'CREDIT_SPECIALE_RECEIPT'
+            );
+            proofUrl = uploadResult.url;
+            proofPath = uploadResult.path;
+
+            if (penalty.proofPath && penalty.proofPath !== proofPath) {
+                try {
+                    await this.documentRepository.deleteFile(penalty.proofPath);
+                } catch {
+                    // Si l'ancienne preuve n'est pas supprimable, on conserve tout de même la mise à jour métier.
+                }
+            }
+        }
+
+        const paidAt = data.paymentDate instanceof Date ? new Date(data.paymentDate) : new Date(data.paymentDate);
+        const [hours, minutes] = data.paymentTime.split(':').map((value) => parseInt(value, 10));
+        paidAt.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+
+        const updatedPenalty = await this.creditPenaltyRepository.updatePenalty(penaltyId, {
+            paidAt,
+            paymentTime: data.paymentTime,
+            paymentMode: data.mode,
+            withFees: data.mode === 'airtel_money' || data.mode === 'mobicash' ? data.withFees : false,
+            agentRecouvrementId: data.agentRecouvrementId?.trim() || '',
+            proofUrl,
+            proofPath,
+            paymentComment: data.comment?.trim() || '',
+            paymentUpdatedBy: adminId,
+            paymentUpdatedAt: new Date(),
+            updatedBy: adminId,
+        });
+
+        if (!updatedPenalty) {
+            throw new Error('Impossible de modifier le paiement de la pénalité');
+        }
+
+        return updatedPenalty;
+    }
+
     // ==================== RÉMUNÉRATION GARANT ====================
 
     async getRemunerationsByCreditId(creditId: string): Promise<GuarantorRemuneration[]> {
