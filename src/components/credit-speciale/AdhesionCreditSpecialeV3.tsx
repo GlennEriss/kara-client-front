@@ -436,6 +436,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
     d.setMonth(d.getMonth() + (contract.duration || 0) - 1)
     return d
   })() : null
+  const disbursementDate = contract.disbursementDate
+    ? formatDate(contract.disbursementDate)
+    : '....................'
 
   const guaranteeAmount = contract.totalAmount || contract.amount
 
@@ -597,7 +600,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres)</Text>, 
          </Text>
          <Text style={styles.paragraph12}> 
-          En date du <Text style={{ fontWeight: 'bold' }}>....................</Text>.
+          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate}</Text>.
         </Text>
         <Text style={styles.paragraph12}>
           Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de <Text style={{ fontWeight: 'bold' }}>{contract.duration} mois </Text>à compter du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)}</Text>. Jusqu’au <Text style={{ fontWeight: 'bold' }}>{formatDate(endDate)}</Text> date de fin de créance.
@@ -643,7 +646,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres),</Text></Text>
         <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres),</Text></Text>
         <Text style={styles.paragraph14}>
-          En date du <Text style={{ fontWeight: 'bold' }}>....................</Text>. Pour une nécessité sociale.
+          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate}</Text>. Pour une nécessité sociale.
         </Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -683,8 +686,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.
         </Text>
-<Text style={styles.paragraph12}>
-        </Text>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -694,8 +698,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Le non-respect des échéanciers expose le membre bénéficiaire à des poursuites judiciaires sous huitaine.
         </Text>
-<Text style={styles.paragraph12}>
+        <Text style={styles.paragraph12}>
         </Text>
+
         <Text style={styles.articleTitle}>ARTICLE 4 : DÉCLARATIONS ET ENGAGEMENTS DU PRÊTEUR</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -711,16 +716,16 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         </Text>
         <Text style={[styles.paragraph14, styles.indent]}>
           Pour des raisons de prévoyance, M/Mme/Mlle<Text style={{ fontWeight: 'bold' }}> {guarantor.lastName} {guarantor.firstName}</Text>
-         </Text> 
-         <Text style={[styles.paragraph14, styles.indent]}>
-           Qui se porte caution solidaire en cas de non-exécution de ma part.
+        </Text>
+        <Text style={[styles.paragraph14, styles.indent]}>
+          Qui se porte caution solidaire en cas de non-exécution de ma part.
         </Text>
         <Text style={[styles.paragraph14, styles.indent]}>
           Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires à l’encontre du débiteur pour le recouvrement de ladite créance.
         </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
+      </Page>
 
+      <Page size="A4" style={styles.page}>
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -738,7 +743,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Fait à……………………….........…Le ……..........……/……..........…/……........……….
         </Text>
-<Text style={styles.paragraph12}>
+        <Text style={styles.paragraph12}>
         </Text>
         <View />
         <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
@@ -753,7 +758,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
 <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
-          En date du <Text style={{ fontWeight: 'bold' }}>.................... </Text>le présent acte a été conclu entre les parties suivantes nommément désignées:
+          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate} </Text>le présent acte a été conclu entre les parties suivantes nommément désignées:
         </Text>
         <Text style={styles.paragraph14}>
           L’Association LE KARA et M/Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName}</Text>,
@@ -770,7 +775,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
         </Text>
         <Text style={styles.paragraph14}>
-          En date du <Text style={{ fontWeight: 'bold' }}>....................</Text>,
+          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate}</Text>,
         </Text>
         <Text style={styles.paragraph14}>
           l’Association LE KARA a mis à la disposition de M / Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text>

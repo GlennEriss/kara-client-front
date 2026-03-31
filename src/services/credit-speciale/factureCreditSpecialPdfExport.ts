@@ -65,7 +65,7 @@ function formatFrais(value: string | number | boolean): string {
   return 'NON'
 }
 
-const ROW_CONFIG: Array<{
+const BASE_ROW_CONFIG: Array<{
   key: keyof FactureCreditSpecialPDFData
   label: string
   format?: (v: number | string | boolean) => string
@@ -86,6 +86,12 @@ const ROW_CONFIG: Array<{
   { key: 'nouveauCapital2', label: 'NOUVEAU CAPITAL', format: formatAmount },
   { key: 'capitalMoisProchain', label: 'CAPITAL MOIS PROCHAIN', format: formatAmount },
 ]
+
+const getRowConfig = (data: FactureCreditSpecialPDFData) =>
+  BASE_ROW_CONFIG.filter((row) => {
+    if (!data.isFixedExtensionMonth) return true
+    return !['capital', 'taux', 'interets'].includes(String(row.key))
+  })
 
 const ROW_HEIGHT_MM = 11
 const BORDER_LINE_WIDTH = 0.25
@@ -259,6 +265,7 @@ function drawPage2(doc: jsPDF, data: FactureCreditSpecialPDFData): void {
   doc.rect(8, 8, pageWidth - 16, pageHeight - 16)
 
   let y = MARGIN
+  const rowConfig = getRowConfig(data)
 
   doc.setFont(FONT_LABEL, 'bold')
   doc.setFontSize(11)
@@ -268,8 +275,8 @@ function drawPage2(doc: jsPDF, data: FactureCreditSpecialPDFData): void {
 
   const tableTop = y
 
-  for (let i = 0; i < ROW_CONFIG.length; i++) {
-    const row = ROW_CONFIG[i]
+  for (let i = 0; i < rowConfig.length; i++) {
+    const row = rowConfig[i]
     const raw = data[row.key]
     const effectiveRaw = (row.key === 'capitalMoisProchain' && (raw === undefined || raw === null)) ? 0 : raw
     const value = row.format
@@ -301,7 +308,7 @@ function drawPage2(doc: jsPDF, data: FactureCreditSpecialPDFData): void {
     doc.text(valueStr.length > 35 ? valueStr.slice(0, 32) + '…' : valueStr, MARGIN + colLabelWidth + colValueWidth / 2, rowY + ROW_HEIGHT_MM / 2 + 1.5, { align: 'center' })
   }
 
-  const tableHeight = ROW_CONFIG.length * ROW_HEIGHT_MM
+  const tableHeight = rowConfig.length * ROW_HEIGHT_MM
   doc.setDrawColor(...NAVY)
   doc.setLineWidth(BORDER_LINE_WIDTH)
   doc.rect(MARGIN, tableTop, contentWidth, tableHeight, 'S')

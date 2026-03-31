@@ -223,7 +223,15 @@ export default function CreditPaymentModal({
       form.setValue('note', autoNote)
       form.setValue('comment', autoComment)
     }
-  }, [isOpen, form, defaultPaymentDate, autoNote, autoComment, paymentToEdit])
+  }, [isOpen, form, defaultPaymentDate, autoComment, paymentToEdit, creditId, queryClient])
+
+  // En création, la note automatique peut suivre la date choisie sans réinitialiser
+  // les autres champs du formulaire.
+  useEffect(() => {
+    if (!isOpen || !!paymentToEdit) return
+    if (form.formState.dirtyFields.note) return
+    form.setValue('note', autoNote)
+  }, [isOpen, paymentToEdit, autoNote, form])
 
   // Calculer les pénalités impayées
   const unpaidPenalties = useMemo(() => {

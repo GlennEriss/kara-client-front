@@ -247,6 +247,7 @@ export default function PaymentReceiptModal({
       nouveauCapital1: nouveauCapital,
       nouveauCapital2: nouveauCapital,
       capitalMoisProchain,
+      isFixedExtensionMonth,
     }
   }
 
