@@ -686,8 +686,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.
         </Text>
-<Text style={styles.paragraph12}>
-        </Text>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -697,8 +698,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Le non-respect des échéanciers expose le membre bénéficiaire à des poursuites judiciaires sous huitaine.
         </Text>
-<Text style={styles.paragraph12}>
+        <Text style={styles.paragraph12}>
         </Text>
+
         <Text style={styles.articleTitle}>ARTICLE 4 : DÉCLARATIONS ET ENGAGEMENTS DU PRÊTEUR</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -714,16 +716,16 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         </Text>
         <Text style={[styles.paragraph14, styles.indent]}>
           Pour des raisons de prévoyance, M/Mme/Mlle<Text style={{ fontWeight: 'bold' }}> {guarantor.lastName} {guarantor.firstName}</Text>
-         </Text> 
-         <Text style={[styles.paragraph14, styles.indent]}>
-           Qui se porte caution solidaire en cas de non-exécution de ma part.
+        </Text>
+        <Text style={[styles.paragraph14, styles.indent]}>
+          Qui se porte caution solidaire en cas de non-exécution de ma part.
         </Text>
         <Text style={[styles.paragraph14, styles.indent]}>
           Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires à l’encontre du débiteur pour le recouvrement de ladite créance.
         </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
+      </Page>
 
+      <Page size="A4" style={styles.page}>
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -741,7 +743,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Fait à……………………….........…Le ……..........……/……..........…/……........……….
         </Text>
-<Text style={styles.paragraph12}>
+        <Text style={styles.paragraph12}>
         </Text>
         <View />
         <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
