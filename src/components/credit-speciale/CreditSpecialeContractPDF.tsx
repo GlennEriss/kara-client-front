@@ -323,6 +323,9 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
     schedule.length > 0
       ? new Date(schedule[schedule.length - 1].date)
       : new Date(contract.firstPaymentDate)
+  const disbursementDate = contract.disbursementDate
+    ? formatDate(contract.disbursementDate)
+    : '....................'
 
   // Données du membre
   const member = {
@@ -411,7 +414,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          en date du <Text style={styles.bold}>....................</Text>.
+          en date du <Text style={styles.bold}>{disbursementDate}</Text>.
         </Text>
 
         <Text style={styles.paragraph}>
@@ -457,7 +460,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>....................</Text>. Pour une nécessité sociale.
+          En date du <Text style={styles.bold}>{disbursementDate}</Text>. Pour une nécessité sociale.
         </Text>
         <Text style={styles.paragraph}>
           La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre quelques jours supplémentaires sans que ce délai n'affecte la date de début du prêt.
@@ -591,7 +594,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
         <Text style={styles.paragraph}>Il a été convenu entre les parties ce qui suit :</Text>
 
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>....................</Text>,
+          En date du <Text style={styles.bold}>{disbursementDate}</Text>,
           l'Association LE KARA a mis à la disposition de M/Mme/Mlle <Text style={styles.bold}>{member.lastName.toUpperCase()} {member.firstName}</Text>
         </Text>
         <Text style={styles.paragraph}>Une somme de</Text>

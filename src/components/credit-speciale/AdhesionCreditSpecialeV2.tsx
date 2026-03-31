@@ -295,6 +295,9 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
 
   const endDate = new Date(contract.firstPaymentDate)
   endDate.setMonth(endDate.getMonth() + contract.duration - 1)
+  const disbursementDate = contract.disbursementDate
+    ? formatDate(contract.disbursementDate)
+    : '....................'
 
   const formatAddress = (address: any): string => {
     if (!address) return '—'
@@ -462,7 +465,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={styles.bold}>{numberToWords(contract.amount)} francs CFA</Text> (lettres),
         </Text>
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}></Text>. Pour une nécessité sociale.
+          En date du <Text style={styles.bold}>{disbursementDate}</Text>. Pour une nécessité sociale.
         </Text>
         <Text style={styles.paragraph}>
           La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre quelques jours supplémentaires sans que ce délai n'affecte la date de début du prêt.
@@ -562,7 +565,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
         <View style={styles.titleUnderline} />
 
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>....................</Text>. Le présent acte a été conclu entre les parties suivantes nommément désignées :
+          En date du <Text style={styles.bold}>{disbursementDate}</Text>. Le présent acte a été conclu entre les parties suivantes nommément désignées :
         </Text>
 
         <View style={styles.cautionHeaderTable}>
@@ -588,7 +591,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph}>Il a été convenu entre les parties ce qui suit :</Text>
 
         <Text style={styles.paragraph}>
-          En date du <Text style={styles.bold}>..........................</Text>,
+          En date du <Text style={styles.bold}>{disbursementDate}</Text>,
           l'Association LE KARA a mis à la disposition de M/Mme/Mlle <Text style={styles.bold}>{member.lastName.toUpperCase()} {member.firstName}</Text>
         </Text>
         <Text style={styles.paragraph}>Une somme de</Text>
