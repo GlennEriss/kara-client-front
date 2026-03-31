@@ -450,8 +450,23 @@ export default function CreditContractDetail({
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
-  const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
-  const { data: guarantorPayments = [], isLoading: isLoadingGuarantorPayments } = useGuarantorPaymentsByCreditId(contract.id)
+  const shouldLoadGuarantorTabData =
+    activeTab === 'guarantor' &&
+    !!contract.guarantorId &&
+    !!contract.guarantorIsMember &&
+    (contract.guarantorRemunerationPercentage ?? 0) > 0
+  const {
+    data: guarantorRemunerations = [],
+    isLoading: isLoadingRemunerations,
+    isError: isGuarantorRemunerationsError,
+    error: guarantorRemunerationsError,
+  } = useGuarantorRemunerationsByCreditId(contract.id, shouldLoadGuarantorTabData)
+  const {
+    data: guarantorPayments = [],
+    isLoading: isLoadingGuarantorPayments,
+    isError: isGuarantorPaymentsError,
+    error: guarantorPaymentsError,
+  } = useGuarantorPaymentsByCreditId(contract.id, shouldLoadGuarantorTabData)
   const [showGuarantorPaymentModal, setShowGuarantorPaymentModal] = useState(false)
   const [showRestMonthModal, setShowRestMonthModal] = useState(false)
   const [selectedRestMonth, setSelectedRestMonth] = useState<number | null>(null)
@@ -517,6 +532,19 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
       : new Map<number, (typeof specialHistory)[number]>()
+  const hasEnteredFixedPhase =
+    contract.creditType === 'SPECIALE' &&
+    specialHistory.some(
+      (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
+    )
+  const guarantorRemunerationsErrorMessage =
+    guarantorRemunerationsError instanceof Error
+      ? guarantorRemunerationsError.message
+      : 'Impossible de charger les commissions du garant.'
+  const guarantorPaymentsErrorMessage =
+    guarantorPaymentsError instanceof Error
+      ? guarantorPaymentsError.message
+      : 'Impossible de charger l’historique des paiements au garant.'
   const penaltiesByMonth = new Map<number, number>()
   if (contract.creditType === 'SPECIALE') {
     penalties.forEach((penalty) => {
@@ -1991,6 +2019,10 @@ export default function CreditContractDetail({
 
                     {isLoadingRemunerations ? (
                       <div className="text-center py-8 text-gray-500">Chargement...</div>
+                    ) : isGuarantorRemunerationsError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {guarantorRemunerationsErrorMessage}
+                      </div>
                     ) : guarantorRemunerations.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">Aucune commission enregistrée</div>
                     ) : (
@@ -2052,21 +2084,42 @@ export default function CreditContractDetail({
                       {/* Paiement au garant */}
                       <div className="border-t pt-6 mt-6">
                         <h4 className="font-semibold mb-1">Paiement au garant</h4>
-                        <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                          onClick={() => setShowGuarantorPaymentModal(true)}
-                        >
-                          <HandCoins className="h-4 w-4 mr-2" />
-                          Enregistrer un paiement au garant
-                        </Button>
+                        {hasEnteredFixedPhase ? (
+                          <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+                            <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+                            <div>
+                              <p className="text-sm font-semibold text-red-700">
+                                Le contrat est déjà passé en partie fixe.
+                              </p>
+                              <p className="mt-1 text-sm text-red-700">
+                                À partir de cette bascule, le garant n&apos;a plus droit à ses commissions.
+                                L&apos;enregistrement d&apos;un paiement au garant est donc désactivé.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                              onClick={() => setShowGuarantorPaymentModal(true)}
+                            >
+                              <HandCoins className="h-4 w-4 mr-2" />
+                              Enregistrer un paiement au garant
+                            </Button>
+                          </>
+                        )}
                         {/* Historique des paiements au garant */}
                         <div className="mt-4">
                           <h5 className="text-sm font-medium text-gray-700 mb-2">Historique des paiements au garant</h5>
                           {isLoadingGuarantorPayments ? (
                             <p className="text-sm text-gray-500">Chargement...</p>
+                          ) : isGuarantorPaymentsError ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                              {guarantorPaymentsErrorMessage}
+                            </div>
                           ) : guarantorPayments.length === 0 ? (
                             <p className="text-sm text-gray-500">Aucun paiement enregistré</p>
                           ) : (

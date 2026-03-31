@@ -527,13 +527,13 @@ export function useUnpaidCreditPenaltiesByCreditId(creditId: string) {
 
 // ==================== RÉMUNÉRATION GARANT ====================
 
-export function useGuarantorRemunerationsByCreditId(creditId: string) {
+export function useGuarantorRemunerationsByCreditId(creditId: string, enabled = true) {
     const service = ServiceFactory.getCreditSpecialeService()
     
     return useQuery<GuarantorRemuneration[]>({
         queryKey: ['guarantorRemunerations', 'creditId', creditId],
         queryFn: () => service.getRemunerationsByCreditId(creditId),
-        enabled: !!creditId,
+        enabled: !!creditId && enabled,
         staleTime: 2 * 60 * 1000,
     })
 }
@@ -551,12 +551,12 @@ export function useGuarantorRemunerationsByGuarantorId(guarantorId: string) {
 
 // ==================== PAIEMENTS AU GARANT ====================
 
-export function useGuarantorPaymentsByCreditId(creditId: string) {
+export function useGuarantorPaymentsByCreditId(creditId: string, enabled = true) {
     const service = ServiceFactory.getCreditSpecialeService()
     return useQuery<GuarantorPayment[]>({
         queryKey: ['guarantorPayments', 'creditId', creditId],
         queryFn: () => service.getGuarantorPaymentsByCreditId(creditId),
-        enabled: !!creditId,
+        enabled: !!creditId && enabled,
         staleTime: 2 * 60 * 1000,
     })
 }
