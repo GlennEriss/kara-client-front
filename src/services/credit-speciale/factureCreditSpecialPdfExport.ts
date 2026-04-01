@@ -137,7 +137,9 @@ async function loadLogoDataUrl(): Promise<{ dataUrl: string; width: number; heig
 function drawPage1(
   doc: jsPDF,
   page1Data: FactureCreditSpecialPage1Data,
-  logoDataUrl: { dataUrl: string; width: number; height: number } | null
+  logoDataUrl: { dataUrl: string; width: number; height: number } | null,
+  pageNumber: number = 1,
+  totalPages: number = 2
 ): void {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -244,14 +246,19 @@ function drawPage1(
   doc.setFontSize(8.5)
   doc.setTextColor(90, 90, 90)
   doc.text(
-    `Page 1 sur 2 - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+    `Page ${pageNumber} sur ${totalPages} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
     pageWidth / 2,
     pageHeight - 9,
     { align: 'center' }
   )
 }
 
-function drawPage2(doc: jsPDF, data: FactureCreditSpecialPDFData): void {
+function drawPage2(
+  doc: jsPDF,
+  data: FactureCreditSpecialPDFData,
+  pageNumber: number = 2,
+  totalPages: number = 2
+): void {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const contentWidth = pageWidth - 2 * MARGIN
@@ -317,7 +324,7 @@ function drawPage2(doc: jsPDF, data: FactureCreditSpecialPDFData): void {
   doc.setFontSize(8.5)
   doc.setTextColor(90, 90, 90)
   doc.text(
-    `Page 2 sur 2 - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+    `Page ${pageNumber} sur ${totalPages} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
     pageWidth / 2,
     pageHeight - 9,
     { align: 'center' }
@@ -329,6 +336,18 @@ export type GenerateFactureCreditSpecialPDFOptions = {
   factureData: FactureCreditSpecialPDFData
   /** Données pour la page 1 (membre + contact urgence). Si fourni, le PDF fait 2 pages. */
   page1Data?: FactureCreditSpecialPage1Data | null
+}
+
+export type GenerateGlobalFactureCreditSpecialPDFOptions = {
+  page1Data: FactureCreditSpecialPage1Data | null
+  factures: Array<{
+    factureData: FactureCreditSpecialPDFData
+    /** Titre de la page "VERSEMENT DU:" ; par défaut dateEcheance puis paymentDate */
+    titleDate?: string
+  }>
+  outputMode?: 'save' | 'open'
+  filename?: string
+  targetWindow?: Window | null
 }
 
 /**
@@ -357,4 +376,53 @@ export async function generateFactureCreditSpecialPDF(
 
   const dateStr = new Date().toISOString().split('T')[0]
   doc.save(`versement_facture_${factureData.paymentDate.replace(/-/g, '')}_${dateStr}.pdf`)
+}
+
+export async function generateGlobalFactureCreditSpecialPDF(
+  options: GenerateGlobalFactureCreditSpecialPDFOptions
+): Promise<void> {
+  const { page1Data, factures, outputMode = 'open', filename, targetWindow } = options
+  if (!factures.length) {
+    throw new Error('Aucune facture à générer')
+  }
+
+  const doc = new jsPDF('p', 'mm', 'a4')
+  const totalPages = (page1Data ? 1 : 0) + factures.length
+  const logoDataUrl = page1Data ? await loadLogoDataUrl() : null
+
+  if (page1Data) {
+    drawPage1(doc, page1Data, logoDataUrl, 1, totalPages)
+  }
+
+  factures.forEach((entry, index) => {
+    if (page1Data || index > 0) {
+      doc.addPage()
+    }
+    const titleDate = entry.titleDate ?? entry.factureData.dateEcheance ?? entry.factureData.paymentDate
+    drawPage2(
+      doc,
+      {
+        ...entry.factureData,
+        paymentDate: titleDate,
+      },
+      (page1Data ? 2 : 1) + index,
+      totalPages
+    )
+  })
+
+  if (outputMode === 'open' && typeof window !== 'undefined') {
+    const blobUrl = String(doc.output('bloburl'))
+    if (targetWindow && !targetWindow.closed) {
+      targetWindow.location.href = blobUrl
+      return
+    }
+    const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+    if (opened) {
+      return
+    }
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0]
+  const outputFilename = filename || `facture_globale_credit_speciale_${dateStr}.pdf`
+  doc.save(outputFilename)
 }

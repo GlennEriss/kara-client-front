@@ -229,11 +229,6 @@ export default function CreditPaymentModal({
     form.setValue('note', autoNote)
   }, [isOpen, paymentToEdit, autoNote, form])
 
-  // Calculer les pénalités impayées
-  const unpaidPenalties = useMemo(() => {
-    return penalties.filter(p => !p.paid)
-  }, [penalties])
-
   const currentPaymentMonth = useMemo(() => {
     if (!contract) return undefined
     if (installmentNumber && installmentNumber > 0) return installmentNumber
@@ -263,12 +258,26 @@ export default function CreditPaymentModal({
     return history.find((row) => row.month === currentPaymentMonth) ?? null
   }, [contract, currentPaymentMonth, recordedPayments])
 
+  const linkedPenalties = useMemo(() => {
+    if (editMode || !defaultPaymentDate) return []
+    const currentDueDate = new Date(defaultPaymentDate)
+    currentDueDate.setHours(0, 0, 0, 0)
+
+    return penalties.filter((penalty) => {
+      if (penalty.paid) return false
+      const penaltyDueDate = new Date(penalty.dueDate)
+      penaltyDueDate.setHours(0, 0, 0, 0)
+      return penaltyDueDate.getTime() === currentDueDate.getTime()
+    })
+  }, [defaultPaymentDate, editMode, penalties])
+
   const currentVersementPenaltyBase = currentMonthHistory?.interest ?? 0
 
   // Calculer la pénalité potentielle du versement courant selon la règle officielle :
   // intérêt du mois * nombre de jours de retard / 30.
   const potentialPenalty = useMemo(() => {
     if (editMode || watchedAmount <= 0) return null
+    if (linkedPenalties.length > 0) return null
     if (calculatedDaysLate > 3 && currentVersementPenaltyBase > 0) {
       const penaltyAmount = (currentVersementPenaltyBase * calculatedDaysLate) / 30
       return {
@@ -279,12 +288,7 @@ export default function CreditPaymentModal({
     }
 
     return null
-  }, [editMode, watchedAmount, calculatedDaysLate, currentVersementPenaltyBase])
-
-  const totalUnpaidPenalties = useMemo(
-    () => unpaidPenalties.reduce((sum, penalty) => sum + penalty.amount, 0),
-    [unpaidPenalties]
-  )
+  }, [editMode, watchedAmount, linkedPenalties.length, calculatedDaysLate, currentVersementPenaltyBase])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -634,20 +638,20 @@ export default function CreditPaymentModal({
             </div>
           )}
 
-          {/* Pénalités impayées (information seulement, règlement dans la section Pénalités) */}
-          {!editMode && unpaidPenalties.length > 0 && (
+          {/* Pénalité déjà liée à cette échéance (information seulement) */}
+          {!editMode && linkedPenalties.length > 0 && (
             <Card className="border-orange-200 bg-orange-50/50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2 text-orange-800">
                   <AlertTriangle className="h-4 w-4" />
-                  Pénalités déjà en attente ({unpaidPenalties.length})
+                  Pénalité liée à ce versement
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-xs text-orange-700">
-                  Ce formulaire enregistre uniquement la mensualité. Les pénalités déjà en attente se règlent dans la section dédiée du contrat.
+                  Cette pénalité existe déjà pour cette échéance. Elle se règle dans la section dédiée du contrat, pas dans ce formulaire.
                 </p>
-                {unpaidPenalties.map((penalty) => (
+                {linkedPenalties.map((penalty) => (
                   <div
                     key={penalty.id}
                     className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200"
@@ -667,12 +671,6 @@ export default function CreditPaymentModal({
                     </div>
                   </div>
                 ))}
-                <Alert className="mt-2 border-orange-200 bg-orange-100/60">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Cumul des pénalités impayées : <strong>{totalUnpaidPenalties.toLocaleString('fr-FR')} FCFA</strong>
-                  </AlertDescription>
-                </Alert>
               </CardContent>
             </Card>
           )}
@@ -725,7 +723,7 @@ export default function CreditPaymentModal({
           )}
 
           {/* Résumé informatif */}
-          {(unpaidPenalties.length > 0 || potentialPenalty) && (
+          {(linkedPenalties.length > 0 || potentialPenalty) && (
             <Card className="border-blue-200 bg-blue-50/50">
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
@@ -734,11 +732,11 @@ export default function CreditPaymentModal({
                     {watchedAmount.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
-                {unpaidPenalties.length > 0 && (
+                {linkedPenalties.length > 0 && (
                   <div className="flex items-center justify-between mt-2">
-                    <span className="font-medium text-blue-800">Pénalités déjà en attente :</span>
+                    <span className="font-medium text-blue-800">Pénalité liée à cette échéance :</span>
                     <span className="text-lg font-bold text-orange-600">
-                      {totalUnpaidPenalties.toLocaleString('fr-FR')} FCFA
+                      {linkedPenalties.reduce((sum, penalty) => sum + penalty.amount, 0).toLocaleString('fr-FR')} FCFA
                     </span>
                   </div>
                 )}
