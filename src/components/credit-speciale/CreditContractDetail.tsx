@@ -13,11 +13,18 @@ import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract } from '@/hooks/useCreditSpeciale'
+import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
+import {
+  buildCreditSpecialFactureData,
+  buildCreditSpecialFacturePage1Data,
+} from '@/services/credit-speciale/creditSpecialeFactureHelpers'
+import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
 import {
   buildCreditSpecialeHistory,
   getContractCalendarMonthFromDate,
+  getCreditPaymentMonthNumber,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
@@ -439,6 +446,7 @@ export default function CreditContractDetail({
   const [showPenaltyPaymentModal, setShowPenaltyPaymentModal] = useState(false)
   const [showPenaltyReceiptModal, setShowPenaltyReceiptModal] = useState(false)
   const [penaltyPaymentModalMode, setPenaltyPaymentModalMode] = useState<'pay' | 'edit'>('pay')
+  const [isGeneratingGlobalFacturePdf, setIsGeneratingGlobalFacturePdf] = useState(false)
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
 
   useEffect(() => {
@@ -453,6 +461,7 @@ export default function CreditContractDetail({
   // Récupérer les contrats parent et enfant (pour les extensions)
   const { data: childContract } = useChildContract(contract.id)
   const { data: parentContract } = useParentContract(contract.parentContractId)
+  const { data: member } = useMember(contract.clientId)
 
   // Récupérer les paiements, pénalités, échéances et rémunérations du garant
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
@@ -1144,6 +1153,75 @@ export default function CreditContractDetail({
     return null
   }
 
+  const handleOpenGlobalFacturePDF = async () => {
+    if (contract.creditType !== 'SPECIALE') {
+      toast.error('La facture globale PDF est disponible uniquement pour les contrats de crédit spéciale')
+      return
+    }
+
+    const paymentsForGlobalFacture = [...payments]
+      .filter(
+        (payment) =>
+          payment.amount > 0 ||
+          payment.comment?.includes('Paiement de 0 FCFA') ||
+          (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
+      )
+      .sort((left, right) => {
+        const leftMonth = getCreditPaymentMonthNumber(contract, left)
+        const rightMonth = getCreditPaymentMonthNumber(contract, right)
+        if (leftMonth !== rightMonth) return leftMonth - rightMonth
+        return new Date(left.paymentDate).getTime() - new Date(right.paymentDate).getTime()
+      })
+
+    if (paymentsForGlobalFacture.length === 0) {
+      toast.error('Aucun versement de mensualité à inclure dans la facture globale')
+      return
+    }
+
+    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+
+    try {
+      setIsGeneratingGlobalFacturePdf(true)
+      toast.info('Génération de la facture globale en cours...')
+
+      const page1Data = buildCreditSpecialFacturePage1Data(contract, member)
+      const factures = paymentsForGlobalFacture.map((payment) => {
+        const installmentNumber = getCreditPaymentMonthNumber(contract, payment)
+        const dueItem = actualSchedule.find((item) => item.month === installmentNumber)
+        const factureData = buildCreditSpecialFactureData({
+          contract,
+          payment,
+          installmentNumber,
+          schedule: actualSchedule,
+          dueDate: dueItem?.date ?? null,
+        })
+
+        return {
+          factureData,
+          titleDate: factureData.dateEcheance,
+        }
+      })
+
+      await generateGlobalFactureCreditSpecialPDF({
+        page1Data,
+        factures,
+        outputMode: 'open',
+        filename: `facture_globale_${contract.id}.pdf`,
+        targetWindow: previewWindow,
+      })
+
+      toast.success('Facture globale PDF générée avec succès')
+    } catch (error) {
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.close()
+      }
+      console.error('Erreur lors de la génération de la facture globale PDF:', error)
+      toast.error('Erreur lors de la génération de la facture globale PDF')
+    } finally {
+      setIsGeneratingGlobalFacturePdf(false)
+    }
+  }
+
   // Retrouver le paiement associé à une échéance (pour "Voir le résumé" dans l'échéancier)
   const getPaymentForScheduleIndex = (scheduleIndex: number): CreditPayment | null => {
     const dueItem = actualSchedule[scheduleIndex]
@@ -1744,7 +1822,9 @@ export default function CreditContractDetail({
                                 <HandCoins className="h-4 w-4 mr-2" />
                                 Payer cette échéance
                               </Button>
-                              {contract.creditType === 'SPECIALE' && index === nextDueIndex && (
+                              {contract.creditType === 'SPECIALE' &&
+                                index === nextDueIndex &&
+                                specialHistoryByMonth.get(item.month)?.phase !== 'FIXE' && (
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -2077,10 +2157,33 @@ export default function CreditContractDetail({
                   )}
 
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <History className="h-5 w-5" />
-                      Versements enregistrés
-                    </h3>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <History className="h-5 w-5" />
+                        Versements enregistrés
+                      </h3>
+                      {contract.creditType === 'SPECIALE' && payments.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={handleOpenGlobalFacturePDF}
+                          disabled={isGeneratingGlobalFacturePdf}
+                        >
+                          {isGeneratingGlobalFacturePdf ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Génération...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Voir la facture globale PDF
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     {isLoadingPayments ? (
                       <div className="text-center py-8 text-gray-500">Chargement...</div>
                     ) : payments.length === 0 ? (
