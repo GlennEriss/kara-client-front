@@ -162,11 +162,12 @@ export interface ICreditSpecialeService {
         originalAmount: number;
         interestRate: number;
         totalPaid: number;
-        remainingDue: number; // Reste dû du contrat actuel
+        remainingCapital: number; // Capital reporté dans le nouveau cycle
+        remainingDue: number; // Prochaine échéance théorique du contrat actuel
         suggestedMinMonthlyPayment?: number; // Mensualité suggérée pour 7 mois
     }>;
     
-    /** Un seul rajout autorisé par contrat ; met à jour le même contrat (pas de nouveau contrat). */
+    /** Un seul rajout autorisé par contrat ; ouvre un nouveau cycle dans le même contrat. */
     extendContract(
         contractId: string,
         additionalAmount: number,

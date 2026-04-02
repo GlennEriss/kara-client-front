@@ -21,6 +21,9 @@ import { EmergencyContact } from "@/schemas/emergency-contact.schema";
 import { CreditFixeSimulationService } from "@/domains/financial/credit-speciale/fixe/simulation/services/CreditFixeSimulationService";
 import {
     buildCreditSpecialeHistory,
+    buildCreditPaymentId,
+    getCreditContractCycles,
+    getCreditPaymentsForCurrentCycle,
     getCreditPaymentMonthNumber,
     getNextDueFromCreditSpecialeHistory,
 } from "@/utils/credit-speciale-history";
@@ -404,15 +407,26 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             recordedAt: new Date(),
         };
         const nextRestMonths = [...existing, newEntry];
-        const payments = await this.creditPaymentRepository.getPaymentsByCreditId(creditId);
+        const payments = getCreditPaymentsForCurrentCycle(
+            contract,
+            await this.creditPaymentRepository.getPaymentsByCreditId(creditId)
+        );
         const history = contract.creditType === 'SPECIALE'
             ? buildCreditSpecialeHistory({ ...contract, restMonths: nextRestMonths }, payments, {
                 projectUntilZero: true,
             })
             : [];
         const nextDue = getNextDueFromCreditSpecialeHistory(history);
+        const creditCycles = contract.creditCycles?.length
+            ? contract.creditCycles.map((cycle, index, cycles) =>
+                index === cycles.length - 1
+                    ? { ...cycle, restMonths: nextRestMonths }
+                    : cycle
+            )
+            : undefined;
 
         await this.creditContractRepository.updateContract(creditId, {
+            creditCycles,
             restMonths: nextRestMonths,
             nextDueAt: nextDue?.date,
             amountRemaining: nextDue ? Math.round(nextDue.amountDue) : contract.amountRemaining,
@@ -1091,7 +1105,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Récupérer tous les paiements existants pour calculer le reste dû
         // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pénalités uniquement ou paiement de 0)
         const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
-        const realPayments = allPayments.filter(p => 
+        const realPayments = getCreditPaymentsForCurrentCycle(contract, allPayments).filter(p => 
             p.amount > 0 || 
             p.comment?.includes('Paiement de pénalités uniquement') ||
             p.comment?.includes('Paiement de 0 FCFA')
@@ -1162,7 +1176,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         
         // Générer l'ID personnalisé au format M{mois}_{idContrat}
         // Utiliser l'ID complet du contrat
-        const customPaymentId = `M${monthNumber}_${contract.id}`;
+        const customPaymentId = buildCreditPaymentId(contract, monthNumber);
         console.log('[CreditSpecialeService] ID du paiement généré:', customPaymentId);
         
         // Créer le paiement
@@ -1206,7 +1220,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Recalculer le montant total payé et restant à partir de tous les paiements
         // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pénalités uniquement ou paiement de 0)
         const updatedPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
-        const updatedRealPayments = updatedPayments.filter(p => 
+        const updatedRealPayments = getCreditPaymentsForCurrentCycle(contract, updatedPayments).filter(p => 
             p.amount > 0 || 
             p.comment?.includes('Paiement de pénalités uniquement') ||
             p.comment?.includes('Paiement de 0 FCFA')
@@ -1808,7 +1822,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         const allPayments = await this.getPaymentsByCreditId(creditId);
-        const paymentsBeforeCurrent = allPayments.filter((existingPayment) => existingPayment.id !== payment.id);
+        const currentCyclePayments = getCreditPaymentsForCurrentCycle(contract, allPayments);
+        const paymentsBeforeCurrent = currentCyclePayments.filter((existingPayment) => existingPayment.id !== payment.id);
         const history = contract.creditType === 'SPECIALE'
             ? buildCreditSpecialeHistory(contract, paymentsBeforeCurrent, {
                 endMonth: monthNumber,
@@ -2844,6 +2859,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         originalAmount: number;
         interestRate: number;
         totalPaid: number;
+        remainingCapital: number;
         remainingDue: number;
         suggestedMinMonthlyPayment?: number;
     }> {
@@ -2854,30 +2870,52 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
 
             // Récupérer les paiements effectués
-            const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
+            const payments = getCreditPaymentsForCurrentCycle(
+                contract,
+                await this.creditPaymentRepository.getPaymentsByCreditId(contractId)
+            ).filter(
+                (payment) =>
+                    payment.amount > 0 ||
+                    payment.comment?.includes('Paiement de 0 FCFA') ||
+                    payment.comment?.includes('Paiement de pénalités uniquement')
+            );
             const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
-            // Calculer le reste dû
-            // Si des paiements ont été effectués: Reste dû = Montant initial + Intérêts accumulés - Montants payés
-            // Si aucun paiement: Reste dû = Montant initial + Intérêts du premier mois
-            let remainingDue: number;
-            
-            if (totalPaid > 0) {
-                // Calculer le reste dû en fonction des paiements réels
-                remainingDue = contract.totalAmount - totalPaid;
-            } else {
-                // Aucun paiement: ajouter les intérêts du premier mois
-                const firstMonthInterest = contract.amount * (contract.interestRate / 100);
-                remainingDue = contract.amount + firstMonthInterest;
-            }
+            let remainingCapital = contract.amount;
+            let remainingDue = contract.creditType === 'SPECIALE'
+                ? Math.round(contract.amount + (contract.amount * contract.interestRate) / 100)
+                : contract.totalAmount;
 
-            // S'assurer que le reste dû n'est pas négatif
-            remainingDue = Math.max(0, remainingDue);
+            if (contract.creditType === 'SPECIALE') {
+                const history = buildCreditSpecialeHistory(contract, payments, {
+                    projectUntilZero: true,
+                });
+                const nextDue = getNextDueFromCreditSpecialeHistory(history);
+                const lastRecorded = history
+                    .filter((month) => month.hasPaymentRecord || month.isRest)
+                    .at(-1);
+
+                if (lastRecorded) {
+                    remainingCapital = Math.max(0, Math.round(lastRecorded.nextCapitalActual));
+                }
+
+                if (nextDue) {
+                    remainingCapital = Math.max(0, Math.round(nextDue.capitalStart));
+                    remainingDue = Math.max(0, Math.round(nextDue.amountDue));
+                } else {
+                    remainingCapital = 0;
+                    remainingDue = 0;
+                }
+            } else {
+                remainingCapital = Math.max(0, contract.totalAmount - totalPaid);
+                remainingDue = remainingCapital;
+            }
 
             return {
                 originalAmount: contract.amount,
                 interestRate: contract.interestRate,
                 totalPaid,
+                remainingCapital,
                 remainingDue,
             };
         } catch (error) {
@@ -2887,10 +2925,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     }
 
     /**
-     * Rajoute un montant au contrat (augmentation de crédit) — un seul rajout autorisé, même contrat.
-     * Met à jour le contrat existant : initialAmount, rajoutAmount, rajoutEffectue, amount, totalAmount, etc.
-     * Aucun nouveau contrat n'est créé : tous les paiements déjà enregistrés restent sur ce contrat (même creditId),
-     * restent visibles dans l'historique des versements et gardent leur facture/reçu téléchargeable.
+     * Rajoute un montant au contrat (augmentation de crédit).
+     * L'augmentation ouvre un nouveau cycle dans le même contrat : l'historique est conservé,
+     * mais les échéances repartent à M1 sur la base "capital reporté + montant ajouté".
      */
     async extendContract(
         contractId: string,
@@ -2913,23 +2950,66 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         const contract = eligibility.currentContract!;
+        const extensionAmounts = await this.calculateExtensionAmounts(contractId);
         const initialAmount = contract.initialAmount ?? contract.amount;
-        const newAmount = initialAmount + additionalAmount;
+        const carriedCapital = Math.max(0, extensionAmounts.remainingCapital);
+        const newAmount = carriedCapital + additionalAmount;
+        const now = new Date();
+        const normalizedDuration = contract.creditType === 'SPECIALE'
+            ? Math.min(Math.max(1, simulationData.duration), 7)
+            : simulationData.duration;
+        const amountRemaining = contract.creditType === 'SPECIALE'
+            ? Math.round(newAmount + (newAmount * simulationData.interestRate) / 100)
+            : Math.round(simulationData.totalAmount);
 
-        const amountRemaining = Math.max(0, simulationData.totalAmount - contract.amountPaid);
+        const existingCycles = getCreditContractCycles(contract);
+        const currentCycleNumber = existingCycles[existingCycles.length - 1]?.cycleNumber ?? 1;
+        const creditCycles = [
+            ...existingCycles.map((cycle) =>
+                cycle.cycleNumber === currentCycleNumber
+                    ? {
+                        ...cycle,
+                        restMonths: cycle.restMonths ?? contract.restMonths ?? [],
+                    }
+                    : cycle
+            ),
+            {
+                cycleNumber: currentCycleNumber + 1,
+                type: 'AUGMENTATION' as const,
+                amount: newAmount,
+                interestRate: simulationData.interestRate,
+                monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
+                totalAmount: simulationData.totalAmount,
+                duration: normalizedDuration,
+                firstPaymentDate: simulationData.firstPaymentDate,
+                startedAt: now,
+                additionalAmount,
+                carriedCapital,
+                cause,
+                desiredDate,
+                restMonths: [],
+                createdBy: adminId,
+            },
+        ];
 
         const updated = await this.creditContractRepository.updateContract(contractId, {
+            creditCycles,
             initialAmount,
             rajoutAmount: additionalAmount,
             rajoutEffectue: true,
             amount: newAmount,
             interestRate: simulationData.interestRate,
             totalAmount: simulationData.totalAmount,
-            duration: simulationData.duration,
+            duration: normalizedDuration,
             monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
             firstPaymentDate: simulationData.firstPaymentDate,
+            nextDueAt: simulationData.firstPaymentDate,
+            amountPaid: 0,
             amountRemaining,
-            extendedAt: new Date(),
+            emergencyContact: emergencyContact ?? contract.emergencyContact,
+            restMonths: [],
+            status: 'ACTIVE',
+            extendedAt: now,
             updatedBy: adminId,
         });
 
@@ -2943,11 +3023,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 entityId: contractId,
                 type: 'status_update',
                 title: 'Rajout de crédit enregistré',
-                message: `Un rajout de ${additionalAmount.toLocaleString('fr-FR')} FCFA a été enregistré pour ${contract.clientFirstName} ${contract.clientLastName}. Nouveau capital: ${newAmount.toLocaleString('fr-FR')} FCFA`,
+                message: `Un rajout de ${additionalAmount.toLocaleString('fr-FR')} FCFA a été enregistré pour ${contract.clientFirstName} ${contract.clientLastName}. Nouveau cycle sur ${newAmount.toLocaleString('fr-FR')} FCFA (capital reporté inclus).`,
                 metadata: {
                     contractId,
                     additionalAmount,
                     newAmount,
+                    carriedCapital,
                     clientId: contract.clientId,
                 },
             });

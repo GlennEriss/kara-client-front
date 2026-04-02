@@ -268,7 +268,7 @@ export default function CreditExtensionModal({
   // Calcul du nouveau capital
   const newCapital = useMemo(() => {
     if (!amounts) return 0
-    return amounts.remainingDue + additionalAmount
+    return amounts.remainingCapital + additionalAmount
   }, [amounts, additionalAmount])
   
   // Calcul de la mensualité suggérée pour 7 mois
@@ -576,8 +576,12 @@ export default function CreditExtensionModal({
                       <span className="font-semibold text-green-600">{amounts.totalPaid.toLocaleString('fr-FR')} FCFA</span>
                     </div>
                     <div className="flex justify-between border-t border-blue-300 pt-2">
-                      <span className="text-blue-700 font-medium">Reste dû (capital + intérêts) :</span>
-                      <span className="font-bold text-blue-900">{Math.round(amounts.remainingDue).toLocaleString('fr-FR')} FCFA</span>
+                      <span className="text-blue-700 font-medium">Capital reporté dans le nouveau cycle :</span>
+                      <span className="font-bold text-blue-900">{Math.round(amounts.remainingCapital).toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-700">Prochaine échéance théorique :</span>
+                      <span className="font-semibold text-blue-900">{Math.round(amounts.remainingDue).toLocaleString('fr-FR')} FCFA</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -649,7 +653,7 @@ export default function CreditExtensionModal({
                         </span>
                       </div>
                       <p className="text-xs text-green-600 mt-1">
-                        = Reste dû ({Math.round(amounts.remainingDue).toLocaleString('fr-FR')}) + Montant supplémentaire ({additionalAmount.toLocaleString('fr-FR')})
+                        = Capital reporté ({Math.round(amounts.remainingCapital).toLocaleString('fr-FR')}) + Montant supplémentaire ({additionalAmount.toLocaleString('fr-FR')})
                       </p>
                     </CardContent>
                   </Card>
@@ -658,7 +662,7 @@ export default function CreditExtensionModal({
                 <Alert className="border-yellow-200 bg-yellow-50">
                   <Info className="h-4 w-4 text-yellow-600" />
                   <AlertDescription className="text-sm text-yellow-800">
-                    <strong>Important :</strong> Une nouvelle simulation sera nécessaire à l'étape suivante pour déterminer la nouvelle mensualité adaptée au nouveau capital.
+                    <strong>Important :</strong> L’augmentation ouvre un nouveau cycle dans le meme contrat. Les anciens versements restent visibles, mais les échéances repartent à M1 après validation.
                   </AlertDescription>
                 </Alert>
               </>
@@ -671,7 +675,7 @@ export default function CreditExtensionModal({
           <div className="space-y-6">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-[#234D65]">Simulation du nouveau contrat</h3>
-              <p className="text-gray-600 text-sm">Définissez la nouvelle mensualité pour le nouveau capital de <strong>{newCapital.toLocaleString('fr-FR')} FCFA</strong></p>
+              <p className="text-gray-600 text-sm">Définissez la nouvelle mensualité pour le nouveau cycle de <strong>{newCapital.toLocaleString('fr-FR')} FCFA</strong></p>
             </div>
 
             <Tabs value={simulationType} onValueChange={(v) => {
@@ -1366,7 +1370,7 @@ export default function CreditExtensionModal({
               <AlertDescription className="text-yellow-800">
                 <p className="font-medium">Attention : Cette action est irréversible</p>
                 <p className="text-sm mt-1">
-                  Le contrat actuel ({contract.id}) passera en statut <Badge variant="outline">EXTENDED</Badge> et un nouveau contrat sera créé.
+                  Le contrat actuel ({contract.id}) reste le meme, mais un nouveau cycle sera créé à l’intérieur du contrat avec une reprise des échéances à <Badge variant="outline">M1</Badge>.
                 </p>
               </AlertDescription>
             </Alert>
@@ -1392,15 +1396,15 @@ export default function CreditExtensionModal({
 
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Reste dû du contrat initial :</span>
-                    <span className="font-semibold">{Math.round(amounts?.remainingDue || 0).toLocaleString('fr-FR')} FCFA</span>
+                    <span className="text-gray-500">Capital reporté :</span>
+                    <span className="font-semibold">{Math.round(amounts?.remainingCapital || 0).toLocaleString('fr-FR')} FCFA</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Montant supplémentaire :</span>
                     <span className="font-semibold text-blue-600">+ {additionalAmount.toLocaleString('fr-FR')} FCFA</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
-                    <span className="text-gray-700 font-medium">Nouveau capital :</span>
+                    <span className="text-gray-700 font-medium">Nouveau cycle :</span>
                     <span className="font-bold text-lg">{newCapital.toLocaleString('fr-FR')} FCFA</span>
                   </div>
                 </div>
@@ -1440,6 +1444,11 @@ export default function CreditExtensionModal({
                 </div>
 
                 <div>
+                  <p className="text-gray-500">Effet dans l'historique :</p>
+                  <p className="text-gray-800 mt-1">Les anciens versements sont conservés et le nouveau cycle repartira à M1 après augmentation.</p>
+                </div>
+
+                <div>
                   <p className="text-gray-500">Contact d'urgence :</p>
                   <p className="font-semibold">{emergencyContact.firstName} {emergencyContact.lastName}</p>
                   <p className="text-xs text-gray-600">{emergencyContact.phone1} • {emergencyContact.relationship}</p>
@@ -1471,7 +1480,7 @@ export default function CreditExtensionModal({
             Augmentation de crédit
           </DialogTitle>
           <DialogDescription>
-            Ajoutez un montant supplémentaire au contrat existant
+            Ajoutez un montant supplémentaire au contrat existant sans perdre l’historique des versements
           </DialogDescription>
         </DialogHeader>
 
