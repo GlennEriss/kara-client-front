@@ -29,6 +29,7 @@ import {
 } from '@/services/credit-speciale/creditSpecialeFactureHelpers'
 import { buildResumeCreditFixePdfData, generateResumeCreditFixePDF } from '@/services/credit-speciale/resumeCreditFixePdfExport'
 import type { DueItemLike } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
+import { getCreditPaymentCycleNumber, getCreditPaymentMonthNumber } from '@/utils/credit-speciale-history'
 import {
     Banknote,
     Building2,
@@ -64,6 +65,8 @@ interface PaymentReceiptModalProps {
   dueDate?: Date | null
   /** Résolution du nom d'admin pour l'export PDF (optionnel) */
   getAdminDisplayName?: (adminId: string) => string
+  /** Titre personnalisé pour le PDF de versement. */
+  pdfTitleText?: string
 }
 
 // Nouveaux modes (alignés caisse spéciale) + anciens (rétrocompatibilité)
@@ -90,6 +93,7 @@ export default function PaymentReceiptModal({
   payments: paymentsList = [],
   dueDate,
   getAdminDisplayName: getAdminDisplayNameProp,
+  pdfTitleText,
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -152,6 +156,16 @@ export default function PaymentReceiptModal({
     })
   }
 
+  const resolvedPdfTitleText = React.useMemo(() => {
+    if (pdfTitleText) return pdfTitleText
+    const cycleNumber = getCreditPaymentCycleNumber(contract, payment)
+    const monthNumber = getCreditPaymentMonthNumber(contract, payment)
+    if (cycleNumber > 1) {
+      return `${format(new Date(dueDate ?? payment.paymentDate), 'yyyy-MM-dd')} - M${monthNumber} apres augmentation`
+    }
+    return undefined
+  }, [contract, dueDate, payment, pdfTitleText])
+
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPDF(true)
@@ -177,7 +191,7 @@ export default function PaymentReceiptModal({
       } else {
         const factureData = buildFactureData()
         const page1Data = buildPage1Data()
-        await generateFactureCreditSpecialPDF({ factureData, page1Data })
+        await generateFactureCreditSpecialPDF({ factureData, page1Data, titleText: resolvedPdfTitleText })
       }
       toast.success('PDF généré avec succès')
     } catch (error) {

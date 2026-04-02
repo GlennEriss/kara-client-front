@@ -30,6 +30,7 @@ import { CreditPayment, CreditPaymentMode } from '@/types/types'
 import {
   buildCreditSpecialeHistory,
   getContractCalendarMonthFromDate,
+  getCreditPaymentsForCurrentCycle,
 } from '@/utils/credit-speciale-history'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
@@ -239,14 +240,16 @@ export default function CreditPaymentModal({
   }, [contract, installmentNumber, defaultPaymentDate])
 
   const recordedPayments = useMemo(
-    () =>
-      payments.filter(
+    () => {
+      if (!contract) return []
+      return getCreditPaymentsForCurrentCycle(contract, payments).filter(
         (payment) =>
           payment.amount > 0 ||
           payment.comment?.includes('Paiement de 0 FCFA') ||
           payment.comment?.includes('Paiement de pénalités uniquement')
-      ),
-    [payments]
+      )
+    },
+    [contract, payments]
   )
 
   const currentMonthHistory = useMemo(() => {

@@ -13,6 +13,63 @@ const toDateValue = (value: any): Date | undefined => {
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
+const mapRestMonths = (
+    restMonthsRaw: Array<{ monthNumber: number; reason: string; recordedBy: string; recordedByName: string; recordedAt: unknown }> | undefined
+) =>
+    restMonthsRaw?.map((r) => ({
+        monthNumber: r.monthNumber,
+        reason: r.reason,
+        recordedBy: r.recordedBy,
+        recordedByName: r.recordedByName,
+        recordedAt: (r.recordedAt as any)?.toDate ? (r.recordedAt as any).toDate() : (r.recordedAt ? new Date(r.recordedAt as string) : new Date()),
+    }));
+
+const mapCreditCycles = (cyclesRaw: any[] | undefined) =>
+    cyclesRaw?.map((cycle, index) => ({
+        cycleNumber: cycle.cycleNumber ?? index + 1,
+        type: cycle.type ?? (index === 0 ? 'INITIAL' : 'AUGMENTATION'),
+        amount: cycle.amount,
+        interestRate: cycle.interestRate,
+        monthlyPaymentAmount: cycle.monthlyPaymentAmount,
+        totalAmount: cycle.totalAmount,
+        duration: cycle.duration,
+        firstPaymentDate: toDateValue(cycle.firstPaymentDate) ?? new Date(),
+        startedAt: toDateValue(cycle.startedAt) ?? toDateValue(cycle.firstPaymentDate) ?? new Date(),
+        customSchedule: Array.isArray(cycle.customSchedule) ? cycle.customSchedule : undefined,
+        restMonths: mapRestMonths(cycle.restMonths),
+        additionalAmount: cycle.additionalAmount,
+        carriedCapital: cycle.carriedCapital,
+        cause: cycle.cause,
+        desiredDate: cycle.desiredDate,
+        createdBy: cycle.createdBy,
+    }));
+
+const sanitizeFirestoreData = (value: any): any => {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (value === null || value instanceof Date) {
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => sanitizeFirestoreData(item))
+            .filter((item) => item !== undefined);
+    }
+
+    if (typeof value === "object") {
+        const entries = Object.entries(value)
+            .map(([key, nestedValue]) => [key, sanitizeFirestoreData(nestedValue)] as const)
+            .filter(([, nestedValue]) => nestedValue !== undefined);
+
+        return Object.fromEntries(entries);
+    }
+
+    return value;
+};
+
 export class CreditContractRepository implements ICreditContractRepository {
     readonly name = "CreditContractRepository";
 
@@ -20,12 +77,7 @@ export class CreditContractRepository implements ICreditContractRepository {
         try {
             const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
 
-            const cleanData: any = { ...data };
-            Object.keys(cleanData).forEach((key) => {
-                if (cleanData[key] === undefined) {
-                    delete cleanData[key];
-                }
-            });
+            const cleanData = sanitizeFirestoreData(data);
 
             // Utiliser l'ID personnalisé si fourni, sinon générer un ID automatique
             const contractId = customId || doc(collection(db, firebaseCollectionNames.creditContracts || "creditContracts")).id;
@@ -62,17 +114,13 @@ export class CreditContractRepository implements ICreditContractRepository {
             
             const data = docSnap.data();
             const restMonthsRaw = (data as any).restMonths as Array<{ monthNumber: number; reason: string; recordedBy: string; recordedByName: string; recordedAt: unknown }> | undefined;
-            const restMonths = restMonthsRaw?.map((r) => ({
-                monthNumber: r.monthNumber,
-                reason: r.reason,
-                recordedBy: r.recordedBy,
-                recordedByName: r.recordedByName,
-                recordedAt: (r.recordedAt as any)?.toDate ? (r.recordedAt as any).toDate() : (r.recordedAt ? new Date(r.recordedAt as string) : new Date()),
-            }));
+            const restMonths = mapRestMonths(restMonthsRaw);
+            const creditCycles = mapCreditCycles((data as any).creditCycles);
 
             return {
                 id: docSnap.id,
                 ...(data as any),
+                creditCycles,
                 restMonths,
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
@@ -120,17 +168,13 @@ export class CreditContractRepository implements ICreditContractRepository {
 
     private mapContractData(id: string, data: any): CreditContract {
         const restMonthsRaw = (data as any).restMonths as Array<{ monthNumber: number; reason: string; recordedBy: string; recordedByName: string; recordedAt: unknown }> | undefined;
-        const restMonths = restMonthsRaw?.map((r) => ({
-            monthNumber: r.monthNumber,
-            reason: r.reason,
-            recordedBy: r.recordedBy,
-            recordedByName: r.recordedByName,
-            recordedAt: (r.recordedAt as any)?.toDate ? (r.recordedAt as any).toDate() : (r.recordedAt ? new Date(r.recordedAt as string) : new Date()),
-        }));
+        const restMonths = mapRestMonths(restMonthsRaw);
+        const creditCycles = mapCreditCycles((data as any).creditCycles);
 
         return {
             id,
             ...(data as any),
+            creditCycles,
             restMonths,
             createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
             updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
@@ -307,12 +351,7 @@ export class CreditContractRepository implements ICreditContractRepository {
 
             const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", id);
 
-            const cleanData: any = { ...data };
-            Object.keys(cleanData).forEach((key) => {
-                if (cleanData[key] === undefined) {
-                    delete cleanData[key];
-                }
-            });
+            const cleanData = sanitizeFirestoreData(data);
 
             await updateDoc(contractRef, {
                 ...cleanData,

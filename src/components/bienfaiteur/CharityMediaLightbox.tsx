@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { CharityMedia } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -78,6 +78,9 @@ export default function CharityMediaLightbox({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl w-[95vw] h-[95vh] p-0 gap-0 bg-black/95">
+        <DialogTitle className="sr-only">
+          {media.title ? `Aperçu du média ${media.title}` : 'Aperçu du média'}
+        </DialogTitle>
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
           <div className="flex-1 min-w-0">
@@ -171,4 +174,3 @@ export default function CharityMediaLightbox({
     </Dialog>
   )
 }
-
