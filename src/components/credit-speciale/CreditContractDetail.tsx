@@ -1822,7 +1822,9 @@ export default function CreditContractDetail({
                                 <HandCoins className="h-4 w-4 mr-2" />
                                 Payer cette échéance
                               </Button>
-                              {contract.creditType === 'SPECIALE' && index === nextDueIndex && (
+                              {contract.creditType === 'SPECIALE' &&
+                                index === nextDueIndex &&
+                                specialHistoryByMonth.get(item.month)?.phase !== 'FIXE' && (
                                 <Button
                                   type="button"
                                   variant="outline"
