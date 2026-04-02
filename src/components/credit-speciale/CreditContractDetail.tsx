@@ -23,8 +23,11 @@ import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-special
 import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
 import {
   buildCreditSpecialeHistory,
-  getContractCalendarMonthFromDate,
+  buildCreditSpecialeTimelineHistory,
+  getCreditPaymentDisplayMonthLabel,
+  getCreditPaymentCycleNumber,
   getCreditPaymentMonthNumber,
+  getCreditPaymentsForCurrentCycle,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
@@ -564,16 +567,10 @@ export default function CreditContractDetail({
     return `${format(dateObj, 'dd MMMM yyyy', { locale: fr })} à ${time}`
   }
 
-  // Après un rajout : pour l'échéancier on ne compte que les paiements à partir du jour du rajout (nouveau contrat).
-  // Comparaison à la journée près pour éviter d'exclure un paiement fait le même jour que le rajout (heure différente).
-  // Les paiements d'avant restent dans l'historique pour la traçabilité.
-  const extendedAtDay =
-    contract.rajoutEffectue && contract.extendedAt
-      ? new Date(contract.extendedAt).setHours(0, 0, 0, 0)
-      : null
+  // Le détail du contrat travaille sur le cycle actif ; l’historique complet reste visible plus bas.
   const paymentsForSchedule =
-    extendedAtDay !== null
-      ? payments.filter((p) => new Date(p.paymentDate).setHours(0, 0, 0, 0) >= extendedAtDay)
+    contract.creditType === 'SPECIALE'
+      ? getCreditPaymentsForCurrentCycle(contract, payments)
       : payments
   const specialHistory =
     contract.creditType === 'SPECIALE'
@@ -583,10 +580,16 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? getCreditSpecialeLastRecordedMonth(contract, paymentsForSchedule)
       : 0
-  const specialHistoryRecordedRows =
+  const timelineHistoryRows =
     contract.creditType === 'SPECIALE'
-      ? specialHistory.filter((row) => row.month <= lastRecordedSpecialMonth)
+      ? buildCreditSpecialeTimelineHistory(contract, payments)
       : []
+  const timelineHistoryByCycle = timelineHistoryRows.reduce((acc, row) => {
+    const existing = acc.get(row.cycleNumber) ?? []
+    existing.push(row)
+    acc.set(row.cycleNumber, existing)
+    return acc
+  }, new Map<number, typeof timelineHistoryRows>())
   const specialHistoryByMonth =
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
@@ -604,11 +607,17 @@ export default function CreditContractDetail({
     guarantorPaymentsError instanceof Error
       ? guarantorPaymentsError.message
       : 'Impossible de charger l’historique des paiements au garant.'
-  const penaltiesByMonth = new Map<number, number>()
+  const penaltiesByTimelineKey = new Map<string, number>()
   if (contract.creditType === 'SPECIALE') {
-    penalties.forEach((penalty) => {
-      const month = getContractCalendarMonthFromDate(contract, penalty.dueDate)
-      penaltiesByMonth.set(month, (penaltiesByMonth.get(month) ?? 0) + penalty.amount)
+    timelineHistoryRows.forEach((row) => {
+      const rowDay = new Date(row.date)
+      rowDay.setHours(0, 0, 0, 0)
+      const rowPenaltyAmount = penalties.reduce((sum, penalty) => {
+        const penaltyDay = new Date(penalty.dueDate)
+        penaltyDay.setHours(0, 0, 0, 0)
+        return penaltyDay.getTime() === rowDay.getTime() ? sum + penalty.amount : sum
+      }, 0)
+      penaltiesByTimelineKey.set(row.key, rowPenaltyAmount)
     })
   }
 
@@ -626,26 +635,8 @@ export default function CreditContractDetail({
     )
 
     for (const payment of realPayments) {
-      // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
-      // Exemple: M1_MK_CSP_2663_151225_1510 -> mois = 1
-      let month: number | undefined
-      
-      if (payment.id) {
-        const match = payment.id.match(/^M(\d+)_/)
-        if (match) {
-          month = parseInt(match[1], 10)
-        }
-      }
-      
-      // Si on n'a pas pu extraire le mois depuis l'ID, utiliser la date comme fallback
-      if (!month || isNaN(month)) {
-        const firstDate = new Date(contract.firstPaymentDate)
-        const paymentDate = new Date(payment.paymentDate)
-        const monthsDiff = (paymentDate.getFullYear() - firstDate.getFullYear()) * 12 + 
-                          (paymentDate.getMonth() - firstDate.getMonth())
-        month = Math.max(1, monthsDiff + 1)
-      }
-      
+      const month = getCreditPaymentMonthNumber(contract, payment)
+
       // Accumuler le montant versé pour ce mois
       const currentAmount = paymentsByMonth.get(month) || 0
       paymentsByMonth.set(month, currentAmount + payment.amount)
@@ -662,26 +653,7 @@ export default function CreditContractDetail({
       (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
     )
 
-    return realPayments.some(p => {
-      let paymentMonth: number | undefined
-      
-      if (p.id) {
-        const match = p.id.match(/^M(\d+)_/)
-        if (match) {
-          paymentMonth = parseInt(match[1], 10)
-        }
-      }
-      
-      if (!paymentMonth || isNaN(paymentMonth)) {
-        const firstDate = new Date(contract.firstPaymentDate)
-        const paymentDate = new Date(p.paymentDate)
-        const monthsDiff = (paymentDate.getFullYear() - firstDate.getFullYear()) * 12 + 
-                          (paymentDate.getMonth() - firstDate.getMonth())
-        paymentMonth = Math.max(1, monthsDiff + 1)
-      }
-      
-      return paymentMonth === month
-    })
+    return realPayments.some((payment) => getCreditPaymentMonthNumber(contract, payment) === month)
   }
 
   // Calculer les échéances - toujours calculer théoriquement sans utiliser les installments
@@ -745,21 +717,7 @@ export default function CreditContractDetail({
 
         if (hasPayment) {
           status = 'PAID'
-          const paymentForThisMonth = sortedPayments.find((p) => {
-            if (p.id) {
-              const match = p.id.match(/^M(\d+)_/)
-              if (match) {
-                const paymentMonth = parseInt(match[1], 10)
-                return paymentMonth === month
-              }
-            }
-            const paymentDateObj = new Date(p.paymentDate)
-            const monthsDiff =
-              (paymentDateObj.getFullYear() - firstDate.getFullYear()) * 12 +
-              (paymentDateObj.getMonth() - firstDate.getMonth())
-            const paymentMonthFromDate = Math.max(1, monthsDiff + 1)
-            return paymentMonthFromDate === month
-          })
+          const paymentForThisMonth = sortedPayments.find((payment) => getCreditPaymentMonthNumber(contract, payment) === month)
           if (paymentForThisMonth) {
             paymentDate = new Date(paymentForThisMonth.paymentDate)
             paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
@@ -890,21 +848,7 @@ export default function CreditContractDetail({
 
         if (hasPayment) {
           status = 'PAID'
-          const paymentForThisMonth = sortedPayments.find((p) => {
-            if (p.id) {
-              const match = p.id.match(/^M(\d+)_/)
-              if (match) {
-                const paymentMonth = parseInt(match[1], 10)
-                return paymentMonth === currentMonth
-              }
-            }
-            const paymentDateObj = new Date(p.paymentDate)
-            const monthsDiff =
-              (paymentDateObj.getFullYear() - firstDate.getFullYear()) * 12 +
-              (paymentDateObj.getMonth() - firstDate.getMonth())
-            const paymentMonthFromDate = Math.max(1, monthsDiff + 1)
-            return paymentMonthFromDate === currentMonth
-          })
+          const paymentForThisMonth = sortedPayments.find((payment) => getCreditPaymentMonthNumber(contract, payment) === currentMonth)
           if (paymentForThisMonth) {
             paymentDate = new Date(paymentForThisMonth.paymentDate)
             paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
@@ -1055,17 +999,7 @@ export default function CreditContractDetail({
     })
 
     // Trouver TOUS les paiements qui correspondent à ce mois en utilisant l'ID
-    const paymentsForThisMonth = payments.filter(p => {
-      // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
-      if (p.id) {
-        const match = p.id.match(/^M(\d+)_/)
-        if (match) {
-          const paymentMonth = parseInt(match[1], 10)
-          return paymentMonth === dueItem.month
-        }
-      }
-      return false
-    })
+    const paymentsForThisMonth = paymentsForSchedule.filter((payment) => getCreditPaymentMonthNumber(contract, payment) === dueItem.month)
 
     console.log('[getSelectedPaymentForReceipt] Paiements trouvés pour le mois', dueItem.month, ':', paymentsForThisMonth.map(p => ({
       id: p.id,
@@ -1109,7 +1043,7 @@ export default function CreditContractDetail({
       duePaymentDate.setHours(0, 0, 0, 0)
 
       // Trouver TOUS les paiements qui correspondent à cette date
-      const matchingPayments = payments.filter(p => {
+      const matchingPayments = paymentsForSchedule.filter(p => {
         const paymentDate = new Date(p.paymentDate)
         paymentDate.setHours(0, 0, 0, 0)
         // Comparer les dates (tolérance de 1 jour)
@@ -1153,6 +1087,84 @@ export default function CreditContractDetail({
     return null
   }
 
+  const buildContractSnapshotForCycle = (cycleNumber: number): CreditContract => {
+    const cycle = contract.creditCycles?.find((entry) => entry.cycleNumber === cycleNumber)
+    if (!cycle) {
+      return contract
+    }
+
+    return {
+      ...contract,
+      amount: cycle.amount,
+      interestRate: cycle.interestRate,
+      monthlyPaymentAmount: cycle.monthlyPaymentAmount,
+      totalAmount: cycle.totalAmount,
+      duration: cycle.duration,
+      firstPaymentDate: new Date(cycle.firstPaymentDate),
+      customSchedule: cycle.customSchedule,
+      restMonths: cycle.restMonths ?? [],
+    }
+  }
+
+  const buildScheduleForCycle = (cycleNumber: number): DueItem[] => {
+    if (contract.creditType !== 'SPECIALE') {
+      return actualSchedule
+    }
+
+    const cycleContract = buildContractSnapshotForCycle(cycleNumber)
+    const cyclePayments = payments
+      .filter(
+        (payment) =>
+          getCreditPaymentCycleNumber(contract, payment) === cycleNumber &&
+          (
+            payment.amount > 0 ||
+            payment.comment?.includes('Paiement de 0 FCFA') ||
+            (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
+          )
+      )
+    const cycleHistory = buildCreditSpecialeHistory(cycleContract, cyclePayments, { projectUntilZero: true })
+
+    return cycleHistory.map((row) => ({
+      month: row.month,
+      date: row.date,
+      payment: row.hasPaymentRecord ? row.actualPayment : row.expectedPayment,
+      interest: row.interest,
+      principal: row.amountDue,
+      remaining:
+        row.status === 'PAID' || row.status === 'REST'
+          ? row.nextCapitalActual
+          : row.nextCapitalProjected,
+      status: row.status,
+      paidAmount: row.hasPaymentRecord ? row.actualPayment : undefined,
+      paymentDate: row.paymentDate,
+      paymentTime: row.paymentTime,
+      isRest: row.isRest,
+      restReason: row.restReason,
+      restRecordedByName: row.restRecordedByName,
+      restRecordedAt: row.restRecordedAt,
+    }))
+  }
+
+  const getPaymentReceiptContext = (payment: CreditPayment) => {
+    const cycleNumber = getCreditPaymentCycleNumber(contract, payment)
+    const receiptContract = cycleNumber === 1 && !contract.creditCycles?.length
+      ? contract
+      : buildContractSnapshotForCycle(cycleNumber)
+    const receiptSchedule = cycleNumber === (contract.creditCycles?.at(-1)?.cycleNumber ?? 1)
+      ? actualSchedule
+      : buildScheduleForCycle(cycleNumber)
+    const installmentNumber = getCreditPaymentMonthNumber(contract, payment)
+    const dueDate = receiptSchedule.find((item) => item.month === installmentNumber)?.date
+
+    return {
+      cycleNumber,
+      installmentNumber,
+      dueDate,
+      receiptContract,
+      receiptSchedule,
+    }
+  }
+
   const handleOpenGlobalFacturePDF = async () => {
     if (contract.creditType !== 'SPECIALE') {
       toast.error('La facture globale PDF est disponible uniquement pour les contrats de crédit spéciale')
@@ -1167,6 +1179,9 @@ export default function CreditContractDetail({
           (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
       )
       .sort((left, right) => {
+        const leftCycle = getCreditPaymentCycleNumber(contract, left)
+        const rightCycle = getCreditPaymentCycleNumber(contract, right)
+        if (leftCycle !== rightCycle) return leftCycle - rightCycle
         const leftMonth = getCreditPaymentMonthNumber(contract, left)
         const rightMonth = getCreditPaymentMonthNumber(contract, right)
         if (leftMonth !== rightMonth) return leftMonth - rightMonth
@@ -1186,19 +1201,21 @@ export default function CreditContractDetail({
 
       const page1Data = buildCreditSpecialFacturePage1Data(contract, member)
       const factures = paymentsForGlobalFacture.map((payment) => {
-        const installmentNumber = getCreditPaymentMonthNumber(contract, payment)
-        const dueItem = actualSchedule.find((item) => item.month === installmentNumber)
+        const paymentContext = getPaymentReceiptContext(payment)
         const factureData = buildCreditSpecialFactureData({
-          contract,
+          contract: paymentContext.receiptContract,
           payment,
-          installmentNumber,
-          schedule: actualSchedule,
-          dueDate: dueItem?.date ?? null,
+          installmentNumber: paymentContext.installmentNumber,
+          schedule: paymentContext.receiptSchedule,
+          dueDate: paymentContext.dueDate ?? null,
         })
 
         return {
           factureData,
-          titleDate: factureData.dateEcheance,
+          titleDate:
+            paymentContext.cycleNumber > 1
+              ? `${factureData.dateEcheance} - M${paymentContext.installmentNumber} apres augmentation`
+              : factureData.dateEcheance,
         }
       })
 
@@ -1228,16 +1245,7 @@ export default function CreditContractDetail({
     if (!dueItem) return null
 
     // Même logique que pour le reçu, mais sans dépendre d'un state externe
-    const paymentsForThisMonth = payments.filter(p => {
-      if (p.id) {
-        const match = p.id.match(/^M(\d+)_/)
-        if (match) {
-          const paymentMonth = parseInt(match[1], 10)
-          return paymentMonth === dueItem.month
-        }
-      }
-      return false
-    })
+    const paymentsForThisMonth = payments.filter((payment) => getCreditPaymentMonthNumber(contract, payment) === dueItem.month)
 
     if (paymentsForThisMonth.length > 0) {
       const sortedPayments = paymentsForThisMonth.sort((a, b) => {
@@ -1258,7 +1266,7 @@ export default function CreditContractDetail({
       const duePaymentDate = new Date(dueItem.paymentDate)
       duePaymentDate.setHours(0, 0, 0, 0)
 
-      const matchingPayments = payments.filter(p => {
+      const matchingPayments = paymentsForSchedule.filter(p => {
         const paymentDate = new Date(p.paymentDate)
         paymentDate.setHours(0, 0, 0, 0)
         return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
@@ -1281,6 +1289,10 @@ export default function CreditContractDetail({
 
     return null
   }
+
+  const selectedPaymentReceiptContext = selectedPayment
+    ? getPaymentReceiptContext(selectedPayment)
+    : null
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
@@ -1312,7 +1324,7 @@ export default function CreditContractDetail({
             </Badge>
             {contract.rajoutEffectue && contract.rajoutAmount != null && contract.rajoutAmount > 0 && (
               <span className="text-sm text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-md border border-cyan-200">
-                Rajout effectué : +{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA
+                Augmentation enregistrée : +{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA
               </span>
             )}
           </div>
@@ -1325,19 +1337,19 @@ export default function CreditContractDetail({
               <div className="flex items-start gap-3">
                 <History className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-slate-700 space-y-1">
-                  <p className="font-medium text-slate-800">Contrat augmenté (rajout) — aucun versement perdu</p>
+                  <p className="font-medium text-slate-800">Augmentation de crédit — nouveau cycle dans le meme contrat</p>
                   <p className="text-slate-600">
                     Montant initial : <strong>{(contract.initialAmount ?? (contract.amount - (contract.rajoutAmount ?? 0))).toLocaleString('fr-FR')} FCFA</strong>
                     {contract.rajoutAmount != null && contract.rajoutAmount > 0 && (
                       <> • Rajout : <strong>+{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA</strong></>
                     )}
-                    {' '}• Total crédit : <strong>{contract.amount.toLocaleString('fr-FR')} FCFA</strong>
+                    {' '}• Nouveau cycle : <strong>{contract.amount.toLocaleString('fr-FR')} FCFA</strong>
                     {contract.extendedAt && (
-                      <> • Rajout effectué le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>
+                      <> • Augmentation enregistrée le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>
                     )}
                   </p>
                   <p className="text-slate-600">
-                    Tous les versements (avant et après le rajout) sont conservés dans l’historique ci-dessous. Chaque paiement garde sa facture (reçu) téléchargeable pour justifier les montants déjà payés.
+                    Tous les versements (avant et après l’augmentation) sont conservés ci-dessous. Apres l’augmentation, l’échéancier repart a M1 sur le nouveau cycle.
                   </p>
                 </div>
               </div>
@@ -2100,57 +2112,74 @@ export default function CreditContractDetail({
                         </div>
                       </div>
 
-                      {specialHistoryRecordedRows.length === 0 ? (
+                      {timelineHistoryRows.length === 0 ? (
                         <div className="text-center py-8 text-gray-500 border rounded-lg">
                           Aucun mois enregistré pour le moment
                         </div>
                       ) : (
-                        <div className="border rounded-lg overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Mois</TableHead>
-                                <TableHead>Phase</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Capital</TableHead>
-                                <TableHead className="text-right">Commission</TableHead>
-                                <TableHead className="text-right">Intérêts</TableHead>
-                                <TableHead className="text-right">Montant global</TableHead>
-                                <TableHead className="text-right">Montant remis</TableHead>
-                                <TableHead className="text-right">Pénalité</TableHead>
-                                <TableHead className="text-right">Nouveau capital</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {specialHistoryRecordedRows.map((row) => (
-                                <TableRow key={row.month} className={row.isRest ? 'bg-blue-50/50' : ''}>
-                                  <TableCell className="font-medium">
-                                    {row.isRest ? `M${row.month} (repos)` : `M${row.month}`}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge
-                                      variant="outline"
-                                      className={
-                                        row.phase === 'FIXE'
-                                          ? 'bg-slate-50 text-slate-700 border-slate-200'
-                                          : 'bg-blue-50 text-blue-700 border-blue-200'
-                                      }
-                                    >
-                                      {row.phase === 'FIXE' ? 'Partie fixe' : 'Spéciale'}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>{formatDate(row.date)}</TableCell>
-                                  <TableCell className="text-right">{row.capitalStart.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right">{row.commission.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right font-medium">{row.amountDue.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right">{row.actualPayment.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right">{(penaltiesByMonth.get(row.month) ?? 0).toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right font-medium">{row.nextCapitalActual.toLocaleString('fr-FR')} FCFA</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                        <div className="space-y-4">
+                          {Array.from(timelineHistoryByCycle.entries()).map(([cycleNumber, rows]) => (
+                            <div key={cycleNumber} className="border rounded-lg overflow-x-auto">
+                              <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-semibold text-slate-800">{rows[0]?.cycleTitle}</p>
+                                  <p className="text-sm text-slate-500">
+                                    {cycleNumber === 1
+                                      ? 'Versements du cycle initial'
+                                      : 'Les échéances repartent a M1 apres l’augmentation'}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="bg-white text-slate-700 border-slate-200">
+                                  Cycle {cycleNumber}
+                                </Badge>
+                              </div>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Mois</TableHead>
+                                    <TableHead>Phase</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead className="text-right">Capital</TableHead>
+                                    <TableHead className="text-right">Commission</TableHead>
+                                    <TableHead className="text-right">Intérêts</TableHead>
+                                    <TableHead className="text-right">Montant global</TableHead>
+                                    <TableHead className="text-right">Montant remis</TableHead>
+                                    <TableHead className="text-right">Pénalité</TableHead>
+                                    <TableHead className="text-right">Nouveau capital</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {rows.map((row) => (
+                                    <TableRow key={row.key} className={row.isRest ? 'bg-blue-50/50' : ''}>
+                                      <TableCell className="font-medium">
+                                        {row.isRest ? `M${row.cycleMonth} (repos)` : `M${row.cycleMonth}`}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge
+                                          variant="outline"
+                                          className={
+                                            row.phase === 'FIXE'
+                                              ? 'bg-slate-50 text-slate-700 border-slate-200'
+                                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                                          }
+                                        >
+                                          {row.phase === 'FIXE' ? 'Partie fixe' : 'Spéciale'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>{formatDate(row.date)}</TableCell>
+                                      <TableCell className="text-right">{row.capitalStart.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right">{row.commission.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right font-medium">{row.amountDue.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right">{row.actualPayment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right">{(penaltiesByTimelineKey.get(row.key) ?? 0).toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right font-medium">{row.nextCapitalActual.toLocaleString('fr-FR')} FCFA</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -2193,14 +2222,7 @@ export default function CreditContractDetail({
                         {[...payments]
                           .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
                           .map((payment) => {
-                            let relatedDueItem = null
-                            if (payment.id) {
-                              const match = payment.id.match(/^M(\d+)_/)
-                              if (match) {
-                                const paymentMonth = parseInt(match[1], 10)
-                                relatedDueItem = actualSchedule.find(item => item.month === paymentMonth) || null
-                              }
-                            }
+                            const paymentLabel = getCreditPaymentDisplayMonthLabel(contract, payment)
 
                             return (
                               <div
@@ -2213,6 +2235,11 @@ export default function CreditContractDetail({
                                     <span className="font-semibold">
                                       {formatDateTime(payment.paymentDate, payment.paymentTime)}
                                     </span>
+                                    {contract.creditType === 'SPECIALE' && (
+                                      <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+                                        {paymentLabel}
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-4 text-sm text-gray-600">
                                     {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
@@ -2262,17 +2289,8 @@ export default function CreditContractDetail({
                                     className="text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      if (relatedDueItem) {
-                                        const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
-                                        if (dueIndex !== -1) {
-                                          setSelectedDueIndexForReceipt(dueIndex)
-                                          setShowReceiptModal(true)
-                                        } else {
-                                          toast.error('Impossible de trouver les détails de cette échéance')
-                                        }
-                                      } else {
-                                        toast.error('Impossible de trouver les détails de cette échéance')
-                                      }
+                                      setSelectedPayment(payment)
+                                      setShowReceiptModal(true)
                                     }}
                                   >
                                     <Eye className="h-4 w-4 mr-1" />
@@ -2818,7 +2836,7 @@ export default function CreditContractDetail({
         defaultAmount={paymentToEdit ? paymentToEdit.amount : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount)}
         defaultPaymentDate={paymentToEdit ? paymentToEdit.paymentDate : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined)}
         installmentId={paymentToEdit?.installmentId ?? (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined)}
-        installmentNumber={paymentToEdit ? (() => { const m = paymentToEdit.id?.match(/^M(\d+)_/); return m ? parseInt(m[1], 10) : undefined; })() : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined)}
+        installmentNumber={paymentToEdit ? getCreditPaymentMonthNumber(contract, paymentToEdit) : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined)}
         onSuccess={async () => {
           console.log('[CreditContractDetail] onSuccess du paiement - Invalidation des queries...')
           // Invalider explicitement le cache pour rafraîchir l'affichage
@@ -2908,19 +2926,26 @@ export default function CreditContractDetail({
             setSelectedDueIndexForReceipt(null)
             setSelectedPayment(null)
           }}
-          contract={contract}
+          contract={selectedPaymentReceiptContext?.receiptContract ?? contract}
           payment={selectedPayment || getSelectedPaymentForReceipt()!}
           installmentNumber={
-            selectedPayment && selectedPayment.installmentId
-              ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
-              : (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
+            selectedPaymentReceiptContext?.installmentNumber
+              ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
           }
-          schedule={actualSchedule}
+          schedule={selectedPaymentReceiptContext?.receiptSchedule ?? actualSchedule}
           payments={payments}
-          dueDate={
-            selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
-              ? actualSchedule[selectedDueIndexForReceipt].date
+          pdfTitleText={
+            selectedPaymentReceiptContext
+              ? (selectedPaymentReceiptContext.cycleNumber > 1
+                ? `${format(new Date(selectedPaymentReceiptContext.dueDate ?? (selectedPayment || getSelectedPaymentForReceipt()!)!.paymentDate), 'yyyy-MM-dd')} - M${selectedPaymentReceiptContext.installmentNumber} apres augmentation`
+                : undefined)
               : undefined
+          }
+          dueDate={
+            selectedPaymentReceiptContext?.dueDate
+              ?? (selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
+                ? actualSchedule[selectedDueIndexForReceipt].date
+                : undefined)
           }
           onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
             const p = selectedPayment || getSelectedPaymentForReceipt()

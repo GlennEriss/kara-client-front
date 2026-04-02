@@ -1,4 +1,4 @@
-import { CreditContract, CreditPayment } from '@/types/types'
+import { CreditContract, CreditContractCycle, CreditPayment } from '@/types/types'
 import { customRound } from './credit-speciale-calculations'
 import { getLogicalMonthIndex, isRestMonth } from './credit-speciale-rest-months'
 
@@ -28,6 +28,15 @@ export interface CreditSpecialeHistoryMonth {
   restRecordedAt?: Date
 }
 
+export interface CreditSpecialeTimelineMonth extends CreditSpecialeHistoryMonth {
+  cycleNumber: number
+  cycleMonth: number
+  cycleType: 'INITIAL' | 'AUGMENTATION'
+  cycleTitle: string
+  cycleStartedAt: Date
+  key: string
+}
+
 interface BuildCreditSpecialeHistoryOptions {
   endMonth?: number
   maxMonths?: number
@@ -39,6 +48,136 @@ const isPenaltyOnlyPayment = (payment: CreditPayment): boolean =>
 
 const isRecordedMonthlyPayment = (payment: CreditPayment): boolean =>
   payment.amount > 0 || payment.comment?.includes('Paiement de 0 FCFA') || !isPenaltyOnlyPayment(payment)
+
+const toDateValue = (value: Date | string | undefined): Date => {
+  if (value instanceof Date) return new Date(value)
+  return value ? new Date(value) : new Date()
+}
+
+const parsePaymentId = (paymentId?: string): { cycleNumber?: number; monthNumber?: number } => {
+  if (!paymentId) return {}
+
+  const cycleMatch = paymentId.match(/^C(\d+)_M(\d+)_/)
+  if (cycleMatch) {
+    return {
+      cycleNumber: parseInt(cycleMatch[1], 10),
+      monthNumber: parseInt(cycleMatch[2], 10),
+    }
+  }
+
+  const legacyMatch = paymentId.match(/^M(\d+)_/)
+  if (legacyMatch) {
+    return {
+      cycleNumber: 1,
+      monthNumber: parseInt(legacyMatch[1], 10),
+    }
+  }
+
+  return {}
+}
+
+export function getCreditContractCycles(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'restMonths'
+    | 'totalAmount'
+  >
+): CreditContractCycle[] {
+  if (contract.creditCycles && contract.creditCycles.length > 0) {
+    return [...contract.creditCycles]
+      .map((cycle, index) => ({
+        ...cycle,
+        cycleNumber: cycle.cycleNumber ?? index + 1,
+        type: cycle.type ?? (index === 0 ? 'INITIAL' : 'AUGMENTATION'),
+        firstPaymentDate: toDateValue(cycle.firstPaymentDate),
+        startedAt: toDateValue(cycle.startedAt ?? cycle.firstPaymentDate),
+      }))
+      .sort((left, right) => left.cycleNumber - right.cycleNumber)
+  }
+
+  return [
+    {
+      cycleNumber: 1,
+      type: 'INITIAL',
+      amount: contract.amount,
+      interestRate: contract.interestRate,
+      monthlyPaymentAmount: contract.monthlyPaymentAmount,
+      totalAmount: contract.totalAmount,
+      duration: contract.duration,
+      firstPaymentDate: toDateValue(contract.firstPaymentDate),
+      startedAt: toDateValue(contract.createdAt ?? contract.firstPaymentDate),
+      customSchedule: contract.customSchedule,
+      restMonths: contract.restMonths ?? [],
+    },
+  ]
+}
+
+export function getCurrentCreditContractCycle(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'restMonths'
+    | 'totalAmount'
+  >
+): CreditContractCycle {
+  const cycles = getCreditContractCycles(contract)
+  return cycles[cycles.length - 1]
+}
+
+export function getCreditPaymentCycleNumber(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'extendedAt'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'rajoutEffectue'
+    | 'restMonths'
+    | 'totalAmount'
+  >,
+  payment: Pick<CreditPayment, 'id' | 'paymentDate'>
+): number {
+  const parsed = parsePaymentId(payment.id)
+  if (parsed.cycleNumber) {
+    return parsed.cycleNumber
+  }
+
+  const cycles = getCreditContractCycles(contract)
+  if (cycles.length <= 1) {
+    return 1
+  }
+
+  const paymentTime = new Date(payment.paymentDate).getTime()
+  let matchedCycle = 1
+
+  for (const cycle of cycles) {
+    if (paymentTime >= new Date(cycle.startedAt).getTime()) {
+      matchedCycle = cycle.cycleNumber
+    }
+  }
+
+  return matchedCycle
+}
 
 export function getContractCalendarMonthFromDate(
   contract: Pick<CreditContract, 'firstPaymentDate'>,
@@ -54,21 +193,128 @@ export function getContractCalendarMonthFromDate(
 }
 
 export function getCreditPaymentMonthNumber(
-  contract: Pick<CreditContract, 'firstPaymentDate'>,
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'extendedAt'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'rajoutEffectue'
+    | 'restMonths'
+    | 'totalAmount'
+  >,
   payment: Pick<CreditPayment, 'id' | 'paymentDate'>
 ): number {
-  if (payment.id) {
-    const match = payment.id.match(/^M(\d+)_/)
-    if (match) {
-      return parseInt(match[1], 10)
-    }
+  const parsed = parsePaymentId(payment.id)
+  if (parsed.monthNumber) {
+    return parsed.monthNumber
   }
 
-  return getContractCalendarMonthFromDate(contract, new Date(payment.paymentDate))
+  const cycleNumber = getCreditPaymentCycleNumber(contract, payment)
+  const cycle = getCreditContractCycles(contract).find((entry) => entry.cycleNumber === cycleNumber)
+
+  return getContractCalendarMonthFromDate(
+    { firstPaymentDate: cycle?.firstPaymentDate ?? contract.firstPaymentDate },
+    new Date(payment.paymentDate)
+  )
+}
+
+export function buildCreditPaymentId(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'restMonths'
+    | 'totalAmount'
+    | 'id'
+  >,
+  monthNumber: number
+): string {
+  const currentCycle = getCurrentCreditContractCycle(contract)
+  if (currentCycle.cycleNumber > 1) {
+    return `C${currentCycle.cycleNumber}_M${monthNumber}_${contract.id}`
+  }
+
+  return `M${monthNumber}_${contract.id}`
+}
+
+export function getCreditPaymentDisplayMonthLabel(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'extendedAt'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'rajoutEffectue'
+    | 'restMonths'
+    | 'totalAmount'
+  >,
+  payment: Pick<CreditPayment, 'id' | 'paymentDate'>
+): string {
+  const monthNumber = getCreditPaymentMonthNumber(contract, payment)
+  const cycleNumber = getCreditPaymentCycleNumber(contract, payment)
+
+  if (cycleNumber > 1) {
+    return `Apres augmentation - M${monthNumber}`
+  }
+
+  return `M${monthNumber}`
+}
+
+export function getCreditPaymentsForCurrentCycle(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'extendedAt'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'rajoutEffectue'
+    | 'restMonths'
+    | 'totalAmount'
+  >,
+  payments: CreditPayment[]
+): CreditPayment[] {
+  const currentCycle = getCurrentCreditContractCycle(contract)
+  return payments.filter((payment) => getCreditPaymentCycleNumber(contract, payment) === currentCycle.cycleNumber)
 }
 
 export function getCreditSpecialeLastRecordedMonth(
-  contract: Pick<CreditContract, 'firstPaymentDate' | 'restMonths'>,
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'customSchedule'
+    | 'duration'
+    | 'extendedAt'
+    | 'firstPaymentDate'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'rajoutEffectue'
+    | 'restMonths'
+    | 'totalAmount'
+  >,
   payments: CreditPayment[]
 ): number {
   const paymentMonths = payments
@@ -84,10 +330,14 @@ export function buildCreditSpecialeHistory(
     CreditContract,
     | 'amount'
     | 'creditType'
+    | 'createdAt'
+    | 'creditCycles'
     | 'firstPaymentDate'
     | 'guarantorRemunerationPercentage'
     | 'interestRate'
     | 'monthlyPaymentAmount'
+    | 'totalAmount'
+    | 'duration'
     | 'restMonths'
   >,
   payments: CreditPayment[],
@@ -215,4 +465,67 @@ export function getNextDueFromCreditSpecialeHistory(
   history: CreditSpecialeHistoryMonth[]
 ): CreditSpecialeHistoryMonth | undefined {
   return history.find((month) => month.status === 'DUE')
+}
+
+export function buildCreditSpecialeTimelineHistory(
+  contract: Pick<
+    CreditContract,
+    | 'amount'
+    | 'createdAt'
+    | 'creditCycles'
+    | 'creditType'
+    | 'customSchedule'
+    | 'duration'
+    | 'extendedAt'
+    | 'firstPaymentDate'
+    | 'guarantorRemunerationPercentage'
+    | 'interestRate'
+    | 'monthlyPaymentAmount'
+    | 'rajoutEffectue'
+    | 'restMonths'
+    | 'totalAmount'
+  >,
+  payments: CreditPayment[]
+): CreditSpecialeTimelineMonth[] {
+  const cycles = getCreditContractCycles(contract)
+  const recordedPayments = payments.filter(isRecordedMonthlyPayment)
+
+  return cycles.flatMap((cycle) => {
+    const cyclePayments = recordedPayments.filter(
+      (payment) => getCreditPaymentCycleNumber(contract, payment) === cycle.cycleNumber
+    )
+    const cycleContract = {
+      amount: cycle.amount,
+      creditType: contract.creditType,
+      createdAt: cycle.startedAt,
+      creditCycles: undefined,
+      firstPaymentDate: cycle.firstPaymentDate,
+      guarantorRemunerationPercentage: contract.guarantorRemunerationPercentage,
+      interestRate: cycle.interestRate,
+      monthlyPaymentAmount: cycle.monthlyPaymentAmount,
+      totalAmount: cycle.totalAmount,
+      duration: cycle.duration,
+      restMonths: cycle.restMonths ?? [],
+    }
+    const lastRecordedMonth = getCreditSpecialeLastRecordedMonth(cycleContract, cyclePayments)
+    const cycleHistory = buildCreditSpecialeHistory(cycleContract, cyclePayments, {
+      endMonth: lastRecordedMonth,
+      projectUntilZero: false,
+    }).filter((row) => row.month <= lastRecordedMonth)
+
+    const cycleTitle =
+      cycle.cycleNumber === 1
+        ? 'Cycle initial'
+        : `Apres augmentation de credit - reprise a M1`
+
+    return cycleHistory.map((row) => ({
+      ...row,
+      cycleNumber: cycle.cycleNumber,
+      cycleMonth: row.month,
+      cycleType: cycle.type,
+      cycleTitle,
+      cycleStartedAt: cycle.startedAt,
+      key: `cycle-${cycle.cycleNumber}-month-${row.month}`,
+    }))
+  })
 }

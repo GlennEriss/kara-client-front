@@ -1540,6 +1540,25 @@ export interface RestMonth {
   recordedAt: Date
 }
 
+export interface CreditContractCycle {
+  cycleNumber: number
+  type: 'INITIAL' | 'AUGMENTATION'
+  amount: number
+  interestRate: number
+  monthlyPaymentAmount: number
+  totalAmount: number
+  duration: number
+  firstPaymentDate: Date
+  startedAt: Date
+  customSchedule?: Array<{ month: number; amount: number }>
+  restMonths?: RestMonth[]
+  additionalAmount?: number
+  carriedCapital?: number
+  cause?: string
+  desiredDate?: string
+  createdBy?: string
+}
+
 /**
  * Type pour un contrat de crédit
  */
@@ -1548,6 +1567,8 @@ export interface CreditContract {
   demandId: string
   parentContractId?: string // Référence au contrat parent (si augmentation de crédit)
   clientId: string
+  /** Cycles de crédit conservés dans le même contrat (augmentation = nouveau cycle). */
+  creditCycles?: CreditContractCycle[]
   /** Mois de repos enregistrés (échéances reportées sans pénalité) */
   restMonths?: RestMonth[]
   clientFirstName: string

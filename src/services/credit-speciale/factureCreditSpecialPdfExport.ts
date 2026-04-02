@@ -256,6 +256,7 @@ function drawPage1(
 function drawPage2(
   doc: jsPDF,
   data: FactureCreditSpecialPDFData,
+  titleText?: string,
   pageNumber: number = 2,
   totalPages: number = 2
 ): void {
@@ -277,7 +278,7 @@ function drawPage2(
   doc.setFont(FONT_LABEL, 'bold')
   doc.setFontSize(11)
   doc.setTextColor(...NAVY)
-  doc.text('VERSEMENT DU: ' + data.paymentDate, MARGIN, y)
+  doc.text('VERSEMENT DU: ' + (titleText ?? data.paymentDate), MARGIN, y)
   y += 10
 
   const tableTop = y
@@ -336,6 +337,8 @@ export type GenerateFactureCreditSpecialPDFOptions = {
   factureData: FactureCreditSpecialPDFData
   /** Données pour la page 1 (membre + contact urgence). Si fourni, le PDF fait 2 pages. */
   page1Data?: FactureCreditSpecialPage1Data | null
+  /** Titre affiché en haut de la page VERSEMENT. */
+  titleText?: string
 }
 
 export type GenerateGlobalFactureCreditSpecialPDFOptions = {
@@ -363,6 +366,7 @@ export async function generateFactureCreditSpecialPDF(
     ? (options as FactureCreditSpecialPDFData)
     : (options as GenerateFactureCreditSpecialPDFOptions).factureData
   const page1Data = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).page1Data : null
+  const titleText = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).titleText : undefined
 
   const doc = new jsPDF('p', 'mm', 'a4')
 
@@ -372,7 +376,7 @@ export async function generateFactureCreditSpecialPDF(
     doc.addPage()
   }
 
-  drawPage2(doc, factureData)
+  drawPage2(doc, factureData, titleText)
 
   const dateStr = new Date().toISOString().split('T')[0]
   doc.save(`versement_facture_${factureData.paymentDate.replace(/-/g, '')}_${dateStr}.pdf`)
@@ -399,15 +403,7 @@ export async function generateGlobalFactureCreditSpecialPDF(
       doc.addPage()
     }
     const titleDate = entry.titleDate ?? entry.factureData.dateEcheance ?? entry.factureData.paymentDate
-    drawPage2(
-      doc,
-      {
-        ...entry.factureData,
-        paymentDate: titleDate,
-      },
-      (page1Data ? 2 : 1) + index,
-      totalPages
-    )
+    drawPage2(doc, entry.factureData, titleDate, (page1Data ? 2 : 1) + index, totalPages)
   })
 
   if (outputMode === 'open' && typeof window !== 'undefined') {
