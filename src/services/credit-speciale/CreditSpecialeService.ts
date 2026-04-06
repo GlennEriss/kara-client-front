@@ -23,6 +23,7 @@ import {
     buildCreditSpecialeHistory,
     buildCreditPaymentId,
     getCreditContractCycles,
+    getCreditPaymentCycleNumber,
     getCreditPaymentsForCurrentCycle,
     getCreditPaymentMonthNumber,
     getNextDueFromCreditSpecialeHistory,
@@ -38,6 +39,36 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     private fixedSimulationService: CreditFixeSimulationService;
 
     private creditInstallmentRepository: ICreditInstallmentRepository;
+
+    private buildContractSnapshotForCycle(contract: CreditContract, cycleNumber: number) {
+        const cycle = getCreditContractCycles(contract).find((entry) => entry.cycleNumber === cycleNumber);
+
+        if (!cycle) {
+            return contract;
+        }
+
+        return {
+            ...contract,
+            amount: cycle.amount,
+            interestRate: cycle.interestRate,
+            monthlyPaymentAmount: cycle.monthlyPaymentAmount,
+            totalAmount: cycle.totalAmount,
+            duration: cycle.duration,
+            firstPaymentDate: cycle.firstPaymentDate,
+            restMonths: cycle.restMonths ?? [],
+            customSchedule: cycle.customSchedule,
+            createdAt: cycle.startedAt ?? contract.createdAt,
+            creditCycles: undefined,
+        };
+    }
+
+    private getPaymentsForCycle(
+        contract: CreditContract,
+        payments: CreditPayment[],
+        cycleNumber: number
+    ): CreditPayment[] {
+        return payments.filter((existingPayment) => getCreditPaymentCycleNumber(contract, existingPayment) === cycleNumber);
+    }
 
     constructor(
         private creditDemandRepository: ICreditDemandRepository,
@@ -1793,10 +1824,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             return;
         }
 
-        const monthNumber = getCreditPaymentMonthNumber(contract, payment);
+        const cycleNumber = getCreditPaymentCycleNumber(contract, payment);
+        const cycleContract = this.buildContractSnapshotForCycle(contract, cycleNumber);
+        const monthNumber = getCreditPaymentMonthNumber(cycleContract, payment);
 
         // Calculer la date prévue de l'échéance pour ce mois
-        const firstPaymentDate = new Date(contract.firstPaymentDate);
+        const firstPaymentDate = new Date(cycleContract.firstPaymentDate);
         const dueDate = new Date(firstPaymentDate);
         dueDate.setMonth(dueDate.getMonth() + monthNumber - 1);
         dueDate.setHours(0, 0, 0, 0);
@@ -1806,7 +1839,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         paymentDate.setHours(0, 0, 0, 0);
 
         // Ne pas créer de pénalité pour un mois de repos
-        const restMonths = contract.restMonths ?? [];
+        const restMonths = cycleContract.restMonths ?? [];
         if (restMonths.some((r) => r.monthNumber === monthNumber)) {
             return;
         }
@@ -1822,16 +1855,16 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         const allPayments = await this.getPaymentsByCreditId(creditId);
-        const currentCyclePayments = getCreditPaymentsForCurrentCycle(contract, allPayments);
-        const paymentsBeforeCurrent = currentCyclePayments.filter((existingPayment) => existingPayment.id !== payment.id);
-        const history = contract.creditType === 'SPECIALE'
-            ? buildCreditSpecialeHistory(contract, paymentsBeforeCurrent, {
+        const cyclePayments = this.getPaymentsForCycle(contract, allPayments, cycleNumber);
+        const paymentsBeforeCurrent = cyclePayments.filter((existingPayment) => existingPayment.id !== payment.id);
+        const history = cycleContract.creditType === 'SPECIALE'
+            ? buildCreditSpecialeHistory(cycleContract, paymentsBeforeCurrent, {
                 endMonth: monthNumber,
                 projectUntilZero: false,
             })
             : [];
         const monthHistory = history.find((month) => month.month === monthNumber);
-        const penaltyBase = contract.creditType === 'SPECIALE'
+        const penaltyBase = cycleContract.creditType === 'SPECIALE'
             ? (monthHistory?.interest ?? payment.interestAmount ?? 0)
             : (payment.interestAmount ?? 0);
 
