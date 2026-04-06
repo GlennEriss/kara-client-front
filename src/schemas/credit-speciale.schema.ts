@@ -457,3 +457,12 @@ export const closeContractSchema = z.object({
 })
 
 export type CloseContractFormData = z.infer<typeof closeContractSchema>
+
+export const fixedTransitionSchema = z.object({
+  reason: z
+    .string()
+    .min(10, 'La raison du basculement doit contenir au moins 10 caractères')
+    .max(500, 'La raison du basculement ne peut pas dépasser 500 caractères'),
+})
+
+export type FixedTransitionFormData = z.infer<typeof fixedTransitionSchema>
