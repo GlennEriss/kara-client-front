@@ -64,7 +64,7 @@ const drawLossTablePage = (
   doc.setFontSize(9.5)
   doc.setTextColor(60, 60, 60)
   doc.text(
-    'Ce tableau récapitule les intérêts non perçus à partir de la partie fixe.',
+    'Ce tableau récapitule le manque à gagner à partir de la partie fixe.',
     marginX,
     y
   )

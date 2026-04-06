@@ -325,7 +325,7 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
     ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
       title: 'Pertes',
       value: totalLosses.toLocaleString('fr-FR'),
-      subtitle: 'Intérêts retirés en partie fixe',
+      subtitle: 'Manque à gagner en partie fixe',
       color: '#dc2626',
       icon: TrendingUp
     }] : []),
@@ -1570,7 +1570,7 @@ export default function CreditContractDetail({
                   Historique des pertes
                 </CardTitle>
                 <p className="mt-1 text-sm text-gray-500">
-                  Intérêts retirés à partir du passage en partie fixe.
+                  Manque à gagner généré à partir du passage en partie fixe.
                 </p>
               </div>
               <div className="flex items-center gap-2">
