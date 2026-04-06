@@ -108,7 +108,7 @@ const LINE_COLOR = [24, 24, 24] as [number, number, number]
 const NAVY = [21, 62, 96] as [number, number, number]
 const PAGE_FILL = [247, 249, 252] as [number, number, number]
 
-async function loadLogoDataUrl(): Promise<{ dataUrl: string; width: number; height: number } | null> {
+export async function loadFactureCreditSpecialLogoDataUrl(): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const response = await fetch('/assets/caisse-imprevue/image1.png')
     if (!response.ok) return null
@@ -134,12 +134,13 @@ async function loadLogoDataUrl(): Promise<{ dataUrl: string; width: number; heig
   }
 }
 
-function drawPage1(
+export function drawFactureCreditSpecialPage1(
   doc: jsPDF,
   page1Data: FactureCreditSpecialPage1Data,
   logoDataUrl: { dataUrl: string; width: number; height: number } | null,
   pageNumber: number = 1,
-  totalPages: number = 2
+  totalPages: number = 2,
+  mainTitle: string = 'HISTORIQUE VERSEMENT CREDIT SPECIALE'
 ): void {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -168,7 +169,7 @@ function drawPage1(
   doc.setFont(FONT_LABEL, 'bold')
   doc.setFontSize(15)
   doc.setTextColor(...NAVY)
-  doc.text('HISTORIQUE VERSEMENT CREDIT SPECIALE', pageWidth / 2, 18, { align: 'center' })
+  doc.text(mainTitle, pageWidth / 2, 18, { align: 'center' })
   doc.setFontSize(10)
   doc.setTextColor(45, 45, 45)
   doc.text(`Contrat : ${page1Data.contractId}`, pageWidth / 2, 23, { align: 'center' })
@@ -371,8 +372,8 @@ export async function generateFactureCreditSpecialPDF(
   const doc = new jsPDF('p', 'mm', 'a4')
 
   if (page1Data) {
-    const logoDataUrl = await loadLogoDataUrl()
-    drawPage1(doc, page1Data, logoDataUrl)
+    const logoDataUrl = await loadFactureCreditSpecialLogoDataUrl()
+    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl)
     doc.addPage()
   }
 
@@ -392,10 +393,10 @@ export async function generateGlobalFactureCreditSpecialPDF(
 
   const doc = new jsPDF('p', 'mm', 'a4')
   const totalPages = (page1Data ? 1 : 0) + factures.length
-  const logoDataUrl = page1Data ? await loadLogoDataUrl() : null
+  const logoDataUrl = page1Data ? await loadFactureCreditSpecialLogoDataUrl() : null
 
   if (page1Data) {
-    drawPage1(doc, page1Data, logoDataUrl, 1, totalPages)
+    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, totalPages)
   }
 
   factures.forEach((entry, index) => {
