@@ -323,7 +323,7 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
       icon: AlertCircle
     },
     ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
-      title: 'Pertes',
+      title: 'Manque à gagner',
       value: totalLosses.toLocaleString('fr-FR'),
       subtitle: 'Manque à gagner en partie fixe',
       color: '#dc2626',
@@ -1286,7 +1286,7 @@ export default function CreditContractDetail({
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Pertes')
       XLSX.writeFile(workbook, `historique_pertes_${contract.id}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
-      toast.success('Historique des pertes exporté en Excel')
+      toast.success('Historique du manque à gagner exporté en Excel')
     } catch (error) {
       console.error('Erreur lors de l’export Excel des pertes:', error)
       toast.error('Erreur lors de l’export Excel des pertes')
@@ -1320,7 +1320,7 @@ export default function CreditContractDetail({
         targetWindow: previewWindow,
       })
 
-      toast.success('Historique des pertes PDF généré avec succès')
+      toast.success('Historique du manque à gagner PDF généré avec succès')
     } catch (error) {
       if (previewWindow && !previewWindow.closed) {
         previewWindow.close()
@@ -1567,7 +1567,7 @@ export default function CreditContractDetail({
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5" />
-                  Historique des pertes
+                  Historique du manque à gagner
                 </CardTitle>
                 <p className="mt-1 text-sm text-gray-500">
                   Manque à gagner généré à partir du passage en partie fixe.
@@ -1620,7 +1620,7 @@ export default function CreditContractDetail({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Echéance</TableHead>
-                      <TableHead className="text-right">Pertes</TableHead>
+                      <TableHead className="text-right">Pertes (FCFA)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1628,14 +1628,14 @@ export default function CreditContractDetail({
                       <TableRow key={`${row.month}-${row.date.toISOString()}`}>
                         <TableCell className="font-medium">{row.echeance}</TableCell>
                         <TableCell className="text-right text-red-700 font-semibold">
-                          {row.lossAmount.toLocaleString('fr-FR')} FCFA
+                          {row.lossAmount.toLocaleString('fr-FR')}
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="bg-slate-50">
-                      <TableCell className="font-semibold">Total des pertes</TableCell>
+                      <TableCell className="font-semibold">Total du manque à gagner</TableCell>
                       <TableCell className="text-right font-bold text-red-700">
-                        {totalLosses.toLocaleString('fr-FR')} FCFA
+                        {totalLosses.toLocaleString('fr-FR')}
                       </TableCell>
                     </TableRow>
                   </TableBody>

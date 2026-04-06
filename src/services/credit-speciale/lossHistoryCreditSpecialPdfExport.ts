@@ -25,7 +25,9 @@ const PAGE_FILL = [247, 249, 252] as const
 const HEADER_FILL = [236, 242, 248] as const
 
 const formatAmount = (value: number) =>
-  `${Math.round(value).toLocaleString('fr-FR')} FCFA`
+  Math.round(value)
+    .toLocaleString('fr-FR')
+    .replace(/\s/g, ' ')
 
 const drawLossTablePage = (
   doc: jsPDF,
@@ -40,8 +42,8 @@ const drawLossTablePage = (
   const pageHeight = doc.internal.pageSize.getHeight()
   const marginX = 14
   const contentWidth = pageWidth - marginX * 2
-  const col1Width = contentWidth * 0.6
-  const col2Width = contentWidth * 0.4
+  const col1Width = contentWidth * 0.64
+  const col2Width = contentWidth * 0.36
   const rowHeight = 9
 
   doc.setFillColor(...PAGE_FILL)
@@ -53,7 +55,7 @@ const drawLossTablePage = (
   doc.setFont('times', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...NAVY)
-  doc.text('HISTORIQUE DES PERTES', pageWidth / 2, 18, { align: 'center' })
+  doc.text('HISTORIQUE DU MANQUE A GAGNER', pageWidth / 2, 18, { align: 'center' })
   doc.setFontSize(10)
   doc.setTextColor(45, 45, 45)
   doc.text(`Contrat : ${contractId}`, pageWidth / 2, 23, { align: 'center' })
@@ -79,7 +81,7 @@ const drawLossTablePage = (
   doc.setFontSize(10)
   doc.setTextColor(...NAVY)
   doc.text('ECHEANCE', marginX + col1Width / 2, y + 5.8, { align: 'center' })
-  doc.text('PERTES', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
+  doc.text('PERTES (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
   y += rowHeight
 
   rows.forEach((row) => {
@@ -107,7 +109,7 @@ const drawLossTablePage = (
     doc.setFont('times', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(...NAVY)
-    doc.text('TOTAL DES PERTES', marginX + 3, y + 6.2)
+    doc.text('TOTAL DU MANQUE A GAGNER', marginX + 3, y + 6.2)
     doc.text(formatAmount(totalLosses), marginX + col1Width + col2Width - 3, y + 6.2, { align: 'right' })
   }
 
@@ -154,7 +156,7 @@ export async function generateCreditSpecialLossHistoryPDF(
     logoDataUrl,
     1,
     totalPages,
-    'HISTORIQUE DES PERTES'
+    'HISTORIQUE DU MANQUE A GAGNER'
   )
 
   chunks.forEach((chunk, index) => {
