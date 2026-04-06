@@ -67,6 +67,11 @@ function canReplaceSignedContract(contract: CreditContract): boolean {
   return Boolean(contract.signedContractUrl) && !['DISCHARGED', 'CLOSED'].includes(contract.status)
 }
 
+/** L'accès au détail n'est autorisé qu'après téléversement du contrat signé */
+function canOpenContractDetail(contract: CreditContract): boolean {
+  return Boolean(contract.signedContractUrl)
+}
+
 const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
   const { data: unpaidPenalties = [], isLoading } = useUnpaidCreditPenaltiesByCreditId(creditId)
 
@@ -921,7 +926,12 @@ const ListContrats = ({
 
                   <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
                     <Button
-                      onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                      onClick={() => {
+                        if (!canOpenContractDetail(contract)) return
+                        router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                      }}
+                      disabled={!canOpenContractDetail(contract)}
+                      title={!canOpenContractDetail(contract) ? 'Téléversez d’abord le contrat signé pour ouvrir le dossier' : undefined}
                       className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                     >
                       <Eye className="h-4 w-4" />
@@ -1051,7 +1061,14 @@ const ListContrats = ({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="min-w-[200px]">
-                              <DropdownMenuItem onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)} className="cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (!canOpenContractDetail(contract)) return
+                                  router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                                }}
+                                disabled={!canOpenContractDetail(contract)}
+                                className="cursor-pointer"
+                              >
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ouvrir
                               </DropdownMenuItem>
