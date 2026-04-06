@@ -183,6 +183,12 @@ export interface ICreditSpecialeService {
         emergencyContact?: any,
         desiredDate?: string
     ): Promise<{ updatedContract: CreditContract }>;
+
+    switchToFixedPhase(
+        contractId: string,
+        reason: string,
+        adminId: string
+    ): Promise<CreditContract>;
     
     // Récupérer le contrat enfant (si extension)
     getChildContract(parentContractId: string): Promise<CreditContract | null>;

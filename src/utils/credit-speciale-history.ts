@@ -333,6 +333,11 @@ export function buildCreditSpecialeHistory(
     | 'createdAt'
     | 'creditCycles'
     | 'firstPaymentDate'
+    | 'fixedTransitionAt'
+    | 'fixedTransitionBy'
+    | 'fixedTransitionMode'
+    | 'fixedTransitionReason'
+    | 'fixedTransitionStartMonth'
     | 'guarantorRemunerationPercentage'
     | 'interestRate'
     | 'monthlyPaymentAmount'
@@ -351,6 +356,7 @@ export function buildCreditSpecialeHistory(
   const monthlyRate = contract.interestRate / 100
   const guarantorRate = (contract.guarantorRemunerationPercentage ?? 0) / 100
   const restMonths = contract.restMonths ?? []
+  const manualFixedStartMonth = contract.fixedTransitionStartMonth
   const maxMonths = options.maxMonths ?? SPECIAL_CREDIT_MAX_HISTORY_MONTHS
   const projectUntilZero = options.projectUntilZero ?? true
   const lastRecordedMonth = getCreditSpecialeLastRecordedMonth(contract, payments)
@@ -387,7 +393,9 @@ export function buildCreditSpecialeHistory(
 
     const restEntry = restMonths.find((restMonth) => restMonth.monthNumber === month)
     const logicalMonth = getLogicalMonthIndex(month, restMonths)
-    const isFixedPhase = logicalMonth > SPECIAL_CREDIT_MAX_LOGICAL_MONTHS
+    const isFixedPhase =
+      (manualFixedStartMonth !== undefined && month >= manualFixedStartMonth) ||
+      logicalMonth > SPECIAL_CREDIT_MAX_LOGICAL_MONTHS
     const phase: CreditSpecialeHistoryMonth['phase'] = isFixedPhase ? 'FIXE' : 'SPECIALE'
 
     const capitalStart = customRound(capital)
@@ -478,6 +486,11 @@ export function buildCreditSpecialeTimelineHistory(
     | 'duration'
     | 'extendedAt'
     | 'firstPaymentDate'
+    | 'fixedTransitionAt'
+    | 'fixedTransitionBy'
+    | 'fixedTransitionMode'
+    | 'fixedTransitionReason'
+    | 'fixedTransitionStartMonth'
     | 'guarantorRemunerationPercentage'
     | 'interestRate'
     | 'monthlyPaymentAmount'
@@ -500,6 +513,11 @@ export function buildCreditSpecialeTimelineHistory(
       createdAt: cycle.startedAt,
       creditCycles: undefined,
       firstPaymentDate: cycle.firstPaymentDate,
+      fixedTransitionAt: cycle.fixedTransitionAt,
+      fixedTransitionBy: cycle.fixedTransitionBy,
+      fixedTransitionMode: cycle.fixedTransitionMode,
+      fixedTransitionReason: cycle.fixedTransitionReason,
+      fixedTransitionStartMonth: cycle.fixedTransitionStartMonth,
       guarantorRemunerationPercentage: contract.guarantorRemunerationPercentage,
       interestRate: cycle.interestRate,
       monthlyPaymentAmount: cycle.monthlyPaymentAmount,

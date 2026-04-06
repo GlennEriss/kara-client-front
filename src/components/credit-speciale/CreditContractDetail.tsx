@@ -11,8 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAdmin } from '@/hooks/useAdmins'
 import { useAuth } from '@/hooks/useAuth'
-import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract } from '@/hooks/useCreditSpeciale'
+import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
 import {
@@ -22,6 +23,7 @@ import {
 import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
 import {
+  getCreditContractCycles,
   buildCreditSpecialeHistory,
   buildCreditSpecialeTimelineHistory,
   getCreditPaymentDisplayMonthLabel,
@@ -50,6 +52,7 @@ import {
     FileText,
     HandCoins,
     History,
+    Lock,
     Link2,
     Loader2,
     Pencil,
@@ -77,6 +80,7 @@ import PaymentSummaryModal from './PaymentSummaryModal'
 import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
 import RestMonthModal from './RestMonthModal'
 import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
+import SwitchToFixedPhaseModal from './SwitchToFixedPhaseModal'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -445,12 +449,14 @@ export default function CreditContractDetail({
   const [showFinalRepaymentModal, setShowFinalRepaymentModal] = useState(false)
   const [showSignedQuittanceUploadModal, setShowSignedQuittanceUploadModal] = useState(false)
   const [showCloseContractModal, setShowCloseContractModal] = useState(false)
+  const [showSwitchToFixedModal, setShowSwitchToFixedModal] = useState(false)
   const [showQuittanceModal, setShowQuittanceModal] = useState(false)
   const [showPenaltyPaymentModal, setShowPenaltyPaymentModal] = useState(false)
   const [showPenaltyReceiptModal, setShowPenaltyReceiptModal] = useState(false)
   const [penaltyPaymentModalMode, setPenaltyPaymentModalMode] = useState<'pay' | 'edit'>('pay')
   const [isGeneratingGlobalFacturePdf, setIsGeneratingGlobalFacturePdf] = useState(false)
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
+  const switchToFixedPhase = useSwitchToFixedPhase()
 
   useEffect(() => {
     if (isSimpleCredit && activeTab === 'guarantor') {
@@ -594,11 +600,23 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
       : new Map<number, (typeof specialHistory)[number]>()
+  const currentCycle = React.useMemo(
+    () => getCreditContractCycles(contract).at(-1),
+    [contract]
+  )
+  const fixedTransitionMeta = React.useMemo(() => ({
+    mode: currentCycle?.fixedTransitionMode ?? contract.fixedTransitionMode,
+    at: currentCycle?.fixedTransitionAt ?? contract.fixedTransitionAt,
+    by: currentCycle?.fixedTransitionBy ?? contract.fixedTransitionBy,
+    reason: currentCycle?.fixedTransitionReason ?? contract.fixedTransitionReason,
+    startMonth: currentCycle?.fixedTransitionStartMonth ?? contract.fixedTransitionStartMonth,
+  }), [currentCycle, contract.fixedTransitionAt, contract.fixedTransitionBy, contract.fixedTransitionMode, contract.fixedTransitionReason, contract.fixedTransitionStartMonth])
   const hasEnteredFixedPhase =
     contract.creditType === 'SPECIALE' &&
     specialHistory.some(
       (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
     )
+  const { data: fixedTransitionAdmin } = useAdmin(fixedTransitionMeta.by || '')
   const guarantorRemunerationsErrorMessage =
     guarantorRemunerationsError instanceof Error
       ? guarantorRemunerationsError.message
@@ -1319,6 +1337,16 @@ export default function CreditContractDetail({
                 Augmenter le crédit
               </Button>
             )}
+            {contract.creditType === 'SPECIALE' && (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && !hasEnteredFixedPhase && (
+              <Button
+                variant="outline"
+                onClick={() => setShowSwitchToFixedModal(true)}
+                className="flex items-center gap-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+              >
+                <Lock className="h-4 w-4" />
+                Basculer en fixe
+              </Button>
+            )}
             <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
               {statusConfig.label}
             </Badge>
@@ -1350,6 +1378,38 @@ export default function CreditContractDetail({
                   </p>
                   <p className="text-slate-600">
                     Tous les versements (avant et après l’augmentation) sont conservés ci-dessous. Apres l’augmentation, l’échéancier repart a M1 sur le nouveau cycle.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {fixedTransitionMeta.mode === 'MANUAL' && fixedTransitionMeta.at && (
+          <Card className="shadow-md border border-blue-200 bg-blue-50">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <Lock className="h-5 w-5 text-[#234D65] shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-700 space-y-2">
+                  <p className="font-medium text-slate-800">Basculement manuel en partie fixe</p>
+                  <p>
+                    Le contrat a été basculé en partie fixe le
+                    {' '}
+                    <strong>{format(new Date(fixedTransitionMeta.at), 'dd MMMM yyyy à HH:mm', { locale: fr })}</strong>
+                    {' '}par{' '}
+                    <strong>
+                      {fixedTransitionAdmin ? `${fixedTransitionAdmin.firstName} ${fixedTransitionAdmin.lastName}`.trim() : (fixedTransitionMeta.by || '—')}
+                    </strong>.
+                  </p>
+                  {fixedTransitionMeta.startMonth ? (
+                    <p>
+                      La partie fixe commence à
+                      {' '}
+                      <strong>M{fixedTransitionMeta.startMonth}</strong>.
+                    </p>
+                  ) : null}
+                  <p className="text-slate-600 whitespace-pre-line">
+                    Raison : <strong>{fixedTransitionMeta.reason || '—'}</strong>
                   </p>
                 </div>
               </div>
@@ -3161,6 +3221,15 @@ export default function CreditContractDetail({
         isOpen={showExtensionModal}
         onClose={() => setShowExtensionModal(false)}
         contract={contract}
+      />
+      <SwitchToFixedPhaseModal
+        isOpen={showSwitchToFixedModal}
+        onClose={() => setShowSwitchToFixedModal(false)}
+        contract={contract}
+        onConfirm={async (reason) => {
+          await switchToFixedPhase.mutateAsync({ contractId: contract.id, reason })
+        }}
+        isPending={switchToFixedPhase.isPending}
       />
       <CreditSpecialeContractPDFModal
         isOpen={showContractPDFModal}

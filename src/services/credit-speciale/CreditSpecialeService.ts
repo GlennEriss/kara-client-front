@@ -57,6 +57,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             firstPaymentDate: cycle.firstPaymentDate,
             restMonths: cycle.restMonths ?? [],
             customSchedule: cycle.customSchedule,
+            fixedTransitionMode: cycle.fixedTransitionMode,
+            fixedTransitionAt: cycle.fixedTransitionAt,
+            fixedTransitionBy: cycle.fixedTransitionBy,
+            fixedTransitionReason: cycle.fixedTransitionReason,
+            fixedTransitionStartMonth: cycle.fixedTransitionStartMonth,
             createdAt: cycle.startedAt ?? contract.createdAt,
             creditCycles: undefined,
         };
@@ -3039,6 +3044,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             nextDueAt: simulationData.firstPaymentDate,
             amountPaid: 0,
             amountRemaining,
+            fixedTransitionMode: undefined,
+            fixedTransitionAt: undefined,
+            fixedTransitionBy: undefined,
+            fixedTransitionReason: undefined,
+            fixedTransitionStartMonth: undefined,
             emergencyContact: emergencyContact ?? contract.emergencyContact,
             restMonths: [],
             status: 'ACTIVE',
@@ -3070,6 +3080,118 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         return { updatedContract: updated };
+    }
+
+    async switchToFixedPhase(
+        contractId: string,
+        reason: string,
+        adminId: string
+    ): Promise<CreditContract> {
+        const trimmedReason = reason.trim();
+        if (trimmedReason.length < 10) {
+            throw new Error('La raison du basculement doit contenir au moins 10 caractères');
+        }
+
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+
+        if (contract.creditType !== 'SPECIALE') {
+            throw new Error('Seuls les crédits spéciaux peuvent basculer en partie fixe');
+        }
+
+        const currentCycle = getCreditContractCycles(contract).at(-1);
+        if (!currentCycle) {
+            throw new Error('Aucun cycle actif trouvé pour ce contrat');
+        }
+
+        const allPayments = await this.getPaymentsByCreditId(contractId);
+        const cyclePayments = this.getPaymentsForCycle(contract, allPayments, currentCycle.cycleNumber)
+            .filter((payment) =>
+                payment.amount > 0 ||
+                payment.comment?.includes('Paiement de 0 FCFA') ||
+                (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
+            );
+
+        const cycleContract = this.buildContractSnapshotForCycle(contract, currentCycle.cycleNumber);
+        const historyBeforeSwitch = buildCreditSpecialeHistory(cycleContract, cyclePayments, {
+            projectUntilZero: true,
+        });
+        const nextDueBeforeSwitch = getNextDueFromCreditSpecialeHistory(historyBeforeSwitch);
+
+        if (!nextDueBeforeSwitch || nextDueBeforeSwitch.capitalStart <= 0) {
+            throw new Error('Aucun solde restant à basculer en partie fixe');
+        }
+
+        if (nextDueBeforeSwitch.phase === 'FIXE') {
+            throw new Error('Le contrat est déjà en partie fixe');
+        }
+
+        const now = new Date();
+        const fixedTransitionStartMonth = nextDueBeforeSwitch.month;
+        const updatedCycles = getCreditContractCycles(contract).map((cycle) =>
+            cycle.cycleNumber === currentCycle.cycleNumber
+                ? {
+                    ...cycle,
+                    fixedTransitionMode: 'MANUAL' as const,
+                    fixedTransitionAt: now,
+                    fixedTransitionBy: adminId,
+                    fixedTransitionReason: trimmedReason,
+                    fixedTransitionStartMonth,
+                }
+                : cycle
+        );
+
+        const switchedCycleContract = {
+            ...cycleContract,
+            fixedTransitionMode: 'MANUAL' as const,
+            fixedTransitionAt: now,
+            fixedTransitionBy: adminId,
+            fixedTransitionReason: trimmedReason,
+            fixedTransitionStartMonth,
+        };
+        const historyAfterSwitch = buildCreditSpecialeHistory(switchedCycleContract, cyclePayments, {
+            projectUntilZero: true,
+        });
+        const nextDueAfterSwitch = getNextDueFromCreditSpecialeHistory(historyAfterSwitch);
+
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            creditCycles: updatedCycles,
+            fixedTransitionMode: 'MANUAL',
+            fixedTransitionAt: now,
+            fixedTransitionBy: adminId,
+            fixedTransitionReason: trimmedReason,
+            fixedTransitionStartMonth,
+            amountRemaining: Math.round(nextDueAfterSwitch?.amountDue ?? nextDueBeforeSwitch.capitalStart),
+            nextDueAt: nextDueAfterSwitch?.date ?? nextDueBeforeSwitch.date,
+            updatedBy: adminId,
+        });
+
+        if (!updatedContract) {
+            throw new Error('Échec du basculement en partie fixe');
+        }
+
+        try {
+            await this.notificationService.createNotification({
+                module: 'credit_speciale',
+                entityId: contractId,
+                type: 'status_update',
+                title: 'Basculement en partie fixe',
+                message: `Le contrat de ${contract.clientFirstName} ${contract.clientLastName} a été basculé manuellement en partie fixe.`,
+                metadata: {
+                    contractId,
+                    cycleNumber: currentCycle.cycleNumber,
+                    fixedTransitionStartMonth,
+                    fixedTransitionReason: trimmedReason,
+                    fixedTransitionBy: adminId,
+                },
+            });
+        } catch {
+            // Ne pas faire échouer le basculement si la notification échoue
+        }
+
+        return updatedContract;
     }
 
     /**

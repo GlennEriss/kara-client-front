@@ -1557,6 +1557,11 @@ export interface CreditContractCycle {
   cause?: string
   desiredDate?: string
   createdBy?: string
+  fixedTransitionMode?: 'AUTOMATIC' | 'MANUAL'
+  fixedTransitionAt?: Date
+  fixedTransitionBy?: string
+  fixedTransitionReason?: string
+  fixedTransitionStartMonth?: number
 }
 
 /**
@@ -1634,6 +1639,11 @@ export interface CreditContract {
   fundsReleasedAt?: Date
   dischargedAt?: Date
   transformedAt?: Date
+  fixedTransitionMode?: 'AUTOMATIC' | 'MANUAL'
+  fixedTransitionAt?: Date
+  fixedTransitionBy?: string
+  fixedTransitionReason?: string
+  fixedTransitionStartMonth?: number
   extendedAt?: Date // Date à laquelle le contrat a été étendu (augmentation)
   /** Montant initial du crédit (avant rajout). Égal à amount si aucun rajout. */
   initialAmount?: number
