@@ -872,6 +872,35 @@ export function useExtendContract() {
     })
 }
 
+export function useSwitchToFixedPhase() {
+    const qc = useQueryClient()
+    const { user } = useAuth()
+    const service = ServiceFactory.getCreditSpecialeService()
+
+    return useMutation({
+        mutationFn: ({ contractId, reason }: { contractId: string; reason: string }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.switchToFixedPhase(contractId, reason, user.uid)
+        },
+        onSuccess: async (updatedContract) => {
+            const id = updatedContract.id
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', id] }),
+                qc.invalidateQueries({ queryKey: ['creditPayments', 'creditId', id] }),
+                qc.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', id] }),
+                qc.invalidateQueries({ queryKey: ['guarantorRemunerations', 'creditId', id] }),
+                qc.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', id] }),
+            ])
+            toast.success('Le contrat a été basculé en partie fixe')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors du basculement en partie fixe')
+        },
+    })
+}
+
 /**
  * Hook pour récupérer le contrat enfant (si extension)
  */
