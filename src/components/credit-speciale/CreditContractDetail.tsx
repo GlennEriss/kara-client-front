@@ -21,6 +21,7 @@ import {
   buildCreditSpecialFacturePage1Data,
 } from '@/services/credit-speciale/creditSpecialeFactureHelpers'
 import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
+import { generateCreditSpecialLossHistoryPDF } from '@/services/credit-speciale/lossHistoryCreditSpecialPdfExport'
 import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
 import {
   getCreditContractCycles,
@@ -324,7 +325,7 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
     ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
       title: 'Pertes',
       value: totalLosses.toLocaleString('fr-FR'),
-      subtitle: 'Intérêts non gagnés (paiements après M7)',
+      subtitle: 'Intérêts retirés en partie fixe',
       color: '#dc2626',
       icon: TrendingUp
     }] : []),
@@ -455,6 +456,8 @@ export default function CreditContractDetail({
   const [showPenaltyReceiptModal, setShowPenaltyReceiptModal] = useState(false)
   const [penaltyPaymentModalMode, setPenaltyPaymentModalMode] = useState<'pay' | 'edit'>('pay')
   const [isGeneratingGlobalFacturePdf, setIsGeneratingGlobalFacturePdf] = useState(false)
+  const [isGeneratingLossHistoryPdf, setIsGeneratingLossHistoryPdf] = useState(false)
+  const [isExportingLossHistoryExcel, setIsExportingLossHistoryExcel] = useState(false)
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
   const switchToFixedPhase = useSwitchToFixedPhase()
 
@@ -951,24 +954,26 @@ export default function CreditContractDetail({
     ? Math.max(0, totalAmountToRepay - totalPaidFromSchedule)
     : totalAmountToRepay - totalPaidFromSchedule
 
-  // Calculer les pertes à partir du 8e mois logique (intérêts non appliqués)
-  const calculateLosses = (): number => {
-    if (contract.creditType !== 'SPECIALE') return 0
-    
-    const monthlyRate = contract.interestRate / 100
-    let totalLosses = 0
-    
-    for (const row of specialHistory) {
-      const logicalIndex = row.logicalMonth
-      if (logicalIndex <= 7 || row.status !== 'PAID' || row.capitalStart <= 0) continue
-      if (row.phase === 'FIXE') {
-        totalLosses += row.capitalStart * monthlyRate
-      }
-    }
-    return customRound(totalLosses)
-  }
+  const lossHistoryRows = React.useMemo(() => {
+    if (contract.creditType !== 'SPECIALE') return []
 
-  const totalLosses = calculateLosses()
+    const monthlyRate = contract.interestRate / 100
+    const cyclePrefix = currentCycle && currentCycle.cycleNumber > 1 ? 'Apres augmentation - ' : ''
+
+    return specialHistory
+      .filter((row) => row.phase === 'FIXE' && !row.isRest && row.capitalStart > 0)
+      .map((row) => ({
+        month: row.month,
+        date: row.date,
+        echeance: `${cyclePrefix}M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
+        lossAmount: customRound(row.capitalStart * monthlyRate),
+      }))
+  }, [contract.creditType, contract.interestRate, currentCycle, specialHistory])
+
+  const totalLosses = React.useMemo(
+    () => customRound(lossHistoryRows.reduce((sum, row) => sum + row.lossAmount, 0)),
+    [lossHistoryRows]
+  )
   
   // Debug: log pour comprendre le problème
   useEffect(() => {
@@ -1257,6 +1262,76 @@ export default function CreditContractDetail({
     }
   }
 
+  const handleExportLossHistoryExcel = async () => {
+    if (!lossHistoryRows.length) {
+      toast.error('Aucune perte à exporter')
+      return
+    }
+
+    try {
+      setIsExportingLossHistoryExcel(true)
+      const XLSX = await import('xlsx')
+      const rows = [
+        ...lossHistoryRows.map((row) => ({
+          'Echéance': row.echeance,
+          'Pertes (FCFA)': row.lossAmount,
+        })),
+        {
+          'Echéance': 'TOTAL DES PERTES',
+          'Pertes (FCFA)': totalLosses,
+        },
+      ]
+
+      const worksheet = XLSX.utils.json_to_sheet(rows)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pertes')
+      XLSX.writeFile(workbook, `historique_pertes_${contract.id}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
+      toast.success('Historique des pertes exporté en Excel')
+    } catch (error) {
+      console.error('Erreur lors de l’export Excel des pertes:', error)
+      toast.error('Erreur lors de l’export Excel des pertes')
+    } finally {
+      setIsExportingLossHistoryExcel(false)
+    }
+  }
+
+  const handleOpenLossHistoryPdf = async () => {
+    if (!lossHistoryRows.length) {
+      toast.error('Aucune perte à exporter')
+      return
+    }
+
+    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+
+    try {
+      setIsGeneratingLossHistoryPdf(true)
+      toast.info('Génération du PDF des pertes en cours...')
+
+      await generateCreditSpecialLossHistoryPDF({
+        contractId: contract.id,
+        page1Data: buildCreditSpecialFacturePage1Data(contract, member),
+        rows: lossHistoryRows.map((row) => ({
+          echeance: row.echeance,
+          lossAmount: row.lossAmount,
+        })),
+        totalLosses,
+        outputMode: 'open',
+        filename: `historique_pertes_${contract.id}.pdf`,
+        targetWindow: previewWindow,
+      })
+
+      toast.success('Historique des pertes PDF généré avec succès')
+    } catch (error) {
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.close()
+      }
+      console.error('Erreur lors de la génération du PDF des pertes:', error)
+      toast.error('Erreur lors de la génération du PDF des pertes')
+    } finally {
+      setIsGeneratingLossHistoryPdf(false)
+    }
+  }
+
   // Retrouver le paiement associé à une échéance (pour "Voir le résumé" dans l'échéancier)
   const getPaymentForScheduleIndex = (scheduleIndex: number): CreditPayment | null => {
     const dueItem = actualSchedule[scheduleIndex]
@@ -1485,6 +1560,90 @@ export default function CreditContractDetail({
             totalLosses={totalLosses}
           />
         </div>
+
+        {hasEnteredFixedPhase && lossHistoryRows.length > 0 && (
+          <Card className="border-0 shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Historique des pertes
+                </CardTitle>
+                <p className="mt-1 text-sm text-gray-500">
+                  Intérêts retirés à partir du passage en partie fixe.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                  onClick={handleExportLossHistoryExcel}
+                  disabled={isExportingLossHistoryExcel}
+                >
+                  {isExportingLossHistoryExcel ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Export...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export Excel
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                  onClick={handleOpenLossHistoryPdf}
+                  disabled={isGeneratingLossHistoryPdf}
+                >
+                  {isGeneratingLossHistoryPdf ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Génération...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Voir le PDF
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Echéance</TableHead>
+                      <TableHead className="text-right">Pertes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lossHistoryRows.map((row) => (
+                      <TableRow key={`${row.month}-${row.date.toISOString()}`}>
+                        <TableCell className="font-medium">{row.echeance}</TableCell>
+                        <TableCell className="text-right text-red-700 font-semibold">
+                          {row.lossAmount.toLocaleString('fr-FR')} FCFA
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-slate-50">
+                      <TableCell className="font-semibold">Total des pertes</TableCell>
+                      <TableCell className="text-right font-bold text-red-700">
+                        {totalLosses.toLocaleString('fr-FR')} FCFA
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Informations principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
