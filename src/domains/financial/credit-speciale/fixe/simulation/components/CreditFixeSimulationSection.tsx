@@ -321,9 +321,23 @@ export function CreditFixeSimulationSection({
     customForm.setValue('monthlyPayments', nextPayments, { shouldValidate: true })
   }
 
+  const getCustomMonthMaxAmount = (index: number) => {
+    if (customTotalToRepay <= 0) return 0
+
+    const totalWithoutCurrentMonth = customPayments.reduce((sum, payment, currentIndex) => {
+      if (currentIndex === index) return sum
+      return sum + (payment.amount || 0)
+    }, 0)
+
+    return Math.max(0, customTotalToRepay - totalWithoutCurrentMonth)
+  }
+
   const updateCustomMonthAmount = (index: number, amount: number) => {
+    const maxAmount = getCustomMonthMaxAmount(index)
+    const normalizedAmount = Math.min(Math.max(0, Math.round(amount)), maxAmount)
+
     const nextPayments = customPayments.map((payment, currentIndex) =>
-      currentIndex === index ? { ...payment, amount } : payment
+      currentIndex === index ? { ...payment, amount: normalizedAmount } : payment
     )
     customForm.setValue('monthlyPayments', nextPayments, { shouldValidate: true })
   }
@@ -615,7 +629,10 @@ export function CreditFixeSimulationSection({
                     </div>
 
                     <div className="space-y-2">
-                      {customPayments.map((payment, index) => (
+                      {customPayments.map((payment, index) => {
+                        const maxAmount = getCustomMonthMaxAmount(index)
+
+                        return (
                         <div key={payment.month} className="grid grid-cols-12 gap-2 items-center">
                           <div className="col-span-3 md:col-span-2 text-sm font-medium text-kara-neutral-700">
                             Mois {payment.month}
@@ -623,10 +640,15 @@ export function CreditFixeSimulationSection({
                           <div className="col-span-7 md:col-span-8">
                             <Input
                               type="number"
+                              min={0}
+                              max={maxAmount}
                               value={payment.amount || ''}
                               onChange={(event) => updateCustomMonthAmount(index, Number(event.target.value) || 0)}
                               placeholder="Montant du mois"
                             />
+                            <p className="mt-1 text-xs text-kara-neutral-500">
+                              Maximum autorisé: {formatAmount(maxAmount)} FCFA
+                            </p>
                           </div>
                           <div className="col-span-2">
                             <Button
@@ -640,7 +662,8 @@ export function CreditFixeSimulationSection({
                             </Button>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     <div className="rounded-lg bg-kara-neutral-50 p-3 text-sm text-kara-neutral-700 space-y-2">
