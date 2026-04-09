@@ -31,20 +31,21 @@ export class CreditFixeSimulationService {
     const config = this.getConfig(options)
     const amount = Math.round(input.amount)
     const interestRate = input.interestRate
+    const targetMonths = Math.min(config.maxDuration, Math.max(1, Math.round(input.targetMonths)))
     if (interestRate > config.maxInterestRate) {
       throw new Error(`Le taux du crédit ${config.creditLabel} ne peut pas dépasser ${config.maxInterestRate}%`)
     }
     const interestAmount = this.calculateInterestAmount(amount, interestRate)
     const totalAmount = amount + interestAmount
 
-    const monthlyFloor = Math.floor(totalAmount / config.maxDuration)
+    const monthlyFloor = Math.floor(totalAmount / targetMonths)
     const schedule: FixedSimulationScheduleRow[] = []
     let cumulativePaid = 0
 
-    for (let index = 0; index < config.maxDuration; index += 1) {
+    for (let index = 0; index < targetMonths; index += 1) {
       const month = index + 1
       const date = this.getScheduleDate(input.firstPaymentDate, month)
-      const isLastMonth = month === config.maxDuration
+      const isLastMonth = month === targetMonths
       const payment = isLastMonth ? totalAmount - cumulativePaid : monthlyFloor
 
       cumulativePaid += payment
@@ -67,8 +68,8 @@ export class CreditFixeSimulationService {
         interestAmount,
         totalAmount,
         firstPaymentDate: new Date(input.firstPaymentDate),
-        duration: config.maxDuration,
-        averageMonthlyPayment: customRound(totalAmount / config.maxDuration),
+        duration: targetMonths,
+        averageMonthlyPayment: customRound(totalAmount / targetMonths),
         totalPlanned: totalAmount,
         remaining: 0,
         excess: 0,

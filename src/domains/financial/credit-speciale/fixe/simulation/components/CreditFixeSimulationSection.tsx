@@ -222,6 +222,7 @@ export function CreditFixeSimulationSection({
       amount: initialAmount ?? 0,
       interestRate: 0,
       firstPaymentDate: new Date(),
+      targetMonths: config.maxDuration,
     },
     mode: 'onChange',
   })
@@ -246,6 +247,7 @@ export function CreditFixeSimulationSection({
       amount: initialAmount ?? 0,
       interestRate: 0,
       firstPaymentDate: new Date(),
+      targetMonths: config.maxDuration,
     })
     customForm.reset({
       amount: initialAmount ?? 0,
@@ -255,7 +257,7 @@ export function CreditFixeSimulationSection({
     })
     setMode('STANDARD')
     setResult(null)
-  }, [customForm, initialAmount, standardForm])
+  }, [config.maxDuration, customForm, initialAmount, standardForm])
 
   const customTotal = useMemo(
     () => customPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
@@ -420,7 +422,7 @@ export function CreditFixeSimulationSection({
             <TabsContent value="STANDARD" className="space-y-4">
               <Form {...standardForm}>
                 <form onSubmit={standardForm.handleSubmit(onStandardSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     <FormField
                       control={standardForm.control}
                       name="amount"
@@ -474,6 +476,30 @@ export function CreditFixeSimulationSection({
                               onChange={(event) => field.onChange(new Date(event.target.value))}
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={standardForm.control}
+                      name="targetMonths"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre de mois visé</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={config.maxDuration}
+                              placeholder={`Ex: ${config.maxDuration}`}
+                              {...field}
+                              onChange={(event) => field.onChange(Number(event.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-kara-neutral-500">
+                            Entre 1 et {config.maxDuration} mois.
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -723,6 +749,7 @@ export function CreditFixeSimulationSection({
               <SummaryCard label="Montant emprunté" value={`${formatAmount(result.summary.amount)} FCFA`} />
               <SummaryCard label="Intérêt unique" value={`${formatAmount(result.summary.interestAmount)} FCFA`} />
               <SummaryCard label="Total à rembourser" value={`${formatAmount(result.summary.totalAmount)} FCFA`} />
+              <SummaryCard label="Durée visée" value={`${result.summary.duration} mois`} />
               <SummaryCard label="Total planifié" value={`${formatAmount(result.summary.totalPlanned)} FCFA`} />
               <SummaryCard label="Reste" value={`${formatAmount(result.summary.remaining)} FCFA`} />
               <SummaryCard label="Excédent" value={`${formatAmount(result.summary.excess)} FCFA`} />

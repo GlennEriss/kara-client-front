@@ -17,7 +17,9 @@ export interface FixedSimulationOptions {
   creditLabel?: string
 }
 
-export interface FixedStandardSimulationInput extends FixedSimulationBaseInput {}
+export interface FixedStandardSimulationInput extends FixedSimulationBaseInput {
+  targetMonths: number
+}
 
 export interface FixedCustomSimulationInput extends FixedSimulationBaseInput {
   monthlyPayments: FixedMonthlyPaymentInput[]
