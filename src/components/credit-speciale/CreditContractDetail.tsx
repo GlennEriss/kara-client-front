@@ -323,10 +323,12 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
       color: '#ef4444',
       icon: AlertCircle
     },
-    ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
+    ...(totalLosses > 0 ? [{
       title: 'Manque à gagner',
       value: totalLosses.toLocaleString('fr-FR'),
-      subtitle: 'Manque à gagner en partie fixe',
+      subtitle: contract.creditType === 'FIXE'
+        ? 'Pertes après la durée contractuelle'
+        : 'Manque à gagner en partie fixe',
       color: '#dc2626',
       icon: TrendingUp
     }] : []),
@@ -952,6 +954,19 @@ export default function CreditContractDetail({
     : totalAmountToRepay - totalPaidFromSchedule
 
   const lossHistoryRows = React.useMemo(() => {
+    if (contract.creditType === 'FIXE') {
+      const monthlyRate = contract.interestRate / 100
+
+      return actualSchedule
+        .filter((row) => row.month > contract.duration && row.principal > 0)
+        .map((row) => ({
+          month: row.month,
+          date: row.date,
+          echeance: `M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
+          lossAmount: customRound(row.principal * monthlyRate),
+        }))
+    }
+
     if (contract.creditType !== 'SPECIALE') return []
 
     const monthlyRate = contract.interestRate / 100
@@ -965,13 +980,23 @@ export default function CreditContractDetail({
         echeance: `${cyclePrefix}M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
         lossAmount: customRound(row.capitalStart * monthlyRate),
       }))
-  }, [contract.creditType, contract.interestRate, currentCycle, specialHistory])
+  }, [actualSchedule, contract.creditType, contract.duration, contract.interestRate, currentCycle, specialHistory])
 
   const totalLosses = React.useMemo(
     () => customRound(lossHistoryRows.reduce((sum, row) => sum + row.lossAmount, 0)),
     [lossHistoryRows]
   )
-  const shouldShowLossesTab = hasEnteredFixedPhase && lossHistoryRows.length > 0
+  const shouldShowLossesTab =
+    contract.creditType === 'FIXE'
+      ? lossHistoryRows.length > 0
+      : hasEnteredFixedPhase && lossHistoryRows.length > 0
+  const lossesTabDescription =
+    contract.creditType === 'FIXE'
+      ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
+      : 'Manque à gagner généré à partir du passage en partie fixe.'
+  const tabsGridClassName = isSimpleCredit
+    ? shouldShowLossesTab ? 'grid-cols-3' : 'grid-cols-2'
+    : shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
   const guarantorCommissionRows = React.useMemo(() => {
     if (
       contract.creditType !== 'SPECIALE' ||
@@ -1366,6 +1391,7 @@ export default function CreditContractDetail({
           lossAmount: row.lossAmount,
         })),
         totalLosses,
+        descriptionText: lossesTabDescription,
         outputMode: 'open',
         filename: `historique_pertes_${contract.id}.pdf`,
         targetWindow: previewWindow,
@@ -1805,7 +1831,7 @@ export default function CreditContractDetail({
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'history' | 'losses' | 'guarantor')} className="w-full">
               <TabsList className={cn(
                 'grid w-full rounded-none border-b',
-                isSimpleCredit ? 'grid-cols-2' : shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
+                tabsGridClassName
               )}>
                 <TabsTrigger value="payments" className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
@@ -2605,7 +2631,7 @@ export default function CreditContractDetail({
                           Historique du manque à gagner
                         </h3>
                         <p className="mt-1 text-sm text-gray-500">
-                          Manque à gagner généré à partir du passage en partie fixe.
+                          {lossesTabDescription}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

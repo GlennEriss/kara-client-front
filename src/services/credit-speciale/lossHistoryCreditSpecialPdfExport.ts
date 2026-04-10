@@ -15,6 +15,7 @@ export interface GenerateCreditSpecialLossHistoryPDFOptions {
   page1Data: FactureCreditSpecialPage1Data
   rows: CreditSpecialLossHistoryRow[]
   totalLosses: number
+  descriptionText?: string
   outputMode?: 'save' | 'open'
   filename?: string
   targetWindow?: Window | null
@@ -34,6 +35,7 @@ const drawLossTablePage = (
   contractId: string,
   rows: CreditSpecialLossHistoryRow[],
   totalLosses: number,
+  descriptionText: string,
   pageNumber: number,
   totalPages: number,
   isLastPage: boolean
@@ -65,11 +67,7 @@ const drawLossTablePage = (
   doc.setFont('times', 'normal')
   doc.setFontSize(9.5)
   doc.setTextColor(60, 60, 60)
-  doc.text(
-    'Ce tableau récapitule le manque à gagner à partir de la partie fixe.',
-    marginX,
-    y
-  )
+  doc.text(descriptionText, marginX, y)
   y += 8
 
   doc.setFillColor(...HEADER_FILL)
@@ -132,6 +130,7 @@ export async function generateCreditSpecialLossHistoryPDF(
     page1Data,
     rows,
     totalLosses,
+    descriptionText = 'Ce tableau récapitule le manque à gagner à partir de la partie fixe.',
     outputMode = 'open',
     filename,
     targetWindow,
@@ -166,6 +165,7 @@ export async function generateCreditSpecialLossHistoryPDF(
       contractId,
       chunk,
       totalLosses,
+      descriptionText,
       index + 2,
       totalPages,
       index === chunks.length - 1
