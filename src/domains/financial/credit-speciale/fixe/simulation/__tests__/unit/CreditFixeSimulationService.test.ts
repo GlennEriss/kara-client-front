@@ -8,22 +8,23 @@ import {
 describe('CreditFixeSimulationService', () => {
   const service = CreditFixeSimulationService.getInstance()
 
-  it('calcule une simulation standard sur 14 echeances avec interet unique', () => {
+  it('calcule une simulation standard sur la duree ciblee avec interet unique', () => {
     const result = service.calculateStandardSimulation({
       amount: 2_000_000,
       interestRate: 30,
       firstPaymentDate: new Date('2026-01-15'),
+      targetMonths: 6,
     })
 
     expect(result.mode).toBe('STANDARD')
     expect(result.summary.interestAmount).toBe(600_000)
     expect(result.summary.totalAmount).toBe(2_600_000)
-    expect(result.summary.duration).toBe(14)
-    expect(result.schedule).toHaveLength(14)
+    expect(result.summary.duration).toBe(6)
+    expect(result.schedule).toHaveLength(6)
 
     const totalPlanned = result.schedule.reduce((sum, row) => sum + row.payment, 0)
     expect(totalPlanned).toBe(2_600_000)
-    expect(result.schedule[13]?.payment).toBe(185_718)
+    expect(result.schedule[5]?.payment).toBe(433_335)
   })
 
   it('retourne une simulation personnalisee invalide si le total planifie est incomplet', () => {
@@ -69,9 +70,9 @@ describe('fixed-simulation.schema', () => {
       firstPaymentDate: new Date('2026-01-15'),
     }
 
-    expect(fixedStandardSimulationSchema.safeParse({ ...baseData, interestRate: 0 }).success).toBe(true)
-    expect(fixedStandardSimulationSchema.safeParse({ ...baseData, interestRate: 30 }).success).toBe(true)
-    expect(fixedStandardSimulationSchema.safeParse({ ...baseData, interestRate: 50 }).success).toBe(true)
+    expect(fixedStandardSimulationSchema.safeParse({ ...baseData, interestRate: 0, targetMonths: 1 }).success).toBe(true)
+    expect(fixedStandardSimulationSchema.safeParse({ ...baseData, interestRate: 30, targetMonths: 7 }).success).toBe(true)
+    expect(fixedStandardSimulationSchema.safeParse({ ...baseData, interestRate: 50, targetMonths: 14 }).success).toBe(true)
   })
 
   it('rejette un taux > 50%', () => {
@@ -79,6 +80,18 @@ describe('fixed-simulation.schema', () => {
       amount: 1_000_000,
       interestRate: 50.01,
       firstPaymentDate: new Date('2026-01-15'),
+      targetMonths: 6,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejette une simulation standard au-dela de 14 mois', () => {
+    const result = fixedStandardSimulationSchema.safeParse({
+      amount: 1_000_000,
+      interestRate: 10,
+      firstPaymentDate: new Date('2026-01-15'),
+      targetMonths: 15,
     })
 
     expect(result.success).toBe(false)

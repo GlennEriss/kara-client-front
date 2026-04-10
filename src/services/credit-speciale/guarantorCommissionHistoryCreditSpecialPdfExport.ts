@@ -5,17 +5,18 @@ import {
   loadFactureCreditSpecialLogoDataUrl,
 } from './factureCreditSpecialPdfExport'
 
-export interface CreditSpecialLossHistoryRow {
-  echeance: string
-  lossAmount: number
+export interface CreditSpecialGuarantorCommissionHistoryRow {
+  monthLabel: string
+  remainingAmount: number
+  commissionPercentage: number
+  commissionAmount: number
 }
 
-export interface GenerateCreditSpecialLossHistoryPDFOptions {
+export interface GenerateCreditSpecialGuarantorCommissionHistoryPDFOptions {
   contractId: string
   page1Data: FactureCreditSpecialPage1Data
-  rows: CreditSpecialLossHistoryRow[]
-  totalLosses: number
-  descriptionText?: string
+  rows: CreditSpecialGuarantorCommissionHistoryRow[]
+  totalCommissions: number
   outputMode?: 'save' | 'open'
   filename?: string
   targetWindow?: Window | null
@@ -30,22 +31,23 @@ const formatAmount = (value: number) =>
     .toLocaleString('fr-FR')
     .replace(/\s/g, ' ')
 
-const drawLossTablePage = (
+const drawCommissionTablePage = (
   doc: jsPDF,
   contractId: string,
-  rows: CreditSpecialLossHistoryRow[],
-  totalLosses: number,
-  descriptionText: string,
+  rows: CreditSpecialGuarantorCommissionHistoryRow[],
+  totalCommissions: number,
   pageNumber: number,
   totalPages: number,
   isLastPage: boolean
 ) => {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
-  const marginX = 14
+  const marginX = 12
   const contentWidth = pageWidth - marginX * 2
-  const col1Width = contentWidth * 0.64
-  const col2Width = contentWidth * 0.36
+  const col1Width = contentWidth * 0.2
+  const col2Width = contentWidth * 0.28
+  const col3Width = contentWidth * 0.2
+  const col4Width = contentWidth * 0.32
   const rowHeight = 9
 
   doc.setFillColor(...PAGE_FILL)
@@ -57,7 +59,7 @@ const drawLossTablePage = (
   doc.setFont('times', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...NAVY)
-  doc.text('HISTORIQUE DU MANQUE A GAGNER', pageWidth / 2, 18, { align: 'center' })
+  doc.text('COMMISSIONS DU GARANT', pageWidth / 2, 18, { align: 'center' })
   doc.setFontSize(10)
   doc.setTextColor(45, 45, 45)
   doc.text(`Contrat : ${contractId}`, pageWidth / 2, 23, { align: 'center' })
@@ -67,7 +69,11 @@ const drawLossTablePage = (
   doc.setFont('times', 'normal')
   doc.setFontSize(9.5)
   doc.setTextColor(60, 60, 60)
-  doc.text(descriptionText, marginX, y)
+  doc.text(
+    'Ce tableau récapitule les commissions dues au garant pour les échéances éligibles.',
+    marginX,
+    y
+  )
   y += 8
 
   doc.setFillColor(...HEADER_FILL)
@@ -75,11 +81,15 @@ const drawLossTablePage = (
   doc.setLineWidth(0.25)
   doc.rect(marginX, y, col1Width, rowHeight, 'FD')
   doc.rect(marginX + col1Width, y, col2Width, rowHeight, 'FD')
+  doc.rect(marginX + col1Width + col2Width, y, col3Width, rowHeight, 'FD')
+  doc.rect(marginX + col1Width + col2Width + col3Width, y, col4Width, rowHeight, 'FD')
   doc.setFont('times', 'bold')
-  doc.setFontSize(10)
+  doc.setFontSize(9.5)
   doc.setTextColor(...NAVY)
-  doc.text('ECHEANCE', marginX + col1Width / 2, y + 5.8, { align: 'center' })
-  doc.text('PERTES (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
+  doc.text('MOIS', marginX + col1Width / 2, y + 5.8, { align: 'center' })
+  doc.text('RESTE DU (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
+  doc.text('% COMM.', marginX + col1Width + col2Width + col3Width / 2, y + 5.8, { align: 'center' })
+  doc.text('SOMME DUE (FCFA)', marginX + col1Width + col2Width + col3Width + col4Width / 2, y + 5.8, { align: 'center' })
   y += rowHeight
 
   rows.forEach((row) => {
@@ -87,28 +97,33 @@ const drawLossTablePage = (
     doc.setLineWidth(0.2)
     doc.rect(marginX, y, col1Width, rowHeight)
     doc.rect(marginX + col1Width, y, col2Width, rowHeight)
+    doc.rect(marginX + col1Width + col2Width, y, col3Width, rowHeight)
+    doc.rect(marginX + col1Width + col2Width + col3Width, y, col4Width, rowHeight)
 
     doc.setFont('times', 'normal')
-    doc.setFontSize(9.4)
+    doc.setFontSize(9.2)
     doc.setTextColor(20, 20, 20)
-    doc.text(row.echeance, marginX + 3, y + 5.8)
-    doc.text(formatAmount(row.lossAmount), marginX + col1Width + col2Width - 3, y + 5.8, { align: 'right' })
+    doc.text(row.monthLabel, marginX + 2, y + 5.8)
+    doc.text(formatAmount(row.remainingAmount), marginX + col1Width + col2Width - 2, y + 5.8, { align: 'right' })
+    doc.text(`${row.commissionPercentage}%`, marginX + col1Width + col2Width + col3Width - 2, y + 5.8, { align: 'right' })
+    doc.text(formatAmount(row.commissionAmount), marginX + col1Width + col2Width + col3Width + col4Width - 2, y + 5.8, { align: 'right' })
     y += rowHeight
   })
 
   if (isLastPage) {
     y += 3
+    const totalLabelWidth = col1Width + col2Width + col3Width
     doc.setFillColor(230, 239, 246)
-    doc.rect(marginX, y, col1Width, rowHeight + 1, 'FD')
-    doc.rect(marginX + col1Width, y, col2Width, rowHeight + 1, 'FD')
+    doc.rect(marginX, y, totalLabelWidth, rowHeight + 1, 'FD')
+    doc.rect(marginX + totalLabelWidth, y, col4Width, rowHeight + 1, 'FD')
     doc.setDrawColor(...NAVY)
-    doc.rect(marginX, y, col1Width, rowHeight + 1)
-    doc.rect(marginX + col1Width, y, col2Width, rowHeight + 1)
+    doc.rect(marginX, y, totalLabelWidth, rowHeight + 1)
+    doc.rect(marginX + totalLabelWidth, y, col4Width, rowHeight + 1)
     doc.setFont('times', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(...NAVY)
-    doc.text('TOTAL DU MANQUE A GAGNER', marginX + 3, y + 6.2)
-    doc.text(formatAmount(totalLosses), marginX + col1Width + col2Width - 3, y + 6.2, { align: 'right' })
+    doc.text('TOTAL DES COMMISSIONS', marginX + 3, y + 6.2)
+    doc.text(formatAmount(totalCommissions), marginX + totalLabelWidth + col4Width - 2, y + 6.2, { align: 'right' })
   }
 
   doc.setFont('times', 'italic')
@@ -122,25 +137,24 @@ const drawLossTablePage = (
   )
 }
 
-export async function generateCreditSpecialLossHistoryPDF(
-  options: GenerateCreditSpecialLossHistoryPDFOptions
+export async function generateCreditSpecialGuarantorCommissionHistoryPDF(
+  options: GenerateCreditSpecialGuarantorCommissionHistoryPDFOptions
 ): Promise<void> {
   const {
     contractId,
     page1Data,
     rows,
-    totalLosses,
-    descriptionText = 'Ce tableau récapitule le manque à gagner à partir de la partie fixe.',
+    totalCommissions,
     outputMode = 'open',
     filename,
     targetWindow,
   } = options
 
   if (!rows.length) {
-    throw new Error('Aucune perte à exporter')
+    throw new Error('Aucune commission du garant à exporter')
   }
 
-  const rowsPerPage = 22
+  const rowsPerPage = 20
   const chunks = Array.from({ length: Math.ceil(rows.length / rowsPerPage) }, (_, index) =>
     rows.slice(index * rowsPerPage, (index + 1) * rowsPerPage)
   )
@@ -155,17 +169,16 @@ export async function generateCreditSpecialLossHistoryPDF(
     logoDataUrl,
     1,
     totalPages,
-    'HISTORIQUE DU MANQUE A GAGNER'
+    'HISTORIQUE DES COMMISSIONS DU GARANT'
   )
 
   chunks.forEach((chunk, index) => {
     doc.addPage()
-    drawLossTablePage(
+    drawCommissionTablePage(
       doc,
       contractId,
       chunk,
-      totalLosses,
-      descriptionText,
+      totalCommissions,
       index + 2,
       totalPages,
       index === chunks.length - 1
@@ -185,5 +198,5 @@ export async function generateCreditSpecialLossHistoryPDF(
   }
 
   const dateStr = new Date().toISOString().split('T')[0]
-  doc.save(filename || `historique_pertes_${contractId}_${dateStr}.pdf`)
+  doc.save(filename || `commissions_garant_${contractId}_${dateStr}.pdf`)
 }

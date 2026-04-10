@@ -25,6 +25,11 @@ export function buildFixedSimulationSchemas(config: FixedSimulationSchemaConfig 
     amount: amountSchema,
     interestRate: interestRateSchema,
     firstPaymentDate: z.date(),
+    targetMonths: z
+      .number()
+      .int('Le nombre de mois doit être un nombre entier')
+      .min(1, 'Le nombre de mois doit être au moins 1')
+      .max(maxDuration, `Le crédit ${creditLabel} ne peut pas dépasser ${maxDuration} mois`),
   })
 
   const customSchema = z

@@ -338,12 +338,16 @@ export type GenerateFactureCreditSpecialPDFOptions = {
   factureData: FactureCreditSpecialPDFData
   /** Données pour la page 1 (membre + contact urgence). Si fourni, le PDF fait 2 pages. */
   page1Data?: FactureCreditSpecialPage1Data | null
+  /** Titre principal affiché en haut de la page 1. */
+  page1MainTitle?: string
   /** Titre affiché en haut de la page VERSEMENT. */
   titleText?: string
 }
 
 export type GenerateGlobalFactureCreditSpecialPDFOptions = {
   page1Data: FactureCreditSpecialPage1Data | null
+  /** Titre principal affiché en haut de la page 1. */
+  page1MainTitle?: string
   factures: Array<{
     factureData: FactureCreditSpecialPDFData
     /** Titre de la page "VERSEMENT DU:" ; par défaut dateEcheance puis paymentDate */
@@ -367,13 +371,14 @@ export async function generateFactureCreditSpecialPDF(
     ? (options as FactureCreditSpecialPDFData)
     : (options as GenerateFactureCreditSpecialPDFOptions).factureData
   const page1Data = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).page1Data : null
+  const page1MainTitle = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).page1MainTitle : undefined
   const titleText = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).titleText : undefined
 
   const doc = new jsPDF('p', 'mm', 'a4')
 
   if (page1Data) {
     const logoDataUrl = await loadFactureCreditSpecialLogoDataUrl()
-    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl)
+    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, 2, page1MainTitle)
     doc.addPage()
   }
 
@@ -386,7 +391,7 @@ export async function generateFactureCreditSpecialPDF(
 export async function generateGlobalFactureCreditSpecialPDF(
   options: GenerateGlobalFactureCreditSpecialPDFOptions
 ): Promise<void> {
-  const { page1Data, factures, outputMode = 'open', filename, targetWindow } = options
+  const { page1Data, page1MainTitle, factures, outputMode = 'open', filename, targetWindow } = options
   if (!factures.length) {
     throw new Error('Aucune facture à générer')
   }
@@ -396,7 +401,7 @@ export async function generateGlobalFactureCreditSpecialPDF(
   const logoDataUrl = page1Data ? await loadFactureCreditSpecialLogoDataUrl() : null
 
   if (page1Data) {
-    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, totalPages)
+    drawFactureCreditSpecialPage1(doc, page1Data, logoDataUrl, 1, totalPages, page1MainTitle)
   }
 
   factures.forEach((entry, index) => {

@@ -21,6 +21,7 @@ import {
   buildCreditSpecialFacturePage1Data,
 } from '@/services/credit-speciale/creditSpecialeFactureHelpers'
 import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
+import { generateCreditSpecialGuarantorCommissionHistoryPDF } from '@/services/credit-speciale/guarantorCommissionHistoryCreditSpecialPdfExport'
 import { generateCreditSpecialLossHistoryPDF } from '@/services/credit-speciale/lossHistoryCreditSpecialPdfExport'
 import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
 import {
@@ -322,10 +323,12 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
       color: '#ef4444',
       icon: AlertCircle
     },
-    ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
+    ...(totalLosses > 0 ? [{
       title: 'Manque à gagner',
       value: totalLosses.toLocaleString('fr-FR'),
-      subtitle: 'Manque à gagner en partie fixe',
+      subtitle: contract.creditType === 'FIXE'
+        ? 'Pertes après la durée contractuelle'
+        : 'Manque à gagner en partie fixe',
       color: '#dc2626',
       icon: TrendingUp
     }] : []),
@@ -429,7 +432,7 @@ export default function CreditContractDetail({
 }: CreditContractDetailProps) {
   const router = useRouter()
   const { user: _user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'payments' | 'history' | 'guarantor'>('payments')
+  const [activeTab, setActiveTab] = useState<'payments' | 'history' | 'losses' | 'guarantor'>('payments')
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
@@ -458,15 +461,11 @@ export default function CreditContractDetail({
   const [isGeneratingGlobalFacturePdf, setIsGeneratingGlobalFacturePdf] = useState(false)
   const [isGeneratingLossHistoryPdf, setIsGeneratingLossHistoryPdf] = useState(false)
   const [isExportingLossHistoryExcel, setIsExportingLossHistoryExcel] = useState(false)
+  const [isGeneratingGuarantorCommissionsPdf, setIsGeneratingGuarantorCommissionsPdf] = useState(false)
+  const [isExportingGuarantorCommissionsExcel, setIsExportingGuarantorCommissionsExcel] = useState(false)
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
   const switchToFixedPhase = useSwitchToFixedPhase()
 
-  useEffect(() => {
-    if (isSimpleCredit && activeTab === 'guarantor') {
-      setActiveTab('payments')
-    }
-  }, [isSimpleCredit, activeTab])
-  
   // États pour les modals
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
   
@@ -955,6 +954,19 @@ export default function CreditContractDetail({
     : totalAmountToRepay - totalPaidFromSchedule
 
   const lossHistoryRows = React.useMemo(() => {
+    if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
+      const monthlyRate = contract.interestRate / 100
+
+      return actualSchedule
+        .filter((row) => row.month > contract.duration && row.principal > 0)
+        .map((row) => ({
+          month: row.month,
+          date: row.date,
+          echeance: `M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
+          lossAmount: customRound(row.principal * monthlyRate),
+        }))
+    }
+
     if (contract.creditType !== 'SPECIALE') return []
 
     const monthlyRate = contract.interestRate / 100
@@ -968,12 +980,76 @@ export default function CreditContractDetail({
         echeance: `${cyclePrefix}M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
         lossAmount: customRound(row.capitalStart * monthlyRate),
       }))
-  }, [contract.creditType, contract.interestRate, currentCycle, specialHistory])
+  }, [actualSchedule, contract.creditType, contract.duration, contract.interestRate, currentCycle, specialHistory])
 
   const totalLosses = React.useMemo(
     () => customRound(lossHistoryRows.reduce((sum, row) => sum + row.lossAmount, 0)),
     [lossHistoryRows]
   )
+  const shouldShowLossesTab =
+    contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
+      ? lossHistoryRows.length > 0
+      : hasEnteredFixedPhase && lossHistoryRows.length > 0
+  const lossesTabDescription =
+    contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
+      ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
+      : 'Manque à gagner généré à partir du passage en partie fixe.'
+  const tabsGridClassName = isSimpleCredit
+    ? shouldShowLossesTab ? 'grid-cols-3' : 'grid-cols-2'
+    : shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
+  const guarantorCommissionRows = React.useMemo(() => {
+    if (
+      contract.creditType !== 'SPECIALE' ||
+      !contract.guarantorId ||
+      !contract.guarantorIsMember ||
+      (contract.guarantorRemunerationPercentage ?? 0) <= 0
+    ) {
+      return []
+    }
+
+    const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+    const cyclePrefix = currentCycle && currentCycle.cycleNumber > 1 ? 'Apres augmentation - ' : ''
+
+    return [...guarantorRemunerations]
+      .sort((a, b) => a.month - b.month)
+      .map((remuneration) => {
+        const remainingAtStartOfMonth = specialHistoryByMonth.get(remuneration.month)?.capitalStart ?? contract.amount
+        const commissionAmount = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
+
+        return {
+          id: remuneration.id,
+          month: remuneration.month,
+          monthLabel: `${cyclePrefix}M${remuneration.month}`,
+          remainingAtStartOfMonth,
+          commissionPercentage,
+          commissionAmount,
+        }
+      })
+  }, [
+    contract.amount,
+    contract.creditType,
+    contract.guarantorId,
+    contract.guarantorIsMember,
+    contract.guarantorRemunerationPercentage,
+    currentCycle,
+    guarantorRemunerations,
+    specialHistoryByMonth,
+  ])
+  const totalGuarantorCommissions = React.useMemo(
+    () => guarantorCommissionRows.reduce((sum, row) => sum + row.commissionAmount, 0),
+    [guarantorCommissionRows]
+  )
+
+  useEffect(() => {
+    if (isSimpleCredit && activeTab === 'guarantor') {
+      setActiveTab('payments')
+      return
+    }
+
+    if (!shouldShowLossesTab && activeTab === 'losses') {
+      setActiveTab('history')
+    }
+  }, [isSimpleCredit, activeTab, shouldShowLossesTab])
   
   // Debug: log pour comprendre le problème
   useEffect(() => {
@@ -1189,8 +1265,12 @@ export default function CreditContractDetail({
   }
 
   const handleOpenGlobalFacturePDF = async () => {
-    if (contract.creditType !== 'SPECIALE') {
-      toast.error('La facture globale PDF est disponible uniquement pour les contrats de crédit spéciale')
+    const canGenerateGlobalFacture =
+      contract.creditType === 'SPECIALE' ||
+      contract.creditType === 'FIXE' ||
+      contract.creditType === 'AIDE'
+    if (!canGenerateGlobalFacture) {
+      toast.error('La facture globale PDF est disponible pour les contrats de crédit spéciale, crédit fixe et caisse aide')
       return
     }
 
@@ -1244,6 +1324,12 @@ export default function CreditContractDetail({
 
       await generateGlobalFactureCreditSpecialPDF({
         page1Data,
+        page1MainTitle:
+          contract.creditType === 'FIXE'
+            ? 'HISTORIQUE VERSEMENT CREDIT FIXE'
+            : contract.creditType === 'AIDE'
+              ? 'HISTORIQUE VERSEMENT CAISSE AIDE'
+              : 'HISTORIQUE VERSEMENT CREDIT SPECIALE',
         factures,
         outputMode: 'open',
         filename: `facture_globale_${contract.id}.pdf`,
@@ -1315,6 +1401,7 @@ export default function CreditContractDetail({
           lossAmount: row.lossAmount,
         })),
         totalLosses,
+        descriptionText: lossesTabDescription,
         outputMode: 'open',
         filename: `historique_pertes_${contract.id}.pdf`,
         targetWindow: previewWindow,
@@ -1329,6 +1416,85 @@ export default function CreditContractDetail({
       toast.error('Erreur lors de la génération du PDF des pertes')
     } finally {
       setIsGeneratingLossHistoryPdf(false)
+    }
+  }
+
+  const handleExportGuarantorCommissionsExcel = async () => {
+    if (!guarantorCommissionRows.length) {
+      toast.error('Aucune commission du garant à exporter')
+      return
+    }
+
+    try {
+      setIsExportingGuarantorCommissionsExcel(true)
+      const XLSX = await import('xlsx')
+      const rows = [
+        ...guarantorCommissionRows.map((row) => ({
+          'Mois': row.monthLabel,
+          'Reste dû (FCFA)': row.remainingAtStartOfMonth,
+          'Pourcentage de commission': `${row.commissionPercentage}%`,
+          'Somme due (FCFA)': row.commissionAmount,
+        })),
+        {
+          'Mois': 'TOTAL DES COMMISSIONS',
+          'Reste dû (FCFA)': '',
+          'Pourcentage de commission': '',
+          'Somme due (FCFA)': totalGuarantorCommissions,
+        },
+      ]
+
+      const worksheet = XLSX.utils.json_to_sheet(rows)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Commissions garant')
+      XLSX.writeFile(
+        workbook,
+        `commissions_garant_${contract.id}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`
+      )
+      toast.success('Historique des commissions du garant exporté en Excel')
+    } catch (error) {
+      console.error('Erreur lors de l’export Excel des commissions du garant:', error)
+      toast.error('Erreur lors de l’export Excel des commissions du garant')
+    } finally {
+      setIsExportingGuarantorCommissionsExcel(false)
+    }
+  }
+
+  const handleOpenGuarantorCommissionsPdf = async () => {
+    if (!guarantorCommissionRows.length) {
+      toast.error('Aucune commission du garant à exporter')
+      return
+    }
+
+    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+
+    try {
+      setIsGeneratingGuarantorCommissionsPdf(true)
+      toast.info('Génération du PDF des commissions du garant en cours...')
+
+      await generateCreditSpecialGuarantorCommissionHistoryPDF({
+        contractId: contract.id,
+        page1Data: buildCreditSpecialFacturePage1Data(contract, member),
+        rows: guarantorCommissionRows.map((row) => ({
+          monthLabel: row.monthLabel,
+          remainingAmount: row.remainingAtStartOfMonth,
+          commissionPercentage: row.commissionPercentage,
+          commissionAmount: row.commissionAmount,
+        })),
+        totalCommissions: totalGuarantorCommissions,
+        outputMode: 'open',
+        filename: `commissions_garant_${contract.id}.pdf`,
+        targetWindow: previewWindow,
+      })
+
+      toast.success('Historique des commissions du garant PDF généré avec succès')
+    } catch (error) {
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.close()
+      }
+      console.error('Erreur lors de la génération du PDF des commissions du garant:', error)
+      toast.error('Erreur lors de la génération du PDF des commissions du garant')
+    } finally {
+      setIsGeneratingGuarantorCommissionsPdf(false)
     }
   }
 
@@ -1402,7 +1568,9 @@ export default function CreditContractDetail({
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
             {/* Bouton d'augmentation - un seul rajout autorisé, masqué si déjà fait ou DISCHARGED/CLOSED */}
-            {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && !contract.rajoutEffectue && (
+            {(contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
+              (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') &&
+              !contract.rajoutEffectue && (
               <Button
                 variant="outline"
                 onClick={() => setShowExtensionModal(true)}
@@ -1561,90 +1729,6 @@ export default function CreditContractDetail({
           />
         </div>
 
-        {hasEnteredFixedPhase && lossHistoryRows.length > 0 && (
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5" />
-                  Historique du manque à gagner
-                </CardTitle>
-                <p className="mt-1 text-sm text-gray-500">
-                  Manque à gagner généré à partir du passage en partie fixe.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                  onClick={handleExportLossHistoryExcel}
-                  disabled={isExportingLossHistoryExcel}
-                >
-                  {isExportingLossHistoryExcel ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Export...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="mr-2 h-4 w-4" />
-                      Export Excel
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                  onClick={handleOpenLossHistoryPdf}
-                  disabled={isGeneratingLossHistoryPdf}
-                >
-                  {isGeneratingLossHistoryPdf ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Génération...
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Voir le PDF
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Echéance</TableHead>
-                      <TableHead className="text-right">Pertes (FCFA)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lossHistoryRows.map((row) => (
-                      <TableRow key={`${row.month}-${row.date.toISOString()}`}>
-                        <TableCell className="font-medium">{row.echeance}</TableCell>
-                        <TableCell className="text-right text-red-700 font-semibold">
-                          {row.lossAmount.toLocaleString('fr-FR')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-slate-50">
-                      <TableCell className="font-semibold">Total du manque à gagner</TableCell>
-                      <TableCell className="text-right font-bold text-red-700">
-                        {totalLosses.toLocaleString('fr-FR')}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Informations principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Informations du contrat */}
@@ -1756,8 +1840,11 @@ export default function CreditContractDetail({
         {/* Onglets */}
         <Card className="border-0 shadow-xl">
           <CardContent className="p-0">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'history' | 'guarantor')} className="w-full">
-              <TabsList className={cn('grid w-full rounded-none border-b', isSimpleCredit ? 'grid-cols-2' : 'grid-cols-3')}>
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'history' | 'losses' | 'guarantor')} className="w-full">
+              <TabsList className={cn(
+                'grid w-full rounded-none border-b',
+                tabsGridClassName
+              )}>
                 <TabsTrigger value="payments" className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
                   Versements
@@ -1766,6 +1853,12 @@ export default function CreditContractDetail({
                   <History className="h-4 w-4" />
                   Historique
                 </TabsTrigger>
+                {shouldShowLossesTab && (
+                  <TabsTrigger value="losses" className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Manque à gagner
+                  </TabsTrigger>
+                )}
                 {!isSimpleCredit && (
                   <TabsTrigger value="guarantor" className="flex items-center gap-2">
                     <Shield className="h-4 w-4" />
@@ -2410,7 +2503,7 @@ export default function CreditContractDetail({
                         <History className="h-5 w-5" />
                         Versements enregistrés
                       </h3>
-                      {contract.creditType === 'SPECIALE' && payments.length > 0 && (
+                      {(contract.creditType === 'SPECIALE' || contract.creditType === 'FIXE' || contract.creditType === 'AIDE') && payments.length > 0 && (
                         <Button
                           type="button"
                           variant="outline"
@@ -2540,6 +2633,91 @@ export default function CreditContractDetail({
                 </div>
               </TabsContent>
 
+              {shouldShowLossesTab && (
+                <TabsContent value="losses" className="p-6 space-y-6 m-0">
+                  <div className="space-y-6">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5" />
+                          Historique du manque à gagner
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {lossesTabDescription}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={handleExportLossHistoryExcel}
+                          disabled={isExportingLossHistoryExcel}
+                        >
+                          {isExportingLossHistoryExcel ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Export...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="mr-2 h-4 w-4" />
+                              Export Excel
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={handleOpenLossHistoryPdf}
+                          disabled={isGeneratingLossHistoryPdf}
+                        >
+                          {isGeneratingLossHistoryPdf ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Génération...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Voir le PDF
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Echéance</TableHead>
+                            <TableHead className="text-right">Pertes (FCFA)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lossHistoryRows.map((row) => (
+                            <TableRow key={`${row.month}-${row.date.toISOString()}`}>
+                              <TableCell className="font-medium">{row.echeance}</TableCell>
+                              <TableCell className="text-right text-red-700 font-semibold">
+                                {row.lossAmount.toLocaleString('fr-FR')}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-slate-50">
+                            <TableCell className="font-semibold">Total du manque à gagner</TableCell>
+                            <TableCell className="text-right font-bold text-red-700">
+                              {totalLosses.toLocaleString('fr-FR')}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </TabsContent>
+              )}
+
               {/* Onglet Commission du garant */}
               {!isSimpleCredit && (
               <TabsContent value="guarantor" className="p-6 m-0">
@@ -2568,10 +2746,50 @@ export default function CreditContractDetail({
                       <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                         {guarantorRemunerationsErrorMessage}
                       </div>
-                    ) : guarantorRemunerations.length === 0 ? (
+                    ) : guarantorCommissionRows.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">Aucune commission enregistrée</div>
                     ) : (
                       <div className="space-y-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                            onClick={handleExportGuarantorCommissionsExcel}
+                            disabled={isExportingGuarantorCommissionsExcel}
+                          >
+                            {isExportingGuarantorCommissionsExcel ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Export...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="mr-2 h-4 w-4" />
+                                Export Excel
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                            onClick={handleOpenGuarantorCommissionsPdf}
+                            disabled={isGeneratingGuarantorCommissionsPdf}
+                          >
+                            {isGeneratingGuarantorCommissionsPdf ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Génération...
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Voir le PDF
+                              </>
+                            )}
+                          </Button>
+                        </div>
                         <div className="border rounded-lg overflow-hidden">
                           <Table>
                             <TableHeader>
@@ -2583,25 +2801,14 @@ export default function CreditContractDetail({
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {(() => {
-                                return [...guarantorRemunerations]
-                                  .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
-                                  .map((remuneration) => {
-                                    const historyMonth = specialHistoryByMonth.get(remuneration.month)
-                                    const remainingAtStartOfMonth = historyMonth?.capitalStart ?? contract.amount
-                                    const commissionPercentage = contract.guarantorRemunerationPercentage || 0
-                                    const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
-
-                                    return (
-                                      <TableRow key={remuneration.id}>
-                                        <TableCell className="font-medium">M{remuneration.month}</TableCell>
-                                        <TableCell>{remainingAtStartOfMonth.toLocaleString('fr-FR')} FCFA</TableCell>
-                                        <TableCell className="text-right">{commissionPercentage}%</TableCell>
-                                        <TableCell className="text-right font-semibold">{recalculatedRemuneration.toLocaleString('fr-FR')} FCFA</TableCell>
-                                      </TableRow>
-                                    )
-                                  })
-                              })()}
+                              {guarantorCommissionRows.map((row) => (
+                                <TableRow key={row.id}>
+                                  <TableCell className="font-medium">{row.monthLabel}</TableCell>
+                                  <TableCell>{row.remainingAtStartOfMonth.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  <TableCell className="text-right">{row.commissionPercentage}%</TableCell>
+                                  <TableCell className="text-right font-semibold">{row.commissionAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                </TableRow>
+                              ))}
                             </TableBody>
                           </Table>
                         </div>
@@ -2609,17 +2816,7 @@ export default function CreditContractDetail({
                           <div className="flex justify-between items-center">
                             <span className="font-semibold">Total des commissions :</span>
                             <span className="text-xl font-bold text-[#234D65]">
-                              {(() => {
-                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
-                                
-                                return guarantorRemunerations
-                                  .reduce((sum, r) => {
-                                    const remainingAtStartOfMonth = specialHistoryByMonth.get(r.month)?.capitalStart ?? contract.amount
-                                    const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
-                                    return sum + recalculatedRemuneration
-                                  }, 0)
-                                  .toLocaleString('fr-FR')
-                              })()} FCFA
+                              {totalGuarantorCommissions.toLocaleString('fr-FR')} FCFA
                             </span>
                           </div>
                         </div>
@@ -3152,7 +3349,6 @@ export default function CreditContractDetail({
               ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
           }
           schedule={selectedPaymentReceiptContext?.receiptSchedule ?? actualSchedule}
-          payments={payments}
           pdfTitleText={
             selectedPaymentReceiptContext
               ? (selectedPaymentReceiptContext.cycleNumber > 1

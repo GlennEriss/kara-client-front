@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dialog'
 import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
 import { useAdmin } from '@/hooks/useAdmins'
-import { useCreditDemand } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
@@ -27,7 +26,6 @@ import {
   buildCreditSpecialFactureData,
   buildCreditSpecialFacturePage1Data,
 } from '@/services/credit-speciale/creditSpecialeFactureHelpers'
-import { buildResumeCreditFixePdfData, generateResumeCreditFixePDF } from '@/services/credit-speciale/resumeCreditFixePdfExport'
 import type { DueItemLike } from '@/services/credit-speciale/creditSpecialeVersementPdfExport'
 import { getCreditPaymentCycleNumber, getCreditPaymentMonthNumber } from '@/utils/credit-speciale-history'
 import {
@@ -59,12 +57,8 @@ interface PaymentReceiptModalProps {
   onEditClick?: () => void
   /** Échéancier (pour récap page 2 du PDF) */
   schedule?: DueItemLike[]
-  /** Tous les versements du contrat (pour récap page 2 du PDF) */
-  payments?: CreditPayment[]
   /** Date d'échéance de l'échéance concernée (pour le titre du bloc PDF) */
   dueDate?: Date | null
-  /** Résolution du nom d'admin pour l'export PDF (optionnel) */
-  getAdminDisplayName?: (adminId: string) => string
   /** Titre personnalisé pour le PDF de versement. */
   pdfTitleText?: string
 }
@@ -90,16 +84,11 @@ export default function PaymentReceiptModal({
   installmentNumber,
   onEditClick,
   schedule,
-  payments: paymentsList = [],
   dueDate,
-  getAdminDisplayName: getAdminDisplayNameProp,
   pdfTitleText,
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
-
-  // Pour le PDF « Résumé partie fixe » : motif de la demande (cause) depuis la demande crédit fixe
-  const { data: demand } = useCreditDemand(contract.demandId ?? '')
 
   // Récupérer le membre (collection users) pour le PDF : LIEU/NAISSANCE, D.NAISS, NATIONALITE, N°CNI, SEXE, AGE, QUARTIER, PROFESSION
   const { data: member } = useMember(contract.clientId)
@@ -107,14 +96,6 @@ export default function PaymentReceiptModal({
   const { data: agent } = useAdmin(payment.updatedBy || '')
   // Récupérer l'agent de recouvrement (collecteur du versement) pour l'affichage dans le reçu
   const { data: agentRecouvrement } = useAgentRecouvrement(payment.agentRecouvrementId ?? undefined)
-
-  const getAdminDisplayName = getAdminDisplayNameProp ?? ((adminId: string) => {
-    if (!adminId) return '-'
-    if (adminId === (payment.updatedBy || '') && agent) {
-      return `${agent.firstName} ${agent.lastName}`.trim() || adminId
-    }
-    return adminId
-  })
 
   // Logs de débogage
   React.useEffect(() => {
@@ -165,34 +146,24 @@ export default function PaymentReceiptModal({
     }
     return undefined
   }, [contract, dueDate, payment, pdfTitleText])
+  const resolvedPage1MainTitle = contract.creditType === 'FIXE'
+    ? 'HISTORIQUE VERSEMENT CREDIT FIXE'
+    : contract.creditType === 'AIDE'
+      ? 'HISTORIQUE VERSEMENT CAISSE AIDE'
+      : 'HISTORIQUE VERSEMENT CREDIT SPECIALE'
 
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
-      if (contract.creditType === 'FIXE') {
-        const scheduleForPdf = (schedule ?? []).map((item) => ({
-          month: item.month,
-          date: item.date instanceof Date ? item.date : new Date(item.date),
-          payment: item.payment,
-          remaining: (item as { remaining?: number }).remaining ?? 0,
-          paidAmount: item.paidAmount,
-          paymentDate: item.paymentDate,
-          paymentTime: (item as { paymentTime?: string }).paymentTime,
-        }))
-        const data = buildResumeCreditFixePdfData({
-          contract,
-          schedule: scheduleForPdf,
-          payments: paymentsList,
-          getAdminDisplayName,
-          demandMotif: demand?.cause,
-        })
-        await generateResumeCreditFixePDF(data)
-      } else {
-        const factureData = buildFactureData()
-        const page1Data = buildPage1Data()
-        await generateFactureCreditSpecialPDF({ factureData, page1Data, titleText: resolvedPdfTitleText })
-      }
+      const factureData = buildFactureData()
+      const page1Data = buildPage1Data()
+      await generateFactureCreditSpecialPDF({
+        factureData,
+        page1Data,
+        page1MainTitle: resolvedPage1MainTitle,
+        titleText: resolvedPdfTitleText,
+      })
       toast.success('PDF généré avec succès')
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error)
