@@ -568,6 +568,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 amount,
                 interestRate,
                 firstPaymentDate,
+                targetMonths: 14,
             });
 
             return {
