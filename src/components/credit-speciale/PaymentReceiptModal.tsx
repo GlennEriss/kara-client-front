@@ -148,7 +148,9 @@ export default function PaymentReceiptModal({
   }, [contract, dueDate, payment, pdfTitleText])
   const resolvedPage1MainTitle = contract.creditType === 'FIXE'
     ? 'HISTORIQUE VERSEMENT CREDIT FIXE'
-    : 'HISTORIQUE VERSEMENT CREDIT SPECIALE'
+    : contract.creditType === 'AIDE'
+      ? 'HISTORIQUE VERSEMENT CAISSE AIDE'
+      : 'HISTORIQUE VERSEMENT CREDIT SPECIALE'
 
   const handleDownloadPDF = async () => {
     try {

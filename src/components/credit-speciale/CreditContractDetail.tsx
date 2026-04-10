@@ -954,7 +954,7 @@ export default function CreditContractDetail({
     : totalAmountToRepay - totalPaidFromSchedule
 
   const lossHistoryRows = React.useMemo(() => {
-    if (contract.creditType === 'FIXE') {
+    if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
       const monthlyRate = contract.interestRate / 100
 
       return actualSchedule
@@ -987,11 +987,11 @@ export default function CreditContractDetail({
     [lossHistoryRows]
   )
   const shouldShowLossesTab =
-    contract.creditType === 'FIXE'
+    contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
       ? lossHistoryRows.length > 0
       : hasEnteredFixedPhase && lossHistoryRows.length > 0
   const lossesTabDescription =
-    contract.creditType === 'FIXE'
+    contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
       ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
       : 'Manque à gagner généré à partir du passage en partie fixe.'
   const tabsGridClassName = isSimpleCredit
@@ -1265,9 +1265,12 @@ export default function CreditContractDetail({
   }
 
   const handleOpenGlobalFacturePDF = async () => {
-    const canGenerateGlobalFacture = contract.creditType === 'SPECIALE' || contract.creditType === 'FIXE'
+    const canGenerateGlobalFacture =
+      contract.creditType === 'SPECIALE' ||
+      contract.creditType === 'FIXE' ||
+      contract.creditType === 'AIDE'
     if (!canGenerateGlobalFacture) {
-      toast.error('La facture globale PDF est disponible pour les contrats de crédit spéciale et crédit fixe')
+      toast.error('La facture globale PDF est disponible pour les contrats de crédit spéciale, crédit fixe et caisse aide')
       return
     }
 
@@ -1324,7 +1327,9 @@ export default function CreditContractDetail({
         page1MainTitle:
           contract.creditType === 'FIXE'
             ? 'HISTORIQUE VERSEMENT CREDIT FIXE'
-            : 'HISTORIQUE VERSEMENT CREDIT SPECIALE',
+            : contract.creditType === 'AIDE'
+              ? 'HISTORIQUE VERSEMENT CAISSE AIDE'
+              : 'HISTORIQUE VERSEMENT CREDIT SPECIALE',
         factures,
         outputMode: 'open',
         filename: `facture_globale_${contract.id}.pdf`,
@@ -1563,7 +1568,9 @@ export default function CreditContractDetail({
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
             {/* Bouton d'augmentation - un seul rajout autorisé, masqué si déjà fait ou DISCHARGED/CLOSED */}
-            {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && !contract.rajoutEffectue && (
+            {(contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
+              (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') &&
+              !contract.rajoutEffectue && (
               <Button
                 variant="outline"
                 onClick={() => setShowExtensionModal(true)}
@@ -2496,7 +2503,7 @@ export default function CreditContractDetail({
                         <History className="h-5 w-5" />
                         Versements enregistrés
                       </h3>
-                      {(contract.creditType === 'SPECIALE' || contract.creditType === 'FIXE') && payments.length > 0 && (
+                      {(contract.creditType === 'SPECIALE' || contract.creditType === 'FIXE' || contract.creditType === 'AIDE') && payments.length > 0 && (
                         <Button
                           type="button"
                           variant="outline"
