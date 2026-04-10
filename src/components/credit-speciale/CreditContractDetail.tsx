@@ -1321,6 +1321,10 @@ export default function CreditContractDetail({
 
       await generateGlobalFactureCreditSpecialPDF({
         page1Data,
+        page1MainTitle:
+          contract.creditType === 'FIXE'
+            ? 'HISTORIQUE VERSEMENT CREDIT FIXE'
+            : 'HISTORIQUE VERSEMENT CREDIT SPECIALE',
         factures,
         outputMode: 'open',
         filename: `facture_globale_${contract.id}.pdf`,
@@ -3338,7 +3342,6 @@ export default function CreditContractDetail({
               ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
           }
           schedule={selectedPaymentReceiptContext?.receiptSchedule ?? actualSchedule}
-          payments={payments}
           pdfTitleText={
             selectedPaymentReceiptContext
               ? (selectedPaymentReceiptContext.cycleNumber > 1
