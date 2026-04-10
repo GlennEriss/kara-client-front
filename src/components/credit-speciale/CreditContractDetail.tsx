@@ -1265,8 +1265,9 @@ export default function CreditContractDetail({
   }
 
   const handleOpenGlobalFacturePDF = async () => {
-    if (contract.creditType !== 'SPECIALE') {
-      toast.error('La facture globale PDF est disponible uniquement pour les contrats de crédit spéciale')
+    const canGenerateGlobalFacture = contract.creditType === 'SPECIALE' || contract.creditType === 'FIXE'
+    if (!canGenerateGlobalFacture) {
+      toast.error('La facture globale PDF est disponible pour les contrats de crédit spéciale et crédit fixe')
       return
     }
 
@@ -2491,7 +2492,7 @@ export default function CreditContractDetail({
                         <History className="h-5 w-5" />
                         Versements enregistrés
                       </h3>
-                      {contract.creditType === 'SPECIALE' && payments.length > 0 && (
+                      {(contract.creditType === 'SPECIALE' || contract.creditType === 'FIXE') && payments.length > 0 && (
                         <Button
                           type="button"
                           variant="outline"
