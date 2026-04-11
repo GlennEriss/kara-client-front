@@ -2,6 +2,7 @@
 
 import CreditContractDetail from '@/components/credit-speciale/CreditContractDetail'
 import { Button } from '@/components/ui/button'
+import routes from '@/constantes/routes'
 import { useCreditContract } from '@/hooks/useCreditSpeciale'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
@@ -47,7 +48,26 @@ export default function CreditContractDetailPage() {
             <span className="font-medium">Téléverser contrat signé</span>.
           </p>
           <Button
-            onClick={() => router.push('/credit-speciale/contrats')}
+            onClick={() => router.push(routes.admin.creditSpecialeContrats)}
+            className="mt-5 bg-[#234D65] hover:bg-[#1b3b4d]"
+          >
+            Retourner à la liste des contrats
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (contract.creditType !== 'SPECIALE') {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="max-w-lg rounded-2xl border border-red-200 bg-red-50 p-6 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-[#234D65]">Type de contrat invalide</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-700">
+            Cette page est réservée aux contrats de crédit spéciale.
+          </p>
+          <Button
+            onClick={() => router.push(routes.admin.creditSpecialeContrats)}
             className="mt-5 bg-[#234D65] hover:bg-[#1b3b4d]"
           >
             Retourner à la liste des contrats

@@ -31,10 +31,9 @@ export default function ContratsPage() {
 
         {/* Composant principal avec Suspense */}
         <Suspense fallback={<ListContratsSkeleton />}>
-          <ListContrats />
+          <ListContrats forcedCreditType="SPECIALE" />
         </Suspense>
       </div>
     </div>
   )
 }
-

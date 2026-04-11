@@ -955,7 +955,7 @@ export default function CreditContractDetail({
 
   const lossHistoryRows = React.useMemo(() => {
     if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
-      const monthlyRate = contract.interestRate / 100
+      const FIXED_LOSS_RATE = 0.1
 
       return actualSchedule
         .filter((row) => row.month > contract.duration && row.principal > 0)
@@ -963,7 +963,7 @@ export default function CreditContractDetail({
           month: row.month,
           date: row.date,
           echeance: `M${row.month} - ${format(row.date, 'dd/MM/yyyy')}`,
-          lossAmount: customRound(row.principal * monthlyRate),
+          lossAmount: customRound(row.principal * FIXED_LOSS_RATE),
         }))
     }
 
