@@ -75,6 +75,47 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return payments.filter((existingPayment) => getCreditPaymentCycleNumber(contract, existingPayment) === cycleNumber);
     }
 
+    private normalizeOptionalString(value?: string | null): string | undefined {
+        if (typeof value !== 'string') {
+            return undefined;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+    }
+
+    private updateCurrentCycleDocuments(
+        contract: CreditContract,
+        docs: {
+            contractUrl?: string;
+            signedContractUrl?: string;
+            signedContractPath?: string;
+            signedContractDocumentId?: string;
+        }
+    ) {
+        if (!contract.creditCycles || contract.creditCycles.length === 0) {
+            return undefined;
+        }
+
+        const cycles = getCreditContractCycles(contract);
+        const currentCycleNumber = cycles.at(-1)?.cycleNumber;
+        if (!currentCycleNumber) {
+            return undefined;
+        }
+
+        return cycles.map((cycle) =>
+            cycle.cycleNumber === currentCycleNumber
+                ? {
+                    ...cycle,
+                    contractUrl: docs.contractUrl ?? cycle.contractUrl,
+                    signedContractUrl: docs.signedContractUrl ?? cycle.signedContractUrl,
+                    signedContractPath: docs.signedContractPath ?? cycle.signedContractPath,
+                    signedContractDocumentId: docs.signedContractDocumentId ?? cycle.signedContractDocumentId,
+                }
+                : cycle
+        );
+    }
+
     constructor(
         private creditDemandRepository: ICreditDemandRepository,
         private creditContractRepository: ICreditContractRepository,
@@ -2349,8 +2390,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // Mettre à jour le contrat avec l'URL du document
         if (url) {
+            const updatedCycles = this.updateCurrentCycleDocuments(contract, { contractUrl: url });
             await this.creditContractRepository.updateContract(contractId, {
                 contractUrl: url,
+                creditCycles: updatedCycles,
                 updatedBy: contract.createdBy,
             });
         }
@@ -2389,11 +2432,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         });
 
+        const updatedCycles = this.updateCurrentCycleDocuments(contract, {
+            signedContractUrl: url,
+            signedContractPath: path,
+            signedContractDocumentId: document.id,
+        });
+
         // Mettre à jour le contrat avec l'URL, le chemin et l'ID document du contrat signé, et activer le contrat
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             signedContractUrl: url,
             signedContractPath: path,
             signedContractDocumentId: document.id,
+            creditCycles: updatedCycles,
             status: 'ACTIVE',
             activatedAt: new Date(),
             fundsReleasedAt: new Date(),
@@ -2479,11 +2529,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         });
 
+        const updatedCycles = this.updateCurrentCycleDocuments(contract, {
+            signedContractUrl: url,
+            signedContractPath: path,
+            signedContractDocumentId: doc.id,
+        });
+
         // 4) Mettre à jour le contrat (sans changer le statut)
         const updatedContract = await this.creditContractRepository.updateContract(contractId, {
             signedContractUrl: url,
             signedContractPath: path,
             signedContractDocumentId: doc.id,
+            creditCycles: updatedCycles,
             updatedBy: adminId,
             updatedAt: new Date(),
         });
@@ -3003,12 +3060,20 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const existingCycles = getCreditContractCycles(contract);
         const currentCycleNumber = existingCycles[existingCycles.length - 1]?.cycleNumber ?? 1;
+        const currentCycleContractUrl = this.normalizeOptionalString(contract.contractUrl);
+        const currentCycleSignedContractUrl = this.normalizeOptionalString(contract.signedContractUrl);
+        const currentCycleSignedContractPath = this.normalizeOptionalString(contract.signedContractPath);
+        const currentCycleSignedContractDocumentId = this.normalizeOptionalString(contract.signedContractDocumentId);
         const creditCycles = [
             ...existingCycles.map((cycle) =>
                 cycle.cycleNumber === currentCycleNumber
                     ? {
                         ...cycle,
                         restMonths: cycle.restMonths ?? contract.restMonths ?? [],
+                        contractUrl: currentCycleContractUrl ?? cycle.contractUrl,
+                        signedContractUrl: currentCycleSignedContractUrl ?? cycle.signedContractUrl,
+                        signedContractPath: currentCycleSignedContractPath ?? cycle.signedContractPath,
+                        signedContractDocumentId: currentCycleSignedContractDocumentId ?? cycle.signedContractDocumentId,
                     }
                     : cycle
             ),
@@ -3045,6 +3110,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             nextDueAt: simulationData.firstPaymentDate,
             amountPaid: 0,
             amountRemaining,
+            // Nouveau cycle => nouveau lot documentaire obligatoire (PDF contrat + contrat signé).
+            contractUrl: '',
+            signedContractUrl: '',
+            signedContractPath: '',
+            signedContractDocumentId: '',
             fixedTransitionMode: undefined,
             fixedTransitionAt: undefined,
             fixedTransitionBy: undefined,

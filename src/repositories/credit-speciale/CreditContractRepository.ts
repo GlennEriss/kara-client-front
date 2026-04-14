@@ -47,6 +47,10 @@ const mapCreditCycles = (cyclesRaw: any[] | undefined) =>
         fixedTransitionBy: cycle.fixedTransitionBy,
         fixedTransitionReason: cycle.fixedTransitionReason,
         fixedTransitionStartMonth: cycle.fixedTransitionStartMonth,
+        contractUrl: cycle.contractUrl,
+        signedContractUrl: cycle.signedContractUrl,
+        signedContractPath: cycle.signedContractPath,
+        signedContractDocumentId: cycle.signedContractDocumentId,
     }));
 
 const sanitizeFirestoreData = (value: any): any => {
