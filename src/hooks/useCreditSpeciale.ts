@@ -864,7 +864,7 @@ export function useExtendContract() {
                 qc.invalidateQueries({ queryKey: ['creditExtensionEligibility', id] }),
                 qc.invalidateQueries({ queryKey: ['creditExtensionAmounts', id] }),
             ])
-            toast.success('Rajout de crédit enregistré avec succès')
+            toast.success('Rajout de crédit enregistré. Téléchargez puis téléversez le nouveau contrat signé.')
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors du rajout de crédit')

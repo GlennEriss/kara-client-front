@@ -43,7 +43,10 @@ export default function CreditContractDetailPage() {
           <h1 className="text-xl font-semibold text-[#234D65]">Accès bloqué</h1>
           <p className="mt-3 text-sm leading-6 text-slate-700">
             Ce contrat reste inaccessible tant que le contrat signé n’a pas été téléversé.
-            Retournez dans la liste des contrats pour utiliser le bouton
+            Retournez dans la liste des contrats pour
+            {' '}
+            <span className="font-medium">Télécharger contrat</span>,
+            puis utiliser le bouton
             {' '}
             <span className="font-medium">Téléverser contrat signé</span>.
           </p>

@@ -1562,6 +1562,14 @@ export interface CreditContractCycle {
   fixedTransitionBy?: string
   fixedTransitionReason?: string
   fixedTransitionStartMonth?: number
+  /** PDF contrat généré pour ce cycle. */
+  contractUrl?: string
+  /** PDF contrat signé téléversé pour ce cycle. */
+  signedContractUrl?: string
+  /** Chemin Storage du contrat signé (pour remplacement/nettoyage). */
+  signedContractPath?: string
+  /** ID document lié au contrat signé de ce cycle. */
+  signedContractDocumentId?: string
 }
 
 /**
