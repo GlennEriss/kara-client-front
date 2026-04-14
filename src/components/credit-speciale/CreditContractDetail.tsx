@@ -425,6 +425,11 @@ const getStatusConfig = (status: CreditContractStatus) => {
   return configs[status] || configs.DRAFT
 }
 
+const canUploadSignedContract = (contract: CreditContract): boolean => {
+  const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
+  return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
+}
+
 export default function CreditContractDetail({
   contract,
   listPath = routes.admin.creditSpecialeContrats,
@@ -558,6 +563,7 @@ export default function CreditContractDetail({
   }, [contract.id, payments.length, isLoadingPayments, queryClient])
 
   const statusConfig = getStatusConfig(contract.status)
+  const isUploadActivationFlow = contract.status === 'PENDING'
   const progressPercentage = contract.totalAmount > 0 
     ? (contract.amountPaid / contract.totalAmount) * 100 
     : 0
@@ -613,6 +619,37 @@ export default function CreditContractDetail({
     reason: currentCycle?.fixedTransitionReason ?? contract.fixedTransitionReason,
     startMonth: currentCycle?.fixedTransitionStartMonth ?? contract.fixedTransitionStartMonth,
   }), [currentCycle, contract.fixedTransitionAt, contract.fixedTransitionBy, contract.fixedTransitionMode, contract.fixedTransitionReason, contract.fixedTransitionStartMonth])
+  const contractDocumentsByCycle = React.useMemo(() => {
+    const cycles = getCreditContractCycles(contract)
+    const hasAugmentation = cycles.length > 1
+    const currentCycleNumber = cycles.at(-1)?.cycleNumber ?? 1
+
+    return [...cycles]
+      .sort((left, right) => right.cycleNumber - left.cycleNumber)
+      .map((cycle) => {
+        const isCurrentCycle = cycle.cycleNumber === currentCycleNumber
+        const contractUrl = isCurrentCycle
+          ? (contract.contractUrl || cycle.contractUrl || '')
+          : (cycle.contractUrl || '')
+        const signedContractUrl = isCurrentCycle
+          ? (contract.signedContractUrl || cycle.signedContractUrl || '')
+          : (cycle.signedContractUrl || '')
+
+        const title = cycle.cycleNumber === 1
+          ? (hasAugmentation ? 'Cycle 1 - Contrat initial (avant augmentation)' : 'Cycle 1 - Contrat initial')
+          : `Cycle ${cycle.cycleNumber} - Contrat après augmentation`
+
+        return {
+          cycleNumber: cycle.cycleNumber,
+          startedAt: cycle.startedAt,
+          title,
+          isCurrentCycle,
+          contractUrl,
+          signedContractUrl,
+        }
+      })
+  }, [contract])
+  const currentCycleDocuments = contractDocumentsByCycle.find((entry) => entry.isCurrentCycle)
   const hasEnteredFixedPhase =
     contract.creditType === 'SPECIALE' &&
     specialHistory.some(
@@ -3076,8 +3113,8 @@ export default function CreditContractDetail({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {/* Actions pour uploader contrat signé (PENDING sans contrat signé) */}
-              {contract.status === 'PENDING' && !contract.signedContractUrl && (
+              {/* Actions pour uploader le contrat signé (activation initiale ou après augmentation) */}
+              {canUploadSignedContract(contract) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <Button
                     variant="outline"
@@ -3086,31 +3123,31 @@ export default function CreditContractDetail({
                     disabled={uploadSignedContract.isPending}
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    Uploader contrat signé
+                    {isUploadActivationFlow ? 'Uploader contrat signé' : 'Uploader nouveau contrat signé'}
                   </Button>
                 </div>
               )}
 
-              {/* Documents existants */}
+              {/* Actions du cycle en cours */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                   <Button
                     variant="outline"
                     className="justify-start"
-                    onClick={contract.contractUrl
-                      ? () => window.open(contract.contractUrl, '_blank')
+                    onClick={(currentCycleDocuments?.contractUrl || contract.contractUrl)
+                      ? () => window.open(currentCycleDocuments?.contractUrl || contract.contractUrl || '', '_blank')
                       : () => setShowContractPDFModal(true)}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Télécharger contrat
                   </Button>
                 )}
-                {contract.signedContractUrl && (
+                {(currentCycleDocuments?.signedContractUrl || contract.signedContractUrl) && (
                   <div className="flex flex-col gap-2">
                     <Button
                       variant="outline"
                       className="justify-start"
-                      onClick={() => window.open(contract.signedContractUrl, '_blank')}
+                      onClick={() => window.open(currentCycleDocuments?.signedContractUrl || contract.signedContractUrl || '', '_blank')}
                     >
                       <FileSignature className="h-4 w-4 mr-2" />
                       Voir contrat
@@ -3129,6 +3166,76 @@ export default function CreditContractDetail({
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Historique des contrats par cycle (avant/après augmentation) */}
+              {contractDocumentsByCycle.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-800">Contrats par cycle</p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Visualisez clairement le contrat initial (avant augmentation) et le contrat du cycle augmenté.
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {contractDocumentsByCycle.map((cycleDocument) => {
+                      const canGenerateCurrentCycleContract =
+                        cycleDocument.isCurrentCycle && !['DISCHARGED', 'CLOSED'].includes(contract.status)
+                      const canOpenCycleContract = Boolean(cycleDocument.contractUrl) || canGenerateCurrentCycleContract
+
+                      return (
+                        <div key={cycleDocument.cycleNumber} className="rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{cycleDocument.title}</p>
+                              <p className="text-xs text-slate-500">
+                                Démarré le {format(new Date(cycleDocument.startedAt), 'dd/MM/yyyy', { locale: fr })}
+                              </p>
+                            </div>
+                            {cycleDocument.isCurrentCycle && (
+                              <Badge className="w-fit bg-blue-100 text-blue-700 border border-blue-200">
+                                Cycle en cours
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={
+                                cycleDocument.contractUrl
+                                  ? () => window.open(cycleDocument.contractUrl, '_blank')
+                                  : () => setShowContractPDFModal(true)
+                              }
+                              disabled={!canOpenCycleContract}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              {cycleDocument.contractUrl ? 'Voir contrat généré' : 'Télécharger contrat'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(cycleDocument.signedContractUrl, '_blank')}
+                              disabled={!cycleDocument.signedContractUrl}
+                            >
+                              <FileSignature className="h-4 w-4 mr-2" />
+                              Voir contrat signé
+                            </Button>
+                          </div>
+
+                          {!cycleDocument.signedContractUrl && (
+                            <p className="mt-2 text-xs text-amber-700">
+                              Aucun contrat signé téléversé pour ce cycle.
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Documents de clôture */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {contract.signedQuittanceUrl && (
                   <Button
                     variant="outline"
@@ -3402,7 +3509,9 @@ export default function CreditContractDetail({
               Uploader le contrat signé
             </DialogTitle>
             <DialogDescription>
-              Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l'upload.
+              {isUploadActivationFlow
+                ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
+                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -3432,7 +3541,7 @@ export default function CreditContractDetail({
               )}
             </div>
 
-            {contract.status === 'PENDING' && (
+            {isUploadActivationFlow && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <strong>Note :</strong> Après l'upload, le contrat sera automatiquement activé et les fonds seront considérés comme remis au client.
@@ -3466,7 +3575,11 @@ export default function CreditContractDetail({
                   })
                   setShowUploadContractModal(false)
                   setContractFile(undefined)
-                  toast.success('Contrat signé uploadé et contrat activé avec succès')
+                  toast.success(
+                    isUploadActivationFlow
+                      ? 'Contrat signé uploadé et contrat activé avec succès'
+                      : 'Nouveau contrat signé téléversé avec succès'
+                  )
                 } catch (error: any) {
                   toast.error(error?.message || 'Erreur lors de l\'upload du contrat signé')
                 }
@@ -3482,7 +3595,7 @@ export default function CreditContractDetail({
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Uploader et activer
+                  {isUploadActivationFlow ? 'Uploader et activer' : 'Uploader le contrat signé'}
                 </>
               )}
             </Button>

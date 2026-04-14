@@ -72,6 +72,12 @@ function canOpenContractDetail(contract: CreditContract): boolean {
   return Boolean(contract.signedContractUrl)
 }
 
+/** Autoriser le téléversement du contrat signé pour l'activation initiale ou après augmentation */
+function canUploadSignedContract(contract: CreditContract): boolean {
+  const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
+  return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
+}
+
 const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
   const { data: unpaidPenalties = [], isLoading } = useUnpaidCreditPenaltiesByCreditId(creditId)
 
@@ -342,6 +348,7 @@ const ListContrats = ({
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<CreditContract | null>(null)
   const [showDeleteContractModal, setShowDeleteContractModal] = useState(false)
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<CreditContract | null>(null)
+  const isUploadActivationFlow = selectedContractForUpload?.status === 'PENDING'
 
   // Reset page when filters or tab change
   React.useEffect(() => {
@@ -949,14 +956,14 @@ const ListContrats = ({
                         Télécharger contrat
                       </Button>
                     )}
-                    {contract.status === 'PENDING' && !contract.signedContractUrl && (
+                    {canUploadSignedContract(contract) && (
                       <Button
                         variant="outline"
                         onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
                       >
                         <Upload className="h-4 w-4" />
-                        Téléverser contrat signé
+                        {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
                       </Button>
                     )}
                     {contract.signedContractUrl && (
@@ -1089,10 +1096,10 @@ const ListContrats = ({
                                   Voir contrat
                                 </DropdownMenuItem>
                               )}
-                              {contract.status === 'PENDING' && !contract.signedContractUrl && (
+                              {canUploadSignedContract(contract) && (
                                 <DropdownMenuItem onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }} className="cursor-pointer">
                                   <Upload className="h-4 w-4 mr-2" />
-                                  Téléverser contrat signé
+                                  {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
                                 </DropdownMenuItem>
                               )}
                               {canReplaceSignedContract(contract) && (
@@ -1202,7 +1209,9 @@ const ListContrats = ({
               Téléverser le contrat signé
             </DialogTitle>
             <DialogDescription>
-              Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l'upload.
+              {isUploadActivationFlow
+                ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
+                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -1240,7 +1249,7 @@ const ListContrats = ({
               )}
             </div>
 
-            {selectedContractForUpload?.status === 'PENDING' && (
+            {isUploadActivationFlow && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <strong>Note :</strong> Après l'upload, le contrat sera automatiquement activé et les fonds seront considérés comme remis au client.
@@ -1276,7 +1285,11 @@ const ListContrats = ({
                   setShowUploadModal(false)
                   setContractFile(undefined)
                   setSelectedContractForUpload(null)
-                  toast.success('Contrat signé uploadé et contrat activé avec succès')
+                  toast.success(
+                    isUploadActivationFlow
+                      ? 'Contrat signé uploadé et contrat activé avec succès'
+                      : 'Nouveau contrat signé téléversé avec succès'
+                  )
                 } catch (error: any) {
                   toast.error(error?.message || 'Erreur lors de l\'upload du contrat signé')
                 }
@@ -1292,7 +1305,7 @@ const ListContrats = ({
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Uploader et activer
+                  {isUploadActivationFlow ? 'Uploader et activer' : 'Uploader le contrat signé'}
                 </>
               )}
             </Button>
