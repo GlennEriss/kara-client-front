@@ -138,6 +138,13 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     marginBottom: 8,
   },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 16,
+    right: 24,
+    fontSize: 10,
+    color: '#4B5563',
+  },
 })
 
 type TableCellConfig = {
@@ -303,6 +310,11 @@ export default function PlacementContractPDF({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Image src={logoUrl} style={styles.logo} />
         <View style={styles.table}>
           <TableRow
@@ -433,6 +445,11 @@ export default function PlacementContractPDF({
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.heading}>BIENFAITEUR</Text>
 
         <Text style={styles.paragraph}>
@@ -474,6 +491,11 @@ export default function PlacementContractPDF({
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.headingSecondary}>Les Clauses</Text>
 
         <View style={styles.bulletRow}>
@@ -528,6 +550,11 @@ export default function PlacementContractPDF({
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.headingSecondary}>FICHE D’ADHÉSION – VOLET BIENFAITEUR</Text>
 
         <Text style={styles.paragraph}>Je soussigné (e) : {memberFullName}</Text>
@@ -558,6 +585,11 @@ export default function PlacementContractPDF({
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.articleTitle}>Article 4 – Restitution du nominal</Text>
         <Text style={styles.paragraph}>
           L’Association LE KARA s’engage à restituer, à l’échéance de l’engagement, le nominal correspondant aux sommes versées,
