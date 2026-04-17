@@ -8,7 +8,10 @@ import type {
   DashboardSnapshot,
   ExecutiveActiveMembersPage,
 } from '../entities/dashboard.types'
-import { buildDashboardQueryKey } from '../services/DashboardAggregationService'
+
+function buildDashboardQueryKey(activeTab: DashboardTabKey, filters: DashboardFilters) {
+  return ['dashboard', activeTab, filters] as const
+}
 
 async function fetchDashboardSnapshot(activeTab: DashboardTabKey, filters: DashboardFilters): Promise<DashboardSnapshot> {
   const response = await fetch('/api/dashboard/snapshot', {
