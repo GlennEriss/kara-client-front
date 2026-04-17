@@ -427,16 +427,6 @@ export class PlacementService {
       // Format: MK_BF_matriculeMembre_ddMMyy_HHmm (ex: MK_BF_0001_111225_1705)
       customDocumentId = `MK_BF_${matricule}_${day}${month}${year}_${hours}${minutes}`
       
-      // Log pour débogage
-      console.log('🔍 Génération ID contrat placement:', {
-        benefactorId,
-        memberMatricule: member.matricule,
-        memberId: member.id,
-        matriculeFormate: matricule,
-        customDocumentId,
-        date: `${day}${month}${year}`,
-        heure: `${hours}${minutes}`
-      })
     }
     
     // 3. Créer l'enregistrement du document dans Firestore
@@ -1499,4 +1489,3 @@ export class PlacementService {
     } : null;
   }
 }
-
