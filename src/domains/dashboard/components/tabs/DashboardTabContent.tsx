@@ -14,13 +14,14 @@ import {
     XAxis,
     YAxis,
 } from 'recharts'
-import type { DashboardTabPayload } from '../../entities/dashboard.types'
+import type { DashboardDistributionBlock, DashboardTabPayload } from '../../entities/dashboard.types'
 
 interface DashboardTabContentProps {
   payload: DashboardTabPayload
 }
 
 const CHART_COLORS = ['#234D65', '#CBB171', '#2E7D32', '#D97706', '#D32F2F', '#5E35B1', '#0288D1']
+const EXECUTIVE_TITLE = 'executive'
 
 function formatMetric(value: number, format: DashboardTabPayload['kpis'][number]['format']): string {
   if (format === 'currency') {
@@ -42,7 +43,64 @@ function getToneClass(tone: DashboardTabPayload['kpis'][number]['tone']): string
   return 'bg-gray-50 text-gray-700 border-gray-200'
 }
 
+function getToneLabel(tone: DashboardTabPayload['kpis'][number]['tone']): string {
+  if (tone === 'success') return 'Stable'
+  if (tone === 'warning') return 'Attention'
+  if (tone === 'danger') return 'Critique'
+  if (tone === 'primary') return 'Pilotage'
+  return 'Info'
+}
+
+function getProgressClass(value: number, max: number): string {
+  const ratio = max <= 0 ? 0 : value / max
+  if (ratio >= 0.75) return 'bg-red-500'
+  if (ratio >= 0.45) return 'bg-amber-500'
+  return 'bg-emerald-500'
+}
+
+function getExecutiveBadgeClass(tone: DashboardTabPayload['kpis'][number]['tone']): string {
+  if (tone === 'success') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (tone === 'warning') return 'bg-amber-50 text-amber-700 border-amber-200'
+  if (tone === 'danger') return 'bg-red-50 text-red-700 border-red-200'
+  return 'bg-slate-50 text-slate-700 border-slate-200'
+}
+
+function isCurrencyDistribution(distribution: DashboardDistributionBlock): boolean {
+  const key = distribution.key.toLowerCase()
+  const title = distribution.title.toLowerCase()
+  return key.includes('encours') || title.includes('encours')
+}
+
+function formatDistributionValue(value: number, distribution: DashboardDistributionBlock): string {
+  if (isCurrencyDistribution(distribution)) {
+    return `${Math.round(value).toLocaleString('fr-FR')} FCFA`
+  }
+
+  return Math.round(value).toLocaleString('fr-FR')
+}
+
+function getDistributionUnitLabel(distribution: DashboardDistributionBlock): string {
+  return isCurrencyDistribution(distribution) ? 'FCFA' : 'demandes'
+}
+
+function shortModuleLabel(label: string): string {
+  const normalized = label.trim().toLowerCase()
+  if (normalized === 'placements') return 'Place.'
+  if (normalized === 'credit') return 'Credit'
+  if (normalized === 'caisse') return 'Caisse'
+  return label
+}
+
 export function DashboardTabContent({ payload }: DashboardTabContentProps) {
+  const isExecutive = payload.title.trim().toLowerCase() === EXECUTIVE_TITLE
+  const executiveRanking = isExecutive ? payload.rankings?.find((ranking) => ranking.key === 'module_health') : undefined
+  const rankingsToRender = isExecutive
+    ? (payload.rankings || []).filter((ranking) => ranking.key !== 'module_health')
+    : payload.rankings || []
+  const maxExecutiveRisk = executiveRanking?.items.length
+    ? Math.max(...executiveRanking.items.map((item) => item.value), 1)
+    : 1
+
   return (
     <div className="space-y-4">
       <Card className="border-kara-primary-dark/10">
@@ -50,6 +108,16 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
           <CardTitle className="text-xl font-extrabold text-kara-primary-dark">{payload.title}</CardTitle>
           {payload.subtitle && (
             <p className="text-sm text-muted-foreground">{payload.subtitle}</p>
+          )}
+          {isExecutive && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="bg-kara-primary-dark/5 text-kara-primary-dark border-kara-primary-dark/20">
+                Vue decisionnelle
+              </Badge>
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                Priorites des 24h
+              </Badge>
+            </div>
           )}
         </CardHeader>
       </Card>
@@ -65,8 +133,11 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
                     {formatMetric(kpi.value, kpi.format)}
                   </p>
                 </div>
-                <Badge variant="outline" className={getToneClass(kpi.tone)}>
-                  KPI
+                <Badge
+                  variant="outline"
+                  className={isExecutive ? getExecutiveBadgeClass(kpi.tone) : getToneClass(kpi.tone)}
+                >
+                  {getToneLabel(kpi.tone)}
                 </Badge>
               </div>
               {kpi.subtitle && (
@@ -97,7 +168,7 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
                     <p className="text-sm text-muted-foreground">Aucune donnee disponible.</p>
                   ) : (
                     <>
-                      <div className="h-56 w-full">
+                      <div className="h-52 w-full sm:h-56">
                         <ResponsiveContainer width="100%" height="100%">
                           {distribution.chartType === 'pie' ? (
                             <PieChart>
@@ -113,14 +184,26 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
                                   <Cell key={`${distribution.key}-${entry.label}-${index}`} fill={entry.fill} />
                                 ))}
                               </Pie>
-                              <Tooltip formatter={(value: number) => value.toLocaleString('fr-FR')} />
+                              <Tooltip
+                                formatter={(value: number) => formatDistributionValue(value, distribution)}
+                                labelFormatter={(label: string) => shortModuleLabel(label)}
+                              />
                             </PieChart>
                           ) : (
                             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                               <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                              <XAxis
+                                dataKey="label"
+                                tick={{ fontSize: 11 }}
+                                interval={0}
+                                height={34}
+                                tickFormatter={(value: string) => (isExecutive ? shortModuleLabel(value) : value)}
+                              />
                               <YAxis tick={{ fontSize: 11 }} />
-                              <Tooltip formatter={(value: number) => value.toLocaleString('fr-FR')} />
+                              <Tooltip
+                                formatter={(value: number) => formatDistributionValue(value, distribution)}
+                                labelFormatter={(label: string) => shortModuleLabel(label)}
+                              />
                               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                                 {chartData.map((entry, index) => (
                                   <Cell key={`${distribution.key}-bar-${entry.label}-${index}`} fill={entry.fill} />
@@ -133,15 +216,22 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
 
                       <div className="grid gap-2">
                         {distribution.items.map((item, index) => (
-                          <div key={`${distribution.key}-item-${item.label}`} className="flex items-center justify-between text-sm">
+                          <div key={`${distribution.key}-item-${item.label}`} className="flex items-center justify-between gap-3 text-sm">
                             <div className="flex items-center gap-2">
                               <span
                                 className="inline-block h-2.5 w-2.5 rounded-full"
                                 style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
                               />
-                              <span className="text-muted-foreground">{item.label}</span>
+                              <span className="max-w-[140px] truncate text-muted-foreground sm:max-w-none">
+                                {item.label}
+                              </span>
                             </div>
-                            <span className="font-semibold text-kara-primary-dark">{item.value.toLocaleString('fr-FR')}</span>
+                            <span className="shrink-0 font-semibold text-kara-primary-dark">
+                              {formatDistributionValue(item.value, distribution)}{' '}
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {getDistributionUnitLabel(distribution)}
+                              </span>
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -154,9 +244,39 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
         </div>
       )}
 
-      {payload.rankings && payload.rankings.length > 0 && (
+      {isExecutive && executiveRanking && executiveRanking.items.length > 0 && (
+        <Card className="border-kara-primary-dark/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold text-kara-primary-dark">Radar risques modules</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {executiveRanking.items.map((item) => (
+              <div key={`executive-risk-${item.label}`} className="rounded-lg border border-kara-primary-dark/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-kara-primary-dark">{item.label}</p>
+                  <Badge
+                    variant="outline"
+                    className={item.value >= 1 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}
+                  >
+                    {item.value >= 1 ? 'Action requise' : 'Sous controle'}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{item.subLabel || 'Aucun detail disponible.'}</p>
+                <div className="mt-2 h-2 w-full rounded-full bg-kara-primary-dark/10">
+                  <div
+                    className={`h-2 rounded-full transition-all ${getProgressClass(item.value, maxExecutiveRisk)}`}
+                    style={{ width: `${Math.max(6, (item.value / maxExecutiveRisk) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {rankingsToRender.length > 0 && (
         <div className="grid gap-4 xl:grid-cols-2">
-          {payload.rankings.map((ranking) => {
+          {rankingsToRender.map((ranking) => {
             const max = Math.max(...ranking.items.map((item) => item.value), 1)
 
             return (
