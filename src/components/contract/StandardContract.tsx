@@ -3,6 +3,7 @@
 import { Badge, Badge as BadgeShadcn } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import EarlyWithdrawalRequestModal from '@/components/shared/EarlyWithdrawalRequestModal'
 import routes from "@/constantes/routes"
 import { listRefunds } from "@/db/caisse/refunds.db"
 import { getGroupById } from "@/db/group.db"
@@ -135,8 +136,9 @@ export default function StandardContract({ id }: Props) {
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+  const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
-  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundType, setRefundType] = useState<'FINAL' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
 
   // Fonction pour recharger les remboursements
@@ -765,11 +767,7 @@ export default function StandardContract({ id }: Props) {
                       variant="outline"
                       className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
                       disabled={isRefunding || !canEarly || hasEarlyRefund}
-                      onClick={() => {
-                        setRefundType('EARLY')
-                        setRefundReasonInput('')
-                        setShowReasonModal(true)
-                      }}
+                      onClick={() => setShowEarlyRefundModal(true)}
                     >
                       <Download className="h-5 w-5" />
                       Demander retrait anticipé
@@ -1058,12 +1056,48 @@ export default function StandardContract({ id }: Props) {
         </Card>
       </div>
       {/* Modales */}
+      <EarlyWithdrawalRequestModal
+        isOpen={showEarlyRefundModal}
+        onClose={() => setShowEarlyRefundModal(false)}
+        isSubmitting={isRefunding}
+        memberDisplayName={
+          member
+            ? `${member.firstName || ''} ${member.lastName || ''}`.trim()
+            : (group as any)?.nom || (group as any)?.name || 'Membre'
+        }
+        contractDisplayLabel={`Contrat #${id} - Caisse Spéciale`}
+        monthlyAmountLabel={`Montant mensuel : ${formatAmount(data.monthlyAmount || 0)} FCFA`}
+        maxAmount={Math.max(0, Math.round(data.nominalPaid || 0))}
+        onSubmit={async (formData) => {
+          try {
+            setIsRefunding(true)
+            await requestEarlyRefund(id, {
+              reason: formData.reason,
+              withdrawalDate: formData.withdrawalDate,
+              withdrawalTime: formData.withdrawalTime,
+              withdrawalAmount: formData.withdrawalAmount,
+              withdrawalMode: formData.withdrawalMode,
+              withdrawalProof: formData.withdrawalProof,
+              documentPdf: formData.documentPdf,
+              createdBy: user?.uid,
+            })
+            await refetch()
+            await reloadRefunds()
+            toast.success('Retrait anticipé demandé')
+          } catch (e: any) {
+            toast.error(e?.message || 'Action impossible')
+            throw e
+          } finally {
+            setIsRefunding(false)
+          }
+        }}
+      />
       {/* Modale de saisie de la cause du retrait */}
       {showReasonModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
             <div className="text-base font-semibold mb-4">
-              {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+              Demande de remboursement final
             </div>
             <div className="space-y-4">
               <div>
@@ -1104,13 +1138,11 @@ export default function StandardContract({ id }: Props) {
                   try {
                     setIsRefunding(true)
 
-                    if (refundType === 'FINAL') {
-                      await requestFinalRefund(id, refundReasonInput)
-                      toast.success('Remboursement final demandé')
-                    } else {
-                      await requestEarlyRefund(id, { reason: refundReasonInput })
-                      toast.success('Retrait anticipé demandé')
+                    if (refundType !== 'FINAL') {
+                      throw new Error('Cette action est réservée au remboursement final')
                     }
+                    await requestFinalRefund(id, refundReasonInput)
+                    toast.success('Remboursement final demandé')
 
                     await refetch()
                     await reloadRefunds() // Rafraîchir la liste des remboursements

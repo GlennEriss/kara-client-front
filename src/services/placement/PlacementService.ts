@@ -60,6 +60,11 @@ export class PlacementService {
     return { startDate: start, endDate: end, nextCommissionDate }
   }
 
+  private formatAmountForPdf(amount: number): string {
+    const safe = Number.isFinite(amount) ? Math.round(amount) : 0
+    return String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
   /**
    * Récupère les informations du membre pour préremplir nom et téléphone
    */
@@ -303,11 +308,69 @@ export class PlacementService {
 
   async requestEarlyExit(
     placementId: string,
-    payload: Pick<EarlyExitPlacement, 'commissionDue' | 'payoutAmount'> & { reason?: string; documentPdf?: File },
+    payload: Pick<EarlyExitPlacement, 'commissionDue' | 'payoutAmount'> & {
+      reason?: string
+      withdrawalAmount?: number
+      withdrawalDate?: string
+      withdrawalTime?: string
+      withdrawalProof?: File
+      documentPdf?: File
+      paymentMode?: EarlyExitPlacement['paymentMode']
+      withFees?: boolean
+      paymentMethodOther?: string
+      paymentDate?: Date
+    },
     benefactorId: string,
     adminId: string
   ): Promise<EarlyExitPlacement> {
+    let withdrawalProofDocumentId: string | undefined
     let documentPdfId: string | undefined
+
+    if (payload.withdrawalProof) {
+      const validProofTypes = ['image/jpeg', 'image/png', 'image/webp']
+      if (!validProofTypes.includes(payload.withdrawalProof.type)) {
+        throw new Error('La preuve du retrait doit être une image (JPEG, PNG, WebP)')
+      }
+      if (payload.withdrawalProof.size > 20 * 1024 * 1024) {
+        throw new Error('La preuve du retrait ne doit pas dépasser 20MB')
+      }
+
+      const { url, path, size } = await this.documentRepository.uploadDocumentFile(
+        payload.withdrawalProof,
+        benefactorId,
+        'PLACEMENT_EARLY_EXIT_PROOF'
+      )
+
+      const now = new Date()
+      const day = String(now.getDate()).padStart(2, '0')
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const year = String(now.getFullYear()).slice(-2)
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const customProofId = `MK_PLACEMENT_EARLY_EXIT_PROOF_${placementId.slice(-8).toUpperCase()}_${day}${month}${year}_${hours}${minutes}`
+
+      const proofDocument = await this.documentRepository.createDocument(
+        {
+          type: 'PLACEMENT_EARLY_EXIT_PROOF',
+          format: 'image',
+          libelle: `Preuve image retrait anticipé - Placement ${placementId}`,
+          path,
+          url,
+          size,
+          memberId: benefactorId,
+          contractId: placementId,
+          createdBy: adminId,
+          updatedBy: adminId,
+        },
+        customProofId
+      )
+
+      if (!proofDocument?.id) {
+        throw new Error('Erreur lors de la création de la preuve de retrait')
+      }
+
+      withdrawalProofDocumentId = proofDocument.id
+    }
 
     // Téléverser le document PDF si fourni
     if (payload.documentPdf) {
@@ -349,11 +412,30 @@ export class PlacementService {
       documentPdfId = document.id
     }
 
+    const effectiveWithdrawalAmount =
+      payload.withdrawalAmount && payload.withdrawalAmount > 0
+        ? Math.round(payload.withdrawalAmount)
+        : Math.round(payload.payoutAmount)
+    const effectiveWithdrawalDate = payload.withdrawalDate ? new Date(payload.withdrawalDate) : undefined
+    const effectivePaymentDate =
+      payload.paymentDate ||
+      (payload.withdrawalDate
+        ? new Date(`${payload.withdrawalDate}T${payload.withdrawalTime || '00:00'}`)
+        : undefined)
+
     const earlyExit = await this.placementRepository.saveEarlyExit(placementId, {
       placementId,
       commissionDue: payload.commissionDue,
-      payoutAmount: payload.payoutAmount,
-      reason: payload.reason,
+      payoutAmount: effectiveWithdrawalAmount,
+      withdrawalAmount: effectiveWithdrawalAmount,
+      withdrawalDate: effectiveWithdrawalDate,
+      withdrawalTime: payload.withdrawalTime,
+      paymentMode: payload.paymentMode,
+      withFees: payload.withFees,
+      paymentMethodOther: payload.paymentMethodOther,
+      paymentDate: effectivePaymentDate,
+      reason: payload.reason?.trim(),
+      withdrawalProofDocumentId,
       documentPdfId,
       requestedAt: new Date(),
       createdBy: adminId,
@@ -532,19 +614,41 @@ export class PlacementService {
     proofFile: File,
     benefactorId: string,
     paidDate: Date,
-    adminId: string
+    adminId: string,
+    paymentMeta?: {
+      paymentMode?: import('@/types/types').PaymentMode
+      withFees?: boolean
+      paymentMethodOther?: string
+    }
   ): Promise<{ documentId: string; commission: CommissionPaymentPlacement }> {
     // Upload de la preuve
     const { documentId } = await this.uploadCommissionProof(proofFile, placementId, commissionId, benefactorId, adminId)
-    
-    // Mettre à jour la commission avec le statut Paid et la date
-    const commission = await this.placementRepository.updateCommission(placementId, commissionId, {
+
+    const commissionUpdate: Partial<CommissionPaymentPlacement> = {
       status: 'Paid',
       paidAt: paidDate,
+      paymentRecordedBy: adminId,
+      paymentRecordedAt: new Date(),
       proofDocumentId: documentId,
       receiptDocumentId: documentId, // on utilise le même document comme reçu
       updatedBy: adminId,
-    })
+    }
+
+    if (paymentMeta?.paymentMode) {
+      commissionUpdate.paymentMode = paymentMeta.paymentMode
+    }
+    if (
+      (paymentMeta?.paymentMode === 'airtel_money' || paymentMeta?.paymentMode === 'mobicash') &&
+      (paymentMeta.withFees === true || paymentMeta.withFees === false)
+    ) {
+      commissionUpdate.withFees = paymentMeta.withFees
+    }
+    if (paymentMeta?.paymentMode === 'other' && paymentMeta.paymentMethodOther?.trim()) {
+      commissionUpdate.paymentMethodOther = paymentMeta.paymentMethodOther.trim()
+    }
+
+    // Mettre à jour la commission avec le statut Paid et la date
+    const commission = await this.placementRepository.updateCommission(placementId, commissionId, commissionUpdate)
 
     await this.recalculatePlacementCommissionStatus(placementId)
 
@@ -691,7 +795,7 @@ export class PlacementService {
     doc.setFontSize(11)
     doc.text(`Placement #${placement.id}`, 14, 40)
     doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
-    doc.text(`Montant capital: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Montant capital: ${this.formatAmountForPdf(placement.amount)} FCFA`, 14, 56)
     doc.text(`Durée: ${placement.periodMonths} mois`, 14, 64)
     if (placement.endDate) {
       doc.text(`Date de fin: ${new Date(placement.endDate).toLocaleDateString('fr-FR')}`, 14, 72)
@@ -813,11 +917,11 @@ export class PlacementService {
     doc.setFontSize(11)
     doc.text(`Placement #${placement.id}`, 14, 40)
     doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
-    doc.text(`Montant: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Montant: ${this.formatAmountForPdf(placement.amount)} FCFA`, 14, 56)
     doc.text(`Période: ${placement.periodMonths} mois`, 14, 64)
     doc.text(`Demande de retrait: ${earlyExit.requestedAt.toLocaleDateString()}`, 14, 72)
-    doc.text(`Commission due: ${earlyExit.commissionDue.toLocaleString()} FCFA`, 14, 80)
-    doc.text(`Montant à verser: ${earlyExit.payoutAmount.toLocaleString()} FCFA`, 14, 88)
+    doc.text(`Commission due: ${this.formatAmountForPdf(earlyExit.commissionDue)} FCFA`, 14, 80)
+    doc.text(`Montant à verser: ${this.formatAmountForPdf(earlyExit.payoutAmount)} FCFA`, 14, 88)
 
     const blob = doc.output('blob')
     const fileName = `AVENANT_SORTIE_${placement.id.slice(-6)}.pdf`

@@ -1228,6 +1228,10 @@ export interface RefundWithDocument {
   reason?: string
   withdrawalDate?: Date
   withdrawalTime?: string
+  withdrawalAmount?: number
+  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+  withdrawalProofUrl?: string
+  withdrawalProofPath?: string
   document?: RefundDocument
   createdAt: Date
   updatedAt: Date
@@ -1425,6 +1429,7 @@ export type DocumentType =
   | 'CHARITY_EVENT_REPORT'         // Rapport d'évènement Bienfaiteur
   | 'PLACEMENT_CONTRACT'           // Contrat de placement
   | 'PLACEMENT_COMMISSION_PROOF'   // Preuve de commission placement
+  | 'PLACEMENT_EARLY_EXIT_PROOF'   // Preuve image retrait anticipé placement
   | 'PLACEMENT_EARLY_EXIT_QUITTANCE' // Quittance de retrait anticipé placement
   | 'PLACEMENT_FINAL_QUITTANCE'      // Quittance finale placement
   | 'PLACEMENT_EARLY_EXIT_ADDENDUM'   // Avenant retrait anticipé placement
@@ -2168,6 +2173,11 @@ export interface CommissionPaymentPlacement {
   dueDate: Date
   amount: number
   status: CommissionStatus
+  paymentMode?: PaymentMode // Moyen de paiement utilisé pour la commission
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé quand paymentMode = 'other'
+  paymentRecordedBy?: string // Admin qui a enregistré le paiement
+  paymentRecordedAt?: Date // Date/heure d'enregistrement du paiement
   proofDocumentId?: string // Document.id
   receiptDocumentId?: string // Reçu / quittance payée
   paidAt?: Date
@@ -2184,7 +2194,15 @@ export interface EarlyExitPlacement {
   validatedAt?: Date
   commissionDue: number
   payoutAmount: number
+  withdrawalDate?: Date // Date réelle du retrait demandé
+  withdrawalTime?: string // Heure réelle du retrait demandé (HH:mm)
+  withdrawalAmount?: number // Montant demandé au retrait
+  paymentMode?: PaymentMode // Moyen de versement du retrait anticipé
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé quand paymentMode = 'other'
+  paymentDate?: Date // Date effective du versement
   reason?: string // Motif du retrait anticipé
+  withdrawalProofDocumentId?: string // Document.id de la preuve image du retrait
   documentPdfId?: string // Document.id du PDF de retrait anticipé signé
   quittanceDocumentId?: string // Document.id
   createdAt: Date

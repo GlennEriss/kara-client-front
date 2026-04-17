@@ -37,6 +37,7 @@ const DOCUMENT_TYPE_TRANSLATIONS: Record<string, DocumentTypeInfo> = {
   // Placement
   PLACEMENT_CONTRACT: { label: 'Contrat placement', category: 'autre', colorClass: 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-200' },
   PLACEMENT_COMMISSION_PROOF: { label: 'Preuve commission', category: 'autre', colorClass: 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-green-200' },
+  PLACEMENT_EARLY_EXIT_PROOF: { label: 'Preuve retrait anticipé', category: 'autre', colorClass: 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-200' },
   PLACEMENT_EARLY_EXIT_QUITTANCE: { label: 'Quittance retrait anticipé', category: 'autre', colorClass: 'bg-gradient-to-r from-lime-100 to-lime-200 text-lime-800 border-lime-200' },
   PLACEMENT_FINAL_QUITTANCE: { label: 'Quittance finale', category: 'autre', colorClass: 'bg-gradient-to-r from-stone-100 to-stone-200 text-stone-700 border-stone-200' },
   PLACEMENT_EARLY_EXIT_ADDENDUM: { label: 'Avenant retrait anticipé', category: 'autre', colorClass: 'bg-gradient-to-r from-neutral-100 to-neutral-200 text-neutral-700 border-neutral-200' },

@@ -143,6 +143,7 @@ export class PlacementRepository implements IRepository {
         ...(d as any),
         dueDate: d.dueDate?.toDate() || new Date(),
         paidAt: d.paidAt?.toDate(),
+        paymentRecordedAt: d.paymentRecordedAt?.toDate?.() || d.paymentRecordedAt,
         createdAt: d.createdAt?.toDate() || new Date(),
         updatedAt: d.updatedAt?.toDate() || new Date(),
       } as CommissionPaymentPlacement
@@ -161,6 +162,7 @@ export class PlacementRepository implements IRepository {
       ...(d as any),
       dueDate: d.dueDate?.toDate() || new Date(),
       paidAt: d.paidAt?.toDate(),
+      paymentRecordedAt: d.paymentRecordedAt?.toDate?.() || d.paymentRecordedAt,
       createdAt: d.createdAt?.toDate() || new Date(),
       updatedAt: d.updatedAt?.toDate() || new Date(),
     } as CommissionPaymentPlacement
@@ -178,6 +180,7 @@ export class PlacementRepository implements IRepository {
       ...(d as any),
       requestedAt: d.requestedAt?.toDate() || new Date(),
       validatedAt: d.validatedAt?.toDate(),
+      paymentDate: d.paymentDate?.toDate?.() || d.paymentDate,
       createdAt: d.createdAt?.toDate() || new Date(),
       updatedAt: d.updatedAt?.toDate() || new Date(),
     } as EarlyExitPlacement
@@ -199,9 +202,9 @@ export class PlacementRepository implements IRepository {
       ...(d as any),
       requestedAt: d.requestedAt?.toDate() || new Date(),
       validatedAt: d.validatedAt?.toDate(),
+      paymentDate: d.paymentDate?.toDate?.() || d.paymentDate,
       createdAt: d.createdAt?.toDate() || new Date(),
       updatedAt: d.updatedAt?.toDate() || new Date(),
     } as EarlyExitPlacement
   }
 }
-

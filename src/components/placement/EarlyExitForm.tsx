@@ -4,10 +4,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/useAuth'
 import { useCalculateEarlyExit, usePlacement, usePlacementMutations } from '@/hooks/usePlacements'
-import { Calculator, FileText, Info, Loader2, X } from 'lucide-react'
+import type { PaymentMode } from '@/types/types'
+import { Calculator, Calendar, FileText, Info, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -15,9 +17,21 @@ import { toast } from 'sonner'
 type EarlyExitFormData = {
   commissionDue: number
   payoutAmount: number
+  paymentMode: PaymentMode
+  withFees?: boolean
+  paymentMethodOther?: string
+  paymentDate: string
   reason: string
   documentPdf: FileList | null
 }
+
+const PAYMENT_MODE_OPTIONS: Array<{ value: PaymentMode; label: string }> = [
+  { value: 'airtel_money', label: 'Airtel Money' },
+  { value: 'mobicash', label: 'Mobicash' },
+  { value: 'cash', label: 'Espèce' },
+  { value: 'bank_transfer', label: 'Virement bancaire' },
+  { value: 'other', label: 'Autres moyens' },
+]
 
 interface EarlyExitFormProps {
   placementId: string
@@ -37,6 +51,10 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
     defaultValues: {
       commissionDue: 0,
       payoutAmount: 0,
+      paymentMode: 'cash',
+      withFees: undefined,
+      paymentMethodOther: '',
+      paymentDate: new Date().toISOString().slice(0, 10),
       reason: '',
       documentPdf: null,
     },
@@ -52,6 +70,8 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
 
   const onSubmit = async (values: EarlyExitFormData) => {
     if (!user?.uid || !placement) return
+
+    const isMobileMoney = values.paymentMode === 'airtel_money' || values.paymentMode === 'mobicash'
     
     // Valider que le motif est fourni
     if (!values.reason || values.reason.trim().length < 10) {
@@ -64,12 +84,31 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
       toast.error('Le document PDF de retrait anticipé signé est requis')
       return
     }
+
+    if (!values.paymentDate) {
+      toast.error('La date du versement est requise')
+      return
+    }
+
+    if (isMobileMoney && !(values.withFees === true || values.withFees === false)) {
+      toast.error('Veuillez indiquer si le versement est avec frais ou sans frais')
+      return
+    }
+
+    if (values.paymentMode === 'other' && !values.paymentMethodOther?.trim()) {
+      toast.error('Veuillez préciser le moyen de paiement utilisé')
+      return
+    }
     
     try {
       await requestEarlyExit.mutateAsync({
         placementId,
         commissionDue: values.commissionDue,
         payoutAmount: values.payoutAmount,
+        paymentMode: values.paymentMode,
+        withFees: isMobileMoney ? values.withFees : undefined,
+        paymentMethodOther: values.paymentMode === 'other' ? values.paymentMethodOther?.trim() : undefined,
+        paymentDate: new Date(`${values.paymentDate}T00:00:00`),
         reason: values.reason.trim(),
         documentPdf: selectedFile,
         benefactorId: placement.benefactorId,
@@ -78,6 +117,10 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
       form.reset({
         commissionDue: 0,
         payoutAmount: 0,
+        paymentMode: 'cash',
+        withFees: undefined,
+        paymentMethodOther: '',
+        paymentDate: new Date().toISOString().slice(0, 10),
         reason: '',
         documentPdf: null,
       })
@@ -102,6 +145,9 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
       toast.error(`Erreur lors du calcul: ${error.message}`)
     }
   }
+
+  const selectedPaymentMode = form.watch('paymentMode')
+  const isMobileMoney = selectedPaymentMode === 'airtel_money' || selectedPaymentMode === 'mobicash'
 
   return (
     <Form {...form}>
@@ -199,6 +245,128 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="paymentMode"
+                rules={{ required: 'Le moyen de paiement est requis' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Moyen de paiement *</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value as PaymentMode)
+                        if (value !== 'airtel_money' && value !== 'mobicash') {
+                          form.setValue('withFees', undefined)
+                        }
+                        if (value !== 'other') {
+                          form.setValue('paymentMethodOther', '')
+                        }
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un moyen" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PAYMENT_MODE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentDate"
+                rules={{ required: 'La date du versement est requise' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-[#234D65]" />
+                      Date du versement *
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {isMobileMoney && (
+              <FormField
+                control={form.control}
+                name="withFees"
+                rules={{
+                  validate: (value) =>
+                    value === true || value === false || 'Veuillez sélectionner "Avec frais" ou "Sans frais"',
+                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Frais *</FormLabel>
+                    <FormControl>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="withFees"
+                            checked={field.value === true}
+                            onChange={() => field.onChange(true)}
+                            className="rounded-full border-gray-300"
+                          />
+                          <span>Avec frais</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="withFees"
+                            checked={field.value === false}
+                            onChange={() => field.onChange(false)}
+                            className="rounded-full border-gray-300"
+                          />
+                          <span>Sans frais</span>
+                        </label>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {selectedPaymentMode === 'other' && (
+              <FormField
+                control={form.control}
+                name="paymentMethodOther"
+                rules={{
+                  validate: (value) =>
+                    value?.trim() ? true : 'Veuillez saisir le nom du moyen utilisé',
+                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nom du moyen utilisé *</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: Chèque certifié, Wave, Orange Money..."
+                        {...field}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -301,4 +469,3 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
     </Form>
   )
 }
-

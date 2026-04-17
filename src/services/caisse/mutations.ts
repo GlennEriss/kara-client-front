@@ -543,6 +543,11 @@ export async function requestEarlyRefund(contractId: string, input?: {
   reason?: string
   withdrawalTime?: string
   withdrawalDate?: string
+  withdrawalAmount?: number
+  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+  withdrawalProof?: File
+  documentPdf?: File
+  createdBy?: string
 }) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
@@ -593,19 +598,73 @@ export async function requestEarlyRefund(contractId: string, input?: {
   }
   const deadlineAt = new Date(Date.now() + 45*86400000)
 
-  // Ajouter les informations de retrait anticipé
   const withdrawalDate = input?.withdrawalDate ? new Date(input.withdrawalDate) : new Date()
-  const withdrawalTime = input?.withdrawalTime || `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+  const withdrawalTime =
+    input?.withdrawalTime ||
+    `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+  const withdrawalAmount = input?.withdrawalAmount && input.withdrawalAmount > 0
+    ? Math.round(input.withdrawalAmount)
+    : Math.round(amountNominal || 0)
 
-  await addRefund(contractId, { 
+  let withdrawalProofUrl: string | undefined
+  let withdrawalProofPath: string | undefined
+  if (input?.withdrawalProof) {
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!validImageTypes.includes(input.withdrawalProof.type)) {
+      throw new Error('La preuve du retrait doit être une image (JPEG, PNG, WebP)')
+    }
+    if (input.withdrawalProof.size > 20 * 1024 * 1024) {
+      throw new Error('La preuve du retrait ne doit pas dépasser 20MB')
+    }
+    const uploadedProof = await createFile(
+      input.withdrawalProof,
+      c.memberId || contractId,
+      `caisse/${contractId}/refunds/withdrawal-proof`
+    )
+    withdrawalProofUrl = uploadedProof.url
+    withdrawalProofPath = uploadedProof.path
+  }
+
+  let document: any | undefined
+  if (input?.documentPdf) {
+    if (input.documentPdf.type !== 'application/pdf') {
+      throw new Error('Le document signé doit être un PDF')
+    }
+    if (input.documentPdf.size > 10 * 1024 * 1024) {
+      throw new Error('Le document signé ne doit pas dépasser 10MB')
+    }
+    const uploadedDocument = await createFile(
+      input.documentPdf,
+      c.memberId || contractId,
+      `caisse/${contractId}/refunds/signed-documents`
+    )
+    const uploadedBy = input.createdBy || auth.currentUser?.uid || 'system'
+    document = {
+      id: `${contractId}_early_refund_doc_${Date.now()}`,
+      url: uploadedDocument.url,
+      path: uploadedDocument.path,
+      uploadedAt: new Date(),
+      uploadedBy,
+      originalFileName: input.documentPdf.name,
+      fileSize: input.documentPdf.size,
+      status: 'active',
+    }
+  }
+
+  await addRefund(contractId, {
     type: 'EARLY', 
     amountNominal, 
     amountBonus, 
     deadlineAt, 
     status: 'PENDING',
-    reason: input?.reason || '',
+    reason: input?.reason?.trim() || '',
+    withdrawalAmount,
+    withdrawalMode: input?.withdrawalMode,
     withdrawalDate,
-    withdrawalTime
+    withdrawalTime,
+    withdrawalProofUrl,
+    withdrawalProofPath,
+    document,
   })
   return true
 }

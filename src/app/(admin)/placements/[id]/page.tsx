@@ -1,12 +1,12 @@
 "use client"
 
 import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
-import EarlyExitForm from '@/components/placement/EarlyExitForm'
 import PayCommissionModal, { CommissionPaymentFormData } from '@/components/placement/PayCommissionModal'
 import PlacementDocumentUploadModal from '@/components/placement/PlacementDocumentUploadModal'
 import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEarlyExitQuittanceModal'
 import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQuittanceModal'
 import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocumentModal'
+import EarlyWithdrawalRequestModal from '@/components/shared/EarlyWithdrawalRequestModal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,10 +14,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/useAuth'
-import { useEarlyExit, usePlacement, usePlacementCommissions } from '@/hooks/usePlacements'
+import { useMember } from '@/hooks/useMembers'
+import { useCalculateEarlyExit, useEarlyExit, usePlacement, usePlacementCommissions, usePlacementMutations } from '@/hooks/usePlacements'
 import { cn } from '@/lib/utils'
+import {
+  buildPlacementFacturePage1Data,
+  generatePlacementFacturePDF,
+  mapCommissionToPlacementVersement,
+} from '@/services/placement/facturePlacementPdfExport'
 import type { CommissionPaymentPlacement } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -29,7 +36,9 @@ import {
     DollarSign,
     FileDown,
     FileText,
+    History,
     Phone,
+    Receipt,
     Upload,
     User,
     X,
@@ -67,7 +76,11 @@ function PayCommissionWrapper({
       const service = ServiceFactory.getPlacementService()
       const paidDate = new Date(`${data.date}T${data.time}`)
       if (!benefactorId || !adminId) throw new Error('Utilisateur non authentifié')
-      await service.payCommissionWithProof(placementId, commissionId, data.proofFile, benefactorId, paidDate, adminId)
+      await service.payCommissionWithProof(placementId, commissionId, data.proofFile, benefactorId, paidDate, adminId, {
+        paymentMode: data.mode,
+        withFees: data.withFees,
+        paymentMethodOther: data.paymentMethodOther,
+      })
       onPaid()
       onClose()
       toast.success('Commission payée')
@@ -95,7 +108,10 @@ export default function PlacementDetailsPage() {
 
   const { data: placement, isLoading, isError, error } = usePlacement(id)
   const { data: commissions = [], refetch: refetchCommissions } = usePlacementCommissions(id)
-const { data: earlyExit } = useEarlyExit(id)
+  const { data: earlyExit } = useEarlyExit(id)
+  const { data: calculatedEarlyExit } = useCalculateEarlyExit(id)
+  const { requestEarlyExit } = usePlacementMutations()
+  const { data: member } = useMember(placement?.benefactorId)
   const qc = useQueryClient()
 
   const [isUploadOpen, setIsUploadOpen] = useState(false)
@@ -115,6 +131,9 @@ const [showCloseModal, setShowCloseModal] = useState(false)
 const [closeFile, setCloseFile] = useState<File | null>(null)
 const [closingReason, setClosingReason] = useState('')
   const [commissionViewFormat, setCommissionViewFormat] = useState<'cards' | 'timeline' | 'table'>('cards')
+  const [contractTab, setContractTab] = useState<'versements' | 'historique'>('versements')
+  const [isGeneratingGlobalFacture, setIsGeneratingGlobalFacture] = useState(false)
+  const [isGeneratingSingleFactureId, setIsGeneratingSingleFactureId] = useState<string | null>(null)
   const [showEarlyExitForm, setShowEarlyExitForm] = useState(false)
 
   const payoutLabel = useMemo(() => {
@@ -164,10 +183,72 @@ const sortedCommissions = useMemo(
   [commissions]
 )
 
+const paidCommissions = useMemo(
+  () =>
+    [...commissions]
+      .filter((c) => c.status === 'Paid')
+      .sort((a, b) => new Date(b.paidAt || b.dueDate).getTime() - new Date(a.paidAt || a.dueDate).getTime()),
+  [commissions]
+)
+
 const commissionStatusLabel = (status: string) => {
   if (status === 'Paid') return 'Payée'
   if (status === 'Due') return 'À payer'
   return status
+}
+
+const paymentModeLabel = (mode?: string, paymentMethodOther?: string) => {
+  if (!mode) return '-'
+  if (mode === 'airtel_money') return 'Airtel Money'
+  if (mode === 'mobicash') return 'Mobicash'
+  if (mode === 'cash') return 'Espèce'
+  if (mode === 'bank_transfer') return 'Virement bancaire'
+  if (mode === 'other') return paymentMethodOther?.trim() || 'Autre'
+  return mode
+}
+
+const handleGenerateSingleFacture = async (commission: CommissionPaymentPlacement) => {
+  if (!placement) return
+  try {
+    setIsGeneratingSingleFactureId(commission.id)
+    const page1Data = buildPlacementFacturePage1Data(placement, member)
+    const versement = mapCommissionToPlacementVersement({ placement, commission })
+    await generatePlacementFacturePDF({
+      page1Data,
+      versements: [versement],
+      filename: `facture_versement_placement_${placement.id}_${commission.id}.pdf`,
+      title: 'FACTURE VERSEMENT PLACEMENT',
+    })
+    toast.success('Facture du versement générée')
+  } catch (error: any) {
+    toast.error(error?.message || 'Erreur lors de la génération de la facture')
+  } finally {
+    setIsGeneratingSingleFactureId(null)
+  }
+}
+
+const handleGenerateGlobalFacture = async () => {
+  if (!placement) return
+  if (paidCommissions.length === 0) {
+    toast.error('Aucun versement payé à inclure dans la facture globale')
+    return
+  }
+  try {
+    setIsGeneratingGlobalFacture(true)
+    const page1Data = buildPlacementFacturePage1Data(placement, member)
+    const versements = paidCommissions.map((commission) => mapCommissionToPlacementVersement({ placement, commission }))
+    await generatePlacementFacturePDF({
+      page1Data,
+      versements,
+      filename: `facture_globale_placement_${placement.id}.pdf`,
+      title: 'HISTORIQUE VERSEMENTS PLACEMENT',
+    })
+    toast.success('Facture globale générée')
+  } catch (error: any) {
+    toast.error(error?.message || 'Erreur lors de la génération de la facture globale')
+  } finally {
+    setIsGeneratingGlobalFacture(false)
+  }
 }
 
   if (isLoading) {
@@ -389,6 +470,7 @@ const commissionStatusLabel = (status: string) => {
                 variant="default"
                 disabled={placement.status === 'Closed'}
                 onClick={() => setShowCloseModal(true)}
+                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
               >
                 Clôturer le placement
               </Button>
@@ -419,6 +501,37 @@ const commissionStatusLabel = (status: string) => {
             </div>
             {!earlyExit && (
               <p className="text-xs text-gray-500">Aucune sortie anticipée enregistrée.</p>
+            )}
+            {earlyExit && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-slate-700">
+                <p className="font-semibold text-[#234D65]">Retrait anticipé enregistré</p>
+                <div className="mt-1 grid grid-cols-1 gap-1 md:grid-cols-2">
+                  <p>
+                    <span className="text-gray-500">Montant à verser:</span>{' '}
+                    {earlyExit.payoutAmount.toLocaleString()} FCFA
+                  </p>
+                  <p>
+                    <span className="text-gray-500">Date du versement:</span>{' '}
+                    {earlyExit.paymentDate
+                      ? new Date(earlyExit.paymentDate).toLocaleDateString('fr-FR')
+                      : '-'}
+                  </p>
+                  <p>
+                    <span className="text-gray-500">Moyen:</span>{' '}
+                    {paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther)}
+                  </p>
+                  {(earlyExit.paymentMode === 'airtel_money' || earlyExit.paymentMode === 'mobicash') && (
+                    <p>
+                      <span className="text-gray-500">Frais:</span>{' '}
+                      {earlyExit.withFees === true
+                        ? 'Avec frais'
+                        : earlyExit.withFees === false
+                        ? 'Sans frais'
+                        : '-'}
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -514,231 +627,341 @@ const commissionStatusLabel = (status: string) => {
         </div>
 
         <Card className="border-0 shadow-md">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle className="text-lg font-bold text-gray-900">Commissions</CardTitle>
-            {commissions.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={commissionViewFormat === 'cards' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCommissionViewFormat('cards')}
-                  className="text-xs"
-                >
-                  Cartes
-                </Button>
-                <Button
-                  variant={commissionViewFormat === 'timeline' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCommissionViewFormat('timeline')}
-                  className="text-xs"
-                >
-                  Timeline
-                </Button>
-                <Button
-                  variant={commissionViewFormat === 'table' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCommissionViewFormat('table')}
-                  className="text-xs"
-                >
-                  Tableau
-                </Button>
+          <Tabs
+            value={contractTab}
+            onValueChange={(value) => setContractTab(value as 'versements' | 'historique')}
+            className="w-full"
+          >
+            <CardHeader className="space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <CardTitle className="text-lg font-bold text-gray-900">Contrat et versements</CardTitle>
+                {contractTab === 'historique' && paidCommissions.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={handleGenerateGlobalFacture}
+                    disabled={isGeneratingGlobalFacture}
+                    className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {isGeneratingGlobalFacture ? 'Génération...' : 'Facture globale PDF'}
+                  </Button>
+                )}
               </div>
-            )}
-          </CardHeader>
-          <CardContent className="p-0">
-            {commissions.length === 0 ? (
-              <div className="p-6 text-sm text-gray-600">Aucune commission générée (placement en brouillon ou contrat manquant).</div>
-            ) : (
-              <div className="p-4">
-                {commissionViewFormat === 'cards' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {sortedCommissions.map((c) => {
-                      const isPaid = c.status === 'Paid'
-                      const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
-                      return (
-                        <Card key={`sched-${c.id}`} className="border border-gray-100 shadow-sm">
-                          <CardContent className="p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-xs text-gray-500">Échéance</p>
-                                <p className="text-sm font-semibold text-gray-900">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</p>
-                              </div>
-                              <span
-                                className={cn(
-                                  'px-2 py-1 text-[11px] rounded-full font-semibold',
-                                  isPaid
-                                    ? 'bg-green-100 text-green-700'
-                                    : isOverdue
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-amber-100 text-amber-700'
-                                )}
-                              >
-                                {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-700 font-semibold">{c.amount.toLocaleString()} FCFA</p>
-                            <div className="flex items-center gap-2">
-                              {isPaid && c.proofDocumentId && (
-                                <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewProofId(c.proofDocumentId!)}>
-                                  <FileText className="h-4 w-4 mr-1" /> Voir preuve
-                                </Button>
-                              )}
-                              {isPaid && c.receiptDocumentId && (
-                                <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewReceiptCommissionId(c.id)}>
-                                  <FileText className="h-4 w-4 mr-1" /> Reçu
-                                </Button>
-                              )}
-                              {!isPaid && placement.status === 'Active' && (
-                                <Button variant="outline" size="sm" className="text-xs" onClick={() => setPayCommissionId(c.id)}>
-                                  Payer
-                                </Button>
-                              )}
-                              {!isPaid && placement.status !== 'Active' && (
-                                <span className="text-[11px] text-gray-400">Activer pour payer</span>
-                              )}
-                              {isPaid && !c.proofDocumentId && (
-                                <span className="text-[11px] text-gray-400">Preuve manquante</span>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
+              <TabsList className="grid w-full max-w-md grid-cols-2">
+                <TabsTrigger value="versements" className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Versements
+                </TabsTrigger>
+                <TabsTrigger value="historique" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Historique
+                </TabsTrigger>
+              </TabsList>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <TabsContent value="versements" className="mt-0 space-y-4">
+                {commissions.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 p-6 text-sm text-gray-600">
+                    Aucune commission générée (placement en brouillon ou contrat manquant).
                   </div>
-                )}
+                ) : (
+                  <>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant={commissionViewFormat === 'cards' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCommissionViewFormat('cards')}
+                        className="text-xs"
+                      >
+                        Cartes
+                      </Button>
+                      <Button
+                        variant={commissionViewFormat === 'timeline' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCommissionViewFormat('timeline')}
+                        className="text-xs"
+                      >
+                        Timeline
+                      </Button>
+                      <Button
+                        variant={commissionViewFormat === 'table' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCommissionViewFormat('table')}
+                        className="text-xs"
+                      >
+                        Tableau
+                      </Button>
+                    </div>
 
-                {commissionViewFormat === 'timeline' && (
-                  <div className="space-y-4">
-                    {sortedCommissions.map((c) => {
-                      const isPaid = c.status === 'Paid'
-                      const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
-                      return (
-                        <div key={c.id} className="flex items-start gap-3">
-                          <div className="flex flex-col items-center">
-                            <div
-                              className={cn(
-                                'h-3 w-3 rounded-full border-2',
-                                isPaid ? 'border-green-500 bg-green-100' : isOverdue ? 'border-red-500 bg-red-100' : 'border-amber-400 bg-amber-50'
-                              )}
-                            />
-                            {sortedCommissions.indexOf(c) < sortedCommissions.length - 1 && (
-                              <div className="flex-1 w-px bg-gray-200 h-full min-h-[40px]" />
-                            )}
-                          </div>
-                          <div className="flex-1 rounded-lg border border-gray-100 bg-white shadow-sm p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-0.5">
-                                <p className="text-sm font-semibold text-gray-900">
-                                  {new Date(c.dueDate).toLocaleDateString('fr-FR')}
-                                </p>
-                                <p className="text-xs text-gray-500">Montant: {c.amount.toLocaleString()} FCFA</p>
-                              </div>
-                              <span
-                                className={cn(
-                                  'px-2 py-1 text-[11px] rounded-full font-semibold',
-                                  isPaid
-                                    ? 'bg-green-100 text-green-700'
-                                    : isOverdue
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-amber-100 text-amber-700'
+                    {commissionViewFormat === 'cards' && (
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {sortedCommissions.map((c) => {
+                          const isPaid = c.status === 'Paid'
+                          const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
+                          return (
+                            <Card key={`sched-${c.id}`} className="border border-gray-100 shadow-sm">
+                              <CardContent className="space-y-2 p-3">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-xs text-gray-500">Échéance</p>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {new Date(c.dueDate).toLocaleDateString('fr-FR')}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={cn(
+                                      'rounded-full px-2 py-1 text-[11px] font-semibold',
+                                      isPaid
+                                        ? 'bg-green-100 text-green-700'
+                                        : isOverdue
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-amber-100 text-amber-700'
+                                    )}
+                                  >
+                                    {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
+                                  </span>
+                                </div>
+                                <p className="text-sm font-semibold text-gray-700">{c.amount.toLocaleString()} FCFA</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {isPaid && c.proofDocumentId && (
+                                    <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewProofId(c.proofDocumentId!)}>
+                                      <FileText className="mr-1 h-4 w-4" /> Voir preuve
+                                    </Button>
+                                  )}
+                                  {isPaid && c.receiptDocumentId && (
+                                    <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewReceiptCommissionId(c.id)}>
+                                      <FileText className="mr-1 h-4 w-4" /> Reçu
+                                    </Button>
+                                  )}
+                                  {!isPaid && placement.status === 'Active' && (
+                                    <Button variant="outline" size="sm" className="text-xs" onClick={() => setPayCommissionId(c.id)}>
+                                      Payer
+                                    </Button>
+                                  )}
+                                  {!isPaid && placement.status !== 'Active' && (
+                                    <span className="text-[11px] text-gray-400">Activer pour payer</span>
+                                  )}
+                                  {isPaid && !c.proofDocumentId && (
+                                    <span className="text-[11px] text-gray-400">Preuve manquante</span>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {commissionViewFormat === 'timeline' && (
+                      <div className="space-y-4">
+                        {sortedCommissions.map((c) => {
+                          const isPaid = c.status === 'Paid'
+                          const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
+                          return (
+                            <div key={c.id} className="flex items-start gap-3">
+                              <div className="flex flex-col items-center">
+                                <div
+                                  className={cn(
+                                    'h-3 w-3 rounded-full border-2',
+                                    isPaid
+                                      ? 'border-green-500 bg-green-100'
+                                      : isOverdue
+                                      ? 'border-red-500 bg-red-100'
+                                      : 'border-amber-400 bg-amber-50'
+                                  )}
+                                />
+                                {sortedCommissions.indexOf(c) < sortedCommissions.length - 1 && (
+                                  <div className="h-full min-h-[40px] w-px flex-1 bg-gray-200" />
                                 )}
-                              >
-                                {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
-                              </span>
+                              </div>
+                              <div className="flex-1 rounded-lg border border-gray-100 bg-white p-3 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                  <div className="space-y-0.5">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {new Date(c.dueDate).toLocaleDateString('fr-FR')}
+                                    </p>
+                                    <p className="text-xs text-gray-500">Montant: {c.amount.toLocaleString()} FCFA</p>
+                                  </div>
+                                  <span
+                                    className={cn(
+                                      'rounded-full px-2 py-1 text-[11px] font-semibold',
+                                      isPaid
+                                        ? 'bg-green-100 text-green-700'
+                                        : isOverdue
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-amber-100 text-amber-700'
+                                    )}
+                                  >
+                                    {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
+                                  </span>
+                                </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                  {c.proofDocumentId ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2"
+                                      onClick={() => setViewProofId(c.proofDocumentId!)}
+                                    >
+                                      <FileText className="mr-1 h-4 w-4" /> Voir preuve
+                                    </Button>
+                                  ) : (
+                                    <span className="text-gray-400">Aucune preuve</span>
+                                  )}
+                                  {c.receiptDocumentId && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2"
+                                      onClick={() => setViewReceiptCommissionId(c.id)}
+                                    >
+                                      <FileText className="mr-1 h-4 w-4" /> Reçu
+                                    </Button>
+                                  )}
+                                  {!isPaid && placement.status === 'Active' && (
+                                    <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPayCommissionId(c.id)}>
+                                      Payer
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-2 text-xs">
-                              {c.proofDocumentId ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2"
-                                  onClick={() => setViewProofId(c.proofDocumentId!)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" /> Voir preuve
-                                </Button>
-                              ) : (
-                                <span className="text-gray-400">Aucune preuve</span>
-                              )}
-                              {c.receiptDocumentId && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2"
-                                  onClick={() => setViewReceiptCommissionId(c.id)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" /> Reçu
-                                </Button>
-                              )}
-                              {!isPaid && placement.status === 'Active' && (
-                                <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPayCommissionId(c.id)}>
-                                  Payer
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                          )
+                        })}
+                      </div>
+                    )}
 
-                {commissionViewFormat === 'table' && (
-                  <div className="overflow-x-auto">
+                    {commissionViewFormat === 'table' && (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-100 text-sm">
+                          <thead className="bg-gray-50 text-gray-600">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold">Échéance</th>
+                              <th className="px-4 py-3 text-left font-semibold">Montant</th>
+                              <th className="px-4 py-3 text-left font-semibold">Statut</th>
+                              <th className="px-4 py-3 text-left font-semibold">Preuve</th>
+                              <th className="px-4 py-3 text-left font-semibold">Reçu/Quittance</th>
+                              <th className="px-4 py-3 text-left font-semibold">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {commissions.map((c) => (
+                              <tr key={c.id} className="hover:bg-slate-50">
+                                <td className="px-4 py-3 text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</td>
+                                <td className="px-4 py-3 font-semibold text-gray-900">{c.amount.toLocaleString()} FCFA</td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`rounded-full px-2 py-1 text-xs ${
+                                      c.status === 'Paid'
+                                        ? 'bg-green-100 text-green-700'
+                                        : c.status === 'Due'
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                  >
+                                    {commissionStatusLabel(c.status)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  {c.proofDocumentId ? (
+                                    <Button variant="ghost" size="sm" onClick={() => setViewProofId(c.proofDocumentId!)}>
+                                      <FileText className="mr-1 h-4 w-4" /> Voir
+                                    </Button>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {c.receiptDocumentId ? (
+                                    <Button variant="ghost" size="sm" onClick={() => setViewReceiptCommissionId(c.id)}>
+                                      <FileText className="mr-1 h-4 w-4" /> Ouvrir
+                                    </Button>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {c.status === 'Due' && placement.status === 'Active' ? (
+                                    <Button size="sm" variant="outline" onClick={() => setPayCommissionId(c.id)}>
+                                      Payer
+                                    </Button>
+                                  ) : (
+                                    <span className="text-xs text-gray-500">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="historique" className="mt-0 space-y-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
+                  Historique des versements validés avec export PDF par versement et facture globale.
+                </div>
+                {paidCommissions.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 p-6 text-sm text-gray-600">
+                    Aucun versement payé pour l’instant.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-slate-200">
                     <table className="min-w-full divide-y divide-gray-100 text-sm">
                       <thead className="bg-gray-50 text-gray-600">
                         <tr>
-                          <th className="px-4 py-3 text-left font-semibold">Échéance</th>
+                          <th className="px-4 py-3 text-left font-semibold">Date échéance</th>
+                          <th className="px-4 py-3 text-left font-semibold">Date versement</th>
                           <th className="px-4 py-3 text-left font-semibold">Montant</th>
-                          <th className="px-4 py-3 text-left font-semibold">Statut</th>
                           <th className="px-4 py-3 text-left font-semibold">Preuve</th>
-                          <th className="px-4 py-3 text-left font-semibold">Reçu/Quittance</th>
-                          <th className="px-4 py-3 text-left font-semibold">Action</th>
+                          <th className="px-4 py-3 text-left font-semibold">Reçu</th>
+                          <th className="px-4 py-3 text-left font-semibold">Facture</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {commissions.map((c) => (
-                          <tr key={c.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-3 text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</td>
-                            <td className="px-4 py-3 font-semibold text-gray-900">{c.amount.toLocaleString()} FCFA</td>
+                      <tbody className="divide-y divide-gray-50 bg-white">
+                        {paidCommissions.map((commission) => (
+                          <tr key={`history-${commission.id}`} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 text-gray-800">
+                              {new Date(commission.dueDate).toLocaleDateString('fr-FR')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-800">
+                              {commission.paidAt ? new Date(commission.paidAt).toLocaleDateString('fr-FR') : '-'}
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-gray-900">
+                              {commission.amount.toLocaleString()} FCFA
+                            </td>
                             <td className="px-4 py-3">
-                              <span
-                                className={`px-2 py-1 text-xs rounded-full ${
-                                  c.status === 'Paid'
-                                    ? 'bg-green-100 text-green-700'
-                                    : c.status === 'Due'
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}
+                              {commission.proofDocumentId ? (
+                                <Button variant="ghost" size="sm" onClick={() => setViewProofId(commission.proofDocumentId!)}>
+                                  <FileText className="mr-1 h-4 w-4" />
+                                  Voir
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {commission.receiptDocumentId ? (
+                                <Button variant="ghost" size="sm" onClick={() => setViewReceiptCommissionId(commission.id)}>
+                                  <FileText className="mr-1 h-4 w-4" />
+                                  Ouvrir
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleGenerateSingleFacture(commission)}
+                                disabled={isGeneratingSingleFactureId !== null}
                               >
-                                {commissionStatusLabel(c.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              {c.proofDocumentId ? (
-                                <Button variant="ghost" size="sm" onClick={() => setViewProofId(c.proofDocumentId!)}>
-                                  <FileText className="h-4 w-4 mr-1" /> Voir
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-gray-400">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {c.receiptDocumentId ? (
-                                <Button variant="ghost" size="sm" onClick={() => setViewReceiptCommissionId(c.id)}>
-                                  <FileText className="h-4 w-4 mr-1" /> Ouvrir
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-gray-400">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {c.status === 'Due' && placement.status === 'Active' ? (
-                                <Button size="sm" variant="outline" onClick={() => setPayCommissionId(c.id)}>
-                                  Payer
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-gray-500">—</span>
-                              )}
+                                <FileDown className="mr-1 h-4 w-4" />
+                                {isGeneratingSingleFactureId === commission.id ? 'Génération...' : 'Facture PDF'}
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -746,9 +969,9 @@ const commissionStatusLabel = (status: string) => {
                     </table>
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
+              </TabsContent>
+            </CardContent>
+          </Tabs>
         </Card>
       </div>
 
@@ -849,27 +1072,48 @@ const commissionStatusLabel = (status: string) => {
         />
       )}
 
-      {/* Modal de demande de retrait anticipé */}
-      {showEarlyExitForm && placement && (
-        <Dialog open={showEarlyExitForm} onOpenChange={setShowEarlyExitForm}>
-          <DialogContent className="sm:max-w-lg max-w-[95vw]">
-            <DialogHeader>
-              <DialogTitle>Demander un retrait anticipé</DialogTitle>
-              <DialogDescription>
-                Les montants sont calculés automatiquement selon la règle : commission d'un mois si au moins 1 mois écoulé, sinon 0 commission.
-              </DialogDescription>
-            </DialogHeader>
-            <EarlyExitForm 
-              placementId={placement.id} 
-              onClose={() => {
-                setShowEarlyExitForm(false)
-                qc.invalidateQueries({ queryKey: ['placement', placement.id, 'early-exit'] })
-                qc.invalidateQueries({ queryKey: ['placement', placement.id] })
-                qc.invalidateQueries({ queryKey: ['placements'] })
-              }} 
-            />
-          </DialogContent>
-        </Dialog>
+      {placement && (
+        <EarlyWithdrawalRequestModal
+          isOpen={showEarlyExitForm}
+          onClose={() => setShowEarlyExitForm(false)}
+          isSubmitting={requestEarlyExit.isPending}
+          memberDisplayName={
+            placement.benefactorName ||
+            `${member?.firstName || ''} ${member?.lastName || ''}`.trim() ||
+            'Bienfaiteur'
+          }
+          contractDisplayLabel={`Placement #${placement.id}`}
+          monthlyAmountLabel={`Montant du placement : ${placement.amount.toLocaleString('fr-FR')} FCFA`}
+          maxAmount={Math.max(0, Math.round(calculatedEarlyExit?.payoutAmount ?? placement.amount))}
+          maxAmountLabel="Montant à verser"
+          onSubmit={async (formData) => {
+            if (!user?.uid) {
+              toast.error('Utilisateur non authentifié')
+              throw new Error('Utilisateur non authentifié')
+            }
+
+            await requestEarlyExit.mutateAsync({
+              placementId: placement.id,
+              commissionDue: Math.max(0, Number(calculatedEarlyExit?.commissionDue || 0)),
+              payoutAmount: formData.withdrawalAmount,
+              withdrawalAmount: formData.withdrawalAmount,
+              withdrawalDate: formData.withdrawalDate,
+              withdrawalTime: formData.withdrawalTime,
+              withdrawalProof: formData.withdrawalProof,
+              reason: formData.reason,
+              documentPdf: formData.documentPdf,
+              paymentMode: formData.withdrawalMode,
+              paymentDate: new Date(`${formData.withdrawalDate}T${formData.withdrawalTime}`),
+              benefactorId: placement.benefactorId,
+              adminId: user.uid,
+            })
+
+            qc.invalidateQueries({ queryKey: ['placement', placement.id, 'early-exit'] })
+            qc.invalidateQueries({ queryKey: ['placement', placement.id] })
+            qc.invalidateQueries({ queryKey: ['placements'] })
+            toast.success('Demande de retrait anticipé créée')
+          }}
+        />
       )}
 
       {showUrgentModal && placement.urgentContact && (
@@ -1009,6 +1253,7 @@ const commissionStatusLabel = (status: string) => {
                   }
                 }}
                 disabled={isClosing || !closeFile}
+                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
               >
                 {isClosing ? 'Clôture...' : 'Clôturer'}
               </Button>

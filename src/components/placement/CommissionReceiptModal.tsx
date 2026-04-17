@@ -11,11 +11,17 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { useAdmin } from '@/hooks/useAdmins'
+import { useMember } from '@/hooks/useMembers'
 import { usePlacementDocument } from '@/hooks/placement/usePlacementDocument'
+import {
+  buildPlacementFacturePage1Data,
+  generatePlacementFacturePDF,
+  mapCommissionToPlacementVersement,
+} from '@/services/placement/facturePlacementPdfExport'
 import { CommissionPaymentPlacement, Placement } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import jsPDF from 'jspdf'
 import {
     Calendar,
     CheckCircle,
@@ -33,11 +39,6 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-// Helper pour formater les montants correctement dans les PDFs
-const formatAmount = (amount: number): string => {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-}
-
 interface CommissionReceiptModalProps {
   isOpen: boolean
   onClose: () => void
@@ -53,6 +54,9 @@ export default function CommissionReceiptModal({
 }: CommissionReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const { data: member } = useMember(placement?.benefactorId)
+  const paymentRecordedById = commission.paymentRecordedBy || commission.updatedBy || ''
+  const { data: paymentRecordedByAdmin } = useAdmin(paymentRecordedById)
   
   // Récupérer le document de preuve si disponible
   const { data: proofDocument } = usePlacementDocument(commission.proofDocumentId || undefined)
@@ -76,155 +80,27 @@ export default function CommissionReceiptModal({
     }
   }
 
-  const loadImageAsBase64 = async (url: string): Promise<string> => {
-    try {
-      const response = await fetch(url)
-      const blob = await response.blob()
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
-    } catch (error) {
-      console.error('Erreur lors du chargement de l\'image:', error)
-      return ''
+  const getAdminDisplayName = () => {
+    if (paymentRecordedByAdmin) {
+      return `${paymentRecordedByAdmin.firstName} ${paymentRecordedByAdmin.lastName}`.trim()
     }
+    if (paymentRecordedById) return paymentRecordedById
+    return '-'
   }
 
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
-
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      let yPos = 20
-
-      // En-tête
-      doc.setFillColor(35, 77, 101) // #234D65
-      doc.rect(0, 0, pageWidth, 40, 'F')
-      
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('FACTURE DE COMMISSION', pageWidth / 2, 20, { align: 'center' })
-      
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Placement - KARA', pageWidth / 2, 30, { align: 'center' })
-
-      yPos = 50
-
-      // Informations du placement
-      doc.setTextColor(0, 0, 0)
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 50, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('INFORMATIONS DU PLACEMENT', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 15, yPos)
-      doc.text(`N° Placement: ${placement.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Montant: ${formatAmount(placement.amount)} FCFA`, 15, yPos)
-      doc.text(`Taux: ${placement.rate}%`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Période: ${placement.periodMonths} mois`, 15, yPos)
-      doc.text(`Mode: ${placement.payoutMode === 'MonthlyCommission_CapitalEnd' ? 'Mensuel' : 'Final'}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Date d'émission: ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}`, 15, yPos)
-
-      yPos += 15
-
-      // Informations de la commission
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 40, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('INFORMATIONS DE LA COMMISSION', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Date d'échéance: ${formatDate(commission.dueDate)}`, 15, yPos)
-      if (commission.paidAt) {
-        doc.text(`Date de paiement: ${formatDate(commission.paidAt)}`, pageWidth / 2 + 5, yPos)
-      }
-      
-      yPos += 7
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(35, 77, 101)
-      doc.text('MONTANT DE LA COMMISSION:', 15, yPos)
-      doc.text(`${formatAmount(commission.amount)} FCFA`, pageWidth - 15, yPos, { align: 'right' })
-
-      yPos += 15
-
-      // Preuve de paiement si disponible
-      if (proofUrl) {
-        try {
-          const imageBase64 = await loadImageAsBase64(proofUrl)
-          if (imageBase64) {
-            doc.setFontSize(10)
-            doc.setFont('helvetica', 'bold')
-            doc.setTextColor(0, 0, 0)
-            doc.text('PREUVE DE PAIEMENT', 15, yPos)
-            yPos += 5
-
-            // Ajouter l'image (max 80mm de largeur, hauteur proportionnelle)
-            const maxWidth = 80
-            const img = document.createElement('img')
-            img.src = imageBase64
-            await new Promise<void>((resolve, reject) => {
-              img.onload = () => {
-                const ratio = img.height / img.width
-                const imgWidth = Math.min(maxWidth, pageWidth - 30)
-                const imgHeight = imgWidth * ratio
-                
-                // Vérifier si on dépasse la page
-                if (yPos + imgHeight > pageHeight - 20) {
-                  doc.addPage()
-                  yPos = 20
-                }
-                
-                doc.addImage(imageBase64, 'JPEG', 15, yPos, imgWidth, imgHeight)
-                yPos += imgHeight + 10
-                resolve()
-              }
-              img.onerror = () => resolve()
-            })
-          }
-        } catch (error) {
-          console.error('Erreur lors de l\'ajout de l\'image:', error)
-        }
-      }
-
-      // Footer
-      yPos = pageHeight - 20
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'italic')
-      doc.setTextColor(100, 100, 100)
-      doc.text('Ce document est généré automatiquement par le système KARA', pageWidth / 2, yPos, { align: 'center' })
-      doc.text(`Page 1/1 - Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, pageWidth / 2, yPos + 5, { align: 'center' })
-
-      // Télécharger le PDF
-      const benefactorName = placement.benefactorName || placement.benefactorId
-      const fileName = `Facture_Commission_${benefactorName.replace(/\s+/g, '_')}_${format(new Date(commission.dueDate), 'ddMMyyyy', { locale: fr })}.pdf`
-      doc.save(fileName)
-      
-      toast.success('PDF téléchargé avec succès', {
-        description: `Fichier: ${fileName}`
+      const page1Data = buildPlacementFacturePage1Data(placement, member)
+      const versement = mapCommissionToPlacementVersement({ placement, commission })
+      await generatePlacementFacturePDF({
+        page1Data,
+        versements: [versement],
+        filename: `facture_versement_placement_${placement.id}_${commission.id}.pdf`,
+        title: 'FACTURE VERSEMENT PLACEMENT',
       })
+      toast.success('PDF téléchargé avec succès')
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error)
       toast.error('Erreur lors de la génération du PDF')
@@ -307,6 +183,12 @@ export default function CommissionReceiptModal({
                     Payée le {formatDateTime(commission.paidAt)}
                   </p>
                 )}
+                <p className="text-sm text-green-700">
+                  Enregistrée par {getAdminDisplayName()}
+                  {(commission.paymentRecordedAt || commission.updatedAt) && (
+                    <> le {formatDateTime(commission.paymentRecordedAt || commission.updatedAt)}</>
+                  )}
+                </p>
               </div>
             </div>
             <Badge className="bg-green-600 text-white text-lg px-4 py-2">
@@ -433,4 +315,3 @@ export default function CommissionReceiptModal({
     </Dialog>
   )
 }
-
