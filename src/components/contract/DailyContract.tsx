@@ -159,7 +159,7 @@ export default function DailyContract({ id }: Props) {
   const [refunds, setRefunds] = useState<any[]>([])
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
-  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundType, setRefundType] = useState<'FINAL' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundDate, setRefundDate] = useState(() => {
@@ -2625,7 +2625,7 @@ export default function DailyContract({ id }: Props) {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+                Demande de remboursement final
               </DialogTitle>
               <DialogDescription>
                 Veuillez indiquer la raison de cette demande

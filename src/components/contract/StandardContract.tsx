@@ -138,7 +138,7 @@ export default function StandardContract({ id }: Props) {
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
-  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundType, setRefundType] = useState<'FINAL' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
 
   // Fonction pour recharger les remboursements
@@ -1097,7 +1097,7 @@ export default function StandardContract({ id }: Props) {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
             <div className="text-base font-semibold mb-4">
-              {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+              Demande de remboursement final
             </div>
             <div className="space-y-4">
               <div>

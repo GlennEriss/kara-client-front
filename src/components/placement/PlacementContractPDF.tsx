@@ -295,7 +295,7 @@ export default function PlacementContractPDF({
   const urgentId = placement.urgentContact?.idNumber || '—'
   const urgentDocType = placement.urgentContact?.typeId || '—'
   const amountNumber = Math.round(Number(placement.amount || 0))
-  const amountInDigits = `${amountNumber.toLocaleString('fr-FR')} FCFA`
+  const amountInDigits = `${String(amountNumber).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} FCFA`
   const amountInLetters = `${numberToWords(amountNumber)} francs CFA`
   const startDate = formatDate(placement.startDate)
   const endDate = formatDate(placement.endDate)

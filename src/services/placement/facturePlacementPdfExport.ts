@@ -77,7 +77,11 @@ const getAgeFromBirthDate = (birthDate?: string): string => {
   return age > 0 ? `${age} ANS` : '-'
 }
 
-const formatAmount = (amount: number) => `${Math.round(amount).toLocaleString('fr-FR')} FCFA`
+const formatAmount = (amount: number) => {
+  const safe = Number.isFinite(amount) ? Math.round(amount) : 0
+  const grouped = String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return `${grouped} FCFA`
+}
 
 const resolvePaymentLabel = (mode?: PaymentMode, paymentMethodOther?: string) => {
   if (!mode) return 'Non renseigné'

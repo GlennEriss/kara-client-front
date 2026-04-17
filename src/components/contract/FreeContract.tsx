@@ -109,7 +109,7 @@ export default function FreeContract({ id }: Props) {
   const [refunds, setRefunds] = useState<any[]>([])
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
-  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundType, setRefundType] = useState<'FINAL' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
 
   // Fonction pour recharger les remboursements
@@ -1125,7 +1125,7 @@ export default function FreeContract({ id }: Props) {
                     <FileText className="h-6 w-6 text-blue-600" />
                   </div>
                   <h3 className="text-lg font-bold text-blue-900">
-                    {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+                    Demande de remboursement final
                   </h3>
                 </div>
               </div>

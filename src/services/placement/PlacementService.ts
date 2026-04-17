@@ -60,6 +60,11 @@ export class PlacementService {
     return { startDate: start, endDate: end, nextCommissionDate }
   }
 
+  private formatAmountForPdf(amount: number): string {
+    const safe = Number.isFinite(amount) ? Math.round(amount) : 0
+    return String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
   /**
    * Récupère les informations du membre pour préremplir nom et téléphone
    */
@@ -790,7 +795,7 @@ export class PlacementService {
     doc.setFontSize(11)
     doc.text(`Placement #${placement.id}`, 14, 40)
     doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
-    doc.text(`Montant capital: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Montant capital: ${this.formatAmountForPdf(placement.amount)} FCFA`, 14, 56)
     doc.text(`Durée: ${placement.periodMonths} mois`, 14, 64)
     if (placement.endDate) {
       doc.text(`Date de fin: ${new Date(placement.endDate).toLocaleDateString('fr-FR')}`, 14, 72)
@@ -912,11 +917,11 @@ export class PlacementService {
     doc.setFontSize(11)
     doc.text(`Placement #${placement.id}`, 14, 40)
     doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
-    doc.text(`Montant: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Montant: ${this.formatAmountForPdf(placement.amount)} FCFA`, 14, 56)
     doc.text(`Période: ${placement.periodMonths} mois`, 14, 64)
     doc.text(`Demande de retrait: ${earlyExit.requestedAt.toLocaleDateString()}`, 14, 72)
-    doc.text(`Commission due: ${earlyExit.commissionDue.toLocaleString()} FCFA`, 14, 80)
-    doc.text(`Montant à verser: ${earlyExit.payoutAmount.toLocaleString()} FCFA`, 14, 88)
+    doc.text(`Commission due: ${this.formatAmountForPdf(earlyExit.commissionDue)} FCFA`, 14, 80)
+    doc.text(`Montant à verser: ${this.formatAmountForPdf(earlyExit.payoutAmount)} FCFA`, 14, 88)
 
     const blob = doc.output('blob')
     const fileName = `AVENANT_SORTIE_${placement.id.slice(-6)}.pdf`
