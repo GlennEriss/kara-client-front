@@ -44,6 +44,22 @@ export interface DashboardRankingItem {
   label: string
   value: number
   subLabel?: string
+  href?: string
+}
+
+export interface ExecutiveActiveMemberItem {
+  memberId: string
+  label: string
+  value: number
+  subLabel?: string
+  href?: string
+}
+
+export interface ExecutiveActiveMembersPage {
+  items: ExecutiveActiveMemberItem[]
+  pageSize: number
+  nextCursor: string | null
+  hasNextPage: boolean
 }
 
 export interface DashboardRankingBlock {

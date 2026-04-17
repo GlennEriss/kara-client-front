@@ -1,7 +1,10 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import routes from '@/constantes/routes'
+import type { Firestore } from 'firebase-admin/firestore'
 import type { DashboardTabKey } from '../entities/dashboard-tabs.types'
 import type {
     DashboardDistributionBlock,
+    ExecutiveActiveMembersPage,
     DashboardFilterOptions,
     DashboardFilters,
     DashboardKpiItem,
@@ -16,6 +19,9 @@ type FirestoreRecord = Record<string, unknown> & { id: string }
 const MEMBER_ROLES = new Set(['Adherant', 'Bienfaiteur', 'Sympathisant'])
 
 interface DashboardMemberRecord extends FirestoreRecord {
+  firstName?: string
+  lastName?: string
+  matricule?: string
   roles: string[]
   membershipType?: string
   profession?: string
@@ -41,6 +47,12 @@ interface MemberScopeContext {
 interface DateRange {
   from: Date
   to: Date
+}
+
+interface ActiveMemberSummary {
+  modules: Set<string>
+  contractsActive: number
+  encours: number
 }
 
 function safeNumber(value: unknown): number {
@@ -1598,6 +1610,117 @@ function buildExecutivePayload(
 
   const selectedEncours = selectedSummaries.reduce((sum, summary) => sum + summary.encours, 0)
   const selectedImpayes = selectedSummaries.reduce((sum, summary) => sum + summary.impayes, 0)
+  const activeMemberRows = new Map<string, {
+    memberId: string
+    name: string
+    matricule: string
+    modules: Set<string>
+    contratsActifs: number
+    encours: number
+  }>()
+
+  const getMemberDisplayInfo = (memberId: string): { name: string; matricule: string } => {
+    const member = memberScope.scopedMembers.find((item) => item.id === memberId)
+    if (!member) return { name: memberId, matricule: '-' }
+
+    const firstName = typeof (member as Record<string, unknown>).firstName === 'string'
+      ? String((member as Record<string, unknown>).firstName).trim()
+      : ''
+    const lastName = typeof (member as Record<string, unknown>).lastName === 'string'
+      ? String((member as Record<string, unknown>).lastName).trim()
+      : ''
+    const fullName = `${firstName} ${lastName}`.trim()
+    const matricule = typeof (member as Record<string, unknown>).matricule === 'string'
+      ? String((member as Record<string, unknown>).matricule).trim()
+      : ''
+
+    return {
+      name: fullName || memberId,
+      matricule: matricule || '-',
+    }
+  }
+
+  const ensureActiveMemberRow = (memberId: string) => {
+    const existing = activeMemberRows.get(memberId)
+    if (existing) return existing
+    const info = getMemberDisplayInfo(memberId)
+    const created = {
+      memberId,
+      name: info.name,
+      matricule: info.matricule,
+      modules: new Set<string>(),
+      contratsActifs: 0,
+      encours: 0,
+    }
+    activeMemberRows.set(memberId, created)
+    return created
+  }
+
+  for (const contract of caisseSpecialeContracts) {
+    const status = getStatus(contract)
+    if (status !== 'ACTIVE' && status !== 'LATE_NO_PENALTY' && status !== 'LATE_WITH_PENALTY') continue
+    const memberId = getMemberIdFrom(contract, ['memberId'])
+    if (!memberId) continue
+    const row = ensureActiveMemberRow(memberId)
+    row.modules.add('Caisse speciale')
+    row.contratsActifs += 1
+    const encours = Math.max((safeNumber(contract.monthlyAmount) * safeNumber(contract.monthsPlanned)) - safeNumber(contract.nominalPaid), 0)
+    row.encours += encours
+  }
+
+  for (const contract of caisseImprevueContracts) {
+    if (getStatus(contract) !== 'ACTIVE') continue
+    const memberId = getMemberIdFrom(contract, ['memberId'])
+    if (!memberId) continue
+    const row = ensureActiveMemberRow(memberId)
+    row.modules.add('Caisse imprevue')
+    row.contratsActifs += 1
+    row.encours += Math.max(safeNumber(contract.subscriptionCINominal), 0)
+  }
+
+  for (const contract of creditContracts) {
+    const status = getStatus(contract)
+    if (status !== 'ACTIVE' && status !== 'OVERDUE' && status !== 'PARTIAL') continue
+    const memberId = getMemberIdFrom(contract, ['clientId'])
+    if (!memberId) continue
+    const row = ensureActiveMemberRow(memberId)
+    const creditType = creditTypeOf(contract)
+    row.modules.add(
+      creditType === 'SPECIALE'
+        ? 'Credit speciale'
+        : creditType === 'FIXE'
+          ? 'Credit fixe'
+          : creditType === 'AIDE'
+            ? 'Caisse aide'
+            : 'Credit'
+    )
+    row.contratsActifs += 1
+    const remaining = safeNumber(contract.amountRemaining)
+    if (remaining > 0) {
+      row.encours += remaining
+    } else {
+      row.encours += Math.max((safeNumber(contract.totalAmount) || safeNumber(contract.amount)) - safeNumber(contract.amountPaid), 0)
+    }
+  }
+
+  for (const placement of placements) {
+    if (String(placement.status || '').toLowerCase() !== 'active') continue
+    const memberId = getMemberIdFrom(placement, ['benefactorId'])
+    if (!memberId) continue
+    const row = ensureActiveMemberRow(memberId)
+    row.modules.add('Placements')
+    row.contratsActifs += 1
+    row.encours += Math.max(safeNumber(placement.amount), 0)
+  }
+
+  const membersWithActiveContracts = Array.from(activeMemberRows.values())
+    .sort((a, b) => {
+      const moduleDiff = b.modules.size - a.modules.size
+      if (moduleDiff !== 0) return moduleDiff
+      const contractDiff = b.contratsActifs - a.contratsActifs
+      if (contractDiff !== 0) return contractDiff
+      return b.encours - a.encours
+    })
 
   const moduleDistribution = selectedDetailedSummaries.map((summary) => ({ label: summary.label, value: summary.pending }))
   const encoursDistribution = selectedDetailedSummaries.map((summary) => ({ label: summary.label, value: Math.round(summary.encours) }))
@@ -1607,6 +1730,7 @@ function buildExecutivePayload(
     subtitle: 'Vue direction avec detail des sous-modules et alertes operationnelles.',
     kpis: [
       numberKpi('members_active', 'Membres actifs', membersActive, 'Membres scopes actifs', 'primary'),
+      numberKpi('members_with_active_contracts', 'Membres avec contrats actifs', membersWithActiveContracts.length, 'Tous modules confondus', 'primary'),
       numberKpi('pending_global', 'Demandes en attente', pendingGlobal, 'Tous modules confondus', 'warning'),
       currencyKpi('encours_global', 'Encours global', selectedEncours, selectedModule === 'all' ? 'Tous modules' : `Module ${selectedModule}`, 'primary'),
       numberKpi('impayes_global', 'Impayes', selectedImpayes, 'Contrats/placements en retard', 'danger'),
@@ -1624,6 +1748,17 @@ function buildExecutivePayload(
       createDistribution('encours_by_module', 'Encours par sous-module', encoursDistribution, 'pie'),
     ],
     rankings: [
+      createRanking(
+        'members_with_active_contracts',
+        'Membres avec contrats actifs (historique en cours)',
+        membersWithActiveContracts.map((item) => ({
+          label: `${item.name} (${item.matricule})`,
+          value: item.modules.size,
+          subLabel: `${item.contratsActifs} contrat(s) actif(s) | Modules: ${Array.from(item.modules).join(', ')} | Encours ${Math.round(item.encours).toLocaleString('fr-FR')} FCFA`,
+          href: routes.admin.membershipDetails(item.memberId),
+        })),
+        'modules'
+      ),
       createRanking(
         'module_alerts',
         'Alertes operationnelles par sous-module',
@@ -1685,6 +1820,203 @@ export async function getDashboardFilterOptions(): Promise<DashboardFilterOption
   return {
     provinces,
     citiesByProvince,
+  }
+}
+
+function chunkValues<T>(values: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size))
+  }
+  return chunks
+}
+
+function ensureActiveMemberSummary(map: Map<string, ActiveMemberSummary>, memberId: string): ActiveMemberSummary {
+  const current = map.get(memberId)
+  if (current) return current
+  const created: ActiveMemberSummary = {
+    modules: new Set<string>(),
+    contractsActive: 0,
+    encours: 0,
+  }
+  map.set(memberId, created)
+  return created
+}
+
+async function readContractsForMemberIds(
+  adminFirestore: Firestore,
+  collectionName: string,
+  memberField: string,
+  memberIds: string[]
+): Promise<FirestoreRecord[]> {
+  if (memberIds.length === 0) return []
+
+  const idChunks = chunkValues(memberIds, 30)
+  const chunkPromises = idChunks.map(async (chunk) => {
+    const snap = await adminFirestore.collection(collectionName).where(memberField, 'in', chunk).get()
+    return snap.docs.map((docSnap: FirebaseFirestore.QueryDocumentSnapshot) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Record<string, unknown>),
+    }))
+  })
+
+  const docsByChunk = await Promise.all(chunkPromises)
+  return docsByChunk.flat()
+}
+
+async function loadActiveMemberSummaries(
+  adminFirestore: Firestore,
+  memberIds: string[]
+): Promise<Map<string, ActiveMemberSummary>> {
+  const summaries = new Map<string, ActiveMemberSummary>()
+
+  const [caisseSpecialeContracts, caisseImprevueContracts, creditContracts, placements] = await Promise.all([
+    readContractsForMemberIds(adminFirestore, firebaseCollectionNames.caisseContracts, 'memberId', memberIds),
+    readContractsForMemberIds(adminFirestore, firebaseCollectionNames.contractsCI, 'memberId', memberIds),
+    readContractsForMemberIds(adminFirestore, firebaseCollectionNames.creditContracts, 'clientId', memberIds),
+    readContractsForMemberIds(adminFirestore, firebaseCollectionNames.placements, 'benefactorId', memberIds),
+  ])
+
+  for (const contract of caisseSpecialeContracts) {
+    const status = getStatus(contract)
+    if (status !== 'ACTIVE' && status !== 'LATE_NO_PENALTY' && status !== 'LATE_WITH_PENALTY') continue
+    const memberId = getMemberIdFrom(contract, ['memberId'])
+    if (!memberId) continue
+    const summary = ensureActiveMemberSummary(summaries, memberId)
+    summary.modules.add('Caisse speciale')
+    summary.contractsActive += 1
+    summary.encours += Math.max((safeNumber(contract.monthlyAmount) * safeNumber(contract.monthsPlanned)) - safeNumber(contract.nominalPaid), 0)
+  }
+
+  for (const contract of caisseImprevueContracts) {
+    if (getStatus(contract) !== 'ACTIVE') continue
+    const memberId = getMemberIdFrom(contract, ['memberId'])
+    if (!memberId) continue
+    const summary = ensureActiveMemberSummary(summaries, memberId)
+    summary.modules.add('Caisse imprevue')
+    summary.contractsActive += 1
+    summary.encours += Math.max(safeNumber(contract.subscriptionCINominal), 0)
+  }
+
+  for (const contract of creditContracts) {
+    const status = getStatus(contract)
+    if (status !== 'ACTIVE' && status !== 'OVERDUE' && status !== 'PARTIAL') continue
+    const memberId = getMemberIdFrom(contract, ['clientId'])
+    if (!memberId) continue
+    const summary = ensureActiveMemberSummary(summaries, memberId)
+    const creditType = String(contract.creditType || '').toUpperCase()
+    summary.modules.add(
+      creditType === 'SPECIALE'
+        ? 'Credit speciale'
+        : creditType === 'FIXE'
+          ? 'Credit fixe'
+          : creditType === 'AIDE'
+            ? 'Caisse aide'
+            : 'Credit'
+    )
+    summary.contractsActive += 1
+    const remaining = safeNumber(contract.amountRemaining)
+    summary.encours += remaining > 0
+      ? remaining
+      : Math.max((safeNumber(contract.totalAmount) || safeNumber(contract.amount)) - safeNumber(contract.amountPaid), 0)
+  }
+
+  for (const placement of placements) {
+    if (String(placement.status || '').toLowerCase() !== 'active') continue
+    const memberId = getMemberIdFrom(placement, ['benefactorId'])
+    if (!memberId) continue
+    const summary = ensureActiveMemberSummary(summaries, memberId)
+    summary.modules.add('Placements')
+    summary.contractsActive += 1
+    summary.encours += Math.max(safeNumber(placement.amount), 0)
+  }
+
+  return summaries
+}
+
+export async function getExecutiveActiveMembersPage(
+  filters: DashboardFilters,
+  cursor: string | null,
+  pageSize = 20
+): Promise<ExecutiveActiveMembersPage> {
+  const { adminFirestore } = await import('@/firebase/adminFirestore')
+  if (!adminFirestore) {
+    throw new Error('Firestore admin indisponible')
+  }
+
+  const { FieldPath } = await import('firebase-admin/firestore')
+
+  const safePageSize = Number.isFinite(pageSize) ? Math.max(1, Math.min(50, Math.floor(pageSize))) : 20
+  const scanBatchSize = Math.max(60, safePageSize * 3)
+
+  const items: ExecutiveActiveMembersPage['items'] = []
+  let scanCursor = cursor
+  let reachedEnd = false
+  let scanGuard = 0
+
+  while (items.length < safePageSize && !reachedEnd && scanGuard < 50) {
+    scanGuard += 1
+
+    let query = adminFirestore
+      .collection(firebaseCollectionNames.users)
+      .orderBy(FieldPath.documentId())
+      .limit(scanBatchSize)
+
+    if (scanCursor) {
+      query = query.startAfter(scanCursor)
+    }
+
+    const usersSnap = await query.get()
+    if (usersSnap.empty) {
+      reachedEnd = true
+      break
+    }
+
+    const userDocs = usersSnap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Record<string, unknown>),
+    }))
+
+    scanCursor = usersSnap.docs[usersSnap.docs.length - 1]?.id ?? scanCursor
+    reachedEnd = usersSnap.docs.length < scanBatchSize
+
+    const scopedMembers = userDocs
+      .map((record) => toMemberRecord(record))
+      .filter((member): member is DashboardMemberRecord => Boolean(member))
+      .filter((member) => matchesMemberFilter(member, filters))
+
+    if (scopedMembers.length === 0) {
+      continue
+    }
+
+    const summaries = await loadActiveMemberSummaries(adminFirestore, scopedMembers.map((member) => member.id))
+
+    for (const member of scopedMembers) {
+      if (items.length >= safePageSize) break
+      const summary = summaries.get(member.id)
+      if (!summary || summary.contractsActive <= 0) continue
+
+      const firstName = typeof member.firstName === 'string' ? member.firstName.trim() : ''
+      const lastName = typeof member.lastName === 'string' ? member.lastName.trim() : ''
+      const fullName = `${firstName} ${lastName}`.trim() || member.id
+      const matricule = typeof member.matricule === 'string' && member.matricule.trim() ? member.matricule.trim() : '-'
+      const modules = Array.from(summary.modules)
+
+      items.push({
+        memberId: member.id,
+        label: `${fullName} (${matricule})`,
+        value: summary.modules.size,
+        subLabel: `${summary.contractsActive} contrat(s) actif(s) | Modules: ${modules.join(', ')} | Encours ${Math.round(summary.encours).toLocaleString('fr-FR')} FCFA`,
+        href: routes.admin.membershipDetails(member.id),
+      })
+    }
+  }
+
+  return {
+    items,
+    pageSize: safePageSize,
+    nextCursor: reachedEnd ? null : scanCursor,
+    hasNextPage: !reachedEnd,
   }
 }
 

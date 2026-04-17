@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, RefreshCw } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import type { DashboardFilters } from '../entities/dashboard.types'
-import { useDashboard, useDashboardFilterOptions } from '../hooks/useDashboard'
+import { useDashboard, useDashboardFilterOptions, useExecutiveActiveMembers } from '../hooks/useDashboard'
 import { useDashboardFilters } from '../hooks/useDashboardFilters'
 import { useDashboardTabs } from '../hooks/useDashboardTabs'
 import { DashboardFiltersBar } from './DashboardFiltersBar'
@@ -50,6 +50,8 @@ export default function DashboardPage() {
   const queryClient = useQueryClient()
   const { activeTab, setActiveTab } = useDashboardTabs()
   const { filters, setFilters, resetFilters, hasActiveMemberScope } = useDashboardFilters()
+  const [executiveCursor, setExecutiveCursor] = useState<string | null>(null)
+  const [executiveCursorHistory, setExecutiveCursorHistory] = useState<Array<string | null>>([])
 
   const { data: filterOptions } = useDashboardFilterOptions()
   const {
@@ -58,7 +60,19 @@ export default function DashboardPage() {
     isFetching,
     error,
   } = useDashboard(activeTab, filters)
+  const isExecutiveTab = activeTab === 'executive'
+  const {
+    data: executiveMembersPage,
+    isLoading: isExecutiveMembersLoading,
+  } = useExecutiveActiveMembers(filters, executiveCursor, 20, isExecutiveTab)
   const generatedAt = snapshot?.generatedAt ?? null
+
+  const filtersCacheKey = useMemo(() => JSON.stringify(filters), [filters])
+
+  useEffect(() => {
+    setExecutiveCursor(null)
+    setExecutiveCursorHistory([])
+  }, [filtersCacheKey, activeTab])
 
   const generatedAtLabel = useMemo(() => {
     if (!generatedAt) return null
@@ -93,6 +107,21 @@ export default function DashboardPage() {
     if (activeTab !== 'executive') {
       setFilters((prev) => ({ ...prev, moduleCompare: 'all' }))
     }
+  }
+
+  const handleExecutiveNextPage = () => {
+    const nextCursor = executiveMembersPage?.nextCursor
+    if (!nextCursor || !executiveMembersPage?.hasNextPage) return
+
+    setExecutiveCursorHistory((prev) => [...prev, executiveCursor])
+    setExecutiveCursor(nextCursor)
+  }
+
+  const handleExecutivePrevPage = () => {
+    if (executiveCursorHistory.length === 0) return
+    const previousCursor = executiveCursorHistory[executiveCursorHistory.length - 1] ?? null
+    setExecutiveCursor(previousCursor)
+    setExecutiveCursorHistory((prev) => prev.slice(0, -1))
   }
 
   return (
@@ -147,7 +176,14 @@ export default function DashboardPage() {
       ) : isLoading && !snapshot ? (
         <DashboardSkeleton />
       ) : snapshot ? (
-        <DashboardTabContent payload={snapshot.snapshot} />
+        <DashboardTabContent
+          payload={snapshot.snapshot}
+          executiveMembersPage={executiveMembersPage}
+          executiveMembersPageIndex={executiveCursorHistory.length}
+          executiveMembersLoading={isExecutiveMembersLoading}
+          onExecutivePrevPage={handleExecutivePrevPage}
+          onExecutiveNextPage={handleExecutiveNextPage}
+        />
       ) : (
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
