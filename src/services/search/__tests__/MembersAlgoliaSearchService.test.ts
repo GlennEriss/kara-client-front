@@ -44,10 +44,6 @@ vi.mock('@/firebase/firestore', () => {
 
 // Récupérer les mocks après l'import (dans beforeEach)
 let mockGetDocs: ReturnType<typeof vi.fn>
-let mockQuery: ReturnType<typeof vi.fn>
-let mockWhere: ReturnType<typeof vi.fn>
-let mockLimit: ReturnType<typeof vi.fn>
-let mockCollection: ReturnType<typeof vi.fn>
 
 // Mock constants
 vi.mock('@/constantes/firebase-collection-names', () => ({
@@ -62,11 +58,7 @@ describe('MembersAlgoliaSearchService', () => {
   beforeEach(async () => {
     // Récupérer les mocks depuis le module mocké
     const firestoreModule = await import('@/firebase/firestore')
-    mockCollection = vi.mocked(firestoreModule.collection)
     mockGetDocs = vi.mocked(firestoreModule.getDocs)
-    mockQuery = vi.mocked(firestoreModule.query)
-    mockWhere = vi.mocked(firestoreModule.where)
-    mockLimit = vi.mocked(firestoreModule.limit)
 
     // Réinitialiser les variables d'environnement
     process.env.NEXT_PUBLIC_ALGOLIA_APP_ID = 'test-app-id'

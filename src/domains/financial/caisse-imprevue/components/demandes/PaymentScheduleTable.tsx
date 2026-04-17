@@ -73,7 +73,7 @@ export function PaymentScheduleTable({
     return parsed
   }
 
-  // Export Excel
+  // Exporter Excel
   const handleExportExcel = async () => {
     setIsExporting('excel')
     try {
@@ -122,7 +122,7 @@ export function PaymentScheduleTable({
       
       XLSX.writeFile(wb, fileName)
       
-      toast.success('Export Excel réussi', {
+      toast.success('Exporter Excel réussi', {
         description: `${schedule.items.length} lignes exportées`
       })
     } catch (error) {
@@ -133,7 +133,7 @@ export function PaymentScheduleTable({
     }
   }
 
-  // Export PDF
+  // Exporter PDF
   const handleExportPDF = async () => {
     setIsExporting('pdf')
     try {
@@ -222,7 +222,7 @@ export function PaymentScheduleTable({
       
       doc.save(fileName)
       
-      toast.success('Export PDF réussi', {
+      toast.success('Exporter PDF réussi', {
         description: `${schedule.items.length} lignes exportées`
       })
     } catch (error) {
@@ -253,7 +253,7 @@ export function PaymentScheduleTable({
               {isExporting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Export en cours...
+                  Exportation en cours...
                 </>
               ) : (
                 <>
@@ -266,11 +266,11 @@ export function PaymentScheduleTable({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleExportExcel} className="gap-2 cursor-pointer">
               <FileSpreadsheet className="w-4 h-4 text-green-600" />
-              <span>Export Excel (.xlsx)</span>
+              <span>Exporter Excel (.xlsx)</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
               <FileText className="w-4 h-4 text-red-600" />
-              <span>Export PDF</span>
+              <span>Exporter PDF</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,6 +1,6 @@
 import { CreditContract, CreditContractCycle, CreditPayment } from '@/types/types'
 import { customRound } from './credit-speciale-calculations'
-import { getLogicalMonthIndex, isRestMonth } from './credit-speciale-rest-months'
+import { getLogicalMonthIndex } from './credit-speciale-rest-months'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
 export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 60

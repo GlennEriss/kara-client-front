@@ -136,7 +136,7 @@ export default function CommuneList() {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredCommunes.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+            <Download className="h-4 w-4 mr-2" /> Exporter CSV
           </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser

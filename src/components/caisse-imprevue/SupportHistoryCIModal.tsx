@@ -99,7 +99,7 @@ export default function SupportHistoryCIModal({
       const fileName = `Historique_Supports_${contractId}_${format(new Date(), 'ddMMyyyy')}.xlsx`
       XLSX.writeFile(workbook, fileName)
       
-      toast.success('Export Excel réussi !')
+      toast.success('Exporter Excel réussi !')
     } catch (error) {
       console.error('Erreur lors de l\'export Excel:', error)
       toast.error('Erreur lors de l\'export Excel')
@@ -177,7 +177,7 @@ function SupportCard({ support }: { support: SupportCI }) {
     }
   }
 
-  // Export PDF individuel
+  // Exporter PDF individuel
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF('p', 'mm', 'a4')
@@ -323,7 +323,7 @@ function SupportCard({ support }: { support: SupportCI }) {
       const fileName = `Support_${support.id}_${format(new Date(), 'ddMMyyyy')}.pdf`
       doc.save(fileName)
       
-      toast.success('Export PDF réussi !')
+      toast.success('Exporter PDF réussi !')
     } catch (error) {
       console.error('Erreur lors de l\'export PDF:', error)
       toast.error('Erreur lors de l\'export PDF')

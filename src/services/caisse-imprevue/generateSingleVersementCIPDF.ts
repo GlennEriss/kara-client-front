@@ -287,7 +287,7 @@ export async function generateSingleVersementCIPDF(
   ]
   drawGridRows(contractRows, 38.2)
 
-  // Section "GESTION DES VERSEMENTS... TABLEAU RECAPITULATIF" réservée à l’export global (Export PDF), pas au PDF single (bouton PDF / Télécharger en PDF)
+  // Section "GESTION DES VERSEMENTS... TABLEAU RECAPITULATIF" réservée à l’export global (Exporter PDF), pas au PDF single (bouton PDF / Télécharger en PDF)
   const headerHeight = 8
   const rowHeight = 8
   const titleHeight = 8

@@ -95,7 +95,7 @@ export function BirthdaysPage() {
     setHighlightedMemberId(undefined) // Réinitialiser la surbrillance
   }, [])
 
-  // Export Excel
+  // Exporter Excel
   const handleExportExcel = async () => {
     const dataToExport = viewMode === 'list' ? listData : calendarData
     if (!dataToExport || dataToExport.length === 0) {
@@ -120,14 +120,14 @@ export function BirthdaysPage() {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Anniversaires')
       const filename = `anniversaires_${viewMode === 'calendar' ? `${MONTHS[selectedMonth]}_${selectedYear}` : 'liste'}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré')
+      toast.success('Exporter Excel généré')
     } catch (error) {
       console.error('Erreur export Excel:', error)
       toast.error("Erreur lors de l'export Excel")
     }
   }
 
-  // Export PDF
+  // Exporter PDF
   const handleExportPdf = async () => {
     const dataToExport = viewMode === 'list' ? listData : calendarData
     if (!dataToExport || dataToExport.length === 0) {
@@ -172,7 +172,7 @@ export function BirthdaysPage() {
 
       const filename = `anniversaires_${viewMode === 'calendar' ? `${MONTHS[selectedMonth]}_${selectedYear}` : 'liste'}.pdf`
       doc.save(filename)
-      toast.success('Export PDF généré')
+      toast.success('Exporter PDF généré')
     } catch (error) {
       console.error('Erreur export PDF:', error)
       toast.error("Erreur lors de l'export PDF")

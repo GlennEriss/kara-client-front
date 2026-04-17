@@ -7,8 +7,8 @@
  * - INT-BIRTHDAYS-03 : Filtres par mois (multi-sélection)
  * - INT-BIRTHDAYS-04 : Vue calendrier (toggle et affichage)
  * - INT-BIRTHDAYS-05 : Navigation mois calendrier avec cache
- * - INT-BIRTHDAYS-06 : Export Excel
- * - INT-BIRTHDAYS-07 : Export PDF
+ * - INT-BIRTHDAYS-06 : Exporter Excel
+ * - INT-BIRTHDAYS-07 : Exporter PDF
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'

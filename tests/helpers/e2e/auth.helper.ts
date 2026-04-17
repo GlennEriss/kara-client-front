@@ -70,8 +70,8 @@ export async function saveAuthState(
  * Charger un état d'authentification sauvegardé
  */
 export async function loadAuthState(
-  context: BrowserContext,
-  path: string
+  _context: BrowserContext,
+  _path: string
 ): Promise<void> {
   // L'état est chargé lors de la création du contexte
   // via: browser.newContext({ storageState: path })

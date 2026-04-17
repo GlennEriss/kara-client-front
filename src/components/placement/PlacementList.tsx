@@ -1204,7 +1204,7 @@ export default function PlacementList() {
 
           <Card className="col-span-1 bg-white border-0 shadow-md">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-gray-700">Top bienfaiteurs</CardTitle>
+              <CardTitle className="text-base font-semibold text-gray-700">Principaux bienfaiteurs</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {topBenefactors.length === 0 ? (

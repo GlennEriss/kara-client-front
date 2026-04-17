@@ -970,7 +970,7 @@ export default function ContractCIPaymentsPage() {
                     className="flex items-center justify-center gap-1.5 sm:gap-2 border-red-300 text-red-700 hover:bg-red-50 h-9 px-2 sm:px-3 text-xs sm:text-sm"
                   >
                     <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">Export PDF</span>
+                    <span className="hidden sm:inline">Exporter PDF</span>
                     <span className="sm:hidden">PDF</span>
                   </Button>
                   <Button
@@ -980,7 +980,7 @@ export default function ContractCIPaymentsPage() {
                     className="flex items-center justify-center gap-1.5 sm:gap-2 border-green-300 text-green-700 hover:bg-green-50 h-9 px-2 sm:px-3 text-xs sm:text-sm"
                   >
                     <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">Export Excel</span>
+                    <span className="hidden sm:inline">Exporter Excel</span>
                     <span className="sm:hidden">Excel</span>
                   </Button>
                 </div>

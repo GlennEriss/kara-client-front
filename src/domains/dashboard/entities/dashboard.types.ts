@@ -1,6 +1,6 @@
 import type { DashboardTabKey } from './dashboard-tabs.types'
 
-export type DashboardPeriodKey = 'today' | '7d' | '30d' | 'month' | 'custom'
+export type DashboardPeriodKey = 'all' | 'today' | '7d' | '30d' | 'month' | 'custom'
 export type DashboardMemberTypeFilter = 'all' | 'adherant' | 'bienfaiteur' | 'sympathisant'
 export type DashboardModuleCompareFilter = 'all' | 'caisse' | 'credit' | 'placement'
 
@@ -44,6 +44,22 @@ export interface DashboardRankingItem {
   label: string
   value: number
   subLabel?: string
+  href?: string
+}
+
+export interface ExecutiveActiveMemberItem {
+  memberId: string
+  label: string
+  value: number
+  subLabel?: string
+  href?: string
+}
+
+export interface ExecutiveActiveMembersPage {
+  items: ExecutiveActiveMemberItem[]
+  pageSize: number
+  nextCursor: string | null
+  hasNextPage: boolean
 }
 
 export interface DashboardRankingBlock {
@@ -71,7 +87,7 @@ export interface DashboardSnapshot {
 }
 
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
-  period: 'month',
+  period: 'all',
   memberType: 'all',
   zoneProvince: 'all',
   zoneCity: 'all',

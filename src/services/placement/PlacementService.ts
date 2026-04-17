@@ -65,6 +65,11 @@ export class PlacementService {
     return String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   }
 
+  private toFiniteNumber(value: unknown): number {
+    const parsed = typeof value === 'number' ? value : Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
   /**
    * Récupère les informations du membre pour préremplir nom et téléphone
    */
@@ -120,9 +125,9 @@ export class PlacementService {
       startDate: dates.startDate,
       endDate: dates.endDate,
       nextCommissionDate: dates.nextCommissionDate,
-      amount: Number((data as any).amount) || 0,
-      rate: Number((data as any).rate) || 0,
-      periodMonths: Number((data as any).periodMonths) || 0,
+      amount: this.toFiniteNumber(data.amount),
+      rate: this.toFiniteNumber(data.rate),
+      periodMonths: this.toFiniteNumber(data.periodMonths),
       status: 'Draft',
       createdBy: adminId,
       updatedBy: adminId,
@@ -218,9 +223,9 @@ export class PlacementService {
     return this.placementRepository.update(id, { 
       ...data,
       ...computed,
-      amount: data.amount !== undefined ? Number((data as any).amount) || 0 : undefined,
-      rate: data.rate !== undefined ? Number((data as any).rate) || 0 : undefined,
-      periodMonths: data.periodMonths !== undefined ? Number((data as any).periodMonths) || 0 : undefined,
+      amount: data.amount !== undefined ? this.toFiniteNumber(data.amount) : undefined,
+      rate: data.rate !== undefined ? this.toFiniteNumber(data.rate) : undefined,
+      periodMonths: data.periodMonths !== undefined ? this.toFiniteNumber(data.periodMonths) : undefined,
       updatedBy: adminId 
     })
   }
@@ -990,7 +995,7 @@ export class PlacementService {
 
     // Calculer les statistiques de base
     for (const placement of placements) {
-      const amount = Number((placement as any).amount) || 0
+      const amount = this.toFiniteNumber(placement.amount)
       stats.totalAmount += amount
       
       if (placement.status === 'Draft') stats.draft++
@@ -1009,14 +1014,14 @@ export class PlacementService {
     for (const placement of placements) {
       try {
         const commissions = await this.placementRepository.listCommissions(placement.id)
-        stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + (Number((c as any).amount) || 0), 0)
+        stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + this.toFiniteNumber(c.amount), 0)
         
         for (const commission of commissions) {
           if (commission.status === 'Due') {
             stats.commissionsDue++
           } else if (commission.status === 'Paid') {
             stats.commissionsPaid++
-            stats.paidCommissionsAmount += Number((commission as any).amount) || 0
+            stats.paidCommissionsAmount += this.toFiniteNumber(commission.amount)
           }
         }
       } catch {
@@ -1027,7 +1032,7 @@ export class PlacementService {
     // Calculer les top bienfaiteurs
     const benefactorMap = new Map<string, { totalAmount: number; placementCount: number }>()
     for (const placement of placements) {
-      const amount = Number((placement as any).amount) || 0
+      const amount = this.toFiniteNumber(placement.amount)
       const existing = benefactorMap.get(placement.benefactorId) || { totalAmount: 0, placementCount: 0 }
       benefactorMap.set(placement.benefactorId, {
         totalAmount: existing.totalAmount + amount,

@@ -80,10 +80,13 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
     }
 
     try {
+      const memberIdForPayment =
+        payment.contract.memberId || payment.contract.groupeId || "UNKNOWN"
+
       await pay({
         contractId: payment.contract.id || "",
         dueMonthIndex: payment.dueMonthIndex,
-        memberId: payment.contract.memberId || "",
+        memberId: memberIdForPayment,
         amount: data.amount,
         file: data.proofFile,
         paidAt: new Date(data.date),

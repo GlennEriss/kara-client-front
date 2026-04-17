@@ -380,7 +380,7 @@ export default function DailyContract({ id }: Props) {
     }
   }
 
-  // Export PDF "Détails du versement" : même format que la page versements (bouton PDF)
+  // Exporter PDF "Détails du versement" : même format que la page versements (bouton PDF)
   const exportPaymentDetailsToPDF = async () => {
     if (!paymentDetails) {
       toast.error('Aucun détail de versement à exporter')

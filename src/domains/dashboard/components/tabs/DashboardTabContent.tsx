@@ -1,7 +1,10 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import {
     Bar,
     BarChart,
@@ -14,14 +17,23 @@ import {
     XAxis,
     YAxis,
 } from 'recharts'
-import type { DashboardDistributionBlock, DashboardTabPayload } from '../../entities/dashboard.types'
+import type {
+  DashboardDistributionBlock,
+  DashboardTabPayload,
+  ExecutiveActiveMembersPage,
+} from '../../entities/dashboard.types'
 
 interface DashboardTabContentProps {
   payload: DashboardTabPayload
+  executiveMembersPage?: ExecutiveActiveMembersPage | null
+  executiveMembersPageIndex?: number
+  executiveMembersLoading?: boolean
+  onExecutivePrevPage?: () => void
+  onExecutiveNextPage?: () => void
 }
 
 const CHART_COLORS = ['#234D65', '#CBB171', '#2E7D32', '#D97706', '#D32F2F', '#5E35B1', '#0288D1']
-const EXECUTIVE_TITLE = 'executive'
+const EXECUTIVE_TITLE = 'executif'
 
 function formatMetric(value: number, format: DashboardTabPayload['kpis'][number]['format']): string {
   if (format === 'currency') {
@@ -86,16 +98,42 @@ function getDistributionUnitLabel(distribution: DashboardDistributionBlock): str
 function shortModuleLabel(label: string): string {
   const normalized = label.trim().toLowerCase()
   if (normalized === 'placements') return 'Place.'
+  if (normalized === 'caisse speciale') return 'C. spec'
+  if (normalized === 'caisse imprevue') return 'C. impr'
+  if (normalized === 'caisse aide') return 'C. aide'
+  if (normalized === 'credit speciale') return 'Cr. spec'
+  if (normalized === 'credit fixe') return 'Cr. fixe'
   if (normalized === 'credit') return 'Credit'
   if (normalized === 'caisse') return 'Caisse'
   return label
 }
 
-export function DashboardTabContent({ payload }: DashboardTabContentProps) {
+export function DashboardTabContent({
+  payload,
+  executiveMembersPage,
+  executiveMembersPageIndex = 0,
+  executiveMembersLoading = false,
+  onExecutivePrevPage,
+  onExecutiveNextPage,
+}: DashboardTabContentProps) {
   const isExecutive = payload.title.trim().toLowerCase() === EXECUTIVE_TITLE
-  const executiveRanking = isExecutive ? payload.rankings?.find((ranking) => ranking.key === 'module_health') : undefined
+  const executiveRanking = isExecutive
+    ? payload.rankings?.find((ranking) => ranking.key === 'module_alerts') ??
+      payload.rankings?.find((ranking) => ranking.key === 'module_health')
+    : undefined
+  const executiveMembersRanking = isExecutive
+    ? payload.rankings?.find((ranking) => ranking.key === 'members_with_active_contracts')
+    : undefined
+  const executiveMembers = isExecutive
+    ? (executiveMembersPage?.items ?? executiveMembersRanking?.items ?? [])
+    : []
   const rankingsToRender = isExecutive
-    ? (payload.rankings || []).filter((ranking) => ranking.key !== 'module_health')
+    ? (payload.rankings || []).filter(
+      (ranking) =>
+        ranking.key !== 'module_health' &&
+        ranking.key !== 'module_alerts' &&
+        ranking.key !== 'members_with_active_contracts'
+    )
     : payload.rankings || []
   const maxExecutiveRisk = executiveRanking?.items.length
     ? Math.max(...executiveRanking.items.map((item) => item.value), 1)
@@ -147,6 +185,86 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
           </Card>
         ))}
       </div>
+
+      {isExecutive && executiveMembersRanking && (
+        <Card className="border-kara-primary-dark/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold text-kara-primary-dark">
+              {executiveMembersRanking.title}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Liste prioritaire des membres ayant au moins un contrat actif dans les modules.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {executiveMembersLoading ? (
+              <p className="text-sm text-muted-foreground">Chargement des membres actifs...</p>
+            ) : executiveMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun membre avec contrat actif sur ce scope.</p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {executiveMembers.map((item) => (
+                  <div
+                    key={`executive-member-${item.label}`}
+                    className="rounded-xl border border-kara-primary-dark/15 bg-gradient-to-br from-white via-slate-50 to-kara-primary-dark/5 p-4 shadow-sm transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-2">
+                        <p className="truncate text-sm font-bold text-kara-primary-dark">{item.label}</p>
+                        <p className="line-clamp-2 text-xs text-muted-foreground">{item.subLabel || 'Aucun detail disponible.'}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 border-kara-primary-dark/30 bg-kara-primary-dark text-white"
+                      >
+                        {item.value} module(s) actif(s)
+                      </Badge>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end">
+                      {item.href ? (
+                        <Link
+                          href={item.href}
+                          className="inline-flex items-center rounded-lg border border-kara-primary-dark/20 bg-white px-3 py-1.5 text-xs font-semibold text-kara-primary-dark transition-colors hover:bg-kara-primary-dark/5"
+                        >
+                          Ouvrir la fiche membre
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-col gap-2 border-t border-kara-primary-dark/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                Page {executiveMembersPageIndex + 1} - {executiveMembers.length} membre(s) affiche(s)
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={executiveMembersLoading || executiveMembersPageIndex <= 0}
+                  onClick={onExecutivePrevPage}
+                >
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Precedent
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={executiveMembersLoading || !executiveMembersPage?.hasNextPage}
+                  onClick={onExecutiveNextPage}
+                >
+                  Suivant
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {payload.distributions && payload.distributions.length > 0 && (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -247,7 +365,12 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
       {isExecutive && executiveRanking && executiveRanking.items.length > 0 && (
         <Card className="border-kara-primary-dark/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-kara-primary-dark">Radar risques modules</CardTitle>
+            <CardTitle className="text-base font-bold text-kara-primary-dark">
+              Alertes operationnelles (retards et impayes)
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Chaque ligne represente un sous-module. Plus le niveau est eleve, plus il y a de dossiers a traiter.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {executiveRanking.items.map((item) => (

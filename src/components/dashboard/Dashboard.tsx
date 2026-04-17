@@ -280,25 +280,25 @@ const insurancePolicies: InsurancePolicy[] = [
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case "En attente":
+    case "pending":
       return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
         <Clock className="w-3 h-3 mr-1" />
-        {status}
+        En attente
       </Badge>
-    case "Approuvée":
+    case "approved":
       return <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
         <CheckCircle className="w-3 h-3 mr-1" />
-        {status}
+        Approuvée
       </Badge>
     case "rejected":
       return <Badge variant="destructive">
         <XCircle className="w-3 h-3 mr-1" />
-        {status}
+        Rejetée
       </Badge>
     case "Active":
       return <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
         <CheckCircle className="w-3 h-3 mr-1" />
-        {status}
+        Actif
       </Badge>
     case "Expirée":
       return <Badge variant="destructive">

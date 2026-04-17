@@ -1,5 +1,6 @@
 import { adminAuth } from "@/firebase/adminAuth";
 import { adminFirestore } from "@/firebase/adminFirestore";
+import { verifyAdminSessionFromRequest } from "@/domains/auth/server/session";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -19,6 +20,11 @@ export async function POST(req: NextRequest) {
       { error: "Firebase Admin non configuré" },
       { status: 503 }
     );
+  }
+
+  const _claims = await verifyAdminSessionFromRequest(req)
+  if (!_claims) {
+    return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 })
   }
 
   try {
@@ -41,7 +47,7 @@ export async function POST(req: NextRequest) {
       await adminAuth.getUser(trimmedUid);
       results.inAuth = true;
       results.found = true;
-    } catch (err: any) {
+    } catch {
       // Ignorer auth/user-not-found, continuer la vérification
     }
 
@@ -52,7 +58,7 @@ export async function POST(req: NextRequest) {
         results.inUsers = true;
         results.found = true;
       }
-    } catch (err: any) {
+    } catch {
       // Ignorer les erreurs, continuer la vérification
     }
 
@@ -65,13 +71,14 @@ export async function POST(req: NextRequest) {
         results.inAdmins = true;
         results.found = true;
       }
-    } catch (err: any) {
+    } catch {
       // Ignorer les erreurs, continuer
     }
 
     return NextResponse.json(results, { status: 200 });
-  } catch (error: any) {
-    console.error("[check-user] Erreur:", error?.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erreur inattendue'
+    console.error("[check-user] Erreur:", message);
     return NextResponse.json(
       { error: "Erreur lors de la vérification" },
       { status: 500 }

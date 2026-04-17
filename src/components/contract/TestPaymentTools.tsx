@@ -165,7 +165,7 @@ const TestPaymentTools: React.FC<TestPaymentToolsProps> = ({
 
       <p className="text-sm text-yellow-800 mb-4">
         Prochaine échéance: <strong>M{nextPayment.dueMonthIndex + 1}</strong> - 
-        Date limite: <strong>{contractData.nextDueAt ? new Date(contractData.nextDueAt).toLocaleDateString('fr-FR') : 'N/A'}</strong>
+        Date limite: <strong>{contractData.nextDueAt ? new Date(contractData.nextDueAt).toLocaleDateString('fr-FR') : 'N/D'}</strong>
       </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -221,4 +221,3 @@ const TestPaymentTools: React.FC<TestPaymentToolsProps> = ({
 }
 
 export default TestPaymentTools
-
