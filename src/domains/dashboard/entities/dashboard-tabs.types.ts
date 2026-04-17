@@ -1,5 +1,5 @@
 export const DASHBOARD_TAB_DEFINITIONS = [
-  { key: 'executive', label: 'Executive', shortLabel: 'Exec' },
+  { key: 'executive', label: 'Executif', shortLabel: 'Exec' },
   { key: 'caisse_speciale', label: 'Caisse speciale', shortLabel: 'CS' },
   { key: 'caisse_imprevue', label: 'Caisse imprevue', shortLabel: 'CI' },
   { key: 'credit_speciale', label: 'Credit speciale', shortLabel: 'CrSpec' },

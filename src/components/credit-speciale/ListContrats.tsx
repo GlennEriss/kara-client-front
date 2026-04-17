@@ -437,7 +437,7 @@ const ListContrats = ({
       
       const filename = `contrats_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré')
+      toast.success('Exporter Excel généré')
     } catch (error) {
       console.error('Erreur lors de l\'export Excel:', error)
       toast.error('Erreur lors de l\'export Excel')
@@ -501,7 +501,7 @@ const ListContrats = ({
 
       const filename = `contrats_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(filename)
-      toast.success('Export PDF généré')
+      toast.success('Exporter PDF généré')
     } catch (error) {
       console.error('Erreur lors de l\'export PDF:', error)
       toast.error('Erreur lors de l\'export PDF')

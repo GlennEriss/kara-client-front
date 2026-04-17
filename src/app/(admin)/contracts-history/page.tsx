@@ -251,7 +251,7 @@ export default function ContractsHistoryPage() {
     window.open(document.url, '_blank')
   }
 
-  // Export Excel
+  // Exporter Excel
   const handleExportExcel = () => {
     const exportData = filteredDocuments.map((doc: Document) => {
       const memberInfo = memberInfos[doc.memberId]
@@ -280,7 +280,7 @@ export default function ContractsHistoryPage() {
     XLSX.writeFile(workbook, fileName)
   }
 
-  // Export PDF
+  // Exporter PDF
   const handleExportPDF = () => {
     const doc = new jsPDF('landscape', 'mm', 'a4')
 

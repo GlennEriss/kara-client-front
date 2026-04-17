@@ -65,13 +65,13 @@ export function useMembershipExport(): UseMembershipExportResult {
         link.download = `export_membres_${new Date().toISOString().slice(0, 10)}.csv`
         link.click()
         URL.revokeObjectURL(url)
-        toast.success('Export CSV généré')
+        toast.success('Exporter CSV généré')
       } else if (options.format === 'excel') {
         await service.exportMembersToExcel(exportOptions)
-        toast.success('Export Excel généré')
+        toast.success('Exporter Excel généré')
       } else if (options.format === 'pdf') {
         await service.exportMembersToPdf(exportOptions)
-        toast.success('Export PDF généré')
+        toast.success('Exporter PDF généré')
       }
     } catch (err) {
       console.error('Erreur export:', err)

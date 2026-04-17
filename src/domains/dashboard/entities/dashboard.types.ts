@@ -1,6 +1,6 @@
 import type { DashboardTabKey } from './dashboard-tabs.types'
 
-export type DashboardPeriodKey = 'today' | '7d' | '30d' | 'month' | 'custom'
+export type DashboardPeriodKey = 'all' | 'today' | '7d' | '30d' | 'month' | 'custom'
 export type DashboardMemberTypeFilter = 'all' | 'adherant' | 'bienfaiteur' | 'sympathisant'
 export type DashboardModuleCompareFilter = 'all' | 'caisse' | 'credit' | 'placement'
 
@@ -71,7 +71,7 @@ export interface DashboardSnapshot {
 }
 
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
-  period: 'month',
+  period: 'all',
   memberType: 'all',
   zoneProvince: 'all',
   zoneCity: 'all',

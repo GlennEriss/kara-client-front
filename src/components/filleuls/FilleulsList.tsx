@@ -171,7 +171,7 @@ export default function FilleulsList() {
            filleulDate.getMonth() === now.getMonth()
   }).length
 
-  // Export Excel
+  // Exporter Excel
   const handleExportExcel = async () => {
     if (filleulsData.length === 0) {
       toast.info('Aucun filleul à exporter')
@@ -192,14 +192,14 @@ export default function FilleulsList() {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Filleuls')
       const filename = `filleuls_${memberData.matricule}_${format(new Date(), 'yyyy-MM-dd', { locale: fr })}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré avec succès')
+      toast.success('Exporter Excel généré avec succès')
     } catch (error) {
       console.error('Erreur export Excel:', error)
       toast.error("Erreur lors de l'export Excel")
     }
   }
 
-  // Export PDF
+  // Exporter PDF
   const handleExportPdf = async () => {
     if (filleulsData.length === 0) {
       toast.info('Aucun filleul à exporter')
@@ -239,7 +239,7 @@ export default function FilleulsList() {
 
       const filename = `filleuls_${memberData.matricule}_${format(new Date(), 'yyyy-MM-dd', { locale: fr })}.pdf`
       doc.save(filename)
-      toast.success('Export PDF généré avec succès')
+      toast.success('Exporter PDF généré avec succès')
     } catch (error) {
       console.error('Erreur export PDF:', error)
       toast.error("Erreur lors de l'export PDF")

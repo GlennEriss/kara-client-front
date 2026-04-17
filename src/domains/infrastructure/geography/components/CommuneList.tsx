@@ -143,7 +143,7 @@ export default function CommuneList() {
             className="text-xs sm:text-sm"
           >
             <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
-            <span className="hidden sm:inline">Export CSV</span>
+            <span className="hidden sm:inline">Exporter CSV</span>
             <span className="sm:hidden">CSV</span>
           </Button>
           <Button 

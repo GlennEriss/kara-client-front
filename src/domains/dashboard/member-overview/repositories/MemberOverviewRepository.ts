@@ -10,6 +10,7 @@ import {
   query,
   where,
 } from '@/firebase/firestore'
+import type { UserRole } from '@/types/types'
 import type { MemberOverviewMemberInfo } from '../entities/member-overview.types'
 import type { IMemberOverviewRepository, OverviewRawRecord } from './IMemberOverviewRepository'
 
@@ -60,6 +61,20 @@ function normalizeRecord(id: string, data: Record<string, unknown>): OverviewRaw
   }
 }
 
+const ALLOWED_USER_ROLES: UserRole[] = ['Adherant', 'Sympathisant', 'Bienfaiteur', 'Admin', 'SuperAdmin', 'Secretary']
+
+async function getDocsWithTimeout<T>(promise: Promise<T>, timeoutMs = 12000): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | null = null
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error('Timeout Firestore: la requête met trop de temps')), timeoutMs)
+  })
+  try {
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
 export class MemberOverviewRepository implements IMemberOverviewRepository {
   private static instance: MemberOverviewRepository
 
@@ -74,7 +89,7 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
 
   async getMemberById(memberId: string): Promise<MemberOverviewMemberInfo | null> {
     const memberDocRef = doc(db, firebaseCollectionNames.users, memberId)
-    const memberSnap = await getDoc(memberDocRef)
+    const memberSnap = await getDocsWithTimeout(getDoc(memberDocRef))
 
     if (!memberSnap.exists()) return null
 
@@ -89,7 +104,10 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
         : undefined,
       membershipType: data.membershipType as MemberOverviewMemberInfo['membershipType'],
       roles: Array.isArray(data.roles)
-        ? data.roles.filter((role): role is MemberOverviewMemberInfo['roles'][number] => typeof role === 'string')
+        ? data.roles.filter(
+            (role): role is UserRole =>
+              typeof role === 'string' && ALLOWED_USER_ROLES.includes(role as UserRole),
+          )
         : undefined,
       isActive: typeof data.isActive === 'boolean' ? data.isActive : undefined,
       photoURL: typeof data.photoURL === 'string' ? data.photoURL : null,
@@ -109,7 +127,7 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
       fbLimit(limitPerSection),
     )
 
-    const snap = await getDocs(q)
+    const snap = await getDocsWithTimeout(getDocs(q))
     return snap.docs.map((d) => normalizeRecord(d.id, d.data() as Record<string, unknown>))
   }
 
@@ -161,7 +179,7 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
       orderBy('createdAt', 'desc'),
       fbLimit(limitPerSection),
     )
-    const snap = await getDocs(q)
+    const snap = await getDocsWithTimeout(getDocs(q))
     return snap.docs.map((d) => normalizeRecord(d.id, d.data() as Record<string, unknown>))
   }
 
@@ -177,7 +195,7 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
       orderBy('createdAt', 'desc'),
       fbLimit(limitPerSection),
     )
-    const snap = await getDocs(q)
+    const snap = await getDocsWithTimeout(getDocs(q))
     return snap.docs.map((d) => normalizeRecord(d.id, d.data() as Record<string, unknown>))
   }
 
@@ -201,4 +219,3 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
 }
 
 export { coerceDate }
-

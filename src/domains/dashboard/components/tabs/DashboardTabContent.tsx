@@ -21,7 +21,7 @@ interface DashboardTabContentProps {
 }
 
 const CHART_COLORS = ['#234D65', '#CBB171', '#2E7D32', '#D97706', '#D32F2F', '#5E35B1', '#0288D1']
-const EXECUTIVE_TITLE = 'executive'
+const EXECUTIVE_TITLE = 'executif'
 
 function formatMetric(value: number, format: DashboardTabPayload['kpis'][number]['format']): string {
   if (format === 'currency') {
@@ -86,6 +86,11 @@ function getDistributionUnitLabel(distribution: DashboardDistributionBlock): str
 function shortModuleLabel(label: string): string {
   const normalized = label.trim().toLowerCase()
   if (normalized === 'placements') return 'Place.'
+  if (normalized === 'caisse speciale') return 'C. spec'
+  if (normalized === 'caisse imprevue') return 'C. impr'
+  if (normalized === 'caisse aide') return 'C. aide'
+  if (normalized === 'credit speciale') return 'Cr. spec'
+  if (normalized === 'credit fixe') return 'Cr. fixe'
   if (normalized === 'credit') return 'Credit'
   if (normalized === 'caisse') return 'Caisse'
   return label
@@ -93,9 +98,12 @@ function shortModuleLabel(label: string): string {
 
 export function DashboardTabContent({ payload }: DashboardTabContentProps) {
   const isExecutive = payload.title.trim().toLowerCase() === EXECUTIVE_TITLE
-  const executiveRanking = isExecutive ? payload.rankings?.find((ranking) => ranking.key === 'module_health') : undefined
+  const executiveRanking = isExecutive
+    ? payload.rankings?.find((ranking) => ranking.key === 'module_alerts') ??
+      payload.rankings?.find((ranking) => ranking.key === 'module_health')
+    : undefined
   const rankingsToRender = isExecutive
-    ? (payload.rankings || []).filter((ranking) => ranking.key !== 'module_health')
+    ? (payload.rankings || []).filter((ranking) => ranking.key !== 'module_health' && ranking.key !== 'module_alerts')
     : payload.rankings || []
   const maxExecutiveRisk = executiveRanking?.items.length
     ? Math.max(...executiveRanking.items.map((item) => item.value), 1)
@@ -247,7 +255,12 @@ export function DashboardTabContent({ payload }: DashboardTabContentProps) {
       {isExecutive && executiveRanking && executiveRanking.items.length > 0 && (
         <Card className="border-kara-primary-dark/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-kara-primary-dark">Radar risques modules</CardTitle>
+            <CardTitle className="text-base font-bold text-kara-primary-dark">
+              Alertes operationnelles (retards et impayes)
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Chaque ligne represente un sous-module. Plus le niveau est eleve, plus il y a de dossiers a traiter.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {executiveRanking.items.map((item) => (

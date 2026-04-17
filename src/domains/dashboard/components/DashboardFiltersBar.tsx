@@ -64,6 +64,7 @@ export function DashboardFiltersBar({
               <SelectValue placeholder="Periode" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Depuis le debut</SelectItem>
               <SelectItem value="today">Aujourd'hui</SelectItem>
               <SelectItem value="7d">7 derniers jours</SelectItem>
               <SelectItem value="30d">30 derniers jours</SelectItem>
@@ -154,7 +155,7 @@ export function DashboardFiltersBar({
       {activeTab === 'executive' && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <div className="space-y-2 sm:col-span-2 xl:col-span-2">
-            <Label htmlFor="dashboard-module-compare">Module compare (Executive)</Label>
+            <Label htmlFor="dashboard-module-compare">Comparaison des modules (Executif)</Label>
             <Select
               value={filters.moduleCompare}
               onValueChange={(value: DashboardFilters['moduleCompare']) => update({ moduleCompare: value })}

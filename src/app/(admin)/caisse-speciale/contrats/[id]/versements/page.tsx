@@ -641,7 +641,7 @@ export default function ContractPaymentsPage() {
     return { drawPaymentBlock, pageWidth, pageHeight, drawPageBackground, drawMainTitle }
   }
 
-  // Export PDF d’un seul versement : même design que "Exporter PDF" (2 premières pages + bloc "VERSEMENT i DU date" pour l’échéance)
+  // Exporter PDF d’un seul versement : même design que "Exporter PDF" (2 premières pages + bloc "VERSEMENT i DU date" pour l’échéance)
   const exportSinglePaymentToPDF = async (payment: any) => {
     if (!contract) return
     const { generateSingleVersementPDF } = await import('@/services/caisse/versementPdfExport')

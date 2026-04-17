@@ -853,7 +853,7 @@ const ListContracts = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Contrats')
       const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré')
+      toast.success('Exporter Excel généré')
     } catch (error) {
       console.error('Erreur lors de l\'export:', error)
       toast.error('Erreur lors de l\'export Excel')
@@ -922,7 +922,7 @@ const ListContracts = () => {
 
       const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.pdf`
       doc.save(filename)
-      toast.success('Export PDF généré')
+      toast.success('Exporter PDF généré')
     } catch (error) {
       console.error('Erreur lors de l\'export:', error)
       toast.error('Erreur lors de l\'export PDF')

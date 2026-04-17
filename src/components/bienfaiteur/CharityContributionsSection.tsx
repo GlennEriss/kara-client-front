@@ -258,7 +258,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Contributeurs')
       const filename = `contributeurs_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré')
+      toast.success('Exporter Excel généré')
     } catch (error) {
       console.error(error)
       toast.error('Erreur lors de la génération du fichier Excel')
@@ -318,7 +318,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
       })
 
       doc.save(`contributeurs_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`)
-      toast.success('Export PDF généré')
+      toast.success('Exporter PDF généré')
     } catch (error) {
       console.error(error)
       toast.error('Erreur lors de la génération du PDF')

@@ -1,5 +1,5 @@
 /**
- * Export PDF "historique versement" (2 pages infos + bloc VERSEMENT i DU date).
+ * Exporter PDF "historique versement" (2 pages infos + bloc VERSEMENT i DU date).
  * Utilisé par la page versements (bouton PDF) et par le modal facture (Télécharger PDF).
  */
 import jsPDF from 'jspdf'

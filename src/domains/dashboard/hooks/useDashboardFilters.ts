@@ -6,7 +6,9 @@ import {
     type DashboardFilters,
 } from '../entities/dashboard.types'
 
-const STORAGE_KEY = 'dashboard.filters.v1'
+const STORAGE_KEY = 'dashboard.filters.v2'
+
+const ALLOWED_PERIODS: ReadonlySet<DashboardFilters['period']> = new Set(['all', 'today', '7d', '30d', 'month', 'custom'])
 
 function sanitizeFilters(raw: Partial<DashboardFilters> | null | undefined): DashboardFilters {
   const safe = {
@@ -18,7 +20,7 @@ function sanitizeFilters(raw: Partial<DashboardFilters> | null | undefined): Das
   if (!safe.zoneCity) safe.zoneCity = 'all'
   if (!safe.memberType) safe.memberType = 'all'
   if (!safe.moduleCompare) safe.moduleCompare = 'all'
-  if (!safe.period) safe.period = 'month'
+  if (!safe.period || !ALLOWED_PERIODS.has(safe.period)) safe.period = DEFAULT_DASHBOARD_FILTERS.period
 
   if (safe.period !== 'custom') {
     safe.customFrom = undefined

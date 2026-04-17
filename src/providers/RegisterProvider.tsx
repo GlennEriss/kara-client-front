@@ -262,7 +262,7 @@ const RegisterContext = createContext<RegisterContextType | undefined>(undefined
 export const useRegisterContext = () => {
   const context = useContext(RegisterContext)
   if (!context) {
-    throw new Error('useRegisterContext must be used within a RegisterProvider')
+    throw new Error('useRegisterContext doit etre utilise dans RegisterProvider')
   }
   return context
 }
@@ -1060,7 +1060,7 @@ export function useRegister(): RegisterContextType {
   const context = useContext(RegisterContext)
 
   if (context === undefined) {
-    throw new Error('useRegister must be used within a RegisterProvider')
+    throw new Error('useRegister doit etre utilise dans RegisterProvider')
   }
 
   return context
