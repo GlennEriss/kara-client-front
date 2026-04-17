@@ -352,6 +352,15 @@ function statusCount(records: FirestoreRecord[], expectedStatus: string): number
   return records.filter((record) => getStatus(record) === expectedStatus).length
 }
 
+function pendingCount(records: FirestoreRecord[], options?: { includeReopened?: boolean }): number {
+  const statuses = new Set<string>(['PENDING'])
+  if (options?.includeReopened) {
+    statuses.add('REOPENED')
+  }
+
+  return records.filter((record) => statuses.has(getStatus(record))).length
+}
+
 function buildCaisseSpecialePayload(
   demandsRaw: FirestoreRecord[],
   contractsRaw: FirestoreRecord[]
@@ -413,7 +422,7 @@ function buildCaisseImprevuePayload(
   demandsRaw: FirestoreRecord[],
   contractsRaw: FirestoreRecord[]
 ): DashboardTabPayload {
-  const pending = statusCount(demandsRaw, 'PENDING')
+  const pending = pendingCount(demandsRaw, { includeReopened: true })
   const approved = statusCount(demandsRaw, 'APPROVED')
   const rejected = statusCount(demandsRaw, 'REJECTED')
   const converted = statusCount(demandsRaw, 'CONVERTED')
@@ -895,11 +904,11 @@ function buildExecutivePayload(
 
   const pendingMembershipRequests = membershipRequests.filter((request) => {
     const status = normalizeText(request.status)
-    return status === 'pending'
+    return status === 'pending' || status === 'under_review'
   }).length
 
   const pendingCaisseSpeciale = statusCount(caisseSpecialeDemands, 'PENDING')
-  const pendingCaisseImprevue = statusCount(caisseImprevueDemands, 'PENDING')
+  const pendingCaisseImprevue = pendingCount(caisseImprevueDemands, { includeReopened: true })
   const pendingCredit = statusCount(creditDemands, 'PENDING')
   const pendingPlacement = statusCount(placementDemands, 'PENDING')
 
@@ -1115,10 +1124,11 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       readCollectionDocs(firebaseCollectionNames.placements),
     ])
 
-    const membershipRequests = filterRecordsByDate(membershipRequestsRaw, dateRange, ['createdAt'])
+    // Executive: "en attente" est un stock actuel a traiter, pas un flux lie a la periode.
+    const membershipRequests = membershipRequestsRaw
 
     const caisseSpecialeDemands = filterRecordsByMemberScope(
-      filterRecordsByDate(caisseSpecialeDemandsRaw, dateRange, ['createdAt', 'desiredDate']),
+      caisseSpecialeDemandsRaw,
       memberScope,
       (record) => getMemberIdFrom(record, ['memberId'])
     )
@@ -1130,7 +1140,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     )
 
     const caisseImprevueDemands = filterRecordsByMemberScope(
-      filterRecordsByDate(caisseImprevueDemandsRaw, dateRange, ['createdAt', 'desiredDate']),
+      caisseImprevueDemandsRaw,
       memberScope,
       (record) => getMemberIdFrom(record, ['memberId'])
     )
@@ -1142,7 +1152,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     )
 
     const creditDemands = filterRecordsByMemberScope(
-      filterRecordsByDate(creditDemandsRaw, dateRange, ['createdAt', 'desiredDate']),
+      creditDemandsRaw,
       memberScope,
       (record) => getMemberIdFrom(record, ['clientId'])
     )
@@ -1154,7 +1164,7 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
     )
 
     const placementDemands = filterRecordsByMemberScope(
-      filterRecordsByDate(placementDemandsRaw, dateRange, ['createdAt', 'desiredDate']),
+      placementDemandsRaw,
       memberScope,
       (record) => getMemberIdFrom(record, ['benefactorId'])
     )

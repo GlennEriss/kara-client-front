@@ -62,6 +62,7 @@ Documentation spécifique à chaque module :
 - `agent-de-recouvrement/` - Agent de recouvrement (traçabilité des collectes)
 - `calendrier/` - Module calendrier
 - `notifications/` - Module notifications
+- `recherche-membres-navbar/` - Recherche globale membre depuis la navbar
 - `vehicule/` - Module véhicules
 - `bienfaiteur/` - Module bienfaiteur
 - `placement/` - Module placement
