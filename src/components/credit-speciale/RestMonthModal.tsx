@@ -102,7 +102,11 @@ export default function RestMonthModal({
             <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-kara-blue text-white hover:bg-kara-blue/90 focus-visible:ring-kara-blue"
+            >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isSubmitting ? 'Enregistrement…' : 'Enregistrer le mois de repos'}
             </Button>
