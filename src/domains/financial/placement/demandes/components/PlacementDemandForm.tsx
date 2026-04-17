@@ -148,13 +148,13 @@ export function PlacementDemandForm({
                         type="number"
                         placeholder="Ex: 5"
                         min={0}
-                        max={100}
+                        max={10}
                         step={0.1}
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
-                    <FormDescription>Entre 0% et 100%</FormDescription>
+                    <FormDescription>Entre 0% et 10%</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

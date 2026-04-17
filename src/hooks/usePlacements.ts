@@ -59,16 +59,58 @@ export function usePlacementMutations() {
   })
 
   const requestEarlyExit = useMutation({
-    mutationFn: ({ placementId, commissionDue, payoutAmount, reason, documentPdf, benefactorId, adminId }: { 
+    mutationFn: ({
+      placementId,
+      commissionDue,
+      payoutAmount,
+      reason,
+      withdrawalAmount,
+      withdrawalDate,
+      withdrawalTime,
+      withdrawalProof,
+      documentPdf,
+      paymentMode,
+      withFees,
+      paymentMethodOther,
+      paymentDate,
+      benefactorId,
+      adminId,
+    }: {
       placementId: string
       commissionDue: number
       payoutAmount: number
       reason?: string
+      withdrawalAmount?: number
+      withdrawalDate?: string
+      withdrawalTime?: string
+      withdrawalProof?: File
       documentPdf?: File
+      paymentMode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
+      withFees?: boolean
+      paymentMethodOther?: string
+      paymentDate?: Date
       benefactorId: string
       adminId: string 
     }) =>
-      service.requestEarlyExit(placementId, { commissionDue, payoutAmount, reason, documentPdf }, benefactorId, adminId),
+      service.requestEarlyExit(
+        placementId,
+        {
+          commissionDue,
+          payoutAmount,
+          reason,
+          withdrawalAmount,
+          withdrawalDate,
+          withdrawalTime,
+          withdrawalProof,
+          documentPdf,
+          paymentMode,
+          withFees,
+          paymentMethodOther,
+          paymentDate,
+        },
+        benefactorId,
+        adminId
+      ),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId] })
@@ -158,4 +200,3 @@ export function usePlacementStats() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 }
-

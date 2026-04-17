@@ -939,7 +939,12 @@ export default function PlacementList() {
         data.proofFile,
         placement.benefactorId,
         paidDate,
-        user.uid
+        user.uid,
+        {
+          paymentMode: data.mode,
+          withFees: data.withFees,
+          paymentMethodOther: data.paymentMethodOther,
+        }
       )
       
       // Invalider et refetch les queries pour rafraîchir les données immédiatement
