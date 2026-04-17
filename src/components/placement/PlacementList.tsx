@@ -943,7 +943,7 @@ export default function PlacementList() {
       )
       
       // Invalider et refetch les queries pour rafraîchir les données immédiatement
-      await queryClient.invalidateQueries({ queryKey: ['placementCommissions', detailState.placementId] })
+      await queryClient.invalidateQueries({ queryKey: ['placement', detailState.placementId, 'commissions'] })
       await queryClient.invalidateQueries({ queryKey: ['placements'] })
       
       // Refetch immédiatement pour mettre à jour l'UI

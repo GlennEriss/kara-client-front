@@ -761,6 +761,9 @@ const commissionStatusLabel = (status: string) => {
         description="Ajoutez le contrat signé pour activer le placement."
         onUploaded={() => {
           setIsUploadOpen(false)
+          qc.invalidateQueries({ queryKey: ['placement', placement.id] })
+          qc.invalidateQueries({ queryKey: ['placement', placement.id, 'commissions'] })
+          qc.invalidateQueries({ queryKey: ['placements'] })
           toast.success('Contrat téléversé')
         }}
         benefactorId={placement.benefactorId}
@@ -860,8 +863,9 @@ const commissionStatusLabel = (status: string) => {
               placementId={placement.id} 
               onClose={() => {
                 setShowEarlyExitForm(false)
-                qc.invalidateQueries({ queryKey: ['earlyExit', placement.id] })
+                qc.invalidateQueries({ queryKey: ['placement', placement.id, 'early-exit'] })
                 qc.invalidateQueries({ queryKey: ['placement', placement.id] })
+                qc.invalidateQueries({ queryKey: ['placements'] })
               }} 
             />
           </DialogContent>
@@ -988,7 +992,11 @@ const commissionStatusLabel = (status: string) => {
                     const { ServiceFactory } = await import('@/factories/ServiceFactory')
                     const service = ServiceFactory.getPlacementService()
                     const updated = await service.closePlacement(placement.id, closeFile, closingReason.trim(), user.uid)
-                    await qc.invalidateQueries({ queryKey: ['placement', placement.id] })
+                    await Promise.all([
+                      qc.invalidateQueries({ queryKey: ['placement', placement.id] }),
+                      qc.invalidateQueries({ queryKey: ['placement', placement.id, 'commissions'] }),
+                      qc.invalidateQueries({ queryKey: ['placements'] }),
+                    ])
                     setFinalQuittanceId(updated.finalQuittanceDocumentId || null)
                     toast.success('Placement clôturé')
                     setShowCloseModal(false)
@@ -1011,4 +1019,3 @@ const commissionStatusLabel = (status: string) => {
     </div>
   )
 }
-

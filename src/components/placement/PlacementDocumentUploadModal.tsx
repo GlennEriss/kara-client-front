@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
 import type { PlacementDocumentType } from '@/types/types'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { FileText, Loader2, Upload, X } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -73,6 +74,7 @@ export default function PlacementDocumentUploadModal({
   existingDocumentId,
 }: PlacementDocumentUploadModalProps) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isCompressing, setIsCompressing] = useState(false)
   
@@ -113,7 +115,7 @@ export default function PlacementDocumentUploadModal({
       const { ServiceFactory } = await import('@/factories/ServiceFactory')
       const service = ServiceFactory.getPlacementService()
 
-      let result
+      let result: { documentId: string; placement?: unknown }
       if (documentType === 'PLACEMENT_CONTRACT') {
         result = await service.uploadPlacementDocument(compressedFile, placementId, benefactorId, documentType, user.uid)
       } else if (documentType === 'PLACEMENT_COMMISSION_PROOF') {
@@ -127,6 +129,25 @@ export default function PlacementDocumentUploadModal({
       } else {
         throw new Error('Type de document non supporté pour ce modal')
       }
+
+      if (documentType === 'PLACEMENT_CONTRACT' && result.placement) {
+        queryClient.setQueryData(['placement', placementId], result.placement)
+      }
+
+      const invalidations = [
+        queryClient.invalidateQueries({ queryKey: ['placement', placementId] }),
+        queryClient.invalidateQueries({ queryKey: ['placements'] }),
+      ]
+
+      if (documentType === 'PLACEMENT_CONTRACT') {
+        invalidations.push(queryClient.invalidateQueries({ queryKey: ['placement', placementId, 'commissions'] }))
+      }
+
+      if (documentType === 'PLACEMENT_EARLY_EXIT_QUITTANCE' || documentType === 'PLACEMENT_EARLY_EXIT_ADDENDUM') {
+        invalidations.push(queryClient.invalidateQueries({ queryKey: ['placement', placementId, 'early-exit'] }))
+      }
+
+      await Promise.all(invalidations)
       
       form.reset()
       setSelectedFile(null)
@@ -278,4 +299,3 @@ export default function PlacementDocumentUploadModal({
     </Dialog>
   )
 }
-
