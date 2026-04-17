@@ -61,11 +61,11 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      // Nom du fichier : LASTNAME_FIRSTNAME_CREDIT_SPECIALE_MK_YYYY.pdf (ex: OBIANG_ELLA_CREDIT_SPECIALE_MK_2026.pdf)
+      // Nom du fichier : LASTNAME_FIRSTNAME_ACC_EXP_MK_YYYY.pdf (ex: OBIANG_ELLA_ACC_EXP_MK_2026.pdf)
       const year = new Date().getFullYear()
       const first = (memberData?.firstName != null ? String(memberData.firstName) : '').toUpperCase().replace(/\s+/g, '_')
       const last = (memberData?.lastName != null ? String(memberData.lastName) : '').toUpperCase().replace(/\s+/g, '_')
-      const fileName = last && first ? `${last}_${first}_CREDIT_SPECIALE_MK_${year}.pdf` : `CREDIT_SPECIALE_MK_${contract.id}_${year}.pdf`
+      const fileName = last && first ? `${last}_${first}_ACC_EXP_MK_${year}.pdf` : `ACC_EXP_MK_${contract.id}_${year}.pdf`
       a.download = fileName
       document.body.appendChild(a)
       a.click()
@@ -99,7 +99,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
       const year = new Date().getFullYear()
       const first = (memberData?.firstName != null ? String(memberData.firstName) : '').toUpperCase().replace(/\s+/g, '_')
       const last = (memberData?.lastName != null ? String(memberData.lastName) : '').toUpperCase().replace(/\s+/g, '_')
-      const fileName = last && first ? `${last}_${first}_CREDIT_SPECIALE_MK_${year}.pdf` : `CREDIT_SPECIALE_MK_${contract.id}_${year}.pdf`
+      const fileName = last && first ? `${last}_${first}_ACC_EXP_MK_${year}.pdf` : `ACC_EXP_MK_${contract.id}_${year}.pdf`
       const file = new File([blob], fileName, { type: 'application/pdf' })
 
       // Upload via le service
