@@ -8,6 +8,21 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['src/app/**/*.{ts,tsx}', 'src/domains/**/*.{ts,tsx}'],
+    rules: {
+      // Garde-fou d'architecture: les nouveaux développements app/domains
+      // ne doivent plus dépendre des couches legacy.
+      'no-restricted-imports': ['warn', {
+        patterns: [
+          {
+            group: ['@/services/*', '@/repositories/*', '@/hooks/*'],
+            message: 'Architecture freeze: utiliser les modules sous src/domains/* plutôt que les couches legacy.',
+          },
+        ],
+      }],
+    },
+  },
+  {
     files: ['**/*.{ts,tsx,js,jsx}'],
     plugins: {
       react,

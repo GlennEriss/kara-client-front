@@ -1,5 +1,5 @@
 /**
- * Export PDF "historique versement" Crédit Spéciale.
+ * Exporter PDF "historique versement" Crédit Spéciale.
  * Même structure que versementPdfExport (caisse spéciale) : 2 pages (infos membre + contact urgent, puis infos crédit + récap) + bloc ÉCHÉANCE i DU date.
  * Utilisé par PaymentReceiptModal (Télécharger PDF) depuis la page détail contrat crédit spéciale.
  */

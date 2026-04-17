@@ -5,7 +5,7 @@
  * - Montant, type, date/heure, mode, frais
  * - Preuve de paiement (image)
  * - Traçabilité (qui a enregistré, quand)
- * - Export PDF
+ * - Exporter PDF
  */
 
 'use client'

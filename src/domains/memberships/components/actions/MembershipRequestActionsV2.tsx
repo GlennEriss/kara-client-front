@@ -59,8 +59,8 @@ interface MembershipRequestActionsV2Props {
   onReplaceAdhesionPdf?: () => void // Remplacer le PDF d'adhésion (demande approuvée et payée)
   onViewIdDocument?: () => void
   onViewPaymentDetails?: () => void // Nouvelle action pour voir les détails du paiement
-  onExportPDF?: () => void // Export PDF individuel
-  onExportExcel?: () => void // Export Excel individuel
+  onExportPDF?: () => void // Exporter PDF individuel
+  onExportExcel?: () => void // Exporter Excel individuel
   onSendWhatsApp?: () => void
   onEdit?: () => void // Modifier directement la demande (admin)
 

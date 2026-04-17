@@ -168,6 +168,13 @@ const styles = StyleSheet.create({
   signatures: {
     marginTop: 18,
   },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 16,
+    right: 24,
+    fontSize: 10,
+    color: '#4B5563',
+  },
 })
 
 type TableCellConfig = {
@@ -251,6 +258,11 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>

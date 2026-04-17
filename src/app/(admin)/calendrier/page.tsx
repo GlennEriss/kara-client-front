@@ -3,21 +3,30 @@
 import { CaisseTypeFilters } from "@/components/calendrier/CaisseTypeFilters"
 import { CalendarView } from "@/components/calendrier/CalendarView"
 import { CalendarViewCI } from "@/components/calendrier/CalendarViewCI"
+import { CalendarViewCreditSpeciale } from "@/components/calendrier/CalendarViewCreditSpeciale"
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
 import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCalendarCaisseImprevue } from "@/hooks/useCalendarCaisseImprevue"
 import { useCalendarCaisseSpeciale } from "@/hooks/useCalendarCaisseSpeciale"
+import { useCalendarCreditSpeciale } from "@/hooks/useCalendarCreditSpeciale"
 import { useCalendarPlacement } from "@/hooks/useCalendarPlacement"
 import type { CaisseType } from "@/services/caisse/types"
 import type { CaisseImprevuePaymentFrequency, PayoutMode } from "@/types/types"
-import { Calendar, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react"
+import { Banknote, Calendar, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function CalendrierPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [activeTab, setActiveTab] = useState<"caisse-speciale" | "caisse-imprevue" | "placement">("caisse-speciale")
+  const [activeTab, setActiveTab] = useState<
+    | "caisse-speciale"
+    | "caisse-imprevue"
+    | "credit-speciale"
+    | "credit-fixe"
+    | "caisse-aide"
+    | "placement"
+  >("caisse-speciale")
   
   // Filtres Caisse Spéciale - Tous activés par défaut
   const [selectedTypes, setSelectedTypes] = useState<CaisseType[]>([
@@ -41,7 +50,14 @@ export default function CalendrierPage() {
   // Charger les préférences depuis localStorage
   useEffect(() => {
     const savedTab = localStorage.getItem("calendar-active-tab")
-    if (savedTab === "caisse-speciale" || savedTab === "caisse-imprevue" || savedTab === "placement") {
+    if (
+      savedTab === "caisse-speciale" ||
+      savedTab === "caisse-imprevue" ||
+      savedTab === "credit-speciale" ||
+      savedTab === "credit-fixe" ||
+      savedTab === "caisse-aide" ||
+      savedTab === "placement"
+    ) {
       setActiveTab(savedTab)
     }
     
@@ -113,6 +129,12 @@ export default function CalendrierPage() {
     currentMonth,
     selectedPayoutModes
   )
+  const { data: daysPaymentsCreditSpeciale = [], isLoading: isLoadingCreditSpeciale } =
+    useCalendarCreditSpeciale(currentMonth, "SPECIALE")
+  const { data: daysPaymentsCreditFixe = [], isLoading: isLoadingCreditFixe } =
+    useCalendarCreditSpeciale(currentMonth, "FIXE")
+  const { data: daysPaymentsCreditAide = [], isLoading: isLoadingCreditAide } =
+    useCalendarCreditSpeciale(currentMonth, "AIDE")
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -165,7 +187,20 @@ export default function CalendrierPage() {
 
         {/* Contenu principal */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "caisse-speciale" | "caisse-imprevue" | "placement")}>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(
+                value as
+                  | "caisse-speciale"
+                  | "caisse-imprevue"
+                  | "credit-speciale"
+                  | "credit-fixe"
+                  | "caisse-aide"
+                  | "placement"
+              )
+            }
+          >
             {/* Onglets modernisés */}
             <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white px-6 pt-4">
               <TabsList className="h-14 p-1 bg-gray-100/80 rounded-xl gap-1">
@@ -189,6 +224,27 @@ export default function CalendrierPage() {
                 >
                   <TrendingUp className="h-4 w-4" />
                   <span className="font-medium">Placement</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="credit-speciale"
+                  className="h-12 px-6 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-[#234D65] transition-all duration-300 flex items-center gap-2"
+                >
+                  <Banknote className="h-4 w-4" />
+                  <span className="font-medium">Crédit Spéciale</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="credit-fixe"
+                  className="h-12 px-6 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-[#234D65] transition-all duration-300 flex items-center gap-2"
+                >
+                  <Banknote className="h-4 w-4" />
+                  <span className="font-medium">Crédit Fixe</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="caisse-aide"
+                  className="h-12 px-6 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-[#234D65] transition-all duration-300 flex items-center gap-2"
+                >
+                  <Banknote className="h-4 w-4" />
+                  <span className="font-medium">Caisse Aide</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -230,6 +286,33 @@ export default function CalendrierPage() {
                   onMonthChange={setCurrentMonth}
                   daysCommissions={daysCommissionsPlacement}
                   isLoading={isLoadingPlacement}
+                />
+              </TabsContent>
+
+              <TabsContent value="credit-speciale" className="space-y-6 mt-0">
+                <CalendarViewCreditSpeciale
+                  month={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  daysPayments={daysPaymentsCreditSpeciale}
+                  isLoading={isLoadingCreditSpeciale}
+                />
+              </TabsContent>
+
+              <TabsContent value="credit-fixe" className="space-y-6 mt-0">
+                <CalendarViewCreditSpeciale
+                  month={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  daysPayments={daysPaymentsCreditFixe}
+                  isLoading={isLoadingCreditFixe}
+                />
+              </TabsContent>
+
+              <TabsContent value="caisse-aide" className="space-y-6 mt-0">
+                <CalendarViewCreditSpeciale
+                  month={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  daysPayments={daysPaymentsCreditAide}
+                  isLoading={isLoadingCreditAide}
                 />
               </TabsContent>
             </div>

@@ -158,7 +158,7 @@ export default function AdminCaisseSettingsPage() {
         return {
           'ID': setting.id,
           'Type de Caisse': setting.caisseType || 'STANDARD',
-          'Statut': setting.isActive ? 'Active' : 'Inactive',
+          'Statut': setting.isActive ? 'Actif' : 'Inactif',
           'Date d\'effet': setting.effectiveAt ? (() => {
             const d = setting.effectiveAt && typeof setting.effectiveAt === 'object' && 'seconds' in setting.effectiveAt 
               ? new Date(setting.effectiveAt.seconds * 1000) 
@@ -251,7 +251,7 @@ export default function AdminCaisseSettingsPage() {
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="hidden sm:inline">Export en cours...</span>
+                <span className="hidden sm:inline">Exportation en cours...</span>
                 <span className="sm:hidden">Export...</span>
               </>
             ) : (
@@ -446,7 +446,7 @@ export default function AdminCaisseSettingsPage() {
                                       {s.isActive && (
                                         <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200 shrink-0">
                                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                          Active
+                                          Actif
                                         </span>
                                       )}
                                     </div>

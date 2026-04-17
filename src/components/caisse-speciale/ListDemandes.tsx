@@ -673,7 +673,7 @@ const ListDemandes = () => {
 
       const filename = `demandes_caisse_speciale_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(filename)
-      toast.success('Export PDF généré')
+      toast.success('Exporter PDF généré')
     } catch (err) {
       console.error('Erreur export PDF:', err)
       toast.error('Erreur lors de l\'export PDF')
@@ -737,7 +737,7 @@ const ListDemandes = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Demandes')
       const filename = `demandes_caisse_speciale_${activeTab}_${new Date().toISOString().slice(0, 10)}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré')
+      toast.success('Exporter Excel généré')
     } catch (err) {
       console.error('Erreur export Excel:', err)
       toast.error('Erreur lors de l\'export Excel')

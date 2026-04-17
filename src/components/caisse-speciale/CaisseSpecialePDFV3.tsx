@@ -189,6 +189,13 @@ const styles = StyleSheet.create({
   signatureTextSmall: {
     fontSize: 12,
   },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 16,
+    right: 24,
+    fontSize: 10,
+    color: '#4B5563',
+  },
 })
 
 type TableCellConfig = {
@@ -346,6 +353,11 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
     <Document>
       {/* PAGE 1 */}
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
@@ -479,6 +491,11 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
 
       {/* PAGE 2 */}
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.title1}>CAISSE SPÉCIALE</Text>
         <Text style={styles.paragraph}>
                </Text>
@@ -598,6 +615,11 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
 
       {/* PAGE 3 */}
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.title2}>FICHE D’ADHESION</Text>
 
         <Text style={styles.paragraphIndented}>Je soussigné(e),</Text>
@@ -657,6 +679,11 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
 
       {/* PAGE 4 */}
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.articleTitle}>ARTICLE 4 : MONTANT DE REMBOURSEMENT</Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>L’association LE KARA s’engage à la date de fin du contrat à verser au membre le nominal correspondant aux sommes versées durant toute la durée du contrat.</Text>
 

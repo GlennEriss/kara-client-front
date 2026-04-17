@@ -70,9 +70,11 @@ export function useContractCalendar(
   currentMonth: Date
 ): UseContractCalendarResult {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(contractId)
+  const contractStartAtRaw = (data as any)?.contractStartAt
+  const firstPaymentDateRaw = data?.firstPaymentDate
 
   const contractStartDate = useMemo(() => {
-    const raw = (data as any)?.contractStartAt ?? data?.firstPaymentDate
+    const raw = contractStartAtRaw ?? firstPaymentDateRaw
     if (!raw) return null
     try {
       const start = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
@@ -82,7 +84,7 @@ export function useContractCalendar(
     } catch {
       return null
     }
-  }, [(data as any)?.contractStartAt, data?.firstPaymentDate])
+  }, [contractStartAtRaw, firstPaymentDateRaw])
 
   const caisseType = (data as any)?.caisseType
   const isGroupContract = (data as any)?.contractType === 'GROUP' || !!(data as any)?.groupeId
@@ -202,12 +204,12 @@ export function useContractCalendar(
   }, [])
 
   const firstPaymentDate = useMemo(() => {
-    const raw = (data as any)?.contractStartAt ?? data?.firstPaymentDate
+    const raw = contractStartAtRaw ?? firstPaymentDateRaw
     if (!raw) return null
     const d = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
     d.setHours(0, 0, 0, 0)
     return d
-  }, [(data as any)?.contractStartAt, data?.firstPaymentDate])
+  }, [contractStartAtRaw, firstPaymentDateRaw])
 
   const daysWithStatus = useMemo((): DayWithStatus[] => {
     return monthDays.map((date) => {

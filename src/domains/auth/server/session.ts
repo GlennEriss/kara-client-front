@@ -1,4 +1,5 @@
 import { adminAuth } from '@/firebase/adminAuth'
+import { adminFirestore } from '@/firebase/adminFirestore'
 import { cookies } from 'next/headers'
 import type { NextRequest } from 'next/server'
 
@@ -10,6 +11,13 @@ export type SessionClaims = {
   email?: string
   role?: string
   [key: string]: unknown
+}
+
+function hasAdminRoleFromClaims(claims: SessionClaims | null): boolean {
+  if (!claims) return false
+  const role = typeof claims.role === 'string' ? claims.role.toLowerCase() : ''
+  if (role.includes('admin') || role.includes('secretary')) return true
+  return claims.admin === true
 }
 
 export function assertAdminAuthAvailable() {
@@ -71,4 +79,24 @@ export async function getServerSessionClaims() {
 
 export function getSessionCookieFromRequest(request: NextRequest) {
   return request.cookies.get(SESSION_COOKIE_NAME)?.value || null
+}
+
+export async function verifyAdminSessionFromRequest(request: NextRequest): Promise<SessionClaims | null> {
+  const sessionCookie = getSessionCookieFromRequest(request)
+  if (!sessionCookie) return null
+
+  try {
+    const claims = await verifySessionCookie(sessionCookie, { checkRevoked: true })
+    if (hasAdminRoleFromClaims(claims)) return claims
+
+    // Fallback de compatibilité: certains comptes admin historiques n'ont pas de custom claim role.
+    if (adminFirestore) {
+      const adminDoc = await adminFirestore.collection('admins').doc(claims.uid).get()
+      if (adminDoc.exists) return claims
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }

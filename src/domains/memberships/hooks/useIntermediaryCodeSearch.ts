@@ -133,7 +133,7 @@ export function useIntermediaryCodeSearch(
       displayName: formatIntermediaryDisplay(member),
       code: extractIntermediaryCode(member),
     }))
-  }, [data?.items])
+  }, [data])
 
   return {
     results,

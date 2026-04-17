@@ -157,7 +157,7 @@ const ContractFormContext = createContext<ContractFormContextType | undefined>(u
 export function useContractForm() {
   const context = useContext(ContractFormContext)
   if (context === undefined) {
-    throw new Error('useContractForm must be used within a ContractFormProvider')
+    throw new Error('useContractForm doit etre utilise dans ContractFormProvider')
   }
   return context
 }

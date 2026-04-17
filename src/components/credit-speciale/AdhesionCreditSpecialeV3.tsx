@@ -210,6 +210,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 16,
+    right: 24,
+    fontSize: 10,
+    color: '#4B5563',
+  },
 })
 
 type TableCellConfig = {
@@ -450,6 +457,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
@@ -578,6 +590,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -626,6 +643,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
         <Text style={styles.articleTitle}>ARTICLE 1 : MONTANT ET DURÉE DE LA CRÉANCE</Text>
@@ -689,6 +711,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -726,6 +753,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -754,6 +786,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
       </Page>
 
       <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 <Text style={styles.paragraph12}>
         </Text>

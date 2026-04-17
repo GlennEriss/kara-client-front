@@ -168,7 +168,7 @@ export function VehicleInsuranceList() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Assurances')
     const filename = `assurances_${new Date().toISOString().slice(0, 10)}.xlsx`
     XLSX.writeFile(workbook, filename)
-    toast.success('Export Excel généré')
+    toast.success('Exporter Excel généré')
   }
 
   const handleExportPdf = async () => {
@@ -193,7 +193,7 @@ export function VehicleInsuranceList() {
     })
     const filename = `assurances_${new Date().toISOString().slice(0, 10)}.pdf`
     doc.save(filename)
-    toast.success('Export PDF généré')
+    toast.success('Exporter PDF généré')
   }
 
   const createMutation = useCreateVehicleInsurance()
@@ -292,7 +292,7 @@ export function VehicleInsuranceList() {
             className="flex items-center gap-2"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            Export Excel
+            Exporter Excel
           </Button>
           <Button
             type="button"
@@ -302,7 +302,7 @@ export function VehicleInsuranceList() {
             className="flex items-center gap-2"
           >
             <FileText className="h-4 w-4" />
-            Export PDF
+            Exporter PDF
           </Button>
           <Button variant="outline" onClick={() => {
             refetch()

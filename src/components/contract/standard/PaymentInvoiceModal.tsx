@@ -59,7 +59,7 @@ export default function PaymentInvoiceModal({
 
   const isGroupContract = contractData.contractType === 'GROUP' || !!contractData.groupeId
 
-  // Export PDF au même format que la page Historique des versements > bouton PDF (2 pages + bloc VERSEMENT i DU date)
+  // Exporter PDF au même format que la page Historique des versements > bouton PDF (2 pages + bloc VERSEMENT i DU date)
   const handleExportPDF = async () => {
     try {
       toast.info('Génération du PDF en cours...')

@@ -203,7 +203,7 @@ export default function MemberBirthdaysList() {
     }
   }
 
-  // Export Excel
+  // Exporter Excel
   const handleExportExcel = async () => {
     if (filtered.length === 0) {
       toast.info('Aucun anniversaire à exporter')
@@ -228,14 +228,14 @@ export default function MemberBirthdaysList() {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Anniversaires')
       const filename = `anniversaires_${MONTHS[selectedMonth]}_${selectedYear}.xlsx`
       XLSX.writeFile(workbook, filename)
-      toast.success('Export Excel généré')
+      toast.success('Exporter Excel généré')
     } catch (error) {
       console.error('Erreur export Excel:', error)
       toast.error("Erreur lors de l'export Excel")
     }
   }
 
-  // Export PDF
+  // Exporter PDF
   const handleExportPdf = async () => {
     if (filtered.length === 0) {
       toast.info('Aucun anniversaire à exporter')
@@ -275,7 +275,7 @@ export default function MemberBirthdaysList() {
 
       const filename = `anniversaires_${MONTHS[selectedMonth]}_${selectedYear}.pdf`
       doc.save(filename)
-      toast.success('Export PDF généré')
+      toast.success('Exporter PDF généré')
     } catch (error) {
       console.error('Erreur export PDF:', error)
       toast.error("Erreur lors de l'export PDF")

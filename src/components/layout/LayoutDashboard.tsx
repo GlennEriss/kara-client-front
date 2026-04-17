@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react'
 import { AppSidebar } from "./AppSidebar"
 import { DashboardBreadcrumb } from "./DashboardBreadcrumb"
 import NotificationBell from "./NotificationBell"
+import { MemberNavbarSearch } from "@/domains/dashboard/member-overview/components/MemberNavbarSearch"
 
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
   const [currentPage, setCurrentPage] = useState('Dashboard')
@@ -40,6 +41,7 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
               <DashboardBreadcrumb />
             </div>
             <div className="flex items-center gap-3">
+              <MemberNavbarSearch />
               <NotificationBell />
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm text-gray-600">En ligne</span>

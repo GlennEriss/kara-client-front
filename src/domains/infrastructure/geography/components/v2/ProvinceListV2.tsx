@@ -169,7 +169,7 @@ export default function ProvinceListV2() {
                 data-testid="btn-export-csv"
               >
                 <Download className="h-4 w-4 mr-2" aria-hidden="true" />
-                <span className="hidden sm:inline">Export CSV</span>
+                <span className="hidden sm:inline">Exporter CSV</span>
                 <span className="sm:hidden">CSV</span>
               </Button>
               <Button
