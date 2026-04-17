@@ -76,7 +76,7 @@ export function generateSearchableText(data: SearchableTextData): string {
     data.identity.contacts.forEach(contact => {
       if (contact && typeof contact === 'string') {
         // Normaliser le téléphone : supprimer espaces, tirets, parenthèses
-        const normalizedPhone = contact.replace(/[\s\-\(\)]/g, '').toLowerCase()
+        const normalizedPhone = contact.replace(/[\s\-()]/g, '').toLowerCase()
         parts.push(normalizedPhone)
       }
     })

@@ -1,7 +1,7 @@
 /**
  * Utilitaires généraux pour les tests
  */
-import { vi, beforeEach, afterEach, expect } from 'vitest'
+import { vi, expect } from 'vitest'
 
 /**
  * Attendre un délai (pour les tests async)
