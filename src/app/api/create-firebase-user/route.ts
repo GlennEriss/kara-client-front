@@ -4,6 +4,7 @@ import { createDefaultSubscription, updateSubscription } from "@/db/subscription
 import { addSubscriptionToUser, createUserWithMatricule } from "@/db/user.db";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { adminAuth } from "@/firebase/adminAuth";
+import { verifyAdminSessionFromRequest } from "@/domains/auth/server/session";
 import type { MembershipType, User, UserRole } from "@/types/types";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -32,6 +33,11 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    const _claims = await verifyAdminSessionFromRequest(req)
+    if (!_claims) {
+        return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 })
+    }
+
     try {
         const { phoneNumber, requestId, adminId, membershipType, companyName, professionName, adhesionPdfURL } = await req.json();
 
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest) {
         } else {
             // Pas d'indicatif valide, on ajoute +241 par défaut
             // D'abord nettoyer le numéro
-            normalizedPhone = normalizedPhone.replace(/[\s\-\(\)]/g, '');
+            normalizedPhone = normalizedPhone.replace(/[\s-()]/g, '');
             // Supprimer le + s'il y en a un au début
             if (normalizedPhone.startsWith('+')) {
                 normalizedPhone = normalizedPhone.substring(1);
@@ -92,8 +98,11 @@ export async function POST(req: NextRequest) {
             // Vérifier si l'utilisateur existe déjà
             userRecord = await adminAuth.getUserByPhoneNumber(normalizedPhone);
             console.log('Utilisateur existant trouvé:', userRecord.uid);
-        } catch (err: any) {
-            if (err.code === 'auth/user-not-found') {
+        } catch (err: unknown) {
+            const firebaseErrorCode = typeof err === 'object' && err !== null && 'code' in err
+                ? String((err as { code: unknown }).code)
+                : ''
+            if (firebaseErrorCode === 'auth/user-not-found') {
                 // Créer l'utilisateur s'il n'existe pas
                 userRecord = await adminAuth.createUser({
                     uid: matricule,
@@ -243,11 +252,12 @@ export async function POST(req: NextRequest) {
             message: `Utilisateur créé avec succès. Matricule: ${createdUser.matricule}`
         });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const details = err instanceof Error ? err.message : 'Erreur inattendue'
         console.error('Erreur lors de la création utilisateur Firebase:', err);
         return NextResponse.json({ 
             error: "Erreur lors de la création de l'utilisateur Firebase",
-            details: err.message 
+            details
         }, { status: 500 });
     }
 } 

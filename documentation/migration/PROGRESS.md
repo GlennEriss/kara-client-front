@@ -12,6 +12,33 @@
 
 ---
 
+## 🔧 Plan de Stabilisation (Implémenté)
+
+### Semaine 1 — Sécurité API + erreurs lint bloquantes
+- [x] Garde admin session ajoutée côté serveur (`verifyAdminSessionFromRequest`)
+- [x] Routes sensibles protégées :
+  - `POST /api/create-firebase-user`
+  - `POST /api/firebase/auth/create-user/by-phone-number`
+  - `POST /api/auth/check-user`
+- [x] Correction des erreurs lint bloquantes identifiées (memoization / hooks / tests)
+
+### Semaine 2 — Dashboard côté serveur
+- [x] Ajout des endpoints serveur dashboard :
+  - `POST /api/dashboard/snapshot`
+  - `GET /api/dashboard/filter-options`
+- [x] `useDashboard` migré vers appels API serveur (plus d'agrégation Firestore directement en client)
+
+### Semaine 3 — Freeze d'architecture + normalisation
+- [x] Garde-fou ESLint ajouté pour `src/app` et `src/domains` (imports legacy marqués comme non conformes)
+- [x] Normalisation `caisse-imprevu(e)` : point d'entrée canonique `src/repositories/caisse-imprevue/*` + `RepositoryFactory` alignée
+
+### Semaine 4 — Réduction de `any` + lint CI progressif
+- [x] Réduction ciblée de `any` sur auth/dashboard/placement (routes API + conversions numériques critiques Placement)
+- [x] Lint rendu bloquant (`npm run lint` ne masque plus les erreurs)
+- [x] Nouveau gate CI progressif : `npm run lint:ci:critical`
+
+---
+
 ## Phase 1 : Infrastructure (Semaine 1)
 
 ### 1.1 Geography

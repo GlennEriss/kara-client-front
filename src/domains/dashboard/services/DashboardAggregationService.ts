@@ -157,9 +157,21 @@ function resolveDateRange(filters: DashboardFilters): DateRange | null {
 }
 
 async function readCollectionDocs(collectionName: string): Promise<FirestoreRecord[]> {
+  // Côté serveur/API, privilégier Admin SDK pour éviter les refus de règles Firestore.
+  if (typeof window === 'undefined') {
+    const { adminFirestore } = await import('@/firebase/adminFirestore')
+    if (adminFirestore) {
+      const snap = await adminFirestore.collection(collectionName).get()
+      return snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Record<string, unknown>),
+      }))
+    }
+  }
+
+  // Fallback client (historique).
   const { db, collection, getDocs } = await import('@/firebase/firestore')
   const snap = await getDocs(collection(db, collectionName))
-
   return snap.docs.map((docSnap) => ({
     id: docSnap.id,
     ...(docSnap.data() as Record<string, unknown>),
@@ -253,10 +265,6 @@ function filterRecordsByMemberScope(
     if (!memberId) return false
     return memberScope.scopedMemberIds.has(memberId)
   })
-}
-
-function sumValues(items: Array<{ value: number }>): number {
-  return items.reduce((sum, item) => sum + item.value, 0)
 }
 
 function createDistribution(key: string, title: string, items: Array<{ label: string; value: number }>, chartType: 'bar' | 'pie' = 'bar'): DashboardDistributionBlock {

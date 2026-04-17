@@ -278,23 +278,18 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
     return generatePhoneRows(contacts)
   }, [contacts])
 
-  /**
-   * Récupère tous les numéros du contact urgent
-   */
-  const getEmergencyContactPhones = (): string[] => {
+  const emergencyContact = contract?.emergencyContact
+
+  // Récupère tous les numéros du contact urgent
+  const emergencyPhones = React.useMemo(() => {
     const phones: string[] = []
-    if (contract?.emergencyContact?.phone1) phones.push(contract.emergencyContact.phone1)
-    if (contract?.emergencyContact?.phone2) phones.push(contract.emergencyContact.phone2)
-    // Ajouter d'autres numéros si disponibles
-    //if (contract?.emergencyContact?.phone) phones.push(contract.emergencyContact.phone)
+    if (emergencyContact?.phone1) phones.push(emergencyContact.phone1)
+    if (emergencyContact?.phone2) phones.push(emergencyContact.phone2)
     return phones
-  }
+  }, [emergencyContact])
 
   // Générer les lignes de téléphones du contact urgent
-  const emergencyPhoneRows = React.useMemo(() => {
-    const emergencyPhones = getEmergencyContactPhones()
-    return generatePhoneRows(emergencyPhones)
-  }, [contract?.emergencyContact])
+  const emergencyPhoneRows = React.useMemo(() => generatePhoneRows(emergencyPhones), [emergencyPhones])
 
 
   return (

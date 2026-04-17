@@ -58,13 +58,14 @@ export default function DashboardPage() {
     isFetching,
     error,
   } = useDashboard(activeTab, filters)
+  const generatedAt = snapshot?.generatedAt ?? null
 
   const generatedAtLabel = useMemo(() => {
-    if (!snapshot?.generatedAt) return null
-    const date = new Date(snapshot.generatedAt)
+    if (!generatedAt) return null
+    const date = new Date(generatedAt)
     if (Number.isNaN(date.getTime())) return null
     return date.toLocaleString('fr-FR')
-  }, [snapshot?.generatedAt])
+  }, [generatedAt])
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['dashboard'] })

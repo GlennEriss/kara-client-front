@@ -1,4 +1,5 @@
 import { adminAuth } from "@/firebase/adminAuth";
+import { verifyAdminSessionFromRequest } from "@/domains/auth/server/session";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -10,8 +11,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const _claims = await verifyAdminSessionFromRequest(req)
+  if (!_claims) {
+    return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 })
+  }
+
   try {
-    const { uid, phoneNumber, displayName, requestId } = await req.json();
+    const { uid, phoneNumber, displayName } = await req.json();
     if (!phoneNumber || !uid) {
       return NextResponse.json(
         { error: "uid et phoneNumber sont requis" },
@@ -26,8 +32,11 @@ export async function POST(req: NextRequest) {
         { message: "Utilisateur trouvé", uid: userRecord.uid },
         { status: 200 }
       );
-    } catch (err: any) {
-      if (err.code === "auth/user-not-found") {
+    } catch (err: unknown) {
+      const firebaseErrorCode = typeof err === 'object' && err !== null && 'code' in err
+        ? String((err as { code: unknown }).code)
+        : ''
+      if (firebaseErrorCode === "auth/user-not-found") {
         userRecord = await adminAuth.createUser({
           uid,
           phoneNumber: process.env.NODE_ENV === 'development' ? phoneNumber : '+241' + phoneNumber,
@@ -41,11 +50,11 @@ export async function POST(req: NextRequest) {
       }
       throw err;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const details = error instanceof Error ? error.message : 'Erreur inattendue'
     return NextResponse.json(
-      { error: "Erreur lors de la création/recherche d'utilisateur", details: error?.message },
+      { error: "Erreur lors de la création/recherche d'utilisateur", details },
       { status: 500 }
     );
   }
 }
-
