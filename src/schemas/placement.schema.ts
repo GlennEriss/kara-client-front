@@ -20,7 +20,7 @@ export const placementDemandSchema = z.object({
     .max(100000000, 'Le montant maximum est de 100 000 000 FCFA'),
   rate: z.number()
     .min(0, 'Le taux de commission doit être supérieur ou égal à 0%')
-    .max(100, 'Le taux de commission ne peut pas dépasser 100%'),
+    .max(10, 'Le taux de commission ne peut pas dépasser 10%'),
   periodMonths: z.number()
     .min(1, 'La durée doit être d\'au moins 1 mois')
     .max(7, 'La durée ne peut pas dépasser 7 mois'),
@@ -73,7 +73,7 @@ export const placementDemandFormSchema = z.object({
     .max(100000000, 'Le montant maximum est de 100 000 000 FCFA'),
   rate: z.number()
     .min(0, 'Le taux de commission doit être supérieur ou égal à 0%')
-    .max(100, 'Le taux de commission ne peut pas dépasser 100%'),
+    .max(10, 'Le taux de commission ne peut pas dépasser 10%'),
   periodMonths: z.number()
     .min(1, 'La durée doit être d\'au moins 1 mois')
     .max(7, 'La durée ne peut pas dépasser 7 mois'),
@@ -121,4 +121,3 @@ export const placementDemandDefaultValues: Partial<PlacementDemandFormInput> = {
   rate: 0,
   desiredDate: new Date().toISOString().split('T')[0], // Date du jour par défaut
 }
-

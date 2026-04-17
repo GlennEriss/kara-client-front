@@ -58,7 +58,12 @@ export function CommissionSidebarPlacement({
         data.proofFile,
         commission.placement.benefactorId,
         paidDate,
-        user.uid
+        user.uid,
+        {
+          paymentMode: data.mode,
+          withFees: data.withFees,
+          paymentMethodOther: data.paymentMethodOther,
+        }
       )
 
       await queryClient.invalidateQueries({

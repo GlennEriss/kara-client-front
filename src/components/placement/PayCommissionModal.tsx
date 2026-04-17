@@ -43,6 +43,8 @@ export interface CommissionPaymentFormData {
   time: string
   amount: number
   mode: PaymentMode
+  withFees?: boolean
+  paymentMethodOther?: string
   proofFile: File
 }
 
@@ -71,6 +73,8 @@ export default function PayCommissionModal({
   })
   const [paymentAmount, setPaymentAmount] = useState(commission ? String(commission.amount) : '')
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money')
+  const [withFees, setWithFees] = useState<'with' | 'without' | ''>('')
+  const [paymentMethodOther, setPaymentMethodOther] = useState('')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -91,6 +95,8 @@ export default function PayCommissionModal({
       setPaymentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
       setPaymentAmount(String(commission.amount))
       setPaymentMode('airtel_money')
+      setWithFees('')
+      setPaymentMethodOther('')
       setPaymentFile(undefined)
     }
   }, [isOpen, commission])
@@ -160,6 +166,17 @@ export default function PayCommissionModal({
       return
     }
 
+    const isMobileMoney = paymentMode === 'airtel_money' || paymentMode === 'mobicash'
+    if (isMobileMoney && !withFees) {
+      toast.error('Veuillez indiquer si le paiement est avec ou sans frais')
+      return
+    }
+
+    if (paymentMode === 'other' && !paymentMethodOther.trim()) {
+      toast.error('Veuillez préciser le moyen de paiement utilisé')
+      return
+    }
+
     if (!commission) {
       toast.error('Commission introuvable')
       return
@@ -173,6 +190,8 @@ export default function PayCommissionModal({
         time: paymentTime,
         amount: Number(paymentAmount),
         mode: paymentMode,
+        withFees: isMobileMoney ? withFees === 'with' : undefined,
+        paymentMethodOther: paymentMode === 'other' ? paymentMethodOther.trim() : undefined,
         proofFile: paymentFile,
       }
 
@@ -186,6 +205,8 @@ export default function PayCommissionModal({
       })
       setPaymentAmount('')
       setPaymentMode('airtel_money')
+      setWithFees('')
+      setPaymentMethodOther('')
       setPaymentFile(undefined)
       
       onClose()
@@ -300,7 +321,16 @@ export default function PayCommissionModal({
                     name="payment-mode"
                     value={mode}
                     checked={paymentMode === mode}
-                    onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                    onChange={(e) => {
+                      const nextMode = e.target.value as PaymentMode
+                      setPaymentMode(nextMode)
+                      if (nextMode !== 'airtel_money' && nextMode !== 'mobicash') {
+                        setWithFees('')
+                      }
+                      if (nextMode !== 'other') {
+                        setPaymentMethodOther('')
+                      }
+                    }}
                     disabled={isLoading}
                     className="sr-only"
                   />
@@ -313,6 +343,56 @@ export default function PayCommissionModal({
               ))}
             </div>
           </div>
+
+          {(paymentMode === 'airtel_money' || paymentMode === 'mobicash') && (
+            <div>
+              <Label className="mb-2 block">Frais de transaction *</Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                  <input
+                    type="radio"
+                    name="with-fees"
+                    value="with"
+                    checked={withFees === 'with'}
+                    onChange={() => setWithFees('with')}
+                    disabled={isLoading}
+                    className="sr-only"
+                  />
+                  <span className="text-sm font-medium">Avec frais</span>
+                  {withFees === 'with' && <CheckCircle className="h-5 w-5 ml-auto text-[#224D62]" />}
+                </label>
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                  <input
+                    type="radio"
+                    name="with-fees"
+                    value="without"
+                    checked={withFees === 'without'}
+                    onChange={() => setWithFees('without')}
+                    disabled={isLoading}
+                    className="sr-only"
+                  />
+                  <span className="text-sm font-medium">Sans frais</span>
+                  {withFees === 'without' && <CheckCircle className="h-5 w-5 ml-auto text-[#224D62]" />}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {paymentMode === 'other' && (
+            <div>
+              <Label htmlFor="payment-method-other" className="mb-2 block">
+                Nom exact du moyen utilisé *
+              </Label>
+              <Input
+                id="payment-method-other"
+                placeholder="Ex: Wave, Orange Money, Chèque certifié..."
+                value={paymentMethodOther}
+                onChange={(e) => setPaymentMethodOther(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+            </div>
+          )}
 
           {/* Preuve de paiement */}
           <div>
@@ -394,4 +474,3 @@ export default function PayCommissionModal({
     </Dialog>
   )
 }
-
