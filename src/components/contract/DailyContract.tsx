@@ -19,6 +19,7 @@ import { canDeletePayment, useDeleteContractPayment } from '@/domains/financial/
 import { useAdmin } from '@/hooks/admin/useAdmin'
 import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
 import { useAuth } from '@/hooks/useAuth'
+import { useCaisseSpecialeContractRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeContractRealtimeSync'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { earlyRefundDefaultValues, earlyRefundSchema, type EarlyRefundFormData } from '@/schemas/schemas'
@@ -216,6 +217,17 @@ export default function DailyContract({ id }: Props) {
   useEffect(() => {
     reloadRefunds()
   }, [reloadRefunds])
+
+  const refreshRealtimeData = React.useCallback(() => {
+    void refetch()
+    void reloadRefunds()
+  }, [refetch, reloadRefunds])
+
+  useCaisseSpecialeContractRealtimeSync(id, {
+    enabled: true,
+    onContractChanged: refreshRealtimeData,
+    onRefundsChanged: refreshRealtimeData,
+  })
 
   // Calculer les jours de retard et les pénalités
   const calculateLatePaymentInfo = (selectedDate: Date | null): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
