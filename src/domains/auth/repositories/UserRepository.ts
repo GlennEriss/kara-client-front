@@ -20,7 +20,7 @@ export class UserRepository implements IUserRepository {
    */
   async getUserByUid(uid: string): Promise<User | null> {
     try {
-      const { doc, getDoc, db, Timestamp } = await getFirestore();
+      const { doc, getDoc, db } = await getFirestore();
       const collectionName = firebaseCollectionNames.users || 'users';
       
       // Log pour déboguer (temporaire) - visible dans la console du navigateur

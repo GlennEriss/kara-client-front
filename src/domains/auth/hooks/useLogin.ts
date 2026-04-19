@@ -21,7 +21,7 @@ export const useLogin = () => {
   });
   const mediator = LoginMediatorFactory.create(form);
 
-  const onInvalid = (errors: FieldErrors<MemberLoginFormData>) => {
+  const onInvalid = (_errors: FieldErrors<MemberLoginFormData>) => {
     toast.error("Connexion échouée", {
       description: "Corrigez les erreurs du formulaire avant de soumettre.",
       duration: 3000

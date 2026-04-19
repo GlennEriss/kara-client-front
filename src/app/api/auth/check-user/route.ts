@@ -1,6 +1,5 @@
 import { adminAuth } from "@/firebase/adminAuth";
 import { adminFirestore } from "@/firebase/adminFirestore";
-import { verifyAdminSessionFromRequest } from "@/domains/auth/server/session";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -20,11 +19,6 @@ export async function POST(req: NextRequest) {
       { error: "Firebase Admin non configuré" },
       { status: 503 }
     );
-  }
-
-  const _claims = await verifyAdminSessionFromRequest(req)
-  if (!_claims) {
-    return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 })
   }
 
   try {
