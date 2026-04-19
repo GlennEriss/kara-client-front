@@ -2,9 +2,11 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
+import { useMember } from '@/hooks/useMembers'
 import type { Placement } from '@/types/types'
-import { AlertCircle, Calendar, CheckCircle, Clock, DollarSign, Edit, ExternalLink, Eye, FileText, Phone, Trash2, Upload, User } from 'lucide-react'
+import { AlertCircle, Calendar, CheckCircle, Clock, DollarSign, Edit, ExternalLink, Eye, FileText, Phone, Trash2, Upload } from 'lucide-react'
 
 interface PlacementCardProps {
   placement: Placement
@@ -30,6 +32,7 @@ export default function PlacementCard({
   onEditClick,
 }: PlacementCardProps) {
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
+  const { data: member } = useMember(placement.benefactorId)
   
   // Trouver la prochaine commission due
   const nextDueCommission = commissions.find(c => c.status === 'Due')
@@ -62,11 +65,18 @@ export default function PlacementCard({
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex items-center gap-3 text-gray-600">
-          <User className="h-4 w-4 text-gray-400" />
+          <Avatar className="h-10 w-10 border border-gray-200 shadow-sm">
+            {member?.photoURL ? (
+              <AvatarImage src={member.photoURL} alt={`Photo de ${placement.benefactorName || 'membre'}`} />
+            ) : null}
+            <AvatarFallback className="bg-[#234D65] text-white text-xs font-semibold">
+              {`${member?.firstName?.[0] || ''}${member?.lastName?.[0] || ''}`.toUpperCase() || 'MB'}
+            </AvatarFallback>
+          </Avatar>
           <div className="space-y-0.5">
             <div className="text-xs text-gray-500">Bienfaiteur</div>
             <div className="font-semibold text-gray-800">
-              {placement.benefactorName || placement.benefactorId.slice(0, 12)}
+              {placement.benefactorName || (member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : placement.benefactorId.slice(0, 12))}
             </div>
             {placement.benefactorPhone && (
               <div className="flex items-center gap-1 text-xs text-gray-500">
