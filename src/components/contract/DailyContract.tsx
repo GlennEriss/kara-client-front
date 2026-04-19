@@ -88,6 +88,7 @@ export default function DailyContract({ id }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [hasInitializedCalendarMonth, setHasInitializedCalendarMonth] = useState(false)
 
   const {
     data,
@@ -134,6 +135,7 @@ export default function DailyContract({ id }: Props) {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentTime, setPaymentTime] = useState('')
   const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'>('airtel_money')
+  const [paymentWithFees, setPaymentWithFees] = useState<boolean | undefined>(undefined)
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string>('')
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
@@ -150,7 +152,10 @@ export default function DailyContract({ id }: Props) {
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
-  const [confirmDeletePaymentId, setConfirmDeletePaymentId] = useState<string | null>(null)
+  const [confirmDeletePayment, setConfirmDeletePayment] = useState<{
+    paymentId: string
+    contributionId?: string
+  } | null>(null)
   const deletePaymentMutation = useDeleteContractPayment()
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
@@ -190,6 +195,7 @@ export default function DailyContract({ id }: Props) {
     setPaymentAmount('')
     setPaymentTime('')
     setPaymentMode('airtel_money')
+    setPaymentWithFees(undefined)
     setPaymentFile(undefined)
     setEditModificationReason('')
     setSelectedGroupMemberId('')
@@ -471,7 +477,8 @@ export default function DailyContract({ id }: Props) {
         type: paymentFile.type,
         size: paymentFile.size
       } : 'undefined',
-      paymentMode
+      paymentMode,
+      paymentWithFees
     })
 
     if (!selectedDate || !paymentAmount || !paymentTime || !paymentFile) {
@@ -488,6 +495,10 @@ export default function DailyContract({ id }: Props) {
     const amount = Number(paymentAmount)
     if (amount <= 0) {
       toast.error('Le montant doit être positif')
+      return
+    }
+    if ((paymentMode === 'airtel_money' || paymentMode === 'mobicash') && paymentWithFees === undefined) {
+      toast.error('Veuillez indiquer si le paiement est avec frais ou sans frais')
       return
     }
 
@@ -526,6 +537,7 @@ export default function DailyContract({ id }: Props) {
           paidAt: selectedDate,
           time: paymentTime,
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+          withFees: paymentMode === 'airtel_money' || paymentMode === 'mobicash' ? paymentWithFees : undefined,
           agentRecouvrementId: agentRecouvrementId || undefined
         })
 
@@ -544,6 +556,7 @@ export default function DailyContract({ id }: Props) {
           paidAt: selectedDate,
           time: paymentTime,
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+          withFees: paymentMode === 'airtel_money' || paymentMode === 'mobicash' ? paymentWithFees : undefined,
           agentRecouvrementId: agentRecouvrementId || undefined
         })
 
@@ -559,6 +572,7 @@ export default function DailyContract({ id }: Props) {
       setPaymentAmount('')
       setPaymentTime('')
       setPaymentMode('airtel_money')
+      setPaymentWithFees(undefined)
       setPaymentFile(undefined)
       setSelectedGroupMemberId('')
       setAgentRecouvrementId('')
@@ -588,6 +602,10 @@ export default function DailyContract({ id }: Props) {
       toast.error('Le montant doit être positif')
       return
     }
+    if ((paymentMode === 'airtel_money' || paymentMode === 'mobicash') && paymentWithFees === undefined) {
+      toast.error('Veuillez indiquer si le paiement est avec frais ou sans frais')
+      return
+    }
 
     try {
       setIsEditing(true)
@@ -609,6 +627,7 @@ export default function DailyContract({ id }: Props) {
           amount,
           time: paymentTime,
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+          withFees: paymentMode === 'airtel_money' || paymentMode === 'mobicash' ? paymentWithFees : undefined,
           proofFile: paymentFile,
           modificationReason: editModificationReason.trim(),
           agentRecouvrementId,
@@ -641,10 +660,17 @@ export default function DailyContract({ id }: Props) {
   }, [data])
 
   useEffect(() => {
-    if (contractStartDate) {
+    // Initialiser le mois du calendrier une seule fois par contrat.
+    // Sinon, chaque rafraîchissement des données écrase la navigation "mois précédent/suivant".
+    if (!hasInitializedCalendarMonth && contractStartDate) {
       setCurrentMonth(contractStartDate)
+      setHasInitializedCalendarMonth(true)
     }
-  }, [contractStartDate])
+  }, [contractStartDate, hasInitializedCalendarMonth])
+
+  useEffect(() => {
+    setHasInitializedCalendarMonth(false)
+  }, [id])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
@@ -1294,7 +1320,7 @@ export default function DailyContract({ id }: Props) {
                     name="paymentMode"
                     value="airtel_money"
                     checked={paymentMode === 'airtel_money'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -1311,7 +1337,7 @@ export default function DailyContract({ id }: Props) {
                     name="paymentMode"
                     value="mobicash"
                     checked={paymentMode === 'mobicash'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -1328,7 +1354,7 @@ export default function DailyContract({ id }: Props) {
                     name="paymentMode"
                     value="cash"
                     checked={paymentMode === 'cash'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -1345,7 +1371,7 @@ export default function DailyContract({ id }: Props) {
                     name="paymentMode"
                     value="bank_transfer"
                     checked={paymentMode === 'bank_transfer'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -1356,6 +1382,23 @@ export default function DailyContract({ id }: Props) {
                   </div>
                 </label>
               </div>
+              {(paymentMode === 'airtel_money' || paymentMode === 'mobicash') && (
+                <div className="mt-3">
+                  <Label className="text-sm font-medium">Frais de transaction *</Label>
+                  <Select
+                    value={paymentWithFees === undefined ? '' : paymentWithFees ? 'yes' : 'no'}
+                    onValueChange={(value) => setPaymentWithFees(value === 'yes')}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Avec ou sans frais ?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Avec frais</SelectItem>
+                      <SelectItem value="no">Sans frais</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             {/* Preuve de paiement */}
@@ -1822,6 +1865,7 @@ export default function DailyContract({ id }: Props) {
                   setPaymentAmount('')
                   setPaymentTime('')
                   setPaymentMode('airtel_money')
+                  setPaymentWithFees(undefined)
                   setPaymentFile(undefined)
                   setSelectedGroupMemberId('')
                   setShowPaymentDetailsModal(false)
@@ -1852,6 +1896,11 @@ export default function DailyContract({ id }: Props) {
                     setPaymentAmount(contribution?.amount?.toString() || '')
                     setPaymentTime(contribution?.time || '')
                     setPaymentMode((contribution?.mode || 'airtel_money') as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')
+                    setPaymentWithFees(
+                      contribution?.mode === 'airtel_money' || contribution?.mode === 'mobicash'
+                        ? contribution?.withFees
+                        : undefined
+                    )
                     setAgentRecouvrementId((contribution?.agentRecouvrementId ?? payment?.agentRecouvrementId ?? '') as string)
                     setPaymentFile(undefined)
                     setEditModificationReason('')
@@ -1869,7 +1918,22 @@ export default function DailyContract({ id }: Props) {
             {!isGroupContract && paymentDetails?.status === 'PAID' && paymentDetails?.id && canDeletePayment(data ?? null) && (
               <Button
                 variant="outline"
-                onClick={() => setConfirmDeletePaymentId(paymentDetails.id)}
+                onClick={() => {
+                  const payment = paymentDetails
+                  const contribution = payment?.contribs?.find((c: any) => {
+                    if (!c?.paidAt || !selectedDate) return false
+                    const contribDate = typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+                    contribDate.setHours(0, 0, 0, 0)
+                    const selected = new Date(selectedDate)
+                    selected.setHours(0, 0, 0, 0)
+                    return contribDate.getTime() === selected.getTime()
+                  }) || payment?.contribs?.[0]
+
+                  setConfirmDeletePayment({
+                    paymentId: paymentDetails.id,
+                    contributionId: contribution?.id,
+                  })
+                }}
                 className="border-red-300 text-red-700 hover:bg-red-50 w-full sm:w-auto order-1 sm:order-2 flex items-center gap-2"
                 disabled={deletePaymentMutation.isPending}
               >
@@ -1882,7 +1946,7 @@ export default function DailyContract({ id }: Props) {
       </Dialog>
 
       {/* Confirmation suppression versement */}
-      <AlertDialog open={!!confirmDeletePaymentId} onOpenChange={(open) => !open && setConfirmDeletePaymentId(null)}>
+      <AlertDialog open={!!confirmDeletePayment} onOpenChange={(open) => !open && setConfirmDeletePayment(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
@@ -1899,10 +1963,14 @@ export default function DailyContract({ id }: Props) {
               className="bg-red-600 hover:bg-red-700"
               onClick={async (e) => {
                 e.preventDefault()
-                if (!confirmDeletePaymentId) return
+                if (!confirmDeletePayment) return
                 try {
-                  await deletePaymentMutation.mutateAsync({ contractId: id, paymentId: confirmDeletePaymentId })
-                  setConfirmDeletePaymentId(null)
+                  await deletePaymentMutation.mutateAsync({
+                    contractId: id,
+                    paymentId: confirmDeletePayment.paymentId,
+                    contributionId: confirmDeletePayment.contributionId,
+                  })
+                  setConfirmDeletePayment(null)
                   setShowPaymentDetailsModal(false)
                 } catch {
                   // Erreur gérée par le hook (toast)
@@ -2012,7 +2080,7 @@ export default function DailyContract({ id }: Props) {
                     name="editPaymentMode"
                     value="airtel_money"
                     checked={paymentMode === 'airtel_money'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -2029,7 +2097,7 @@ export default function DailyContract({ id }: Props) {
                     name="editPaymentMode"
                     value="mobicash"
                     checked={paymentMode === 'mobicash'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -2046,7 +2114,7 @@ export default function DailyContract({ id }: Props) {
                     name="editPaymentMode"
                     value="cash"
                     checked={paymentMode === 'cash'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -2063,7 +2131,7 @@ export default function DailyContract({ id }: Props) {
                     name="editPaymentMode"
                     value="bank_transfer"
                     checked={paymentMode === 'bank_transfer'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                     className="text-[#224D62] focus:ring-[#224D62]"
                   />
                   <div className="ml-3 flex items-center gap-3">
@@ -2074,6 +2142,23 @@ export default function DailyContract({ id }: Props) {
                   </div>
                 </label>
               </div>
+              {(paymentMode === 'airtel_money' || paymentMode === 'mobicash') && (
+                <div className="mt-3">
+                  <Label className="text-sm font-medium">Frais de transaction *</Label>
+                  <Select
+                    value={paymentWithFees === undefined ? '' : paymentWithFees ? 'yes' : 'no'}
+                    onValueChange={(value) => setPaymentWithFees(value === 'yes')}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Avec ou sans frais ?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Avec frais</SelectItem>
+                      <SelectItem value="no">Sans frais</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             {/* Preuve de paiement — remplacer si besoin, comme Standard */}
@@ -2267,7 +2352,7 @@ export default function DailyContract({ id }: Props) {
                       name="latePaymentMode"
                       value="airtel_money"
                       checked={paymentMode === 'airtel_money'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                       className="text-blue-600"
                     />
                     <span className="text-sm">Airtel Money</span>
@@ -2278,7 +2363,7 @@ export default function DailyContract({ id }: Props) {
                       name="latePaymentMode"
                       value="mobicash"
                       checked={paymentMode === 'mobicash'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                       className="text-blue-600"
                     />
                     <span className="text-sm">Mobicash</span>
@@ -2289,7 +2374,7 @@ export default function DailyContract({ id }: Props) {
                       name="latePaymentMode"
                       value="cash"
                       checked={paymentMode === 'cash'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                       className="text-blue-600"
                     />
                     <span className="text-sm">Espèce</span>
@@ -2300,12 +2385,29 @@ export default function DailyContract({ id }: Props) {
                       name="latePaymentMode"
                       value="bank_transfer"
                       checked={paymentMode === 'bank_transfer'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      onChange={(e) => { setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'); setPaymentWithFees(undefined) }}
                       className="text-blue-600"
                     />
                     <span className="text-sm">Virement bancaire</span>
                   </label>
                 </div>
+                {(paymentMode === 'airtel_money' || paymentMode === 'mobicash') && (
+                  <div className="mt-3">
+                    <Label className="text-sm font-medium">Frais de transaction *</Label>
+                    <Select
+                      value={paymentWithFees === undefined ? '' : paymentWithFees ? 'yes' : 'no'}
+                      onValueChange={(value) => setPaymentWithFees(value === 'yes')}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Avec ou sans frais ?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Avec frais</SelectItem>
+                        <SelectItem value="no">Sans frais</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {/* Sélection du membre du groupe (si contrat de groupe) */}
@@ -2449,6 +2551,7 @@ export default function DailyContract({ id }: Props) {
                 setPaymentAmount('')
                 setPaymentTime('')
                 setPaymentMode('airtel_money')
+                setPaymentWithFees(undefined)
                 setPaymentFile(undefined)
                 setSelectedGroupMemberId('')
               }}
@@ -2472,6 +2575,10 @@ export default function DailyContract({ id }: Props) {
                 const amount = Number(paymentAmount)
                 if (amount <= 0) {
                   toast.error('Le montant doit être positif')
+                  return
+                }
+                if ((paymentMode === 'airtel_money' || paymentMode === 'mobicash') && paymentWithFees === undefined) {
+                  toast.error('Veuillez indiquer si le paiement est avec frais ou sans frais')
                   return
                 }
 
@@ -2507,7 +2614,8 @@ export default function DailyContract({ id }: Props) {
                       file: paymentFile,
                       paidAt: selectedDate,
                       time: paymentTime,
-                      mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+                      mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+                      withFees: paymentMode === 'airtel_money' || paymentMode === 'mobicash' ? paymentWithFees : undefined
                     })
 
                     toast.success('Contribution en retard ajoutée au versement collectif')
@@ -2522,7 +2630,8 @@ export default function DailyContract({ id }: Props) {
                       file: paymentFile,
                       paidAt: selectedDate,
                       time: paymentTime,
-                      mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+                      mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+                      withFees: paymentMode === 'airtel_money' || paymentMode === 'mobicash' ? paymentWithFees : undefined
                     })
 
                     toast.success('Versement en retard enregistré avec succès')
@@ -2536,6 +2645,7 @@ export default function DailyContract({ id }: Props) {
                   setPaymentAmount('')
                   setPaymentTime('')
                   setPaymentMode('airtel_money')
+                  setPaymentWithFees(undefined)
                   setPaymentFile(undefined)
                   setSelectedGroupMemberId('')
                 } catch (err: any) {

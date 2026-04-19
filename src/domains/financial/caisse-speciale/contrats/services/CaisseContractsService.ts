@@ -6,6 +6,7 @@ import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { deleteFile, createFile } from '@/db/upload-image.db'
 import { removeCaisseContractFromEntity } from '@/db/member.db'
 import { updateContractPdf, updateContract } from '@/db/caisse/contracts.db'
+import { updatePayment } from '@/db/caisse/payments.db'
 import { computeNextDueAt } from '@/services/caisse/engine'
 import { recomputeNow } from '@/services/caisse/readers'
 
@@ -67,7 +68,12 @@ export class CaisseContractsService {
    * Interdit si contrat CLOSED, en remboursement final/anticipé, résilié, etc.
    * Recalcule les totaux du contrat (nominalPaid, bonusAccrued, penaltiesTotal) et la prochaine échéance.
    */
-  async deleteContractPayment(contractId: string, paymentId: string, adminId: string): Promise<void> {
+  async deleteContractPayment(
+    contractId: string,
+    paymentId: string,
+    adminId: string,
+    contributionId?: string
+  ): Promise<void> {
     const contract = await this.repo.getContractById(contractId)
     if (!contract) {
       throw new Error('Contrat introuvable')
@@ -85,7 +91,41 @@ export class CaisseContractsService {
       throw new Error('Versement introuvable')
     }
 
-    await this.repo.deletePayment(contractId, paymentId)
+    const contribs = Array.isArray((payment as any).contribs) ? (payment as any).contribs : []
+
+    // Cas journalier: un paiement peut regrouper plusieurs contributions.
+    // On supprime uniquement la contribution ciblée, pas tout le paiement.
+    if (contribs.length > 1) {
+      if (!contributionId) {
+        throw new Error('Contribution introuvable pour ce versement. Merci de reouvrir le detail du jour puis reessayer.')
+      }
+
+      const nextContribs = contribs.filter((c: any) => String(c?.id ?? '') !== String(contributionId))
+      if (nextContribs.length === contribs.length) {
+        throw new Error('Contribution a supprimer introuvable')
+      }
+
+      if (nextContribs.length === 0) {
+        await this.repo.deletePayment(contractId, paymentId)
+      } else {
+        const nextAccumulatedAmount = nextContribs.reduce((sum: number, c: any) => sum + (Number(c?.amount) || 0), 0)
+        const fallbackContrib = nextContribs[nextContribs.length - 1] ?? null
+
+        await updatePayment(contractId, paymentId, {
+          contribs: nextContribs,
+          accumulatedAmount: nextAccumulatedAmount,
+          amount: nextAccumulatedAmount,
+          paidAt: fallbackContrib?.paidAt,
+          time: fallbackContrib?.time,
+          mode: fallbackContrib?.mode,
+          proofUrl: fallbackContrib?.proofUrl,
+          agentRecouvrementId: fallbackContrib?.agentRecouvrementId ?? null,
+          updatedBy: adminId,
+        })
+      }
+    } else {
+      await this.repo.deletePayment(contractId, paymentId)
+    }
 
     const remaining = await this.repo.getContractPayments(contractId)
     const nominalPaid = remaining.reduce((sum: number, p: any) => {

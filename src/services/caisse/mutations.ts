@@ -252,7 +252,7 @@ function getContractStartDate(contract: any): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; agentRecouvrementId?: string }) {
+export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; withFees?: boolean; agentRecouvrementId?: string }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
@@ -387,6 +387,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     // Enregistrer les informations de paiement
     time: input.time,
     mode: input.mode,
+    ...((input.mode === 'airtel_money' || input.mode === 'mobicash') && input.withFees !== undefined
+      ? { withFees: input.withFees }
+      : {}),
   }
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
@@ -405,6 +408,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       proofUrl: proofUrl || undefined,
       time: input.time,
       mode: input.mode,
+      ...((input.mode === 'airtel_money' || input.mode === 'mobicash') && input.withFees !== undefined
+        ? { withFees: input.withFees }
+        : {}),
       memberId: input.memberId, // Ajouter l'ID du membre du groupe
       penalty: penalty || 0, // Montant de la pénalité pour cette contribution
       penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
@@ -742,6 +748,7 @@ export async function updatePaymentContribution(input: {
     amount?: number
     time?: string
     mode?: PaymentMode
+    withFees?: boolean
     proofFile?: File
     memberId?: string
     paidAt?: Date
@@ -817,11 +824,18 @@ export async function updatePaymentContribution(input: {
   const newPaidAt = updates.paidAt ?? (contribution.paidAt ? (typeof contribution.paidAt?.toDate === 'function' ? contribution.paidAt.toDate() : new Date(contribution.paidAt)) : undefined)
 
   // Mettre à jour la contribution
+  const resolvedMode = (updates.mode || contribution.mode) as PaymentMode | undefined
+  const resolvedWithFees =
+    resolvedMode === 'airtel_money' || resolvedMode === 'mobicash'
+      ? (updates.withFees ?? contribution.withFees)
+      : undefined
+
   const updatedContribution = {
     ...contribution,
     amount: newAmount,
     time: updates.time || contribution.time,
-    mode: updates.mode || contribution.mode,
+    mode: resolvedMode,
+    withFees: resolvedWithFees,
     proofUrl: newProofUrl || contribution.proofUrl,
     memberId: updates.memberId || contribution.memberId, // Ajouter l'ID du membre du groupe
     ...(newPaidAt && { paidAt: newPaidAt }),
@@ -855,6 +869,10 @@ export async function updatePaymentContribution(input: {
   // Garder le montant et l'agent au niveau paiement en sync (affichage et préremplissage en édition)
   if (updatedContribs.length === 1) {
     paymentPayload.amount = newAmount
+    paymentPayload.mode = updatedContribution.mode
+    if (updatedContribution.withFees !== undefined) {
+      paymentPayload.withFees = updatedContribution.withFees
+    }
     if (updates.agentRecouvrementId !== undefined) {
       paymentPayload.agentRecouvrementId = updates.agentRecouvrementId || null
     }
@@ -948,6 +966,7 @@ export async function payGroup(input: {
   paidAt?: Date; 
   time: string; 
   mode: PaymentMode;
+  withFees?: boolean;
   agentRecouvrementId?: string;
 }) {
   const contract = await getContract(input.contractId)
@@ -1066,6 +1085,9 @@ export async function payGroup(input: {
     amount: input.amount,
     time: input.time,
     mode: input.mode,
+    ...((input.mode === 'airtel_money' || input.mode === 'mobicash') && input.withFees !== undefined
+      ? { withFees: input.withFees }
+      : {}),
     proofUrl,
     penalty: penalty || 0, // Montant de la pénalité pour cette contribution
     penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
@@ -1101,6 +1123,9 @@ export async function payGroup(input: {
     // Enregistrer les informations de paiement (du dernier contributeur)
     time: input.time,
     mode: input.mode,
+    ...((input.mode === 'airtel_money' || input.mode === 'mobicash') && input.withFees !== undefined
+      ? { withFees: input.withFees }
+      : {}),
   }
 
   // Vérifier si l'objectif du mois est atteint

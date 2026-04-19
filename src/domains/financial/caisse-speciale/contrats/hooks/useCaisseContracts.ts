@@ -121,9 +121,17 @@ export function useDeleteContractPayment() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: ({ contractId, paymentId }: { contractId: string; paymentId: string }) => {
+    mutationFn: ({
+      contractId,
+      paymentId,
+      contributionId,
+    }: {
+      contractId: string
+      paymentId: string
+      contributionId?: string
+    }) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
-      return service.deleteContractPayment(contractId, paymentId, user.uid)
+      return service.deleteContractPayment(contractId, paymentId, user.uid, contributionId)
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['caisse-contract', variables.contractId] })
