@@ -18,6 +18,7 @@ import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/c
 import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
 import { useQueries } from '@tanstack/react-query'
 import {
@@ -109,6 +110,7 @@ const ModernSkeleton = () => (
 
 export default function ListContractsCISection() {
   const router = useRouter()
+  useCaisseImprevueContractsRealtimeSync(true)
   
   // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard, Mois en cours)
   const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'>('all')

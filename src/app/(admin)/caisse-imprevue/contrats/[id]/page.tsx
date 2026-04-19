@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
+import { useCaisseImprevueContractRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractRealtimeSync'
 import { useContractCI } from '@/hooks/caisse-imprevue/useContractCI'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
 import {
@@ -20,6 +21,7 @@ export default function ContractCIDetailsPage() {
   const params = useParams() as { id: string }
   const id = params.id
   const router = useRouter()
+  useCaisseImprevueContractRealtimeSync(id, true)
   
   // Fetch du contrat
   const { data: contract, isLoading: isLoadingContract, isError: isErrorContract, error: errorContract } = useContractCI(id)
