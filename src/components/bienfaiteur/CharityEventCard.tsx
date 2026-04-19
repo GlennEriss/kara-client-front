@@ -203,7 +203,11 @@ export default function CharityEventCard({ event, onSetOngoing, updatingEventId 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSetOngoing} disabled={isUpdating}>
+            <AlertDialogAction
+              onClick={handleConfirmSetOngoing}
+              disabled={isUpdating}
+              className="bg-[#234D65] hover:bg-[#1b3b4d] text-white"
+            >
               Mettre en cours
             </AlertDialogAction>
           </AlertDialogFooter>

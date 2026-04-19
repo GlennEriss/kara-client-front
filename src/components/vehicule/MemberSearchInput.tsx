@@ -22,6 +22,7 @@ interface MemberSearchInputProps {
   initialDisplayName?: string
   isRequired?: boolean
   helperText?: string
+  inputId?: string
 }
 
 export default function MemberSearchInput({
@@ -35,9 +36,11 @@ export default function MemberSearchInput({
   initialDisplayName,
   isRequired = true,
   helperText,
+  inputId = 'member-search',
 }: MemberSearchInputProps) {
   const [searchQuery, setSearchQuery] = useState(initialDisplayName || '')
   const [isOpen, setIsOpen] = useState(false)
+  const [selectedMemberState, setSelectedMemberState] = useState<UserType | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const normalizedQuery = React.useMemo(() => {
@@ -72,12 +75,14 @@ export default function MemberSearchInput({
   // Gérer la sélection d'un membre
   const handleSelect = (member: UserType) => {
     onChange(member.id!, member)
+    setSelectedMemberState(member)
     setSearchQuery(`${member.firstName} ${member.lastName}`)
     setIsOpen(false)
   }
 
   const handleClear = () => {
     setSearchQuery('')
+    setSelectedMemberState(null)
     onChange('', null)
     setIsOpen(false)
   }
@@ -85,11 +90,14 @@ export default function MemberSearchInput({
   // Afficher le membre sélectionné si value est défini
   const selectedMember = React.useMemo(() => {
     if (!value && !selectedMemberId) return null
+    if (selectedMemberState && (selectedMemberState.id === value || selectedMemberState.id === selectedMemberId)) {
+      return selectedMemberState
+    }
     if (members && members.length > 0) {
       return members.find(m => m.id === value || m.id === selectedMemberId) || null
     }
     return null
-  }, [value, selectedMemberId, members])
+  }, [value, selectedMemberId, members, selectedMemberState])
 
   // Mettre à jour le champ de recherche si un membre est sélectionné
   useEffect(() => {
@@ -104,13 +112,19 @@ export default function MemberSearchInput({
     }
   }, [initialDisplayName, value, searchQuery])
 
+  useEffect(() => {
+    if (!value && !selectedMemberId) {
+      setSelectedMemberState(null)
+    }
+  }, [value, selectedMemberId])
+
   const hasResults = (members?.length || 0) > 0
   const showDropdown = isOpen && searchQuery.length >= 2 && !disabled
 
   return (
     <div className="space-y-2 relative" ref={containerRef}>
       {label && (
-        <Label htmlFor="member-search">
+        <Label htmlFor={inputId}>
           {label} {isRequired && <span className="text-red-500">*</span>}
         </Label>
       )}
@@ -121,7 +135,7 @@ export default function MemberSearchInput({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <Input
-          id="member-search"
+          id={inputId}
           placeholder={placeholder}
           value={searchQuery}
           onChange={(e) => {
@@ -292,4 +306,3 @@ export default function MemberSearchInput({
     </div>
   )
 }
-

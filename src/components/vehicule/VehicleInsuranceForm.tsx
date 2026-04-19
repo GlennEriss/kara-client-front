@@ -153,6 +153,17 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
       form.setValue('sponsorContacts', [], { shouldDirty: true, shouldValidate: true })
       return
     }
+
+    const insuredMemberId = form.getValues('memberId')
+    if (holderType === 'member' && insuredMemberId && memberId === insuredMemberId) {
+      form.setError('sponsorMemberId', {
+        type: 'manual',
+        message: "Le parrain doit être différent du membre titulaire",
+      })
+      return
+    }
+
+    form.clearErrors('sponsorMemberId')
     form.setValue('sponsorMemberId', memberId, { shouldDirty: true, shouldValidate: true })
     form.setValue('sponsorName', `${member.firstName || ''} ${member.lastName || ''}`.trim(), { shouldDirty: true, shouldValidate: true })
     form.setValue('sponsorMatricule', member.matricule || null, { shouldDirty: true, shouldValidate: true })
@@ -259,8 +270,9 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                         error={form.formState.errors.memberId?.message}
                         disabled={mode === 'edit' || isLoadingMembers}
                         label="Rechercher un membre"
-                        placeholder="Rechercher par nom, prénom ou matricule..."
+                        placeholder="Nom, prénom, matricule ou téléphone"
                         initialDisplayName={initialMemberDisplayName}
+                        inputId="vehicle-holder-member-search"
                       />
                     </FormControl>
                     <FormMessage />
@@ -620,10 +632,11 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                       error={form.formState.errors.sponsorMemberId?.message}
                       disabled={isLoadingMembers}
                       label="Parrain"
-                      placeholder="Nom, prénom ou matricule du parrain"
+                      placeholder="Nom, prénom, matricule ou téléphone du parrain"
                       initialDisplayName={initialSponsorDisplayName}
                       isRequired
                       helperText="Tapez # suivi du matricule ou le nom d'un membre pour le retrouver rapidement"
+                      inputId="vehicle-sponsor-member-search"
                     />
                   </FormControl>
                   <FormMessage />

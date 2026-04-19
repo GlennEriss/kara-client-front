@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { useCharityEventsList, useCharityGlobalStats, useUpdateCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
+import { useCharityEventsRealtimeSync } from '@/hooks/bienfaiteur/useCharityEventsRealtimeSync'
 import { CharityEventStatus } from '@/types/types'
 import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -17,6 +18,7 @@ import CharityStatsCards from './CharityStatsCards'
 
 export default function CharityEventsList() {
   const router = useRouter()
+  useCharityEventsRealtimeSync(true)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [statusFilter, setStatusFilter] = useState<CharityEventStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')

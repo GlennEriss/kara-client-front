@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { usePlacementDemand, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { usePlacementDemandesRealtimeSync } from '@/hooks/placement/usePlacementDemandesRealtimeSync'
 import { cn } from '@/lib/utils'
 import { PlacementDemandStatus } from '@/types/types'
 import {
@@ -36,6 +37,7 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
   const router = useRouter()
   const { data: demand, isLoading, error } = usePlacementDemand(demandId)
   const { convert } = usePlacementDemandMutations()
+  usePlacementDemandesRealtimeSync(true)
   
   const [acceptModalOpen, setAcceptModalOpen] = useState(false)
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
@@ -460,4 +462,3 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
     </div>
   )
 }
-

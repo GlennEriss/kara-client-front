@@ -203,6 +203,7 @@ export default function CharityEventTable({ events, onSetOngoing, updatingEventI
                 setEventIdToSetOngoing(null)
               }}
               disabled={eventIdToSetOngoing !== null && updatingEventId === eventIdToSetOngoing}
+              className="bg-[#234D65] hover:bg-[#1b3b4d] text-white"
             >
               Mettre en cours
             </AlertDialogAction>

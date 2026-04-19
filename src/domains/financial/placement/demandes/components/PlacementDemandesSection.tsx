@@ -48,6 +48,7 @@ import { Badge } from '@/components/ui/badge'
 import { PlacementDemand, PlacementDemandStatus } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePlacementDemands, usePlacementDemandsStats, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { usePlacementDemandesRealtimeSync } from '@/hooks/placement/usePlacementDemandesRealtimeSync'
 import type { PlacementDemandFilters } from '@/types/types'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -366,6 +367,7 @@ export function PlacementDemandesSection() {
   const globalStatsFilters: PlacementDemandFilters = {}
   const { data: statsData } = usePlacementDemandsStats(globalStatsFilters)
   const { convert } = usePlacementDemandMutations()
+  usePlacementDemandesRealtimeSync(true)
 
   const stats = useMemo(() => {
     if (statsData) {
