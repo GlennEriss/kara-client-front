@@ -67,6 +67,7 @@ import { useDuplicateGroups } from '../../hooks/useDuplicateGroups'
 import { useMembershipActionsV2 } from '../../hooks/useMembershipActionsV2'
 import { useMembershipStatsV2 } from '../../hooks/useMembershipStatsV2'
 import { useApproveMembershipRequest } from '../../hooks/useApproveMembershipRequest'
+import { useMembershipRequestsRealtimeSync } from '../../hooks/useMembershipRequestsRealtimeSync'
 
 // Types et constantes
 import type { MembershipRequest, MembershipRequestFilters } from '../../entities'
@@ -184,6 +185,9 @@ export function MembershipRequestsPageV2() {
   const router = useRouter()
   const { user } = useAuth()
   const isMobile = useIsMobile()
+
+  // Synchronisation temps réel multi-admin (progressif: scope membership-requests)
+  useMembershipRequestsRealtimeSync(Boolean(user?.uid))
 
   // États des filtres et pagination
   const [filters, setFilters] = useState<MembershipRequestFilters>({})

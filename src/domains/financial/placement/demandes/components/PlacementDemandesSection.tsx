@@ -48,6 +48,7 @@ import { Badge } from '@/components/ui/badge'
 import { PlacementDemand, PlacementDemandStatus } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePlacementDemands, usePlacementDemandsStats, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { usePlacementDemandesRealtimeSync } from '@/hooks/placement/usePlacementDemandesRealtimeSync'
 import type { PlacementDemandFilters } from '@/types/types'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -59,6 +60,8 @@ import AcceptDemandModal from '@/components/placement/AcceptDemandModal'
 import RejectDemandModal from '@/components/placement/RejectDemandModal'
 import ReopenDemandModal from '@/components/placement/ReopenDemandModal'
 import { useMember } from '@/hooks/useMembers'
+import ConvertDemandToPlacementModal from '@/components/placement/ConvertDemandToPlacementModal'
+import type { ConvertDemandToPlacementInput } from '@/schemas/placement.schema'
 
 type ViewMode = 'grid' | 'list'
 type TabValue = 'all' | 'pending' | 'approved' | 'rejected' | 'converted'
@@ -93,6 +96,7 @@ function PlacementDemandTableRow({
   setAcceptModalState,
   setRejectModalState,
   setReopenModalState,
+  setConvertModalState,
 }: {
   demande: PlacementDemand
   getStatusColor: (s: PlacementDemandStatus) => string
@@ -100,6 +104,7 @@ function PlacementDemandTableRow({
   setAcceptModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   setRejectModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   setReopenModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
+  setConvertModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
 }) {
   const router = useRouter()
   const { data: member, isLoading: memberLoading } = useMember(demande.benefactorId)
@@ -179,6 +184,15 @@ function PlacementDemandTableRow({
                   Réouvrir
                 </DropdownMenuItem>
               )}
+              {demande.status === 'APPROVED' && !demande.placementId && (
+                <DropdownMenuItem
+                  onClick={() => setConvertModalState({ isOpen: true, demand: demande })}
+                  className="cursor-pointer"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Créer le placement
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -196,7 +210,7 @@ function PlacementDemandCard({
   setAcceptModalState,
   setRejectModalState,
   setReopenModalState,
-  onConvert,
+  setConvertModalState,
   convertPending,
 }: {
   demande: PlacementDemand
@@ -206,7 +220,7 @@ function PlacementDemandCard({
   setAcceptModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   setRejectModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   setReopenModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
-  onConvert: (demandId: string) => void
+  setConvertModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   convertPending: boolean
 }) {
   const router = useRouter()
@@ -291,7 +305,7 @@ function PlacementDemandCard({
           {demande.status === 'APPROVED' && !demande.placementId && (
             <Button
               size="sm"
-              onClick={() => onConvert(demande.id)}
+              onClick={() => setConvertModalState({ isOpen: true, demand: demande })}
               disabled={convertPending}
               className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
             >
@@ -328,6 +342,7 @@ export function PlacementDemandesSection() {
   const [acceptModalState, setAcceptModalState] = useState<{ isOpen: boolean; demand: PlacementDemand | null }>({ isOpen: false, demand: null })
   const [rejectModalState, setRejectModalState] = useState<{ isOpen: boolean; demand: PlacementDemand | null }>({ isOpen: false, demand: null })
   const [reopenModalState, setReopenModalState] = useState<{ isOpen: boolean; demand: PlacementDemand | null }>({ isOpen: false, demand: null })
+  const [convertModalState, setConvertModalState] = useState<{ isOpen: boolean; demand: PlacementDemand | null }>({ isOpen: false, demand: null })
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -366,6 +381,7 @@ export function PlacementDemandesSection() {
   const globalStatsFilters: PlacementDemandFilters = {}
   const { data: statsData } = usePlacementDemandsStats(globalStatsFilters)
   const { convert } = usePlacementDemandMutations()
+  usePlacementDemandesRealtimeSync(true)
 
   const stats = useMemo(() => {
     if (statsData) {
@@ -572,6 +588,7 @@ export function PlacementDemandesSection() {
                       setAcceptModalState={setAcceptModalState}
                       setRejectModalState={setRejectModalState}
                       setReopenModalState={setReopenModalState}
+                      setConvertModalState={setConvertModalState}
                     />
                   ))}
                 </TableBody>
@@ -590,12 +607,7 @@ export function PlacementDemandesSection() {
                   setAcceptModalState={setAcceptModalState}
                   setRejectModalState={setRejectModalState}
                   setReopenModalState={setReopenModalState}
-                  onConvert={async (demandId) => {
-                    try {
-                      const result = await convert.mutateAsync({ demandId })
-                      if (result?.placement) router.push(routes.admin.placementDetails(result.placement.id))
-                    } catch (e) { console.error(e) }
-                  }}
+                  setConvertModalState={setConvertModalState}
                   convertPending={convert.isPending}
                 />
               ))}
@@ -647,6 +659,39 @@ export function PlacementDemandesSection() {
       <AcceptDemandModal isOpen={acceptModalState.isOpen} onClose={() => setAcceptModalState({ isOpen: false, demand: null })} demand={acceptModalState.demand} onSuccess={() => {}} />
       <RejectDemandModal isOpen={rejectModalState.isOpen} onClose={() => setRejectModalState({ isOpen: false, demand: null })} demand={rejectModalState.demand} onSuccess={() => {}} />
       <ReopenDemandModal isOpen={reopenModalState.isOpen} onClose={() => setReopenModalState({ isOpen: false, demand: null })} demand={reopenModalState.demand} onSuccess={() => {}} />
+      <ConvertDemandToPlacementModal
+        isOpen={convertModalState.isOpen}
+        demand={convertModalState.demand}
+        isSubmitting={convert.isPending}
+        onClose={() => setConvertModalState({ isOpen: false, demand: null })}
+        onConfirm={async (formData: ConvertDemandToPlacementInput) => {
+          const demandId = convertModalState.demand?.id
+          if (!demandId) return
+
+          const [year, month, day] = formData.handoverDate.split('-').map(Number)
+          const [hours, minutes] = formData.handoverTime.split(':').map(Number)
+          const startDate = new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0)
+          const handoverDate = new Date(year, (month || 1) - 1, day || 1, 0, 0, 0)
+
+          const result = await convert.mutateAsync({
+            demandId,
+            placementData: {
+              startDate,
+              paymentMode: formData.paymentMode,
+              withFees: formData.paymentMode === 'airtel_money' || formData.paymentMode === 'mobicash' ? formData.withFees : undefined,
+              paymentMethodOther: formData.paymentMode === 'other' ? formData.paymentMethodOther?.trim() : undefined,
+              handoverLocation: formData.handoverLocation.trim(),
+              handoverDate,
+              handoverTime: formData.handoverTime,
+            },
+          })
+
+          setConvertModalState({ isOpen: false, demand: null })
+          if (result?.placement) {
+            router.push(routes.admin.placementDetails(result.placement.id))
+          }
+        }}
+      />
     </div>
   )
 }

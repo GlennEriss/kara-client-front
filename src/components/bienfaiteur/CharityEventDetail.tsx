@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
+import { useCharityEventRealtimeSync } from '@/hooks/bienfaiteur/useCharityEventRealtimeSync'
 import { useCharityEvent, useCharityEventStats } from '@/hooks/bienfaiteur/useCharityEvents'
 import { CHARITY_EVENT_STATUS_LABELS } from '@/types/types'
 import { Calendar, Edit, Gift, Image as ImageIcon, MapPin, Settings, TrendingUp, Users } from 'lucide-react'
@@ -25,6 +26,7 @@ interface CharityEventDetailProps {
 
 export default function CharityEventDetail({ eventId }: CharityEventDetailProps) {
   const router = useRouter()
+  useCharityEventRealtimeSync(eventId, true)
   const [activeTab, setActiveTab] = useState('contributions')
   const { data: event, isLoading: isLoadingEvent } = useCharityEvent(eventId)
   const { data: stats, isLoading: isLoadingStats } = useCharityEventStats(eventId)

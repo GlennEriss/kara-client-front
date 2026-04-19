@@ -8,6 +8,7 @@ import routes from '@/constantes/routes'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { useAuth } from '@/hooks/useAuth'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
+import { useCaisseSpecialeContractRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeContractRealtimeSync'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useMember } from '@/hooks/useMembers'
 import { approveRefund, cancelEarlyRefund, markRefundPaid, pay, requestEarlyRefund, requestFinalRefund, updatePaymentContribution } from '@/services/caisse/mutations'
@@ -128,6 +129,17 @@ export default function FreeContract({ id }: Props) {
   useEffect(() => {
     reloadRefunds()
   }, [reloadRefunds])
+
+  const refreshRealtimeData = useCallback(() => {
+    void refetch()
+    void reloadRefunds()
+  }, [refetch, reloadRefunds])
+
+  useCaisseSpecialeContractRealtimeSync(id, {
+    enabled: true,
+    onContractChanged: refreshRealtimeData,
+    onRefundsChanged: refreshRealtimeData,
+  })
 
   if (isLoading) {
     return (

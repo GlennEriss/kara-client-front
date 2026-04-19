@@ -22,13 +22,7 @@ export const charityEventSchema = z.object({
   // Dates
   startDate: z
     .string()
-    .min(1, 'La date de début est requise')
-    .refine((date) => {
-      const selectedDate = new Date(date)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      return selectedDate >= today
-    }, 'La date de début ne peut pas être dans le passé'),
+    .min(1, 'La date de début est requise'),
   
   endDate: z
     .string()
@@ -39,16 +33,16 @@ export const charityEventSchema = z.object({
     .string()
     .optional()
     .refine(
-      (val) => !val || !isNaN(Number(val)) && Number(val) > 0,
-      'Le montant cible doit être un nombre positif'
+      (val) => !val || (!isNaN(Number(val)) && Number(val) >= 0),
+      'Le montant cible ne peut pas être négatif'
     ),
   
   minContributionAmount: z
     .string()
     .optional()
     .refine(
-      (val) => !val || !isNaN(Number(val)) && Number(val) > 0,
-      'Le montant minimum doit être un nombre positif'
+      (val) => !val || (!isNaN(Number(val)) && Number(val) >= 0),
+      'La contribution minimum ne peut pas être négative'
     ),
   
   // Visuel (optionnel)
@@ -326,4 +320,3 @@ export const defaultCharityMediaValues: Partial<CharityMediaFormData> = {
   description: '',
   takenAt: '',
 }
-

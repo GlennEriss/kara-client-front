@@ -4,6 +4,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAllMembers } from '@/hooks/useMembers'
+import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
 import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRenewVehicleInsurance, useUpdateVehicleInsurance, useVehicleInsuranceList, useVehicleInsuranceStats } from '@/hooks/vehicule/useVehicleInsurances'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { VehicleInsurance, VehicleInsuranceFilters } from '@/types/types'
@@ -59,6 +60,7 @@ const EXPORT_HEADERS = [
 ]
 
 export function VehicleInsuranceList() {
+  useVehicleInsurancesRealtimeSync(true)
   const [filters, setFilters] = useState<VehicleInsuranceFilters>(DEFAULT_FILTERS)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -310,7 +312,11 @@ export function VehicleInsuranceList() {
           }}>
             Actualiser
           </Button>
-          <Button onClick={openCreateModal} disabled={membersLoading}>
+          <Button
+            onClick={openCreateModal}
+            disabled={membersLoading}
+            className="bg-[#234D65] hover:bg-[#1b3b4d] text-white"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Nouvelle assurance
           </Button>
@@ -454,4 +460,3 @@ export function VehicleInsuranceList() {
     </div>
   )
 }
-

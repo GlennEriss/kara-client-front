@@ -801,6 +801,20 @@ export async function updateMemberHasCar(
  */
 export async function searchMembers(searchTerm: string, limit: number = 10): Promise<User[]> {
   try {
+    const rawTerm = searchTerm.trim()
+    if (rawTerm.length < 2) {
+      return []
+    }
+
+    const normalizeText = (value: string) =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+
+    const compactText = (value: string) => normalizeText(value).replace(/[^a-z0-9]/g, '')
+
     const membersRef = collection(db, 'users')
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
 
@@ -815,7 +829,12 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
     const querySnapshot = await getDocs(q)
     const members: User[] = []
 
-    const searchLower = searchTerm.toLowerCase()
+    const searchLower = normalizeText(rawTerm)
+    const searchCompact = compactText(rawTerm)
+    const searchTokens = searchLower
+      .split(/\s+/)
+      .map(token => token.trim())
+      .filter(Boolean)
 
     querySnapshot.docs.forEach(doc => {
       const data = doc.data()
@@ -827,16 +846,29 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
       } as User
 
       // Filtrer par terme de recherche (champs optionnels pour certains users)
-      const firstName = (member.firstName || '').toLowerCase()
-      const lastName = (member.lastName || '').toLowerCase()
-      const matricule = (member.matricule || '').toLowerCase()
-      const email = (member.email || '').toLowerCase()
-      if (
-        firstName.includes(searchLower) ||
-        lastName.includes(searchLower) ||
-        matricule.includes(searchLower) ||
-        email.includes(searchLower)
-      ) {
+      const firstName = normalizeText(member.firstName || '')
+      const lastName = normalizeText(member.lastName || '')
+      const fullName = `${firstName} ${lastName}`.trim()
+      const matricule = normalizeText(member.matricule || '')
+      const matriculeCompact = compactText(member.matricule || '')
+      const email = normalizeText(member.email || '')
+      const contacts = (member.contacts || []).map(contact => normalizeText(contact))
+      const contactsCompact = (member.contacts || []).map(contact => compactText(contact))
+
+      const tokenMatch = searchTokens.every(token =>
+        firstName.includes(token) ||
+        lastName.includes(token) ||
+        fullName.includes(token) ||
+        matricule.includes(token) ||
+        email.includes(token) ||
+        contacts.some(contact => contact.includes(token))
+      )
+
+      const compactMatch =
+        matriculeCompact.includes(searchCompact) ||
+        contactsCompact.some(contact => contact.includes(searchCompact))
+
+      if (tokenMatch || compactMatch) {
         members.push(member)
       }
     })

@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
+import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
 import { useUpdateVehicleInsurance, useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import Link from 'next/link'
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function VehicleInsuranceEditView({ insuranceId }: Props) {
+  useVehicleInsurancesRealtimeSync(true)
   const { data, isLoading } = useVehicleInsurance(insuranceId)
   const updateMutation = useUpdateVehicleInsurance()
 
@@ -54,4 +56,3 @@ export function VehicleInsuranceEditView({ insuranceId }: Props) {
     </div>
   )
 }
-

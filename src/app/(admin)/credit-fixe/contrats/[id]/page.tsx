@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import routes from '@/constantes/routes'
 import { CreditFixeContractDetailSection } from '@/domains/financial/credit-speciale/fixe/contrats/components/CreditFixeContractDetailSection'
+import { useCreditContractRealtimeSync } from '@/hooks/credit-speciale/useCreditContractRealtimeSync'
 import { useCreditContract } from '@/hooks/useCreditSpeciale'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
@@ -11,6 +12,7 @@ export default function CreditFixeContractDetailPage() {
   const params = useParams()
   const router = useRouter()
   const contractId = params.id as string
+  useCreditContractRealtimeSync(contractId, true)
 
   const { data: contract, isLoading, error } = useCreditContract(contractId)
 

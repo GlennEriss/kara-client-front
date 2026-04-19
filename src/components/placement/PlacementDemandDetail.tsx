@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { usePlacementDemand, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
+import { usePlacementDemandesRealtimeSync } from '@/hooks/placement/usePlacementDemandesRealtimeSync'
+import { usePlacement } from '@/hooks/usePlacements'
 import { cn } from '@/lib/utils'
 import { PlacementDemandStatus } from '@/types/types'
 import {
@@ -35,7 +37,9 @@ interface PlacementDemandDetailProps {
 export default function PlacementDemandDetail({ demandId }: PlacementDemandDetailProps) {
   const router = useRouter()
   const { data: demand, isLoading, error } = usePlacementDemand(demandId)
+  const { data: linkedPlacement } = usePlacement(demand?.placementId)
   const { convert } = usePlacementDemandMutations()
+  usePlacementDemandesRealtimeSync(true)
   
   const [acceptModalOpen, setAcceptModalOpen] = useState(false)
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
@@ -65,6 +69,15 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
     return mode === 'MonthlyCommission_CapitalEnd' 
       ? 'Commission mensuelle + Capital en fin'
       : 'Capital + Commission en fin'
+  }
+
+  const getPaymentModeLabel = (mode?: string, methodOther?: string) => {
+    if (mode === 'airtel_money') return 'Airtel Money'
+    if (mode === 'mobicash') return 'Mobicash'
+    if (mode === 'cash') return 'Espèce'
+    if (mode === 'bank_transfer') return 'Virement bancaire'
+    if (mode === 'other') return methodOther?.trim() || 'Autres'
+    return '—'
   }
 
   const handleConvertToPlacement = async () => {
@@ -376,6 +389,60 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
         </Card>
       )}
 
+      {/* Informations de remise (issues du formulaire de conversion) */}
+      {demand.placementId && linkedPlacement && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#234D65]" />
+              Informations de remise des fonds
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Moyen de paiement:</span>
+                <span className="font-medium">
+                  {getPaymentModeLabel(linkedPlacement.paymentMode, linkedPlacement.paymentMethodOther)}
+                </span>
+              </div>
+
+              {(linkedPlacement.paymentMode === 'airtel_money' || linkedPlacement.paymentMode === 'mobicash') && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Frais mobile money:</span>
+                  <span className="font-medium">
+                    {linkedPlacement.withFees === true ? 'Avec frais' : linkedPlacement.withFees === false ? 'Sans frais' : '—'}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Lieu de remise:</span>
+                <span className="font-medium">{linkedPlacement.handoverLocation || '—'}</span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Date de remise:</span>
+                <span className="font-medium">
+                  {linkedPlacement.handoverDate
+                    ? new Date(linkedPlacement.handoverDate).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : '—'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Heure de remise:</span>
+                <span className="font-medium">{linkedPlacement.handoverTime || '—'}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Actions */}
       <Card>
         <CardContent className="p-6">
@@ -460,4 +527,3 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
     </div>
   )
 }
-

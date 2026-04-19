@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
+import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
 import { useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
 import Link from 'next/link'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function VehicleInsuranceDetailView({ insuranceId }: Props) {
+  useVehicleInsurancesRealtimeSync(true)
   const { data, isLoading } = useVehicleInsurance(insuranceId)
 
   if (isLoading) {
@@ -160,4 +162,3 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
     </div>
   )
 }
-

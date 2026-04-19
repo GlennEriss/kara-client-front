@@ -231,6 +231,7 @@ export default function CreateCharityEventForm() {
                 <Input
                   id="targetAmount"
                   type="number"
+                  min="0"
                   placeholder="Ex. 500000"
                   {...register('targetAmount')}
                 />
@@ -252,6 +253,7 @@ export default function CreateCharityEventForm() {
                 <Input
                   id="minContributionAmount"
                   type="number"
+                  min="0"
                   placeholder="Ex. 5000"
                   {...register('minContributionAmount')}
                 />
@@ -277,18 +279,18 @@ export default function CreateCharityEventForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           {!coverPreview ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+            <label
+              htmlFor="coverPhoto"
+              className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors"
+            >
               <div className="flex flex-col items-center gap-4">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <ImageIcon className="w-8 h-8 text-gray-400" />
                 </div>
                 <div>
-                  <Label 
-                    htmlFor="coverPhoto" 
-                    className="cursor-pointer text-[#234D65] hover:text-[#2c5a73] font-medium"
-                  >
+                  <span className="cursor-pointer text-[#234D65] hover:text-[#2c5a73] font-medium">
                     Cliquez pour télécharger une image
-                  </Label>
+                  </span>
                   <Input
                     id="coverPhoto"
                     type="file"
@@ -302,7 +304,7 @@ export default function CreateCharityEventForm() {
                 </div>
                 <Upload className="w-5 h-5 text-gray-400" />
               </div>
-            </div>
+            </label>
           ) : (
             <div className="relative">
               <div className="relative w-full h-64 bg-gray-100 rounded-lg overflow-hidden">

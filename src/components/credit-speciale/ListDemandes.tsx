@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import routes from '@/constantes/routes'
 import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
+import { useCreditDemandesRealtimeSync } from '@/hooks/credit-speciale/useCreditDemandesRealtimeSync'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { useCreditContractMutations, useCreditDemands, useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
@@ -381,6 +382,7 @@ const ListDemandes = ({
   forcedCreditType,
   demandDetailsBasePath = routes.admin.creditSpecialeDemandes,
 }: ListDemandesProps) => {
+  useCreditDemandesRealtimeSync(true)
   const router = useRouter()
   const searchParams = useSearchParams()
   const isCreditTypeLocked = Boolean(forcedCreditType)

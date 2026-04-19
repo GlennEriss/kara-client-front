@@ -75,6 +75,7 @@ export interface CaissePayment {
   // Informations de paiement
   time?: string
   mode?: PaymentMode
+  withFees?: boolean
   // Extensions pour journalière/libre
   accumulatedAmount?: number
   contribs?: IndividualPaymentContribution[]
@@ -101,6 +102,7 @@ export interface GroupPaymentContribution {
   amount: number
   time: string
   mode: PaymentMode
+  withFees?: boolean
   proofUrl?: string
   penalty?: number // Montant de la pénalité pour cette contribution
   penaltyDays?: number // Nombre de jours de retard pour cette contribution
@@ -117,6 +119,7 @@ export interface IndividualPaymentContribution {
   proofUrl?: string
   time?: string
   mode?: PaymentMode
+  withFees?: boolean
   memberId?: string
   memberName?: string
   memberPhotoURL?: string
