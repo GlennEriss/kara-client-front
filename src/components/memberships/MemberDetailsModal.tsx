@@ -12,26 +12,8 @@ import { getNationalityName } from '@/constantes/nationality'
 import type { MembershipRequest } from '@/types/types'
 import { BlobProvider, Document, Image, PDFViewer, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
 import { Download, Eye, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
-
-// Hook pour détecter le mobile uniquement
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth < 1024) // lg breakpoint
-    }
-
-    checkDevice()
-    window.addEventListener('resize', checkDevice)
-
-    return () => window.removeEventListener('resize', checkDevice)
-  }, [])
-
-  return isMobile
-}
 
 // Styles optimisés pour tenir sur une page
 const styles = StyleSheet.create({
@@ -186,7 +168,7 @@ const styles = StyleSheet.create({
   signatureTableB: {
     width: '100%',
     border: '1px solid black',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   signatureRow: {
     flexDirection: 'row',
@@ -194,7 +176,7 @@ const styles = StyleSheet.create({
   },
   signatureRowB: {
     flexDirection: 'row',
-    height: 120,
+    height: 86,
   },
   signatureCell: {
     flex: 1,
@@ -240,9 +222,18 @@ const styles = StyleSheet.create({
     color: '#ba0c2f',
   },
   contractSignatureDate: {
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 6,
     fontSize: 12, // Augmenté de 10 à 12
+  },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: '#111827',
   },
 })
 
@@ -312,7 +303,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         month: '2-digit',
         day: '2-digit'
       }).format(dateObj)
-    } catch (error) {
+    } catch {
       return 'Date invalide'
     }
   }
@@ -557,6 +548,8 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           <Text>Tél : 066-95-13-14 / 074-36-97-29</Text>
           <Text>E-mail :</Text>
         </View>
+
+        <Text fixed style={styles.pageNumber}>Page 1 / 2</Text>
       </Page>
 
       {/* Page 2 - Contrat de Confidentialité */}
@@ -651,6 +644,8 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             </View>
           </View>
         </View>
+
+        <Text fixed style={styles.pageNumber}>Page 2 / 2</Text>
       </Page>
     </Document>
   )
@@ -668,7 +663,6 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   request
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const isMobile = useIsMobile()
 
   // Vérifier si un PDF uploadé existe (pour les demandes approuvées)
   const hasUploadedPdf = request.adhesionPdfURL && request.status === 'approved'
@@ -677,43 +671,27 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
     setIsExporting(true)
 
     try {
-      // Si un PDF uploadé existe, télécharger directement depuis l'URL
-      if (hasUploadedPdf) {
-        const link = document.createElement('a')
-        link.href = request.adhesionPdfURL!
-        link.download = `Fiche_Adhesion_${request.matricule || 'membre'}.pdf`
-        link.target = '_blank'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+      // Toujours télécharger la version générée actuelle (avec pagination)
+      const blob = await pdf(<MutuelleKaraPDF request={request} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      // Nouveau format: firstname lastname_ADHESION_MK_YYYY.pdf
+      const firstName = (request.identity.firstName || '').trim()
+      const lastName = (request.identity.lastName || '').trim()
+      const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Membre'
+      const fullNameUpper = fullName.toUpperCase()
+      const year = new Date().getFullYear()
+      link.download = `${fullNameUpper}_ADHESION_MK_${year}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
 
-        toast.success('✅ PDF téléchargé avec succès', {
-          description: 'Le document a été téléchargé dans votre dossier de téléchargements.',
-          duration: 3000,
-        })
-      } else {
-        // Sinon, générer le PDF comme avant
-        const blob = await pdf(<MutuelleKaraPDF request={request} />).toBlob()
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        // Nouveau format: firstname lastname_ADHESION_MK_YYYY.pdf
-        const firstName = (request.identity.firstName || '').trim()
-        const lastName = (request.identity.lastName || '').trim()
-        const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Membre'
-        const fullNameUpper = fullName.toUpperCase()
-        const year = new Date().getFullYear()
-        link.download = `${fullNameUpper}_ADHESION_MK_${year}.pdf`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-
-        toast.success('✅ PDF téléchargé avec succès', {
-          description: 'Le document a été généré et téléchargé dans votre dossier de téléchargements.',
-          duration: 3000,
-        })
-      }
+      toast.success('✅ PDF téléchargé avec succès', {
+        description: 'Le document a été généré et téléchargé dans votre dossier de téléchargements.',
+        duration: 3000,
+      })
     } catch (error) {
       console.error('Erreur lors du téléchargement du PDF:', error)
       toast.error('❌ Erreur de téléchargement', {
@@ -745,23 +723,38 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
               </div>
             </div>
           </div>
-          <Button
-            onClick={handleDownloadPDF}
-            disabled={isExporting}
-            className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
-          >
-            {isExporting ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden lg:inline">Génération...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                <span className="hidden lg:inline">Télécharger PDF</span>
-              </div>
+          <div className="mr-2 lg:mr-10 flex items-center gap-2 flex-shrink-0">
+            {hasUploadedPdf && request.adhesionPdfURL && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-10 px-3 lg:h-12 lg:px-4 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
+              >
+                <a href={request.adhesionPdfURL} target="_blank" rel="noopener noreferrer">
+                  <Eye className="w-4 h-4 mr-0 lg:mr-2" />
+                  <span className="hidden lg:inline">Fiche d&apos;adhésion téléversée</span>
+                </a>
+              </Button>
             )}
-          </Button>
+
+            <Button
+              onClick={handleDownloadPDF}
+              disabled={isExporting}
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6"
+            >
+              {isExporting ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="hidden lg:inline">Génération...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  <span className="hidden lg:inline">Télécharger PDF</span>
+                </div>
+              )}
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Contenu principal - desktop inchangé, mobile optimisé */}
@@ -804,74 +797,54 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                 </div>
 
                 {/* Boutons d'action mobile */}
-                {hasUploadedPdf ? (
-                  <div className="w-full space-y-2">
-                    <Button
-                      asChild
-                      className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <a href={request.adhesionPdfURL!} target="_blank" rel="noopener noreferrer">
-                        <Eye className="w-4 h-4 mr-2" />
-                        Ouvrir dans le navigateur
-                      </a>
-                    </Button>
+                <BlobProvider document={<MutuelleKaraPDF request={request} />}>
+                  {({ url, loading }) => (
+                    <div className="w-full space-y-2">
+                      <Button
+                        asChild
+                        disabled={loading || !url}
+                        className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                          <Eye className="w-4 h-4 mr-2" />
+                          Ouvrir dans le navigateur
+                        </a>
+                      </Button>
 
-                    <Button
-                      onClick={handleDownloadPDF}
-                      disabled={isExporting}
-                      variant="outline"
-                      className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
-                    >
-                      {isExporting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Téléchargement...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          Télécharger PDF
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <BlobProvider document={<MutuelleKaraPDF request={request} />}>
-                    {({ url, loading }) => (
-                      <div className="w-full space-y-2">
+                      <Button
+                        onClick={handleDownloadPDF}
+                        disabled={isExporting || loading}
+                        variant="outline"
+                        className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
+                      >
+                        {isExporting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Téléchargement...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger PDF
+                          </>
+                        )}
+                      </Button>
+
+                      {hasUploadedPdf && request.adhesionPdfURL && (
                         <Button
                           asChild
-                          disabled={loading || !url}
-                          className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                        >
-                          <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
-                            <Eye className="w-4 h-4 mr-2" />
-                            Ouvrir dans le navigateur
-                          </a>
-                        </Button>
-
-                        <Button
-                          onClick={handleDownloadPDF}
-                          disabled={isExporting || loading}
                           variant="outline"
                           className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
                         >
-                          {isExporting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Téléchargement...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Télécharger PDF
-                            </>
-                          )}
+                          <a href={request.adhesionPdfURL} target="_blank" rel="noopener noreferrer">
+                            <Eye className="w-4 h-4 mr-2" />
+                            Voir la fiche téléversée
+                          </a>
                         </Button>
-                      </div>
-                    )}
-                  </BlobProvider>
-                )}
+                      )}
+                    </div>
+                  )}
+                </BlobProvider>
 
                 {/* Aide mobile */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
@@ -889,22 +862,14 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
 
           {/* Version desktop */}
           <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-            {hasUploadedPdf ? (
-              <iframe
-                src={`${request.adhesionPdfURL}#toolbar=1`}
-                className="w-full h-full border-0"
-                title="Fiche d'adhésion"
-              />
-            ) : (
-              <PDFViewer style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                borderRadius: '0.75rem'
-              }}>
-                <MutuelleKaraPDF request={request} />
-              </PDFViewer>
-            )}
+            <PDFViewer style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              borderRadius: '0.75rem'
+            }}>
+              <MutuelleKaraPDF request={request} />
+            </PDFViewer>
           </div>
         </div>
       </DialogContent>
