@@ -220,7 +220,11 @@ export default function PlacementCard({
 
         <div className="flex flex-col gap-2 pt-2">
           {onOpenClick && (
-            <Button size="sm" variant="outline" className="text-xs w-full justify-start" onClick={onOpenClick}>
+            <Button
+              size="sm"
+              onClick={onOpenClick}
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+            >
               <ExternalLink className="w-4 h-4 mr-1" />
               Ouvrir
             </Button>
@@ -229,8 +233,8 @@ export default function PlacementCard({
           {placement.status === 'Draft' && onEditClick && (
             <Button
               size="sm"
-              variant="default"
-              className="text-xs w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
+              variant="outline"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
               onClick={onEditClick}
             >
               <Edit className="w-4 h-4 mr-1" />
@@ -242,7 +246,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="text-xs w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
               onClick={onDeleteClick}
             >
               <Trash2 className="w-4 h-4 mr-1" />
@@ -252,7 +256,12 @@ export default function PlacementCard({
 
           {/* Contrat: télécharger (template ou PDF téléversé) */}
           {onDownloadContractClick && (
-            <Button size="sm" variant="outline" className="text-xs w-full justify-start" onClick={onDownloadContractClick}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              onClick={onDownloadContractClick}
+            >
               <FileText className="w-4 h-4 mr-1" />
               Télécharger contrat
             </Button>
@@ -262,8 +271,8 @@ export default function PlacementCard({
           {!placement.contractDocumentId && onUploadContractClick && (
             <Button
               size="sm"
-              variant="default"
-              className="text-xs w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
+              variant="outline"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
               onClick={onUploadContractClick}
             >
               <Upload className="w-4 h-4 mr-1" />
@@ -273,7 +282,12 @@ export default function PlacementCard({
 
           {/* Contrat: voir si disponible */}
           {placement.contractDocumentId && onViewContractClick && (
-            <Button size="sm" variant="outline" className="text-xs w-full justify-start" onClick={onViewContractClick}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              onClick={onViewContractClick}
+            >
               <Eye className="w-4 h-4 mr-1" />
               Voir contrat
             </Button>
@@ -281,7 +295,12 @@ export default function PlacementCard({
 
           {/* Détails seulement pour les placements actifs avec contrat */}
           {placement.status === 'Active' && placement.contractDocumentId && onDetailsClick && (
-            <Button size="sm" variant="secondary" className="text-xs w-full justify-start" onClick={onDetailsClick}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              onClick={onDetailsClick}
+            >
               Détails
             </Button>
           )}
