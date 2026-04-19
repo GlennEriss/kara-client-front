@@ -2156,6 +2156,13 @@ export interface Placement {
   endDate?: Date
   nextCommissionDate?: Date
   hasOverdueCommission?: boolean
+  // Informations de remise initiale (création depuis demande)
+  paymentMode?: PaymentMode
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé quand paymentMode = 'other'
+  handoverLocation?: string // Lieu de remise des fonds
+  handoverDate?: Date // Date de remise des fonds
+  handoverTime?: string // Heure de remise (HH:mm)
   contractDocumentId?: string // Référence Document.id
   finalQuittanceDocumentId?: string
   earlyExitQuittanceDocumentId?: string
