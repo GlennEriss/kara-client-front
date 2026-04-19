@@ -1537,6 +1537,12 @@ export class PlacementService {
       periodMonths: placementData?.periodMonths || demand.periodMonths,
       payoutMode: placementData?.payoutMode || demand.payoutMode,
       startDate: placementData?.startDate || new Date(demand.desiredDate),
+      paymentMode: placementData?.paymentMode,
+      withFees: placementData?.withFees,
+      paymentMethodOther: placementData?.paymentMethodOther,
+      handoverLocation: placementData?.handoverLocation,
+      handoverDate: placementData?.handoverDate,
+      handoverTime: placementData?.handoverTime,
       createdBy: adminId,
     }, adminId);
 

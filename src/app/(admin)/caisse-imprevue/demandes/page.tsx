@@ -26,6 +26,7 @@ import {
     useRejectDemand,
     useReopenDemand,
 } from '@/domains/financial/caisse-imprevue/hooks'
+import { useCaisseImprevueDemandesRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueDemandesRealtimeSync'
 import { ClipboardList, Download, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -48,6 +49,7 @@ export default function DemandesPage() {
   const reopenMutation = useReopenDemand()
   const deleteMutation = useDeleteDemand()
   const createContractMutation = useCreateContractFromDemand()
+  useCaisseImprevueDemandesRealtimeSync(true)
 
   const handleAccept = (id: string) => {
     setSelectedDemandId(id)

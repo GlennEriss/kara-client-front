@@ -9,6 +9,7 @@ import { listRefunds } from "@/db/caisse/refunds.db"
 import { getGroupById } from "@/db/group.db"
 import { useAuth } from "@/hooks/useAuth"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
+import { useCaisseSpecialeContractRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeContractRealtimeSync'
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers, useMember } from "@/hooks/useMembers"
 import {
@@ -157,6 +158,17 @@ export default function StandardContract({ id }: Props) {
   useEffect(() => {
     reloadRefunds()
   }, [reloadRefunds])
+
+  const refreshRealtimeData = useCallback(() => {
+    void refetch()
+    void reloadRefunds()
+  }, [refetch, reloadRefunds])
+
+  useCaisseSpecialeContractRealtimeSync(id, {
+    enabled: true,
+    onContractChanged: refreshRealtimeData,
+    onRefundsChanged: refreshRealtimeData,
+  })
 
   function _paymentStatusLabel(s: string): string {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }

@@ -115,6 +115,38 @@ export const reopenDemandSchema = z.object({
     .max(500, 'Le motif ne peut pas dépasser 500 caractères'),
 })
 
+export const convertDemandToPlacementSchema = z.object({
+  paymentMode: z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer', 'other']),
+  withFees: z.boolean().optional(),
+  paymentMethodOther: z.string().optional(),
+  handoverLocation: z.string().trim().min(2, 'Le lieu de remise est requis'),
+  handoverDate: z.string().min(1, 'La date de remise est requise'),
+  handoverTime: z
+    .string()
+    .min(1, "L'heure de remise est requise")
+    .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Format d'heure invalide (HH:mm)"),
+}).superRefine((data, ctx) => {
+  const isMobileMoney = data.paymentMode === 'airtel_money' || data.paymentMode === 'mobicash'
+
+  if (isMobileMoney && !(data.withFees === true || data.withFees === false)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Veuillez indiquer si le paiement est avec ou sans frais',
+      path: ['withFees'],
+    })
+  }
+
+  if (data.paymentMode === 'other' && !data.paymentMethodOther?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Veuillez préciser le moyen de paiement',
+      path: ['paymentMethodOther'],
+    })
+  }
+})
+
+export type ConvertDemandToPlacementInput = z.infer<typeof convertDemandToPlacementSchema>
+
 export const placementDemandDefaultValues: Partial<PlacementDemandFormInput> = {
   payoutMode: 'MonthlyCommission_CapitalEnd',
   periodMonths: 1,

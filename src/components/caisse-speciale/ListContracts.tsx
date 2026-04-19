@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { useCaisseContracts, useCaisseContractsStats } from '@/domains/financial/caisse-speciale/contrats/hooks'
+import { useCaisseSpecialeContractsRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeContractsRealtimeSync'
 import { useMembersByIds } from '@/domains/memberships/hooks'
 import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
@@ -544,6 +545,9 @@ const ContractFilters = ({
 
 // Composant principal
 const ListContracts = () => {
+  // Synchronisation temps réel multi-admin (contrats + demandes liées)
+  useCaisseSpecialeContractsRealtimeSync(true)
+
   const router = useRouter()
 
   const tabItems: CaisseTypeTabItem[] = [

@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
+import { useCaisseSpecialeDemandesRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeDemandesRealtimeSync'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useMember } from '@/hooks/useMembers'
 import type { CaisseSpecialeDemandFilters } from '@/types/types'
@@ -466,6 +467,9 @@ const ListDemandes = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
+
+  // Synchronisation temps réel multi-admin (actions demandes)
+  useCaisseSpecialeDemandesRealtimeSync(true)
   
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'converted'>(
     (searchParams.get('tab') as any) || 'all'

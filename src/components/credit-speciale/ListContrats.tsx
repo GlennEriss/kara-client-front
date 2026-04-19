@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
+import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { useCreditContractMutations, useCreditContracts, useCreditContractsStats, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
@@ -264,6 +265,7 @@ const ListContrats = ({
   forcedCreditType,
   contractDetailsBasePath = routes.admin.creditSpecialeContrats,
 }: ListContratsProps) => {
+  useCreditContractsRealtimeSync(true)
   const router = useRouter()
   const searchParams = useSearchParams()
   const isCreditTypeLocked = Boolean(forcedCreditType)

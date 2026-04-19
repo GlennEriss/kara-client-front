@@ -944,6 +944,23 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
+
+    // ==========================================
+    // VÉHICULES - ASSURANCES (VEHICLE INSURANCES)
+    // ==========================================
+    // Page /vehicules, /vehicules/[id], /vehicules/[id]/edit
+    // Gestion complète des assurances véhicules (CRUD, renouvellement, stats)
+    match /vehicle-insurances/{insuranceId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Sous-collections éventuelles (journal/audit/annexes)
+      match /{subCollection=**} {
+        allow read, write: if isAdmin();
+      }
+    }
     
     // ==========================================
     // RÈGLE PAR DÉFAUT
