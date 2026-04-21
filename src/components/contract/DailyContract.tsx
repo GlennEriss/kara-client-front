@@ -230,7 +230,7 @@ export default function DailyContract({ id }: Props) {
   }, [refetch, reloadRefunds])
 
   useCaisseSpecialeContractRealtimeSync(id, {
-    enabled: true,
+    enabled: !showRemboursementPdf,
     onContractChanged: refreshRealtimeData,
     onRefundsChanged: refreshRealtimeData,
   })

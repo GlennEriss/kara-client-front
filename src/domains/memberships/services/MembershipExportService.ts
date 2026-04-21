@@ -4,11 +4,13 @@
  * Centralise la logique d'export CSV, Excel et PDF
  */
 
-import type { UserFilters } from '@/types/types'
+import { MEMBERSHIP_TYPE_LABELS, type UserFilters } from '@/types/types'
 import type { MemberWithSubscription } from '@/db/member.db'
 import { MembersRepositoryV2 } from '../repositories/MembersRepositoryV2'
 import { getMembershipRequestById } from '@/db/membership.db'
 import { getNationalityName } from '@/constantes/nationality'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 export type SortOrder = 'A-Z' | 'Z-A'
 export type QuantityMode = 'custom' | 'all'
@@ -53,6 +55,94 @@ export class MembershipExportService {
     const startTime = new Date(start).setHours(0, 0, 0, 0)
     const endTime = new Date(end).setHours(23, 59, 59, 999)
     return time >= startTime && time <= endTime
+  }
+
+  /**
+   * Normalise une valeur de date (Date, Timestamp Firestore, string)
+   */
+  private normalizeDate(value: unknown): Date | null {
+    if (!value) return null
+    if (value instanceof Date) return value
+    if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as any).toDate === 'function') {
+      const resolved = (value as any).toDate()
+      return resolved instanceof Date && !isNaN(resolved.getTime()) ? resolved : null
+    }
+    const parsed = new Date(value as any)
+    return isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  /**
+   * Formate une date en français
+   */
+  private formatDate(value: unknown, pattern: string = 'dd/MM/yyyy'): string {
+    const date = this.normalizeDate(value)
+    if (!date) return '-'
+    return format(date, pattern, { locale: fr })
+  }
+
+  /**
+   * Charge une image publique en Data URL pour jsPDF
+   */
+  private async loadPublicImageAsDataUrl(
+    imagePath: string
+  ): Promise<{ dataUrl: string; width: number; height: number } | null> {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return null
+    }
+
+    try {
+      const response = await fetch(imagePath)
+      if (!response.ok) return null
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+
+      const image = await new Promise<HTMLImageElement | null>((resolve) => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = () => resolve(null)
+        img.src = objectUrl
+      })
+
+      URL.revokeObjectURL(objectUrl)
+      if (!image) return null
+
+      const width = image.naturalWidth || image.width
+      const height = image.naturalHeight || image.height
+      if (!width || !height) return null
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const context = canvas.getContext('2d')
+      if (!context) return null
+
+      context.drawImage(image, 0, 0)
+      const dataUrl = canvas.toDataURL('image/png')
+      if (!dataUrl?.startsWith('data:image')) return null
+
+      return { dataUrl, width, height }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Label du filtre véhicule
+   */
+  private getVehicleFilterLabel(vehicleFilter: VehicleFilter): string {
+    if (vehicleFilter === 'with') return 'Membres avec véhicule'
+    if (vehicleFilter === 'without') return 'Membres sans véhicule'
+    return 'Tous les membres'
+  }
+
+  /**
+   * Label de statut d'abonnement
+   */
+  private getSubscriptionLabel(member: MemberWithSubscription): string {
+    if (!member.lastSubscription) return 'Aucun'
+    return member.isSubscriptionValid ? 'Valide' : 'Expiré'
   }
 
   /**
@@ -282,45 +372,267 @@ export class MembershipExportService {
     const jsPDF = jsPDFModule.jsPDF
     const autoTableModule = await import('jspdf-autotable')
     const autoTable = autoTableModule.default || autoTableModule
-    const rows = await this.buildExportRows(options)
-    
-    const doc = new jsPDF('landscape')
+    const members = await this.fetchMembersForExport(options)
+    const logoAsset = await this.loadPublicImageAsDataUrl('/Logo-Kara.webp')
 
-    // En-tête
-    doc.setFontSize(16)
-    doc.text('Liste des Membres', 14, 14)
-    doc.setFontSize(10)
-    const vehicleFilterLabel =
-      options.vehicleFilter === 'all'
-        ? 'Tous les membres'
-        : options.vehicleFilter === 'with'
-        ? 'Membres avec véhicule'
-        : 'Membres sans véhicule'
-    doc.text(`Filtre: ${vehicleFilterLabel}`, 14, 20)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+    const doc = new jsPDF('landscape', 'mm', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const marginX = 14
+    const headerHeight = 30
+    const logoCircleSize = 16
+    const titleX = logoAsset ? marginX + logoCircleSize + 4 : marginX
 
-    // Préparer les en-têtes et les données
-    if (rows.length === 0) {
-      doc.text('Aucun membre à exporter', 14, 30)
-      doc.save(`export_membres_${new Date().toISOString().slice(0, 10)}.pdf`)
-      return
+    const colors = {
+      brandDark: [35, 77, 101] as [number, number, number],
+      accent: [203, 177, 113] as [number, number, number],
+      ink: [15, 23, 42] as [number, number, number],
+      muted: [100, 116, 139] as [number, number, number],
+      line: [226, 232, 240] as [number, number, number],
+      success: [22, 163, 74] as [number, number, number],
+      danger: [220, 38, 38] as [number, number, number],
+      warning: [217, 119, 6] as [number, number, number],
+      info: [37, 99, 235] as [number, number, number],
     }
 
-    const headers = Object.keys(rows[0])
-    const bodyRows = rows.map((row) => headers.map((h) => String(row[h] || '')))
+    const generatedAt = this.formatDate(new Date(), 'dd/MM/yyyy à HH:mm')
+    const vehicleFilterLabel = this.getVehicleFilterLabel(options.vehicleFilter)
+    const periodLabel = `Période: ${this.formatDate(options.dateStart)} au ${this.formatDate(options.dateEnd)}`
 
-    autoTable(doc, {
-      head: [headers],
-      body: bodyRows,
-      startY: 30,
-      styles: { fontSize: 7, cellPadding: 1.5 },
-      headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-      margin: { top: 30 },
+    const withVehicleCount = members.filter((member) => Boolean(member.hasCar)).length
+    const withoutVehicleCount = members.length - withVehicleCount
+    const validSubscriptionCount = members.filter((member) => Boolean(member.isSubscriptionValid)).length
+
+    // En-tête principal
+    doc.setFillColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+    doc.rect(0, 0, pageWidth, headerHeight, 'F')
+    doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2])
+    doc.setLineWidth(1)
+    doc.line(0, headerHeight, pageWidth, headerHeight)
+
+    if (logoAsset) {
+      const circleX = marginX
+      const circleY = 6.5
+      const circleRadius = logoCircleSize / 2
+      const circleCenterX = circleX + circleRadius
+      const circleCenterY = circleY + circleRadius
+
+      doc.setFillColor(255, 255, 255)
+      doc.circle(circleCenterX, circleCenterY, circleRadius, 'F')
+
+      const padding = 2
+      const maxLogoW = logoCircleSize - padding * 2
+      const maxLogoH = logoCircleSize - padding * 2
+      const ratio = logoAsset.width / logoAsset.height
+
+      let drawW = maxLogoW
+      let drawH = maxLogoH
+      if (ratio >= 1) {
+        drawH = maxLogoW / ratio
+      } else {
+        drawW = maxLogoH * ratio
+      }
+
+      const drawX = circleX + (logoCircleSize - drawW) / 2
+      const drawY = circleY + (logoCircleSize - drawH) / 2
+      doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
+    }
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('Liste des Membres', titleX, 16)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(periodLabel, titleX, 22)
+    doc.text(`Filtre: ${vehicleFilterLabel} • Tri: ${options.sortOrder}`, titleX, 27)
+
+    const badgeWidth = 92
+    const badgeX = pageWidth - marginX - badgeWidth
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(badgeX, 6, badgeWidth, 13, 2, 2, 'F')
+    doc.setTextColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.text('Généré le', badgeX + 4, 11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(generatedAt, badgeX + 4, 16)
+
+    // Carte de synthèse
+    const cardsY = 38
+    const cardH = 17
+    const cardGap = 4
+    const cardW = (pageWidth - marginX * 2 - cardGap * 3) / 4
+    const cards = [
+      { label: 'Total membres', value: `${members.length}`, bg: [239, 246, 255] as [number, number, number], fg: colors.info },
+      { label: 'Abonnements valides', value: `${validSubscriptionCount}`, bg: [236, 253, 245] as [number, number, number], fg: colors.success },
+      { label: 'Avec véhicule', value: `${withVehicleCount}`, bg: [255, 247, 237] as [number, number, number], fg: colors.warning },
+      { label: 'Sans véhicule', value: `${withoutVehicleCount}`, bg: [254, 242, 242] as [number, number, number], fg: colors.danger },
+    ]
+
+    cards.forEach((card, index) => {
+      const x = marginX + index * (cardW + cardGap)
+      doc.setFillColor(card.bg[0], card.bg[1], card.bg[2])
+      doc.roundedRect(x, cardsY, cardW, cardH, 2, 2, 'F')
+
+      doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.text(card.label, x + 3, cardsY + 6)
+
+      doc.setTextColor(card.fg[0], card.fg[1], card.fg[2])
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text(card.value, x + 3, cardsY + 13)
     })
 
-    const filename = `export_membres_${new Date().toISOString().slice(0, 10)}.pdf`
-    doc.save(filename)
+    if (members.length === 0) {
+      doc.setDrawColor(colors.line[0], colors.line[1], colors.line[2])
+      doc.setFillColor(248, 250, 252)
+      doc.roundedRect(marginX, cardsY + cardH + 8, pageWidth - marginX * 2, 25, 2, 2, 'FD')
+      doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.text('Aucun membre à exporter avec les critères actuels.', marginX + 4, cardsY + cardH + 23)
+    } else {
+      const headers = ['Matricule', 'Nom complet', 'Type', 'Contact', 'Ville', 'Véhicule', 'Abonnement', 'Adhéré le']
+
+      const bodyRows = members.map((member) => {
+        const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Sans nom'
+        const firstPhone = Array.isArray(member.contacts) && member.contacts.length > 0 ? member.contacts[0] : ''
+        const contact = firstPhone || member.email || '-'
+        const city = member.address?.city || '-'
+        const hasCarLabel = member.hasCar ? 'Oui' : 'Non'
+        const subscription = this.getSubscriptionLabel(member)
+        const createdAt = this.formatDate(member.createdAt)
+        const memberType = MEMBERSHIP_TYPE_LABELS[member.membershipType] || member.membershipType || '-'
+
+        return [
+          member.matricule || member.id || '-',
+          fullName,
+          memberType,
+          contact,
+          city,
+          hasCarLabel,
+          subscription,
+          createdAt,
+        ]
+      })
+
+      autoTable(doc, {
+        head: [headers],
+        body: bodyRows,
+        startY: cardsY + cardH + 10,
+        margin: { left: marginX, right: marginX, top: 20, bottom: 16 },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.4,
+          textColor: colors.ink,
+          lineColor: colors.line,
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: colors.brandDark,
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8.5,
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 38 },
+          1: { cellWidth: 54 },
+          2: { cellWidth: 28 },
+          3: { cellWidth: 46 },
+          4: { cellWidth: 28 },
+          5: { cellWidth: 20, halign: 'center' },
+          6: { cellWidth: 25, halign: 'center' },
+          7: { cellWidth: 30, halign: 'center' },
+        },
+        didParseCell: (data: any) => {
+          if (data.section !== 'body') return
+
+          const member = members[data.row.index]
+          if (!member) return
+
+          if (data.column.index === 2) {
+            data.cell.styles.fontStyle = 'bold'
+            if (member.membershipType === 'adherant') data.cell.styles.textColor = colors.info
+            else if (member.membershipType === 'bienfaiteur') data.cell.styles.textColor = colors.warning
+            else data.cell.styles.textColor = colors.success
+          }
+
+          if (data.column.index === 5) {
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.textColor = member.hasCar ? colors.success : colors.danger
+          }
+
+          if (data.column.index === 6) {
+            data.cell.styles.fontStyle = 'bold'
+            const subscription = this.getSubscriptionLabel(member)
+            if (subscription === 'Valide') data.cell.styles.textColor = colors.success
+            else if (subscription === 'Expiré') data.cell.styles.textColor = colors.warning
+            else data.cell.styles.textColor = colors.muted
+          }
+        },
+        didDrawPage: (data: any) => {
+          if (data.pageNumber <= 1) return
+
+          doc.setFillColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+          doc.rect(0, 0, pageWidth, 10, 'F')
+          doc.setTextColor(255, 255, 255)
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8.5)
+          doc.text('Liste des Membres', marginX, 6.4)
+        },
+      })
+    }
+
+    // Pied de page avec pagination
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setDrawColor(colors.line[0], colors.line[1], colors.line[2])
+      doc.setLineWidth(0.2)
+      doc.line(marginX, pageHeight - 14, pageWidth - marginX, pageHeight - 14)
+
+      doc.setFontSize(8)
+      doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+      doc.text('Liste des Membres', marginX, pageHeight - 8)
+      doc.text(`Page ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+
+      if (logoAsset) {
+        const circleSize = 5.8
+        const circleX = pageWidth - marginX - circleSize
+        const circleY = pageHeight - 12.2
+        const circleRadius = circleSize / 2
+        const circleCenterX = circleX + circleRadius
+        const circleCenterY = circleY + circleRadius
+
+        doc.setFillColor(255, 255, 255)
+        doc.circle(circleCenterX, circleCenterY, circleRadius, 'F')
+
+        const padding = 0.8
+        const maxLogoW = circleSize - padding * 2
+        const maxLogoH = circleSize - padding * 2
+        const ratio = logoAsset.width / logoAsset.height
+        let drawW = maxLogoW
+        let drawH = maxLogoH
+
+        if (ratio >= 1) {
+          drawH = maxLogoW / ratio
+        } else {
+          drawW = maxLogoH * ratio
+        }
+
+        const drawX = circleX + (circleSize - drawW) / 2
+        const drawY = circleY + (circleSize - drawH) / 2
+        doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
+      } else {
+        doc.text('KARA', pageWidth - marginX, pageHeight - 8, { align: 'right' })
+      }
+    }
+
+    doc.save(`export_membres_${format(new Date(), 'yyyy-MM-dd', { locale: fr })}.pdf`)
   }
 
   /**

@@ -34,8 +34,26 @@ vi.mock('xlsx', async () => {
 
 // Mock jsPDF (import dynamique)
 const mockJsPDF = vi.fn(() => ({
+  internal: {
+    pageSize: {
+      getWidth: vi.fn(() => 297),
+      getHeight: vi.fn(() => 210),
+    },
+  },
+  setFillColor: vi.fn(),
+  rect: vi.fn(),
+  setDrawColor: vi.fn(),
+  setLineWidth: vi.fn(),
+  line: vi.fn(),
+  setTextColor: vi.fn(),
+  setFont: vi.fn(),
   setFontSize: vi.fn(),
   text: vi.fn(),
+  roundedRect: vi.fn(),
+  circle: vi.fn(),
+  addImage: vi.fn(),
+  getNumberOfPages: vi.fn(() => 1),
+  setPage: vi.fn(),
   save: vi.fn(),
 }))
 

@@ -412,7 +412,7 @@ const MembershipRequestCard = ({
   const [paymentDate, setPaymentDate] = React.useState<string>('')
   const [paymentMode, setPaymentMode] = React.useState<PaymentMode | ''>('')
   const [paymentAmount, setPaymentAmount] = React.useState<string>('')
-  const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
+  const paymentType: TypePayment = 'Membership'
   const [paymentTime, setPaymentTime] = React.useState<string>('')
   const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
   const [isPaying, setIsPaying] = React.useState<boolean>(false)
@@ -1017,15 +1017,12 @@ const MembershipRequestCard = ({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Type de paiement</label>
-              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)} disabled={isPaying}>
+              <Select value={paymentType} disabled>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Type de paiement" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Membership">Adhésion</SelectItem>
-                  <SelectItem value="Subscription">Abonnement</SelectItem>
-                  <SelectItem value="Tontine">Caisse Spéciale</SelectItem>
-                  <SelectItem value="Charity">Charité</SelectItem>
                 </SelectContent>
               </Select>
             </div>

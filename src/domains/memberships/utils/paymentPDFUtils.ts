@@ -28,9 +28,14 @@ export function formatPaymentMode(mode: PaymentMode): string {
 export function formatPaymentType(type: TypePayment): string {
   const typeMap: Record<TypePayment, string> = {
     Membership: 'Adhésion',
-    Subscription: 'Cotisation',
-    Tontine: 'Tontine',
+    Subscription: 'Abonnement',
+    SpecialFund: 'Caisse spéciale',
+    UnexpectedFund: 'Caisse Imprévue',
+    SpecialCredit: 'Crédit spéciale',
+    FixedCredit: 'Crédit Fixe',
+    AidCredit: 'Crédit Aide',
     Charity: 'Charité',
+    Benefactor: 'Bienfaiteur',
   }
   return typeMap[type] || type
 }

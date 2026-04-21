@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
     Dialog,
     DialogContent,
@@ -11,27 +12,9 @@ import {
 import { getNationalityName } from '@/constantes/nationality'
 import type { MembershipRequest } from '@/types/types'
 import { BlobProvider, Document, Image, PDFViewer, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
-import { Download, Eye, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import { Download, Eye, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-
-// Hook pour détecter le mobile uniquement
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth < 1024) // lg breakpoint
-    }
-
-    checkDevice()
-    window.addEventListener('resize', checkDevice)
-
-    return () => window.removeEventListener('resize', checkDevice)
-  }, [])
-
-  return isMobile
-}
 
 // Styles optimisés pour tenir sur une page
 const styles = StyleSheet.create({
@@ -163,7 +146,7 @@ const styles = StyleSheet.create({
   modeReglementCellLast: {
     flex: 1,
     padding: 8,
-    justifyContent: 'center',
+    justifyContent: 'space-around',
     alignItems: 'flex-start',
   },
   rectangle: {
@@ -171,6 +154,16 @@ const styles = StyleSheet.create({
     height: 15,
     border: '1px solid black',
     marginRight: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rectangleChecked: {
+    backgroundColor: '#111',
+  },
+  rectangleFill: {
+    width: 11,
+    height: 11,
+    backgroundColor: '#111',
   },
   rectangleRow: {
     flexDirection: 'row',
@@ -186,7 +179,7 @@ const styles = StyleSheet.create({
   signatureTableB: {
     width: '100%',
     border: '1px solid black',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   signatureRow: {
     flexDirection: 'row',
@@ -194,13 +187,35 @@ const styles = StyleSheet.create({
   },
   signatureRowB: {
     flexDirection: 'row',
-    height: 120,
+    height: 86,
   },
   signatureCell: {
     flex: 1,
     border: '1px solid black',
     padding: 12,
     justifyContent: 'space-between',
+  },
+  signatureImageLarge: {
+    width: 150,
+    height: 56,
+    objectFit: 'contain',
+    alignSelf: 'center',
+  },
+  signaturePlaceholderLarge: {
+    width: 150,
+    height: 56,
+    alignSelf: 'center',
+  },
+  signatureImageSmall: {
+    width: 130,
+    height: 40,
+    objectFit: 'contain',
+    alignSelf: 'center',
+  },
+  signaturePlaceholderSmall: {
+    width: 130,
+    height: 40,
+    alignSelf: 'center',
   },
   italic: {
     fontStyle: 'italic',
@@ -240,9 +255,18 @@ const styles = StyleSheet.create({
     color: '#ba0c2f',
   },
   contractSignatureDate: {
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 6,
     fontSize: 12, // Augmenté de 10 à 12
+  },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: '#111827',
   },
 })
 
@@ -255,6 +279,173 @@ const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
     <Text>{label}</Text>
   </View>
 )
+
+const PAYMENT_MODE_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'X'] as const
+type PaymentModeOption = typeof PAYMENT_MODE_OPTIONS[number]
+
+type MembershipQualityOption = 'adherent' | 'sympathisant' | 'bienfaiteur'
+
+interface AdhesionPdfFillData {
+  paymentMode: PaymentModeOption | null
+  quality: MembershipQualityOption | null
+  headerPhotoDataUrl: string | null
+  page1MemberDate: string
+  page1SecretaryDate: string
+  article5Date: string
+  article5Location: string
+  page1MemberSignature: string | null
+  page1SecretarySignature: string | null
+  article5BeneficiarySignature: string | null
+  article5SecretarySignature: string | null
+}
+
+const qualityLabels: Record<MembershipQualityOption, string> = {
+  adherent: 'Membre Adhérent',
+  sympathisant: 'Membre Sympathisant',
+  bienfaiteur: 'Membre Bienfaiteur',
+}
+
+const formatDateForPdf = (value: string): string => {
+  if (!value) return '........../........../..........'
+  const [year, month, day] = value.split('-')
+  if (!year || !month || !day) return value
+  return `${day}/${month}/${year}`
+}
+
+const SignaturePad = ({
+  title,
+  value,
+  onChange,
+}: {
+  title: string
+  value: string | null
+  onChange: (value: string | null) => void
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    const rect = canvas.getBoundingClientRect()
+    const ratio = Math.max(window.devicePixelRatio || 1, 1)
+    canvas.width = Math.floor(rect.width * ratio)
+    canvas.height = Math.floor(rect.height * ratio)
+
+    const context = canvas.getContext('2d')
+    if (!context) return null
+    context.scale(ratio, ratio)
+    context.lineWidth = 2
+    context.lineCap = 'round'
+    context.strokeStyle = '#1f2937'
+    return context
+  }
+
+  useEffect(() => {
+    const context = setupCanvas()
+    if (!context) return
+
+    // Ligne de base de signature
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+
+    if (value) {
+      const image = new window.Image()
+      image.onload = () => {
+        context.drawImage(image, 0, 0, rect.width, rect.height)
+      }
+      image.src = value
+    }
+  }, [value])
+
+  const getCanvasPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      rect,
+    }
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!canvas || !context || !position) return
+
+    canvas.setPointerCapture(event.pointerId)
+    setIsDrawing(true)
+    context.beginPath()
+    context.moveTo(position.x, position.y)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    const context = canvasRef.current?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!context || !position) return
+    context.lineTo(position.x, position.y)
+    context.stroke()
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas || !isDrawing) return
+    canvas.releasePointerCapture(event.pointerId)
+    setIsDrawing(false)
+    onChange(canvas.toDataURL('image/png'))
+  }
+
+  const handleClear = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    const rect = canvas.getBoundingClientRect()
+    context.clearRect(0, 0, rect.width, rect.height)
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+    onChange(null)
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold text-kara-primary-dark">{title}</p>
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleClear}>
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Effacer
+        </Button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="h-24 w-full cursor-crosshair rounded-md border border-dashed border-gray-300 bg-white touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      />
+    </div>
+  )
+}
 
 /**
  * Formate les contacts par paires pour l'affichage
@@ -279,8 +470,15 @@ const formatContactsByPairs = (contacts: string[]): string[] => {
 }
 
 // Composant principal du document PDF
-const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
+const MutuelleKaraPDF = ({
+  request,
+  fillData,
+}: {
+  request: MembershipRequest
+  fillData: AdhesionPdfFillData
+}) => {
   const getPhotoURL = () => {
+    if (fillData.headerPhotoDataUrl) return fillData.headerPhotoDataUrl
     if (request.identity?.photoURL) return request.identity.photoURL
     if (request.identity?.photoPath) return request.identity.photoPath
     if (typeof request.identity?.photo === 'string' && request.identity.photo.startsWith('http')) {
@@ -312,7 +510,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         month: '2-digit',
         day: '2-digit'
       }).format(dateObj)
-    } catch (error) {
+    } catch {
       return 'Date invalide'
     }
   }
@@ -327,6 +525,9 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
     ].filter(Boolean)
     return parts.join(', ') || 'Non renseignée'
   }
+
+  const isQualityChecked = (quality: MembershipQualityOption) => fillData.quality === quality
+  const isModeChecked = (mode: PaymentModeOption) => fillData.paymentMode === mode
 
   return (
     <Document>
@@ -377,9 +578,9 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         {/* Type de membre */}
         <View style={styles.infoType}>
-          <Checkbox checked={false} label="Membre Adhérent" />
-          <Checkbox checked={false} label="Membre Sympathisant" />
-          <Checkbox checked={false} label="Membre Bienfaiteur" />
+          <Checkbox checked={isQualityChecked('adherent')} label="Membre Adhérent" />
+          <Checkbox checked={isQualityChecked('sympathisant')} label="Membre Sympathisant" />
+          <Checkbox checked={isQualityChecked('bienfaiteur')} label="Membre Bienfaiteur" />
         </View>
 
         {/* Section Informations Personnelles */}
@@ -455,70 +656,43 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             <View style={styles.modeReglementRow}>
               <View style={styles.modeReglementCell}>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}></View>
+                  <View style={styles.rectangle}>
+                    {isModeChecked('A') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>A</Text>
                 </View>
-                {/* test*/}
-
                 <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-                <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-                <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-
-                {/* fin test */}
-
-                <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}></View>
+                  <View style={styles.rectangle}>
+                    {isModeChecked('B') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>B</Text>
                 </View>
               </View>
               <View style={styles.modeReglementCell}>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}></View>
+                  <View style={styles.rectangle}>
+                    {isModeChecked('C') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>C</Text>
                 </View>
-                {/* test*/}
-
                 <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-                <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-                <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-
-                {/* fin test */}
-                <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}></View>
+                  <View style={styles.rectangle}>
+                    {isModeChecked('D') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>D</Text>
                 </View>
               </View>
               <View style={styles.modeReglementCellLast}>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}></View>
+                  <View style={styles.rectangle}>
+                    {isModeChecked('E') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>E</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-                <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-                <View style={styles.rectangleRow}>
-                  <View ></View>
-                </View>
-
-                {/* fin test */}
-
-                <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}></View>
+                  <View style={styles.rectangle}>
+                    {isModeChecked('X') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>X</Text>
                 </View>
               </View>
@@ -531,11 +705,21 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           <View style={styles.signatureRow}>
             <View style={styles.signatureCell}>
               <Text style={{ fontSize: 11 }}>Signature de l'adhérent suivi de la mention "lu et approuvé"</Text>
-              <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
+              {fillData.page1MemberSignature ? (
+                <Image src={fillData.page1MemberSignature} style={styles.signatureImageLarge} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholderLarge} />
+              )}
+              <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1MemberDate)}</Text>
             </View>
             <View style={styles.signatureCell}>
               <Text style={{ fontSize: 11, textAlign: 'center' }}>Signature et cachet du Secrétariat Exécutif</Text>
-              <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
+              {fillData.page1SecretarySignature ? (
+                <Image src={fillData.page1SecretarySignature} style={styles.signatureImageLarge} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholderLarge} />
+              )}
+              <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1SecretaryDate)}</Text>
             </View>
           </View>
         </View>
@@ -557,6 +741,8 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           <Text>Tél : 066-95-13-14 / 074-36-97-29</Text>
           <Text>E-mail :</Text>
         </View>
+
+        <Text fixed style={styles.pageNumber}>Page 1 / 2</Text>
       </Page>
 
       {/* Page 2 - Contrat de Confidentialité */}
@@ -579,9 +765,9 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           <View style={styles.stripedRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text>Qualité : </Text>
-              <Checkbox checked={false} label="Membre Adhérent" />
-              <Checkbox checked={false} label="Membre Sympathisant" />
-              <Checkbox checked={false} label="Membre Bienfaiteur" />
+              <Checkbox checked={isQualityChecked('adherent')} label="Membre Adhérent" />
+              <Checkbox checked={isQualityChecked('sympathisant')} label="Membre Sympathisant" />
+              <Checkbox checked={isQualityChecked('bienfaiteur')} label="Membre Bienfaiteur" />
             </View>
           </View>
           <View style={styles.stripedRowEven}>
@@ -637,7 +823,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         </Text>
 
         <Text style={styles.contractSignatureDate}>
-          Fait à …………………................... le ……......./……...... …./..……......…
+          Fait à {fillData.article5Location || '..............................'} le {formatDateForPdf(fillData.article5Date)}
         </Text>
 
         {/* Table des signatures pour le contrat */}
@@ -645,12 +831,24 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           <View style={styles.signatureRowB}>
             <View style={styles.signatureCell}>
               <Text style={{ fontSize: 11 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
+              {fillData.article5BeneficiarySignature ? (
+                <Image src={fillData.article5BeneficiarySignature} style={styles.signatureImageSmall} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholderSmall} />
+              )}
             </View>
             <View style={styles.signatureCell}>
               <Text style={{ fontSize: 11, textAlign: 'center' }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
+              {fillData.article5SecretarySignature ? (
+                <Image src={fillData.article5SecretarySignature} style={styles.signatureImageSmall} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholderSmall} />
+              )}
             </View>
           </View>
         </View>
+
+        <Text fixed style={styles.pageNumber}>Page 2 / 2</Text>
       </Page>
     </Document>
   )
@@ -668,52 +866,155 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   request
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const isMobile = useIsMobile()
+  const [fillData, setFillData] = useState<AdhesionPdfFillData>({
+    paymentMode: null,
+    quality: null,
+    headerPhotoDataUrl: null,
+    page1MemberDate: '',
+    page1SecretaryDate: '',
+    article5Date: '',
+    article5Location: '',
+    page1MemberSignature: null,
+    page1SecretarySignature: null,
+    article5BeneficiarySignature: null,
+    article5SecretarySignature: null,
+  })
+  const [previewFillData, setPreviewFillData] = useState<AdhesionPdfFillData>(fillData)
+  const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const skipDebouncePreviewRef = useRef(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const today = new Date().toISOString().split('T')[0]
+    const initialData: AdhesionPdfFillData = {
+      paymentMode: null,
+      quality: null,
+      headerPhotoDataUrl: null,
+      page1MemberDate: today,
+      page1SecretaryDate: today,
+      article5Date: today,
+      article5Location: request.address?.city || request.address?.province || '',
+      page1MemberSignature: null,
+      page1SecretarySignature: null,
+      article5BeneficiarySignature: null,
+      article5SecretarySignature: null,
+    }
+
+    setFillData(initialData)
+    setPreviewFillData(initialData)
+    setIsPreviewRefreshing(false)
+  }, [isOpen, request.id, request.address?.city, request.address?.province])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (skipDebouncePreviewRef.current) {
+      skipDebouncePreviewRef.current = false
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+      return
+    }
+    setIsPreviewRefreshing(true)
+    const timer = window.setTimeout(() => {
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+    }, 180)
+
+    return () => window.clearTimeout(timer)
+  }, [fillData, isOpen])
 
   // Vérifier si un PDF uploadé existe (pour les demandes approuvées)
   const hasUploadedPdf = request.adhesionPdfURL && request.status === 'approved'
+
+  const pdfDocument = useMemo(
+    () => <MutuelleKaraPDF request={request} fillData={previewFillData} />,
+    [request, previewFillData]
+  )
+
+  const convertImageToPdfDataUrl = async (file: File): Promise<string> => {
+    const objectUrl = URL.createObjectURL(file)
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new window.Image()
+        img.onload = () => resolve(img)
+        img.onerror = () => reject(new Error('Impossible de charger l’image'))
+        img.src = objectUrl
+      })
+
+      const maxDimension = 700
+      const ratio = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight))
+      const targetWidth = Math.max(1, Math.round(image.naturalWidth * ratio))
+      const targetHeight = Math.max(1, Math.round(image.naturalHeight * ratio))
+
+      const canvas = document.createElement('canvas')
+      canvas.width = targetWidth
+      canvas.height = targetHeight
+      const context = canvas.getContext('2d')
+      if (!context) {
+        throw new Error('Impossible de préparer le canvas image')
+      }
+
+      context.drawImage(image, 0, 0, targetWidth, targetHeight)
+      return canvas.toDataURL('image/jpeg', 0.9)
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }
+
+  const handleHeaderPhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner une image (JPG, PNG, WEBP)')
+      return
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Image trop volumineuse (max 8MB)')
+      return
+    }
+
+    try {
+      const dataUrl = await convertImageToPdfDataUrl(file)
+      skipDebouncePreviewRef.current = true
+      setFillData((prev) => ({ ...prev, headerPhotoDataUrl: dataUrl }))
+      toast.success('Photo ajoutée dans le cadrant')
+    } catch (error) {
+      console.error(error)
+      toast.error('Impossible de charger cette photo')
+    } finally {
+      // Permet de recharger le même fichier si besoin
+      event.target.value = ''
+    }
+  }
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
 
     try {
-      // Si un PDF uploadé existe, télécharger directement depuis l'URL
-      if (hasUploadedPdf) {
-        const link = document.createElement('a')
-        link.href = request.adhesionPdfURL!
-        link.download = `Fiche_Adhesion_${request.matricule || 'membre'}.pdf`
-        link.target = '_blank'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+      // Toujours télécharger la version générée actuelle (avec pagination)
+      const blob = await pdf(<MutuelleKaraPDF request={request} fillData={fillData} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      // Nouveau format: firstname lastname_ADHESION_MK_YYYY.pdf
+      const firstName = (request.identity.firstName || '').trim()
+      const lastName = (request.identity.lastName || '').trim()
+      const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Membre'
+      const fullNameUpper = fullName.toUpperCase()
+      const year = new Date().getFullYear()
+      link.download = `${fullNameUpper}_ADHESION_MK_${year}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
 
-        toast.success('✅ PDF téléchargé avec succès', {
-          description: 'Le document a été téléchargé dans votre dossier de téléchargements.',
-          duration: 3000,
-        })
-      } else {
-        // Sinon, générer le PDF comme avant
-        const blob = await pdf(<MutuelleKaraPDF request={request} />).toBlob()
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        // Nouveau format: firstname lastname_ADHESION_MK_YYYY.pdf
-        const firstName = (request.identity.firstName || '').trim()
-        const lastName = (request.identity.lastName || '').trim()
-        const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Membre'
-        const fullNameUpper = fullName.toUpperCase()
-        const year = new Date().getFullYear()
-        link.download = `${fullNameUpper}_ADHESION_MK_${year}.pdf`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-
-        toast.success('✅ PDF téléchargé avec succès', {
-          description: 'Le document a été généré et téléchargé dans votre dossier de téléchargements.',
-          duration: 3000,
-        })
-      }
+      toast.success('✅ PDF téléchargé avec succès', {
+        description: 'Le document a été généré et téléchargé dans votre dossier de téléchargements.',
+        duration: 3000,
+      })
     } catch (error) {
       console.error('Erreur lors du téléchargement du PDF:', error)
       toast.error('❌ Erreur de téléchargement', {
@@ -745,23 +1046,38 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
               </div>
             </div>
           </div>
-          <Button
-            onClick={handleDownloadPDF}
-            disabled={isExporting}
-            className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
-          >
-            {isExporting ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden lg:inline">Génération...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                <span className="hidden lg:inline">Télécharger PDF</span>
-              </div>
+          <div className="mr-2 lg:mr-10 flex items-center gap-2 flex-shrink-0">
+            {hasUploadedPdf && request.adhesionPdfURL && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-10 px-3 lg:h-12 lg:px-4 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
+              >
+                <a href={request.adhesionPdfURL} target="_blank" rel="noopener noreferrer">
+                  <Eye className="w-4 h-4 mr-0 lg:mr-2" />
+                  <span className="hidden lg:inline">Fiche d&apos;adhésion téléversée</span>
+                </a>
+              </Button>
             )}
-          </Button>
+
+            <Button
+              onClick={handleDownloadPDF}
+              disabled={isExporting}
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6"
+            >
+              {isExporting ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="hidden lg:inline">Génération...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  <span className="hidden lg:inline">Télécharger PDF</span>
+                </div>
+              )}
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Contenu principal - desktop inchangé, mobile optimisé */}
@@ -804,74 +1120,54 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                 </div>
 
                 {/* Boutons d'action mobile */}
-                {hasUploadedPdf ? (
-                  <div className="w-full space-y-2">
-                    <Button
-                      asChild
-                      className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <a href={request.adhesionPdfURL!} target="_blank" rel="noopener noreferrer">
-                        <Eye className="w-4 h-4 mr-2" />
-                        Ouvrir dans le navigateur
-                      </a>
-                    </Button>
+                <BlobProvider document={pdfDocument}>
+                  {({ url, loading }) => (
+                    <div className="w-full space-y-2">
+                      <Button
+                        asChild
+                        disabled={loading || !url}
+                        className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                          <Eye className="w-4 h-4 mr-2" />
+                          Ouvrir dans le navigateur
+                        </a>
+                      </Button>
 
-                    <Button
-                      onClick={handleDownloadPDF}
-                      disabled={isExporting}
-                      variant="outline"
-                      className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
-                    >
-                      {isExporting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Téléchargement...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          Télécharger PDF
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <BlobProvider document={<MutuelleKaraPDF request={request} />}>
-                    {({ url, loading }) => (
-                      <div className="w-full space-y-2">
+                      <Button
+                        onClick={handleDownloadPDF}
+                        disabled={isExporting || loading}
+                        variant="outline"
+                        className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
+                      >
+                        {isExporting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Téléchargement...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger PDF
+                          </>
+                        )}
+                      </Button>
+
+                      {hasUploadedPdf && request.adhesionPdfURL && (
                         <Button
                           asChild
-                          disabled={loading || !url}
-                          className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                        >
-                          <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
-                            <Eye className="w-4 h-4 mr-2" />
-                            Ouvrir dans le navigateur
-                          </a>
-                        </Button>
-
-                        <Button
-                          onClick={handleDownloadPDF}
-                          disabled={isExporting || loading}
                           variant="outline"
                           className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
                         >
-                          {isExporting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Téléchargement...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Télécharger PDF
-                            </>
-                          )}
+                          <a href={request.adhesionPdfURL} target="_blank" rel="noopener noreferrer">
+                            <Eye className="w-4 h-4 mr-2" />
+                            Voir la fiche téléversée
+                          </a>
                         </Button>
-                      </div>
-                    )}
-                  </BlobProvider>
-                )}
+                      )}
+                    </div>
+                  )}
+                </BlobProvider>
 
                 {/* Aide mobile */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
@@ -888,23 +1184,193 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
           </div>
 
           {/* Version desktop */}
-          <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-            {hasUploadedPdf ? (
-              <iframe
-                src={`${request.adhesionPdfURL}#toolbar=1`}
-                className="w-full h-full border-0"
-                title="Fiche d'adhésion"
-              />
-            ) : (
-              <PDFViewer style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                borderRadius: '0.75rem'
-              }}>
-                <MutuelleKaraPDF request={request} />
+          <div className="hidden lg:flex h-full gap-4">
+            <Card className="w-[420px] h-full overflow-y-auto border border-gray-200 shadow-sm">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <PenLine className="w-4 h-4 text-kara-primary-dark" />
+                  <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du PDF</h3>
+                </div>
+                {isPreviewRefreshing ? (
+                  <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
+                ) : null}
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-kara-primary-dark">Mode de règlement (cliquez pour cocher)</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PAYMENT_MODE_OPTIONS.map((mode) => (
+                      <Button
+                        key={mode}
+                        type="button"
+                        variant={fillData.paymentMode === mode ? 'default' : 'outline'}
+                        onClick={() => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({
+                            ...prev,
+                            paymentMode: prev.paymentMode === mode ? null : mode,
+                          }))
+                        }}
+                        className={
+                          fillData.paymentMode === mode
+                            ? 'bg-kara-primary-dark hover:bg-kara-primary-dark/90'
+                            : 'border-kara-primary-dark/30 text-kara-primary-dark hover:bg-kara-primary-dark hover:text-white'
+                        }
+                      >
+                        {mode}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-kara-primary-dark">Qualité (cliquez pour cocher)</p>
+                  <div className="space-y-2">
+                    {(Object.keys(qualityLabels) as MembershipQualityOption[]).map((quality) => (
+                      <button
+                        key={quality}
+                        type="button"
+                        onClick={() => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({
+                            ...prev,
+                            quality: prev.quality === quality ? null : quality,
+                          }))
+                        }}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                          fillData.quality === quality
+                            ? 'border-kara-primary-dark bg-kara-primary-dark/10 text-kara-primary-dark font-semibold'
+                            : 'border-gray-200 hover:border-kara-primary-dark/40'
+                        }`}
+                      >
+                        {qualityLabels[quality]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-kara-primary-dark">Dates et lieu</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-gray-600">Date signature adhérent</p>
+                      <Input
+                        type="date"
+                        value={fillData.page1MemberDate}
+                        onChange={(event) =>
+                          setFillData((prev) => ({ ...prev, page1MemberDate: event.target.value }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-gray-600">Date signature secrétariat</p>
+                      <Input
+                        type="date"
+                        value={fillData.page1SecretaryDate}
+                        onChange={(event) =>
+                          setFillData((prev) => ({ ...prev, page1SecretaryDate: event.target.value }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-gray-600">Lieu (Article 5)</p>
+                      <Input
+                        type="text"
+                        value={fillData.article5Location}
+                        placeholder="Libreville"
+                        onChange={(event) =>
+                          setFillData((prev) => ({ ...prev, article5Location: event.target.value }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-gray-600">Date (Article 5)</p>
+                      <Input
+                        type="date"
+                        value={fillData.article5Date}
+                        onChange={(event) =>
+                          setFillData((prev) => ({ ...prev, article5Date: event.target.value }))
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-kara-primary-dark">Photo du cadrant (en haut à droite)</p>
+                  <Input type="file" accept="image/*" onChange={handleHeaderPhotoChange} className="h-10 text-xs" />
+                  <div className="flex items-center gap-3">
+                    <div className="h-16 w-16 overflow-hidden rounded-md border border-gray-300 bg-gray-50">
+                      {fillData.headerPhotoDataUrl ? (
+                        <img
+                          src={fillData.headerPhotoDataUrl}
+                          alt="Prévisualisation cadrant"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-500">
+                          Vide
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!fillData.headerPhotoDataUrl}
+                      onClick={() => {
+                        skipDebouncePreviewRef.current = true
+                        setFillData((prev) => ({ ...prev, headerPhotoDataUrl: null }))
+                      }}
+                    >
+                      Retirer la photo
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
+                  <SignaturePad
+                    title="Signature adhérent (page 1)"
+                    value={fillData.page1MemberSignature}
+                    onChange={(value) => setFillData((prev) => ({ ...prev, page1MemberSignature: value }))}
+                  />
+                  <SignaturePad
+                    title="Signature secrétariat (page 1)"
+                    value={fillData.page1SecretarySignature}
+                    onChange={(value) => setFillData((prev) => ({ ...prev, page1SecretarySignature: value }))}
+                  />
+                  <SignaturePad
+                    title="Signature bénéficiaire (Article 5)"
+                    value={fillData.article5BeneficiarySignature}
+                    onChange={(value) => setFillData((prev) => ({ ...prev, article5BeneficiarySignature: value }))}
+                  />
+                  <SignaturePad
+                    title="Signature secrétariat (Article 5)"
+                    value={fillData.article5SecretarySignature}
+                    onChange={(value) => setFillData((prev) => ({ ...prev, article5SecretarySignature: value }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex-1 rounded-xl overflow-hidden shadow-inner bg-white border">
+              <PDFViewer
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                }}
+              >
+                {pdfDocument}
               </PDFViewer>
-            )}
+            </div>
           </div>
         </div>
       </DialogContent>

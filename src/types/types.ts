@@ -1,6 +1,7 @@
 // ================== TYPES CENTRALISÉS ==================
 
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import type { PaymentType as MembershipPaymentType } from '@/constantes/membership-requests'
 
 export interface INavigation {
   push(path: string): void;
@@ -172,7 +173,7 @@ export interface Payment {
   recordedAt: Date // Date d'enregistrement (quand l'admin a enregistré)
 }
 
-export type TypePayment = 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
+export type TypePayment = MembershipPaymentType
 
 /**
  * Type pour la liste des demandes avec pagination

@@ -220,15 +220,25 @@ export const PAYMENT_MODE_LABELS: Record<string, string> = {
 export const PAYMENT_TYPES = {
   MEMBERSHIP: 'Membership',
   SUBSCRIPTION: 'Subscription',
-  TONTINE: 'Tontine',
+  SPECIAL_FUND: 'SpecialFund',
+  UNEXPECTED_FUND: 'UnexpectedFund',
+  SPECIAL_CREDIT: 'SpecialCredit',
+  FIXED_CREDIT: 'FixedCredit',
+  AID_CREDIT: 'AidCredit',
   CHARITY: 'Charity',
+  BENEFACTOR: 'Benefactor',
 } as const
 
 export const PAYMENT_TYPE_LABELS: Record<string, string> = {
   Membership: 'Adhésion',
-  Subscription: 'Souscription',
-  Tontine: 'Tontine',
-  Charity: 'Bienfaisance',
+  Subscription: 'Abonnement',
+  SpecialFund: 'Caisse spéciale',
+  UnexpectedFund: 'Caisse Imprévue',
+  SpecialCredit: 'Crédit spéciale',
+  FixedCredit: 'Crédit Fixe',
+  AidCredit: 'Crédit Aide',
+  Charity: 'Charité',
+  Benefactor: 'Bienfaiteur',
 } as const
 
 // ============================================

@@ -1,50 +1,34 @@
 "use client"
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { usePathname } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import { Separator } from "@/components/ui/separator"
+import React from 'react'
 import { AppSidebar } from "./AppSidebar"
 import { DashboardBreadcrumb } from "./DashboardBreadcrumb"
 import NotificationBell from "./NotificationBell"
 import { MemberNavbarSearch } from "@/domains/dashboard/member-overview/components/MemberNavbarSearch"
 
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
-  const [currentPage, setCurrentPage] = useState('Dashboard')
-  const pathname = usePathname()
-
-  useEffect(() => {
-    // Déterminer le titre de la page actuelle
-    const getPageTitle = (path: string) => {
-      switch (path) {
-        case '/dashboard':
-          return 'Tableau de bord'
-        case '/membership-requests':
-          return 'Demandes d\'adhésion'
-        case '/memberships':
-          return 'Membres'
-        default:
-          return 'Dashboard'
-      }
-    }
-    
-    setCurrentPage(getPageTitle(pathname))
-  }, [pathname])
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white h-screen overflow-hidden">
       <SidebarProvider defaultOpen>
         <AppSidebar />
         <main className="flex-1 flex flex-col h-screen overflow-auto">
-          <header className="sticky top-0 z-20 flex h-20 shrink-0 items-center gap-4 px-6 border-b border-gray-200 bg-white">
-            <SidebarTrigger className="p-2 rounded-lg hover:bg-gray-100 transition-colors" />
-            <div className="flex-1">
-              <DashboardBreadcrumb />
+          <header className="sticky top-0 z-20 shrink-0 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <SidebarTrigger className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors" />
+              <div className="min-w-0 flex-1">
+                <MemberNavbarSearch />
+              </div>
+              <div className="shrink-0">
+                <NotificationBell />
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <MemberNavbarSearch />
-              <NotificationBell />
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">En ligne</span>
+
+            <Separator className="mt-2 sm:mt-3" />
+
+            <div className="mt-2 sm:mt-3">
+              <DashboardBreadcrumb />
             </div>
           </header>
           <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">

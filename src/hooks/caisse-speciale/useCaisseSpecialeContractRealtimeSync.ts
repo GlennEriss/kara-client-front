@@ -20,12 +20,16 @@ export function useCaisseSpecialeContractRealtimeSync(
 ) {
   const { enabled = true, onContractChanged, onRefundsChanged } = options
 
-  const initializedContractSnapshot = useRef(false)
-  const initializedRefundsSnapshot = useRef(false)
   const callbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!enabled || !contractId) return
+
+    // Important:
+    // À chaque (re)abonnement on ignore le 1er snapshot pour éviter une boucle
+    // refetch -> render -> re-subscribe -> initial snapshot -> refetch.
+    let isFirstContractSnapshot = true
+    let isFirstRefundsSnapshot = true
 
     const scheduleCallback = (callback?: () => void) => {
       if (!callback) return
@@ -40,8 +44,8 @@ export function useCaisseSpecialeContractRealtimeSync(
     const unsubscribeContract = onSnapshot(
       doc(db, firebaseCollectionNames.caisseContracts, contractId),
       () => {
-        if (!initializedContractSnapshot.current) {
-          initializedContractSnapshot.current = true
+        if (isFirstContractSnapshot) {
+          isFirstContractSnapshot = false
           return
         }
         scheduleCallback(onContractChanged)
@@ -54,8 +58,8 @@ export function useCaisseSpecialeContractRealtimeSync(
     const unsubscribeRefunds = onSnapshot(
       collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`),
       () => {
-        if (!initializedRefundsSnapshot.current) {
-          initializedRefundsSnapshot.current = true
+        if (isFirstRefundsSnapshot) {
+          isFirstRefundsSnapshot = false
           return
         }
         scheduleCallback(onRefundsChanged)
@@ -74,4 +78,3 @@ export function useCaisseSpecialeContractRealtimeSync(
     }
   }, [enabled, contractId, onContractChanged, onRefundsChanged])
 }
-

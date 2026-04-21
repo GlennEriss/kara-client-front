@@ -42,22 +42,37 @@ function formatDate(d: any) {
 const PAYMENT_COLORS = {
   Membership: '#10b981',    // Emerald
   Subscription: '#3b82f6',  // Blue  
-  Tontine: '#f59e0b',      // Amber
-  Charity: '#ec4899'       // Pink
+  SpecialFund: '#f59e0b', // Amber
+  UnexpectedFund: '#f97316', // Orange
+  SpecialCredit: '#ef4444', // Red
+  FixedCredit: '#8b5cf6', // Violet
+  AidCredit: '#14b8a6', // Teal
+  Charity: '#ec4899', // Pink
+  Benefactor: '#6366f1', // Indigo
 }
 
 const PAYMENT_ICONS = {
   Membership: Target,
   Subscription: Zap,
-  Tontine: PieChart,
-  Charity: Sparkles
+  SpecialFund: PieChart,
+  UnexpectedFund: PieChart,
+  SpecialCredit: Receipt,
+  FixedCredit: Receipt,
+  AidCredit: Sparkles,
+  Charity: Sparkles,
+  Benefactor: Sparkles,
 }
 
 const PAYMENT_LABELS = {
   Membership: 'Adhésion',
-  Subscription: 'Abonnement', 
-  Tontine: 'Tontine',
-  Charity: 'Charité'
+  Subscription: 'Abonnement',
+  SpecialFund: 'Caisse spéciale',
+  UnexpectedFund: 'Caisse Imprévue',
+  SpecialCredit: 'Crédit spéciale',
+  FixedCredit: 'Crédit Fixe',
+  AidCredit: 'Crédit Aide',
+  Charity: 'Charité',
+  Benefactor: 'Bienfaiteur',
 }
 
 type Props = { requestId: string }
@@ -266,8 +281,13 @@ export default function PaymentHistory({ requestId }: Props) {
     const map: Record<TypePayment, { count: number; amount: number }> = {
       Membership: { count: 0, amount: 0 },
       Subscription: { count: 0, amount: 0 },
-      Tontine: { count: 0, amount: 0 },
+      SpecialFund: { count: 0, amount: 0 },
+      UnexpectedFund: { count: 0, amount: 0 },
+      SpecialCredit: { count: 0, amount: 0 },
+      FixedCredit: { count: 0, amount: 0 },
+      AidCredit: { count: 0, amount: 0 },
       Charity: { count: 0, amount: 0 },
+      Benefactor: { count: 0, amount: 0 },
     }
     for (const p of filtered) {
       map[p.paymentType].count += 1
@@ -464,7 +484,7 @@ export default function PaymentHistory({ requestId }: Props) {
                   <option value="all">🎯 Tous les types</option>
                   <option value="Membership">🎯 Adhésion</option>
                   <option value="Subscription">⚡ Abonnement</option>
-                  <option value="Tontine">🥧 Caisse Spéciale</option>
+                  <option value="SpecialFund">🥧 Caisse spéciale</option>
                   <option value="Charity">✨ Charité</option>
                 </select>
               </div>

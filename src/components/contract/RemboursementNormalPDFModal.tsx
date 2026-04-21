@@ -32,6 +32,8 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
 
   // Charger les refunds pour récupérer la cause
   React.useEffect(() => {
+    if (!isOpen) return
+
     const loadRefunds = async () => {
       if (contractId) {
         try {
@@ -133,11 +135,16 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
+  const pdfDocument = React.useMemo(
+    () => <QuittanceCaisseSpecialePDF contract={enrichedContract} />,
+    [enrichedContract]
+  )
+
   const handleDownloadPDF = async () => {
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<QuittanceCaisseSpecialePDF contract={enrichedContract} />).toBlob()
+      const blob = await pdf(pdfDocument).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -224,7 +231,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
           ) : (
             <>
               {/* Version mobile */}
-              <div className="lg:hidden h-full">
+              {isMobile ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-4">
                   {/* Icône et titre mobile */}
                   <div className="space-y-3">
@@ -258,7 +265,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider document={<QuittanceCaisseSpecialePDF contract={enrichedContract} />}>
+                  <BlobProvider document={pdfDocument}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -305,19 +312,19 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Version desktop */}
-              <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-                <PDFViewer style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  borderRadius: '0.75rem'
-                }}>
-                  <QuittanceCaisseSpecialePDF contract={enrichedContract} />
-                </PDFViewer>
-              </div>
+              ) : (
+                /* Version desktop */
+                <div className="h-full rounded-xl overflow-hidden shadow-inner bg-white border">
+                  <PDFViewer style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: '0.75rem'
+                  }}>
+                    {pdfDocument}
+                  </PDFViewer>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -23,7 +24,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
-import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
 import { useCaisseSpecialeDemandesRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeDemandesRealtimeSync'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -37,9 +37,7 @@ import {
     CheckCircle,
     Clock,
     Eye,
-    FileDown,
     FileEdit,
-    FileSpreadsheet,
     FileText,
     Grid3X3,
     List,
@@ -52,7 +50,6 @@ import {
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import AcceptDemandModal from './AcceptDemandModal'
 import CreateDemandModal from './CreateDemandModal'
 import DeleteDemandModal from './DeleteDemandModal'
@@ -512,8 +509,6 @@ const ListDemandes = () => {
     isOpen: false,
     demand: null,
   })
-  const [isExporting, setIsExporting] = useState(false)
-
   // Synchroniser l'URL avec l'état
   useEffect(() => {
     const params = new URLSearchParams()
@@ -597,157 +592,6 @@ const ListDemandes = () => {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
     queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
-  }
-
-  const getStatusLabelForExport = (status: CaisseSpecialeDemandStatus) => {
-    const labels = {
-      PENDING: 'En attente',
-      APPROVED: 'Acceptée',
-      REJECTED: 'Refusée',
-      CONVERTED: 'Convertie',
-    }
-    return labels[status] || status
-  }
-
-  const getCaisseTypeLabelForExport = (type: string) => {
-    const labels = {
-      STANDARD: 'Standard',
-      JOURNALIERE: 'Journalière',
-      LIBRE: 'Libre',
-      STANDARD_CHARITABLE: 'Standard Charitable',
-      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
-      LIBRE_CHARITABLE: 'Libre Charitable',
-    }
-    return labels[type as keyof typeof labels] || type
-  }
-
-  const exportToPDF = async () => {
-    if (totalCount === 0) {
-      toast.error('Aucune demande à exporter')
-      return
-    }
-    setIsExporting(true)
-    try {
-      const service = ServiceFactory.getCaisseSpecialeService()
-      const exportFilters: CaisseSpecialeDemandFilters = {
-        ...queryFilters,
-        page: 1,
-        limit: 5000,
-      }
-      const { items: exportDemandes } = await service.getDemandsWithFilters(exportFilters)
-      if (!exportDemandes || exportDemandes.length === 0) {
-        toast.error('Aucune demande à exporter')
-        return
-      }
-
-      const { jsPDF } = await import('jspdf')
-      const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
-
-      const tabLabel = activeTab === 'all' ? 'Toutes' : activeTab === 'pending' ? 'En attente' : activeTab === 'approved' ? 'Acceptées' : activeTab === 'rejected' ? 'Refusées' : 'Converties'
-      doc.setFontSize(16)
-      doc.text('Liste des Demandes Caisse Spéciale', 14, 14)
-      doc.setFontSize(10)
-      doc.text(`Onglet: ${tabLabel}`, 14, 20)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${exportDemandes.length} demande(s)`, 14, 28)
-
-      const headers = ['ID', 'Type', 'Matricule', 'Statut', 'Montant (FCFA)', 'Durée', 'Date souhaitée', 'Contact urgence', 'Date création']
-      const rows = exportDemandes.map((d) => [
-        d.id,
-        getCaisseTypeLabelForExport(d.caisseType),
-        d.memberId || '—',
-        getStatusLabelForExport(d.status),
-        d.monthlyAmount.toLocaleString('fr-FR'),
-        `${d.monthsPlanned} mois`,
-        d.desiredDate ? new Date(d.desiredDate).toLocaleDateString('fr-FR') : '—',
-        d.emergencyContact ? `${d.emergencyContact.lastName || ''} ${d.emergencyContact.firstName || ''}`.trim() || d.emergencyContact.phone1 || '—' : '—',
-        d.createdAt ? new Date(d.createdAt).toLocaleDateString('fr-FR') : '—',
-      ])
-
-      autoTable(doc, {
-        head: [headers],
-        body: rows,
-        startY: 32,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 32 },
-      })
-
-      const filename = `demandes_caisse_speciale_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
-      doc.save(filename)
-      toast.success('Exporter PDF généré')
-    } catch (err) {
-      console.error('Erreur export PDF:', err)
-      toast.error('Erreur lors de l\'export PDF')
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
-  const exportToExcel = async () => {
-    if (totalCount === 0) {
-      toast.error('Aucune demande à exporter')
-      return
-    }
-    setIsExporting(true)
-    try {
-      const service = ServiceFactory.getCaisseSpecialeService()
-      const exportFilters: CaisseSpecialeDemandFilters = {
-        ...queryFilters,
-        page: 1,
-        limit: 5000,
-      }
-      const { items: exportDemandes } = await service.getDemandsWithFilters(exportFilters)
-      if (!exportDemandes || exportDemandes.length === 0) {
-        toast.error('Aucune demande à exporter')
-        return
-      }
-
-      const XLSX = await import('xlsx')
-      const headers = ['ID', 'Type', 'Matricule', 'Statut', 'Montant (FCFA)', 'Durée', 'Date souhaitée', 'Contact urgence', 'Date création']
-      const rows = exportDemandes.map((d) => [
-        d.id,
-        getCaisseTypeLabelForExport(d.caisseType),
-        d.memberId || '—',
-        getStatusLabelForExport(d.status),
-        d.monthlyAmount.toLocaleString('fr-FR'),
-        `${d.monthsPlanned} mois`,
-        d.desiredDate ? new Date(d.desiredDate).toLocaleDateString('fr-FR') : '—',
-        d.emergencyContact ? `${d.emergencyContact.lastName || ''} ${d.emergencyContact.firstName || ''}`.trim() || d.emergencyContact.phone1 || '—' : '—',
-        d.createdAt ? new Date(d.createdAt).toLocaleDateString('fr-FR') : '—',
-      ])
-
-      const tabLabel = activeTab === 'all' ? 'Toutes' : activeTab === 'pending' ? 'En attente' : activeTab === 'approved' ? 'Acceptées' : activeTab === 'rejected' ? 'Refusées' : 'Converties'
-      const sheetData = [
-        ['LISTE DES DEMANDES CAISSE SPÉCIALE'],
-        [`Onglet: ${tabLabel}`],
-        [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
-        [],
-        headers,
-        ...rows,
-      ]
-
-      const worksheet = XLSX.utils.aoa_to_sheet(sheetData)
-      worksheet['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
-        { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } },
-      ]
-      worksheet['!cols'] = headers.map(() => ({ wch: 20 }))
-
-      const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Demandes')
-      const filename = `demandes_caisse_speciale_${activeTab}_${new Date().toISOString().slice(0, 10)}.xlsx`
-      XLSX.writeFile(workbook, filename)
-      toast.success('Exporter Excel généré')
-    } catch (err) {
-      console.error('Erreur export Excel:', err)
-      toast.error('Erreur lors de l\'export Excel')
-    } finally {
-      setIsExporting(false)
-    }
   }
 
   // Fonctions utilitaires
@@ -879,147 +723,105 @@ const ListDemandes = () => {
         </div>
       </Tabs>
 
-      {/* Barre de filtres (Phase 2) */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-lg">
-        <CardContent className="p-4">
+      {/* Barre unique : filtres + actions */}
+      <Card className="border-0 shadow-lg overflow-hidden">
+        <CardContent className="p-4 md:p-5 bg-white">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                placeholder="Rechercher par nom, prénom ou matricule..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-xs"
-              />
-              <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Type de caisse" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  <SelectItem value="STANDARD">Standard</SelectItem>
-                  <SelectItem value="JOURNALIERE">Journalière</SelectItem>
-                  <SelectItem value="LIBRE">Libre</SelectItem>
-                  <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
-                  <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
-                  <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                placeholder="Date création début"
-                value={createdAtFrom}
-                onChange={(e) => setCreatedAtFrom(e.target.value)}
-                className="w-[160px]"
-              />
-              <Input
-                type="date"
-                placeholder="Date création fin"
-                value={createdAtTo}
-                onChange={(e) => setCreatedAtTo(e.target.value)}
-                className="w-[160px]"
-              />
-              {activeFiltersCount > 0 && (
-                <>
-                  <Badge variant="secondary">{activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}</Badge>
-                  <Button variant="outline" size="sm" onClick={resetFilters}>
-                    Réinitialiser filtres
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
-                <FileText className="h-6 w-6 text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(320px,1.8fr)_1fr_1fr_1fr] gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
+                <Input
+                  placeholder="Rechercher par nom, prénom ou matricule..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
+                />
               </div>
-              <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                  Liste des Demandes
-                </h2>
-                <p className="text-gray-600 font-medium">
-                  {totalCount.toLocaleString()} demande{totalCount !== 1 ? 's' : ''} • Page {currentPage}
-                </p>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
+                <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
+                  <SelectTrigger className="w-full h-11 border-slate-200 focus:ring-[#234D65]/30">
+                    <SelectValue placeholder="Type de caisse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les types</SelectItem>
+                    <SelectItem value="STANDARD">Standard</SelectItem>
+                    <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                    <SelectItem value="LIBRE">Libre</SelectItem>
+                    <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                    <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                    <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
+                <Input
+                  type="date"
+                  value={createdAtFrom}
+                  onChange={(e) => setCreatedAtFrom(e.target.value)}
+                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
+                <Input
+                  type="date"
+                  value={createdAtTo}
+                  onChange={(e) => setCreatedAtTo(e.target.value)}
+                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
+                />
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Boutons de vue modernes */}
-              <div className="items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
+            <div className="flex flex-wrap items-center gap-3 justify-between">
+              <div className="items-center p-1 bg-gray-100 rounded-xl hidden md:flex">
                 <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
                     }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
-                  Grille
+                  Cards
                 </Button>
                 <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'list'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
                     }`}
                 >
                   <List className="h-4 w-4 mr-2" />
-                  Liste
+                  Table
                 </Button>
               </div>
 
-              {/* Actions avec animations */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Actualiser
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => router.push(routes.admin.caisseSpecialeNewDemand)}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Demande
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-12 sm:h-10 px-4"
-                title="Exporter la liste en PDF"
-                onClick={exportToPDF}
-                disabled={isExporting || totalCount === 0}
-              >
-                <FileDown className={`h-4 w-4 mr-2 ${isExporting ? 'animate-pulse' : ''}`} />
-                {isExporting ? 'Export...' : 'Exporter PDF'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-12 sm:h-10 px-4"
-                title="Exporter la liste en Excel"
-                onClick={exportToExcel}
-                disabled={isExporting || totalCount === 0}
-              >
-                <FileSpreadsheet className={`h-4 w-4 mr-2 ${isExporting ? 'animate-pulse' : ''}`} />
-                {isExporting ? 'Export...' : 'Exporter Excel'}
-              </Button>
+              <div className="flex flex-wrap items-center gap-3 ml-auto">
+                {activeFiltersCount > 0 && (
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
+                    Réinitialiser filtres
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="h-12 sm:h-10 w-full sm:w-auto px-4 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -1142,7 +944,7 @@ const ListDemandes = () => {
               </div>
               <div className="flex justify-center">
                 <Button 
-                  onClick={() => setIsCreateModalOpen(true)}
+                  onClick={() => router.push(routes.admin.caisseSpecialeNewDemand)}
                   className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
                   <Plus className="h-4 w-4 mr-2" />
