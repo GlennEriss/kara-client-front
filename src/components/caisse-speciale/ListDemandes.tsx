@@ -94,14 +94,22 @@ const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
 // Carte de demande avec chargement des infos membre
 const DemandCard = ({
   demande,
+  setAcceptModalState,
+  setRejectModalState,
+  setReopenModalState,
   setDeleteModalState,
 }: {
   demande: CaisseSpecialeDemand
+  setAcceptModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
+  setRejectModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
+  setReopenModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setDeleteModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null; memberMatricule?: string }) => void
 }) => {
   const router = useRouter()
   const { data: member, isLoading: isLoadingMember } = useMember(demande.memberId)
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
+  const canAcceptOrReject = demande.status === 'PENDING'
+  const canReopen = demande.status === 'REJECTED'
 
   // Extraire les contacts
   let memberPhone: string | undefined
@@ -199,9 +207,70 @@ const DemandCard = ({
           )}
         </div>
 
+        <div className="space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Montant demandé</span>
+            <span className="font-semibold text-gray-900">
+              {demande.monthlyAmount.toLocaleString('fr-FR')} FCFA
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Nombre de mois</span>
+            <span className="font-semibold text-gray-900">{demande.monthsPlanned} mois</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Date souhaitée</span>
+            <span className="font-semibold text-gray-900">
+              {demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}
+            </span>
+          </div>
+        </div>
+
         <div className="pt-3 border-t border-gray-100 mt-auto text-sm">
           <span className="text-gray-500">Motif: </span>
           <span className="text-gray-900">{demande.reason?.trim() || '—'}</span>
+        </div>
+
+        <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
+          {canAcceptOrReject && (
+            <>
+              <Button
+                onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
+                className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Accepter
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
+                className="w-full h-10 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Refuser
+              </Button>
+            </>
+          )}
+
+          {canReopen && (
+            <Button
+              variant="outline"
+              onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
+              className="w-full h-10 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Réouvrir
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
+            className="w-full h-10"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Voir détails
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -717,6 +786,9 @@ const ListDemandes = () => {
               <DemandCard
                 key={demande.id}
                 demande={demande}
+                setAcceptModalState={setAcceptModalState}
+                setRejectModalState={setRejectModalState}
+                setReopenModalState={setReopenModalState}
                 setDeleteModalState={setDeleteModalState}
               />
             ))}
