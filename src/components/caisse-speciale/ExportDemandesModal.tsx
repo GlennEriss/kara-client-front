@@ -73,6 +73,11 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
 
   const service = ServiceFactory.getCaisseSpecialeService()
   const selectedStatusCount = Object.values(statusFilters).filter(Boolean).length
+  const formatAmount = (value: number) =>
+    value
+      .toLocaleString('fr-FR')
+      .replace(/\u202f/g, ' ')
+      .replace(/\u00a0/g, ' ')
 
   const fetchDemandsForExport = useCallback(async () => {
     const filters: CaisseSpecialeDemandFilters = {
@@ -154,7 +159,7 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
         d.caisseType || '—',
         d.memberId || '—',
         STATUS_OPTIONS.find((option) => option.value === d.status)?.label ?? d.status,
-        d.monthlyAmount?.toLocaleString('fr-FR') || '0',
+        typeof d.monthlyAmount === 'number' ? formatAmount(d.monthlyAmount) : '0',
         `${d.monthsPlanned || 0} mois`,
         d.desiredDate ? new Date(d.desiredDate).toLocaleDateString('fr-FR') : '—',
         d.emergencyContact ? `${d.emergencyContact.lastName || ''} ${d.emergencyContact.firstName || ''}`.trim() || d.emergencyContact.phone1 || '—' : '—',

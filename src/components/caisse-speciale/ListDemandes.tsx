@@ -649,7 +649,7 @@ const ListDemandes = () => {
         getCaisseTypeLabelForExport(d.caisseType),
         d.memberId || '—',
         getStatusLabelForExport(d.status),
-        d.monthlyAmount.toLocaleString('fr-FR'),
+        formatAmount(d.monthlyAmount),
         `${d.monthsPlanned} mois`,
         d.desiredDate ? new Date(d.desiredDate).toLocaleDateString('fr-FR') : '—',
         d.emergencyContact ? `${d.emergencyContact.lastName || ''} ${d.emergencyContact.firstName || ''}`.trim() || d.emergencyContact.phone1 || '—' : '—',
@@ -713,7 +713,7 @@ const ListDemandes = () => {
         getCaisseTypeLabelForExport(d.caisseType),
         d.memberId || '—',
         getStatusLabelForExport(d.status),
-        d.monthlyAmount.toLocaleString('fr-FR'),
+        formatAmount(d.monthlyAmount),
         `${d.monthsPlanned} mois`,
         d.desiredDate ? new Date(d.desiredDate).toLocaleDateString('fr-FR') : '—',
         d.emergencyContact ? `${d.emergencyContact.lastName || ''} ${d.emergencyContact.firstName || ''}`.trim() || d.emergencyContact.phone1 || '—' : '—',
@@ -1206,3 +1206,8 @@ const ListDemandes = () => {
 }
 
 export default ListDemandes
+  const formatAmount = (value: number) =>
+    value
+      .toLocaleString('fr-FR')
+      .replace(/\u202f/g, ' ')
+      .replace(/\u00a0/g, ' ')

@@ -175,12 +175,18 @@ export class DemandExportService {
       ? demand.createdAt
       : new Date(demand.createdAt)
 
+    const formatAmount = (value: number) =>
+      value
+        .toLocaleString('fr-FR')
+        .replace(/\u202f/g, ' ')
+        .replace(/\u00a0/g, ' ')
+
     return {
       Statut: statusLabels[demand.status] || demand.status,
       Nom: demand.memberLastName || '',
       Prénom: demand.memberFirstName || '',
       Téléphone: demand.memberPhone || demand.memberContacts?.[0] || '',
-      Montant: demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR'),
+      Montant: formatAmount(demand.subscriptionCIAmountPerMonth),
       Durée: `${demand.subscriptionCIDuration} mois`,
       Fréquence: frequencyLabels[demand.paymentFrequency] || demand.paymentFrequency,
       'Date création': createdAt.toLocaleDateString('fr-FR'),
