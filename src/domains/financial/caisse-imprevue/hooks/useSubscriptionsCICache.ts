@@ -41,8 +41,8 @@ export function useSubscriptionsCICache() {
         const data = docSnapshot.data() as Record<string, unknown>
 
         return {
+          ...(data as Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>),
           id: docSnapshot.id,
-          ...(data as SubscriptionCI),
           createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.() ?? new Date(),
           updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.() ?? new Date(),
         } as SubscriptionCI
