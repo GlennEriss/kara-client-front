@@ -157,11 +157,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modeCheckedMark: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#000',
-    textAlign: 'center',
+  rectangleChecked: {
+    backgroundColor: '#111',
   },
   rectangleRow: {
     flexDirection: 'row',
@@ -642,43 +639,31 @@ const MutuelleKaraPDF = ({
             <View style={styles.modeReglementRow}>
               <View style={styles.modeReglementCell}>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}>
-                    {isModeChecked('A') && <Text style={styles.modeCheckedMark}>X</Text>}
-                  </View>
+                  <View style={[styles.rectangle, isModeChecked('A') ? styles.rectangleChecked : null]} />
                   <Text>A</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}>
-                    {isModeChecked('B') && <Text style={styles.modeCheckedMark}>X</Text>}
-                  </View>
+                  <View style={[styles.rectangle, isModeChecked('B') ? styles.rectangleChecked : null]} />
                   <Text>B</Text>
                 </View>
               </View>
               <View style={styles.modeReglementCell}>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}>
-                    {isModeChecked('C') && <Text style={styles.modeCheckedMark}>X</Text>}
-                  </View>
+                  <View style={[styles.rectangle, isModeChecked('C') ? styles.rectangleChecked : null]} />
                   <Text>C</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}>
-                    {isModeChecked('D') && <Text style={styles.modeCheckedMark}>X</Text>}
-                  </View>
+                  <View style={[styles.rectangle, isModeChecked('D') ? styles.rectangleChecked : null]} />
                   <Text>D</Text>
                 </View>
               </View>
               <View style={styles.modeReglementCellLast}>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}>
-                    {isModeChecked('E') && <Text style={styles.modeCheckedMark}>X</Text>}
-                  </View>
+                  <View style={[styles.rectangle, isModeChecked('E') ? styles.rectangleChecked : null]} />
                   <Text>E</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View style={styles.rectangle}>
-                    {isModeChecked('X') && <Text style={styles.modeCheckedMark}>X</Text>}
-                  </View>
+                  <View style={[styles.rectangle, isModeChecked('X') ? styles.rectangleChecked : null]} />
                   <Text>X</Text>
                 </View>
               </View>

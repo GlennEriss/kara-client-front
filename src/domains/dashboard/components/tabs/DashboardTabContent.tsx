@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -115,6 +116,17 @@ function shortModuleLabel(label: string): string {
   return label
 }
 
+function shortDistributionLabel(label: string): string {
+  const normalized = label.trim().toLowerCase()
+  if (normalized === 'en attente') return 'Attente'
+  if (normalized === 'approuvees' || normalized === 'approuvées') return 'Approuv.'
+  if (normalized === 'rejetees' || normalized === 'rejetées') return 'Rejetees'
+  if (normalized === 'converties') return 'Convert.'
+  if (normalized === 'reouvertes' || normalized === 'réouvertes') return 'Reouv.'
+  if (label.length <= 10) return label
+  return `${label.slice(0, 9)}…`
+}
+
 export function DashboardTabContent({
   payload,
   executiveMembersPage,
@@ -123,6 +135,15 @@ export function DashboardTabContent({
   onExecutivePrevPage,
   onExecutiveNextPage,
 }: DashboardTabContentProps) {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   const isExecutive = payload.title.trim().toLowerCase() === EXECUTIVE_TITLE
 
   const leadKpi = payload.kpis[0]
@@ -378,10 +399,18 @@ export function DashboardTabContent({
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
                               dataKey="label"
-                              tick={{ fontSize: 11 }}
+                              tick={{ fontSize: isMobile ? 10 : 11 }}
                               interval={0}
-                              height={34}
-                              tickFormatter={(value: string) => (isExecutive ? shortModuleLabel(value) : value)}
+                              minTickGap={isMobile ? 14 : 8}
+                              tickMargin={isMobile ? 10 : 8}
+                              angle={isMobile ? -18 : 0}
+                              textAnchor={isMobile ? 'end' : 'middle'}
+                              height={isMobile ? 58 : 34}
+                              tickFormatter={(value: string) => {
+                                if (isExecutive) return shortModuleLabel(value)
+                                if (isMobile) return shortDistributionLabel(value)
+                                return value
+                              }}
                             />
                             <YAxis tick={{ fontSize: 11 }} />
                             <Tooltip
