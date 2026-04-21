@@ -91,56 +91,12 @@ const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   </Card>
 )
 
-// Composant pour afficher les infos du demandeur (matricule, nom, prénom)
-const MemberInfo = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">Chargement...</span>
-  if (!member) return <span className="text-gray-400">—</span>
-  return (
-    <span className="text-sm">
-      {member.matricule} • {member.lastName} {member.firstName}
-    </span>
-  )
-}
-
-// Composant pour afficher le nom complet du membre
-const MemberName = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">...</span>
-  if (!member) return <span className="text-gray-400">Membre inconnu</span>
-  return (
-    <span className="font-semibold text-gray-900">
-      {member.lastName} {member.firstName}
-    </span>
-  )
-}
-
-// Composant pour afficher le matricule du membre
-const MemberMatricule = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">...</span>
-  if (!member) return <span className="text-gray-400">—</span>
-  return (
-    <span className="text-xs text-gray-500 font-mono">
-      {member.matricule || '—'}
-    </span>
-  )
-}
-
 // Carte de demande avec chargement des infos membre
 const DemandCard = ({
   demande,
-  getCaisseTypeLabel,
-  setAcceptModalState,
-  setRejectModalState,
-  setReopenModalState,
   setDeleteModalState,
 }: {
   demande: CaisseSpecialeDemand
-  getCaisseTypeLabel: (t: string) => string
-  setAcceptModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
-  setRejectModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
-  setReopenModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setDeleteModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null; memberMatricule?: string }) => void
 }) => {
   const router = useRouter()
@@ -160,23 +116,52 @@ const DemandCard = ({
   const memberPhotoUrl = member?.photoURL || ''
   const memberInitials = `${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase()
 
-  // Contact d'urgence
-  const ec = demande.emergencyContact
-
   return (
     <Card className="group relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg border-gray-200 h-full flex flex-col">
       <CardContent className="p-4 md:p-5 flex-1 flex flex-col gap-4">
+        <div className="font-mono text-sm font-bold text-gray-900 break-all">
+          #{demande.id}
+        </div>
+
         <div className="flex items-start justify-between">
           <Badge className={cn('text-xs font-medium border', statusInfo.color)}>
             {statusInfo.label}
           </Badge>
-          <span className="font-mono text-xs text-gray-500">#{demande.id.slice(0, 8)}</span>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-            {getCaisseTypeLabel(demande.caisseType)}
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-70 group-hover:opacity-100 transition-opacity"
+                title="Actions"
+              >
+                <MoreVertical className="h-4 w-4 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[190px]">
+              <DropdownMenuItem
+                onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
+                className="cursor-pointer"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Voir détails
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
+                className="cursor-pointer"
+              >
+                <FileEdit className="h-4 w-4 mr-2" />
+                Modifier
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-start gap-3">
@@ -193,104 +178,30 @@ const DemandCard = ({
               <span className="text-gray-400 animate-pulse text-sm">Chargement...</span>
             ) : (
               <>
-                <div className="font-semibold text-gray-900 leading-tight">{member?.firstName ?? '—'} {member?.lastName ?? '—'}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{member?.matricule || demande.memberId || '—'}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{memberPhone || member?.email || '—'}</div>
+                <div className="font-semibold text-gray-900 leading-tight">{member?.firstName ?? '—'}</div>
+                <div className="font-semibold text-gray-900 leading-tight">{member?.lastName ?? '—'}</div>
               </>
             )}
           </div>
         </div>
 
-        <div className="space-y-2 text-sm p-3 bg-gray-50 rounded-lg">
-          <div>
-            <span className="text-gray-500">Montant: </span>
-            <span className="font-semibold text-gray-900">{demande.monthlyAmount.toLocaleString('fr-FR')} FCFA</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Durée: </span>
-            <span className="font-medium text-gray-900">{demande.monthsPlanned} mois</span>
-          </div>
-          {demande.desiredDate && (
-            <div>
-              <span className="text-gray-500">Date souhaitée: </span>
-              <span className="font-medium text-gray-900">
-                {new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-              </span>
-            </div>
-          )}
-          <div>
-            <span className="text-gray-500">Contact d&apos;urgence: </span>
-            {ec ? (
-              <span className="text-gray-900">
-                {[ec.firstName, ec.lastName].filter(Boolean).join(' ') || ec.phone1 || '—'}
-              </span>
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
-          </div>
+        <div className="text-sm font-mono text-gray-700">
+          {member?.matricule || demande.memberId || '—'}
         </div>
 
-        <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
-          <Button
-            onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-white text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-          >
-            <Eye className="h-4 w-4" />
-            Voir détails
-          </Button>
+        <div className="text-sm text-gray-700">
+          {isLoadingMember ? (
+            <span className="text-gray-400 animate-pulse">—</span>
+          ) : memberPhone || member?.email ? (
+            <span>{memberPhone}{memberPhone && member?.email ? ' • ' : ''}{member?.email ?? ''}</span>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
+        </div>
 
-          {demande.status === 'PENDING' && (
-            <>
-              <Button
-                size="sm"
-                onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Accepter
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Refuser
-              </Button>
-            </>
-          )}
-          {demande.status === 'REJECTED' && (
-            <Button
-              size="sm"
-              onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <RotateCcw className="h-4 w-4 mr-1" />
-              Réouvrir
-            </Button>
-          )}
-          {demande.status !== 'CONVERTED' && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
-              className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-400"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Supprimer
-            </Button>
-          )}
-          {demande.status === 'APPROVED' && demande.contractId && (
-            <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Contrat créé
-            </Badge>
-          )}
-          {demande.decisionMadeByName && (
-            <div className="text-xs text-gray-500 text-center pt-1">
-              Décision: {demande.decisionMadeByName}
-            </div>
-          )}
+        <div className="pt-3 border-t border-gray-100 mt-auto text-sm">
+          <span className="text-gray-500">Motif: </span>
+          <span className="text-gray-900">{demande.reason?.trim() || '—'}</span>
         </div>
       </CardContent>
     </Card>
@@ -559,18 +470,6 @@ const ListDemandes = () => {
     queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
   }
 
-  const getCaisseTypeLabel = (type: string) => {
-    const labels = {
-      STANDARD: 'Standard',
-      JOURNALIERE: 'Journalière',
-      LIBRE: 'Libre',
-      STANDARD_CHARITABLE: 'Standard Charitable',
-      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
-      LIBRE_CHARITABLE: 'Libre Charitable',
-    }
-    return labels[type as keyof typeof labels] || type
-  }
-
   // Les demandes sont déjà paginées côté serveur
   const currentDemandes = demandes
   const totalPages = Math.ceil(totalCount / itemsPerPage)
@@ -818,10 +717,6 @@ const ListDemandes = () => {
               <DemandCard
                 key={demande.id}
                 demande={demande}
-                getCaisseTypeLabel={getCaisseTypeLabel}
-                setAcceptModalState={setAcceptModalState}
-                setRejectModalState={setRejectModalState}
-                setReopenModalState={setReopenModalState}
                 setDeleteModalState={setDeleteModalState}
               />
             ))}
