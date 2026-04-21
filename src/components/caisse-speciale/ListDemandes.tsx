@@ -764,30 +764,30 @@ const ListDemandes = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 justify-between">
-              <div className="items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
+              <div className="items-center p-1 bg-gray-100 rounded-xl hidden md:flex">
                 <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
                     }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
-                  Grille
+                  Cards
                 </Button>
                 <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'list'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
                     }`}
                 >
                   <List className="h-4 w-4 mr-2" />
-                  Liste
+                  Table
                 </Button>
               </div>
 
@@ -806,14 +806,6 @@ const ListDemandes = () => {
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   Actualiser
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => router.push(routes.admin.caisseSpecialeNewDemand)}
-                  className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nouvelle Demande
                 </Button>
               </div>
             </div>
