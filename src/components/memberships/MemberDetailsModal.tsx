@@ -288,6 +288,7 @@ type MembershipQualityOption = 'adherent' | 'sympathisant' | 'bienfaiteur'
 interface AdhesionPdfFillData {
   paymentMode: PaymentModeOption | null
   quality: MembershipQualityOption | null
+  headerPhotoDataUrl: string | null
   page1MemberDate: string
   page1SecretaryDate: string
   article5Date: string
@@ -477,6 +478,7 @@ const MutuelleKaraPDF = ({
   fillData: AdhesionPdfFillData
 }) => {
   const getPhotoURL = () => {
+    if (fillData.headerPhotoDataUrl) return fillData.headerPhotoDataUrl
     if (request.identity?.photoURL) return request.identity.photoURL
     if (request.identity?.photoPath) return request.identity.photoPath
     if (typeof request.identity?.photo === 'string' && request.identity.photo.startsWith('http')) {
@@ -867,6 +869,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   const [fillData, setFillData] = useState<AdhesionPdfFillData>({
     paymentMode: null,
     quality: null,
+    headerPhotoDataUrl: null,
     page1MemberDate: '',
     page1SecretaryDate: '',
     article5Date: '',
@@ -887,6 +890,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
     const initialData: AdhesionPdfFillData = {
       paymentMode: null,
       quality: null,
+      headerPhotoDataUrl: null,
       page1MemberDate: today,
       page1SecretaryDate: today,
       article5Date: today,
@@ -926,6 +930,65 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
     () => <MutuelleKaraPDF request={request} fillData={previewFillData} />,
     [request, previewFillData]
   )
+
+  const convertImageToPdfDataUrl = async (file: File): Promise<string> => {
+    const objectUrl = URL.createObjectURL(file)
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new window.Image()
+        img.onload = () => resolve(img)
+        img.onerror = () => reject(new Error('Impossible de charger l’image'))
+        img.src = objectUrl
+      })
+
+      const maxDimension = 700
+      const ratio = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight))
+      const targetWidth = Math.max(1, Math.round(image.naturalWidth * ratio))
+      const targetHeight = Math.max(1, Math.round(image.naturalHeight * ratio))
+
+      const canvas = document.createElement('canvas')
+      canvas.width = targetWidth
+      canvas.height = targetHeight
+      const context = canvas.getContext('2d')
+      if (!context) {
+        throw new Error('Impossible de préparer le canvas image')
+      }
+
+      context.drawImage(image, 0, 0, targetWidth, targetHeight)
+      return canvas.toDataURL('image/jpeg', 0.9)
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }
+
+  const handleHeaderPhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner une image (JPG, PNG, WEBP)')
+      return
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Image trop volumineuse (max 8MB)')
+      return
+    }
+
+    try {
+      const dataUrl = await convertImageToPdfDataUrl(file)
+      skipDebouncePreviewRef.current = true
+      setFillData((prev) => ({ ...prev, headerPhotoDataUrl: dataUrl }))
+      toast.success('Photo ajoutée dans le cadrant')
+    } catch (error) {
+      console.error(error)
+      toast.error('Impossible de charger cette photo')
+    } finally {
+      // Permet de recharger le même fichier si besoin
+      event.target.value = ''
+    }
+  }
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
@@ -1235,6 +1298,38 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                         className="h-9"
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-kara-primary-dark">Photo du cadrant (en haut à droite)</p>
+                  <Input type="file" accept="image/*" onChange={handleHeaderPhotoChange} className="h-10 text-xs" />
+                  <div className="flex items-center gap-3">
+                    <div className="h-16 w-16 overflow-hidden rounded-md border border-gray-300 bg-gray-50">
+                      {fillData.headerPhotoDataUrl ? (
+                        <img
+                          src={fillData.headerPhotoDataUrl}
+                          alt="Prévisualisation cadrant"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-500">
+                          Vide
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!fillData.headerPhotoDataUrl}
+                      onClick={() => {
+                        skipDebouncePreviewRef.current = true
+                        setFillData((prev) => ({ ...prev, headerPhotoDataUrl: null }))
+                      }}
+                    >
+                      Retirer la photo
+                    </Button>
                   </div>
                 </div>
 
