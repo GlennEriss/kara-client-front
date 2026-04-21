@@ -18,7 +18,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CaisseSpecialeDemandFilters, CaisseSpecialeDemandStatus } from '@/types/types'
-import { AlertTriangle, Download, FileSpreadsheet, FileText, Loader2, RefreshCw, Upload } from 'lucide-react'
+import {
+  AlertTriangle,
+  BarChart3,
+  CalendarDays,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Loader2,
+  RefreshCw,
+  SlidersHorizontal,
+  Upload,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ExportDemandesModalProps {
@@ -30,12 +42,12 @@ type ExportFormat = 'pdf' | 'excel'
 type ScopeMode = 'all' | 'period' | 'quantity'
 type SortBy = 'date_desc' | 'date_asc'
 
-const STATUS_LABELS: Record<CaisseSpecialeDemandStatus, string> = {
-  PENDING: 'En attente',
-  APPROVED: 'Acceptée',
-  REJECTED: 'Refusée',
-  CONVERTED: 'Convertie',
-}
+const STATUS_OPTIONS: Array<{ value: CaisseSpecialeDemandStatus; label: string }> = [
+  { value: 'PENDING', label: 'En attente' },
+  { value: 'APPROVED', label: 'Acceptées' },
+  { value: 'REJECTED', label: 'Refusées' },
+  { value: 'CONVERTED', label: 'Converties' },
+]
 
 export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesModalProps) {
   const today = useMemo(() => new Date(), [])
@@ -59,6 +71,7 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
   const [showLargeExportWarning, setShowLargeExportWarning] = useState(false)
 
   const service = ServiceFactory.getCaisseSpecialeService()
+  const selectedStatusCount = Object.values(statusFilters).filter(Boolean).length
 
   const fetchDemandsForExport = useCallback(async () => {
     const filters: CaisseSpecialeDemandFilters = {
@@ -100,7 +113,7 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
     if (isOpen) {
       void calculatePreview()
     }
-  }, [isOpen, scopeMode, dateStart, dateEnd, quantity, sortBy, statusFilters, calculatePreview])
+  }, [isOpen, calculatePreview])
 
   const resetForm = () => {
     setExportFormat('excel')
@@ -139,7 +152,7 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
         d.id,
         d.caisseType || '—',
         d.memberId || '—',
-        STATUS_LABELS[d.status] || d.status,
+        STATUS_OPTIONS.find((option) => option.value === d.status)?.label ?? d.status,
         d.monthlyAmount?.toLocaleString('fr-FR') || '0',
         `${d.monthsPlanned || 0} mois`,
         d.desiredDate ? new Date(d.desiredDate).toLocaleDateString('fr-FR') : '—',
@@ -205,186 +218,205 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            Exporter les demandes
-          </DialogTitle>
-          <DialogDescription>
-            Configurez les paramètres d&apos;export des demandes de Caisse Spéciale.
-          </DialogDescription>
+      <DialogContent className="flex h-[96vh] w-[98vw] max-w-none flex-col overflow-hidden rounded-3xl border border-[#234D65]/20 bg-white p-0 shadow-[0_30px_90px_-30px_rgba(20,35,51,0.55)] sm:w-[96vw] sm:max-w-[96vw] xl:w-[80vw] xl:max-w-[1000px] md:h-[94vh]">
+        <DialogHeader className="border-b border-white/20 bg-gradient-to-r from-[#1f455b] via-[#234D65] to-[#2c5a73] px-5 py-5 text-white md:px-7 md:py-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/30 bg-white/15">
+              <Upload className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-black tracking-tight md:text-2xl">
+                Exporter les demandes
+              </DialogTitle>
+              <DialogDescription className="text-sm text-white/85 md:text-base">
+                Composez votre export Caisse Spéciale avec un filtrage précis.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div>
-            <Label>Format d&apos;export</Label>
-            <RadioGroup
-              value={exportFormat}
-              onValueChange={(value) => setExportFormat(value as ExportFormat)}
-              className="mt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pdf" id="cs-export-format-pdf" />
-                <Label htmlFor="cs-export-format-pdf" className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  PDF
-                </Label>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 via-white to-slate-50/70 px-4 py-5 md:px-7 md:py-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <section className="rounded-2xl border border-[#234D65]/10 bg-white/95 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)]">
+              <div className="mb-3 flex items-center gap-2 text-[#234D65]">
+                <FileSpreadsheet className="h-4 w-4" />
+                <Label className="text-xs font-bold uppercase tracking-wide text-[#234D65]/85">Format</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="excel" id="cs-export-format-excel" />
-                <Label htmlFor="cs-export-format-excel" className="flex items-center gap-2">
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Excel
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <div>
-            <Label>Périmètre d&apos;export</Label>
-            <RadioGroup
-              value={scopeMode}
-              onValueChange={(value) => setScopeMode(value as ScopeMode)}
-              className="mt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="all" id="cs-export-scope-all" />
-                <Label htmlFor="cs-export-scope-all">Toutes les demandes</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="period" id="cs-export-scope-period" />
-                <Label htmlFor="cs-export-scope-period">Par période</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="quantity" id="cs-export-scope-quantity" />
-                <Label htmlFor="cs-export-scope-quantity">Par nombre</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {scopeMode === 'period' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="cs-export-date-start">Date de début</Label>
-                <Input
-                  id="cs-export-date-start"
-                  type="date"
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="cs-export-date-end">Date de fin</Label>
-                <Input
-                  id="cs-export-date-end"
-                  type="date"
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {scopeMode === 'quantity' && (
-            <div>
-              <Label htmlFor="cs-export-quantity">Nombre de demandes</Label>
-              <Input
-                id="cs-export-quantity"
-                type="number"
-                min={1}
-                max={10000}
-                value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
-              />
-            </div>
-          )}
-
-          <div>
-            <Label>Statuts à inclure</Label>
-            <div className="space-y-2 mt-2">
-              {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                <div key={status} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`cs-export-status-${status}`}
-                    checked={statusFilters[status as CaisseSpecialeDemandStatus]}
-                    onCheckedChange={(checked) =>
-                      setStatusFilters((prev) => ({
-                        ...prev,
-                        [status]: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor={`cs-export-status-${status}`}>{label}</Label>
+              <RadioGroup value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <RadioGroupItem value="pdf" id="cs-export-format-pdf" className="peer sr-only" />
+                  <Label htmlFor="cs-export-format-pdf" className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 font-semibold text-slate-700 transition-all peer-data-[state=checked]:border-[#234D65] peer-data-[state=checked]:bg-[#234D65]/10 peer-data-[state=checked]:text-[#234D65]">
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </Label>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div>
+                  <RadioGroupItem value="excel" id="cs-export-format-excel" className="peer sr-only" />
+                  <Label htmlFor="cs-export-format-excel" className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 font-semibold text-slate-700 transition-all peer-data-[state=checked]:border-[#234D65] peer-data-[state=checked]:bg-[#234D65]/10 peer-data-[state=checked]:text-[#234D65]">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </Label>
+                </div>
+              </RadioGroup>
+            </section>
 
-          <div>
-            <Label>Trier par</Label>
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date_desc">Date de création (plus récentes)</SelectItem>
-                <SelectItem value="date_asc">Date de création (plus anciennes)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="rounded-lg border p-4 bg-muted/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Aperçu</p>
-                <p className="text-xl font-semibold">
-                  {isCalculatingPreview ? '...' : previewCount ?? '—'} demandes
-                </p>
+            <section className="rounded-2xl border border-[#234D65]/10 bg-white/95 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)]">
+              <div className="mb-3 flex items-center gap-2 text-[#234D65]">
+                <CalendarDays className="h-4 w-4" />
+                <Label className="text-xs font-bold uppercase tracking-wide text-[#234D65]/85">Périmètre</Label>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={calculatePreview}
-                disabled={isCalculatingPreview}
-              >
-                {isCalculatingPreview ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                Recalculer
-              </Button>
-            </div>
-          </div>
+              <RadioGroup value={scopeMode} onValueChange={(value) => setScopeMode(value as ScopeMode)} className="grid grid-cols-1 gap-2">
+                <div>
+                  <RadioGroupItem value="all" id="cs-export-scope-all" className="peer sr-only" />
+                  <Label htmlFor="cs-export-scope-all" className="block cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-700 transition-all peer-data-[state=checked]:border-[#234D65] peer-data-[state=checked]:bg-[#234D65]/10 peer-data-[state=checked]:text-[#234D65]">
+                    Toutes les demandes
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem value="period" id="cs-export-scope-period" className="peer sr-only" />
+                  <Label htmlFor="cs-export-scope-period" className="block cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-700 transition-all peer-data-[state=checked]:border-[#234D65] peer-data-[state=checked]:bg-[#234D65]/10 peer-data-[state=checked]:text-[#234D65]">
+                    Par période
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem value="quantity" id="cs-export-scope-quantity" className="peer sr-only" />
+                  <Label htmlFor="cs-export-scope-quantity" className="block cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-700 transition-all peer-data-[state=checked]:border-[#234D65] peer-data-[state=checked]:bg-[#234D65]/10 peer-data-[state=checked]:text-[#234D65]">
+                    Par nombre
+                  </Label>
+                </div>
+              </RadioGroup>
+            </section>
 
-          {showLargeExportWarning && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Export volumineux</AlertTitle>
-              <AlertDescription>
-                Cette exportation peut prendre un peu de temps. Cliquez à nouveau sur Exporter pour confirmer.
-              </AlertDescription>
-            </Alert>
-          )}
+            {scopeMode === 'period' && (
+              <section className="rounded-2xl border border-[#234D65]/10 bg-white/95 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)] md:col-span-2">
+                <div className="mb-3 flex items-center gap-2 text-[#234D65]">
+                  <CalendarDays className="h-4 w-4" />
+                  <Label className="text-xs font-bold uppercase tracking-wide text-[#234D65]/85">Période d&apos;export</Label>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cs-export-date-start" className="text-slate-600">Date de début</Label>
+                    <Input id="cs-export-date-start" type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className="border-slate-200 focus-visible:ring-[#234D65]/30" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cs-export-date-end" className="text-slate-600">Date de fin</Label>
+                    <Input id="cs-export-date-end" type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className="border-slate-200 focus-visible:ring-[#234D65]/30" />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {scopeMode === 'quantity' && (
+              <section className="rounded-2xl border border-[#234D65]/10 bg-white/95 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)] md:col-span-2">
+                <Label htmlFor="cs-export-quantity" className="mb-2 block text-xs font-bold uppercase tracking-wide text-[#234D65]/85">Nombre de demandes</Label>
+                <Input id="cs-export-quantity" type="number" min={1} max={10000} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className="border-slate-200 focus-visible:ring-[#234D65]/30 md:max-w-xs" />
+              </section>
+            )}
+
+            <section className="rounded-2xl border border-[#234D65]/10 bg-white/95 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)] md:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[#234D65]">
+                  <Filter className="h-4 w-4" />
+                  <Label className="text-xs font-bold uppercase tracking-wide text-[#234D65]/85">Statuts à inclure</Label>
+                </div>
+                <span className="rounded-full bg-[#234D65]/10 px-2.5 py-1 text-xs font-semibold text-[#234D65]">
+                  {selectedStatusCount} sélectionné{selectedStatusCount > 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {STATUS_OPTIONS.map((option) => (
+                  <label key={option.value} htmlFor={`cs-export-status-${option.value}`} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition-colors hover:border-[#234D65]/30 hover:bg-slate-50">
+                    <Checkbox
+                      id={`cs-export-status-${option.value}`}
+                      checked={statusFilters[option.value]}
+                      className="border-slate-300 data-[state=checked]:border-[#234D65] data-[state=checked]:bg-[#234D65] data-[state=checked]:text-white focus-visible:ring-[#234D65]/40"
+                      onCheckedChange={(checked) =>
+                        setStatusFilters((prev) => ({
+                          ...prev,
+                          [option.value]: Boolean(checked),
+                        }))
+                      }
+                    />
+                    <span className="font-medium text-slate-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#234D65]/10 bg-white/95 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)]">
+              <div className="mb-3 flex items-center gap-2 text-[#234D65]">
+                <SlidersHorizontal className="h-4 w-4" />
+                <Label htmlFor="cs-export-sort" className="text-xs font-bold uppercase tracking-wide text-[#234D65]/85">Tri</Label>
+              </div>
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
+                <SelectTrigger id="cs-export-sort" className="border-slate-200 focus:ring-[#234D65]/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date_desc">Date de création (plus récentes)</SelectItem>
+                  <SelectItem value="date_asc">Date de création (plus anciennes)</SelectItem>
+                </SelectContent>
+              </Select>
+            </section>
+
+            <section className="rounded-2xl border border-[#234D65]/20 bg-gradient-to-r from-[#234D65]/10 via-[#2c5a73]/10 to-[#234D65]/10 p-4 shadow-[0_15px_35px_-24px_rgba(35,77,101,0.8)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#234D65]/80">Aperçu export</p>
+                  <div className="flex items-center gap-2 text-[#234D65]">
+                    {isCalculatingPreview ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <BarChart3 className="h-4 w-4" />
+                    )}
+                    <p className="text-xl font-black leading-none md:text-2xl">
+                      {isCalculatingPreview ? '...' : previewCount ?? '—'}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">demandes seront exportées</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={calculatePreview} disabled={isCalculatingPreview} className="border-[#234D65]/25 bg-white/90 text-[#234D65] hover:bg-[#234D65]/10">
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isCalculatingPreview ? 'animate-spin' : ''}`} />
+                  Recalculer
+                </Button>
+              </div>
+            </section>
+
+            {showLargeExportWarning && (
+              <Alert className="md:col-span-2 border-amber-200 bg-amber-50/90">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">Export volumineux</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  Cette exportation peut prendre un peu de temps. Cliquez à nouveau sur Exporter pour confirmer.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={resetForm} disabled={isExporting}>
-            Réinitialiser
-          </Button>
-          <Button type="button" variant="outline" onClick={onClose} disabled={isExporting}>
-            Annuler
-          </Button>
-          <Button type="button" onClick={handleExport} disabled={isExporting || isCalculatingPreview}>
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {isExporting ? 'Export en cours...' : 'Exporter'}
-          </Button>
+        <DialogFooter className="shrink-0 border-t border-slate-200 bg-white/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 md:px-7">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={resetForm} disabled={isExporting} className="border-[#234D65]/20 text-[#234D65] hover:bg-[#234D65]/10">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réinitialiser
+            </Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isExporting}>
+              Annuler
+            </Button>
+            <Button type="button" onClick={handleExport} disabled={isExporting || isCalculatingPreview} className="bg-[#234D65] text-white hover:bg-[#2c5a73]">
+              {isExporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Export en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exporter
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
