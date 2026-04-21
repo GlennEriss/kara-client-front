@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -727,40 +728,53 @@ const ListDemandes = () => {
         <CardContent className="p-4 md:p-5 bg-white">
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(320px,1.8fr)_1fr_1fr_1fr] gap-3">
-              <Input
-                placeholder="Rechercher par nom, prénom ou matricule..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full"
-              />
-              <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Type de caisse" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  <SelectItem value="STANDARD">Standard</SelectItem>
-                  <SelectItem value="JOURNALIERE">Journalière</SelectItem>
-                  <SelectItem value="LIBRE">Libre</SelectItem>
-                  <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
-                  <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
-                  <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                placeholder="Date création début"
-                value={createdAtFrom}
-                onChange={(e) => setCreatedAtFrom(e.target.value)}
-                className="w-full"
-              />
-              <Input
-                type="date"
-                placeholder="Date création fin"
-                value={createdAtTo}
-                onChange={(e) => setCreatedAtTo(e.target.value)}
-                className="w-full"
-              />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
+                <Input
+                  placeholder="Rechercher par nom, prénom ou matricule..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
+                <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
+                  <SelectTrigger className="w-full h-11 border-slate-200 focus:ring-[#234D65]/30">
+                    <SelectValue placeholder="Type de caisse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les types</SelectItem>
+                    <SelectItem value="STANDARD">Standard</SelectItem>
+                    <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                    <SelectItem value="LIBRE">Libre</SelectItem>
+                    <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                    <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                    <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
+                <Input
+                  type="date"
+                  value={createdAtFrom}
+                  onChange={(e) => setCreatedAtFrom(e.target.value)}
+                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
+                <Input
+                  type="date"
+                  value={createdAtTo}
+                  onChange={(e) => setCreatedAtTo(e.target.value)}
+                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 justify-between">
