@@ -8,6 +8,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,6 +24,7 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { useMember } from '@/hooks/useMembers'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { CheckCircle2, Edit, Eye, FileCheck, MoreVertical, RotateCcw, Trash2, XCircle } from 'lucide-react'
@@ -38,6 +40,33 @@ interface DemandTableV2Props {
   onEdit?: (id: string) => void
   onCreateContract?: (id: string) => void
   className?: string
+}
+
+function MemberCell({ demand }: { demand: CaisseImprevueDemand }) {
+  const { data: member } = useMember(demand.memberId)
+  const memberPhotoUrl = member?.photoURL || ''
+  const memberInitials = `${(demand.memberFirstName || '')[0] || ''}${(demand.memberLastName || '')[0] || ''}`.toUpperCase()
+
+  return (
+    <div className="flex items-center gap-2">
+      <Avatar className="h-10 w-10 shrink-0">
+        {memberPhotoUrl ? (
+          <AvatarImage src={memberPhotoUrl} alt={`Photo de ${demand.memberFirstName} ${demand.memberLastName}`} />
+        ) : null}
+        <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+          {memberInitials || '--'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <div className="font-medium">
+          {demand.memberFirstName} {demand.memberLastName}
+        </div>
+        <div className="text-xs text-kara-neutral-500 md:hidden">
+          {demand.memberPhone}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; color: string }> = {
@@ -93,12 +122,7 @@ export function DemandTableV2({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">
-                      {demand.memberFirstName} {demand.memberLastName}
-                    </div>
-                    <div className="text-xs text-kara-neutral-500 md:hidden">
-                      {demand.memberPhone}
-                    </div>
+                    <MemberCell demand={demand} />
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {demand.memberPhone || '-'}

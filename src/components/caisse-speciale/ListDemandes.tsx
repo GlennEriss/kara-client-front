@@ -932,7 +932,7 @@ const ListDemandes = () => {
       </Card>
 
       {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
+      <Card id="caisse-speciale-actions" className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
             <div className="flex items-center space-x-4">
@@ -1142,7 +1142,7 @@ const ListDemandes = () => {
               </div>
               <div className="flex justify-center">
                 <Button 
-                  onClick={() => setIsCreateModalOpen(true)}
+                  onClick={() => router.push(routes.admin.caisseSpecialeNewDemand)}
                   className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
                   <Plus className="h-4 w-4 mr-2" />

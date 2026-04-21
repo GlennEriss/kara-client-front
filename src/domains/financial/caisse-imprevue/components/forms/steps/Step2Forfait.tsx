@@ -7,8 +7,10 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import routes from '@/constantes/routes'
 import { cn } from '@/lib/utils'
 import {
     Calendar,
@@ -17,6 +19,7 @@ import {
     Check,
     Clock,
     Coins,
+    ExternalLink,
     Package,
     Shield,
     Sparkles,
@@ -74,7 +77,7 @@ export function Step2Forfait({ form }: Step2ForfaitProps) {
               <Skeleton key={i} className="h-36 rounded-xl" />
             ))}
           </div>
-        ) : (
+        ) : subscriptions && subscriptions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {subscriptions?.map((sub, index) => {
               const isSelected = selectedSubscriptionId === sub.id
@@ -156,6 +159,26 @@ export function Step2Forfait({ form }: Step2ForfaitProps) {
               )
             })}
           </div>
+        ) : (
+          <Card className="border-2 border-dashed border-gray-300 bg-gray-50/60">
+            <CardContent className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <p className="text-sm font-medium text-gray-700">
+                Aucun forfait actif disponible pour le moment.
+              </p>
+              <p className="max-w-lg text-xs text-gray-500">
+                Créez un ou plusieurs forfaits dans les paramètres Caisse Imprévue. Les nouveaux forfaits
+                apparaîtront automatiquement ici sans perdre votre progression.
+              </p>
+              <Button
+                type="button"
+                className="bg-[#234D65] text-white hover:bg-[#2c5a73]"
+                onClick={() => window.open(routes.admin.caisseImprevueSettings, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Créer des forfaits
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Résumé du forfait sélectionné */}

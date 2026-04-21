@@ -16,6 +16,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,6 +27,7 @@ import {
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { useMember } from '@/hooks/useMembers'
 import {
     Banknote,
     Calendar,
@@ -41,7 +43,6 @@ import {
     Repeat,
     RotateCcw,
     Trash2,
-    User,
     XCircle
 } from 'lucide-react'
 import type { CaisseImprevueDemand } from '../../entities/demand.types'
@@ -123,6 +124,9 @@ export function DemandCardV2({
   const frequencyInfo = frequencyConfig[demand.paymentFrequency] || frequencyConfig.MONTHLY
   const createdAt = demand.createdAt instanceof Date ? demand.createdAt : new Date(demand.createdAt)
   const prefetchDetail = usePrefetchDemandDetail()
+  const { data: member } = useMember(demand.memberId)
+  const memberPhotoUrl = member?.photoURL || ''
+  const memberInitials = `${(demand.memberFirstName || '')[0] || ''}${(demand.memberLastName || '')[0] || ''}`.toUpperCase()
 
   // Déterminer les actions disponibles selon le statut
   const canAcceptOrReject = demand.status === 'PENDING' || demand.status === 'REOPENED'
@@ -197,7 +201,14 @@ export function DemandCardV2({
         {/* Infos Membre - Prénom puis nom sur lignes séparées */}
         <div className="space-y-2 mb-4">
           <div className="flex items-start gap-2">
-            <User className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+            <Avatar className="h-16 w-16 shrink-0">
+              {memberPhotoUrl ? (
+                <AvatarImage src={memberPhotoUrl} alt={`Photo de ${demand.memberFirstName} ${demand.memberLastName}`} />
+              ) : null}
+              <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+                {memberInitials || '--'}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0 flex flex-col gap-0.5">
               <span className="font-semibold text-gray-900 text-base block">
                 {demand.memberFirstName}
