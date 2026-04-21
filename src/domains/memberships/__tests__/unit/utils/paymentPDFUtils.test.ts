@@ -83,8 +83,8 @@ describe('paymentPDFUtils', () => {
       expect(formatPaymentType('Subscription')).toBe('Abonnement')
     })
 
-    it('devrait formater Caisse spéciale en "Caisse spéciale"', () => {
-      expect(formatPaymentType('Caisse spéciale')).toBe('Caisse spéciale')
+    it('devrait formater SpecialFund en "Caisse spéciale"', () => {
+      expect(formatPaymentType('SpecialFund')).toBe('Caisse spéciale')
     })
 
     it('devrait formater Charity en "Charité"', () => {
