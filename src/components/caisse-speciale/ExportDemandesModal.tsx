@@ -77,8 +77,8 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
     const filters: CaisseSpecialeDemandFilters = {
       page: 1,
       limit: scopeMode === 'quantity' ? Math.max(1, Math.min(10000, quantity)) : 5000,
-      createdAtFrom: scopeMode === 'period' ? (dateStart || undefined) : undefined,
-      createdAtTo: scopeMode === 'period' ? (dateEnd || undefined) : undefined,
+      createdAtFrom: scopeMode === 'period' && dateStart ? new Date(dateStart) : undefined,
+      createdAtTo: scopeMode === 'period' && dateEnd ? new Date(`${dateEnd}T23:59:59`) : undefined,
     }
     const { items } = await service.getDemandsWithFilters(filters)
     const activeStatuses = Object.entries(statusFilters)
