@@ -110,6 +110,7 @@ const DemandCard = ({
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
   const canAcceptOrReject = demande.status === 'PENDING'
   const canReopen = demande.status === 'REJECTED'
+  const demandReason = (demande.cause || (demande as CaisseSpecialeDemand & { reason?: string }).reason || '').trim()
 
   // Extraire les contacts
   let memberPhone: string | undefined
@@ -228,7 +229,7 @@ const DemandCard = ({
 
         <div className="pt-3 border-t border-gray-100 mt-auto text-sm">
           <span className="text-gray-500">Motif: </span>
-          <span className="text-gray-900">{demande.reason?.trim() || '—'}</span>
+          <span className="text-gray-900">{demandReason || '—'}</span>
         </div>
 
         <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
