@@ -13,7 +13,7 @@ import { getNationalityName } from '@/constantes/nationality'
 import type { MembershipRequest } from '@/types/types'
 import { BlobProvider, Document, Image, PDFViewer, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
 import { Download, Eye, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 // Styles optimisés pour tenir sur une page
@@ -158,6 +158,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rectangleChecked: {
+    backgroundColor: '#111',
+  },
+  rectangleFill: {
+    width: 11,
+    height: 11,
     backgroundColor: '#111',
   },
   rectangleRow: {
@@ -639,31 +644,43 @@ const MutuelleKaraPDF = ({
             <View style={styles.modeReglementRow}>
               <View style={styles.modeReglementCell}>
                 <View style={styles.rectangleRow}>
-                  <View style={[styles.rectangle, isModeChecked('A') ? styles.rectangleChecked : null]} />
+                  <View style={styles.rectangle}>
+                    {isModeChecked('A') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>A</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View style={[styles.rectangle, isModeChecked('B') ? styles.rectangleChecked : null]} />
+                  <View style={styles.rectangle}>
+                    {isModeChecked('B') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>B</Text>
                 </View>
               </View>
               <View style={styles.modeReglementCell}>
                 <View style={styles.rectangleRow}>
-                  <View style={[styles.rectangle, isModeChecked('C') ? styles.rectangleChecked : null]} />
+                  <View style={styles.rectangle}>
+                    {isModeChecked('C') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>C</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View style={[styles.rectangle, isModeChecked('D') ? styles.rectangleChecked : null]} />
+                  <View style={styles.rectangle}>
+                    {isModeChecked('D') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>D</Text>
                 </View>
               </View>
               <View style={styles.modeReglementCellLast}>
                 <View style={styles.rectangleRow}>
-                  <View style={[styles.rectangle, isModeChecked('E') ? styles.rectangleChecked : null]} />
+                  <View style={styles.rectangle}>
+                    {isModeChecked('E') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>E</Text>
                 </View>
                 <View style={styles.rectangleRow}>
-                  <View style={[styles.rectangle, isModeChecked('X') ? styles.rectangleChecked : null]} />
+                  <View style={styles.rectangle}>
+                    {isModeChecked('X') ? <View style={styles.rectangleFill} /> : null}
+                  </View>
                   <Text>X</Text>
                 </View>
               </View>
@@ -849,12 +866,15 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
     article5BeneficiarySignature: null,
     article5SecretarySignature: null,
   })
+  const [previewFillData, setPreviewFillData] = useState<AdhesionPdfFillData>(fillData)
+  const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const skipDebouncePreviewRef = useRef(false)
 
   useEffect(() => {
     if (!isOpen) return
 
     const today = new Date().toISOString().split('T')[0]
-    setFillData({
+    const initialData: AdhesionPdfFillData = {
       paymentMode: null,
       quality: null,
       page1MemberDate: today,
@@ -865,20 +885,44 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
       page1SecretarySignature: null,
       article5BeneficiarySignature: null,
       article5SecretarySignature: null,
-    })
+    }
+
+    setFillData(initialData)
+    setPreviewFillData(initialData)
+    setIsPreviewRefreshing(false)
   }, [isOpen, request.id, request.address?.city, request.address?.province])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (skipDebouncePreviewRef.current) {
+      skipDebouncePreviewRef.current = false
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+      return
+    }
+    setIsPreviewRefreshing(true)
+    const timer = window.setTimeout(() => {
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+    }, 180)
+
+    return () => window.clearTimeout(timer)
+  }, [fillData, isOpen])
 
   // Vérifier si un PDF uploadé existe (pour les demandes approuvées)
   const hasUploadedPdf = request.adhesionPdfURL && request.status === 'approved'
 
-  const pdfDocument = <MutuelleKaraPDF request={request} fillData={fillData} />
+  const pdfDocument = useMemo(
+    () => <MutuelleKaraPDF request={request} fillData={previewFillData} />,
+    [request, previewFillData]
+  )
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
 
     try {
       // Toujours télécharger la version générée actuelle (avec pagination)
-      const blob = await pdf(pdfDocument).toBlob()
+      const blob = await pdf(<MutuelleKaraPDF request={request} fillData={fillData} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -1074,6 +1118,9 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                   <PenLine className="w-4 h-4 text-kara-primary-dark" />
                   <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du PDF</h3>
                 </div>
+                {isPreviewRefreshing ? (
+                  <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
+                ) : null}
 
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-kara-primary-dark">Mode de règlement (cliquez pour cocher)</p>
@@ -1083,12 +1130,13 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                         key={mode}
                         type="button"
                         variant={fillData.paymentMode === mode ? 'default' : 'outline'}
-                        onClick={() =>
+                        onClick={() => {
+                          skipDebouncePreviewRef.current = true
                           setFillData((prev) => ({
                             ...prev,
                             paymentMode: prev.paymentMode === mode ? null : mode,
                           }))
-                        }
+                        }}
                         className={
                           fillData.paymentMode === mode
                             ? 'bg-kara-primary-dark hover:bg-kara-primary-dark/90'
@@ -1108,12 +1156,13 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                       <button
                         key={quality}
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          skipDebouncePreviewRef.current = true
                           setFillData((prev) => ({
                             ...prev,
                             quality: prev.quality === quality ? null : quality,
                           }))
-                        }
+                        }}
                         className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
                           fillData.quality === quality
                             ? 'border-kara-primary-dark bg-kara-primary-dark/10 text-kara-primary-dark font-semibold'
