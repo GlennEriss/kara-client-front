@@ -6,6 +6,7 @@
 
 import { DemandCIRepository } from '../repositories/DemandCIRepository'
 import type { CaisseImprevueDemand } from '../entities/demand.types'
+import { createDemandListPdf } from '@/lib/pdf/demandListPdf'
 
 export type ExportFormat = 'pdf' | 'excel'
 
@@ -179,7 +180,7 @@ export class DemandExportService {
       Nom: demand.memberLastName || '',
       Prénom: demand.memberFirstName || '',
       Téléphone: demand.memberPhone || demand.memberContacts?.[0] || '',
-      Montant: `${demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA/${frequencyLabels[demand.paymentFrequency] || demand.paymentFrequency}`,
+      Montant: demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR'),
       Durée: `${demand.subscriptionCIDuration} mois`,
       Fréquence: frequencyLabels[demand.paymentFrequency] || demand.paymentFrequency,
       'Date création': createdAt.toLocaleDateString('fr-FR'),
@@ -226,39 +227,57 @@ export class DemandExportService {
    * Exporte les demandes en PDF
    */
   async exportToPDF(options: ExportDemandsOptions): Promise<Blob> {
-    const jsPDFModule = await import('jspdf')
-    const jsPDF = jsPDFModule.jsPDF
-    const autoTableModule = await import('jspdf-autotable')
-    const autoTable = autoTableModule.default || autoTableModule
-
     const demands = await this.fetchDemandsForExport(options)
     const rows = demands.map((d) => this.buildRow(d))
+    const headers: Array<keyof ExportRow> = [
+      'Statut',
+      'Nom',
+      'Prénom',
+      'Téléphone',
+      'Montant',
+      'Durée',
+      'Fréquence',
+      'Date création',
+      'Motif',
+    ]
+    const bodyRows = rows.map((row) => headers.map((h) => String(row[h] || '')))
 
-    const doc = new jsPDF('portrait')
-
-    // En-tête
-    doc.setFontSize(16)
-    doc.text('Liste des Demandes Caisse Imprévue', 14, 14)
-    doc.setFontSize(10)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 20)
-
-    if (rows.length === 0) {
-      doc.text('Aucune demande à exporter', 14, 30)
-      const buffer = doc.output('arraybuffer')
-      return new Blob([buffer], { type: 'application/pdf' })
+    const scopeLabel =
+      options.scopeMode === 'all'
+        ? 'Toutes les demandes'
+        : options.scopeMode === 'period'
+          ? 'Par période'
+          : 'Par nombre'
+    const sortLabelMap: Record<NonNullable<ExportDemandsOptions['sortBy']>, string> = {
+      date_desc: 'Date décroissante',
+      date_asc: 'Date croissante',
+      name_asc: 'Nom A→Z',
+      name_desc: 'Nom Z→A',
     }
+    const activeStatuses = Object.entries(options.statusFilters ?? {})
+      .filter(([, checked]) => checked)
+      .map(([status]) => status)
+    const contextLines = [
+      `Périmètre: ${scopeLabel}`,
+      options.scopeMode === 'period' && options.dateStart && options.dateEnd
+        ? `Période: du ${new Date(options.dateStart).toLocaleDateString('fr-FR')} au ${new Date(options.dateEnd).toLocaleDateString('fr-FR')}`
+        : undefined,
+      options.scopeMode === 'quantity' && options.quantity
+        ? `Quantité: ${options.quantity} demandes`
+        : undefined,
+      `Tri: ${sortLabelMap[options.sortBy ?? 'date_desc']}`,
+      activeStatuses.length > 0 ? `Statuts: ${activeStatuses.join(', ')}` : 'Statuts: Tous',
+    ].filter(Boolean) as string[]
 
-    const headers = Object.keys(rows[0])
-    const bodyRows = rows.map((row) => headers.map((h) => String(row[h as keyof ExportRow] || '')))
-
-    autoTable(doc, {
-      head: [headers],
-      body: bodyRows,
-      startY: 30,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-      margin: { top: 30 },
+    const doc = await createDemandListPdf({
+      title: 'Liste des Demandes Caisse Imprévue',
+      subtitle: 'Export administratif des demandes filtrées',
+      headers: headers as string[],
+      rows: bodyRows,
+      orientation: 'landscape',
+      contextLines,
+      statusColumnIndex: 0,
+      columnWidths: [24, 24, 24, 28, 42, 16, 20, 24, 65],
     })
 
     const buffer = doc.output('arraybuffer')

@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { createDemandListPdf } from '@/lib/pdf/demandListPdf'
 import type { CaisseSpecialeDemandFilters, CaisseSpecialeDemandStatus } from '@/types/types'
 import {
   AlertTriangle,
@@ -163,24 +164,36 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
       const filenameBase = `demandes_caisse_speciale_${new Date().toISOString().slice(0, 10)}`
 
       if (exportFormat === 'pdf') {
-        const { jsPDF } = await import('jspdf')
-        const autoTable = (await import('jspdf-autotable')).default
-        const doc = new jsPDF('landscape')
+        const sortLabel = sortBy === 'date_asc'
+          ? 'Date de création (plus anciennes)'
+          : 'Date de création (plus récentes)'
+        const scopeLabel = scopeMode === 'all'
+          ? 'Toutes les demandes'
+          : scopeMode === 'period'
+            ? 'Par période'
+            : 'Par nombre'
+        const activeStatusLabels = STATUS_OPTIONS
+          .filter((option) => statusFilters[option.value])
+          .map((option) => option.label)
+        const contextLines = [
+          `Périmètre: ${scopeLabel}`,
+          scopeMode === 'period' && dateStart && dateEnd
+            ? `Période: du ${new Date(dateStart).toLocaleDateString('fr-FR')} au ${new Date(dateEnd).toLocaleDateString('fr-FR')}`
+            : undefined,
+          scopeMode === 'quantity' ? `Quantité: ${quantity} demandes` : undefined,
+          `Tri: ${sortLabel}`,
+          activeStatusLabels.length > 0 ? `Statuts: ${activeStatusLabels.join(', ')}` : 'Statuts: Tous',
+        ].filter(Boolean) as string[]
 
-        doc.setFontSize(16)
-        doc.text('Liste des Demandes Caisse Spéciale', 14, 14)
-        doc.setFontSize(10)
-        doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 20)
-        doc.text(`Total: ${demands.length} demande(s)`, 14, 24)
-
-        autoTable(doc, {
-          head: [headers],
-          body: rows,
-          startY: 28,
-          styles: { fontSize: 7, cellPadding: 1.5 },
-          headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-          alternateRowStyles: { fillColor: [245, 247, 250] },
-          margin: { top: 28 },
+        const doc = await createDemandListPdf({
+          title: 'Liste des Demandes Caisse Spéciale',
+          subtitle: 'Export administratif des demandes filtrées',
+          headers,
+          rows,
+          orientation: 'landscape',
+          contextLines,
+          statusColumnIndex: 3,
+          columnWidths: [34, 24, 26, 22, 28, 18, 23, 34, 24],
         })
 
         doc.save(`${filenameBase}.pdf`)

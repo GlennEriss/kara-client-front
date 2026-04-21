@@ -28,6 +28,7 @@ import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks
 import { useCaisseSpecialeDemandesRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeDemandesRealtimeSync'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useMember } from '@/hooks/useMembers'
+import { createDemandListPdf } from '@/lib/pdf/demandListPdf'
 import type { CaisseSpecialeDemandFilters } from '@/types/types'
 import { CaisseSpecialeDemand, CaisseSpecialeDemandStatus } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
@@ -640,17 +641,7 @@ const ListDemandes = () => {
         return
       }
 
-      const { jsPDF } = await import('jspdf')
-      const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
-
       const tabLabel = activeTab === 'all' ? 'Toutes' : activeTab === 'pending' ? 'En attente' : activeTab === 'approved' ? 'Acceptées' : activeTab === 'rejected' ? 'Refusées' : 'Converties'
-      doc.setFontSize(16)
-      doc.text('Liste des Demandes Caisse Spéciale', 14, 14)
-      doc.setFontSize(10)
-      doc.text(`Onglet: ${tabLabel}`, 14, 20)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${exportDemandes.length} demande(s)`, 14, 28)
 
       const headers = ['ID', 'Type', 'Matricule', 'Statut', 'Montant (FCFA)', 'Durée', 'Date souhaitée', 'Contact urgence', 'Date création']
       const rows = exportDemandes.map((d) => [
@@ -665,14 +656,24 @@ const ListDemandes = () => {
         d.createdAt ? new Date(d.createdAt).toLocaleDateString('fr-FR') : '—',
       ])
 
-      autoTable(doc, {
-        head: [headers],
-        body: rows,
-        startY: 32,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 32 },
+      const contextLines = [
+        `Onglet: ${tabLabel}`,
+        activeFiltersCount > 0 ? `Filtres actifs: ${activeFiltersCount}` : 'Filtres actifs: 0',
+        createdAtFrom && createdAtTo
+          ? `Période: du ${new Date(createdAtFrom).toLocaleDateString('fr-FR')} au ${new Date(createdAtTo).toLocaleDateString('fr-FR')}`
+          : undefined,
+        `Recherche: ${debouncedSearch.trim() ? `"${debouncedSearch.trim()}"` : 'Aucune'}`,
+      ].filter(Boolean) as string[]
+
+      const doc = await createDemandListPdf({
+        title: 'Liste des Demandes Caisse Spéciale',
+        subtitle: 'Export administratif des demandes de la liste courante',
+        headers,
+        rows,
+        orientation: 'landscape',
+        contextLines,
+        statusColumnIndex: 3,
+        columnWidths: [34, 24, 26, 22, 28, 18, 23, 34, 24],
       })
 
       const filename = `demandes_caisse_speciale_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
