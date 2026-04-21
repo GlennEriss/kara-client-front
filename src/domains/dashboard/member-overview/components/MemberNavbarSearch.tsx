@@ -37,7 +37,7 @@ export function MemberNavbarSearch() {
 
   return (
     <>
-      <div ref={containerRef} className="relative w-[320px] max-w-[45vw]">
+      <div ref={containerRef} className="relative w-full md:w-[320px] md:max-w-[45vw]">
         <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <Input
           value={query}
@@ -118,4 +118,3 @@ export function MemberNavbarSearch() {
     </>
   )
 }
-

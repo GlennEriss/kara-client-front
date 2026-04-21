@@ -320,6 +320,74 @@ export function ExportMembershipRequestsModalV2({
     }
   }
 
+  const loadPublicImageAsDataUrl = async (
+    imagePath: string
+  ): Promise<{ dataUrl: string; width: number; height: number } | null> => {
+    try {
+      const response = await fetch(imagePath)
+      if (!response.ok) return null
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+
+      const image = await new Promise<HTMLImageElement | null>((resolve) => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = () => resolve(null)
+        img.src = objectUrl
+      })
+
+      if (!image) {
+        URL.revokeObjectURL(objectUrl)
+        return null
+      }
+
+      const width = image.naturalWidth || image.width
+      const height = image.naturalHeight || image.height
+      if (!width || !height) {
+        URL.revokeObjectURL(objectUrl)
+        return null
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      if (!context) {
+        URL.revokeObjectURL(objectUrl)
+        return null
+      }
+
+      context.drawImage(image, 0, 0)
+      URL.revokeObjectURL(objectUrl)
+
+      return await new Promise<{ dataUrl: string; width: number; height: number } | null>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          if (typeof reader.result !== 'string') {
+            resolve(null)
+            return
+          }
+          resolve({
+            dataUrl: reader.result,
+            width,
+            height,
+          })
+        }
+        reader.onerror = () => resolve(null)
+        canvas.toBlob((pngBlob) => {
+          if (!pngBlob) {
+            resolve(null)
+            return
+          }
+          reader.readAsDataURL(pngBlob)
+        }, 'image/png')
+      })
+    } catch {
+      return null
+    }
+  }
+
   const generatePDF = async (
     requests: MembershipRequest[],
     scopeMode: ScopeMode,
@@ -330,40 +398,129 @@ export function ExportMembershipRequestsModalV2({
     const { jsPDF } = await import('jspdf')
     const autoTable = (await import('jspdf-autotable')).default
     const doc = new jsPDF('landscape', 'mm', 'a4')
+    const logoAsset = await loadPublicImageAsDataUrl('/Logo-Kara.webp')
 
-    // Couleurs KARA
-    const primaryColor: [number, number, number] = [31, 81, 255] // kara-primary-dark
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const marginX = 14
+    const logoCircleSize = 16
+    const titleX = logoAsset ? marginX + logoCircleSize + 4 : marginX
 
-    // En-tête
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2])
-    doc.rect(0, 0, 297, 30, 'F')
-    
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('KARA', 20, 15)
-    
-    doc.setFontSize(14)
-    doc.text('Liste des demandes d\'adhésion', 20, 22)
-
-    // Informations de l'export
-    let yPos = 40
-    doc.setTextColor(0, 0, 0)
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    
-    if (scopeMode === 'period') {
-      doc.text(`Période: du ${format(new Date(dateStart), 'dd/MM/yyyy', { locale: fr })} au ${format(new Date(dateEnd), 'dd/MM/yyyy', { locale: fr })}`, 20, yPos)
-    } else if (scopeMode === 'quantity') {
-      doc.text(`Nombre: ${quantity} premières demandes`, 20, yPos)
-    } else {
-      doc.text('Périmètre: Toutes les demandes', 20, yPos)
+    // Palette visuelle cohérente avec KARA
+    const colors = {
+      primary: [31, 81, 255] as [number, number, number], // kara-primary-dark
+      brandDark: [35, 77, 101] as [number, number, number],
+      ink: [15, 23, 42] as [number, number, number],
+      muted: [100, 116, 139] as [number, number, number],
+      line: [226, 232, 240] as [number, number, number],
+      success: [16, 185, 129] as [number, number, number],
+      danger: [239, 68, 68] as [number, number, number],
+      info: [59, 130, 246] as [number, number, number],
+      warning: [245, 158, 11] as [number, number, number],
     }
-    
-    yPos += 6
-    doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, 20, yPos)
-    yPos += 6
-    doc.text(`Total: ${requests.length} demande(s)`, 20, yPos)
+
+    const scopeLabel = scopeMode === 'period'
+      ? `Du ${format(new Date(dateStart), 'dd/MM/yyyy', { locale: fr })} au ${format(new Date(dateEnd), 'dd/MM/yyyy', { locale: fr })}`
+      : scopeMode === 'quantity'
+        ? `${quantity} demandes les plus récentes`
+        : 'Toutes les demandes'
+    const generatedAtLabel = format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })
+
+    const paidCount = requests.filter((r) => r.isPaid).length
+    const unpaidCount = requests.length - paidCount
+    const pendingOrReviewCount = requests.filter((r) => r.status === 'pending' || r.status === 'under_review').length
+    const approvedCount = requests.filter((r) => r.status === 'approved').length
+
+    // Header principal
+    doc.setFillColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+    doc.rect(0, 0, pageWidth, 30, 'F')
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2])
+    doc.setLineWidth(1)
+    doc.line(0, 30, pageWidth, 30)
+
+    doc.setTextColor(255, 255, 255)
+    if (logoAsset) {
+      const circleX = marginX
+      const circleY = 6.5
+      const circleRadius = logoCircleSize / 2
+      const circleCenterX = circleX + circleRadius
+      const circleCenterY = circleY + circleRadius
+
+      doc.setFillColor(255, 255, 255)
+      doc.circle(circleCenterX, circleCenterY, circleRadius, 'F')
+
+      const padding = 2
+      const maxLogoW = logoCircleSize - padding * 2
+      const maxLogoH = logoCircleSize - padding * 2
+      const ratio = logoAsset.width / logoAsset.height
+
+      let drawW = maxLogoW
+      let drawH = maxLogoH
+      if (ratio >= 1) {
+        drawH = maxLogoW / ratio
+      } else {
+        drawW = maxLogoH * ratio
+      }
+
+      const drawX = circleX + (logoCircleSize - drawW) / 2
+      const drawY = circleY + (logoCircleSize - drawH) / 2
+      doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
+    } else {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(15)
+      doc.text('KARA', marginX, 15)
+    }
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Export des demandes d\'adhésion', titleX, 16)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Périmètre: ${scopeLabel}`, titleX, 24)
+
+    // Badge de génération (droite)
+    const badgeWidth = 92
+    const badgeX = pageWidth - marginX - badgeWidth
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(badgeX, 5.5, badgeWidth, 13, 2, 2, 'F')
+    doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.text('Généré le', badgeX + 4, 10.5)
+    doc.setFont('helvetica', 'normal')
+    doc.text(generatedAtLabel, badgeX + 4, 15.5)
+
+    // Cartes de synthèse
+    const cardsY = 38
+    const cardH = 17
+    const cardGap = 4
+    const cardW = (pageWidth - marginX * 2 - cardGap * 3) / 4
+    const cards = [
+      { label: 'Total demandes', value: `${requests.length}`, bg: [239, 246, 255] as [number, number, number], fg: colors.info },
+      { label: 'Paiements validés', value: `${paidCount}`, bg: [236, 253, 245] as [number, number, number], fg: colors.success },
+      { label: 'Paiements en attente', value: `${unpaidCount}`, bg: [254, 242, 242] as [number, number, number], fg: colors.danger },
+      { label: 'À traiter (attente + revue)', value: `${pendingOrReviewCount}`, bg: [255, 247, 237] as [number, number, number], fg: colors.warning },
+    ]
+
+    cards.forEach((card, index) => {
+      const x = marginX + index * (cardW + cardGap)
+      doc.setFillColor(card.bg[0], card.bg[1], card.bg[2])
+      doc.roundedRect(x, cardsY, cardW, cardH, 2, 2, 'F')
+
+      doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.text(card.label, x + 3, cardsY + 6)
+
+      doc.setTextColor(card.fg[0], card.fg[1], card.fg[2])
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text(card.value, x + 3, cardsY + 13)
+    })
+
+    // Metadonnées complémentaires
+    doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.text(`Dossiers approuvés: ${approvedCount}`, marginX, cardsY + cardH + 6)
 
     // Préparer les données du tableau
     const headers = ['Nom & Prénom', 'Référence', 'Statut', 'Paiement', 'Date soumission']
@@ -382,25 +539,139 @@ export function ExportMembershipRequestsModalV2({
     autoTable(doc, {
       head: [headers],
       body: bodyRows,
-      startY: yPos + 5,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-      margin: { top: yPos + 5 },
+      startY: cardsY + cardH + 10,
+      margin: { left: marginX, right: marginX, top: 20, bottom: 16 },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: colors.ink,
+        lineColor: colors.line,
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: colors.brandDark,
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 8.5,
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 78 },
+        1: { cellWidth: 46 },
+        2: { cellWidth: 46 },
+        3: { cellWidth: 34, halign: 'center' },
+        4: { cellWidth: 38, halign: 'center' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section !== 'body') return
+
+        const row = requests[data.row.index]
+        if (!row) return
+
+        // Colonne statut
+        if (data.column.index === 2) {
+          data.cell.styles.fontStyle = 'bold'
+          if (row.status === 'approved') data.cell.styles.textColor = colors.success
+          else if (row.status === 'rejected') data.cell.styles.textColor = colors.danger
+          else if (row.status === 'under_review') data.cell.styles.textColor = colors.info
+          else data.cell.styles.textColor = colors.warning
+        }
+
+        // Colonne paiement
+        if (data.column.index === 3) {
+          data.cell.styles.fontStyle = 'bold'
+          data.cell.styles.textColor = row.isPaid ? colors.success : colors.danger
+        }
+      },
+      didDrawPage: (data: any) => {
+        // En-tête minimal sur les pages suivantes
+        if (data.pageNumber > 1) {
+          doc.setFillColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+          doc.rect(0, 0, pageWidth, 10, 'F')
+          if (logoAsset) {
+            const circleSize = 7
+            const circleX = marginX
+            const circleY = 1.3
+            const circleRadius = circleSize / 2
+            const circleCenterX = circleX + circleRadius
+            const circleCenterY = circleY + circleRadius
+
+            doc.setFillColor(255, 255, 255)
+            doc.circle(circleCenterX, circleCenterY, circleRadius, 'F')
+
+            const padding = 0.9
+            const maxLogoW = circleSize - padding * 2
+            const maxLogoH = circleSize - padding * 2
+            const ratio = logoAsset.width / logoAsset.height
+            let drawW = maxLogoW
+            let drawH = maxLogoH
+
+            if (ratio >= 1) {
+              drawH = maxLogoW / ratio
+            } else {
+              drawW = maxLogoH * ratio
+            }
+
+            const drawX = circleX + (circleSize - drawW) / 2
+            const drawY = circleY + (circleSize - drawH) / 2
+            doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
+          }
+          doc.setTextColor(255, 255, 255)
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8.5)
+          doc.text('Export des demandes d\'adhésion', logoAsset ? marginX + 9 : marginX, 6.4)
+        }
+      },
     })
 
     // Pied de page
     const pageCount = doc.getNumberOfPages()
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i)
+
+      doc.setDrawColor(colors.line[0], colors.line[1], colors.line[2])
+      doc.setLineWidth(0.2)
+      doc.line(marginX, pageHeight - 14, pageWidth - marginX, pageHeight - 14)
+
       doc.setFontSize(8)
-      doc.setTextColor(100, 116, 139)
+      doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+      doc.text('Export des demandes d\'adhésion', marginX, pageHeight - 8)
       doc.text(
         `Page ${i} / ${pageCount}`,
-        297 / 2,
-        210 - 10,
+        pageWidth / 2,
+        pageHeight - 8,
         { align: 'center' }
       )
+      if (logoAsset) {
+        const circleSize = 5.8
+        const circleX = pageWidth - marginX - circleSize
+        const circleY = pageHeight - 12.2
+        const circleRadius = circleSize / 2
+        const circleCenterX = circleX + circleRadius
+        const circleCenterY = circleY + circleRadius
+
+        doc.setFillColor(255, 255, 255)
+        doc.circle(circleCenterX, circleCenterY, circleRadius, 'F')
+
+        const padding = 0.8
+        const maxLogoW = circleSize - padding * 2
+        const maxLogoH = circleSize - padding * 2
+        const ratio = logoAsset.width / logoAsset.height
+        let drawW = maxLogoW
+        let drawH = maxLogoH
+
+        if (ratio >= 1) {
+          drawH = maxLogoW / ratio
+        } else {
+          drawW = maxLogoH * ratio
+        }
+
+        const drawX = circleX + (circleSize - drawW) / 2
+        const drawY = circleY + (circleSize - drawH) / 2
+        doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
+      } else {
+        doc.text('KARA', pageWidth - marginX, pageHeight - 8, { align: 'right' })
+      }
     }
 
     // Nom de fichier explicite avec dates si période, ou nombre si quantité

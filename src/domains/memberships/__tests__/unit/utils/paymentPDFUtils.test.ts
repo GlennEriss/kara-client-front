@@ -79,12 +79,12 @@ describe('paymentPDFUtils', () => {
       expect(formatPaymentType('Membership')).toBe('Adhésion')
     })
 
-    it('devrait formater Subscription en "Cotisation"', () => {
-      expect(formatPaymentType('Subscription')).toBe('Cotisation')
+    it('devrait formater Subscription en "Abonnement"', () => {
+      expect(formatPaymentType('Subscription')).toBe('Abonnement')
     })
 
-    it('devrait formater Tontine en "Tontine"', () => {
-      expect(formatPaymentType('Tontine')).toBe('Tontine')
+    it('devrait formater SpecialFund en "Caisse spéciale"', () => {
+      expect(formatPaymentType('SpecialFund')).toBe('Caisse spéciale')
     })
 
     it('devrait formater Charity en "Charité"', () => {

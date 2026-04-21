@@ -45,7 +45,7 @@ describe('Export Integration Tests', () => {
     })
 
     describe('Types de paiement', () => {
-      const allTypes: TypePayment[] = ['Membership', 'Subscription', 'Tontine', 'Charity']
+      const allTypes: TypePayment[] = ['Membership', 'Subscription', 'SpecialFund', 'Charity']
 
       it.each(allTypes)('devrait formater le type %s correctement', (type) => {
         const formatted = formatPaymentType(type)

@@ -197,7 +197,7 @@ describe('Integration: Subscription Amount from Payments', () => {
         time: '10:00',
         mode: 'airtel_money',
         amount: 12000,
-        paymentType: 'Tontine',
+        paymentType: 'SpecialFund',
         acceptedBy: 'admin-1',
         recordedBy: 'admin-1',
         recordedByName: 'Admin Test',
