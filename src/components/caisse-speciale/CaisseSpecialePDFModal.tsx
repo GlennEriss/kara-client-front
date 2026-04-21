@@ -1,19 +1,165 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useMember } from '@/hooks/useMembers'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
-import { Download, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
-import React, { useState } from 'react'
+import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import CaisseSpecialePDFV3 from './CaisseSpecialePDFV3'
+import CaisseSpecialePDFV3, { type CaisseSpecialePdfFillData } from './CaisseSpecialePDFV3'
 
 interface CaisseSpecialePDFModalProps {
   isOpen: boolean
   onClose: () => void
   contractId: string
   contractData?: any
+}
+
+const EMPTY_FILL_DATA: CaisseSpecialePdfFillData = {
+  page2MemberSignature: null,
+  page4SecretarySignature: null,
+  page4MemberSignature: null,
+}
+
+const SignaturePad = ({
+  title,
+  value,
+  onChange,
+}: {
+  title: string
+  value: string | null
+  onChange: (value: string | null) => void
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    const rect = canvas.getBoundingClientRect()
+    const ratio = Math.max(window.devicePixelRatio || 1, 1)
+    canvas.width = Math.floor(rect.width * ratio)
+    canvas.height = Math.floor(rect.height * ratio)
+
+    const context = canvas.getContext('2d')
+    if (!context) return null
+
+    context.scale(ratio, ratio)
+    context.lineWidth = 2
+    context.lineCap = 'round'
+    context.strokeStyle = '#1f2937'
+    return context
+  }
+
+  useEffect(() => {
+    const context = setupCanvas()
+    if (!context) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+
+    if (value) {
+      const image = new window.Image()
+      image.onload = () => {
+        context.drawImage(image, 0, 0, rect.width, rect.height)
+      }
+      image.src = value
+    }
+  }, [value])
+
+  const getCanvasPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      rect,
+    }
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!canvas || !context || !position) return
+
+    canvas.setPointerCapture(event.pointerId)
+    setIsDrawing(true)
+    context.beginPath()
+    context.moveTo(position.x, position.y)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    const context = canvasRef.current?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!context || !position) return
+
+    context.lineTo(position.x, position.y)
+    context.stroke()
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas || !isDrawing) return
+    canvas.releasePointerCapture(event.pointerId)
+    setIsDrawing(false)
+    onChange(canvas.toDataURL('image/png'))
+  }
+
+  const handleClear = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    const rect = canvas.getBoundingClientRect()
+
+    context.clearRect(0, 0, rect.width, rect.height)
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+    onChange(null)
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold text-kara-primary-dark">{title}</p>
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleClear}>
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Effacer
+        </Button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="h-24 w-full cursor-crosshair rounded-md border border-dashed border-gray-300 bg-white touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      />
+    </div>
+  )
 }
 
 const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
@@ -23,7 +169,10 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   contractData
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [fillData, setFillData] = useState<CaisseSpecialePdfFillData>(EMPTY_FILL_DATA)
+  const [previewFillData, setPreviewFillData] = useState<CaisseSpecialePdfFillData>(EMPTY_FILL_DATA)
+  const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre
   const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId)
@@ -88,23 +237,41 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
     }
   }, [contractData, memberData])
 
-  // Détecter si on est sur mobile
-  React.useEffect(() => {
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth < 1024) // lg breakpoint
+  useEffect(() => {
+    if (!isOpen) return
+    setFillData(EMPTY_FILL_DATA)
+    setPreviewFillData(EMPTY_FILL_DATA)
+    setIsPreviewRefreshing(false)
+  }, [isOpen, contractId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (skipDebouncePreviewRef.current) {
+      skipDebouncePreviewRef.current = false
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+      return
     }
 
-    checkDevice()
-    window.addEventListener('resize', checkDevice)
+    setIsPreviewRefreshing(true)
+    const timer = window.setTimeout(() => {
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+    }, 180)
 
-    return () => window.removeEventListener('resize', checkDevice)
-  }, [])
+    return () => window.clearTimeout(timer)
+  }, [fillData, isOpen])
+
+  const pdfDocument = useMemo(
+    () => <CaisseSpecialePDFV3 contract={enrichedContract} fillData={previewFillData} />,
+    [enrichedContract, previewFillData]
+  )
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<CaisseSpecialePDFV3 contract={enrichedContract} />).toBlob()
+      const blob = await pdf(<CaisseSpecialePDFV3 contract={enrichedContract} fillData={fillData} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -236,7 +403,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider document={<CaisseSpecialePDFV3 contract={enrichedContract} />}>
+                  <BlobProvider document={pdfDocument}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -286,15 +453,60 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
               </div>
 
               {/* Version desktop */}
-              <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-                <PDFViewer style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  borderRadius: '0.75rem'
-                }}>
-                  <CaisseSpecialePDFV3 contract={enrichedContract} />
-                </PDFViewer>
+              <div className="hidden lg:flex h-full gap-4">
+                <Card className="w-[420px] h-full overflow-y-auto border border-gray-200 shadow-sm">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <PenLine className="w-4 h-4 text-kara-primary-dark" />
+                      <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du contrat</h3>
+                    </div>
+
+                    {isPreviewRefreshing ? (
+                      <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
+                    ) : null}
+
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
+                      <SignaturePad
+                        title="Signature épargnant (page 2)"
+                        value={fillData.page2MemberSignature}
+                        onChange={(value) => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({ ...prev, page2MemberSignature: value }))
+                        }}
+                      />
+                      <SignaturePad
+                        title="Signature secrétaire exécutif (page 4)"
+                        value={fillData.page4SecretarySignature}
+                        onChange={(value) => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({ ...prev, page4SecretarySignature: value }))
+                        }}
+                      />
+                      <SignaturePad
+                        title="Signature épargnant (page 4)"
+                        value={fillData.page4MemberSignature}
+                        onChange={(value) => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({ ...prev, page4MemberSignature: value }))
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex-1 rounded-xl overflow-hidden shadow-inner bg-white border">
+                  <PDFViewer
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      borderRadius: '0.75rem',
+                    }}
+                  >
+                    {pdfDocument}
+                  </PDFViewer>
+                </div>
               </div>
             </>
           )}
