@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -74,14 +74,14 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
     return filters
   }
 
-  const applyStatusFilter = useCallback((items: CaisseSpecialeDemand[]) => {
+  const applyStatusFilter = (items: CaisseSpecialeDemand[]) => {
     const activeStatuses = Object.entries(statusFilters)
       .filter(([, checked]) => checked)
       .map(([status]) => status as CaisseSpecialeDemandStatus)
 
     if (activeStatuses.length === 0) return items
     return items.filter((d) => activeStatuses.includes(d.status))
-  }, [statusFilters])
+  }
 
   const applySort = (items: CaisseSpecialeDemand[]) => {
     const sorted = [...items]
@@ -93,13 +93,13 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
     return sorted
   }
 
-  const fetchDemandsForExport = useCallback(async () => {
+  const fetchDemandsForExport = async () => {
     const { items } = await service.getDemandsWithFilters(buildBaseFilters())
     const byStatus = applyStatusFilter(items ?? [])
     return applySort(byStatus)
-  }, [applyStatusFilter, scopeMode, dateStart, dateEnd, quantity, sortBy, service])
+  }
 
-  const calculatePreview = useCallback(async () => {
+  const calculatePreview = async () => {
     if (!isOpen) return
     setIsCalculatingPreview(true)
     try {
@@ -111,13 +111,13 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
     } finally {
       setIsCalculatingPreview(false)
     }
-  }, [fetchDemandsForExport, isOpen])
+  }
 
   useEffect(() => {
     if (isOpen) {
-      calculatePreview()
+      void calculatePreview()
     }
-  }, [isOpen, calculatePreview])
+  }, [isOpen, scopeMode, dateStart, dateEnd, quantity, sortBy, statusFilters, calculatePreview])
 
   const resetForm = () => {
     setExportFormat('excel')
