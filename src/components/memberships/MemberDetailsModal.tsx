@@ -201,10 +201,20 @@ const styles = StyleSheet.create({
     objectFit: 'contain',
     alignSelf: 'center',
   },
+  signaturePlaceholderLarge: {
+    width: 150,
+    height: 56,
+    alignSelf: 'center',
+  },
   signatureImageSmall: {
     width: 130,
     height: 40,
     objectFit: 'contain',
+    alignSelf: 'center',
+  },
+  signaturePlaceholderSmall: {
+    width: 130,
+    height: 40,
     alignSelf: 'center',
   },
   italic: {
@@ -696,7 +706,7 @@ const MutuelleKaraPDF = ({
               {fillData.page1MemberSignature ? (
                 <Image src={fillData.page1MemberSignature} style={styles.signatureImageLarge} cache={false} />
               ) : (
-                <Text style={{ fontSize: 9, color: '#666', textAlign: 'center' }}>Signature numérique non renseignée</Text>
+                <View style={styles.signaturePlaceholderLarge} />
               )}
               <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1MemberDate)}</Text>
             </View>
@@ -705,7 +715,7 @@ const MutuelleKaraPDF = ({
               {fillData.page1SecretarySignature ? (
                 <Image src={fillData.page1SecretarySignature} style={styles.signatureImageLarge} cache={false} />
               ) : (
-                <Text style={{ fontSize: 9, color: '#666', textAlign: 'center' }}>Signature numérique non renseignée</Text>
+                <View style={styles.signaturePlaceholderLarge} />
               )}
               <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1SecretaryDate)}</Text>
             </View>
@@ -822,7 +832,7 @@ const MutuelleKaraPDF = ({
               {fillData.article5BeneficiarySignature ? (
                 <Image src={fillData.article5BeneficiarySignature} style={styles.signatureImageSmall} cache={false} />
               ) : (
-                <Text style={{ fontSize: 9, color: '#666', textAlign: 'center' }}>Signature numérique non renseignée</Text>
+                <View style={styles.signaturePlaceholderSmall} />
               )}
             </View>
             <View style={styles.signatureCell}>
@@ -830,7 +840,7 @@ const MutuelleKaraPDF = ({
               {fillData.article5SecretarySignature ? (
                 <Image src={fillData.article5SecretarySignature} style={styles.signatureImageSmall} cache={false} />
               ) : (
-                <Text style={{ fontSize: 9, color: '#666', textAlign: 'center' }}>Signature numérique non renseignée</Text>
+                <View style={styles.signaturePlaceholderSmall} />
               )}
             </View>
           </View>
