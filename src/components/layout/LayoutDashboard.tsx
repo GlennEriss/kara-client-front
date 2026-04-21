@@ -43,8 +43,6 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
             <div className="flex items-center gap-3">
               <MemberNavbarSearch />
               <NotificationBell />
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">En ligne</span>
             </div>
           </header>
           <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">

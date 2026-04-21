@@ -24,8 +24,8 @@ import { Progress } from '@/components/ui/progress'
 import { CreditCard, Loader2, Upload, X, Image as ImageIcon, CheckCircle2 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
-import type { PaymentMode } from '@/constantes/membership-requests'
-import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
+import type { PaymentMode, PaymentType } from '@/constantes/membership-requests'
+import { PAYMENT_MODE_LABELS, PAYMENT_TYPE_LABELS } from '@/constantes/membership-requests'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import { getStorageInstance, ref, uploadBytes, getDownloadURL } from '@/firebase/storage'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -38,7 +38,7 @@ interface PaymentModalV2Props {
     mode: PaymentMode
     date: string
     time: string
-    paymentType?: 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
+    paymentType?: PaymentType
     withFees?: boolean
     paymentMethodOther?: string
     proofUrl?: string
@@ -53,6 +53,8 @@ interface PaymentModalV2Props {
 const VALID_PAYMENT_MODES: PaymentMode[] = ['airtel_money', 'mobicash', 'cash', 'bank_transfer', 'other']
 const DEFAULT_AMOUNT = 10300
 const MOBILE_MONEY_MODES: PaymentMode[] = ['airtel_money', 'mobicash']
+const getCurrentTime = () =>
+  new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', hour12: false })
 
 export function PaymentModalV2({
   isOpen,
@@ -63,9 +65,9 @@ export function PaymentModalV2({
   isLoading = false,
 }: PaymentModalV2Props) {
   // États des champs (ordre logique : Type → Date/Heure → Montant → Mode → Frais → Preuve)
-  const [paymentType, setPaymentType] = useState<'Membership' | 'Subscription' | 'Tontine' | 'Charity'>('Membership')
+  const [paymentType, setPaymentType] = useState<PaymentType>('Membership')
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0])
-  const [time, setTime] = useState<string>('')
+  const [time, setTime] = useState<string>(getCurrentTime())
   const [amount, setAmount] = useState<string>(DEFAULT_AMOUNT.toString())
   const [mode, setMode] = useState<PaymentMode | ''>('')
   const [withFees, setWithFees] = useState<string>('')
@@ -107,7 +109,7 @@ export function PaymentModalV2({
     if (!isOpen) {
       setPaymentType('Membership')
       setDate(new Date().toISOString().split('T')[0])
-      setTime('')
+      setTime(getCurrentTime())
       setAmount(DEFAULT_AMOUNT.toString())
       setMode('')
       setWithFees('')
@@ -281,19 +283,12 @@ export function PaymentModalV2({
             <Label htmlFor="paymentType" className="text-sm font-semibold text-kara-primary-dark">
               Type de paiement <span className="text-red-500">*</span>
             </Label>
-            <Select
-              value={paymentType}
-              onValueChange={(value) => setPaymentType(value as any)}
-              disabled={isProcessing}
-            >
+            <Select value={paymentType} disabled>
               <SelectTrigger id="paymentType" className="h-10" data-testid="payment-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Membership">Adhésion</SelectItem>
-                <SelectItem value="Subscription">Souscription</SelectItem>
-                <SelectItem value="Tontine">Tontine</SelectItem>
-                <SelectItem value="Charity">Bienfaisance</SelectItem>
+                <SelectItem value="Membership">{PAYMENT_TYPE_LABELS.Membership}</SelectItem>
               </SelectContent>
             </Select>
           </div>

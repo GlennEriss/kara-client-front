@@ -119,7 +119,7 @@ describe('PaymentDetailsModalV2 - Intégration', () => {
     })
 
     it('devrait gérer les différents types de paiement', () => {
-      const types: Payment['paymentType'][] = ['Membership', 'Subscription', 'Tontine', 'Charity']
+      const types: Payment['paymentType'][] = ['Membership', 'Subscription', 'SpecialFund', 'Charity']
       
       types.forEach(type => {
         const paymentWithType = { ...mockPayment, paymentType: type }

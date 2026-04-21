@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Inbox,
   CheckCircle2,
+  Plus,
   Grid3x3,
   List,
 } from 'lucide-react'
@@ -75,6 +76,7 @@ import {
   MEMBERSHIP_REQUEST_MESSAGES,
   MEMBERSHIP_REQUEST_SEARCH,
 } from '@/constantes/membership-requests'
+import type { PaymentType } from '@/constantes/membership-requests'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
@@ -730,7 +732,7 @@ export function MembershipRequestsPageV2() {
     mode: any
     date: string
     time: string // Obligatoire
-    paymentType?: 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
+    paymentType?: PaymentType
     withFees?: boolean
     paymentMethodOther?: string
     proofUrl?: string
@@ -850,6 +852,16 @@ export function MembershipRequestsPageV2() {
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+              <Button
+                onClick={() => router.push(routes.admin.membershipAdd)}
+                size="sm"
+                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border border-white/80 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                title="Créer une nouvelle demande"
+              >
+                <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
+                <span className="hidden sm:inline">Nouvelle demande</span>
+                <span className="sm:hidden">Nouvelle</span>
+              </Button>
               <Button
                 onClick={() => setExportModalOpen(true)}
                 size="sm"

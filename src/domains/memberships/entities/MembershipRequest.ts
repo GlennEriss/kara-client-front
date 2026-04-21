@@ -59,14 +59,14 @@ export interface MembershipStatistics {
 
 // PaymentInfo est réutilisé pour l'interface du repository
 // Le type Payment du MembershipRequest utilise Payment[] (tableau)
-import type { PaymentMode } from '@/constantes/membership-requests'
+import type { PaymentMode, PaymentType } from '@/constantes/membership-requests'
 
 export interface PaymentInfo {
   amount: number
   mode: PaymentMode
   date: string // Date de versement (quand le client a payé - obligatoire)
   time: string // Heure de versement (obligatoire, format HH:mm)
-  paymentType?: 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
+  paymentType?: PaymentType
   withFees?: boolean // Obligatoire si mode = airtel_money ou mobicash
   paymentMethodOther?: string // Obligatoire si mode = other
   proofUrl?: string // URL de la preuve de paiement (upload image)
