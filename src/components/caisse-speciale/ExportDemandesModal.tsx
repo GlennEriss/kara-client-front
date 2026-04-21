@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import type { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStatus } from '@/types/types'
+import type { CaisseSpecialeDemandFilters, CaisseSpecialeDemandStatus } from '@/types/types'
 import { AlertTriangle, Download, FileSpreadsheet, FileText, Loader2, RefreshCw, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -60,46 +60,29 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
 
   const service = ServiceFactory.getCaisseSpecialeService()
 
-  const buildBaseFilters = (): CaisseSpecialeDemandFilters => {
+  const fetchDemandsForExport = useCallback(async () => {
     const filters: CaisseSpecialeDemandFilters = {
       page: 1,
       limit: scopeMode === 'quantity' ? Math.max(1, Math.min(10000, quantity)) : 5000,
+      createdAtFrom: scopeMode === 'period' ? (dateStart || undefined) : undefined,
+      createdAtTo: scopeMode === 'period' ? (dateEnd || undefined) : undefined,
     }
-
-    if (scopeMode === 'period') {
-      filters.createdAtFrom = dateStart || undefined
-      filters.createdAtTo = dateEnd || undefined
-    }
-
-    return filters
-  }
-
-  const applyStatusFilter = (items: CaisseSpecialeDemand[]) => {
+    const { items } = await service.getDemandsWithFilters(filters)
     const activeStatuses = Object.entries(statusFilters)
       .filter(([, checked]) => checked)
       .map(([status]) => status as CaisseSpecialeDemandStatus)
+    const byStatus = activeStatuses.length === 0
+      ? (items ?? [])
+      : (items ?? []).filter((d) => activeStatuses.includes(d.status))
 
-    if (activeStatuses.length === 0) return items
-    return items.filter((d) => activeStatuses.includes(d.status))
-  }
-
-  const applySort = (items: CaisseSpecialeDemand[]) => {
-    const sorted = [...items]
-    sorted.sort((a, b) => {
+    return [...byStatus].sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
       return sortBy === 'date_asc' ? dateA - dateB : dateB - dateA
     })
-    return sorted
-  }
+  }, [scopeMode, quantity, dateStart, dateEnd, service, statusFilters, sortBy])
 
-  const fetchDemandsForExport = async () => {
-    const { items } = await service.getDemandsWithFilters(buildBaseFilters())
-    const byStatus = applyStatusFilter(items ?? [])
-    return applySort(byStatus)
-  }
-
-  const calculatePreview = async () => {
+  const calculatePreview = useCallback(async () => {
     if (!isOpen) return
     setIsCalculatingPreview(true)
     try {
@@ -111,7 +94,7 @@ export default function ExportDemandesModal({ isOpen, onClose }: ExportDemandesM
     } finally {
       setIsCalculatingPreview(false)
     }
-  }
+  }, [fetchDemandsForExport, isOpen])
 
   useEffect(() => {
     if (isOpen) {
