@@ -239,6 +239,7 @@ export { syncCSPaymentsToCentralizedPayments } from './caisse-speciale/syncCSPay
 
 // ==================== CAISSE IMPRÉVUE – SYNC DES VERSEMENTS VERS PAYMENTS ====================
 export { syncCIPaymentsToCentralizedPayments } from './caisse-imprevue/syncCIPaymentsToCentralizedPayments'
+export { syncCISupportsToCentralizedPayments } from './caisse-imprevue/syncCIPaymentsToCentralizedPayments'
 
 // ==================== ALGOLIA EXTENSION - TRANSFORM FUNCTIONS ====================
 // Fonctions HTTP appelées par l’extension Firebase Algolia (TRANSFORM_FUNCTION)

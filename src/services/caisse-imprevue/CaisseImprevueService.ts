@@ -908,6 +908,9 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 throw new Error('Une demande de remboursement final est déjà en cours pour ce contrat')
             }
 
+            const admin = await this.adminRepository.getAdminById(data.userId)
+            const adminName = admin ? `${admin.firstName} ${admin.lastName}` : data.userId
+
             // 4. Calculer le montant total versé (non modifiable)
             const totalAmountPaid = payments.reduce(
                 (sum, payment) => sum + (payment.accumulatedAmount || 0),
@@ -952,6 +955,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
             // 9. Créer la demande de remboursement final
             const withdrawalDate = new Date(data.withdrawalDate)
+            const withdrawalRecordedAt = new Date(`${data.withdrawalDate}T${data.withdrawalTime}:00`)
             const deadlineAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // 45 jours après création
 
             const finalRefundData: Omit<FinalRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -967,10 +971,18 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 documentId: document.id,
                 amountNominal: totalAmountPaid,
                 amountBonus,
-                status: 'PENDING',
+                status: 'PAID',
                 deadlineAt,
                 createdBy: data.userId,
                 updatedBy: data.userId,
+                createdByName: adminName,
+                updatedByName: adminName,
+                paidBy: data.userId,
+                paidByName: adminName,
+                paidAt: Number.isNaN(withdrawalRecordedAt.getTime()) ? withdrawalDate : withdrawalRecordedAt,
+                paidAtTime: data.withdrawalTime,
+                paymentProofUrl: proofUrl,
+                paymentProofPath: proofPath,
             }
 
             // Utiliser le repository pour créer le remboursement final (il accepte le type dans les données)
