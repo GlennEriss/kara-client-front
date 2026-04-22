@@ -699,7 +699,9 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             withdrawalDate: string
             withdrawalTime: string
             withdrawalAmount: number
-            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other'
+            withFees?: boolean
+            paymentMethodOther?: string
             withdrawalProof: File
             documentPdf: File
             userId: string
@@ -798,6 +800,12 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 withdrawalTime: data.withdrawalTime,
                 withdrawalAmount: data.withdrawalAmount,
                 withdrawalMode: data.withdrawalMode,
+                ...(data.withdrawalMode === 'airtel_money' || data.withdrawalMode === 'mobicash'
+                    ? { withFees: data.withFees }
+                    : {}),
+                ...(data.withdrawalMode === 'other' && data.paymentMethodOther?.trim()
+                    ? { paymentMethodOther: data.paymentMethodOther.trim() }
+                    : {}),
                 proofUrl,
                 proofPath,
                 documentId: document.id,

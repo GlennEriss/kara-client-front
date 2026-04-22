@@ -825,7 +825,9 @@ export interface EarlyRefundCI {
   withdrawalDate: Date // Date du retrait
   withdrawalTime: string // Heure du retrait (HH:mm)
   withdrawalAmount: number // Montant retiré
-  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other' // Mode de retrait
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé exact si withdrawalMode = 'other'
 
   // Preuve du retrait
   proofUrl: string // URL Firebase Storage
@@ -886,7 +888,9 @@ export interface FinalRefundCI {
   withdrawalDate: Date // Date du retrait
   withdrawalTime: string // Heure du retrait (HH:mm)
   withdrawalAmount: number // Montant retiré (égal au montant total versé)
-  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other' // Mode de retrait
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé exact si withdrawalMode = 'other'
 
   // Preuve du retrait
   proofUrl: string // URL Firebase Storage
@@ -1248,7 +1252,9 @@ export interface RefundWithDocument {
   withdrawalDate?: Date
   withdrawalTime?: string
   withdrawalAmount?: number
-  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other'
+  withFees?: boolean
+  paymentMethodOther?: string
   withdrawalProofUrl?: string
   withdrawalProofPath?: string
   document?: RefundDocument

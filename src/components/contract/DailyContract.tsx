@@ -2759,6 +2759,8 @@ export default function DailyContract({ id }: Props) {
               withdrawalTime: formData.withdrawalTime,
               withdrawalAmount: formData.withdrawalAmount,
               withdrawalMode: formData.withdrawalMode,
+              withFees: formData.withFees,
+              paymentMethodOther: formData.paymentMethodOther,
               withdrawalProof: formData.withdrawalProof,
               documentPdf: formData.documentPdf,
               createdBy: user?.uid,

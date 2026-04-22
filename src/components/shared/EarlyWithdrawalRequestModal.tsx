@@ -92,6 +92,9 @@ export default function EarlyWithdrawalRequestModal({
 
   const [withdrawalProofFile, setWithdrawalProofFile] = useState<File | null>(null)
   const [documentPdfFile, setDocumentPdfFile] = useState<File | null>(null)
+  const withdrawalMode = watch('withdrawalMode')
+  const requiresFeesChoice = withdrawalMode === 'airtel_money' || withdrawalMode === 'mobicash'
+  const requiresOtherModeLabel = withdrawalMode === 'other'
 
   useEffect(() => {
     if (isOpen) {
@@ -188,6 +191,8 @@ export default function EarlyWithdrawalRequestModal({
         return <Smartphone className="h-4 w-4" />
       case 'mobicash':
         return <Banknote className="h-4 w-4" />
+      case 'other':
+        return <FileText className="h-4 w-4" />
       default:
         return <CreditCard className="h-4 w-4" />
     }
@@ -309,8 +314,16 @@ export default function EarlyWithdrawalRequestModal({
                   Mode de retrait *
                 </Label>
                 <Select
-                  value={watch('withdrawalMode')}
-                  onValueChange={(value) => setValue('withdrawalMode', value as any, { shouldValidate: true })}
+                  value={withdrawalMode}
+                  onValueChange={(value) => {
+                    setValue('withdrawalMode', value as any, { shouldValidate: true })
+                    if (value !== 'airtel_money' && value !== 'mobicash') {
+                      setValue('withFees', undefined, { shouldValidate: true })
+                    }
+                    if (value !== 'other') {
+                      setValue('paymentMethodOther', '', { shouldValidate: true })
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className={errors.withdrawalMode ? 'border-red-500' : ''}>
@@ -330,6 +343,47 @@ export default function EarlyWithdrawalRequestModal({
                 {errors.withdrawalMode ? <p className="text-xs text-red-500 mt-1">{errors.withdrawalMode.message}</p> : null}
               </div>
             </div>
+
+            {requiresFeesChoice ? (
+              <div>
+                <Label htmlFor="withFees" className="flex items-center gap-2 mb-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  Frais mobile money *
+                </Label>
+                <Select
+                  value={watch('withFees') === undefined ? '' : (watch('withFees') ? 'with_fees' : 'without_fees')}
+                  onValueChange={(value) => setValue('withFees', value === 'with_fees', { shouldValidate: true })}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className={errors.withFees ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Sélectionner une option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="with_fees">Avec frais</SelectItem>
+                    <SelectItem value="without_fees">Sans frais</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.withFees ? <p className="text-xs text-red-500 mt-1">{errors.withFees.message}</p> : null}
+              </div>
+            ) : null}
+
+            {requiresOtherModeLabel ? (
+              <div>
+                <Label htmlFor="paymentMethodOther" className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Nom exact du mode de retrait *
+                </Label>
+                <Input
+                  id="paymentMethodOther"
+                  type="text"
+                  placeholder="Ex: Wave, Orange Money, etc."
+                  {...register('paymentMethodOther')}
+                  disabled={isSubmitting}
+                  className={errors.paymentMethodOther ? 'border-red-500' : ''}
+                />
+                {errors.paymentMethodOther ? <p className="text-xs text-red-500 mt-1">{errors.paymentMethodOther.message}</p> : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-4 border-b pb-4">
@@ -444,6 +498,8 @@ export default function EarlyWithdrawalRequestModal({
               !watch('withdrawalTime') ||
               !watch('withdrawalAmount') ||
               !watch('withdrawalMode') ||
+              (requiresFeesChoice && watch('withFees') === undefined) ||
+              (requiresOtherModeLabel && !watch('paymentMethodOther')?.trim()) ||
               !withdrawalProofFile ||
               !documentPdfFile ||
               !isAmountValid

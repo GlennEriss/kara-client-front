@@ -6,10 +6,11 @@ export const WITHDRAWAL_MODES = [
   { value: 'bank_transfer', label: 'Virement bancaire' },
   { value: 'airtel_money', label: 'Airtel Money' },
   { value: 'mobicash', label: 'Mobicash' },
+  { value: 'other', label: 'Autres' },
 ] as const
 
 export const withdrawalModeSchema = z.enum(
-  ['cash', 'bank_transfer', 'airtel_money', 'mobicash'],
+  ['cash', 'bank_transfer', 'airtel_money', 'mobicash', 'other'],
   {
     message: 'Le mode de retrait est requis',
   }
@@ -56,6 +57,12 @@ export const earlyRefundCISchema = z.object({
   // Mode de retrait (obligatoire)
   withdrawalMode: withdrawalModeSchema,
 
+  // Mobile money: précision avec/sans frais (obligatoire pour Airtel/Mobicash)
+  withFees: z.boolean().optional(),
+
+  // Mode "Autres": libellé obligatoire
+  paymentMethodOther: z.string().trim().max(80, 'Le libellé ne peut pas dépasser 80 caractères').optional(),
+
   // Preuve du retrait (obligatoire, image uniquement, max 20MB)
   withdrawalProof: z
     .instanceof(File, { message: 'La preuve du retrait est requise' })
@@ -87,6 +94,22 @@ export const earlyRefundCISchema = z.object({
       (file) => file.size <= 10 * 1024 * 1024, // 10MB
       { message: 'La taille du PDF ne peut pas dépasser 10MB' }
     ),
+}).superRefine((data, ctx) => {
+  if ((data.withdrawalMode === 'airtel_money' || data.withdrawalMode === 'mobicash') && data.withFees === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['withFees'],
+      message: 'Veuillez préciser avec ou sans frais',
+    })
+  }
+
+  if (data.withdrawalMode === 'other' && !data.paymentMethodOther?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['paymentMethodOther'],
+      message: 'Veuillez renseigner le nom du mode de retrait',
+    })
+  }
 })
 
 // Type TypeScript dérivé
@@ -106,4 +129,3 @@ export const defaultEarlyRefundCIValues: Partial<EarlyRefundCIFormData> = {
   withdrawalAmount: 0,
   withdrawalMode: 'cash',
 }
-

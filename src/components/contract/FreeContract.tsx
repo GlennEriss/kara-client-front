@@ -1149,12 +1149,14 @@ export default function FreeContract({ id }: Props) {
               await requestEarlyRefund(id, {
                 reason: formData.reason,
                 withdrawalDate: formData.withdrawalDate,
-                withdrawalTime: formData.withdrawalTime,
-                withdrawalAmount: formData.withdrawalAmount,
-                withdrawalMode: formData.withdrawalMode,
-                withdrawalProof: formData.withdrawalProof,
-                documentPdf: formData.documentPdf,
-                createdBy: user?.uid,
+              withdrawalTime: formData.withdrawalTime,
+              withdrawalAmount: formData.withdrawalAmount,
+              withdrawalMode: formData.withdrawalMode,
+              withFees: formData.withFees,
+              paymentMethodOther: formData.paymentMethodOther,
+              withdrawalProof: formData.withdrawalProof,
+              documentPdf: formData.documentPdf,
+              createdBy: user?.uid,
               })
               await refetch()
               await reloadRefunds()

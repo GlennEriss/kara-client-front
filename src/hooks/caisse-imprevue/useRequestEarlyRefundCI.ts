@@ -22,6 +22,8 @@ export function useRequestEarlyRefundCI() {
         withdrawalTime: data.formData.withdrawalTime,
         withdrawalAmount: data.formData.withdrawalAmount,
         withdrawalMode: data.formData.withdrawalMode,
+        withFees: data.formData.withFees,
+        paymentMethodOther: data.formData.paymentMethodOther,
         withdrawalProof: data.formData.withdrawalProof,
         documentPdf: data.formData.documentPdf,
         userId: data.userId,
@@ -41,4 +43,3 @@ export function useRequestEarlyRefundCI() {
     },
   })
 }
-

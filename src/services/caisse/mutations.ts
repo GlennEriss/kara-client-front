@@ -557,7 +557,9 @@ export async function requestEarlyRefund(contractId: string, input?: {
   withdrawalTime?: string
   withdrawalDate?: string
   withdrawalAmount?: number
-  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other'
+  withFees?: boolean
+  paymentMethodOther?: string
   withdrawalProof?: File
   documentPdf?: File
   createdBy?: string
@@ -673,6 +675,12 @@ export async function requestEarlyRefund(contractId: string, input?: {
     reason: input?.reason?.trim() || '',
     withdrawalAmount,
     withdrawalMode: input?.withdrawalMode,
+    ...((input?.withdrawalMode === 'airtel_money' || input?.withdrawalMode === 'mobicash') && input.withFees !== undefined
+      ? { withFees: input.withFees }
+      : {}),
+    ...(input?.withdrawalMode === 'other' && input.paymentMethodOther?.trim()
+      ? { paymentMethodOther: input.paymentMethodOther.trim() }
+      : {}),
     withdrawalDate,
     withdrawalTime,
     withdrawalProofUrl,
