@@ -105,12 +105,13 @@ export default function IndividualPaymentInvoice({
     }).format(amount)
   }
 
-  const getPaymentModeLabel = (mode?: string) => {
+  const getPaymentModeLabel = (mode?: string, paymentMethodOther?: string) => {
     const modes: Record<string, string> = {
       'airtel_money': 'Airtel Money',
       'mobicash': 'Mobicash',
       'cash': 'Espèce',
-      'bank_transfer': 'Virement bancaire'
+      'bank_transfer': 'Virement bancaire',
+      'other': paymentMethodOther?.trim() ? `Autres (${paymentMethodOther.trim()})` : 'Autres'
     }
     return modes[mode || ''] || mode || '—'
   }
@@ -169,7 +170,7 @@ export default function IndividualPaymentInvoice({
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Moyen de paiement :</span>
-            <span className="font-medium">{getPaymentModeLabel(payment.mode)}</span>
+            <span className="font-medium">{getPaymentModeLabel(payment.mode, (payment as any).paymentMethodOther)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Heure :</span>

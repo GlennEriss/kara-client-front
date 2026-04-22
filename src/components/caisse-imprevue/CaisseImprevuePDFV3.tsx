@@ -168,6 +168,17 @@ const styles = StyleSheet.create({
   signatures: {
     marginTop: 18,
   },
+  signatureImage: {
+    width: 220,
+    height: 64,
+    objectFit: 'contain',
+    marginLeft: 18,
+  },
+  signaturePlaceholder: {
+    width: 220,
+    height: 64,
+    marginLeft: 18,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
@@ -225,7 +236,26 @@ const TableRow = ({
   )
 }
 
-const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
+export interface CaisseImprevuePdfFillData {
+  paymentDueDay: string
+  memberSignature: string | null
+  secretarySignature: string | null
+}
+
+const DEFAULT_FILL_DATA: CaisseImprevuePdfFillData = {
+  paymentDueDay: '',
+  memberSignature: null,
+  secretarySignature: null,
+}
+
+const CaisseImprevuePDFV3 = ({
+  contract,
+  fillData,
+}: {
+  contract?: any
+  fillData?: CaisseImprevuePdfFillData
+}) => {
+  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
   const logoUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/assets/caisse-imprevue/image1.png`
     : '/assets/caisse-imprevue/image1.png'
@@ -254,6 +284,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
   }
 
   const memberAge = contract?.member?.age || calculateAge(contract?.member?.birthDate) || '—'
+  const paymentDueDayLabel = resolvedFillData.paymentDueDay?.trim() || '________________'
 
   return (
     <Document>
@@ -473,7 +504,7 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>3. Déroulement des versements : </Text>
-          Le membre se doit de procéder aux versements des cotisations au plus tard le ________________
+          Le membre se doit de procéder aux versements des cotisations au plus tard le {paymentDueDayLabel}{' '}
           de chaque mois durant toute la durée du présent contrat.
         </Text>
         <Text style={styles.paragraph}>
@@ -633,7 +664,17 @@ const CaisseImprevuePDFV3 = ({ contract }: { contract?: any }) => {
         </Text>
         <View style={styles.signatures}>
           <Text style={styles.paragraph}>Signature membre précédée de la mention « lu et approuvé »</Text>
-          <Text style={[styles.paragraph, { marginTop: 150 }]}>Signature du Secrétaire Exécutif</Text>
+          {resolvedFillData.memberSignature ? (
+            <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
+          ) : (
+            <View style={styles.signaturePlaceholder} />
+          )}
+          <Text style={[styles.paragraph, { marginTop: 40 }]}>Signature du Secrétaire Exécutif</Text>
+          {resolvedFillData.secretarySignature ? (
+            <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
+          ) : (
+            <View style={styles.signaturePlaceholder} />
+          )}
         </View>
       </Page>
     </Document>

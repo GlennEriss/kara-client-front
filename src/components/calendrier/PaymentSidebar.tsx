@@ -92,6 +92,8 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
         paidAt: new Date(data.date),
         time: data.time,
         mode: data.mode,
+        withFees: data.withFees,
+        paymentMethodOther: data.paymentMethodOther,
         agentRecouvrementId: data.agentRecouvrementId,
       })
 

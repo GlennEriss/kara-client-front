@@ -32,6 +32,7 @@ const PAYMENT_MODE_LABELS: Record<string, string> = {
   mobicash: "Mobicash",
   cash: "Espèces",
   bank_transfer: "Virement bancaire",
+  other: "Autres",
 }
 
 export function PaymentSidebarContent({
@@ -130,7 +131,9 @@ export function PaymentSidebarContent({
             <div className="flex items-center justify-between">
               <span className="text-sm text-emerald-700">Moyen de paiement</span>
               <span className="text-sm font-semibold text-emerald-900">
-                {PAYMENT_MODE_LABELS[payment.mode] || payment.mode}
+                {payment.mode === "other" && (payment as any).paymentMethodOther
+                  ? `Autres (${String((payment as any).paymentMethodOther)})`
+                  : (PAYMENT_MODE_LABELS[payment.mode] || payment.mode)}
               </span>
             </div>
           )}

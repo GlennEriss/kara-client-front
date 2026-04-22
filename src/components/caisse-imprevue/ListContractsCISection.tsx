@@ -18,6 +18,7 @@ import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/c
 import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
 import { useQueries } from '@tanstack/react-query'
@@ -456,6 +457,20 @@ export default function ListContractsCISection() {
   const endIndex = startIndex + itemsPerPage
   const currentContracts = filteredContracts?.slice(startIndex, endIndex) || []
   const contractIds = useMemo(() => currentContracts.map((c) => c.id), [currentContracts])
+  const currentMemberIds = useMemo(
+    () => Array.from(new Set(currentContracts.map((c) => c.memberId).filter(Boolean))),
+    [currentContracts]
+  )
+  const { data: currentMembers } = useMembers(currentMemberIds)
+  const memberPhotoById = useMemo(() => {
+    const map: Record<string, string> = {}
+    ;(currentMembers || []).forEach((member) => {
+      if (member?.id && member.photoURL) {
+        map[member.id] = member.photoURL
+      }
+    })
+    return map
+  }, [currentMembers])
 
   // Stats de paiement pour la page courante (pour masquer "Supprimer" si versements réels)
   const paymentStatsQueries = useQueries({
@@ -632,8 +647,8 @@ export default function ListContractsCISection() {
                     <div className="flex items-start gap-3">
                       <div className="shrink-0">
                         <Avatar className="size-12 border border-gray-200 shadow-sm">
-                          {contract.memberPhotoUrl ? (
-                            <AvatarImage src={contract.memberPhotoUrl} alt={`Photo de ${contract.memberFirstName} ${contract.memberLastName}`} />
+                          {(contract.memberPhotoUrl || memberPhotoById[contract.memberId]) ? (
+                            <AvatarImage src={contract.memberPhotoUrl || memberPhotoById[contract.memberId]} alt={`Photo de ${contract.memberFirstName} ${contract.memberLastName}`} />
                           ) : (
                             <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
                               {`${(contract.memberFirstName || '')[0] || ''}${(contract.memberLastName || '')[0] || ''}`.toUpperCase() || <User className="h-5 w-5" />}

@@ -652,6 +652,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             time: paymentData.time,
             amount: paymentData.amount,
             mode: paymentData.mode,
+            withFees: paymentData.withFees,
+            paymentMethodOther: paymentData.paymentMethodOther,
             agentRecouvrementId: paymentData.agentRecouvrementId,
           },
           proofFile: paymentData.proofFile,
@@ -677,6 +679,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             time: paymentData.time,
             amount: paymentData.amount,
             mode: paymentData.mode,
+            withFees: paymentData.withFees,
+            paymentMethodOther: paymentData.paymentMethodOther,
             agentRecouvrementId: paymentData.agentRecouvrementId,
           },
           proofFile: paymentData.proofFile!,
@@ -1422,7 +1426,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           isMonthly={false}
           isDateFixed={!!editVersement}
           contractId={contract.id}
-          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl, agentRecouvrementId: editVersement.versement.agentRecouvrementId } : undefined}
+          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, withFees: editVersement.versement.withFees, paymentMethodOther: editVersement.versement.paymentMethodOther, proofUrl: editVersement.versement.proofUrl, agentRecouvrementId: editVersement.versement.agentRecouvrementId } : undefined}
           submitLabel={editVersement ? 'Modifier le versement' : undefined}
         />
 
