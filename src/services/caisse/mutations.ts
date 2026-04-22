@@ -583,7 +583,8 @@ export async function requestEarlyRefund(contractId: string, input?: {
   if (hasEarly || c.status === 'EARLY_REFUND_PENDING') {
     throw new Error('Une demande de retrait anticipé est déjà en cours pour ce contrat')
   }
-  await updateContract(contractId, { status: 'EARLY_REFUND_PENDING' })
+  // Nouveau flow: soumission du retrait anticipé = traitement final immédiat
+  await updateContract(contractId, { status: 'CLOSED' })
   const amountNominal = c.nominalPaid || 0
   // Bonus du mois précédent (paidCount-1 => M(paidCount-1)) → index = paidCount-2, à partir de M4
   const settings = await getActiveSettings((c as any).caisseType)
@@ -666,12 +667,29 @@ export async function requestEarlyRefund(contractId: string, input?: {
     }
   }
 
+  let processedByName = input?.createdBy || auth.currentUser?.uid || 'system'
+  if (input?.createdBy) {
+    try {
+      const admin = await getAdminById(input.createdBy)
+      if (admin) {
+        const fullName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+        processedByName = fullName || input.createdBy
+      }
+    } catch {
+      // Garder l'identifiant si profil admin indisponible
+    }
+  }
+
+  const processedAt = new Date()
+  const processedBy = input?.createdBy || auth.currentUser?.uid || 'system'
+  const processedTime = input?.withdrawalTime || `${processedAt.getHours().toString().padStart(2, '0')}:${processedAt.getMinutes().toString().padStart(2, '0')}`
+
   await addRefund(contractId, {
     type: 'EARLY', 
     amountNominal, 
     amountBonus, 
     deadlineAt, 
-    status: 'PENDING',
+    status: 'PAID',
     reason: input?.reason?.trim() || '',
     withdrawalAmount,
     withdrawalMode: input?.withdrawalMode,
@@ -686,6 +704,11 @@ export async function requestEarlyRefund(contractId: string, input?: {
     withdrawalProofUrl,
     withdrawalProofPath,
     document,
+    proofUrl: withdrawalProofUrl,
+    processedAt,
+    processedBy,
+    processedByName,
+    processedTime,
   })
   return true
 }

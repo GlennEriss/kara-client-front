@@ -935,16 +935,23 @@ export default function DailyContract({ id }: Props) {
                 </div>
               ) : (
                 refunds.map((r: any) => {
+                  const isEarlyRefund = r.type === 'EARLY'
                   const getRefundStatusConfig = (status: string) => {
+                    if (isEarlyRefund) {
+                      if (status === 'ARCHIVED') {
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
+                      }
+                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Enregistré' }
+                    }
                     switch (status) {
                       case 'PENDING':
-                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
                       case 'APPROVED':
-                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle }
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: 'Approuvé' }
                       case 'PAID':
-                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle }
+                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
                       default:
-                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle }
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
                     }
                   }
 
@@ -969,7 +976,7 @@ export default function DailyContract({ id }: Props) {
                             </h3>
                             <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                    {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                    {statusConfig.label}
                   </Badge>
                           </div>
                         </div>
@@ -990,12 +997,12 @@ export default function DailyContract({ id }: Props) {
                         </div>
                 </div>
 
-                  {r.type === 'FINAL' && r.status === 'PAID' && (
+                  {(r.type === 'FINAL' || r.type === 'EARLY') && r.status === 'PAID' && (
                     <div className="mb-4 border-t border-gray-100 pt-3 space-y-2">
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-gray-600">Document téléversé:</span>
                         {finalDocumentUrl ? (
-                          <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Voir le PDF</a>
+                          <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
                         ) : (
                           <span className="text-xs text-gray-500">Indisponible</span>
                         )}
@@ -1003,7 +1010,7 @@ export default function DailyContract({ id }: Props) {
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-gray-600">Preuve téléversée:</span>
                         {finalProofUrl ? (
-                          <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Voir la preuve</a>
+                          <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
                         ) : (
                           <span className="text-xs text-gray-500">Indisponible</span>
                         )}
@@ -1019,7 +1026,7 @@ export default function DailyContract({ id }: Props) {
                     </div>
                   )}
 
-                  {r.status === 'PENDING' && (
+                  {r.status === 'PENDING' && !isEarlyRefund && (
                         <div className="space-y-2">
                           {/* Première ligne : Approbation et Document de remboursement */}
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -1101,7 +1108,7 @@ export default function DailyContract({ id }: Props) {
                     </div>
                   )}
 
-                  {r.status === 'APPROVED' && (
+                      {r.status === 'APPROVED' && !isEarlyRefund && (
                         <div className="space-y-4">
                       {/* Affichage de la cause (non modifiable) */}
                       {r.reason && (
