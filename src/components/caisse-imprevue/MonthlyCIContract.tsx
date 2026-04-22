@@ -430,6 +430,8 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
             time: data.time,
             amount: data.amount,
             mode: data.mode,
+            withFees: data.withFees,
+            paymentMethodOther: data.paymentMethodOther,
             agentRecouvrementId: data.agentRecouvrementId,
           },
           proofFile: data.proofFile,
@@ -448,6 +450,8 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
             time: data.time,
             amount: data.amount,
             mode: data.mode,
+            withFees: data.withFees,
+            paymentMethodOther: data.paymentMethodOther,
             agentRecouvrementId: data.agentRecouvrementId,
           },
           proofFile: data.proofFile!,
@@ -993,7 +997,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           defaultAmount={contract.subscriptionCIAmountPerMonth}
           isMonthly={true}
           contractId={contract.id}
-          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, proofUrl: editVersement.versement.proofUrl, agentRecouvrementId: editVersement.versement.agentRecouvrementId } : undefined}
+          initialData={editVersement ? { date: editVersement.versement.date, time: editVersement.versement.time, amount: editVersement.versement.amount, mode: editVersement.versement.mode, withFees: editVersement.versement.withFees, paymentMethodOther: editVersement.versement.paymentMethodOther, proofUrl: editVersement.versement.proofUrl, agentRecouvrementId: editVersement.versement.agentRecouvrementId } : undefined}
           submitLabel={editVersement ? 'Modifier le versement' : undefined}
         />
 

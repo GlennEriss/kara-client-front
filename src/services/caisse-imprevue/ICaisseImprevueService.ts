@@ -8,6 +8,8 @@ export interface VersementFormData {
   time: string
   amount: number
   mode: PaymentMode
+  withFees?: boolean
+  paymentMethodOther?: string
   penalty?: number
   daysLate?: number
   agentRecouvrementId?: string

@@ -68,6 +68,18 @@ const PAYMENT_MODE_LABELS = {
   other: { label: 'Autre', icon: CreditCard, color: 'text-gray-600', bg: 'bg-gray-100' },
 }
 
+const getPaymentModeLabel = (versement: VersementCI, defaultLabel: string): string => {
+  if (versement.mode === 'other' && versement.paymentMethodOther?.trim()) {
+    return `Autre (${versement.paymentMethodOther.trim()})`
+  }
+
+  if ((versement.mode === 'airtel_money' || versement.mode === 'mobicash') && versement.withFees !== undefined) {
+    return `${defaultLabel} (${versement.withFees ? 'Avec frais' : 'Sans frais'})`
+  }
+
+  return defaultLabel
+}
+
 export default function PaymentReceiptCIModal({
   isOpen,
   onClose,
@@ -259,7 +271,7 @@ export default function PaymentReceiptCIModal({
                             <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${modeConfig.bg}`}>
                               <ModeIcon className={`h-4 w-4 ${modeConfig.color}`} />
                               <span className={`text-sm font-medium ${modeConfig.color}`}>
-                                {modeConfig.label}
+                                {getPaymentModeLabel(versement, modeConfig.label)}
                               </span>
                             </div>
                             

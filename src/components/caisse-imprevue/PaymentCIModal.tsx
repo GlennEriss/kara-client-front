@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useActiveSupport } from '@/hooks/caisse-imprevue'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import type { PaymentMode } from '@/types/types'
@@ -39,6 +40,8 @@ export interface PaymentCIInitialData {
   time: string
   amount: number
   mode: PaymentMode
+  withFees?: boolean
+  paymentMethodOther?: string
   proofUrl?: string
   agentRecouvrementId?: string
 }
@@ -65,6 +68,8 @@ export interface PaymentFormData {
   time: string
   amount: number
   mode: PaymentMode
+  withFees?: boolean
+  paymentMethodOther?: string
   proofFile?: File
   agentRecouvrementId?: string
   /** Motif de la modification (obligatoire en mode modification) */
@@ -103,6 +108,8 @@ export default function PaymentCIModal({
   })
   const [paymentAmount, setPaymentAmount] = useState(defaultAmount ? String(defaultAmount) : '')
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money')
+  const [paymentWithFees, setPaymentWithFees] = useState<boolean | undefined>(undefined)
+  const [paymentMethodOther, setPaymentMethodOther] = useState('')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [isPaying, setIsPaying] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
@@ -120,6 +127,8 @@ export default function PaymentCIModal({
         setPaymentTime(initialData.time)
         setPaymentAmount(String(initialData.amount))
         setPaymentMode(initialData.mode)
+        setPaymentWithFees(initialData.withFees)
+        setPaymentMethodOther(initialData.paymentMethodOther ?? '')
         setAgentRecouvrementId(initialData.agentRecouvrementId ?? '')
       } else {
         setPaymentDate(defaultDate || getTodayDateInputValue())
@@ -129,6 +138,8 @@ export default function PaymentCIModal({
         })
         setPaymentAmount(defaultAmount ? String(defaultAmount) : '')
         setPaymentMode('airtel_money')
+        setPaymentWithFees(undefined)
+        setPaymentMethodOther('')
         setAgentRecouvrementId('')
       }
       setPaymentFile(undefined)
@@ -194,6 +205,14 @@ export default function PaymentCIModal({
       toast.error('Veuillez indiquer le motif de la modification')
       return
     }
+    if ((paymentMode === 'airtel_money' || paymentMode === 'mobicash') && paymentWithFees === undefined) {
+      toast.error('Veuillez indiquer si le paiement est avec frais ou sans frais')
+      return
+    }
+    if (paymentMode === 'other' && !paymentMethodOther.trim()) {
+      toast.error('Veuillez renseigner le nom exact du moyen de paiement')
+      return
+    }
 
     try {
       setIsPaying(true)
@@ -203,6 +222,12 @@ export default function PaymentCIModal({
         time: paymentTime,
         amount: Number(paymentAmount),
         mode: paymentMode,
+        ...(paymentMode === 'airtel_money' || paymentMode === 'mobicash'
+          ? { withFees: paymentWithFees }
+          : {}),
+        ...(paymentMode === 'other'
+          ? { paymentMethodOther: paymentMethodOther.trim() }
+          : {}),
         ...(paymentFile && { proofFile: paymentFile }),
         agentRecouvrementId: agentRecouvrementId || undefined,
         ...(editMode && modificationReason.trim() && { modificationReason: modificationReason.trim() }),
@@ -217,6 +242,8 @@ export default function PaymentCIModal({
       })
       setPaymentAmount('')
       setPaymentMode('airtel_money')
+      setPaymentWithFees(undefined)
+      setPaymentMethodOther('')
       setPaymentFile(undefined)
       setAgentRecouvrementId('')
       setModificationReason('')
@@ -446,7 +473,10 @@ export default function PaymentCIModal({
                   name="paymentMode"
                   value="airtel_money"
                   checked={paymentMode === 'airtel_money'}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  onChange={(e) => {
+                    setPaymentMode(e.target.value as PaymentMode)
+                    setPaymentMethodOther('')
+                  }}
                   className="text-[#224D62] focus:ring-[#224D62]"
                 />
                 <div className="ml-3 flex items-center gap-3">
@@ -463,7 +493,10 @@ export default function PaymentCIModal({
                   name="paymentMode"
                   value="mobicash"
                   checked={paymentMode === 'mobicash'}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  onChange={(e) => {
+                    setPaymentMode(e.target.value as PaymentMode)
+                    setPaymentMethodOther('')
+                  }}
                   className="text-[#224D62] focus:ring-[#224D62]"
                 />
                 <div className="ml-3 flex items-center gap-3">
@@ -480,7 +513,11 @@ export default function PaymentCIModal({
                   name="paymentMode"
                   value="cash"
                   checked={paymentMode === 'cash'}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  onChange={(e) => {
+                    setPaymentMode(e.target.value as PaymentMode)
+                    setPaymentWithFees(undefined)
+                    setPaymentMethodOther('')
+                  }}
                   className="text-[#224D62] focus:ring-[#224D62]"
                 />
                 <div className="ml-3 flex items-center gap-3">
@@ -497,7 +534,11 @@ export default function PaymentCIModal({
                   name="paymentMode"
                   value="bank_transfer"
                   checked={paymentMode === 'bank_transfer'}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  onChange={(e) => {
+                    setPaymentMode(e.target.value as PaymentMode)
+                    setPaymentWithFees(undefined)
+                    setPaymentMethodOther('')
+                  }}
                   className="text-[#224D62] focus:ring-[#224D62]"
                 />
                 <div className="ml-3 flex items-center gap-3">
@@ -507,7 +548,59 @@ export default function PaymentCIModal({
                   <span className="font-medium text-gray-900">Virement bancaire</span>
                 </div>
               </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="other"
+                  checked={paymentMode === 'other'}
+                  onChange={(e) => {
+                    setPaymentMode(e.target.value as PaymentMode)
+                    setPaymentWithFees(undefined)
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-slate-100 rounded-lg p-2">
+                    <FileText className="h-5 w-5 text-slate-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Autres</span>
+                </div>
+              </label>
             </div>
+            {(paymentMode === 'airtel_money' || paymentMode === 'mobicash') && (
+              <div className="mt-3">
+                <Label className="text-sm font-medium">Frais de transaction *</Label>
+                <Select
+                  value={paymentWithFees === undefined ? '' : paymentWithFees ? 'yes' : 'no'}
+                  onValueChange={(value) => setPaymentWithFees(value === 'yes')}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Avec ou sans frais ?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Avec frais</SelectItem>
+                    <SelectItem value="no">Sans frais</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {paymentMode === 'other' && (
+              <div className="mt-3">
+                <Label htmlFor="payment-method-other" className="text-sm font-medium">
+                  Nom exact du moyen de paiement *
+                </Label>
+                <Input
+                  id="payment-method-other"
+                  type="text"
+                  placeholder="Ex: Wave, Orange Money, Chèque..."
+                  value={paymentMethodOther}
+                  onChange={(e) => setPaymentMethodOther(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            )}
           </div>
 
           {/* Preuve de paiement */}
@@ -605,6 +698,8 @@ export default function PaymentCIModal({
               !paymentTime ||
               !paymentAmount ||
               Number(paymentAmount) <= 0 ||
+              ((paymentMode === 'airtel_money' || paymentMode === 'mobicash') && paymentWithFees === undefined) ||
+              (paymentMode === 'other' && !paymentMethodOther.trim()) ||
               (!editMode && !paymentFile) ||
               (editMode && !modificationReason.trim()) ||
               (paymentBreakdown.hasSupport && !paymentBreakdown.isValid)

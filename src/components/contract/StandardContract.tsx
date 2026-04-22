@@ -321,6 +321,7 @@ export default function StandardContract({ id }: Props) {
             time: paymentData.time,
             mode: paymentData.mode,
             withFees: paymentData.withFees,
+            paymentMethodOther: paymentData.paymentMethodOther,
             proofFile: paymentData.proofFile,
             paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
             modificationReason: paymentData.modificationReason,
@@ -352,6 +353,7 @@ export default function StandardContract({ id }: Props) {
         time: paymentData.time,
         mode: paymentData.mode,
         withFees: paymentData.withFees,
+        paymentMethodOther: paymentData.paymentMethodOther,
         agentRecouvrementId: paymentData.agentRecouvrementId
       })
       await refetch()
@@ -713,6 +715,7 @@ export default function StandardContract({ id }: Props) {
               amount: Number(c.amount) || 0,
               mode: (c.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
               withFees: c.withFees,
+              paymentMethodOther: c.paymentMethodOther,
               proofUrl: c.proofUrl,
               agentRecouvrementId: agentRecouvrementId || undefined,
             }

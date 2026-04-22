@@ -4,7 +4,7 @@
  */
 import jsPDF from 'jspdf'
 import { addMonths, format, parseISO } from 'date-fns'
-import type { ContractCI, PaymentCI } from '@/types/types'
+import type { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 
 const formatAmountForPDF = (n: number): string =>
@@ -80,14 +80,25 @@ export async function generateSingleVersementCIPDF(
     return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   }
 
-  const formatMode = (mode?: string): string => {
+  const formatMode = (mode?: string, versement?: VersementCI): string => {
+    if (mode === 'other' && versement?.paymentMethodOther?.trim()) {
+      return `AUTRE (${versement.paymentMethodOther.trim().toUpperCase()})`
+    }
+
     const modeMap: Record<string, string> = {
       airtel_money: 'AIRTEL-MONEY',
       mobicash: 'MOBICASH',
       cash: 'CASH',
       bank_transfer: 'VIREMENT',
+      other: 'AUTRE',
     }
-    return mode ? modeMap[mode] || String(mode).toUpperCase() : '-'
+    const base = mode ? modeMap[mode] || String(mode).toUpperCase() : '-'
+
+    if ((mode === 'airtel_money' || mode === 'mobicash') && versement?.withFees !== undefined) {
+      return `${base} (${versement.withFees ? 'AVEC FRAIS' : 'SANS FRAIS'})`
+    }
+
+    return base
   }
 
   const getAge = (birthDate?: string): string => {
@@ -352,7 +363,7 @@ export async function generateSingleVersementCIPDF(
               formatShortDate(v.date),
               `${formatAmountForPDF(Number(v.amount) || 0)} FCFA`,
               v.time || '-',
-              formatMode(v.mode),
+              formatMode(v.mode, v),
               getAdminNameForExport(v.createdBy),
               'CONFORME',
             ]
@@ -427,11 +438,13 @@ export async function generateSingleVersementCIPDF(
             time: v.time ?? '-',
             amount: Number(v.amount) || 0,
             mode: v.mode,
+            withFees: v.withFees,
+            paymentMethodOther: v.paymentMethodOther,
             createdBy: v.createdBy,
             penalty: v.penalty,
             daysLate: v.daysLate,
           }))
-        : [{ date: null, time: '-', amount: 0, mode: '', createdBy: undefined, penalty: 0, daysLate: 0 }]
+        : [{ date: null, time: '-', amount: 0, mode: '', withFees: undefined, paymentMethodOther: undefined, createdBy: undefined, penalty: 0, daysLate: 0 }]
     const numDataRows = dataRows.length
     const tableHeight = headerHeight + numDataRows * rowHeight
 
@@ -478,7 +491,7 @@ export async function generateSingleVersementCIPDF(
         dateRemise,
         `${formatAmountForPDF(v.amount)} FCFA`,
         v.time || '-',
-        formatMode(v.mode),
+        formatMode(v.mode, v),
         getAdminNameForExport(v.createdBy),
         remark,
       ]
