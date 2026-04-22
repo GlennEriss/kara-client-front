@@ -119,7 +119,7 @@ export default function ListContractsCISection() {
   // États
   const [filters, setFilters] = useState<ContractCIFilters>({
     search: '',
-    status: 'ACTIVE' as ContractCIStatus | 'all',
+    status: 'all' as ContractCIStatus | 'all',
     paymentFrequency: 'all',
     subscriptionCIID: undefined,
   })
@@ -239,7 +239,7 @@ export default function ListContractsCISection() {
   const handleResetFilters = () => {
     setFilters({ 
       search: '', 
-      status: 'ACTIVE',
+      status: 'all',
       paymentFrequency: 'all',
       subscriptionCIID: undefined,
     })
