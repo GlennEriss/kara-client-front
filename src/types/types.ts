@@ -618,7 +618,9 @@ export interface VersementCI {
   date: string // Format: "2025-01-19"
   time: string // Format: "14:30"
   amount: number // Montant du versement
-  mode: PaymentMode // airtel_money | mobicash | cash | bank_transfer
+  mode: PaymentMode // airtel_money | mobicash | cash | bank_transfer | other
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé quand mode = other
   
   // Preuves
   proofUrl: string // URL Firebase Storage

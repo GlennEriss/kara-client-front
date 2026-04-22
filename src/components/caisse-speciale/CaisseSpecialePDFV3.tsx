@@ -189,6 +189,28 @@ const styles = StyleSheet.create({
   signatureTextSmall: {
     fontSize: 12,
   },
+  signatureImageRight: {
+    width: 180,
+    height: 54,
+    objectFit: 'contain',
+    alignSelf: 'flex-end',
+  },
+  signaturePlaceholderRight: {
+    width: 180,
+    height: 54,
+    alignSelf: 'flex-end',
+  },
+  signatureImageWide: {
+    width: 220,
+    height: 64,
+    objectFit: 'contain',
+    marginLeft: 36,
+  },
+  signaturePlaceholderWide: {
+    width: 220,
+    height: 64,
+    marginLeft: 36,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
@@ -246,10 +268,29 @@ const TableRow = ({
   )
 }
 
+export interface CaisseSpecialePdfFillData {
+  page3MemberSignature: string | null
+  page5SecretarySignature: string | null
+  page5MemberSignature: string | null
+}
+
+const DEFAULT_FILL_DATA: CaisseSpecialePdfFillData = {
+  page3MemberSignature: null,
+  page5SecretarySignature: null,
+  page5MemberSignature: null,
+}
+
 /**
  * PDF Caisse Spéciale V3 - Réplique fidèle de CAISSE_SPECIALE_MUTUELLE_N.docx
  */
-const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
+const CaisseSpecialePDFV3 = ({
+  contract,
+  fillData,
+}: {
+  contract?: any
+  fillData?: CaisseSpecialePdfFillData
+}) => {
+  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
   const logoUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/assets/caisse-speciale/caissesp-logo.png`
     : '/assets/caisse-speciale/caissesp-logo.png'
@@ -576,7 +617,15 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
             </Text>
           </View>
         ))}
+      </Page>
 
+      {/* PAGE 3 */}
+      <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={[styles.paragraph, { marginTop: 2 }]}>Ce délai permet une gestion saine, responsable et transparente de la trésorerie.</Text>
 
         <Text style={[styles.paragraphListIndent, { marginTop: 4 }]}>
@@ -608,12 +657,19 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         </Text>
 <Text style={styles.paragraph}>
         </Text>
-        <Text style={[styles.paragraph, styles.rightAlign, { marginTop: 12 }]}>
-          [Signature de l’épargnant précédée de la mention « lu et approuvé »]
-        </Text>
+        <View style={{ marginTop: 12 }}>
+          {resolvedFillData.page3MemberSignature ? (
+            <Image src={resolvedFillData.page3MemberSignature} style={styles.signatureImageRight} cache={false} />
+          ) : (
+            <View style={styles.signaturePlaceholderRight} />
+          )}
+          <Text style={[styles.paragraph, styles.rightAlign, { marginTop: 6 }]}>
+            [Signature de l’épargnant précédée de la mention « lu et approuvé »]
+          </Text>
+        </View>
       </Page>
 
-      {/* PAGE 3 */}
+      {/* PAGE 4 */}
       <Page size="A4" style={styles.page}>
         <Text
           style={styles.pageNumber}
@@ -677,7 +733,7 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
       </Page>
 
-      {/* PAGE 4 */}
+      {/* PAGE 5 */}
       <Page size="A4" style={styles.page}>
         <Text
           style={styles.pageNumber}
@@ -692,8 +748,20 @@ const CaisseSpecialePDFV3 = ({ contract }: { contract?: any }) => {
         <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT</Text>
 
         <Text style={[styles.paragraphIndented, { marginTop: 16 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
+        {resolvedFillData.page5SecretarySignature ? (
+          <Image src={resolvedFillData.page5SecretarySignature} style={styles.signatureImageWide} cache={false} />
+        ) : (
+          <View style={styles.signaturePlaceholderWide} />
+        )}
 
-        <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 100 }]}>Signature de l’épargnant précédée de la mention « lu et approuvé »</Text>
+        <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 28 }]}>
+          Signature de l’épargnant précédée de la mention « lu et approuvé »
+        </Text>
+        {resolvedFillData.page5MemberSignature ? (
+          <Image src={resolvedFillData.page5MemberSignature} style={styles.signatureImageWide} cache={false} />
+        ) : (
+          <View style={styles.signaturePlaceholderWide} />
+        )}
       </Page>
     </Document>
   )

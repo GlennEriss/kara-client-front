@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -28,12 +29,12 @@ import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks
 import { useCaisseSpecialeDemandesRealtimeSync } from '@/hooks/caisse-speciale/useCaisseSpecialeDemandesRealtimeSync'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useMember } from '@/hooks/useMembers'
+import { cn } from '@/lib/utils'
 import type { CaisseSpecialeDemandFilters } from '@/types/types'
 import { CaisseSpecialeDemand, CaisseSpecialeDemandStatus } from '@/types/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
-    Calendar,
     CheckCircle,
     Clock,
     Eye,
@@ -60,6 +61,16 @@ import { StatusFilterBadgesCarousel } from './StatusFilterBadgesCarousel'
 
 type ViewMode = 'grid' | 'list'
 
+const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
+  label: string
+  color: string
+}> = {
+  PENDING: { label: 'En attente', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  APPROVED: { label: 'Acceptée', color: 'bg-green-100 text-green-800 border-green-200' },
+  REJECTED: { label: 'Refusée', color: 'bg-red-100 text-red-800 border-red-200' },
+  CONVERTED: { label: 'Convertie', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+}
+
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
@@ -80,99 +91,15 @@ const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   </Card>
 )
 
-// Composant pour afficher les infos du demandeur (matricule, nom, prénom)
-const MemberInfo = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">Chargement...</span>
-  if (!member) return <span className="text-gray-400">—</span>
-  return (
-    <span className="text-sm">
-      {member.matricule} • {member.lastName} {member.firstName}
-    </span>
-  )
-}
-
-// Composant pour afficher le nom complet du membre
-const MemberName = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">...</span>
-  if (!member) return <span className="text-gray-400">Membre inconnu</span>
-  return (
-    <span className="font-semibold text-gray-900">
-      {member.lastName} {member.firstName}
-    </span>
-  )
-}
-
-// Composant pour afficher le matricule du membre
-const MemberMatricule = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">...</span>
-  if (!member) return <span className="text-gray-400">—</span>
-  return (
-    <span className="text-xs text-gray-500 font-mono">
-      {member.matricule || '—'}
-    </span>
-  )
-}
-
-// Composant pour afficher les contacts du demandeur
-const MemberContacts = ({ memberId }: { memberId?: string }) => {
-  const { data: member, isLoading } = useMember(memberId)
-  if (isLoading) return <span className="text-gray-400 animate-pulse">Chargement...</span>
-  if (!member) return <span className="text-gray-400">—</span>
-  
-  // Récupérer le téléphone depuis contacts (tableau ou string)
-  let phone: string | undefined
-  if (Array.isArray(member.contacts) && member.contacts.length > 0) {
-    phone = typeof member.contacts[0] === 'string' ? member.contacts[0] : String(member.contacts[0])
-  } else if (typeof member.contacts === 'string') {
-    phone = member.contacts
-  }
-  
-  const email = member.email
-  
-  if (!phone && !email) return <span className="text-gray-400">—</span>
-  
-  return (
-    <span className="text-sm text-gray-700">
-      {phone && <span>{phone}</span>}
-      {phone && email && <br />}
-      {email && <span className="text-xs">{email}</span>}
-    </span>
-  )
-}
-
-// Composant pour afficher le contact d'urgence
-const EmergencyContactDisplay = ({ demand }: { demand: CaisseSpecialeDemand }) => {
-  const ec = demand.emergencyContact
-  if (!ec) return <span className="text-gray-400">—</span>
-  const name = [ec.lastName, ec.firstName].filter(Boolean).join(' ')
-  const phone = ec.phone1
-  if (!name && !phone) return <span className="text-gray-400">—</span>
-  return (
-    <span className="text-sm text-gray-700">
-      {name || '—'}
-      {phone && <><br /><span className="text-xs">{phone}</span></>}
-    </span>
-  )
-}
-
 // Carte de demande avec chargement des infos membre
 const DemandCard = ({
   demande,
-  getStatusColor,
-  getStatusLabel,
-  getCaisseTypeLabel,
   setAcceptModalState,
   setRejectModalState,
   setReopenModalState,
   setDeleteModalState,
 }: {
   demande: CaisseSpecialeDemand
-  getStatusColor: (s: CaisseSpecialeDemandStatus) => string
-  getStatusLabel: (s: CaisseSpecialeDemandStatus) => string
-  getCaisseTypeLabel: (t: string) => string
   setAcceptModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setRejectModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setReopenModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
@@ -180,6 +107,10 @@ const DemandCard = ({
 }) => {
   const router = useRouter()
   const { data: member, isLoading: isLoadingMember } = useMember(demande.memberId)
+  const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
+  const canAcceptOrReject = demande.status === 'PENDING'
+  const canReopen = demande.status === 'REJECTED'
+  const demandReason = (demande.cause || (demande as CaisseSpecialeDemand & { reason?: string }).reason || '').trim()
 
   // Extraire les contacts
   let memberPhone: string | undefined
@@ -191,180 +122,197 @@ const DemandCard = ({
     }
   }
 
-  // Contact d'urgence
-  const ec = demande.emergencyContact
+  const memberPhotoUrl = member?.photoURL || ''
+  const memberInitials = `${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase()
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
-      <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
-        {/* Ligne 1: ID complet bien visible, non tronqué */}
-        <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">
+    <Card className="group relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg border-gray-200 h-full flex flex-col">
+      <CardContent className="p-4 md:p-5 flex-1 flex flex-col gap-4">
+        <div className="font-mono text-sm font-bold text-gray-900 break-all">
           #{demande.id}
-        </h3>
-
-        {/* Ligne 2: Badges alignés horizontalement */}
-        <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-            {getCaisseTypeLabel(demande.caisseType)}
-          </span>
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-            {getStatusLabel(demande.status)}
-          </span>
         </div>
 
-        {/* Nom et prénom du demandeur (groupés, espacement serré) */}
-        <div className="flex flex-col gap-0.5 text-sm font-medium text-gray-900">
-          {isLoadingMember ? (
-            <span className="text-gray-400 animate-pulse">Chargement...</span>
-          ) : (
-            <>
-              <span>{member?.lastName ?? '—'}</span>
-              <span>{member?.firstName ?? '—'}</span>
-            </>
-          )}
+        <div className="flex items-start justify-between">
+          <Badge className={cn('text-xs font-medium border', statusInfo.color)}>
+            {statusInfo.label}
+          </Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-70 group-hover:opacity-100 transition-opacity"
+                title="Actions"
+              >
+                <MoreVertical className="h-4 w-4 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[190px]">
+              <DropdownMenuItem
+                onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
+                className="cursor-pointer"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Voir détails
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
+                className="cursor-pointer"
+              >
+                <FileEdit className="h-4 w-4 mr-2" />
+                Modifier
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Ligne 5: Matricule */}
+        <div className="flex items-start gap-3">
+          <Avatar className="h-12 w-12 shrink-0">
+            {memberPhotoUrl ? (
+              <AvatarImage src={memberPhotoUrl} alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`} />
+            ) : null}
+            <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+              {memberInitials || '--'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            {isLoadingMember ? (
+              <span className="text-gray-400 animate-pulse text-sm">Chargement...</span>
+            ) : (
+              <>
+                <div className="font-semibold text-gray-900 leading-tight">{member?.firstName ?? '—'}</div>
+                <div className="font-semibold text-gray-900 leading-tight">{member?.lastName ?? '—'}</div>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="text-sm font-mono text-gray-700">
           {member?.matricule || demande.memberId || '—'}
         </div>
 
-        {/* Contacts demandeur */}
-        <div className="text-sm">
-          <span className="text-gray-500">Contacts: </span>
+        <div className="text-sm text-gray-700">
           {isLoadingMember ? (
             <span className="text-gray-400 animate-pulse">—</span>
           ) : memberPhone || member?.email ? (
-            <span className="text-gray-700">{memberPhone}{memberPhone && member?.email ? ' • ' : ''}{member?.email ?? ''}</span>
+            <span>{memberPhone}{memberPhone && member?.email ? ' • ' : ''}{member?.email ?? ''}</span>
           ) : (
             <span className="text-gray-400">—</span>
           )}
         </div>
 
-        {/* Contact d'urgence: nom et prénom groupés, espacement serré */}
-        <div className="text-sm">
-          <span className="text-gray-500">Contact d&apos;urgence: </span>
-          {ec ? (
-            <div className="flex flex-col gap-0.5 mt-0.5">
-              <span className="font-medium text-gray-900">{ec.lastName || '—'}</span>
-              <span className="font-medium text-gray-900">{ec.firstName || '—'}</span>
-              {ec.phone1 && <span className="text-gray-600 text-xs">{ec.phone1}</span>}
-            </div>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </div>
-
-        {/* Montant et durée */}
-        <div className="text-sm">
-          <span className="text-gray-500">Montant mensuel: </span>
-          <span className="font-semibold text-green-600">{demande.monthlyAmount.toLocaleString('fr-FR')} FCFA</span>
-        </div>
-        <div className="text-sm">
-          <span className="text-gray-500">Durée: </span>
-          <span className="font-medium text-gray-900">{demande.monthsPlanned} mois</span>
-        </div>
-
-        {demande.desiredDate && (
-          <div className="text-sm flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-            <span className="text-gray-500">Date souhaitée:</span>
-            <span className="font-medium text-gray-900">
-              {new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+        <div className="space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Montant demandé</span>
+            <span className="font-semibold text-gray-900">
+              {demande.monthlyAmount.toLocaleString('fr-FR')} FCFA
             </span>
           </div>
-        )}
-
-        {demande.decisionMadeByName && (
-          <div className="text-sm">
-            <span className="text-gray-500">Décision par: </span>
-            <span className="font-medium text-gray-900">{demande.decisionMadeByName}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Nombre de mois</span>
+            <span className="font-semibold text-gray-900">{demande.monthsPlanned} mois</span>
           </div>
-        )}
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Date souhaitée</span>
+            <span className="font-semibold text-gray-900">
+              {demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}
+            </span>
+          </div>
+        </div>
 
-        {/* Actions alignées verticalement */}
-        <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
-          {demande.status === 'PENDING' && (
+        <div className="pt-3 border-t border-gray-100 mt-auto text-sm">
+          <span className="text-gray-500">Motif: </span>
+          <span className="text-gray-900">{demandReason || '—'}</span>
+        </div>
+
+        <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
+          {canAcceptOrReject && (
             <>
               <Button
-                size="sm"
-                onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
-              >
-                <FileEdit className="h-4 w-4 mr-1" />
-                Modifier
-              </Button>
-              <Button
-                size="sm"
                 onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
               >
-                <CheckCircle className="h-4 w-4 mr-1" />
+                <CheckCircle className="h-4 w-4 mr-2" />
                 Accepter
               </Button>
               <Button
-                size="sm"
+                variant="outline"
                 onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                className="w-full h-10 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
               >
-                <XCircle className="h-4 w-4 mr-1" />
+                <XCircle className="h-4 w-4 mr-2" />
                 Refuser
               </Button>
             </>
           )}
-          {demande.status === 'REJECTED' && (
+
+          {canReopen && (
             <Button
-              size="sm"
+              variant="outline"
               onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+              className="w-full h-10 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
             >
-              <RotateCcw className="h-4 w-4 mr-1" />
+              <RotateCcw className="h-4 w-4 mr-2" />
               Réouvrir
             </Button>
           )}
-          {demande.status === 'APPROVED' && demande.contractId && (
-            <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Contrat créé
-            </Badge>
-          )}
+
           <Button
+            variant="outline"
             onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+            className="w-full h-10"
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 mr-2" />
             Voir détails
           </Button>
-          {demande.status !== 'CONVERTED' && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
-              className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-400"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Supprimer
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>
   )
 }
 
+const MemberTableCell = ({ demande }: { demande: CaisseSpecialeDemand }) => {
+  const { data: member } = useMember(demande.memberId)
+  const memberPhotoUrl = member?.photoURL || ''
+  const memberInitials = `${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase()
+  return (
+    <div className="flex items-center gap-2">
+      <Avatar className="h-10 w-10 shrink-0">
+        {memberPhotoUrl ? (
+          <AvatarImage src={memberPhotoUrl} alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`} />
+        ) : null}
+        <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+          {memberInitials || '--'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <div className="font-medium">
+          {member?.firstName || '—'} {member?.lastName || '—'}
+        </div>
+        <div className="text-xs text-gray-500">
+          {member?.matricule || demande.memberId || '—'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Ligne du tableau (composant pour pouvoir utiliser useMember)
 const DemandTableRow = ({
   demande,
-  getStatusColor,
-  getStatusLabel,
   setAcceptModalState,
   setRejectModalState,
   setReopenModalState,
   setDeleteModalState,
 }: {
   demande: CaisseSpecialeDemand
-  getStatusColor: (s: CaisseSpecialeDemandStatus) => string
-  getStatusLabel: (s: CaisseSpecialeDemandStatus) => string
   setAcceptModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setRejectModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setReopenModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
@@ -372,21 +320,19 @@ const DemandTableRow = ({
 }) => {
   const router = useRouter()
   const { data: member } = useMember(demande.memberId)
+  const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
   return (
     <TableRow>
-      <TableCell>{member?.matricule ?? '—'}</TableCell>
-      <TableCell>{member?.lastName ?? '—'}</TableCell>
-      <TableCell>{member?.firstName ?? '—'}</TableCell>
-      <TableCell><MemberContacts memberId={demande.memberId} /></TableCell>
-      <TableCell>{demande.monthlyAmount.toLocaleString('fr-FR')} FCFA</TableCell>
-      <TableCell>{demande.monthsPlanned} mois</TableCell>
-      <TableCell>{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}</TableCell>
       <TableCell>
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-          {getStatusLabel(demande.status)}
-        </span>
+        <Badge className={cn('text-xs border', statusInfo.color)}>{statusInfo.label}</Badge>
       </TableCell>
-      <TableCell><EmergencyContactDisplay demand={demande} /></TableCell>
+      <TableCell>
+        <MemberTableCell demande={demande} />
+      </TableCell>
+      <TableCell className="hidden md:table-cell">{member?.contacts?.[0] || member?.email || '—'}</TableCell>
+      <TableCell className="hidden lg:table-cell">{demande.monthlyAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+      <TableCell className="hidden lg:table-cell">{demande.monthsPlanned} mois</TableCell>
+      <TableCell className="hidden md:table-cell">{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end">
           <DropdownMenu>
@@ -592,39 +538,6 @@ const ListDemandes = () => {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
     queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
-  }
-
-  // Fonctions utilitaires
-  const getStatusColor = (status: CaisseSpecialeDemandStatus) => {
-    const colors = {
-      PENDING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      APPROVED: 'bg-green-100 text-green-700 border-green-200',
-      REJECTED: 'bg-red-100 text-red-700 border-red-200',
-      CONVERTED: 'bg-blue-100 text-blue-700 border-blue-200',
-    }
-    return colors[status] || colors.PENDING
-  }
-
-  const getStatusLabel = (status: CaisseSpecialeDemandStatus) => {
-    const labels = {
-      PENDING: 'En attente',
-      APPROVED: 'Acceptée',
-      REJECTED: 'Refusée',
-      CONVERTED: 'Convertie',
-    }
-    return labels[status] || status
-  }
-
-  const getCaisseTypeLabel = (type: string) => {
-    const labels = {
-      STANDARD: 'Standard',
-      JOURNALIERE: 'Journalière',
-      LIBRE: 'Libre',
-      STANDARD_CHARITABLE: 'Standard Charitable',
-      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
-      LIBRE_CHARITABLE: 'Libre Charitable',
-    }
-    return labels[type as keyof typeof labels] || type
   }
 
   // Les demandes sont déjà paginées côté serveur
@@ -845,15 +758,12 @@ const ListDemandes = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Matricule</TableHead>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Prénom</TableHead>
-                    <TableHead>Contacts demandeur</TableHead>
-                    <TableHead>Montant</TableHead>
-                    <TableHead>Durée</TableHead>
-                    <TableHead>Date souhaitée</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Contact d&apos;urgence</TableHead>
+                    <TableHead className="w-[120px]">Statut</TableHead>
+                    <TableHead>Membre</TableHead>
+                    <TableHead className="hidden md:table-cell">Contact</TableHead>
+                    <TableHead className="hidden lg:table-cell">Montant</TableHead>
+                    <TableHead className="hidden lg:table-cell">Durée</TableHead>
+                    <TableHead className="hidden md:table-cell">Date souhaitée</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -862,8 +772,6 @@ const ListDemandes = () => {
                     <DemandTableRow
                       key={demande.id}
                       demande={demande}
-                      getStatusColor={getStatusColor}
-                      getStatusLabel={getStatusLabel}
                       setAcceptModalState={setAcceptModalState}
                       setRejectModalState={setRejectModalState}
                       setReopenModalState={setReopenModalState}
@@ -879,9 +787,6 @@ const ListDemandes = () => {
               <DemandCard
                 key={demande.id}
                 demande={demande}
-                getStatusColor={getStatusColor}
-                getStatusLabel={getStatusLabel}
-                getCaisseTypeLabel={getCaisseTypeLabel}
                 setAcceptModalState={setAcceptModalState}
                 setRejectModalState={setRejectModalState}
                 setReopenModalState={setReopenModalState}

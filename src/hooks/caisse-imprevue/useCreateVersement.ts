@@ -1,17 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
-import { PaymentMode } from '@/types/types'
-
-export interface VersementFormData {
-  date: string
-  time: string
-  amount: number
-  mode: PaymentMode
-  penalty?: number
-  daysLate?: number
-  agentRecouvrementId?: string
-}
+import type { VersementFormData } from '@/services/caisse-imprevue/ICaisseImprevueService'
 
 interface CreateVersementParams {
   contractId: string
@@ -61,4 +51,3 @@ export const useCreateVersement = () => {
     },
   })
 }
-

@@ -334,6 +334,12 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             time: versementData.time,
             amount: versementData.amount,
             mode: versementData.mode,
+            ...(versementData.mode === 'airtel_money' || versementData.mode === 'mobicash'
+                ? { withFees: versementData.withFees }
+                : {}),
+            ...(versementData.mode === 'other' && versementData.paymentMethodOther
+                ? { paymentMethodOther: versementData.paymentMethodOther }
+                : {}),
             proofUrl,
             proofPath,
             createdAt: existing.createdAt,

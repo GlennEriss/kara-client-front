@@ -1027,6 +1027,7 @@ const ListContracts = () => {
 
   const getStatusLabel = (status: string) => {
     const labels = {
+      DRAFT: 'Brouillon',
       ACTIVE: 'Actif',
       LATE_NO_PENALTY: 'Retard (J+0..3)',
       LATE_WITH_PENALTY: 'Retard (J+4..12)',
