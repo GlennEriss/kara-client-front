@@ -504,7 +504,7 @@ const CaisseImprevuePDFV3 = ({
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>3. Déroulement des versements : </Text>
-          Le membre se doit de procéder aux versements des cotisations au plus tard le {paymentDueDayLabel}
+          Le membre se doit de procéder aux versements des cotisations au plus tard le {paymentDueDayLabel}{' '}
           de chaque mois durant toute la durée du présent contrat.
         </Text>
         <Text style={styles.paragraph}>

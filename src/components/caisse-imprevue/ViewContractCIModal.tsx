@@ -254,7 +254,10 @@ export default function ViewContractCIModal({ isOpen, onClose, contract }: ViewC
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                  📋 Contrat Caisse Imprévue
+                  <span className="inline-flex items-center gap-2">
+                    <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-[#234D65]" />
+                    <span>Contrat Caisse Imprévue</span>
+                  </span>
                 </DialogTitle>
                 <DialogDescription className="text-sm lg:text-base text-gray-600 truncate">
                   {contract.memberFirstName} {contract.memberLastName} - Contrat #{contract.id.slice(-6)}
