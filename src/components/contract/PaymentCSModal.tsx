@@ -273,19 +273,6 @@ export default function PaymentCSModal({
             </div>
           </div>
 
-          {/* Agent de recouvrement */}
-          <div>
-            <Label className="flex items-center gap-2 mb-2">
-              Agent de recouvrement (optionnel)
-            </Label>
-            <AgentRecouvrementSelect
-              value={agentRecouvrementId}
-              onValueChange={setAgentRecouvrementId}
-              placeholder="Sélectionner l'agent ayant collecté le versement"
-              required={false}
-            />
-          </div>
-
           {/* Montant */}
           <div>
             <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
@@ -307,6 +294,19 @@ export default function PaymentCSModal({
             <p className="text-xs text-muted-foreground mt-1">
               {amountDisabled ? 'Montant fixe défini par le contrat (Standard / Standard Charitable).' : 'Montant minimum: 100 FCFA'}
             </p>
+          </div>
+
+          {/* Agent de recouvrement */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              Agent de recouvrement (optionnel)
+            </Label>
+            <AgentRecouvrementSelect
+              value={agentRecouvrementId}
+              onValueChange={setAgentRecouvrementId}
+              placeholder="Sélectionner l'agent ayant collecté le versement"
+              required={false}
+            />
           </div>
 
           {/* Moyen de paiement */}
