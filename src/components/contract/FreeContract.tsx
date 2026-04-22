@@ -402,11 +402,6 @@ export default function FreeContract({ id }: Props) {
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
   
-  // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
-  const hasActiveRefund = refunds.some((r: any) => 
-    (r.type === 'EARLY' || r.type === 'FINAL') && 
-    (r.status === 'PENDING' || r.status === 'APPROVED')
-  )
 
   // Trouver le prochain mois à payer (paiement séquentiel)
   const getNextDueMonthIndex = () => {
@@ -832,7 +827,6 @@ export default function FreeContract({ id }: Props) {
               <Button
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                disabled={!hasActiveRefund}
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileText className="h-5 w-5" />
