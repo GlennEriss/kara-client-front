@@ -18,9 +18,9 @@ interface CaisseSpecialePDFModalProps {
 }
 
 const EMPTY_FILL_DATA: CaisseSpecialePdfFillData = {
-  page2MemberSignature: null,
-  page4SecretarySignature: null,
-  page4MemberSignature: null,
+  page3MemberSignature: null,
+  page5SecretarySignature: null,
+  page5MemberSignature: null,
 }
 
 const SignaturePad = ({
@@ -398,7 +398,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">4 pages</span>
+                      <span className="font-medium text-gray-900">5 pages</span>
                     </div>
                   </div>
 
@@ -468,27 +468,27 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
                       <SignaturePad
-                        title="Signature épargnant (page 2)"
-                        value={fillData.page2MemberSignature}
+                        title="Signature épargnant (page 3)"
+                        value={fillData.page3MemberSignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true
-                          setFillData((prev) => ({ ...prev, page2MemberSignature: value }))
+                          setFillData((prev) => ({ ...prev, page3MemberSignature: value }))
                         }}
                       />
                       <SignaturePad
-                        title="Signature secrétaire exécutif (page 4)"
-                        value={fillData.page4SecretarySignature}
+                        title="Signature secrétaire exécutif (page 5)"
+                        value={fillData.page5SecretarySignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true
-                          setFillData((prev) => ({ ...prev, page4SecretarySignature: value }))
+                          setFillData((prev) => ({ ...prev, page5SecretarySignature: value }))
                         }}
                       />
                       <SignaturePad
-                        title="Signature épargnant (page 4)"
-                        value={fillData.page4MemberSignature}
+                        title="Signature épargnant (page 5)"
+                        value={fillData.page5MemberSignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true
-                          setFillData((prev) => ({ ...prev, page4MemberSignature: value }))
+                          setFillData((prev) => ({ ...prev, page5MemberSignature: value }))
                         }}
                       />
                     </div>

@@ -269,15 +269,15 @@ const TableRow = ({
 }
 
 export interface CaisseSpecialePdfFillData {
-  page2MemberSignature: string | null
-  page4SecretarySignature: string | null
-  page4MemberSignature: string | null
+  page3MemberSignature: string | null
+  page5SecretarySignature: string | null
+  page5MemberSignature: string | null
 }
 
 const DEFAULT_FILL_DATA: CaisseSpecialePdfFillData = {
-  page2MemberSignature: null,
-  page4SecretarySignature: null,
-  page4MemberSignature: null,
+  page3MemberSignature: null,
+  page5SecretarySignature: null,
+  page5MemberSignature: null,
 }
 
 /**
@@ -617,7 +617,15 @@ const CaisseSpecialePDFV3 = ({
             </Text>
           </View>
         ))}
+      </Page>
 
+      {/* PAGE 3 */}
+      <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber }) => `${pageNumber}`}
+        />
         <Text style={[styles.paragraph, { marginTop: 2 }]}>Ce délai permet une gestion saine, responsable et transparente de la trésorerie.</Text>
 
         <Text style={[styles.paragraphListIndent, { marginTop: 4 }]}>
@@ -650,8 +658,8 @@ const CaisseSpecialePDFV3 = ({
 <Text style={styles.paragraph}>
         </Text>
         <View style={{ marginTop: 12 }}>
-          {resolvedFillData.page2MemberSignature ? (
-            <Image src={resolvedFillData.page2MemberSignature} style={styles.signatureImageRight} cache={false} />
+          {resolvedFillData.page3MemberSignature ? (
+            <Image src={resolvedFillData.page3MemberSignature} style={styles.signatureImageRight} cache={false} />
           ) : (
             <View style={styles.signaturePlaceholderRight} />
           )}
@@ -661,7 +669,7 @@ const CaisseSpecialePDFV3 = ({
         </View>
       </Page>
 
-      {/* PAGE 3 */}
+      {/* PAGE 4 */}
       <Page size="A4" style={styles.page}>
         <Text
           style={styles.pageNumber}
@@ -725,7 +733,7 @@ const CaisseSpecialePDFV3 = ({
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
       </Page>
 
-      {/* PAGE 4 */}
+      {/* PAGE 5 */}
       <Page size="A4" style={styles.page}>
         <Text
           style={styles.pageNumber}
@@ -740,8 +748,8 @@ const CaisseSpecialePDFV3 = ({
         <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT</Text>
 
         <Text style={[styles.paragraphIndented, { marginTop: 16 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
-        {resolvedFillData.page4SecretarySignature ? (
-          <Image src={resolvedFillData.page4SecretarySignature} style={styles.signatureImageWide} cache={false} />
+        {resolvedFillData.page5SecretarySignature ? (
+          <Image src={resolvedFillData.page5SecretarySignature} style={styles.signatureImageWide} cache={false} />
         ) : (
           <View style={styles.signaturePlaceholderWide} />
         )}
@@ -749,8 +757,8 @@ const CaisseSpecialePDFV3 = ({
         <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 28 }]}>
           Signature de l’épargnant précédée de la mention « lu et approuvé »
         </Text>
-        {resolvedFillData.page4MemberSignature ? (
-          <Image src={resolvedFillData.page4MemberSignature} style={styles.signatureImageWide} cache={false} />
+        {resolvedFillData.page5MemberSignature ? (
+          <Image src={resolvedFillData.page5MemberSignature} style={styles.signatureImageWide} cache={false} />
         ) : (
           <View style={styles.signaturePlaceholderWide} />
         )}
