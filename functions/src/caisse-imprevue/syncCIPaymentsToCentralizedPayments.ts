@@ -85,6 +85,16 @@ function buildCIPaymentId(contractId: string, monthIndex: number, versementId: s
   return `MK_PYMT_CI_${sanitizeForId(contractId)}_M${monthIndex + 1}_${sanitizeForId(versementId)}`
 }
 
+function buildCISupportPaymentId(contractId: string, supportId: string): string {
+  return `MK_PYMT_CI_SUPPORT_${sanitizeForId(contractId)}_${sanitizeForId(supportId)}`
+}
+
+function formatTime(date: Date): string {
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 function getVersementsMap(
   paymentData: admin.firestore.DocumentData | undefined
 ): Map<string, admin.firestore.DocumentData> {
@@ -297,6 +307,125 @@ export const syncCIPaymentsToCentralizedPayments = onDocumentWritten(
 
     console.log(
       `[syncCIPaymentsToCentralizedPayments] synchronisation terminée pour ${CONTRACTS_COLLECTION}/${contractId}/payments/${paymentDocId} (${afterVersements.size} versement(s))`
+    )
+  }
+)
+
+export const syncCISupportsToCentralizedPayments = onDocumentWritten(
+  {
+    document: 'contractsCI/{contractId}/supports/{supportId}',
+    memory: '256MiB',
+    timeoutSeconds: 60,
+  },
+  async (event) => {
+    const contractId = event.params.contractId as string
+    const supportId = event.params.supportId as string
+    const centralizedPaymentId = buildCISupportPaymentId(contractId, supportId)
+
+    const afterData = event.data?.after?.exists ? event.data.after.data() : undefined
+
+    // Si le support est supprimé, supprimer la trace centralisée
+    if (!afterData) {
+      await deleteCentralizedPayment(centralizedPaymentId)
+      console.log(
+        `[syncCISupportsToCentralizedPayments] source supprimée: ${CONTRACTS_COLLECTION}/${contractId}/supports/${supportId}`
+      )
+      return
+    }
+
+    // Charger le contrat parent (source de vérité pour bénéficiaire)
+    const contractSnap = await db.collection(CONTRACTS_COLLECTION).doc(contractId).get()
+    if (!contractSnap.exists) {
+      console.warn(
+        `[syncCISupportsToCentralizedPayments] contrat introuvable: ${CONTRACTS_COLLECTION}/${contractId}`
+      )
+      return
+    }
+
+    const contractData = contractSnap.data()
+    const beneficiaryId = asString(contractData?.memberId) || contractId
+    const beneficiaryName = buildBeneficiaryName(contractData)
+
+    const amount = asNumber(afterData.amount)
+    if (amount <= 0) {
+      await deleteCentralizedPayment(centralizedPaymentId)
+      console.warn(
+        `[syncCISupportsToCentralizedPayments] montant ignoré (<=0) pour support ${supportId} du contrat ${contractId}`
+      )
+      return
+    }
+
+    const supportStatus = asString(afterData.status) || 'ACTIVE'
+    const acceptedBy =
+      asString(afterData.approvedBy) ||
+      asString(contractData?.createdBy) ||
+      asString(afterData.updatedBy) ||
+      asString(afterData.createdBy) ||
+      'system'
+    const recordedBy =
+      asString(afterData.updatedBy) ||
+      asString(afterData.createdBy) ||
+      acceptedBy
+    const adminNameCache = new Map<string, string>()
+    const recordedByName = await getAdminDisplayName(recordedBy, adminNameCache)
+
+    const paymentDate =
+      toDate(afterData.approvedAt) ||
+      toDate(afterData.requestedAt) ||
+      toDate(afterData.createdAt) ||
+      new Date()
+    const recordedAt =
+      toDate(afterData.updatedAt) ||
+      toDate(afterData.createdAt) ||
+      paymentDate
+    const requestedAtDate = toDate(afterData.requestedAt)
+    const approvedAtDate = toDate(afterData.approvedAt)
+    const repaidAtDate = toDate(afterData.repaidAt)
+
+    const sourcePath = `${CONTRACTS_COLLECTION}/${contractId}/supports/${supportId}`
+
+    await upsertCentralizedPayment(
+      centralizedPaymentId,
+      cleanUndefined({
+        sourceType: 'caisse-imprevue',
+        sourceId: contractId,
+        contractId,
+        contractRef: contractId,
+        supportId,
+        sourcePath,
+        supportStatus,
+        paymentStatus: supportStatus,
+        beneficiaryId,
+        beneficiaryName,
+        date: admin.firestore.Timestamp.fromDate(paymentDate),
+        time: formatTime(paymentDate),
+        mode: 'other',
+        amount,
+        acceptedBy,
+        paymentType: 'UnexpectedFund',
+        paymentMethodOther: 'support-financier',
+        proofUrl: asString(afterData.documentUrl),
+        proofPath: asString(afterData.documentPath),
+        documentId: asString(afterData.documentId),
+        amountRepaid: asNumber(afterData.amountRepaid),
+        amountRemaining: asNumber(afterData.amountRemaining),
+        requestedAt: requestedAtDate
+          ? admin.firestore.Timestamp.fromDate(requestedAtDate)
+          : undefined,
+        approvedAt: approvedAtDate
+          ? admin.firestore.Timestamp.fromDate(approvedAtDate)
+          : undefined,
+        repaidAt: repaidAtDate
+          ? admin.firestore.Timestamp.fromDate(repaidAtDate)
+          : undefined,
+        recordedBy,
+        recordedByName,
+        recordedAt: admin.firestore.Timestamp.fromDate(recordedAt),
+      })
+    )
+
+    console.log(
+      `[syncCISupportsToCentralizedPayments] synchronisation terminée pour ${sourcePath}`
     )
   }
 )

@@ -47,7 +47,6 @@ import RemboursementCIPDFModal from './RemboursementCIPDFModal'
 import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
-import SupportHistoryCIModal from './SupportHistoryCIModal'
 import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 
 // Helper pour formater les montants correctement
@@ -294,7 +293,6 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
-  const [showSupportHistoryModal, setShowSupportHistoryModal] = useState(false)
   const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
@@ -823,7 +821,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             {/* Bouton Historique des aides */}
             <Button
               variant="outline"
-              onClick={() => setShowSupportHistoryModal(true)}
+              onClick={() => router.push(routes.admin.caisseImprevueContractSupports(contract.id))}
               className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
             >
               <History className="h-4 w-4" />
@@ -1483,13 +1481,6 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           isOpen={showRequestSupportModal}
           onClose={() => setShowRequestSupportModal(false)}
           contract={contract}
-        />
-
-        {/* Modal d'historique des supports */}
-        <SupportHistoryCIModal
-          isOpen={showSupportHistoryModal}
-          onClose={() => setShowSupportHistoryModal(false)}
-          contractId={contract.id}
         />
 
         {/* Modal de remboursement du support */}
