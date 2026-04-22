@@ -14,6 +14,7 @@ import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 import type { PaymentMode } from '@/types/types'
 import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
 import { getGroupById } from '@/db/group.db'
+import { getAdminById } from '@/db/admin.db'
 
 // Fonction utilitaire pour générer un ID de contribution personnalisé
 function generateContributionId(memberId: string, paidAt: Date): string {
@@ -556,7 +557,9 @@ export async function requestEarlyRefund(contractId: string, input?: {
   withdrawalTime?: string
   withdrawalDate?: string
   withdrawalAmount?: number
-  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other'
+  withFees?: boolean
+  paymentMethodOther?: string
   withdrawalProof?: File
   documentPdf?: File
   createdBy?: string
@@ -580,7 +583,8 @@ export async function requestEarlyRefund(contractId: string, input?: {
   if (hasEarly || c.status === 'EARLY_REFUND_PENDING') {
     throw new Error('Une demande de retrait anticipé est déjà en cours pour ce contrat')
   }
-  await updateContract(contractId, { status: 'EARLY_REFUND_PENDING' })
+  // Nouveau flow: soumission du retrait anticipé = traitement final immédiat
+  await updateContract(contractId, { status: 'CLOSED' })
   const amountNominal = c.nominalPaid || 0
   // Bonus du mois précédent (paidCount-1 => M(paidCount-1)) → index = paidCount-2, à partir de M4
   const settings = await getActiveSettings((c as any).caisseType)
@@ -663,20 +667,48 @@ export async function requestEarlyRefund(contractId: string, input?: {
     }
   }
 
+  let processedByName = input?.createdBy || auth.currentUser?.uid || 'system'
+  if (input?.createdBy) {
+    try {
+      const admin = await getAdminById(input.createdBy)
+      if (admin) {
+        const fullName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+        processedByName = fullName || input.createdBy
+      }
+    } catch {
+      // Garder l'identifiant si profil admin indisponible
+    }
+  }
+
+  const processedAt = new Date()
+  const processedBy = input?.createdBy || auth.currentUser?.uid || 'system'
+  const processedTime = input?.withdrawalTime || `${processedAt.getHours().toString().padStart(2, '0')}:${processedAt.getMinutes().toString().padStart(2, '0')}`
+
   await addRefund(contractId, {
     type: 'EARLY', 
     amountNominal, 
     amountBonus, 
     deadlineAt, 
-    status: 'PENDING',
+    status: 'PAID',
     reason: input?.reason?.trim() || '',
     withdrawalAmount,
     withdrawalMode: input?.withdrawalMode,
+    ...((input?.withdrawalMode === 'airtel_money' || input?.withdrawalMode === 'mobicash') && input.withFees !== undefined
+      ? { withFees: input.withFees }
+      : {}),
+    ...(input?.withdrawalMode === 'other' && input.paymentMethodOther?.trim()
+      ? { paymentMethodOther: input.paymentMethodOther.trim() }
+      : {}),
     withdrawalDate,
     withdrawalTime,
     withdrawalProofUrl,
     withdrawalProofPath,
     document,
+    proofUrl: withdrawalProofUrl,
+    processedAt,
+    processedBy,
+    processedByName,
+    processedTime,
   })
   return true
 }
@@ -698,9 +730,25 @@ export async function markRefundPaid(contractId: string, refundId: string, proof
   }
   
   // Construire les mises à jour
-  const updates: any = { 
-    status: 'PAID', 
-    processedAt: new Date() 
+  const now = new Date()
+  const processedBy = auth.currentUser?.uid || 'system'
+  let processedByName: string | undefined
+  try {
+    const admin = await getAdminById(processedBy)
+    if (admin) {
+      const fullName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+      processedByName = fullName || processedBy
+    }
+  } catch {
+    // Ne pas bloquer la mise à jour si le profil admin est introuvable
+  }
+
+  const updates: any = {
+    status: 'PAID',
+    processedAt: now,
+    processedBy,
+    processedByName: processedByName || processedBy,
+    processedTime: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
   }
   
   // Ajouter la preuve si fournie

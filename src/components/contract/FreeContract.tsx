@@ -402,11 +402,6 @@ export default function FreeContract({ id }: Props) {
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
   
-  // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
-  const hasActiveRefund = refunds.some((r: any) => 
-    (r.type === 'EARLY' || r.type === 'FINAL') && 
-    (r.status === 'PENDING' || r.status === 'APPROVED')
-  )
 
   // Trouver le prochain mois à payer (paiement séquentiel)
   const getNextDueMonthIndex = () => {
@@ -832,7 +827,6 @@ export default function FreeContract({ id }: Props) {
               <Button
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                disabled={!hasActiveRefund}
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileText className="h-5 w-5" />
@@ -852,21 +846,33 @@ export default function FreeContract({ id }: Props) {
                 </div>
               ) : (
                 refunds.map((r: any) => {
+                  const isEarlyRefund = r.type === 'EARLY'
                   const getRefundStatusConfig = (status: string) => {
+                    if (isEarlyRefund) {
+                      if (status === 'ARCHIVED') {
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
+                      }
+                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Enregistré' }
+                    }
                     switch (status) {
                       case 'PENDING':
-                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
                       case 'APPROVED':
-                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle }
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: 'Approuvé' }
                       case 'PAID':
-                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle }
+                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
                       default:
-                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle }
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
                     }
                   }
 
                   const statusConfig = getRefundStatusConfig(r.status)
                   const StatusIcon = statusConfig.icon
+                  const finalProofUrl = r.proofUrl || r.withdrawalProofUrl
+                  const finalDocumentUrl = r.document?.url
+                  const finalAdminName = r.processedByName || r.processedBy
+                  const finalDate = r.withdrawalDate ? new Date(r.withdrawalDate) : (r.processedAt ? new Date(r.processedAt) : null)
+                  const finalTime = r.withdrawalTime || r.processedTime
 
                   return (
                     <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
@@ -881,7 +887,7 @@ export default function FreeContract({ id }: Props) {
                             </h3>
                             <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                              {statusConfig.label}
                             </Badge>
                           </div>
                         </div>
@@ -902,7 +908,36 @@ export default function FreeContract({ id }: Props) {
                         </div>
                       </div>
 
-                      {r.status === 'PENDING' && (
+                      {(r.type === 'FINAL' || r.type === 'EARLY') && r.status === 'PAID' && (
+                        <div className="mb-4 border-t border-gray-100 pt-3 space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-600">Document téléversé:</span>
+                            {finalDocumentUrl ? (
+                              <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                            ) : (
+                              <span className="text-xs text-gray-500">Indisponible</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-600">Preuve téléversée:</span>
+                            {finalProofUrl ? (
+                              <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                            ) : (
+                              <span className="text-xs text-gray-500">Indisponible</span>
+                            )}
+                          </div>
+                          <div className="pt-1 space-y-1 text-xs text-gray-500">
+                            {finalAdminName && <p>Marqué par: {finalAdminName}</p>}
+                            {finalDate && (
+                              <p>
+                                Le {finalDate.toLocaleDateString('fr-FR')} à {finalTime || finalDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {r.status === 'PENDING' && !isEarlyRefund && (
                         <div className="space-y-2">
                           {/* Première ligne : Approbation et Document de remboursement */}
                           <div className="flex flex-col sm:flex-row gap-2">
@@ -984,7 +1019,7 @@ export default function FreeContract({ id }: Props) {
                         </div>
                       )}
 
-                      {r.status === 'APPROVED' && (
+                      {r.status === 'APPROVED' && !isEarlyRefund && (
                         <div className="space-y-4">
                           {/* Affichage de la cause (non modifiable) */}
                           {r.reason && (
@@ -1115,12 +1150,14 @@ export default function FreeContract({ id }: Props) {
               await requestEarlyRefund(id, {
                 reason: formData.reason,
                 withdrawalDate: formData.withdrawalDate,
-                withdrawalTime: formData.withdrawalTime,
-                withdrawalAmount: formData.withdrawalAmount,
-                withdrawalMode: formData.withdrawalMode,
-                withdrawalProof: formData.withdrawalProof,
-                documentPdf: formData.documentPdf,
-                createdBy: user?.uid,
+              withdrawalTime: formData.withdrawalTime,
+              withdrawalAmount: formData.withdrawalAmount,
+              withdrawalMode: formData.withdrawalMode,
+              withFees: formData.withFees,
+              paymentMethodOther: formData.paymentMethodOther,
+              withdrawalProof: formData.withdrawalProof,
+              documentPdf: formData.documentPdf,
+              createdBy: user?.uid,
               })
               await refetch()
               await reloadRefunds()

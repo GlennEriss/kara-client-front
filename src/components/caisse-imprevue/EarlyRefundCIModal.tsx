@@ -49,12 +49,14 @@ interface EarlyRefundCIModalProps {
   isOpen: boolean
   onClose: () => void
   contract: ContractCI
+  onSuccess?: () => void | Promise<void>
 }
 
 export default function EarlyRefundCIModal({
   isOpen,
   onClose,
   contract,
+  onSuccess,
 }: EarlyRefundCIModalProps) {
   const { user } = useAuth()
   const requestEarlyRefundCIMutation = useRequestEarlyRefundCI()
@@ -75,6 +77,9 @@ export default function EarlyRefundCIModal({
   // Watchers pour les fichiers (react-hook-form ne gère pas bien les File)
   const [withdrawalProofFile, setWithdrawalProofFile] = useState<File | null>(null)
   const [documentPdfFile, setDocumentPdfFile] = useState<File | null>(null)
+  const withdrawalMode = watch('withdrawalMode')
+  const requiresFeesChoice = withdrawalMode === 'airtel_money' || withdrawalMode === 'mobicash'
+  const requiresOtherModeLabel = withdrawalMode === 'other'
 
   // Calculer le montant maximum disponible (somme des versements)
   const maxAmount = paymentStats?.totalAmountPaid || 0
@@ -179,6 +184,7 @@ export default function EarlyRefundCIModal({
       reset(defaultEarlyRefundCIValues)
       setWithdrawalProofFile(null)
       setDocumentPdfFile(null)
+      await onSuccess?.()
       onClose()
     } catch (error) {
       console.error('Erreur lors de la demande de retrait anticipé:', error)
@@ -197,6 +203,8 @@ export default function EarlyRefundCIModal({
         return <Smartphone className="h-4 w-4" />
       case 'mobicash':
         return <Banknote className="h-4 w-4" />
+      case 'other':
+        return <FileText className="h-4 w-4" />
       default:
         return <CreditCard className="h-4 w-4" />
     }
@@ -204,7 +212,7 @@ export default function EarlyRefundCIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:w-[95vw] sm:max-w-5xl lg:max-w-6xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
             <TrendingUp className="h-6 w-6" />
@@ -341,8 +349,16 @@ export default function EarlyRefundCIModal({
                   Mode de retrait *
                 </Label>
                 <Select
-                  value={watch('withdrawalMode')}
-                  onValueChange={(value) => setValue('withdrawalMode', value as any, { shouldValidate: true })}
+                  value={withdrawalMode}
+                  onValueChange={(value) => {
+                    setValue('withdrawalMode', value as any, { shouldValidate: true })
+                    if (value !== 'airtel_money' && value !== 'mobicash') {
+                      setValue('withFees', undefined, { shouldValidate: true })
+                    }
+                    if (value !== 'other') {
+                      setValue('paymentMethodOther', '', { shouldValidate: true })
+                    }
+                  }}
                   disabled={isLoading}
                 >
                   <SelectTrigger className={errors.withdrawalMode ? 'border-red-500' : ''}>
@@ -364,6 +380,51 @@ export default function EarlyRefundCIModal({
                 )}
               </div>
             </div>
+
+            {requiresFeesChoice && (
+              <div>
+                <Label htmlFor="withFees" className="flex items-center gap-2 mb-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  Frais mobile money *
+                </Label>
+                <Select
+                  value={watch('withFees') === undefined ? '' : (watch('withFees') ? 'with_fees' : 'without_fees')}
+                  onValueChange={(value) => setValue('withFees', value === 'with_fees', { shouldValidate: true })}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className={errors.withFees ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Sélectionner une option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="with_fees">Avec frais</SelectItem>
+                    <SelectItem value="without_fees">Sans frais</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.withFees && (
+                  <p className="text-xs text-red-500 mt-1">{errors.withFees.message}</p>
+                )}
+              </div>
+            )}
+
+            {requiresOtherModeLabel && (
+              <div>
+                <Label htmlFor="paymentMethodOther" className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Nom exact du mode de retrait *
+                </Label>
+                <Input
+                  id="paymentMethodOther"
+                  type="text"
+                  placeholder="Ex: Wave, Orange Money, etc."
+                  {...register('paymentMethodOther')}
+                  disabled={isLoading}
+                  className={errors.paymentMethodOther ? 'border-red-500' : ''}
+                />
+                {errors.paymentMethodOther && (
+                  <p className="text-xs text-red-500 mt-1">{errors.paymentMethodOther.message}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Section 2 : Pièces justificatives */}
@@ -502,6 +563,8 @@ export default function EarlyRefundCIModal({
               !watch('withdrawalTime') ||
               !watch('withdrawalAmount') ||
               !watch('withdrawalMode') ||
+              (requiresFeesChoice && watch('withFees') === undefined) ||
+              (requiresOtherModeLabel && !watch('paymentMethodOther')?.trim()) ||
               !withdrawalProofFile ||
               !documentPdfFile ||
               !isAmountValid
@@ -525,4 +588,3 @@ export default function EarlyRefundCIModal({
     </Dialog>
   )
 }
-

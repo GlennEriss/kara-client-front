@@ -42,6 +42,7 @@ import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
@@ -1105,21 +1106,37 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                 </div>
               ) : (
                 refunds.map((r: any) => {
+                  const isEarlyRefund = r.type === 'EARLY'
+
                   const getRefundStatusConfig = (status: string) => {
+                    if (isEarlyRefund) {
+                      if (status === 'ARCHIVED') {
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
+                      }
+                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Enregistré' }
+                    }
+
                     switch (status) {
                       case 'PENDING':
-                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
                       case 'APPROVED':
-                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle }
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: 'Approuvé' }
                       case 'PAID':
-                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle }
+                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
                       default:
-                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle }
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
                     }
                   }
 
                   const statusConfig = getRefundStatusConfig(r.status)
                   const StatusIcon = statusConfig.icon
+                  const handledBy = r.paidByName || r.createdByName || r.updatedByName || r.paidBy || r.createdBy
+                  const handledDate = r.withdrawalDate ? new Date(r.withdrawalDate) : r.paidAt ? new Date(r.paidAt) : r.createdAt ? new Date(r.createdAt) : null
+                  const handledTime = r.withdrawalTime || r.paidAtTime || (r as { time?: string }).time
+                  const canShowPendingMessage = !isEarlyRefund && r.status === 'PENDING'
+                  const canShowApprovedMessage = !isEarlyRefund && r.status === 'APPROVED'
+                  const canShowActions = !isEarlyRefund && (r.status === 'PENDING' || r.status === 'APPROVED')
+                  const canShowPaidInfo = !isEarlyRefund && r.status === 'PAID' && (r.paidByName || r.paidAt)
 
                   return (
                     <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
@@ -1134,14 +1151,14 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                             </h3>
                             <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                              {statusConfig.label}
                             </Badge>
-                            {r.status === 'PENDING' && (
+                            {canShowPendingMessage && (
                               <p className="text-xs text-amber-600 mt-1.5">
                                 En attente d&apos;approbation par l&apos;administrateur
                               </p>
                             )}
-                            {r.status === 'APPROVED' && (
+                            {canShowApprovedMessage && (
                               <p className="text-xs text-blue-600 mt-1.5">
                                 En attente du versement effectif au membre
                               </p>
@@ -1163,7 +1180,31 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                           <span className="text-gray-600">Échéance:</span>
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
-                        {r.status === 'PAID' && r.paymentProofUrl && (
+
+                        {isEarlyRefund && (
+                          <div className="pt-3 border-t border-gray-100 space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-600">Document téléversé:</span>
+                              <RefundDocumentLinkCI documentId={r.documentId} />
+                            </div>
+                            {r.proofUrl && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="text-gray-600">Preuve téléversée:</span>
+                                <a
+                                  href={r.proofUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:underline font-medium flex items-center gap-1"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Télécharger
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!isEarlyRefund && r.status === 'PAID' && r.paymentProofUrl && (
                           <div className="pt-3 border-t border-gray-100">
                             <div className="flex items-center gap-2 text-sm">
                               <span className="text-gray-600">Preuve de paiement:</span>
@@ -1179,7 +1220,17 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                             </div>
                           </div>
                         )}
-                        {r.status === 'PAID' && (r.paidByName || r.paidAt) && (
+                        {isEarlyRefund && (handledBy || handledDate) && (
+                          <div className="pt-2 space-y-1 text-xs text-gray-500">
+                            {handledBy && <p>Marqué par: {handledBy}</p>}
+                            {handledDate && (
+                              <p>
+                                Le {handledDate.toLocaleDateString('fr-FR')} à {handledTime ?? handledDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {canShowPaidInfo && (
                           <div className="pt-2 space-y-1 text-xs text-gray-500">
                             {r.paidByName && <p>Marqué par: {r.paidByName}</p>}
                             {r.paidAt && (
@@ -1191,7 +1242,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                         )}
                       </div>
 
-                      {(r.status === 'PENDING' || r.status === 'APPROVED') && (
+                      {canShowActions && (
                         <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                           {r.status === 'PENDING' && (
                             <>
@@ -1385,6 +1436,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           isOpen={showEarlyRefundModal}
           onClose={() => setShowEarlyRefundModal(false)}
           contract={contract}
+          onSuccess={reloadRefunds}
         />
 
         {/* Modal de demande de remboursement final */}
