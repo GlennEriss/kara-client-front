@@ -1097,10 +1097,10 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                 </div>
               ) : (
                 refunds.map((r: any) => {
-                  const isEarlyRefund = r.type === 'EARLY'
+                  const isInstantRefund = r.type === 'EARLY' || r.type === 'FINAL'
 
                   const getRefundStatusConfig = (status: string) => {
-                    if (isEarlyRefund) {
+                    if (isInstantRefund) {
                       if (status === 'ARCHIVED') {
                         return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
                       }
@@ -1124,10 +1124,10 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                   const handledBy = r.paidByName || r.createdByName || r.updatedByName || r.paidBy || r.createdBy
                   const handledDate = r.withdrawalDate ? new Date(r.withdrawalDate) : r.paidAt ? new Date(r.paidAt) : r.createdAt ? new Date(r.createdAt) : null
                   const handledTime = r.withdrawalTime || r.paidAtTime || (r as { time?: string }).time
-                  const canShowPendingMessage = !isEarlyRefund && r.status === 'PENDING'
-                  const canShowApprovedMessage = !isEarlyRefund && r.status === 'APPROVED'
-                  const canShowActions = !isEarlyRefund && (r.status === 'PENDING' || r.status === 'APPROVED')
-                  const canShowPaidInfo = !isEarlyRefund && r.status === 'PAID' && (r.paidByName || r.paidAt)
+                  const canShowPendingMessage = !isInstantRefund && r.status === 'PENDING'
+                  const canShowApprovedMessage = !isInstantRefund && r.status === 'APPROVED'
+                  const canShowActions = !isInstantRefund && (r.status === 'PENDING' || r.status === 'APPROVED')
+                  const canShowPaidInfo = !isInstantRefund && r.status === 'PAID' && (r.paidByName || r.paidAt)
 
                   return (
                     <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
@@ -1172,17 +1172,17 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
 
-                        {isEarlyRefund && (
+                        {isInstantRefund && (
                           <div className="pt-3 border-t border-gray-100 space-y-2">
                             <div className="flex items-center gap-2 text-sm">
                               <span className="text-gray-600">Document téléversé:</span>
                               <RefundDocumentLinkCI documentId={r.documentId} />
                             </div>
-                            {r.proofUrl && (
+                            {(r.type === 'FINAL' ? (r.paymentProofUrl || r.proofUrl) : r.proofUrl) && (
                               <div className="flex items-center gap-2 text-sm">
-                                <span className="text-gray-600">Preuve téléversée:</span>
+                                <span className="text-gray-600">{r.type === 'FINAL' ? 'Preuve de paiement:' : 'Preuve téléversée:'}</span>
                                 <a
-                                  href={r.proofUrl}
+                                  href={r.type === 'FINAL' ? (r.paymentProofUrl || r.proofUrl) : r.proofUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-indigo-600 hover:underline font-medium flex items-center gap-1"
@@ -1195,7 +1195,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                           </div>
                         )}
 
-                        {!isEarlyRefund && r.status === 'PAID' && r.paymentProofUrl && (
+                        {!isInstantRefund && r.status === 'PAID' && r.paymentProofUrl && (
                           <div className="pt-3 border-t border-gray-100">
                             <div className="flex items-center gap-2 text-sm">
                               <span className="text-gray-600">Preuve de paiement:</span>
@@ -1211,7 +1211,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                             </div>
                           </div>
                         )}
-                        {isEarlyRefund && (handledBy || handledDate) && (
+                        {isInstantRefund && (handledBy || handledDate) && (
                           <div className="pt-2 space-y-1 text-xs text-gray-500">
                             {handledBy && <p>Marqué par: {handledBy}</p>}
                             {handledDate && (
