@@ -2,9 +2,9 @@
 
 import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
 import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
+import ContractCIDetailsSkeleton from '@/components/caisse-imprevue/ContractCIDetailsSkeleton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { useCaisseImprevueContractRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractRealtimeSync'
 import { useContractCI } from '@/hooks/caisse-imprevue/useContractCI'
@@ -31,17 +31,7 @@ export default function ContractCIDetailsPage() {
 
   // États de chargement
   if (isLoadingContract) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <Skeleton className="h-12 w-64" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Skeleton className="h-96" />
-            <Skeleton className="h-96 lg:col-span-2" />
-          </div>
-        </div>
-      </div>
-    )
+    return <ContractCIDetailsSkeleton />
   }
 
   // Gestion des erreurs

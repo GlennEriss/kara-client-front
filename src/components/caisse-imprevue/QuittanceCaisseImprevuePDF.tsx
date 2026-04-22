@@ -75,6 +75,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: 'justify',
   },
+  signatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 50,
+    alignItems: 'flex-start',
+  },
+  signatureBlock: {
+    width: '48%',
+  },
+  signatureBlockRight: {
+    width: '48%',
+    alignItems: 'flex-end',
+  },
+  signatureImage: {
+    width: 185,
+    height: 56,
+    objectFit: 'contain',
+    marginTop: 12,
+  },
+  signaturePlaceholder: {
+    width: 185,
+    height: 56,
+    marginTop: 12,
+  },
 })
 
 // Fonction pour convertir un nombre en lettres
@@ -194,25 +218,31 @@ const numberToWords = (num: number) => {
   }
 }
 
-// Calculer l'âge à partir de la date de naissance
-const calculateAge = (birthDate: string | Date | null | undefined) => {
-  if (!birthDate) return '—'
-  try {
-    const birth = typeof birthDate === 'string' ? new Date(birthDate) : birthDate instanceof Date ? birthDate : new Date(birthDate)
-    const today = new Date()
-    if (isNaN(birth.getTime())) return '—'
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDiff = today.getMonth() - birth.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--
-    }
-    return age.toString()
-  } catch {
-    return '—'
-  }
+export interface QuittanceCaisseImprevuePdfFillData {
+  secretarySignature: string | null
+  memberSignature: string | null
 }
 
-const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountPaid }: { contract?: any; refund?: any; memberData?: any; totalAmountPaid?: number }) => {
+const DEFAULT_FILL_DATA: QuittanceCaisseImprevuePdfFillData = {
+  secretarySignature: null,
+  memberSignature: null,
+}
+
+const QuittanceCaisseImprevuePDF = ({
+  contract,
+  refund,
+  memberData,
+  totalAmountPaid,
+  fillData,
+}: {
+  contract?: any
+  refund?: any
+  memberData?: any
+  totalAmountPaid?: number
+  fillData?: QuittanceCaisseImprevuePdfFillData
+}) => {
+  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
+
   // Fonctions utilitaires pour formater les données
   const formatDate = (date: any) => {
     if (!date) return '—'
@@ -222,17 +252,6 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
     } catch {
       return '—'
     }
-  }
-
-  const formatAmount = (amount: number) => {
-    if (!amount) return '0'
-    // Convertir en string et ajouter des espaces tous les 3 chiffres
-    const numStr = Math.floor(amount).toString()
-    const parts = []
-    for (let i = numStr.length; i > 0; i -= 3) {
-      parts.unshift(numStr.slice(Math.max(0, i - 3), i))
-    }
-    return parts.join(' ')
   }
 
   // Utiliser les données du membre depuis memberData (complet depuis la DB) avec fallback sur le contrat
@@ -253,7 +272,6 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
     membershipType: (memberData?.membershipType && typeof memberData.membershipType === 'string' ? memberData.membershipType.toUpperCase() : null) || '—',
   }
 
-  const age = calculateAge(member.birthDate)
   const emergencyContact = contract?.emergencyContact || {}
   // Utiliser le montant nominal du remboursement actif, sinon le montant total versé (somme des targetAmount)
   const nominalAmount = refund?.amountNominal || totalAmountPaid || 0
@@ -358,11 +376,24 @@ const QuittanceCaisseImprevuePDF = ({ contract, refund, memberData, totalAmountP
             Cette quittance est libératoire de tout engagement de l'Association Kara vis-à-vis du membre. Elle est établie pour faire valoir ce que de droit.
           </Text>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 50, alignItems: 'flex-start' }}>
-            <Text style={styles.bold}>Signature du Secrétaire exécutif.</Text>
-            <View style={{ alignItems: 'flex-end' }}>
+          <View style={styles.signatureRow}>
+            <View style={styles.signatureBlock}>
+              <Text style={styles.bold}>Signature du Secrétaire exécutif.</Text>
+              {resolvedFillData.secretarySignature ? (
+                <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholder} />
+              )}
+            </View>
+
+            <View style={styles.signatureBlockRight}>
               <Text style={styles.bold}>Signature de l'épargnant</Text>
               <Text style={{ fontSize: 11, marginTop: 5 }}>(Précédée de la mention Lu et Approuvé)</Text>
+              {resolvedFillData.memberSignature ? (
+                <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholder} />
+              )}
             </View>
           </View>
         </View>

@@ -238,6 +238,7 @@ export default function FreeContract({ id }: Props) {
             amount: paymentData.amount,
             time: paymentData.time,
             mode: paymentData.mode,
+            withFees: paymentData.withFees,
             proofFile: paymentData.proofFile,
             paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
             modificationReason: paymentData.modificationReason,
@@ -267,6 +268,7 @@ export default function FreeContract({ id }: Props) {
         paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
         time: paymentData.time,
         mode: paymentData.mode,
+        withFees: paymentData.withFees,
         agentRecouvrementId: paymentData.agentRecouvrementId
       })
       await refetch()
@@ -765,6 +767,7 @@ export default function FreeContract({ id }: Props) {
               time: (source.time ?? `${String(paidAt.getHours()).padStart(2, '0')}:${String(paidAt.getMinutes()).padStart(2, '0')}`),
               amount: Number(source.amount ?? p?.accumulatedAmount) || 0,
               mode: (source.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
+              withFees: source.withFees,
               proofUrl: source.proofUrl ?? p?.proofUrl,
               agentRecouvrementId: agentRecouvrementId || undefined,
             }

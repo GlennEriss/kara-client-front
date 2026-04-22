@@ -76,6 +76,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  signatureImage: {
+    width: '100%',
+    height: 56,
+    objectFit: 'contain',
+    marginTop: 20,
+  },
   memberName: {
     fontSize: 10,
     fontStyle: 'italic',
@@ -135,15 +141,28 @@ export interface SupportRecognitionContract {
   subscriptionCISupportMax?: number
 }
 
+export interface SupportRecognitionPdfFillData {
+  secretarySignature: string | null
+  memberSignature: string | null
+}
+
 interface SupportRecognitionPDFProps {
   contract: SupportRecognitionContract
   /** Date de la prise d'aide ("en date du") */
   datePriseAide: Date
   /** Date de la prochaine échéance à payer */
   dateProchaineEcheance: Date
+  fillData?: SupportRecognitionPdfFillData
 }
 
-const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance }: SupportRecognitionPDFProps) => {
+const DEFAULT_FILL_DATA: SupportRecognitionPdfFillData = {
+  secretarySignature: null,
+  memberSignature: null,
+}
+
+const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance, fillData }: SupportRecognitionPDFProps) => {
+  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -249,12 +268,20 @@ const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance 
           <View style={styles.signatureSection}>
             <View style={styles.signatureBox}>
               <Text style={[styles.signatureLabel, styles.textCenter]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
-              <View style={styles.signatureLine}></View>
+              {resolvedFillData.secretarySignature ? (
+                <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
+              ) : (
+                <View style={styles.signatureLine}></View>
+              )}
             </View>
 
             <View style={styles.signatureBox}>
               <Text style={[styles.signatureLabel, styles.textCenter]}>SIGNATURE MEMBRE</Text>
-              <View style={styles.signatureLine}></View>
+              {resolvedFillData.memberSignature ? (
+                <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
+              ) : (
+                <View style={styles.signatureLine}></View>
+              )}
               <Text style={[styles.memberName, styles.textCenter]}>{memberName}</Text>
             </View>
           </View>

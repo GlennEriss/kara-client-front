@@ -45,6 +45,7 @@ import {
 import { useRouter } from "next/navigation"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import ContractDetailsSkeleton from "./ContractDetailsSkeleton"
 import PaymentCSModal, { PaymentCSFormData } from "./PaymentCSModal"
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
@@ -188,7 +189,7 @@ export default function StandardContract({ id }: Props) {
     return map[t] || t
   }
 
-  if (isLoading) return <div className="p-6">Chargement…</div>
+  if (isLoading) return <ContractDetailsSkeleton />
   if (isError)
     return (
       <div className="p-6 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
@@ -319,6 +320,7 @@ export default function StandardContract({ id }: Props) {
             amount: paymentData.amount,
             time: paymentData.time,
             mode: paymentData.mode,
+            withFees: paymentData.withFees,
             proofFile: paymentData.proofFile,
             paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
             modificationReason: paymentData.modificationReason,
@@ -349,6 +351,7 @@ export default function StandardContract({ id }: Props) {
         paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
         time: paymentData.time,
         mode: paymentData.mode,
+        withFees: paymentData.withFees,
         agentRecouvrementId: paymentData.agentRecouvrementId
       })
       await refetch()
@@ -709,6 +712,7 @@ export default function StandardContract({ id }: Props) {
               time: (c.time ?? `${String(paidAt.getHours()).padStart(2, '0')}:${String(paidAt.getMinutes()).padStart(2, '0')}`),
               amount: Number(c.amount) || 0,
               mode: (c.mode ?? 'airtel_money') as PaymentCSFormData['mode'],
+              withFees: c.withFees,
               proofUrl: c.proofUrl,
               agentRecouvrementId: agentRecouvrementId || undefined,
             }

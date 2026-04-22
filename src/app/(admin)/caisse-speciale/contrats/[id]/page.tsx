@@ -2,6 +2,7 @@
 
 import DailyContract from '@/components/contract/DailyContract'
 import FreeContract from '@/components/contract/FreeContract'
+import ContractDetailsSkeleton from '@/components/contract/ContractDetailsSkeleton'
 import StandardContract from '@/components/contract/StandardContract'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { AlertTriangle, Upload } from 'lucide-react'
@@ -35,7 +36,7 @@ export default function AdminCaisseContractDetailsPage() {
 		}
 	}, [data, router])
 
-	if (isLoading) return <div className="p-4">Chargement…</div>
+	if (isLoading) return <ContractDetailsSkeleton />
 	if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {String((error as any)?.message || error)}</div>
 	if (!data) return <div className="p-4">Contrat introuvable</div>
 

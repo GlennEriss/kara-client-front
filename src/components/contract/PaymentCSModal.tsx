@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { PaymentMode } from '@/types/types'
 import {
@@ -37,6 +38,8 @@ export interface PaymentCSFormData {
   time: string
   amount: number
   mode: PaymentMode
+  /** Airtel/Mobicash: true = avec frais, false = sans frais */
+  withFees?: boolean
   proofFile?: File // optionnel en mode modification (conservation de l'ancienne preuve si non fournie)
   agentRecouvrementId?: string
   /** Motif de la modification (obligatoire en mode modification) */
@@ -51,7 +54,7 @@ interface PaymentCSModalProps {
   description: string
   defaultAmount?: number
   /** Données initiales pour le mode modification (préremplit le formulaire) */
-  initialData?: { date: string; time: string; amount: number; mode: PaymentMode; proofUrl?: string; agentRecouvrementId?: string }
+  initialData?: { date: string; time: string; amount: number; mode: PaymentMode; withFees?: boolean; proofUrl?: string; agentRecouvrementId?: string }
   /** Libellé du bouton de soumission (ex: "Modifier le versement" en édition) */
   submitLabel?: string
   isGroupContract?: boolean
@@ -100,6 +103,7 @@ export default function PaymentCSModal({
           time: initialData.time,
           amount: initialData.amount,
           mode: initialData.mode,
+          withFees: initialData.withFees,
         })
         setAgentRecouvrementId(initialData.agentRecouvrementId ?? '')
       } else {
@@ -111,6 +115,7 @@ export default function PaymentCSModal({
           })(),
           amount: defaultAmount,
           mode: 'airtel_money',
+          withFees: undefined,
         })
         setAgentRecouvrementId('')
       }
@@ -185,6 +190,10 @@ export default function PaymentCSModal({
       toast.error('Le montant doit être supérieur à 0')
       return
     }
+    if ((formData.mode === 'airtel_money' || formData.mode === 'mobicash') && formData.withFees === undefined) {
+      toast.error('Veuillez indiquer si le paiement est avec frais ou sans frais')
+      return
+    }
 
     try {
       setIsSubmitting(true)
@@ -193,6 +202,9 @@ export default function PaymentCSModal({
         time: formData.time!,
         amount: formData.amount!,
         mode: formData.mode!,
+        ...(formData.mode === 'airtel_money' || formData.mode === 'mobicash'
+          ? { withFees: formData.withFees }
+          : {}),
         ...(proofFile && { proofFile }),
         agentRecouvrementId: agentRecouvrementId || undefined,
         ...(editMode && modificationReason.trim() && { modificationReason: modificationReason.trim() }),
@@ -207,6 +219,7 @@ export default function PaymentCSModal({
         })(),
         amount: defaultAmount,
         mode: 'airtel_money',
+        withFees: undefined,
       })
       setProofFile(undefined)
       setAgentRecouvrementId('')
@@ -356,7 +369,7 @@ export default function PaymentCSModal({
                   name="paymentMode"
                   value="cash"
                   checked={formData.mode === 'cash'}
-                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode, withFees: undefined }))}
                   className="text-[#224D62] focus:ring-[#224D62]"
                 />
                 <div className="ml-3 flex items-center gap-3">
@@ -373,7 +386,7 @@ export default function PaymentCSModal({
                   name="paymentMode"
                   value="bank_transfer"
                   checked={formData.mode === 'bank_transfer'}
-                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode, withFees: undefined }))}
                   className="text-[#224D62] focus:ring-[#224D62]"
                 />
                 <div className="ml-3 flex items-center gap-3">
@@ -384,6 +397,23 @@ export default function PaymentCSModal({
                 </div>
               </label>
             </div>
+            {(formData.mode === 'airtel_money' || formData.mode === 'mobicash') && (
+              <div className="mt-3">
+                <Label className="text-sm font-medium">Frais de transaction *</Label>
+                <Select
+                  value={formData.withFees === undefined ? '' : formData.withFees ? 'yes' : 'no'}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, withFees: value === 'yes' }))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Avec ou sans frais ?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Avec frais</SelectItem>
+                    <SelectItem value="no">Sans frais</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Preuve de paiement */}
@@ -480,6 +510,7 @@ export default function PaymentCSModal({
               !formData.time ||
               !formData.amount ||
               !formData.mode ||
+              ((formData.mode === 'airtel_money' || formData.mode === 'mobicash') && formData.withFees === undefined) ||
               (!editMode && !proofFile) ||
               (editMode && !modificationReason.trim())
             }
