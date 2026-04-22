@@ -867,6 +867,11 @@ export default function FreeContract({ id }: Props) {
 
                   const statusConfig = getRefundStatusConfig(r.status)
                   const StatusIcon = statusConfig.icon
+                  const finalProofUrl = r.proofUrl || r.withdrawalProofUrl
+                  const finalDocumentUrl = r.document?.url
+                  const finalAdminName = r.processedByName || r.processedBy
+                  const finalDate = r.withdrawalDate ? new Date(r.withdrawalDate) : (r.processedAt ? new Date(r.processedAt) : null)
+                  const finalTime = r.withdrawalTime || r.processedTime
 
                   return (
                     <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
@@ -901,6 +906,35 @@ export default function FreeContract({ id }: Props) {
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
                       </div>
+
+                      {r.type === 'FINAL' && r.status === 'PAID' && (
+                        <div className="mb-4 border-t border-gray-100 pt-3 space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-600">Document téléversé:</span>
+                            {finalDocumentUrl ? (
+                              <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Voir le PDF</a>
+                            ) : (
+                              <span className="text-xs text-gray-500">Indisponible</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-600">Preuve téléversée:</span>
+                            {finalProofUrl ? (
+                              <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Voir la preuve</a>
+                            ) : (
+                              <span className="text-xs text-gray-500">Indisponible</span>
+                            )}
+                          </div>
+                          <div className="pt-1 space-y-1 text-xs text-gray-500">
+                            {finalAdminName && <p>Marqué par: {finalAdminName}</p>}
+                            {finalDate && (
+                              <p>
+                                Le {finalDate.toLocaleDateString('fr-FR')} à {finalTime || finalDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {r.status === 'PENDING' && (
                         <div className="space-y-2">

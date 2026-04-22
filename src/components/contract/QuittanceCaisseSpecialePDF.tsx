@@ -2,7 +2,7 @@
 
 import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
 import { getNationalityName } from '@/constantes/nationality'
-import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 // Styles - basés sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
 const styles = StyleSheet.create({
@@ -86,12 +86,41 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 10,
-    marginTop: 60,
+    marginTop: 12,
+  },
+  signatureImage: {
+    width: 185,
+    height: 56,
+    objectFit: 'contain',
+    marginTop: 12,
+  },
+  signaturePlaceholder: {
+    width: 185,
+    height: 56,
+    marginTop: 12,
   },
 })
 
 // PDF basé sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
-const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
+export interface QuittanceCaisseSpecialePdfFillData {
+  refundDelayDays: string
+  secretarySignature: string | null
+  secretaryDate: string
+  memberSignature: string | null
+  memberDate: string
+}
+
+const DEFAULT_FILL_DATA: QuittanceCaisseSpecialePdfFillData = {
+  refundDelayDays: '',
+  secretarySignature: null,
+  secretaryDate: '',
+  memberSignature: null,
+  memberDate: '',
+}
+
+const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fillData?: QuittanceCaisseSpecialePdfFillData }) => {
+  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
+
   const formatDate = (date: any) => {
     if (!date) return '—'
     try {
@@ -100,10 +129,6 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
     } catch {
       return '—'
     }
-  }
-
-  const formatAmount = (amount: number) => {
-    return amount ? amount.toLocaleString('fr-FR') : '0'
   }
 
   const numberToWords = (num: number) => {
@@ -206,6 +231,19 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
     }
   }
 
+  const formatInputDate = (dateValue: string) => {
+    if (!dateValue) return '____/____/________'
+    const [year, month, day] = dateValue.split('-')
+    if (!year || !month || !day) return '____/____/________'
+    return `${day}/${month}/${year}`
+  }
+
+  const refundDelayDaysLabel =
+    resolvedFillData.refundDelayDays.trim() ||
+    (contract?.refundDelayDays != null ? String(contract.refundDelayDays) : '.......')
+  const secretaryDateLabel = formatInputDate(resolvedFillData.secretaryDate)
+  const memberDateLabel = formatInputDate(resolvedFillData.memberDate)
+
   const memberRows: QuittanceCoverRow[] = [
     {
       kind: 'pair',
@@ -282,7 +320,7 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             <>
               <Text style={styles.articleText}>• L'arrivée du terme du contrat</Text>
               <Text style={styles.articleText}>
-                Ce remboursement a été réalisé <Text style={styles.bold}>{contract?.refundDelayDays ?? '.......'}</Text> jours après la notification de la demande de résiliation.
+                Ce remboursement a été réalisé <Text style={styles.bold}>{refundDelayDaysLabel}</Text> jours après la notification de la demande de résiliation.
               </Text>
             </>
           )}
@@ -291,7 +329,7 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             <>
               <Text style={styles.articleText}>• Demande unilatérale de résiliation</Text>
               <Text style={styles.articleText}>
-                Ce remboursement a été réalisé <Text style={styles.bold}>{contract?.refundDelayDays ?? '.......'}</Text> jours après la notification de la demande de résiliation.
+                Ce remboursement a été réalisé <Text style={styles.bold}>{refundDelayDaysLabel}</Text> jours après la notification de la demande de résiliation.
               </Text>
             </>
           )}
@@ -309,13 +347,23 @@ const QuittanceCaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <View style={styles.signatureRow}>
             <View style={styles.signatureBlock}>
               <Text style={styles.bold}>Signature du Secrétaire exécutif</Text>
-              <Text style={styles.dateText}>Date : ____/____/________</Text>
+              {resolvedFillData.secretarySignature ? (
+                <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholder} />
+              )}
+              <Text style={styles.dateText}>Date : {secretaryDateLabel}</Text>
             </View>
             <View style={styles.signatureBlockRight}>
               <Text style={styles.bold}>
                 Signature de l'épargnant (Précédée de la mention Lu et Approuvé)
               </Text>
-              <Text style={styles.dateText}>Date : ____/____/________</Text>
+              {resolvedFillData.memberSignature ? (
+                <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
+              ) : (
+                <View style={styles.signaturePlaceholder} />
+              )}
+              <Text style={styles.dateText}>Date : {memberDateLabel}</Text>
             </View>
           </View>
         </View>

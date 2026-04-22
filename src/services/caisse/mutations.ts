@@ -14,6 +14,7 @@ import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 import type { PaymentMode } from '@/types/types'
 import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
 import { getGroupById } from '@/db/group.db'
+import { getAdminById } from '@/db/admin.db'
 
 // Fonction utilitaire pour générer un ID de contribution personnalisé
 function generateContributionId(memberId: string, paidAt: Date): string {
@@ -698,9 +699,25 @@ export async function markRefundPaid(contractId: string, refundId: string, proof
   }
   
   // Construire les mises à jour
-  const updates: any = { 
-    status: 'PAID', 
-    processedAt: new Date() 
+  const now = new Date()
+  const processedBy = auth.currentUser?.uid || 'system'
+  let processedByName: string | undefined
+  try {
+    const admin = await getAdminById(processedBy)
+    if (admin) {
+      const fullName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+      processedByName = fullName || processedBy
+    }
+  } catch {
+    // Ne pas bloquer la mise à jour si le profil admin est introuvable
+  }
+
+  const updates: any = {
+    status: 'PAID',
+    processedAt: now,
+    processedBy,
+    processedByName: processedByName || processedBy,
+    processedTime: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
   }
   
   // Ajouter la preuve si fournie
