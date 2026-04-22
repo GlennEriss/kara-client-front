@@ -849,13 +849,21 @@ export interface EarlyRefundCI {
   updatedAt: Date
   createdBy: string // ID de l'admin qui a créé
   updatedBy: string // ID de l'admin qui a mis à jour
+  createdByName?: string // Nom lisible de l'admin créateur
+  updatedByName?: string // Nom lisible du dernier admin ayant mis à jour
 
   // Approbation (optionnel)
   approvedBy?: string // ID de l'admin qui a approuvé
+  approvedByName?: string // Nom lisible de l'admin qui a approuvé
   approvedAt?: Date // Date d'approbation
 
   // Paiement (optionnel)
+  paidBy?: string // ID de l'admin qui a marqué payé
+  paidByName?: string // Nom lisible de l'admin qui a marqué payé
   paidAt?: Date // Date de paiement
+  paidAtTime?: string // Heure de paiement (HH:mm)
+  paymentProofUrl?: string // URL de la preuve de paiement
+  paymentProofPath?: string // Chemin storage de la preuve de paiement
 }
 
 /**
@@ -902,13 +910,21 @@ export interface FinalRefundCI {
   updatedAt: Date
   createdBy: string // ID de l'admin qui a créé
   updatedBy: string // ID de l'admin qui a mis à jour
+  createdByName?: string // Nom lisible de l'admin créateur
+  updatedByName?: string // Nom lisible du dernier admin ayant mis à jour
 
   // Approbation (optionnel)
   approvedBy?: string // ID de l'admin qui a approuvé
+  approvedByName?: string // Nom lisible de l'admin qui a approuvé
   approvedAt?: Date // Date d'approbation
 
   // Paiement (optionnel)
+  paidBy?: string // ID de l'admin qui a marqué payé
+  paidByName?: string // Nom lisible de l'admin qui a marqué payé
   paidAt?: Date // Date de paiement
+  paidAtTime?: string // Heure de paiement (HH:mm)
+  paymentProofUrl?: string // URL de la preuve de paiement
+  paymentProofPath?: string // Chemin storage de la preuve de paiement
 }
 
 /**

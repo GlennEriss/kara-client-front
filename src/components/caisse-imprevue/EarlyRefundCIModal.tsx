@@ -49,12 +49,14 @@ interface EarlyRefundCIModalProps {
   isOpen: boolean
   onClose: () => void
   contract: ContractCI
+  onSuccess?: () => void | Promise<void>
 }
 
 export default function EarlyRefundCIModal({
   isOpen,
   onClose,
   contract,
+  onSuccess,
 }: EarlyRefundCIModalProps) {
   const { user } = useAuth()
   const requestEarlyRefundCIMutation = useRequestEarlyRefundCI()
@@ -179,6 +181,7 @@ export default function EarlyRefundCIModal({
       reset(defaultEarlyRefundCIValues)
       setWithdrawalProofFile(null)
       setDocumentPdfFile(null)
+      await onSuccess?.()
       onClose()
     } catch (error) {
       console.error('Erreur lors de la demande de retrait anticipé:', error)
@@ -525,4 +528,3 @@ export default function EarlyRefundCIModal({
     </Dialog>
   )
 }
-

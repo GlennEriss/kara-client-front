@@ -235,6 +235,7 @@ export { syncMembersToAlgolia } from './members/syncMembersToAlgolia'
 
 // ==================== CAISSE SPÉCIALE – CACHE ÉLIGIBILITÉ CHARITY ====================
 export { syncMemberCharitySummary } from './caisse-speciale/syncMemberCharitySummary'
+export { syncCSPaymentsToCentralizedPayments } from './caisse-speciale/syncCSPaymentsToCentralizedPayments'
 
 // ==================== CAISSE IMPRÉVUE – SYNC DES VERSEMENTS VERS PAYMENTS ====================
 export { syncCIPaymentsToCentralizedPayments } from './caisse-imprevue/syncCIPaymentsToCentralizedPayments'

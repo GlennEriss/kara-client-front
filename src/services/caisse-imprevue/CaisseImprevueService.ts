@@ -740,6 +740,18 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             // 5. Calculer le montant bonus (pour l'instant à 0, peut être implémenté selon les règles métier)
             const amountBonus = 0
 
+            // 5.b Récupérer le nom lisible de l'administrateur
+            let adminName = data.userId
+            try {
+                const admin = await this.adminRepository.getAdminById(data.userId)
+                if (admin) {
+                    const fullName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+                    adminName = fullName || data.userId
+                }
+            } catch {
+                // Garder l'ID si le profil admin est introuvable
+            }
+
             // 6. Upload de la preuve du retrait (image ou PDF)
             const { url: proofUrl, path: proofPath } = await this.documentRepository.uploadDocumentFile(
                 data.withdrawalProof,
@@ -775,6 +787,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
             // 9. Créer la demande de retrait anticipé
             const withdrawalDate = new Date(data.withdrawalDate)
+            const withdrawalRecordedAt = new Date(`${data.withdrawalDate}T${data.withdrawalTime}:00`)
             const deadlineAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // 45 jours après création
 
             const earlyRefundData: Omit<EarlyRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -790,10 +803,18 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 documentId: document.id,
                 amountNominal: totalAmountPaid,
                 amountBonus,
-                status: 'PENDING',
+                status: 'PAID',
                 deadlineAt,
                 createdBy: data.userId,
                 updatedBy: data.userId,
+                createdByName: adminName,
+                updatedByName: adminName,
+                paidBy: data.userId,
+                paidByName: adminName,
+                paidAt: Number.isNaN(withdrawalRecordedAt.getTime()) ? withdrawalDate : withdrawalRecordedAt,
+                paidAtTime: data.withdrawalTime,
+                paymentProofUrl: proofUrl,
+                paymentProofPath: proofPath,
             }
 
             const earlyRefund = await this.earlyRefundCIRepository.createEarlyRefund(contractId, earlyRefundData)
