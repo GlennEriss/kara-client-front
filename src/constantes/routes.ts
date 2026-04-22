@@ -67,6 +67,7 @@ const routes = {
         caisseImprevueCreateContract: '/caisse-imprevue/create',
         caisseImprevueContractDetails: (id: string) => `/caisse-imprevue/contrats/${id}`,
         caisseImprevueContractPayments: (id: string) => `/caisse-imprevue/contrats/${id}/versements`,
+        caisseImprevueContractSupports: (id: string) => `/caisse-imprevue/contrats/${id}/aides`,
         caisseImprevueSettings: '/caisse-imprevue/settings',
         // Véhicules
         vehicules: '/vehicules',

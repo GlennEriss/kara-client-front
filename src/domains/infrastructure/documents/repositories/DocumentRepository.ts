@@ -181,8 +181,34 @@ export class DocumentRepository implements IDocumentRepository {
      * @returns {Promise<{url: string, path: string}>}
      */
     async uploadImage(imageUrl: string, memberId: string, contractId: string, imageType: string): Promise<{ url: string; path: string }> {
+        const tryExtractStoragePath = (url: string): string | null => {
+            try {
+                const parsed = new URL(url);
+                // Firebase download URL format: /v0/b/<bucket>/o/<encodedPath>?...
+                const marker = '/o/';
+                const index = parsed.pathname.indexOf(marker);
+                if (index === -1) return null;
+                const encodedPath = parsed.pathname.slice(index + marker.length);
+                if (!encodedPath) return null;
+                return decodeURIComponent(encodedPath);
+            } catch {
+                return null;
+            }
+        };
+
+        const isAlreadyFirebaseStorageUrl = (url: string): boolean =>
+            url.includes('firebasestorage.googleapis.com') || url.includes('storage.googleapis.com');
+
         try {
             console.log('📥 Téléchargement de l\'image depuis:', imageUrl)
+
+            // Quand l'image est déjà stockée sur Firebase Storage, éviter un fetch cross-origin fragile.
+            if (isAlreadyFirebaseStorageUrl(imageUrl)) {
+                return {
+                    url: imageUrl,
+                    path: tryExtractStoragePath(imageUrl) || '',
+                }
+            }
             
             // Télécharger l'image depuis l'URL
             const response = await fetch(imageUrl)
@@ -229,6 +255,16 @@ export class DocumentRepository implements IDocumentRepository {
             }
         } catch (error: any) {
             console.error('❌ Erreur lors de l\'upload de l\'image:', error)
+
+            // Fallback: conserver l'URL existante pour ne pas bloquer la création du contrat
+            // (cas fréquent: CORS/fetch inaccessible mais image déjà valide en storage).
+            if (typeof imageUrl === 'string' && imageUrl.trim().length > 0) {
+                return {
+                    url: imageUrl,
+                    path: tryExtractStoragePath(imageUrl) || '',
+                }
+            }
+
             throw new Error(`Failed to upload image: ${error.message}`)
         }
     }

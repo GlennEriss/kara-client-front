@@ -825,7 +825,9 @@ export interface EarlyRefundCI {
   withdrawalDate: Date // Date du retrait
   withdrawalTime: string // Heure du retrait (HH:mm)
   withdrawalAmount: number // Montant retiré
-  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other' // Mode de retrait
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé exact si withdrawalMode = 'other'
 
   // Preuve du retrait
   proofUrl: string // URL Firebase Storage
@@ -849,13 +851,21 @@ export interface EarlyRefundCI {
   updatedAt: Date
   createdBy: string // ID de l'admin qui a créé
   updatedBy: string // ID de l'admin qui a mis à jour
+  createdByName?: string // Nom lisible de l'admin créateur
+  updatedByName?: string // Nom lisible du dernier admin ayant mis à jour
 
   // Approbation (optionnel)
   approvedBy?: string // ID de l'admin qui a approuvé
+  approvedByName?: string // Nom lisible de l'admin qui a approuvé
   approvedAt?: Date // Date d'approbation
 
   // Paiement (optionnel)
+  paidBy?: string // ID de l'admin qui a marqué payé
+  paidByName?: string // Nom lisible de l'admin qui a marqué payé
   paidAt?: Date // Date de paiement
+  paidAtTime?: string // Heure de paiement (HH:mm)
+  paymentProofUrl?: string // URL de la preuve de paiement
+  paymentProofPath?: string // Chemin storage de la preuve de paiement
 }
 
 /**
@@ -878,7 +888,9 @@ export interface FinalRefundCI {
   withdrawalDate: Date // Date du retrait
   withdrawalTime: string // Heure du retrait (HH:mm)
   withdrawalAmount: number // Montant retiré (égal au montant total versé)
-  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other' // Mode de retrait
+  withFees?: boolean // Airtel/Mobicash: true=avec frais, false=sans frais
+  paymentMethodOther?: string // Libellé exact si withdrawalMode = 'other'
 
   // Preuve du retrait
   proofUrl: string // URL Firebase Storage
@@ -902,13 +914,21 @@ export interface FinalRefundCI {
   updatedAt: Date
   createdBy: string // ID de l'admin qui a créé
   updatedBy: string // ID de l'admin qui a mis à jour
+  createdByName?: string // Nom lisible de l'admin créateur
+  updatedByName?: string // Nom lisible du dernier admin ayant mis à jour
 
   // Approbation (optionnel)
   approvedBy?: string // ID de l'admin qui a approuvé
+  approvedByName?: string // Nom lisible de l'admin qui a approuvé
   approvedAt?: Date // Date d'approbation
 
   // Paiement (optionnel)
+  paidBy?: string // ID de l'admin qui a marqué payé
+  paidByName?: string // Nom lisible de l'admin qui a marqué payé
   paidAt?: Date // Date de paiement
+  paidAtTime?: string // Heure de paiement (HH:mm)
+  paymentProofUrl?: string // URL de la preuve de paiement
+  paymentProofPath?: string // Chemin storage de la preuve de paiement
 }
 
 /**
@@ -1232,7 +1252,9 @@ export interface RefundWithDocument {
   withdrawalDate?: Date
   withdrawalTime?: string
   withdrawalAmount?: number
-  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+  withdrawalMode?: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other'
+  withFees?: boolean
+  paymentMethodOther?: string
   withdrawalProofUrl?: string
   withdrawalProofPath?: string
   document?: RefundDocument

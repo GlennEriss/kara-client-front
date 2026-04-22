@@ -10,19 +10,33 @@ export async function listRefundsCI(contractId: string) {
   const colRef = collection(db, `${firebaseCollectionNames.contractsCI}/${contractId}/earlyRefunds`)
   const q = query(colRef, orderBy('createdAt', 'desc'))
   const snap = await getDocs(q)
+  const toDate = (value: any) => {
+    if (!value) return undefined
+    if (typeof value?.toDate === 'function') return value.toDate()
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+  }
+
   return snap.docs.map((d: any) => {
     const data = d.data()
     return {
       id: d.id,
       ...data,
       type: data.type || 'EARLY',
-      deadlineAt: (typeof data.deadlineAt?.toDate === 'function') ? data.deadlineAt.toDate() : (data.deadlineAt ? new Date(data.deadlineAt) : undefined),
-      createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
-      approvedAt: (typeof data.approvedAt?.toDate === 'function') ? data.approvedAt.toDate() : (data.approvedAt ? new Date(data.approvedAt) : undefined),
-      paidAt: (typeof data.paidAt?.toDate === 'function') ? data.paidAt.toDate() : (data.paidAt ? new Date(data.paidAt) : undefined),
+      withdrawalDate: toDate(data.withdrawalDate),
+      deadlineAt: toDate(data.deadlineAt),
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+      approvedAt: toDate(data.approvedAt),
+      paidAt: toDate(data.paidAt),
       paymentProofUrl: data.paymentProofUrl,
+      paymentProofPath: data.paymentProofPath,
       paidBy: data.paidBy,
       paidByName: data.paidByName,
+      paidAtTime: data.paidAtTime,
+      createdByName: data.createdByName,
+      updatedByName: data.updatedByName,
+      approvedByName: data.approvedByName,
     }
   })
 }
@@ -94,4 +108,3 @@ export async function deleteAllRefunds(contractId: string): Promise<void> {
   const snap = await getDocs(colRef)
   await Promise.all(snap.docs.map((d: any) => deleteDoc(doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, d.id))))
 }
-

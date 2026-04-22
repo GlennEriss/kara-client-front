@@ -674,7 +674,7 @@ export default function DailyContract({ id }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
@@ -770,90 +770,171 @@ export default function DailyContract({ id }: Props) {
           }}
         />
 
-      <ContractCalendarGrid
-        month={currentMonth}
-        daysWithStatus={daysWithStatus}
-        onDayClick={onDateClick}
-        onPrevMonth={() => {
-          const prev = new Date(currentMonth)
-          prev.setMonth(prev.getMonth() - 1)
-          setCurrentMonth(prev)
-        }}
-        onNextMonth={() => {
-          const next = new Date(currentMonth)
-          next.setMonth(next.getMonth() + 1)
-          setCurrentMonth(next)
-        }}
-        disabled={isClosed}
-      />
+        {/* Calendrier + récapitulatif mensuel (desktop) */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 min-w-0">
+            <ContractCalendarGrid
+              month={currentMonth}
+              daysWithStatus={daysWithStatus}
+              onDayClick={onDateClick}
+              onPrevMonth={() => {
+                const prev = new Date(currentMonth)
+                prev.setMonth(prev.getMonth() - 1)
+                setCurrentMonth(prev)
+              }}
+              onNextMonth={() => {
+                const next = new Date(currentMonth)
+                next.setMonth(next.getMonth() + 1)
+                setCurrentMonth(next)
+              }}
+              disabled={isClosed}
+            />
+          </div>
 
-      {/* Résumé mensuel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        {Array.from({ length: totalMonths }).map((_, monthIndex) => {
-          const total = getTotalForMonth(monthIndex)
-          const status = getMonthStatus(monthIndex)
-          const target = data.monthlyAmount || 0
-          const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
-
-          return (
-            <Card key={monthIndex} className="shadow-lg border-gray-100">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-                  <Calendar className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
-                  Mois {monthIndex + 1}
+          <div className="hidden lg:block lg:w-80 xl:w-96 flex-shrink-0">
+            <Card className="shadow-lg border-gray-100 h-full">
+              <CardHeader className="pb-3 border-b bg-gradient-to-r from-indigo-50 to-indigo-100/50">
+                <CardTitle className="text-base lg:text-lg flex items-center gap-2 text-indigo-700">
+                  <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5" />
+                  Récapitulatif mensuel
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {(() => {
-                  const range = getMonthDateRange(monthIndex)
-                  if (!range) return null
-                  return (
-                    <div className="text-xs text-gray-500">
-                      {range.start.toLocaleDateString('fr-FR')} → {range.end.toLocaleDateString('fr-FR')}
-                    </div>
-                  )
-                })()}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs lg:text-sm text-gray-600">Objectif</span>
-                  <span className="text-sm lg:text-base font-semibold">{formatAmount(target)} FCFA</span>
-                </div>
+              <CardContent className="p-4 h-[calc(100vh-340px)] min-h-[540px] overflow-y-auto">
+                <div className="space-y-3">
+                  {Array.from({ length: totalMonths }).map((_, monthIndex) => {
+                    const total = getTotalForMonth(monthIndex)
+                    const status = getMonthStatus(monthIndex)
+                    const target = data.monthlyAmount || 0
+                    const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
+                    const range = getMonthDateRange(monthIndex)
+                    const isActive = getMonthIndexFromStart(currentMonth) === monthIndex
 
-                <div className="flex items-center justify-between">
-                  <span className="text-xs lg:text-sm text-gray-600">Versé</span>
-                  <span className="text-sm lg:text-base font-semibold text-green-600">{formatAmount(total)} FCFA</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs lg:text-sm">
-                    <span>Progression</span>
-                    <span>{percentage.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={
-                      status === 'PAID' ? 'default' :
-                        status === 'PARTIAL' ? 'secondary' :
-                          status === 'DUE' ? 'secondary' : 'destructive'
-                    }
-                    className="text-xs"
-                  >
-                    {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : status === 'DUE' ? 'En cours' : status}
-                  </Badge>
+                    return (
+                      <Card
+                        key={monthIndex}
+                        className={`border-2 shadow-sm transition-all duration-200 cursor-pointer ${isActive ? 'border-indigo-500 bg-indigo-50/60' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                        onClick={() => {
+                          if (range) setCurrentMonth(new Date(range.start))
+                        }}
+                      >
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Calendar className={`h-4 w-4 ${isActive ? 'text-indigo-600' : 'text-gray-600'}`} />
+                              <span className="text-sm font-semibold text-gray-900">Mois {monthIndex + 1}</span>
+                            </div>
+                            {isActive && (
+                              <Badge className="bg-indigo-600 text-white text-[10px]">Actuel</Badge>
+                            )}
+                          </div>
+                          {range && (
+                            <div className="text-xs text-gray-500">
+                              {range.start.toLocaleDateString('fr-FR')} → {range.end.toLocaleDateString('fr-FR')}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Objectif</span>
+                            <span className="font-semibold text-gray-900">{formatAmount(target)} FCFA</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Versé</span>
+                            <span className="font-semibold text-green-600">{formatAmount(total)} FCFA</span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Progression</span>
+                              <span className="font-medium">{percentage.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full transition-all duration-300 ${percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                          <Badge
+                            variant={
+                              status === 'PAID' ? 'default' :
+                                status === 'PARTIAL' ? 'secondary' :
+                                  status === 'DUE' ? 'secondary' : 'destructive'
+                            }
+                            className="text-xs"
+                          >
+                            {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : status === 'DUE' ? 'En cours' : status}
+                          </Badge>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
-          )
-        })}
-      </div>
+          </div>
+        </div>
+
+        {/* Récapitulatif mensuel (mobile/tablette) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
+          {Array.from({ length: totalMonths }).map((_, monthIndex) => {
+            const total = getTotalForMonth(monthIndex)
+            const status = getMonthStatus(monthIndex)
+            const target = data.monthlyAmount || 0
+            const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
+
+            return (
+              <Card key={monthIndex} className="shadow-lg border-gray-100">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    Mois {monthIndex + 1}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(() => {
+                    const range = getMonthDateRange(monthIndex)
+                    if (!range) return null
+                    return (
+                      <div className="text-xs text-gray-500">
+                        {range.start.toLocaleDateString('fr-FR')} → {range.end.toLocaleDateString('fr-FR')}
+                      </div>
+                    )
+                  })()}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">Objectif</span>
+                    <span className="text-sm font-semibold">{formatAmount(target)} FCFA</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">Versé</span>
+                    <span className="text-sm font-semibold text-green-600">{formatAmount(total)} FCFA</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span>Progression</span>
+                      <span>{percentage.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={
+                        status === 'PAID' ? 'default' :
+                          status === 'PARTIAL' ? 'secondary' :
+                            status === 'DUE' ? 'secondary' : 'destructive'
+                      }
+                      className="text-xs"
+                    >
+                      {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : status === 'DUE' ? 'En cours' : status}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
 
         {/* Section Remboursements */}
         <Card className="border-0 shadow-xl">
@@ -884,12 +965,6 @@ export default function DailyContract({ id }: Props) {
             const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
             const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
                 
-                // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
-                const hasActiveRefund = refunds.some((r: any) => 
-                  (r.type === 'EARLY' || r.type === 'FINAL') && 
-                  (r.status === 'PENDING' || r.status === 'APPROVED')
-                )
-
             return (
               <>
                 <Button
@@ -919,7 +994,6 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   variant="outline"
                       className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                      disabled={!hasActiveRefund}
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                       <FileText className="h-5 w-5" />
@@ -942,21 +1016,33 @@ export default function DailyContract({ id }: Props) {
                 </div>
               ) : (
                 refunds.map((r: any) => {
+                  const isEarlyRefund = r.type === 'EARLY'
                   const getRefundStatusConfig = (status: string) => {
+                    if (isEarlyRefund) {
+                      if (status === 'ARCHIVED') {
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
+                      }
+                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Enregistré' }
+                    }
                     switch (status) {
                       case 'PENDING':
-                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
                       case 'APPROVED':
-                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle }
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: 'Approuvé' }
                       case 'PAID':
-                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle }
+                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
                       default:
-                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle }
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
                     }
                   }
 
                   const statusConfig = getRefundStatusConfig(r.status)
                   const StatusIcon = statusConfig.icon
+                  const finalProofUrl = r.proofUrl || r.withdrawalProofUrl
+                  const finalDocumentUrl = r.document?.url
+                  const finalAdminName = r.processedByName || r.processedBy
+                  const finalDate = r.withdrawalDate ? new Date(r.withdrawalDate) : (r.processedAt ? new Date(r.processedAt) : null)
+                  const finalTime = r.withdrawalTime || r.processedTime
 
                   return (
                     <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
@@ -971,7 +1057,7 @@ export default function DailyContract({ id }: Props) {
                             </h3>
                             <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                    {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                    {statusConfig.label}
                   </Badge>
                           </div>
                         </div>
@@ -992,7 +1078,36 @@ export default function DailyContract({ id }: Props) {
                         </div>
                 </div>
 
-                  {r.status === 'PENDING' && (
+                  {(r.type === 'FINAL' || r.type === 'EARLY') && r.status === 'PAID' && (
+                    <div className="mb-4 border-t border-gray-100 pt-3 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-600">Document téléversé:</span>
+                        {finalDocumentUrl ? (
+                          <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                        ) : (
+                          <span className="text-xs text-gray-500">Indisponible</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-600">Preuve téléversée:</span>
+                        {finalProofUrl ? (
+                          <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                        ) : (
+                          <span className="text-xs text-gray-500">Indisponible</span>
+                        )}
+                      </div>
+                      <div className="pt-1 space-y-1 text-xs text-gray-500">
+                        {finalAdminName && <p>Marqué par: {finalAdminName}</p>}
+                        {finalDate && (
+                          <p>
+                            Le {finalDate.toLocaleDateString('fr-FR')} à {finalTime || finalDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {r.status === 'PENDING' && !isEarlyRefund && (
                         <div className="space-y-2">
                           {/* Première ligne : Approbation et Document de remboursement */}
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -1074,7 +1189,7 @@ export default function DailyContract({ id }: Props) {
                     </div>
                   )}
 
-                  {r.status === 'APPROVED' && (
+                      {r.status === 'APPROVED' && !isEarlyRefund && (
                         <div className="space-y-4">
                       {/* Affichage de la cause (non modifiable) */}
                       {r.reason && (
@@ -2725,6 +2840,8 @@ export default function DailyContract({ id }: Props) {
               withdrawalTime: formData.withdrawalTime,
               withdrawalAmount: formData.withdrawalAmount,
               withdrawalMode: formData.withdrawalMode,
+              withFees: formData.withFees,
+              paymentMethodOther: formData.paymentMethodOther,
               withdrawalProof: formData.withdrawalProof,
               documentPdf: formData.documentPdf,
               createdBy: user?.uid,

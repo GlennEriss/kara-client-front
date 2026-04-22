@@ -58,7 +58,9 @@ export interface ICaisseImprevueService extends IService{
             withdrawalDate: string
             withdrawalTime: string
             withdrawalAmount: number
-            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' | 'other'
+            withFees?: boolean
+            paymentMethodOther?: string
             withdrawalProof: File
             documentPdf: File
             userId: string
