@@ -11,10 +11,13 @@ export type CaisseTypeFilter =
   | 'LIBRE_CHARITABLE'
   | 'all'
 
+export type SpecificCaisseTypeFilter = Exclude<CaisseTypeFilter, 'all'>
+
 export interface ContractFilters {
   status?: ContractStatusFilter
   contractType?: ContractTypeFilter
   caisseType?: CaisseTypeFilter
+  caisseTypes?: SpecificCaisseTypeFilter[]
   memberId?: string
   groupeId?: string
   createdAtFrom?: Date

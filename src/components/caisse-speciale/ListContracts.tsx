@@ -66,22 +66,65 @@ import ViewUploadedContractModal from './ViewUploadedContractModal'
 
 type ViewMode = 'grid' | 'list'
 
-type CaisseTypeTabValue =
-  | 'all'
+type CaisseSpecificType =
   | 'STANDARD'
   | 'JOURNALIERE'
   | 'LIBRE'
   | 'STANDARD_CHARITABLE'
   | 'JOURNALIERE_CHARITABLE'
   | 'LIBRE_CHARITABLE'
+
+type GroupedCaisseTabValue = 'STANDARD_GROUP' | 'JOURNALIERE_GROUP' | 'LIBRE_GROUP'
+
+type CaisseTypeTabValue =
+  | 'all'
+  | GroupedCaisseTabValue
   | 'overdue'
   | 'currentMonth'
+
+type GroupedCaisseSubFilterValue = 'all' | CaisseSpecificType
 
 type CaisseTypeTabItem = {
   value: CaisseTypeTabValue
   label: string
   icon: React.ComponentType<{ className?: string }>
   isDanger?: boolean
+}
+
+const GROUPED_CAISSE_TAB_VALUES: GroupedCaisseTabValue[] = [
+  'STANDARD_GROUP',
+  'JOURNALIERE_GROUP',
+  'LIBRE_GROUP',
+]
+
+const isGroupedCaisseTab = (value: string): value is GroupedCaisseTabValue =>
+  GROUPED_CAISSE_TAB_VALUES.includes(value as GroupedCaisseTabValue)
+
+const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecificType, CaisseSpecificType]> = {
+  STANDARD_GROUP: ['STANDARD', 'STANDARD_CHARITABLE'],
+  JOURNALIERE_GROUP: ['JOURNALIERE', 'JOURNALIERE_CHARITABLE'],
+  LIBRE_GROUP: ['LIBRE', 'LIBRE_CHARITABLE'],
+}
+
+const GROUPED_CAISSE_SUBFILTER_OPTIONS: Record<
+  GroupedCaisseTabValue,
+  { value: GroupedCaisseSubFilterValue; label: string }[]
+> = {
+  STANDARD_GROUP: [
+    { value: 'all', label: 'Tous' },
+    { value: 'STANDARD', label: 'Standard' },
+    { value: 'STANDARD_CHARITABLE', label: 'Standard charitable' },
+  ],
+  JOURNALIERE_GROUP: [
+    { value: 'all', label: 'Tous' },
+    { value: 'JOURNALIERE', label: 'Journalier' },
+    { value: 'JOURNALIERE_CHARITABLE', label: 'Journalier charitable' },
+  ],
+  LIBRE_GROUP: [
+    { value: 'all', label: 'Tous' },
+    { value: 'LIBRE', label: 'Libre' },
+    { value: 'LIBRE_CHARITABLE', label: 'Libre charitable' },
+  ],
 }
 
 // Hook personnalisé pour le carousel avec drag/swipe
@@ -357,7 +400,7 @@ const ContractFilters = ({
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
-  activeTab: string
+  activeTab: CaisseTypeTabValue
 }) => {
   const safeFilters = {
     search: '',
@@ -373,14 +416,8 @@ const ContractFilters = ({
   }
   const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
   const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
-  const isCaisseTabLocked =
-    activeTab === 'STANDARD' ||
-    activeTab === 'JOURNALIERE' ||
-    activeTab === 'LIBRE' ||
-    activeTab === 'STANDARD_CHARITABLE' ||
-    activeTab === 'JOURNALIERE_CHARITABLE' ||
-    activeTab === 'LIBRE_CHARITABLE'
-  const caisseTypeValue = isCaisseTabLocked ? activeTab : (safeFilters.caisseType || 'all')
+  const isCaisseTabLocked = isGroupedCaisseTab(activeTab)
+  const caisseTypeValue = isCaisseTabLocked ? 'all' : (safeFilters.caisseType || 'all')
   const isOverdueTab = activeTab === 'overdue'
   const isLateStatus =
     safeFilters.status === 'LATE_NO_PENALTY' || safeFilters.status === 'LATE_WITH_PENALTY'
@@ -662,12 +699,9 @@ const ListContracts = () => {
 
   const tabItems: CaisseTypeTabItem[] = [
     { value: 'all', label: 'Tous', icon: FileText },
-    { value: 'STANDARD', label: 'Standard', icon: FileText },
-    { value: 'JOURNALIERE', label: 'Journalier', icon: Calendar },
-    { value: 'LIBRE', label: 'Libre', icon: FileText },
-    { value: 'STANDARD_CHARITABLE', label: 'Standard Charitable', icon: FileText },
-    { value: 'JOURNALIERE_CHARITABLE', label: 'Journalier Charitable', icon: Calendar },
-    { value: 'LIBRE_CHARITABLE', label: 'Libre Charitable', icon: FileText },
+    { value: 'STANDARD_GROUP', label: 'Standard', icon: FileText },
+    { value: 'JOURNALIERE_GROUP', label: 'Journalier', icon: Calendar },
+    { value: 'LIBRE_GROUP', label: 'Libre', icon: FileText },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
   ]
@@ -678,17 +712,14 @@ const ListContracts = () => {
   }
   
   // État pour l'onglet actif (Tous les contrats / Standard / Journalier / Libre / Retard / Mois en cours)
-  const [activeTab, setActiveTab] = useState<
-    | 'all'
-    | 'STANDARD'
-    | 'JOURNALIERE'
-    | 'LIBRE'
-    | 'STANDARD_CHARITABLE'
-    | 'JOURNALIERE_CHARITABLE'
-    | 'LIBRE_CHARITABLE'
-    | 'overdue'
-    | 'currentMonth'
-  >('all')
+  const [activeTab, setActiveTab] = useState<CaisseTypeTabValue>('all')
+  const [groupedCaisseSubFilters, setGroupedCaisseSubFilters] = useState<
+    Record<GroupedCaisseTabValue, GroupedCaisseSubFilterValue>
+  >({
+    STANDARD_GROUP: 'all',
+    JOURNALIERE_GROUP: 'all',
+    LIBRE_GROUP: 'all',
+  })
   
   // États
   const [filters, setFilters] = useState({
@@ -717,9 +748,12 @@ const ListContracts = () => {
   const [contractToReplacePdf, setContractToReplacePdf] = useState<any>(null)
   const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
   const debouncedSearch = useDebounce(filters.search, 300)
+  const activeGroupedCaisseSubFilter = isGroupedCaisseTab(activeTab)
+    ? groupedCaisseSubFilters[activeTab]
+    : 'all'
 
   const effectiveFilters = React.useMemo(() => {
-    const nextFilters: any = { ...filters }
+    const nextFilters: any = { ...filters, caisseTypes: undefined }
 
     const searchValue = debouncedSearch.trim()
     if (searchValue.length >= 2) {
@@ -748,15 +782,14 @@ const ListContracts = () => {
       nextFilters.createdAtTo = undefined
     }
 
-    if (
-      activeTab === 'STANDARD' ||
-      activeTab === 'JOURNALIERE' ||
-      activeTab === 'LIBRE' ||
-      activeTab === 'STANDARD_CHARITABLE' ||
-      activeTab === 'JOURNALIERE_CHARITABLE' ||
-      activeTab === 'LIBRE_CHARITABLE'
-    ) {
-      nextFilters.caisseType = activeTab
+    if (isGroupedCaisseTab(activeTab)) {
+      const groupedTypes = GROUPED_CAISSE_TAB_TO_TYPES[activeTab]
+      if (activeGroupedCaisseSubFilter === 'all') {
+        nextFilters.caisseType = 'all'
+        nextFilters.caisseTypes = groupedTypes
+      } else {
+        nextFilters.caisseType = activeGroupedCaisseSubFilter
+      }
     }
 
     const hasCreatedRange = Boolean(nextFilters.createdAtFrom || nextFilters.createdAtTo)
@@ -767,7 +800,7 @@ const ListContracts = () => {
     }
 
     return nextFilters
-  }, [filters, activeTab, debouncedSearch])
+  }, [filters, activeTab, debouncedSearch, activeGroupedCaisseSubFilter])
 
   const pagination = React.useMemo(
     () => ({ limit: itemsPerPage, cursor: pageCursors[currentPage] || null }),
@@ -790,7 +823,7 @@ const ListContracts = () => {
   useEffect(() => {
     setCurrentPage(1)
     setPageCursors({ 1: null })
-  }, [filters, activeTab])
+  }, [filters, activeTab, activeGroupedCaisseSubFilter])
 
   // Charger les refunds pour chaque contrat
   useEffect(() => {
@@ -837,6 +870,11 @@ const ListContracts = () => {
       nextDueAtFrom: undefined,
       nextDueAtTo: undefined,
       overdueOnly: false,
+    })
+    setGroupedCaisseSubFilters({
+      STANDARD_GROUP: 'all',
+      JOURNALIERE_GROUP: 'all',
+      LIBRE_GROUP: 'all',
     })
     setCurrentPage(1)
     setPageCursors({ 1: null })
@@ -1033,6 +1071,17 @@ const ListContracts = () => {
         alternateRowStyles: { fillColor: [245, 247, 250] },
         margin: { top: 28 },
       })
+
+      // Pagination centrée en pied de page: "Page X / Y"
+      const totalPages = doc.getNumberOfPages()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      doc.setFontSize(9)
+      doc.setTextColor(75, 85, 99)
+      for (let page = 1; page <= totalPages; page++) {
+        doc.setPage(page)
+        doc.text(`Page ${page} / ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+      }
 
       const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.pdf`
       doc.save(filename)
@@ -1547,20 +1596,7 @@ const ListContracts = () => {
       {/* Onglets pour filtrer par type et période (rattachés à la liste) */}
       <Tabs
         value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(
-            value as
-              | 'all'
-              | 'STANDARD'
-              | 'JOURNALIERE'
-              | 'LIBRE'
-              | 'STANDARD_CHARITABLE'
-              | 'JOURNALIERE_CHARITABLE'
-              | 'LIBRE_CHARITABLE'
-              | 'overdue'
-              | 'currentMonth'
-          )
-        }
+        onValueChange={(value) => setActiveTab(value as CaisseTypeTabValue)}
         className="w-full"
       >
         {/* Tabs desktop : style onglets classeur */}
@@ -1618,6 +1654,36 @@ const ListContracts = () => {
             })}
           </div>
         </div>
+
+        {isGroupedCaisseTab(activeTab) && (
+          <div className="mt-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {GROUPED_CAISSE_SUBFILTER_OPTIONS[activeTab].map((option) => {
+                const isActive = activeGroupedCaisseSubFilter === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      setGroupedCaisseSubFilters((prev) => ({
+                        ...prev,
+                        [activeTab]: option.value,
+                      }))
+                    }
+                    className={cn(
+                      'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all',
+                      isActive
+                        ? 'border-[#234D65] bg-white text-[#234D65] shadow-sm'
+                        : 'border-slate-200 bg-white/80 text-slate-600 hover:border-[#234D65]/40 hover:text-[#234D65]'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </Tabs>
 
       {/* Liste des contrats */}

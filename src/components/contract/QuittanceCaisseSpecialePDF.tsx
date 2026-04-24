@@ -102,7 +102,9 @@ const styles = StyleSheet.create({
   pageNumber: {
     position: 'absolute',
     bottom: 16,
-    right: 24,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontSize: 10,
     color: '#4B5563',
   },
