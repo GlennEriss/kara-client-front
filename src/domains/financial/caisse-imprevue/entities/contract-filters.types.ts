@@ -5,6 +5,10 @@ export interface ContractCIFilters {
   status?: ContractCIStatus | 'all'
   paymentFrequency?: CaisseImprevuePaymentFrequency | 'all'
   subscriptionCIID?: string
+  createdAtFrom?: Date
+  createdAtTo?: Date
+  nextDueAtFrom?: Date
+  nextDueAtTo?: Date
   overdueOnly?: boolean
 }
 

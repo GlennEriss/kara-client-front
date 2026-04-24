@@ -62,6 +62,17 @@ function asNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function asOptionalNumber(value: unknown): number | undefined {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function asInteger(value: unknown): number | undefined {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return undefined
+  return Math.trunc(n)
+}
+
 function parseMonthIndex(paymentDocId: string, paymentData: admin.firestore.DocumentData | undefined): number {
   if (typeof paymentData?.monthIndex === 'number' && Number.isFinite(paymentData.monthIndex)) {
     return paymentData.monthIndex
@@ -150,29 +161,127 @@ function cleanUndefined(input: Record<string, unknown>): Record<string, unknown>
   return output
 }
 
+type SupportRepaymentNormalized = {
+  id: string
+  amount: number
+  date?: string
+  time?: string
+  monthIndex?: number
+  versementId?: string
+  createdBy?: string
+  createdAt: Date
+}
+
+function normalizeSupportRepayments(repaymentsRaw: unknown): {
+  repayments: Array<Record<string, unknown>>
+  repaymentCount: number
+  repaymentTotal: number
+  lastRepaymentAt: Date | null
+  lastRepaymentAmount?: number
+  lastRepaymentId?: string
+  lastRepaymentVersementId?: string
+  lastRepaymentMonthIndex?: number
+} {
+  const rawRepayments = Array.isArray(repaymentsRaw) ? repaymentsRaw : []
+  const normalized: SupportRepaymentNormalized[] = []
+
+  for (const [index, repaymentRaw] of rawRepayments.entries()) {
+    const repayment = repaymentRaw as admin.firestore.DocumentData | undefined
+    const amount = asNumber(repayment?.amount)
+    if (amount <= 0) continue
+
+    const id = asString(repayment?.id) || `repayment_${index + 1}`
+    const date = asString(repayment?.date)
+    const createdAt = toDate(repayment?.createdAt) || toDate(date) || new Date()
+
+    normalized.push({
+      id,
+      amount,
+      date,
+      time: asString(repayment?.time),
+      monthIndex: asInteger(repayment?.monthIndex),
+      versementId: asString(repayment?.versementId),
+      createdBy: asString(repayment?.createdBy),
+      createdAt,
+    })
+  }
+
+  normalized.sort((a, b) => {
+    const diff = a.createdAt.getTime() - b.createdAt.getTime()
+    if (diff !== 0) return diff
+    return a.id.localeCompare(b.id)
+  })
+
+  const repayments = normalized.map((repayment) =>
+    cleanUndefined({
+      id: repayment.id,
+      amount: repayment.amount,
+      date: repayment.date,
+      time: repayment.time,
+      monthIndex: repayment.monthIndex,
+      versementId: repayment.versementId,
+      createdBy: repayment.createdBy,
+      createdAt: admin.firestore.Timestamp.fromDate(repayment.createdAt),
+    })
+  )
+
+  const repaymentTotal = normalized.reduce((sum, repayment) => sum + repayment.amount, 0)
+  const lastRepayment = normalized[normalized.length - 1]
+
+  return {
+    repayments,
+    repaymentCount: repayments.length,
+    repaymentTotal,
+    lastRepaymentAt: lastRepayment?.createdAt || null,
+    lastRepaymentAmount: lastRepayment?.amount,
+    lastRepaymentId: lastRepayment?.id,
+    lastRepaymentVersementId: lastRepayment?.versementId,
+    lastRepaymentMonthIndex: lastRepayment?.monthIndex,
+  }
+}
+
 async function upsertCentralizedPayment(paymentId: string, payload: Record<string, unknown>): Promise<void> {
   const ref = db.collection(CENTRALIZED_PAYMENTS_COLLECTION).doc(paymentId)
-  const existingSnap = await ref.get()
+  await db.runTransaction(async (transaction) => {
+    const existingSnap = await transaction.get(ref)
+    const existingData = existingSnap.exists ? existingSnap.data() : undefined
 
-  if (existingSnap.exists) {
-    await ref.set(
+    const incomingSourceUpdatedAt = toDate(payload.sourceUpdatedAt)
+    const existingSourceUpdatedAt = toDate(existingData?.sourceUpdatedAt)
+    if (
+      existingSnap.exists &&
+      incomingSourceUpdatedAt &&
+      existingSourceUpdatedAt &&
+      incomingSourceUpdatedAt.getTime() < existingSourceUpdatedAt.getTime()
+    ) {
+      console.log(
+        `[syncCIPaymentsToCentralizedPayments] event ignoré (plus ancien) pour ${paymentId}`
+      )
+      return
+    }
+
+    if (existingSnap.exists) {
+      transaction.set(
+        ref,
+        cleanUndefined({
+          ...payload,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }),
+        { merge: true }
+      )
+      return
+    }
+
+    transaction.set(
+      ref,
       cleanUndefined({
         ...payload,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }),
       { merge: true }
     )
-    return
-  }
-
-  await ref.set(
-    cleanUndefined({
-      ...payload,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }),
-    { merge: true }
-  )
+  })
 }
 
 async function deleteCentralizedPayment(paymentId: string): Promise<void> {
@@ -270,6 +379,11 @@ export const syncCIPaymentsToCentralizedPayments = onDocumentWritten(
 
       const paymentDate = toDate(versement.date) || toDate(versement.createdAt) || new Date()
       const recordedAt = toDate(versement.createdAt) || toDate(afterData.updatedAt) || new Date()
+      const sourceUpdatedAt =
+        toDate(afterData.updatedAt) ||
+        toDate(versement.createdAt) ||
+        toDate(afterData.createdAt) ||
+        paymentDate
       const paymentId = buildCIPaymentId(contractId, afterMonthIndex, versementId)
 
       await upsertCentralizedPayment(
@@ -300,6 +414,7 @@ export const syncCIPaymentsToCentralizedPayments = onDocumentWritten(
           recordedBy,
           recordedByName,
           recordedAt: admin.firestore.Timestamp.fromDate(recordedAt),
+          sourceUpdatedAt: admin.firestore.Timestamp.fromDate(sourceUpdatedAt),
           modificationReason,
         })
       )
@@ -383,6 +498,19 @@ export const syncCISupportsToCentralizedPayments = onDocumentWritten(
     const repaidAtDate = toDate(afterData.repaidAt)
 
     const sourcePath = `${CONTRACTS_COLLECTION}/${contractId}/supports/${supportId}`
+    const normalizedRepayments = normalizeSupportRepayments(afterData.repayments)
+    const amountRepaidFromDoc = asOptionalNumber(afterData.amountRepaid)
+    const amountRemainingFromDoc = asOptionalNumber(afterData.amountRemaining)
+    const amountRepaid = Math.max(amountRepaidFromDoc ?? 0, normalizedRepayments.repaymentTotal)
+    const computedRemainingAmount = Math.max(0, amount - amountRepaid)
+    const amountRemaining = Math.max(0, amountRemainingFromDoc ?? computedRemainingAmount)
+    const isFullyRepaid = supportStatus === 'REPAID' || amountRemaining <= 0 || amountRepaid >= amount
+    const sourceUpdatedAt =
+      toDate(afterData.updatedAt) ||
+      repaidAtDate ||
+      approvedAtDate ||
+      toDate(afterData.createdAt) ||
+      paymentDate
 
     await upsertCentralizedPayment(
       centralizedPaymentId,
@@ -394,7 +522,7 @@ export const syncCISupportsToCentralizedPayments = onDocumentWritten(
         supportId,
         sourcePath,
         supportStatus,
-        paymentStatus: supportStatus,
+        paymentStatus: isFullyRepaid ? 'REPAID' : supportStatus,
         beneficiaryId,
         beneficiaryName,
         date: admin.firestore.Timestamp.fromDate(paymentDate),
@@ -407,8 +535,19 @@ export const syncCISupportsToCentralizedPayments = onDocumentWritten(
         proofUrl: asString(afterData.documentUrl),
         proofPath: asString(afterData.documentPath),
         documentId: asString(afterData.documentId),
-        amountRepaid: asNumber(afterData.amountRepaid),
-        amountRemaining: asNumber(afterData.amountRemaining),
+        amountRepaid,
+        amountRemaining,
+        isFullyRepaid,
+        repayments: normalizedRepayments.repayments,
+        repaymentCount: normalizedRepayments.repaymentCount,
+        repaymentTotalAmount: normalizedRepayments.repaymentTotal,
+        lastRepaymentAt: normalizedRepayments.lastRepaymentAt
+          ? admin.firestore.Timestamp.fromDate(normalizedRepayments.lastRepaymentAt)
+          : undefined,
+        lastRepaymentAmount: normalizedRepayments.lastRepaymentAmount,
+        lastRepaymentId: normalizedRepayments.lastRepaymentId,
+        lastRepaymentVersementId: normalizedRepayments.lastRepaymentVersementId,
+        lastRepaymentMonthIndex: normalizedRepayments.lastRepaymentMonthIndex,
         requestedAt: requestedAtDate
           ? admin.firestore.Timestamp.fromDate(requestedAtDate)
           : undefined,
@@ -421,6 +560,7 @@ export const syncCISupportsToCentralizedPayments = onDocumentWritten(
         recordedBy,
         recordedByName,
         recordedAt: admin.firestore.Timestamp.fromDate(recordedAt),
+        sourceUpdatedAt: admin.firestore.Timestamp.fromDate(sourceUpdatedAt),
       })
     )
 

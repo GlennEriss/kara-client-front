@@ -33,6 +33,10 @@ export class ContractCIRepository implements IContractCIRepository {
       status: filters.status,
       paymentFrequency: filters.paymentFrequency,
       subscriptionCIID: filters.subscriptionCIID,
+      createdAtFrom: filters.createdAtFrom,
+      createdAtTo: filters.createdAtTo,
+      nextDueAtFrom: filters.nextDueAtFrom,
+      nextDueAtTo: filters.nextDueAtTo,
       overdueOnly: filters.overdueOnly,
     }
   }

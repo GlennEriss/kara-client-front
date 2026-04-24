@@ -6,6 +6,10 @@ export interface ContractsCIFilters {
     status?: ContractCIStatus | 'all';
     paymentFrequency?: CaisseImprevuePaymentFrequency | 'all';
     subscriptionCIID?: string;
+    createdAtFrom?: Date;
+    createdAtTo?: Date;
+    nextDueAtFrom?: Date;
+    nextDueAtTo?: Date;
     overdueOnly?: boolean; // Nouveau : filtrer uniquement les contrats en retard
 }
 

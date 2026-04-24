@@ -89,6 +89,27 @@ function formatContractDate(value: string | Date | { toDate?: () => Date } | und
   return date.toLocaleDateString('fr-FR')
 }
 
+function getCurrentMonthRange(): { start: Date; end: Date } {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  return { start, end }
+}
+
+function hasActiveContractFilters(filters: ContractCIFilters): boolean {
+  return Boolean(
+    (filters.search && filters.search.trim() !== '') ||
+      (filters.status && filters.status !== 'all') ||
+      (filters.paymentFrequency && filters.paymentFrequency !== 'all') ||
+      filters.subscriptionCIID ||
+      filters.createdAtFrom ||
+      filters.createdAtTo ||
+      filters.nextDueAtFrom ||
+      filters.nextDueAtTo ||
+      filters.overdueOnly
+  )
+}
+
 // Composant skeleton moderne
 const ModernSkeleton = () => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
@@ -122,6 +143,11 @@ export default function ListContractsCISection() {
     status: 'all' as ContractCIStatus | 'all',
     paymentFrequency: 'all',
     subscriptionCIID: undefined,
+    createdAtFrom: undefined,
+    createdAtTo: undefined,
+    nextDueAtFrom: undefined,
+    nextDueAtTo: undefined,
+    overdueOnly: false,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -143,77 +169,39 @@ export default function ListContractsCISection() {
   const [selectedContractForReplace, setSelectedContractForReplace] = useState<ContractCI | null>(null)
   const { data: subscriptions } = useSubscriptionsCICache()
 
-  /**
-   * Vérifie si un contrat CI a une échéance dans le mois actuel
-   */
-  const hasDueDateInCurrentMonth = (contract: ContractCI): boolean => {
-    if (!contract.firstPaymentDate) return false
-    
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
-    
-    const firstPayment = new Date(contract.firstPaymentDate)
-    
-    // Pour les contrats mensuels, calculer les dates d'échéance
-    if (contract.paymentFrequency === 'MONTHLY') {
-      // Vérifier si une échéance mensuelle tombe dans le mois actuel
-      for (let monthIndex = 0; monthIndex < contract.subscriptionCIDuration; monthIndex++) {
-        const dueDate = new Date(firstPayment)
-        dueDate.setMonth(firstPayment.getMonth() + monthIndex)
-        
-        if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
-          return true
-        }
-      }
+  // Construire les filtres effectifs (aligné sur caisse-spéciale)
+  const effectiveFilters = useMemo<ContractCIFilters>(() => {
+    const nextFilters: ContractCIFilters = {
+      ...filters,
+      paymentFrequency:
+        activeTab === 'DAILY' || activeTab === 'MONTHLY'
+          ? activeTab
+          : (filters.paymentFrequency || 'all'),
+      overdueOnly: activeTab === 'overdue' ? true : Boolean(filters.overdueOnly),
     }
-    // Pour les contrats quotidiens, vérifier si le contrat est actif et couvre le mois actuel
-    else if (contract.paymentFrequency === 'DAILY') {
-      // Vérifier si le contrat est actif et si firstPaymentDate est dans le mois actuel
-      // ou si le contrat couvre le mois actuel (premier versement avant ou pendant le mois actuel)
-      if (contract.status === 'ACTIVE') {
-        const firstPaymentMonth = firstPayment.getMonth()
-        const firstPaymentYear = firstPayment.getFullYear()
-        
-        // Si le premier versement est dans le mois actuel ou avant
-        if (firstPaymentYear < currentYear || 
-            (firstPaymentYear === currentYear && firstPaymentMonth <= currentMonth)) {
-          // Calculer la date de fin du contrat
-          const endDate = new Date(firstPayment)
-          endDate.setMonth(firstPayment.getMonth() + contract.subscriptionCIDuration)
-          
-          // Vérifier si le mois actuel est couvert par le contrat
-          if (endDate.getMonth() >= currentMonth && endDate.getFullYear() >= currentYear) {
-            return true
-          }
-        }
-      }
-    }
-    
-    return false
-  }
 
-  // Construire les filtres : dans l'onglet "Tous" (et Retard / Mois en cours), utiliser le filtre "Type de contrat" ; sinon l'onglet impose le type (Journalier / Mensuel)
-  const effectiveFilters: ContractCIFilters = {
-    ...filters,
-    paymentFrequency:
-      activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : (filters.paymentFrequency || 'all'),
-    overdueOnly: activeTab === 'overdue'
-  }
+    if (activeTab === 'currentMonth') {
+      const { start, end } = getCurrentMonthRange()
+      nextFilters.nextDueAtFrom = start
+      nextFilters.nextDueAtTo = end
+      nextFilters.createdAtFrom = undefined
+      nextFilters.createdAtTo = undefined
+    }
+
+    const hasCreatedRange = Boolean(nextFilters.createdAtFrom || nextFilters.createdAtTo)
+    const hasNextDueRange = Boolean(nextFilters.nextDueAtFrom || nextFilters.nextDueAtTo)
+    if (hasCreatedRange && hasNextDueRange) {
+      nextFilters.nextDueAtFrom = undefined
+      nextFilters.nextDueAtTo = undefined
+    }
+
+    return nextFilters
+  }, [filters, activeTab])
 
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
   
-  // Filtrer par mois en cours si nécessaire
-  const filteredContracts = React.useMemo(() => {
-    if (!contracts) return []
-    
-    if (activeTab === 'currentMonth') {
-      return contracts.filter((contract: ContractCI) => hasDueDateInCurrentMonth(contract))
-    }
-    
-    return contracts
-  }, [contracts, activeTab])
+  const filteredContracts = useMemo(() => contracts || [], [contracts])
 
   const subscriptionOptions = useMemo(
     () =>
@@ -228,7 +216,7 @@ export default function ListContractsCISection() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters.status, filters.search, filters.subscriptionCIID, activeTab])
+  }, [filters, activeTab])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: ContractCIFilters) => {
@@ -242,6 +230,11 @@ export default function ListContractsCISection() {
       status: 'all',
       paymentFrequency: 'all',
       subscriptionCIID: undefined,
+      createdAtFrom: undefined,
+      createdAtTo: undefined,
+      nextDueAtFrom: undefined,
+      nextDueAtTo: undefined,
+      overdueOnly: false,
     })
     setCurrentPage(1)
   }
@@ -489,6 +482,7 @@ export default function ListContractsCISection() {
     })
     return map
   }, [contractIds, paymentStatsQueries])
+  const hasAnyActiveFilter = hasActiveContractFilters(filters) || activeTab !== 'all'
 
   // Gestion des erreurs
   if (error) {
@@ -549,6 +543,7 @@ export default function ListContractsCISection() {
         onReset={handleResetFilters}
         subscriptions={subscriptionOptions}
         showPaymentFrequencyFilter={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth'}
+        isOverdueTab={activeTab === 'overdue'}
       />
 
       {/* Barre d'actions moderne */}
@@ -1020,14 +1015,14 @@ export default function ListContractsCISection() {
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '')
+                  {hasAnyActiveFilter
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {hasAnyActiveFilter && (
                   <Button
                     variant="outline"
                     onClick={handleResetFilters}

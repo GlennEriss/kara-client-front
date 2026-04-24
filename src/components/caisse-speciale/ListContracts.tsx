@@ -10,6 +10,15 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
@@ -379,81 +388,170 @@ const ContractFilters = ({
     ? (isLateStatus ? safeFilters.status : 'LATE_NO_PENALTY')
     : (safeFilters.status || 'all')
 
-  const inputBase =
-    'px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200 min-w-0'
+  const statusLabels: Record<string, string> = {
+    all: 'Tous les statuts',
+    ACTIVE: 'Actif',
+    LATE_NO_PENALTY: 'Retard (J+0..3)',
+    LATE_WITH_PENALTY: 'Retard (J+4..12)',
+    RESCINDED: 'Cloture en urgence',
+    CLOSED: 'Cloture finale',
+  }
+  const contractTypeLabels: Record<string, string> = {
+    all: 'Tous les types',
+    INDIVIDUAL: 'Individuels',
+    GROUP: 'Groupes',
+  }
+  const caisseTypeLabels: Record<string, string> = {
+    all: 'Tous les types de contrat',
+    STANDARD: 'Standard',
+    JOURNALIERE: 'Journalière',
+    LIBRE: 'Libre',
+    STANDARD_CHARITABLE: 'Standard Charitable',
+    JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+    LIBRE_CHARITABLE: 'Libre Charitable',
+  }
+
+  const defaultStatusValue = isOverdueTab ? 'LATE_NO_PENALTY' : 'all'
+  const hasCustomStatus = statusValue !== defaultStatusValue
+
+  const activeFilterLabels = [
+    safeFilters.search?.trim() ? `Recherche: ${safeFilters.search.trim()}` : null,
+    hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : null,
+    safeFilters.contractType !== 'all'
+      ? `Contrat: ${contractTypeLabels[safeFilters.contractType] || safeFilters.contractType}`
+      : null,
+    !isCaisseTabLocked && caisseTypeValue !== 'all'
+      ? `Caisse: ${caisseTypeLabels[caisseTypeValue] || caisseTypeValue}`
+      : null,
+    isCreatedAtRangeActive ? 'Période de création' : null,
+    isNextDueRangeActive ? 'Prochaine échéance' : null,
+    !isOverdueTab && safeFilters.overdueOnly ? 'Retard uniquement' : null,
+  ].filter(Boolean) as string[]
+
+  const activeFiltersCount = activeFilterLabels.length
 
   return (
-    <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-      <CardContent className="p-6">
-        {/* En-tête */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg shrink-0">
-            <Filter className="h-6 w-6 text-white" />
+    <Card className="relative overflow-hidden border border-slate-200/70 bg-white shadow-xl">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+      <CardContent className="space-y-5 p-4 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-md">
+              <Filter className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Filtres avancés</h3>
+              <p className="text-sm text-slate-600">Affinez la liste des contrats en quelques critères.</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-            <p className="text-sm text-gray-600">Affinez votre recherche</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                'rounded-full border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700',
+                activeFiltersCount === 0 && 'border-slate-200 text-slate-500'
+              )}
+            >
+              {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+            </Badge>
+            <Button
+              variant="outline"
+              onClick={onReset}
+              className="h-10 border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réinitialiser
+            </Button>
           </div>
         </div>
 
-        {/* Ligne 1 : Recherche + listes déroulantes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 mb-4">
-          <div className="relative lg:col-span-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom, prénom ou matricule..."
-              className={`pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full transition-all duration-200`}
-              value={safeFilters.search || ''}
-              onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
-            />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="space-y-1.5 xl:col-span-5">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recherche</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Nom, prénom ou matricule..."
+                className="h-11 border-slate-200 bg-white pl-10 focus-visible:ring-[#234D65]/30"
+                value={safeFilters.search || ''}
+                onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
+              />
+            </div>
           </div>
-          <select
-            className={`${inputBase} lg:col-span-2`}
-            value={statusValue}
-            onChange={(e) => onFiltersChange({ ...safeFilters, status: e.target.value })}
-          >
-            {!isOverdueTab && <option value="all">Tous les statuts</option>}
-            {!isOverdueTab && <option value="ACTIVE">Actif</option>}
-            <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
-            <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
-            {!isOverdueTab && <option value="RESCINDED">Cloture en urgence</option>}
-            {!isOverdueTab && <option value="CLOSED">Cloture finale</option>}
-          </select>
-          <select
-            className={`${inputBase} lg:col-span-3`}
-            value={caisseTypeValue}
-            onChange={(e) => onFiltersChange({ ...safeFilters, caisseType: e.target.value })}
-            disabled={isCaisseTabLocked}
-          >
-            <option value="all">Tous les types de contrat</option>
-            <option value="STANDARD">Standard</option>
-            <option value="JOURNALIERE">Journalière</option>
-            <option value="LIBRE">Libre</option>
-            <option value="STANDARD_CHARITABLE">Standard Charitable</option>
-            <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
-            <option value="LIBRE_CHARITABLE">Libre Charitable</option>
-          </select>
-          <select
-            className={`${inputBase} lg:col-span-2`}
-            value={safeFilters.contractType || 'all'}
-            onChange={(e) => onFiltersChange({ ...safeFilters, contractType: e.target.value })}
-          >
-            <option value="all">Tous les types</option>
-            <option value="INDIVIDUAL">Individuels</option>
-            <option value="GROUP">Groupes</option>
-          </select>
+
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</Label>
+            <Select
+              value={statusValue}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, status: value })}
+            >
+              <SelectTrigger className="h-11 border-slate-200 bg-white focus:ring-[#234D65]/30">
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                {!isOverdueTab && <SelectItem value="all">Tous les statuts</SelectItem>}
+                {!isOverdueTab && <SelectItem value="ACTIVE">Actif</SelectItem>}
+                <SelectItem value="LATE_NO_PENALTY">Retard (J+0..3)</SelectItem>
+                <SelectItem value="LATE_WITH_PENALTY">Retard (J+4..12)</SelectItem>
+                {!isOverdueTab && <SelectItem value="RESCINDED">Cloture en urgence</SelectItem>}
+                {!isOverdueTab && <SelectItem value="CLOSED">Cloture finale</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 xl:col-span-3">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de caisse</Label>
+            <Select
+              value={caisseTypeValue}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, caisseType: value })}
+              disabled={isCaisseTabLocked}
+            >
+              <SelectTrigger className="h-11 border-slate-200 bg-white focus:ring-[#234D65]/30 disabled:opacity-70">
+                <SelectValue placeholder="Tous les types de contrat" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types de contrat</SelectItem>
+                <SelectItem value="STANDARD">Standard</SelectItem>
+                <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                <SelectItem value="LIBRE">Libre</SelectItem>
+                <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Profil contrat</Label>
+            <Select
+              value={safeFilters.contractType || 'all'}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, contractType: value })}
+            >
+              <SelectTrigger className="h-11 border-slate-200 bg-white focus:ring-[#234D65]/30">
+                <SelectValue placeholder="Tous les profils" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="INDIVIDUAL">Individuels</SelectItem>
+                <SelectItem value="GROUP">Groupes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Ligne 2 : Périodes + options + action */}
-        <div className="flex flex-wrap items-end gap-4">
-          {/* Période de création — en mobile : bloc pleine largeur, dates empilées */}
-          <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-0">
-            <span className="text-xs font-medium text-gray-500">Création</span>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <input
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Période de création</Label>
+              {isNextDueRangeActive && (
+                <span className="text-[11px] font-medium text-slate-500">Désactivé par l&apos;échéance</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+              <Input
                 type="date"
-                className={`${inputBase} w-full sm:w-40`}
+                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
                 value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
                 onChange={(e) =>
                   onFiltersChange({
@@ -465,10 +563,10 @@ const ContractFilters = ({
                 }
                 disabled={isNextDueRangeActive}
               />
-              <span className="text-gray-400 text-sm self-center sm:self-auto shrink-0">→</span>
-              <input
+              <span className="text-center text-sm text-slate-400">→</span>
+              <Input
                 type="date"
-                className={`${inputBase} w-full sm:w-40`}
+                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
                 value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
                 onChange={(e) =>
                   onFiltersChange({
@@ -482,13 +580,18 @@ const ContractFilters = ({
               />
             </div>
           </div>
-          {/* Prochaine échéance — en mobile : bloc pleine largeur, dates empilées */}
-          <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-0">
-            <span className="text-xs font-medium text-gray-500">Prochaine échéance</span>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <input
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Prochaine échéance</Label>
+              {isCreatedAtRangeActive && (
+                <span className="text-[11px] font-medium text-slate-500">Désactivé par la création</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+              <Input
                 type="date"
-                className={`${inputBase} w-full sm:w-40`}
+                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
                 value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
                 onChange={(e) =>
                   onFiltersChange({
@@ -500,10 +603,10 @@ const ContractFilters = ({
                 }
                 disabled={isCreatedAtRangeActive}
               />
-              <span className="text-gray-400 text-sm self-center sm:self-auto shrink-0">→</span>
-              <input
+              <span className="text-center text-sm text-slate-400">→</span>
+              <Input
                 type="date"
-                className={`${inputBase} w-full sm:w-40`}
+                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
                 value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
                 onChange={(e) =>
                   onFiltersChange({
@@ -517,26 +620,33 @@ const ContractFilters = ({
               />
             </div>
           </div>
-          {/* Séparateur visuel sur desktop */}
-          <div className="hidden sm:block w-px h-10 bg-gray-200 self-center" aria-hidden />
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pb-2.5">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-[#234D65] focus:ring-[#234D65]"
-                checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
-                onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
-                disabled={isOverdueTab}
-              />
-              Retard uniquement
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 pt-2 md:flex-row md:items-start md:justify-between">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-[#234D65] focus:ring-[#234D65]"
+              checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
+              onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
+              disabled={isOverdueTab}
+            />
+            Afficher uniquement les contrats en retard
           </label>
-          <Button
-            variant="outline"
-            onClick={onReset}
-            className="shrink-0 px-4 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Réinitialiser
-          </Button>
+
+          {activeFilterLabels.length > 0 && (
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {activeFilterLabels.map((label) => (
+                <Badge
+                  key={label}
+                  variant="outline"
+                  className="border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-xs font-medium text-[#234D65]"
+                >
+                  {label}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
