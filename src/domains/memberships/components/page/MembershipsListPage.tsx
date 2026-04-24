@@ -419,15 +419,6 @@ export function MembershipsListPage() {
         }}
       />
 
-      {/* Tabs de filtres */}
-      <MembershipsListTabs
-        activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab)
-          setCurrentPage(1)
-        }}
-      />
-
       {/* Barre d'actions moderne */}
       <MembershipsListHeader
         totalItems={membersData?.pagination.totalItems ?? 0}
@@ -439,6 +430,15 @@ export function MembershipsListPage() {
         onExport={handleExport}
         pagination={membersData?.pagination}
         onPageChange={handlePageChange}
+      />
+
+      {/* Tabs de filtres (rattachés directement à la liste) */}
+      <MembershipsListTabs
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab)
+          setCurrentPage(1)
+        }}
       />
 
       {/* Liste des membres */}

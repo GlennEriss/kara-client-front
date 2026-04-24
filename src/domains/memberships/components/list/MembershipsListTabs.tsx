@@ -68,9 +68,9 @@ export function MembershipsListTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as MembersTab)} data-testid="memberships-list-tabs">
-      <div className="relative -mx-4 px-4">
-        <div className="overflow-x-auto no-scrollbar scroll-smooth">
-          <TabsList className="flex min-w-max gap-1.5 sm:gap-2 bg-white/50 backdrop-blur-sm border border-gray-200/50">
+      <div className="flex items-center gap-2 border-b border-gray-200">
+        <div className="flex-1 min-w-0">
+          <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
@@ -78,22 +78,22 @@ export function MembershipsListTabs({
                   key={tab.value}
                   value={tab.value}
                   data-testid={`memberships-list-tab-${tab.value}`}
-                  className="flex items-center gap-1 sm:gap-2 shrink-0 px-2 sm:px-3 py-2 text-sm sm:text-base data-[state=active]:bg-[#234D65] data-[state=active]:text-white"
+                  className="shrink-0 min-w-[110px] px-3 py-2.5 text-xs sm:text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
                 >
-                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                  <span className="whitespace-nowrap">{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 data-[state=active]:bg-white/20 shrink-0">
-                      {tab.count}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{tab.label}</span>
+                    {tab.count !== undefined && (
+                      <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 data-[state=active]:bg-[#234D65]/10 data-[state=active]:text-[#234D65] shrink-0">
+                        {tab.count}
+                      </span>
+                    )}
+                  </span>
                 </TabsTrigger>
               )
             })}
           </TabsList>
         </div>
-        <span className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-white to-transparent md:hidden" />
-        <span className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-white to-transparent md:hidden" />
       </div>
     </Tabs>
   )
