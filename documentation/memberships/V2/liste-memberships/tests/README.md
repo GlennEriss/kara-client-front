@@ -47,7 +47,7 @@
 - [x] **INT-LIST-01** : Chargement réussi (stats, liste, pagination visibles). ✅ **PASSE**
 - [x] **INT-LIST-02** : Erreur réseau (message + bouton retry). ✅ **PASSE**
 - [x] **INT-LIST-03** : Changement de tab (Adhérents → Bienfaiteurs → Sympathisants). ✅ **PASSE**
-- [ ] **INT-LIST-04** : Filtres avancés (géographie : province → ville → arrondissement → quartier). ⚠️ **RECOMMANDÉ EN E2E**
+- [ ] **INT-LIST-04** : Filtres et Recherche (géographie : province → ville → arrondissement → quartier). ⚠️ **RECOMMANDÉ EN E2E**
 - [ ] **INT-LIST-05** : Recherche texte (nom, matricule, email). ⚠️ **RECOMMANDÉ EN E2E**
 - [x] **INT-LIST-06** : Pagination (changement page, items par page). ✅ **PASSE**
   - [x] Vérifier que `totalItems` affiché correspond au vrai total (pas seulement la page actuelle).

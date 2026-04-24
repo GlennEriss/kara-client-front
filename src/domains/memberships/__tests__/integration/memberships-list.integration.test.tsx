@@ -5,7 +5,7 @@
  * - INT-LIST-01 : Chargement réussi (stats, liste, pagination visibles)
  * - INT-LIST-02 : Erreur réseau (message + bouton retry)
  * - INT-LIST-03 : Changement de tab (Adhérents → Bienfaiteurs → Sympathisants)
- * - INT-LIST-04 : Filtres avancés (géographie : province → ville → arrondissement → quartier)
+ * - INT-LIST-04 : Filtres et Recherche (géographie : province → ville → arrondissement → quartier)
  * - INT-LIST-05 : Recherche texte (nom, matricule, email)
  * - INT-LIST-06 : Pagination (changement page, items par page)
  * - INT-LIST-07 : Toggle vue grille/liste

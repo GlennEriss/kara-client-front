@@ -40,6 +40,7 @@ import {
     Eye,
     FileEdit,
     FileText,
+    Filter,
     Grid3X3,
     List,
     MoreVertical,
@@ -592,54 +593,20 @@ const ListDemandes = () => {
       {/* Statistiques EN PREMIER (C.1) - chargées une seule fois */}
       <StatisticsCaisseSpecialeDemandes />
 
-      {/* Filtres de statut : Tabs en desktop, badges carousel en mobile/tablette */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
-        {/* Tabs - Vue desktop uniquement */}
-        <div className="hidden lg:block">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Toutes ({stats.total})
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              En attente ({stats.pending})
-            </TabsTrigger>
-            <TabsTrigger value="approved" className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Acceptées ({stats.approved})
-            </TabsTrigger>
-            <TabsTrigger value="rejected" className="flex items-center gap-2">
-              <XCircle className="h-4 w-4" />
-              Refusées ({stats.rejected})
-            </TabsTrigger>
-            <TabsTrigger value="converted" className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Converties ({stats.converted})
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* Badges carousel - Vue mobile et tablette */}
-        <div className="lg:hidden">
-          <StatusFilterBadgesCarousel
-            value={activeTab}
-            onChange={(value) => setActiveTab(value)}
-            counts={{
-              all: stats.total,
-              pending: stats.pending,
-              approved: stats.approved,
-              rejected: stats.rejected,
-              converted: stats.converted,
-            }}
-          />
-        </div>
-      </Tabs>
-
       {/* Barre unique : filtres + actions */}
       <Card className="border-0 shadow-lg overflow-hidden">
         <CardContent className="p-4 md:p-5 bg-white">
           <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-md">
+                <Filter className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Filtres et Recherche</h3>
+                <p className="text-sm text-slate-600">Affinez la liste des demandes en quelques critères.</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(320px,1.8fr)_1fr_1fr_1fr] gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
@@ -739,6 +706,92 @@ const ListDemandes = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Tabs de statut (rattachés à la liste) */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              <TabsTrigger
+                value="all"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Toutes</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.total}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span className="whitespace-nowrap">En attente</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.pending}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="approved"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Acceptées</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.approved}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="rejected"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Refusées</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.rejected}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="converted"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Converties</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.converted}
+                  </span>
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Badges carousel - Vue mobile et tablette */}
+        <div className="lg:hidden">
+          <StatusFilterBadgesCarousel
+            value={activeTab}
+            onChange={(value) => setActiveTab(value)}
+            counts={{
+              all: stats.total,
+              pending: stats.pending,
+              approved: stats.approved,
+              rejected: stats.rejected,
+              converted: stats.converted,
+            }}
+          />
+        </div>
+      </Tabs>
 
       {/* Liste des demandes */}
       {isLoading ? (

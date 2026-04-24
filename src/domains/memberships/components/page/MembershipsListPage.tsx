@@ -137,8 +137,16 @@ export function MembershipsListPage() {
         
         return newFilters
       })
+    } else {
+      // Sur "all", on supprime les filtres injectés automatiquement par les tabs
+      // pour éviter qu'ils restent actifs après un retour depuis un onglet spécifique.
+      setFilters(prevFilters => {
+        const nextFilters = { ...prevFilters }
+        delete nextFilters.membershipType
+        delete nextFilters.isActive
+        return nextFilters
+      })
     }
-    // Note: Sur le tab "all", on garde les filtres existants (l'utilisateur peut les modifier librement)
   }, [activeTab])
 
   // Gestionnaires d'événements

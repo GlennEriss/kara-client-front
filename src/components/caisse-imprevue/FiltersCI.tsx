@@ -96,7 +96,7 @@ export default function FiltersCI({
               <Filter className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Filtres avancés</h3>
+              <h3 className="text-lg font-bold text-slate-900">Filtres et Recherche</h3>
               <p className="text-sm text-slate-600">Affinez la liste des contrats en quelques critères.</p>
             </div>
           </div>
