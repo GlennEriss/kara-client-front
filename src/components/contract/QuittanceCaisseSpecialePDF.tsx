@@ -101,12 +101,12 @@ const styles = StyleSheet.create({
   },
   pageNumber: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 8,
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontSize: 10,
-    color: '#4B5563',
+    fontSize: 9,
+    color: '#111827',
   },
 })
 
@@ -307,8 +307,9 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
+        >
+          Page 1 / 2
+        </Text>
       </Page>
 
       {/* PAGE 2 - Quittance de paiement (template) */}
@@ -384,8 +385,9 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
+        >
+          Page 2 / 2
+        </Text>
       </Page>
     </Document>
   )
