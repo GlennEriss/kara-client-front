@@ -21,7 +21,13 @@ import { deleteAllRefunds } from '@/db/caisse/refunds.db'
 import { updateContractPdf } from '@/db/caisse/contracts.db'
 import { createFile } from '@/db/upload-image.db'
 import type { ICaisseContractsRepository } from './ICaisseContractsRepository'
-import type { ContractFilters, PaginationParams, PaginatedContracts, ContractStats } from '../entities/contract-filters.types'
+import type {
+  ContractFilters,
+  PaginationParams,
+  PaginatedContracts,
+  ContractStats,
+  SpecificCaisseTypeFilter,
+} from '../entities/contract-filters.types'
 import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, UploadContractPdfInput } from '../entities/contract.types'
 
 export class CaisseContractsRepository implements ICaisseContractsRepository {
@@ -83,7 +89,14 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     if (filters.contractType && filters.contractType !== 'all') {
       constraints.push(where('contractType', '==', filters.contractType))
     }
-    if (filters.caisseType && filters.caisseType !== 'all') {
+    const groupedCaisseTypes = Array.from(
+      new Set((filters.caisseTypes || []).filter(Boolean))
+    ) as SpecificCaisseTypeFilter[]
+    if (groupedCaisseTypes.length > 1) {
+      constraints.push(where('caisseType', 'in', groupedCaisseTypes.slice(0, 10)))
+    } else if (groupedCaisseTypes.length === 1) {
+      constraints.push(where('caisseType', '==', groupedCaisseTypes[0]))
+    } else if (filters.caisseType && filters.caisseType !== 'all') {
       constraints.push(where('caisseType', '==', filters.caisseType))
     }
     if (filters.memberId) {
