@@ -100,6 +100,9 @@ const GROUPED_CAISSE_TAB_VALUES: GroupedCaisseTabValue[] = [
 const isGroupedCaisseTab = (value: string): value is GroupedCaisseTabValue =>
   GROUPED_CAISSE_TAB_VALUES.includes(value as GroupedCaisseTabValue)
 
+const isCaisseTypeTabValue = (value: string): value is CaisseTypeTabValue =>
+  value === 'all' || value === 'overdue' || value === 'currentMonth' || isGroupedCaisseTab(value)
+
 const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecificType, CaisseSpecificType]> = {
   STANDARD_GROUP: ['STANDARD', 'STANDARD_CHARITABLE'],
   JOURNALIERE_GROUP: ['JOURNALIERE', 'JOURNALIERE_CHARITABLE'],
@@ -1596,7 +1599,11 @@ const ListContracts = () => {
       {/* Onglets pour filtrer par type et période (rattachés à la liste) */}
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as CaisseTypeTabValue)}
+        onValueChange={(value) => {
+          if (isCaisseTypeTabValue(value)) {
+            setActiveTab(value)
+          }
+        }}
         className="w-full"
       >
         {/* Tabs desktop : style onglets classeur */}
@@ -1631,7 +1638,11 @@ const ListContracts = () => {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setActiveTab(value)}
+                  onClick={() => {
+                    if (isCaisseTypeTabValue(value)) {
+                      setActiveTab(value)
+                    }
+                  }}
                   className="shrink-0"
                 >
                   <Badge
