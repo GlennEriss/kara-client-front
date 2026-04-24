@@ -12,7 +12,7 @@ import {
 import { getNationalityName } from '@/constantes/nationality'
 import type { MembershipRequest } from '@/types/types'
 import { BlobProvider, Document, Image, PDFViewer, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
-import { Download, Eye, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
+import { ClipboardList, Download, Eye, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -1037,8 +1037,13 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                 <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                  📋 Fiche d'Adhésion Contractuelle
+                <DialogTitle className="text-lg lg:text-2xl font-bold">
+                  <span className="inline-flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5 text-[#234D65] lg:h-6 lg:w-6" />
+                    <span className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                      Fiche d&apos;Adhésion Contractuelle
+                    </span>
+                  </span>
                 </DialogTitle>
                 <p className="text-sm lg:text-base text-gray-600 truncate">
                   {request.identity.firstName} {request.identity.lastName}

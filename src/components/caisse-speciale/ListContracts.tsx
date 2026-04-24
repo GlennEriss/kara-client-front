@@ -1354,76 +1354,6 @@ const ListContracts = () => {
       {/* Carrousel de statistiques */}
       {computedStats && <StatsCarousel stats={computedStats} totalPaidSum={totalPaidSum} />}
 
-      {/* Onglets pour filtrer par type et période */}
-      {/* Tabs desktop (grille) */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(
-            value as
-              | 'all'
-              | 'STANDARD'
-              | 'JOURNALIERE'
-              | 'LIBRE'
-              | 'STANDARD_CHARITABLE'
-              | 'JOURNALIERE_CHARITABLE'
-              | 'LIBRE_CHARITABLE'
-              | 'overdue'
-              | 'currentMonth'
-          )
-        }
-        className="hidden lg:block w-full"
-      >
-        <TabsList className="flex h-auto w-full max-w-6xl flex-nowrap gap-1.5 rounded-lg p-2">
-          {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className={cn(
-                'flex flex-initial items-center gap-1.5 px-2.5 py-1.5 whitespace-nowrap [&_svg]:shrink-0',
-                isDanger ? 'text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50' : ''
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {/* Tabs mobile/tablette (badges carousel sans boutons) */}
-      <div className="lg:hidden">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
-            const isActive = activeTab === value
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setActiveTab(value)}
-                className="shrink-0"
-              >
-                <Badge
-                  className={cn(
-                    'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
-                    isActive
-                      ? isDanger
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'bg-[#234D65] text-white border-transparent'
-                      : isDanger
-                      ? 'bg-white text-red-600 border-red-200'
-                      : 'bg-white text-gray-700 border-gray-200'
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </Badge>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       {/* Diagramme circulaire par type de caisse */}
       {computedStats && computedStats.byCaisseType && Object.keys(computedStats.byCaisseType).length > 0 && (() => {
         const CAISSE_TYPE_LABELS: Record<string, string> = {
@@ -1613,6 +1543,82 @@ const ListContracts = () => {
       </Card>
 
       {renderPagination()}
+
+      {/* Onglets pour filtrer par type et période (rattachés à la liste) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(
+            value as
+              | 'all'
+              | 'STANDARD'
+              | 'JOURNALIERE'
+              | 'LIBRE'
+              | 'STANDARD_CHARITABLE'
+              | 'JOURNALIERE_CHARITABLE'
+              | 'LIBRE_CHARITABLE'
+              | 'overdue'
+              | 'currentMonth'
+          )
+        }
+        className="w-full"
+      >
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={cn(
+                    'shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]',
+                    isDanger ? 'data-[state=active]:text-red-700 data-[state=active]:border-red-300' : ''
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Tabs mobile/tablette (badges carousel sans boutons) */}
+        <div className="lg:hidden">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+              const isActive = activeTab === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setActiveTab(value)}
+                  className="shrink-0"
+                >
+                  <Badge
+                    className={cn(
+                      'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                      isActive
+                        ? isDanger
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#234D65] text-white border-transparent'
+                        : isDanger
+                        ? 'bg-white text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </Tabs>
 
       {/* Liste des contrats */}
       {isLoading ? (
