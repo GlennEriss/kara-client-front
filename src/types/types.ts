@@ -1416,7 +1416,7 @@ export interface CaisseSpecialeDemandFilters {
   monthlyAmountMin?: number // Mensualité min
   monthlyAmountMax?: number // Mensualité max
   memberGender?: 'Homme' | 'Femme' | 'all'
-  sortBy?: 'date' | 'alphabetical'
+  sortBy?: 'date' | 'alphabetical' | 'requestedAmount'
   sortOrder?: 'asc' | 'desc'
   page?: number
   limit?: number
