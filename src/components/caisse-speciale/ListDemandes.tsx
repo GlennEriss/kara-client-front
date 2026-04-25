@@ -787,7 +787,8 @@ const ListDemandes = () => {
       <StatisticsCaisseSpecialeDemandes />
 
       {/* Barre filtres : version allégée et structurée */}
-      <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-md">
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
         <CardContent className="space-y-4 p-4 md:p-5">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex items-start gap-3">
