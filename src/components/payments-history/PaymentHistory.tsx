@@ -24,6 +24,7 @@ import {
   List,
   RefreshCw,
   SearchX,
+  TrendingUp,
   User,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -95,6 +96,18 @@ const PAYMENT_TYPES: TypePayment[] = [
   'Benefactor',
 ]
 
+const PAYMENT_TYPE_ICONS: Record<TypePayment, React.ComponentType<any>> = {
+  Membership: User,
+  Subscription: RefreshCw,
+  SpecialFund: CreditCard,
+  UnexpectedFund: AlertCircle,
+  SpecialCredit: CreditCard,
+  FixedCredit: CreditCard,
+  AidCredit: CreditCard,
+  Charity: User,
+  Benefactor: User,
+}
+
 const PAGE_SIZE = 12
 const STATS_SCAN_LIMIT = 500
 
@@ -139,48 +152,78 @@ function formatMode(mode: Payment['mode']): string {
 
 function useCarousel(itemCount: number, itemsPerView: number = 1) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [translateX, setTranslateX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [startPos, setStartPos] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const maxIndex = Math.max(0, itemCount - itemsPerView)
 
-  useEffect(() => {
-    const clamped = Math.min(currentIndex, maxIndex)
-    setCurrentIndex(clamped)
-    setTranslateX(-clamped * (100 / itemsPerView))
-  }, [currentIndex, maxIndex, itemsPerView])
-
-  const goNext = () => setCurrentIndex((prev) => Math.min(prev + 1, maxIndex))
-  const goPrev = () => setCurrentIndex((prev) => Math.max(prev - 1, 0))
-
-  const handleMove = (clientX: number) => {
-    if (!isDragging) return
-    const delta = clientX - startPos
-    const container = containerRef.current
-    if (!container) return
-    const percentage = (delta / container.offsetWidth) * 100
-    const clamped = Math.max(-20, Math.min(20, percentage))
-    setTranslateX(-currentIndex * (100 / itemsPerView) + clamped)
+  const goTo = (index: number) => {
+    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
+    setCurrentIndex(clampedIndex)
+    setTranslateX(-clampedIndex * (100 / itemsPerView))
   }
 
+  const goNext = () => goTo(currentIndex + 1)
+  const goPrev = () => goTo(currentIndex - 1)
+
+  const handleStart = (clientX: number) => {
+    setIsDragging(true)
+    setStartPos(clientX)
+  }
+  const handleMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return
+    const diff = clientX - startPos
+    const containerWidth = containerRef.current.offsetWidth
+    const percentage = (diff / containerWidth) * 100
+    const maxDrag = 30
+    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
+  }
   const handleEnd = () => {
-    if (!isDragging) return
+    if (!isDragging || !containerRef.current) return
     const dragDistance = translateX + currentIndex * (100 / itemsPerView)
-    if (Math.abs(dragDistance) > 10) {
-      if (dragDistance > 0 && currentIndex > 0) {
-        goPrev()
-      } else if (dragDistance < 0 && currentIndex < maxIndex) {
-        goNext()
-      }
+    const threshold = 15
+    if (dragDistance > threshold && currentIndex > 0) {
+      goPrev()
+    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
+      goNext()
+    } else {
+      setTranslateX(-currentIndex * (100 / itemsPerView))
     }
-    setTranslateX(-currentIndex * (100 / itemsPerView))
     setIsDragging(false)
   }
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    handleStart(e.clientX)
+  }
+  const handleTouchStart = (e: React.TouchEvent) => {
+    handleStart(e.touches[0].clientX)
+  }
+  const handleTouchMove = (e: React.TouchEvent) => {
+    handleMove(e.touches[0].clientX)
+  }
+  const handleTouchEnd = () => {
+    handleEnd()
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
+    const handleGlobalMouseUp = () => handleEnd()
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+
   return {
     currentIndex,
+    goTo,
     goNext,
     goPrev,
     canGoPrev: currentIndex > 0,
@@ -188,19 +231,89 @@ function useCarousel(itemCount: number, itemsPerView: number = 1) {
     translateX,
     containerRef,
     isDragging,
-    handleMouseDown: (e: React.MouseEvent) => {
-      setIsDragging(true)
-      setStartPos(e.clientX)
-    },
-    handleTouchStart: (e: React.TouchEvent) => {
-      setIsDragging(true)
-      setStartPos(e.touches[0].clientX)
-    },
-    handleTouchMove: (e: React.TouchEvent) => handleMove(e.touches[0].clientX),
-    handleTouchEnd: handleEnd,
-    onGlobalMouseMove: (e: MouseEvent) => handleMove(e.clientX),
-    onGlobalMouseUp: handleEnd,
+    handleMouseDown,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
   }
+}
+
+function ModernPaymentStatsCard({
+  title,
+  value,
+  subtitle,
+  percentage,
+  color,
+  icon: Icon,
+  trend = 'up',
+}: {
+  title: string
+  value: number
+  subtitle?: string
+  percentage?: number
+  color: string
+  icon: React.ComponentType<any>
+  trend?: 'up' | 'down' | 'neutral'
+}) {
+  const chartData = [
+    { name: 'value', value: percentage || 0, fill: color },
+    { name: 'remaining', value: Math.max(0, 100 - (percentage || 0)), fill: '#f3f4f6' },
+  ]
+
+  return (
+    <Card className="group border-0 bg-gradient-to-br from-white to-gray-50/50 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+      <CardContent className="relative z-10 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div
+              className="rounded-xl p-2.5 transition-transform duration-300 group-hover:scale-110"
+              style={{ backgroundColor: `${color}15`, color }}
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-600">{title}</p>
+              <div className="mt-0.5 flex items-center gap-2">
+                <p className="text-2xl font-bold text-gray-900">{value.toLocaleString('fr-FR')}</p>
+                {trend !== 'neutral' && (
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium',
+                      trend === 'down' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                    )}
+                  >
+                    <TrendingUp className={cn('h-3 w-3', trend === 'down' && 'rotate-180')} />
+                    {(percentage || 0).toFixed(0)}%
+                  </div>
+                )}
+              </div>
+              {subtitle && <p className="mt-0.5 text-xs font-medium text-slate-600">{subtitle}</p>}
+            </div>
+          </div>
+
+          <div className="h-12 w-12">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsPieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={16}
+                  outerRadius={22}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`${title}-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function PaymentHistory({ requestId }: Props) {
@@ -394,12 +507,17 @@ export default function PaymentHistory({ requestId }: Props) {
   }, [statsByType])
 
   const statsCardsData = useMemo(() => {
+    const totalPaymentsInStats = PAYMENT_TYPES.reduce((sum, type) => sum + statsByType[type].count, 0)
+
     return PAYMENT_TYPES.map((type) => ({
       type,
-      label: PAYMENT_LABELS[type],
+      title: PAYMENT_LABELS[type],
       color: PAYMENT_COLORS[type],
-      count: statsByType[type].count,
-      amount: statsByType[type].amount,
+      value: statsByType[type].count,
+      subtitle: `${formatAmount(statsByType[type].amount)} FCFA`,
+      percentage: totalPaymentsInStats > 0 ? (statsByType[type].count / totalPaymentsInStats) * 100 : 0,
+      icon: PAYMENT_TYPE_ICONS[type],
+      trend: statsByType[type].count > 0 ? ('up' as const) : ('neutral' as const),
     }))
   }, [statsByType])
 
@@ -408,9 +526,9 @@ export default function PaymentHistory({ requestId }: Props) {
 
   useEffect(() => {
     const updateItemsPerView = () => {
-      if (window.innerWidth >= 1280) setItemsPerView(4)
-      else if (window.innerWidth >= 1024) setItemsPerView(3)
-      else if (window.innerWidth >= 640) setItemsPerView(2)
+      if (window.innerWidth >= 1280) setItemsPerView(5)
+      else if (window.innerWidth >= 1024) setItemsPerView(4)
+      else if (window.innerWidth >= 768) setItemsPerView(3)
       else setItemsPerView(1)
     }
 
@@ -418,15 +536,6 @@ export default function PaymentHistory({ requestId }: Props) {
     window.addEventListener('resize', updateItemsPerView)
     return () => window.removeEventListener('resize', updateItemsPerView)
   }, [])
-
-  useEffect(() => {
-    document.addEventListener('mousemove', carousel.onGlobalMouseMove)
-    document.addEventListener('mouseup', carousel.onGlobalMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', carousel.onGlobalMouseMove)
-      document.removeEventListener('mouseup', carousel.onGlobalMouseUp)
-    }
-  }, [carousel.onGlobalMouseMove, carousel.onGlobalMouseUp])
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
@@ -497,57 +606,69 @@ export default function PaymentHistory({ requestId }: Props) {
         <CardContent className="p-4 md:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-base font-semibold text-slate-900 md:text-lg">Statistiques des paiements</h3>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={carousel.goPrev}
-                disabled={!carousel.canGoPrev}
-                className="h-9 w-9 rounded-full border-[#234D65]/25 text-[#234D65] disabled:opacity-40"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={carousel.goNext}
-                disabled={!carousel.canGoNext}
-                className="h-9 w-9 rounded-full border-[#234D65]/25 text-[#234D65] disabled:opacity-40"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <Badge className="border border-[#234D65]/20 bg-[#234D65]/10 text-[#234D65]">
+              {isLoadingStats ? 'Analyse...' : `${statsSample.length} paiement${statsSample.length > 1 ? 's' : ''} analysé${statsSample.length > 1 ? 's' : ''}`}
+            </Badge>
           </div>
 
-          <div
-            ref={carousel.containerRef}
-            className="overflow-hidden"
-            onMouseDown={carousel.handleMouseDown}
-            onTouchStart={carousel.handleTouchStart}
-            onTouchMove={carousel.handleTouchMove}
-            onTouchEnd={carousel.handleTouchEnd}
-          >
+          <div className="relative">
+            <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2">
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(
+                  'h-10 w-10 rounded-full border-0 bg-white/90 text-gray-700 shadow-lg backdrop-blur-sm transition-all duration-300',
+                  carousel.canGoPrev ? 'hover:scale-110 hover:bg-white' : 'cursor-not-allowed opacity-50'
+                )}
+                onClick={carousel.goPrev}
+                disabled={!carousel.canGoPrev}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="absolute right-0 top-1/2 z-10 -translate-y-1/2">
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(
+                  'h-10 w-10 rounded-full border-0 bg-white/90 text-gray-700 shadow-lg backdrop-blur-sm transition-all duration-300',
+                  carousel.canGoNext ? 'hover:scale-110 hover:bg-white' : 'cursor-not-allowed opacity-50'
+                )}
+                onClick={carousel.goNext}
+                disabled={!carousel.canGoNext}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+
             <div
-              className={cn('flex gap-4 transition-transform duration-300', carousel.isDragging && 'transition-none')}
-              style={{ transform: `translateX(${carousel.translateX}%)` }}
+              ref={carousel.containerRef}
+              className="overflow-hidden px-12 py-2"
+              onMouseDown={carousel.handleMouseDown}
+              onTouchStart={carousel.handleTouchStart}
+              onTouchMove={carousel.handleTouchMove}
+              onTouchEnd={carousel.handleTouchEnd}
             >
-              {statsCardsData.map((stat) => (
-                <div
-                  key={stat.type}
-                  className="shrink-0"
-                  style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
-                >
-                  <Card className="h-full border border-slate-200/80 bg-white shadow-sm">
-                    <CardContent className="p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{stat.label}</p>
-                      <p className="mt-1 text-2xl font-black" style={{ color: stat.color }}>
-                        {stat.count}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">{formatAmount(stat.amount)} FCFA</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
+              <div
+                className={cn(
+                  'flex gap-4 transition-transform duration-300 ease-out',
+                  carousel.isDragging && 'transition-none'
+                )}
+                style={{
+                  transform: `translateX(${carousel.translateX}%)`,
+                  cursor: carousel.isDragging ? 'grabbing' : 'grab',
+                }}
+              >
+                {statsCardsData.map((stat, index) => (
+                  <div
+                    key={`${stat.type}-${index}`}
+                    className="shrink-0"
+                    style={{ width: `calc(${100 / itemsPerView}% - ${(1 * (itemsPerView - 1)) / itemsPerView}rem)` }}
+                  >
+                    <ModernPaymentStatsCard {...stat} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </CardContent>
