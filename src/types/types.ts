@@ -1408,6 +1408,8 @@ export interface CaisseSpecialeDemandFilters {
   desiredDateFrom?: Date // Filtre par date souhaitée (début)
   desiredDateTo?: Date // Filtre par date souhaitée (fin)
   search?: string // Recherche textuelle (nom, prénom, matricule via searchableText*)
+  sortBy?: 'date' | 'alphabetical'
+  sortOrder?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

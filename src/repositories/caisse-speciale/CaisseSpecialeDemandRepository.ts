@@ -7,6 +7,23 @@ const getFirestore = () => import("@/firebase/firestore");
 export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepository {
     readonly name = "CaisseSpecialeDemandRepository";
 
+    private sortDemands(items: CaisseSpecialeDemand[], filters?: CaisseSpecialeDemandFilters): CaisseSpecialeDemand[] {
+        const sortBy = filters?.sortBy ?? 'date';
+        const sortOrder = filters?.sortOrder ?? 'desc';
+        const direction = sortOrder === 'asc' ? 1 : -1;
+
+        return [...items].sort((a, b) => {
+            if (sortBy === 'alphabetical') {
+                const nameA = (a.searchableTextFirstNameFirst || a.searchableText || '').trim().toLowerCase();
+                const nameB = (b.searchableTextFirstNameFirst || b.searchableText || '').trim().toLowerCase();
+                const nameCompare = nameA.localeCompare(nameB, 'fr');
+                if (nameCompare !== 0) return nameCompare * direction;
+                return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+            }
+            return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+        });
+    }
+
     async createDemand(data: Omit<CaisseSpecialeDemand, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CaisseSpecialeDemand> {
         try {
             const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
@@ -144,7 +161,17 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 constraints.push(where("createdAt", "<=", filters.createdAtTo));
             }
 
-            constraints.push(orderBy("createdAt", "desc"));
+            const shouldSortAlphabetical = (filters?.sortBy ?? 'date') === 'alphabetical';
+            const shouldSortDateAsc = (filters?.sortBy ?? 'date') === 'date' && (filters?.sortOrder ?? 'desc') === 'asc';
+
+            if (shouldSortAlphabetical) {
+                constraints.push(orderBy("searchableTextFirstNameFirst", "asc"));
+                constraints.push(orderBy("createdAt", "desc"));
+            } else if (shouldSortDateAsc) {
+                constraints.push(orderBy("createdAt", "asc"));
+            } else {
+                constraints.push(orderBy("createdAt", "desc"));
+            }
 
             const baseQuery = query(colRef, ...constraints);
 
@@ -198,7 +225,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 filteredDemands = filteredDemands.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
             }
 
-            return { items: filteredDemands, total };
+            const sortedDemands = this.sortDemands(filteredDemands, filters);
+            return { items: sortedDemands, total };
         } catch (error) {
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
             // Propager l'erreur pour afficher un message à l'utilisateur (ex: index Firestore manquant)
@@ -272,7 +300,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             filtered = filtered.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
         }
 
-        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        filtered = this.sortDemands(filtered, filters);
 
         const total = filtered.length;
         const pageSize = filters.limit || 12;

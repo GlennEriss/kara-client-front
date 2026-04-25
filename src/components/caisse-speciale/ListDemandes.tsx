@@ -36,6 +36,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     CheckCircle,
+    ChevronDown,
     Clock,
     Eye,
     FileEdit,
@@ -47,6 +48,7 @@ import {
     Plus,
     RefreshCw,
     RotateCcw,
+    Search,
     Trash2,
     XCircle,
 } from 'lucide-react'
@@ -425,6 +427,10 @@ const ListDemandes = () => {
   const [caisseTypeFilter, setCaisseTypeFilter] = useState<string>(searchParams.get('caisseType') || 'all')
   const [createdAtFrom, setCreatedAtFrom] = useState<string>(searchParams.get('createdAtFrom') || '')
   const [createdAtTo, setCreatedAtTo] = useState<string>(searchParams.get('createdAtTo') || '')
+  const [sortOption, setSortOption] = useState<'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc'>(
+    (searchParams.get('sort') as 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') || 'date_desc'
+  )
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(true)
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [acceptModalState, setAcceptModalState] = useState<{
@@ -463,6 +469,7 @@ const ListDemandes = () => {
     if (currentPage > 1) params.set('page', currentPage.toString())
     if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
     if (viewMode !== 'grid') params.set('view', viewMode)
+    if (sortOption !== 'date_desc') params.set('sort', sortOption)
     
     const queryString = params.toString()
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
@@ -470,7 +477,7 @@ const ListDemandes = () => {
     if (window.location.search !== `?${queryString}`) {
       router.replace(newUrl, { scroll: false })
     }
-  }, [activeTab, currentPage, itemsPerPage, viewMode, router])
+  }, [activeTab, currentPage, itemsPerPage, viewMode, sortOption, router])
 
   // Hooks pour récupérer les données
   const getStatusFilter = () => {
@@ -501,20 +508,16 @@ const ListDemandes = () => {
       : undefined,
     createdAtFrom: createdAtFrom ? new Date(createdAtFrom) : undefined,
     createdAtTo: createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined,
+    sortBy: sortOption.startsWith('alphabetical') ? 'alphabetical' : 'date',
+    sortOrder: sortOption.endsWith('_asc') ? 'asc' : 'desc',
   }
-
-  const activeFiltersCount = [
-    debouncedSearch.trim().length >= 2,
-    caisseTypeFilter !== 'all',
-    !!createdAtFrom,
-    !!createdAtTo,
-  ].filter(Boolean).length
 
   const resetFilters = () => {
     setSearchQuery('')
     setCaisseTypeFilter('all')
     setCreatedAtFrom('')
     setCreatedAtTo('')
+    setSortOption('date_desc')
     setCurrentPage(1)
   }
 
@@ -607,55 +610,100 @@ const ListDemandes = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(320px,1.8fr)_1fr_1fr_1fr] gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(320px,1.8fr)_auto] gap-3 items-end">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
-                <Input
-                  placeholder="Rechercher par nom, prénom ou matricule..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
-                />
+                <div className="relative group">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#234D65]" />
+                  <Input
+                    placeholder="Rechercher par nom, prénom ou matricule..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-11 pl-10 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
-                <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
-                  <SelectTrigger className="w-full h-11 border-slate-200 focus:ring-[#234D65]/30">
-                    <SelectValue placeholder="Type de caisse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="STANDARD">Standard</SelectItem>
-                    <SelectItem value="JOURNALIERE">Journalière</SelectItem>
-                    <SelectItem value="LIBRE">Libre</SelectItem>
-                    <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
-                    <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
-                    <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
-                <Input
-                  type="date"
-                  value={createdAtFrom}
-                  onChange={(e) => setCreatedAtFrom(e.target.value)}
-                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
-                <Input
-                  type="date"
-                  value={createdAtTo}
-                  onChange={(e) => setCreatedAtTo(e.target.value)}
-                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
-                />
+              <div className="flex items-center gap-2 md:justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetFilters}
+                  className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                >
+                  Réinitialiser filtres
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsFiltersExpanded((prev) => !prev)}
+                  className="h-10 rounded-xl border-2 border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5"
+                >
+                  Filtres
+                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isFiltersExpanded ? 'rotate-180' : ''}`} />
+                </Button>
               </div>
             </div>
+
+            {isFiltersExpanded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pt-4 border-t border-slate-200/80">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Tri</Label>
+                  <Select
+                    value={sortOption}
+                    onValueChange={(v: 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') => { setSortOption(v); setCurrentPage(1) }}
+                  >
+                    <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
+                      <SelectValue placeholder="Trier par" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                      <SelectItem value="date_desc">Plus récentes</SelectItem>
+                      <SelectItem value="date_asc">Plus anciennes</SelectItem>
+                      <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
+                      <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
+                  <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
+                    <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
+                      <SelectValue placeholder="Type de caisse" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                      <SelectItem value="all">Tous les types</SelectItem>
+                      <SelectItem value="STANDARD">Standard</SelectItem>
+                      <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                      <SelectItem value="LIBRE">Libre</SelectItem>
+                      <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                      <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                      <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
+                  <Input
+                    type="date"
+                    value={createdAtFrom}
+                    onChange={(e) => setCreatedAtFrom(e.target.value)}
+                    className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
+                  <Input
+                    type="date"
+                    value={createdAtTo}
+                    onChange={(e) => setCreatedAtTo(e.target.value)}
+                    className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-3 justify-between">
               <div className="items-center p-1 bg-gray-100 rounded-xl hidden md:flex">
@@ -686,11 +734,6 @@ const ListDemandes = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 ml-auto">
-                {activeFiltersCount > 0 && (
-                  <Button variant="outline" size="sm" onClick={resetFilters}>
-                    Réinitialiser filtres
-                  </Button>
-                )}
                 <Button
                   variant="outline"
                   size="sm"
