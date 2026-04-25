@@ -425,6 +425,10 @@ const ContractFilters = ({
     penaltiesAmountMax: undefined,
     paidAmountMin: undefined,
     paidAmountMax: undefined,
+    durationMonthsMin: undefined,
+    durationMonthsMax: undefined,
+    paymentCountMin: undefined,
+    paymentCountMax: undefined,
     ...filters,
   }
   const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
@@ -490,6 +494,12 @@ const ContractFilters = ({
       : null,
     typeof safeFilters.paidAmountMin === 'number' || typeof safeFilters.paidAmountMax === 'number'
       ? 'Montant déjà versé'
+      : null,
+    typeof safeFilters.durationMonthsMin === 'number' || typeof safeFilters.durationMonthsMax === 'number'
+      ? 'Durée contrat'
+      : null,
+    typeof safeFilters.paymentCountMin === 'number' || typeof safeFilters.paymentCountMax === 'number'
+      ? 'Nombre de versements effectués'
       : null,
   ].filter(Boolean) as string[]
 
@@ -689,7 +699,7 @@ const ContractFilters = ({
 
         <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
           <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-slate-500">Montant à verser</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -849,6 +859,74 @@ const ContractFilters = ({
                 />
               </div>
             </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Durée contrat (mois)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.durationMonthsMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      durationMonthsMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.durationMonthsMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      durationMonthsMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Nombre de versements effectués</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paymentCountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paymentCountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paymentCountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paymentCountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -935,6 +1013,10 @@ const ListContracts = () => {
     penaltiesAmountMax: undefined as number | undefined,
     paidAmountMin: undefined as number | undefined,
     paidAmountMax: undefined as number | undefined,
+    durationMonthsMin: undefined as number | undefined,
+    durationMonthsMax: undefined as number | undefined,
+    paymentCountMin: undefined as number | undefined,
+    paymentCountMax: undefined as number | undefined,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(12)
@@ -1025,7 +1107,11 @@ const ListContracts = () => {
       typeof filters.penaltiesAmountMin === 'number' ||
       typeof filters.penaltiesAmountMax === 'number' ||
       typeof filters.paidAmountMin === 'number' ||
-      typeof filters.paidAmountMax === 'number'
+      typeof filters.paidAmountMax === 'number' ||
+      typeof filters.durationMonthsMin === 'number' ||
+      typeof filters.durationMonthsMax === 'number' ||
+      typeof filters.paymentCountMin === 'number' ||
+      typeof filters.paymentCountMax === 'number'
     )
   }, [filters])
 
@@ -1107,6 +1193,10 @@ const ListContracts = () => {
       penaltiesAmountMax: undefined,
       paidAmountMin: undefined,
       paidAmountMax: undefined,
+      durationMonthsMin: undefined,
+      durationMonthsMax: undefined,
+      paymentCountMin: undefined,
+      paymentCountMax: undefined,
     })
     setGroupedCaisseSubFilters({
       STANDARD_GROUP: 'all',

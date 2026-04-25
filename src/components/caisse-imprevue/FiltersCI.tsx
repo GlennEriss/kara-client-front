@@ -58,6 +58,22 @@ export default function FiltersCI({
     nextDueAtFrom: filters.nextDueAtFrom,
     nextDueAtTo: filters.nextDueAtTo,
     overdueOnly: filters.overdueOnly ?? false,
+    monthlyAmountMin: filters.monthlyAmountMin,
+    monthlyAmountMax: filters.monthlyAmountMax,
+    contractAmountMin: filters.contractAmountMin,
+    contractAmountMax: filters.contractAmountMax,
+    paidAmountMin: filters.paidAmountMin,
+    paidAmountMax: filters.paidAmountMax,
+    durationMonthsMin: filters.durationMonthsMin,
+    durationMonthsMax: filters.durationMonthsMax,
+    supportRemainingAmountMin: filters.supportRemainingAmountMin,
+    supportRemainingAmountMax: filters.supportRemainingAmountMax,
+    supportRepaidAmountMin: filters.supportRepaidAmountMin,
+    supportRepaidAmountMax: filters.supportRepaidAmountMax,
+    supportCountMin: filters.supportCountMin,
+    supportCountMax: filters.supportCountMax,
+    paymentCountMin: filters.paymentCountMin,
+    paymentCountMax: filters.paymentCountMax,
   }
 
   const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
@@ -82,6 +98,30 @@ export default function FiltersCI({
     isCreatedAtRangeActive ? 'Période de création' : null,
     isNextDueRangeActive ? 'Prochaine échéance' : null,
     !isOverdueTab && safeFilters.overdueOnly ? 'Retard uniquement' : null,
+    typeof safeFilters.monthlyAmountMin === 'number' || typeof safeFilters.monthlyAmountMax === 'number'
+      ? 'Montant à verser'
+      : null,
+    typeof safeFilters.contractAmountMin === 'number' || typeof safeFilters.contractAmountMax === 'number'
+      ? 'Montant contrat'
+      : null,
+    typeof safeFilters.paidAmountMin === 'number' || typeof safeFilters.paidAmountMax === 'number'
+      ? 'Montant déjà versé'
+      : null,
+    typeof safeFilters.durationMonthsMin === 'number' || typeof safeFilters.durationMonthsMax === 'number'
+      ? 'Durée contrat'
+      : null,
+    typeof safeFilters.supportRemainingAmountMin === 'number' || typeof safeFilters.supportRemainingAmountMax === 'number'
+      ? 'Support à rembourser'
+      : null,
+    typeof safeFilters.supportRepaidAmountMin === 'number' || typeof safeFilters.supportRepaidAmountMax === 'number'
+      ? 'Support déjà remboursé'
+      : null,
+    typeof safeFilters.supportCountMin === 'number' || typeof safeFilters.supportCountMax === 'number'
+      ? 'Nombre de supports reçus'
+      : null,
+    typeof safeFilters.paymentCountMin === 'number' || typeof safeFilters.paymentCountMax === 'number'
+      ? 'Nombre de versements effectués'
+      : null,
   ].filter(Boolean) as string[]
 
   const activeFiltersCount = activeFilterLabels.length
@@ -282,6 +322,273 @@ export default function FiltersCI({
                 }
                 disabled={isCreatedAtRangeActive}
               />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+          <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant à verser</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.monthlyAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      monthlyAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.monthlyAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      monthlyAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant contrat</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.contractAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      contractAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.contractAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      contractAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant déjà versé</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paidAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paidAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paidAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paidAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Durée contrat (mois)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.durationMonthsMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      durationMonthsMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.durationMonthsMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      durationMonthsMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Support à rembourser</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.supportRemainingAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      supportRemainingAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.supportRemainingAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      supportRemainingAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Support déjà remboursé</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.supportRepaidAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      supportRepaidAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.supportRepaidAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      supportRepaidAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Nombre de supports reçus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.supportCountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      supportCountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.supportCountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      supportCountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Nombre de versements effectués</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paymentCountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paymentCountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paymentCountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paymentCountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
             </div>
           </div>
         </div>

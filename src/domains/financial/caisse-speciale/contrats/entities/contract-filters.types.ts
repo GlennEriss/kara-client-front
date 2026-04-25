@@ -36,6 +36,10 @@ export interface ContractFilters {
   penaltiesAmountMax?: number
   paidAmountMin?: number
   paidAmountMax?: number
+  durationMonthsMin?: number
+  durationMonthsMax?: number
+  paymentCountMin?: number
+  paymentCountMax?: number
 }
 
 export interface PaginationParams {

@@ -11,6 +11,22 @@ export interface ContractsCIFilters {
     nextDueAtFrom?: Date;
     nextDueAtTo?: Date;
     overdueOnly?: boolean; // Nouveau : filtrer uniquement les contrats en retard
+    monthlyAmountMin?: number;
+    monthlyAmountMax?: number;
+    contractAmountMin?: number;
+    contractAmountMax?: number;
+    paidAmountMin?: number;
+    paidAmountMax?: number;
+    durationMonthsMin?: number;
+    durationMonthsMax?: number;
+    supportRemainingAmountMin?: number;
+    supportRemainingAmountMax?: number;
+    supportRepaidAmountMin?: number;
+    supportRepaidAmountMax?: number;
+    supportCountMin?: number;
+    supportCountMax?: number;
+    paymentCountMin?: number;
+    paymentCountMax?: number;
 }
 
 export interface ContractsCIStats {

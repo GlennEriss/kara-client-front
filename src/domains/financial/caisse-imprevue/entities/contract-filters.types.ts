@@ -10,6 +10,22 @@ export interface ContractCIFilters {
   nextDueAtFrom?: Date
   nextDueAtTo?: Date
   overdueOnly?: boolean
+  monthlyAmountMin?: number
+  monthlyAmountMax?: number
+  contractAmountMin?: number
+  contractAmountMax?: number
+  paidAmountMin?: number
+  paidAmountMax?: number
+  durationMonthsMin?: number
+  durationMonthsMax?: number
+  supportRemainingAmountMin?: number
+  supportRemainingAmountMax?: number
+  supportRepaidAmountMin?: number
+  supportRepaidAmountMax?: number
+  supportCountMin?: number
+  supportCountMax?: number
+  paymentCountMin?: number
+  paymentCountMax?: number
 }
 
 export interface ContractCIStats {

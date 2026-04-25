@@ -183,8 +183,15 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       'penaltiesAmountMax',
       'paidAmountMin',
       'paidAmountMax',
+      'durationMonthsMin',
+      'durationMonthsMax',
     ]
     return amountKeys.some((key) => typeof filters[key] === 'number')
+  }
+
+  private hasPaymentCountFilters(filters?: ContractFilters): boolean {
+    if (!filters) return false
+    return typeof filters.paymentCountMin === 'number' || typeof filters.paymentCountMax === 'number'
   }
 
   private applyAmountFilters(contracts: CaisseContract[], filters?: ContractFilters): CaisseContract[] {
@@ -208,15 +215,48 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       const bonusAmount = asNumber(anyContract.bonusAccrued ?? anyContract.bonuses)
       const penaltiesAmount = asNumber(anyContract.penaltiesTotal ?? anyContract.penalties)
       const paidAmount = asNumber(anyContract.nominalPaid)
+      const durationMonths = asNumber(anyContract.monthsPlanned)
 
       return (
         inRange(monthlyAmount, filters?.monthlyAmountMin, filters?.monthlyAmountMax) &&
         inRange(contractAmount, filters?.contractAmountMin, filters?.contractAmountMax) &&
         inRange(bonusAmount, filters?.bonusAmountMin, filters?.bonusAmountMax) &&
         inRange(penaltiesAmount, filters?.penaltiesAmountMin, filters?.penaltiesAmountMax) &&
-        inRange(paidAmount, filters?.paidAmountMin, filters?.paidAmountMax)
+        inRange(paidAmount, filters?.paidAmountMin, filters?.paidAmountMax) &&
+        inRange(durationMonths, filters?.durationMonthsMin, filters?.durationMonthsMax)
       )
     })
+  }
+
+  private async applyPaymentCountFilters(
+    contracts: CaisseContract[],
+    filters?: ContractFilters
+  ): Promise<CaisseContract[]> {
+    if (!this.hasPaymentCountFilters(filters)) return contracts
+
+    const inRange = (value: number, min?: number, max?: number) => {
+      if (typeof min === 'number' && value < min) return false
+      if (typeof max === 'number' && value > max) return false
+      return true
+    }
+
+    const withCounts = await Promise.all(
+      contracts.map(async (contract) => {
+        if (!contract.id) return { contract, paymentCount: 0 }
+
+        const payments = await listPayments(contract.id)
+        const paymentCount = payments.reduce((sum: number, p: any) => {
+          if (Array.isArray(p.contribs) && p.contribs.length > 0) return sum + p.contribs.length
+          if ((p.status === 'PAID' || p.status === 'PARTIAL') && (Number(p.amount) > 0 || Number(p.accumulatedAmount) > 0 || p.paidAt)) return sum + 1
+          return sum
+        }, 0)
+        return { contract, paymentCount }
+      })
+    )
+
+    return withCounts
+      .filter(({ paymentCount }) => inRange(paymentCount, filters?.paymentCountMin, filters?.paymentCountMax))
+      .map(({ contract }) => contract)
   }
 
   private getContractSearchWords(c: CaisseContract): string[] {
@@ -248,8 +288,9 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     const hasCreatedAtRange = Boolean(normalizedFilters.createdAtFrom || normalizedFilters.createdAtTo)
     const hasNextDueRange = Boolean(normalizedFilters.nextDueAtFrom || normalizedFilters.nextDueAtTo)
     const hasAmountFilters = this.hasAmountFilters(normalizedFilters)
+    const hasPaymentCountFilters = this.hasPaymentCountFilters(normalizedFilters)
     const clientSideNextDueFilter = hasCreatedAtRange && hasNextDueRange
-    const needsClientSideFiltering = clientSideNextDueFilter || hasAmountFilters
+    const needsClientSideFiltering = clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters
 
     const fetchLimit = needsClientSideFiltering ? 1000 : Math.min(100, pagination.limit * 3)
     const searchWords = normalizedQuery.split(/\s+/).filter(Boolean)
@@ -309,6 +350,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       filtered = this.applyNextDueRangeFilter(filtered, normalizedFilters)
     }
     filtered = this.applyAmountFilters(filtered, normalizedFilters)
+    filtered = await this.applyPaymentCountFilters(filtered, normalizedFilters)
 
     let startIndex = 0
     if (pagination.cursor) {
@@ -343,8 +385,9 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     const hasCreatedAtRange = Boolean(normalizedFilters.createdAtFrom || normalizedFilters.createdAtTo)
     const hasNextDueRange = Boolean(normalizedFilters.nextDueAtFrom || normalizedFilters.nextDueAtTo)
     const hasAmountFilters = this.hasAmountFilters(normalizedFilters)
+    const hasPaymentCountFilters = this.hasPaymentCountFilters(normalizedFilters)
     const clientSideNextDueFilter = hasCreatedAtRange && hasNextDueRange
-    const needsClientSideFiltering = clientSideNextDueFilter || hasAmountFilters
+    const needsClientSideFiltering = clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters
 
     constraints.push(...this.buildBaseConstraints(normalizedFilters, { excludeNextDueAt: clientSideNextDueFilter }))
     if (hasNextDueRange && !hasCreatedAtRange) {
@@ -375,6 +418,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       filtered = this.applyNextDueRangeFilter(filtered, normalizedFilters)
     }
     filtered = this.applyAmountFilters(filtered, normalizedFilters)
+    filtered = await this.applyPaymentCountFilters(filtered, normalizedFilters)
     const hasNextPage = !needsClientSideFiltering && filtered.length > pagination.limit
     if (hasNextPage) filtered.pop()
 

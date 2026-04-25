@@ -38,6 +38,22 @@ export class ContractCIRepository implements IContractCIRepository {
       nextDueAtFrom: filters.nextDueAtFrom,
       nextDueAtTo: filters.nextDueAtTo,
       overdueOnly: filters.overdueOnly,
+      monthlyAmountMin: filters.monthlyAmountMin,
+      monthlyAmountMax: filters.monthlyAmountMax,
+      contractAmountMin: filters.contractAmountMin,
+      contractAmountMax: filters.contractAmountMax,
+      paidAmountMin: filters.paidAmountMin,
+      paidAmountMax: filters.paidAmountMax,
+      durationMonthsMin: filters.durationMonthsMin,
+      durationMonthsMax: filters.durationMonthsMax,
+      supportRemainingAmountMin: filters.supportRemainingAmountMin,
+      supportRemainingAmountMax: filters.supportRemainingAmountMax,
+      supportRepaidAmountMin: filters.supportRepaidAmountMin,
+      supportRepaidAmountMax: filters.supportRepaidAmountMax,
+      supportCountMin: filters.supportCountMin,
+      supportCountMax: filters.supportCountMax,
+      paymentCountMin: filters.paymentCountMin,
+      paymentCountMax: filters.paymentCountMax,
     }
   }
 

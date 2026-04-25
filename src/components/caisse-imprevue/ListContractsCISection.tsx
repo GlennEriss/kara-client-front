@@ -119,7 +119,23 @@ function hasActiveContractFilters(filters: ContractCIFilters): boolean {
       filters.createdAtTo ||
       filters.nextDueAtFrom ||
       filters.nextDueAtTo ||
-      filters.overdueOnly
+      filters.overdueOnly ||
+      typeof filters.monthlyAmountMin === 'number' ||
+      typeof filters.monthlyAmountMax === 'number' ||
+      typeof filters.contractAmountMin === 'number' ||
+      typeof filters.contractAmountMax === 'number' ||
+      typeof filters.paidAmountMin === 'number' ||
+      typeof filters.paidAmountMax === 'number' ||
+      typeof filters.durationMonthsMin === 'number' ||
+      typeof filters.durationMonthsMax === 'number' ||
+      typeof filters.supportRemainingAmountMin === 'number' ||
+      typeof filters.supportRemainingAmountMax === 'number' ||
+      typeof filters.supportRepaidAmountMin === 'number' ||
+      typeof filters.supportRepaidAmountMax === 'number' ||
+      typeof filters.supportCountMin === 'number' ||
+      typeof filters.supportCountMax === 'number' ||
+      typeof filters.paymentCountMin === 'number' ||
+      typeof filters.paymentCountMax === 'number'
   )
 }
 
@@ -169,6 +185,22 @@ export default function ListContractsCISection() {
     nextDueAtFrom: undefined,
     nextDueAtTo: undefined,
     overdueOnly: false,
+    monthlyAmountMin: undefined,
+    monthlyAmountMax: undefined,
+    contractAmountMin: undefined,
+    contractAmountMax: undefined,
+    paidAmountMin: undefined,
+    paidAmountMax: undefined,
+    durationMonthsMin: undefined,
+    durationMonthsMax: undefined,
+    supportRemainingAmountMin: undefined,
+    supportRemainingAmountMax: undefined,
+    supportRepaidAmountMin: undefined,
+    supportRepaidAmountMax: undefined,
+    supportCountMin: undefined,
+    supportCountMax: undefined,
+    paymentCountMin: undefined,
+    paymentCountMax: undefined,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -256,6 +288,22 @@ export default function ListContractsCISection() {
       nextDueAtFrom: undefined,
       nextDueAtTo: undefined,
       overdueOnly: false,
+      monthlyAmountMin: undefined,
+      monthlyAmountMax: undefined,
+      contractAmountMin: undefined,
+      contractAmountMax: undefined,
+      paidAmountMin: undefined,
+      paidAmountMax: undefined,
+      durationMonthsMin: undefined,
+      durationMonthsMax: undefined,
+      supportRemainingAmountMin: undefined,
+      supportRemainingAmountMax: undefined,
+      supportRepaidAmountMin: undefined,
+      supportRepaidAmountMax: undefined,
+      supportCountMin: undefined,
+      supportCountMax: undefined,
+      paymentCountMin: undefined,
+      paymentCountMax: undefined,
     })
     setCurrentPage(1)
   }

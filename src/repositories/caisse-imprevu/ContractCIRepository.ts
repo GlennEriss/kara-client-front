@@ -94,6 +94,133 @@ export class ContractCIRepository implements IContractCIRepository {
         });
     }
 
+    private hasContractAmountFilters(filters?: ContractsCIFilters): boolean {
+        if (!filters) return false;
+        const amountKeys: (keyof ContractsCIFilters)[] = [
+            'monthlyAmountMin',
+            'monthlyAmountMax',
+            'contractAmountMin',
+            'contractAmountMax',
+            'durationMonthsMin',
+            'durationMonthsMax',
+        ];
+        return amountKeys.some((key) => typeof filters[key] === 'number');
+    }
+
+    private hasSupportAndPaymentMetricFilters(filters?: ContractsCIFilters): boolean {
+        if (!filters) return false;
+        const metricKeys: (keyof ContractsCIFilters)[] = [
+            'paidAmountMin',
+            'paidAmountMax',
+            'supportRemainingAmountMin',
+            'supportRemainingAmountMax',
+            'supportRepaidAmountMin',
+            'supportRepaidAmountMax',
+            'supportCountMin',
+            'supportCountMax',
+            'paymentCountMin',
+            'paymentCountMax',
+        ];
+        return metricKeys.some((key) => typeof filters[key] === 'number');
+    }
+
+    private applyContractAmountFilters(contracts: ContractCI[], filters?: ContractsCIFilters): ContractCI[] {
+        if (!this.hasContractAmountFilters(filters)) return contracts;
+
+        const inRange = (value: number, min?: number, max?: number) => {
+            if (typeof min === 'number' && value < min) return false;
+            if (typeof max === 'number' && value > max) return false;
+            return true;
+        };
+
+        const asNumber = (value: unknown, fallback = 0) => {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : fallback;
+        };
+
+        return contracts.filter((contract) => {
+            const anyContract = contract as any;
+            const monthlyAmount = asNumber(anyContract.subscriptionCIAmountPerMonth);
+            const contractAmount = asNumber(anyContract.subscriptionCINominal, monthlyAmount * asNumber(anyContract.subscriptionCIDuration));
+            const durationMonths = asNumber(anyContract.subscriptionCIDuration);
+
+            return (
+                inRange(monthlyAmount, filters?.monthlyAmountMin, filters?.monthlyAmountMax) &&
+                inRange(contractAmount, filters?.contractAmountMin, filters?.contractAmountMax) &&
+                inRange(durationMonths, filters?.durationMonthsMin, filters?.durationMonthsMax)
+            );
+        });
+    }
+
+    private async getContractMetrics(contractId: string): Promise<{
+        paymentCount: number;
+        totalAmountPaid: number;
+        supportCount: number;
+        totalSupportRemaining: number;
+        totalSupportRepaid: number;
+    }> {
+        const { collection, getDocs, db } = await getFirestore();
+        const paymentsRef = collection(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId, "payments");
+        const supportsRef = collection(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId, "supports");
+
+        const [paymentsSnap, supportsSnap] = await Promise.all([
+            getDocs(paymentsRef),
+            getDocs(supportsRef),
+        ]);
+
+        let totalAmountPaid = 0;
+        paymentsSnap.forEach((doc) => {
+            const data = doc.data();
+            totalAmountPaid += Number(data?.accumulatedAmount ?? 0);
+        });
+
+        let totalSupportRemaining = 0;
+        let totalSupportRepaid = 0;
+        supportsSnap.forEach((doc) => {
+            const data = doc.data();
+            totalSupportRemaining += Number(data?.amountRemaining ?? 0);
+            totalSupportRepaid += Number(data?.amountRepaid ?? 0);
+        });
+
+        return {
+            paymentCount: paymentsSnap.size,
+            totalAmountPaid,
+            supportCount: supportsSnap.size,
+            totalSupportRemaining,
+            totalSupportRepaid,
+        };
+    }
+
+    private async applySupportAndPaymentMetricFilters(
+        contracts: ContractCI[],
+        filters?: ContractsCIFilters
+    ): Promise<ContractCI[]> {
+        if (!this.hasSupportAndPaymentMetricFilters(filters)) return contracts;
+
+        const inRange = (value: number, min?: number, max?: number) => {
+            if (typeof min === 'number' && value < min) return false;
+            if (typeof max === 'number' && value > max) return false;
+            return true;
+        };
+
+        const withMetrics = await Promise.all(
+            contracts.map(async (contract) => ({
+                contract,
+                metrics: await this.getContractMetrics(contract.id),
+            }))
+        );
+
+        return withMetrics
+            .filter(({ metrics }) => (
+                inRange(metrics.totalAmountPaid, filters?.paidAmountMin, filters?.paidAmountMax) &&
+                inRange(metrics.totalSupportRemaining, filters?.supportRemainingAmountMin, filters?.supportRemainingAmountMax) &&
+                inRange(metrics.totalSupportRepaid, filters?.supportRepaidAmountMin, filters?.supportRepaidAmountMax) &&
+                inRange(metrics.supportCount, filters?.supportCountMin, filters?.supportCountMax) &&
+                inRange(metrics.paymentCount, filters?.paymentCountMin, filters?.paymentCountMax)
+            ))
+            .map(({ contract }) => contract);
+    }
+
     /**
      * Crée un nouveau contrat CI avec un ID personnalisé
      * @param {Omit<ContractCI, 'createdAt' | 'updatedAt'>} data - Données du contrat (incluant l'ID personnalisé)
@@ -379,6 +506,11 @@ export class ContractCIRepository implements IContractCIRepository {
             if (normalizedFilters?.overdueOnly) {
                 contracts = await this.filterOverdueContracts(contracts);
             }
+
+            // Filtrer par montants du contrat
+            contracts = this.applyContractAmountFilters(contracts, normalizedFilters);
+            // Filtrer par métriques paiements/supports (sous-collections)
+            contracts = await this.applySupportAndPaymentMetricFilters(contracts, normalizedFilters);
 
             return contracts;
 
