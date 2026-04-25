@@ -256,7 +256,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset, activeTab, onTabChan
           )}
         </div>
 
-        {/* Filtres avancés - collapsibles */}
+        {/* Filtres et Recherche - collapsibles */}
         {isExpanded && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t">
             {/* Type de membre */}

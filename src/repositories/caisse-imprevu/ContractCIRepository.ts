@@ -18,6 +18,210 @@ export class ContractCIRepository implements IContractCIRepository {
     }
 
     /**
+     * Évite de combiner simultanément les plages "création" et "prochaine échéance"
+     * pour rester cohérent avec la logique UI (comme caisse spéciale).
+     */
+    private normalizeDateRanges(filters?: ContractsCIFilters): ContractsCIFilters | undefined {
+        if (!filters) return undefined;
+
+        const hasCreatedRange = Boolean(filters.createdAtFrom || filters.createdAtTo);
+        const hasNextDueRange = Boolean(filters.nextDueAtFrom || filters.nextDueAtTo);
+
+        if (!hasCreatedRange || !hasNextDueRange) {
+            return filters;
+        }
+
+        return {
+            ...filters,
+            nextDueAtFrom: undefined,
+            nextDueAtTo: undefined,
+        };
+    }
+
+    /**
+     * Calcule la date d'échéance d'un cycle à partir de firstPaymentDate.
+     * MONTHLY: ajout de mois.
+     * DAILY: cycles de 30 jours (cohérent avec les utilitaires CI existants).
+     */
+    private computeDueDateByMonthIndex(contract: ContractCI, monthIndex: number): Date | null {
+        if (!contract.firstPaymentDate) return null;
+
+        const firstPaymentDate = new Date(contract.firstPaymentDate);
+        if (isNaN(firstPaymentDate.getTime())) return null;
+        firstPaymentDate.setHours(0, 0, 0, 0);
+
+        const dueDate = new Date(firstPaymentDate);
+        if (contract.paymentFrequency === 'MONTHLY') {
+            dueDate.setMonth(dueDate.getMonth() + monthIndex);
+        } else {
+            dueDate.setDate(dueDate.getDate() + (monthIndex * 30));
+        }
+        dueDate.setHours(0, 0, 0, 0);
+
+        return dueDate;
+    }
+
+    /**
+     * Approximation de "prochaine échéance" CI: premier cycle non entièrement payé.
+     */
+    private computeNextDueDate(contract: ContractCI): Date | null {
+        const duration = Math.max(0, Number(contract.subscriptionCIDuration ?? 0));
+        if (duration <= 0) return null;
+
+        const nextMonthIndex = Math.max(0, Number(contract.totalMonthsPaid ?? 0));
+        if (nextMonthIndex >= duration) return null;
+
+        return this.computeDueDateByMonthIndex(contract, nextMonthIndex);
+    }
+
+    /**
+     * Filtre côté client par plage de "prochaine échéance".
+     */
+    private filterByNextDueRange(contracts: ContractCI[], filters?: ContractsCIFilters): ContractCI[] {
+        if (!filters?.nextDueAtFrom && !filters?.nextDueAtTo) return contracts;
+
+        const from = filters.nextDueAtFrom ? new Date(filters.nextDueAtFrom) : null;
+        const to = filters.nextDueAtTo ? new Date(filters.nextDueAtTo) : null;
+        if (from) from.setHours(0, 0, 0, 0);
+        if (to) to.setHours(23, 59, 59, 999);
+
+        return contracts.filter((contract) => {
+            const nextDueDate = this.computeNextDueDate(contract);
+            if (!nextDueDate) return false;
+            if (from && nextDueDate < from) return false;
+            if (to && nextDueDate > to) return false;
+            return true;
+        });
+    }
+
+    private hasContractAmountFilters(filters?: ContractsCIFilters): boolean {
+        if (!filters) return false;
+        const amountKeys: (keyof ContractsCIFilters)[] = [
+            'monthlyAmountMin',
+            'monthlyAmountMax',
+            'contractAmountMin',
+            'contractAmountMax',
+            'durationMonthsMin',
+            'durationMonthsMax',
+        ];
+        return amountKeys.some((key) => typeof filters[key] === 'number');
+    }
+
+    private hasSupportAndPaymentMetricFilters(filters?: ContractsCIFilters): boolean {
+        if (!filters) return false;
+        const metricKeys: (keyof ContractsCIFilters)[] = [
+            'paidAmountMin',
+            'paidAmountMax',
+            'supportRemainingAmountMin',
+            'supportRemainingAmountMax',
+            'supportRepaidAmountMin',
+            'supportRepaidAmountMax',
+            'supportCountMin',
+            'supportCountMax',
+            'paymentCountMin',
+            'paymentCountMax',
+        ];
+        return metricKeys.some((key) => typeof filters[key] === 'number');
+    }
+
+    private applyContractAmountFilters(contracts: ContractCI[], filters?: ContractsCIFilters): ContractCI[] {
+        if (!this.hasContractAmountFilters(filters)) return contracts;
+
+        const inRange = (value: number, min?: number, max?: number) => {
+            if (typeof min === 'number' && value < min) return false;
+            if (typeof max === 'number' && value > max) return false;
+            return true;
+        };
+
+        const asNumber = (value: unknown, fallback = 0) => {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : fallback;
+        };
+
+        return contracts.filter((contract) => {
+            const anyContract = contract as any;
+            const monthlyAmount = asNumber(anyContract.subscriptionCIAmountPerMonth);
+            const contractAmount = asNumber(anyContract.subscriptionCINominal, monthlyAmount * asNumber(anyContract.subscriptionCIDuration));
+            const durationMonths = asNumber(anyContract.subscriptionCIDuration);
+
+            return (
+                inRange(monthlyAmount, filters?.monthlyAmountMin, filters?.monthlyAmountMax) &&
+                inRange(contractAmount, filters?.contractAmountMin, filters?.contractAmountMax) &&
+                inRange(durationMonths, filters?.durationMonthsMin, filters?.durationMonthsMax)
+            );
+        });
+    }
+
+    private async getContractMetrics(contractId: string): Promise<{
+        paymentCount: number;
+        totalAmountPaid: number;
+        supportCount: number;
+        totalSupportRemaining: number;
+        totalSupportRepaid: number;
+    }> {
+        const { collection, getDocs, db } = await getFirestore();
+        const paymentsRef = collection(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId, "payments");
+        const supportsRef = collection(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId, "supports");
+
+        const [paymentsSnap, supportsSnap] = await Promise.all([
+            getDocs(paymentsRef),
+            getDocs(supportsRef),
+        ]);
+
+        let totalAmountPaid = 0;
+        paymentsSnap.forEach((doc) => {
+            const data = doc.data();
+            totalAmountPaid += Number(data?.accumulatedAmount ?? 0);
+        });
+
+        let totalSupportRemaining = 0;
+        let totalSupportRepaid = 0;
+        supportsSnap.forEach((doc) => {
+            const data = doc.data();
+            totalSupportRemaining += Number(data?.amountRemaining ?? 0);
+            totalSupportRepaid += Number(data?.amountRepaid ?? 0);
+        });
+
+        return {
+            paymentCount: paymentsSnap.size,
+            totalAmountPaid,
+            supportCount: supportsSnap.size,
+            totalSupportRemaining,
+            totalSupportRepaid,
+        };
+    }
+
+    private async applySupportAndPaymentMetricFilters(
+        contracts: ContractCI[],
+        filters?: ContractsCIFilters
+    ): Promise<ContractCI[]> {
+        if (!this.hasSupportAndPaymentMetricFilters(filters)) return contracts;
+
+        const inRange = (value: number, min?: number, max?: number) => {
+            if (typeof min === 'number' && value < min) return false;
+            if (typeof max === 'number' && value > max) return false;
+            return true;
+        };
+
+        const withMetrics = await Promise.all(
+            contracts.map(async (contract) => ({
+                contract,
+                metrics: await this.getContractMetrics(contract.id),
+            }))
+        );
+
+        return withMetrics
+            .filter(({ metrics }) => (
+                inRange(metrics.totalAmountPaid, filters?.paidAmountMin, filters?.paidAmountMax) &&
+                inRange(metrics.totalSupportRemaining, filters?.supportRemainingAmountMin, filters?.supportRemainingAmountMax) &&
+                inRange(metrics.totalSupportRepaid, filters?.supportRepaidAmountMin, filters?.supportRepaidAmountMax) &&
+                inRange(metrics.supportCount, filters?.supportCountMin, filters?.supportCountMax) &&
+                inRange(metrics.paymentCount, filters?.paymentCountMin, filters?.paymentCountMax)
+            ))
+            .map(({ contract }) => contract);
+    }
+
+    /**
      * Crée un nouveau contrat CI avec un ID personnalisé
      * @param {Omit<ContractCI, 'createdAt' | 'updatedAt'>} data - Données du contrat (incluant l'ID personnalisé)
      * @returns {Promise<ContractCI>} - Le contrat créé
@@ -231,22 +435,31 @@ export class ContractCIRepository implements IContractCIRepository {
     async getContractsWithFilters(filters?: ContractsCIFilters): Promise<ContractCI[]> {
         try {
             const { collection, db, getDocs, query, orderBy, where } = await getFirestore();
+            const normalizedFilters = this.normalizeDateRanges(filters);
 
             const constraints: any[] = [];
             
             // Filtrer par statut si spécifié
-            if (filters?.status && filters.status !== 'all') {
-                constraints.push(where("status", "==", filters.status));
+            if (normalizedFilters?.status && normalizedFilters.status !== 'all') {
+                constraints.push(where("status", "==", normalizedFilters.status));
             }
 
             // Filtrer par paymentFrequency si spécifié
-            if (filters?.paymentFrequency && filters.paymentFrequency !== 'all') {
-                constraints.push(where("paymentFrequency", "==", filters.paymentFrequency));
+            if (normalizedFilters?.paymentFrequency && normalizedFilters.paymentFrequency !== 'all') {
+                constraints.push(where("paymentFrequency", "==", normalizedFilters.paymentFrequency));
             }
 
             // Filtrer par catégorie/forfait si spécifié
-            if (filters?.subscriptionCIID) {
-                constraints.push(where("subscriptionCIID", "==", filters.subscriptionCIID));
+            if (normalizedFilters?.subscriptionCIID) {
+                constraints.push(where("subscriptionCIID", "==", normalizedFilters.subscriptionCIID));
+            }
+
+            // Filtrer par période de création
+            if (normalizedFilters?.createdAtFrom) {
+                constraints.push(where("createdAt", ">=", normalizedFilters.createdAtFrom));
+            }
+            if (normalizedFilters?.createdAtTo) {
+                constraints.push(where("createdAt", "<=", normalizedFilters.createdAtTo));
             }
 
             // Toujours trier par date de création décroissante
@@ -274,8 +487,8 @@ export class ContractCIRepository implements IContractCIRepository {
             });
 
             // Filtrer par recherche côté client (pour rechercher dans les noms)
-            if (filters?.search) {
-                const searchLower = filters.search.toLowerCase();
+            if (normalizedFilters?.search) {
+                const searchLower = normalizedFilters.search.toLowerCase();
                 contracts = contracts.filter(c =>
                     c.id.toLowerCase().includes(searchLower) ||
                     c.memberFirstName?.toLowerCase().includes(searchLower) ||
@@ -286,10 +499,18 @@ export class ContractCIRepository implements IContractCIRepository {
                 );
             }
 
+            // Filtrer par "prochaine échéance"
+            contracts = this.filterByNextDueRange(contracts, normalizedFilters);
+
             // Filtrer par retard de paiement si demandé
-            if (filters?.overdueOnly) {
+            if (normalizedFilters?.overdueOnly) {
                 contracts = await this.filterOverdueContracts(contracts);
             }
+
+            // Filtrer par montants du contrat
+            contracts = this.applyContractAmountFilters(contracts, normalizedFilters);
+            // Filtrer par métriques paiements/supports (sous-collections)
+            contracts = await this.applySupportAndPaymentMetricFilters(contracts, normalizedFilters);
 
             return contracts;
 
@@ -307,22 +528,31 @@ export class ContractCIRepository implements IContractCIRepository {
     async getContractsStats(filters?: ContractsCIFilters): Promise<ContractsCIStats> {
         try {
             const { collection, db, getDocs, query, where } = await getFirestore();
+            const normalizedFilters = this.normalizeDateRanges(filters);
 
             const constraints: any[] = [];
 
             // Filtrer par statut si spécifié
-            if (filters?.status && filters.status !== 'all') {
-                constraints.push(where("status", "==", filters.status));
+            if (normalizedFilters?.status && normalizedFilters.status !== 'all') {
+                constraints.push(where("status", "==", normalizedFilters.status));
             }
 
             // Filtrer par paymentFrequency si spécifié
-            if (filters?.paymentFrequency && filters.paymentFrequency !== 'all') {
-                constraints.push(where("paymentFrequency", "==", filters.paymentFrequency));
+            if (normalizedFilters?.paymentFrequency && normalizedFilters.paymentFrequency !== 'all') {
+                constraints.push(where("paymentFrequency", "==", normalizedFilters.paymentFrequency));
             }
 
             // Filtrer par catégorie/forfait si spécifié
-            if (filters?.subscriptionCIID) {
-                constraints.push(where("subscriptionCIID", "==", filters.subscriptionCIID));
+            if (normalizedFilters?.subscriptionCIID) {
+                constraints.push(where("subscriptionCIID", "==", normalizedFilters.subscriptionCIID));
+            }
+
+            // Filtrer par période de création
+            if (normalizedFilters?.createdAtFrom) {
+                constraints.push(where("createdAt", ">=", normalizedFilters.createdAtFrom));
+            }
+            if (normalizedFilters?.createdAtTo) {
+                constraints.push(where("createdAt", "<=", normalizedFilters.createdAtTo));
             }
 
             const q = constraints.length > 0
@@ -344,12 +574,17 @@ export class ContractCIRepository implements IContractCIRepository {
                 });
             });
 
-            const total = contracts.length;
-            const active = contracts.filter(c => c.status === 'ACTIVE').length;
-            const finished = contracts.filter(c => c.status === 'FINISHED').length;
-            const canceled = contracts.filter(c => c.status === 'CANCELED').length;
+            let filteredContracts = this.filterByNextDueRange(contracts, normalizedFilters);
+            if (normalizedFilters?.overdueOnly) {
+                filteredContracts = await this.filterOverdueContracts(filteredContracts);
+            }
 
-            const totalAmount = contracts.reduce(
+            const total = filteredContracts.length;
+            const active = filteredContracts.filter(c => c.status === 'ACTIVE').length;
+            const finished = filteredContracts.filter(c => c.status === 'FINISHED').length;
+            const canceled = filteredContracts.filter(c => c.status === 'CANCELED').length;
+
+            const totalAmount = filteredContracts.reduce(
                 (sum, c) => sum + (c.subscriptionCIAmountPerMonth * c.subscriptionCIDuration),
                 0
             );

@@ -10,6 +10,21 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
@@ -24,6 +39,7 @@ import {
     BarChart3,
     Calendar,
     CheckCircle,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Clock,
@@ -57,22 +73,68 @@ import ViewUploadedContractModal from './ViewUploadedContractModal'
 
 type ViewMode = 'grid' | 'list'
 
-type CaisseTypeTabValue =
-  | 'all'
+type CaisseSpecificType =
   | 'STANDARD'
   | 'JOURNALIERE'
   | 'LIBRE'
   | 'STANDARD_CHARITABLE'
   | 'JOURNALIERE_CHARITABLE'
   | 'LIBRE_CHARITABLE'
+
+type GroupedCaisseTabValue = 'STANDARD_GROUP' | 'JOURNALIERE_GROUP' | 'LIBRE_GROUP'
+
+type CaisseTypeTabValue =
+  | 'all'
+  | GroupedCaisseTabValue
   | 'overdue'
   | 'currentMonth'
+
+type GroupedCaisseSubFilterValue = 'all' | CaisseSpecificType
 
 type CaisseTypeTabItem = {
   value: CaisseTypeTabValue
   label: string
   icon: React.ComponentType<{ className?: string }>
   isDanger?: boolean
+}
+
+const GROUPED_CAISSE_TAB_VALUES: GroupedCaisseTabValue[] = [
+  'STANDARD_GROUP',
+  'JOURNALIERE_GROUP',
+  'LIBRE_GROUP',
+]
+
+const isGroupedCaisseTab = (value: string): value is GroupedCaisseTabValue =>
+  GROUPED_CAISSE_TAB_VALUES.includes(value as GroupedCaisseTabValue)
+
+const isCaisseTypeTabValue = (value: string): value is CaisseTypeTabValue =>
+  value === 'all' || value === 'overdue' || value === 'currentMonth' || isGroupedCaisseTab(value)
+
+const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecificType, CaisseSpecificType]> = {
+  STANDARD_GROUP: ['STANDARD', 'STANDARD_CHARITABLE'],
+  JOURNALIERE_GROUP: ['JOURNALIERE', 'JOURNALIERE_CHARITABLE'],
+  LIBRE_GROUP: ['LIBRE', 'LIBRE_CHARITABLE'],
+}
+
+const GROUPED_CAISSE_SUBFILTER_OPTIONS: Record<
+  GroupedCaisseTabValue,
+  { value: GroupedCaisseSubFilterValue; label: string }[]
+> = {
+  STANDARD_GROUP: [
+    { value: 'all', label: 'Tous' },
+    { value: 'STANDARD', label: 'Standard' },
+    { value: 'STANDARD_CHARITABLE', label: 'Standard charitable' },
+  ],
+  JOURNALIERE_GROUP: [
+    { value: 'all', label: 'Tous' },
+    { value: 'JOURNALIERE', label: 'Journalier' },
+    { value: 'JOURNALIERE_CHARITABLE', label: 'Journalier charitable' },
+  ],
+  LIBRE_GROUP: [
+    { value: 'all', label: 'Tous' },
+    { value: 'LIBRE', label: 'Libre' },
+    { value: 'LIBRE_CHARITABLE', label: 'Libre charitable' },
+  ],
 }
 
 // Hook personnalisé pour le carousel avec drag/swipe
@@ -296,12 +358,12 @@ const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: numb
   return (
     <div className="relative">
       <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
-        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300 cursor-pointer', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
           <ChevronLeft className="w-5 h-5" />
         </Button>
       </div>
       <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
-        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300 cursor-pointer', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
           <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
@@ -320,7 +382,7 @@ const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: numb
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
-  <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+  <Card className="group animate-pulse border border-[#234D65]/15 bg-gradient-to-br from-white via-slate-50/60 to-[#234D65]/[0.03] shadow-sm">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
         <Skeleton className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
@@ -348,8 +410,9 @@ const ContractFilters = ({
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
-  activeTab: string
+  activeTab: CaisseTypeTabValue
 }) => {
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
   const safeFilters = {
     search: '',
     status: 'all',
@@ -360,18 +423,26 @@ const ContractFilters = ({
     nextDueAtFrom: undefined,
     nextDueAtTo: undefined,
     overdueOnly: false,
+    monthlyAmountMin: undefined,
+    monthlyAmountMax: undefined,
+    contractAmountMin: undefined,
+    contractAmountMax: undefined,
+    bonusAmountMin: undefined,
+    bonusAmountMax: undefined,
+    penaltiesAmountMin: undefined,
+    penaltiesAmountMax: undefined,
+    paidAmountMin: undefined,
+    paidAmountMax: undefined,
+    durationMonthsMin: undefined,
+    durationMonthsMax: undefined,
+    paymentCountMin: undefined,
+    paymentCountMax: undefined,
     ...filters,
   }
   const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
   const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
-  const isCaisseTabLocked =
-    activeTab === 'STANDARD' ||
-    activeTab === 'JOURNALIERE' ||
-    activeTab === 'LIBRE' ||
-    activeTab === 'STANDARD_CHARITABLE' ||
-    activeTab === 'JOURNALIERE_CHARITABLE' ||
-    activeTab === 'LIBRE_CHARITABLE'
-  const caisseTypeValue = isCaisseTabLocked ? activeTab : (safeFilters.caisseType || 'all')
+  const isCaisseTabLocked = isGroupedCaisseTab(activeTab)
+  const caisseTypeValue = isCaisseTabLocked ? 'all' : (safeFilters.caisseType || 'all')
   const isOverdueTab = activeTab === 'overdue'
   const isLateStatus =
     safeFilters.status === 'LATE_NO_PENALTY' || safeFilters.status === 'LATE_WITH_PENALTY'
@@ -379,165 +450,551 @@ const ContractFilters = ({
     ? (isLateStatus ? safeFilters.status : 'LATE_NO_PENALTY')
     : (safeFilters.status || 'all')
 
-  const inputBase =
-    'px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200 min-w-0'
+  const statusLabels: Record<string, string> = {
+    all: 'Tous les statuts',
+    ACTIVE: 'Actif',
+    LATE_NO_PENALTY: 'Retard (J+0..3)',
+    LATE_WITH_PENALTY: 'Retard (J+4..12)',
+    RESCINDED: 'Cloture en urgence',
+    CLOSED: 'Cloture finale',
+  }
+  const contractTypeLabels: Record<string, string> = {
+    all: 'Tous les types',
+    INDIVIDUAL: 'Individuels',
+    GROUP: 'Groupes',
+  }
+  const caisseTypeLabels: Record<string, string> = {
+    all: 'Tous les types de contrat',
+    STANDARD: 'Standard',
+    JOURNALIERE: 'Journalière',
+    LIBRE: 'Libre',
+    STANDARD_CHARITABLE: 'Standard Charitable',
+    JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+    LIBRE_CHARITABLE: 'Libre Charitable',
+  }
+
+  const defaultStatusValue = isOverdueTab ? 'LATE_NO_PENALTY' : 'all'
+  const hasCustomStatus = statusValue !== defaultStatusValue
+
+  const activeFilterLabels = [
+    safeFilters.search?.trim() ? `Recherche: ${safeFilters.search.trim()}` : null,
+    hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : null,
+    safeFilters.contractType !== 'all'
+      ? `Contrat: ${contractTypeLabels[safeFilters.contractType] || safeFilters.contractType}`
+      : null,
+    !isCaisseTabLocked && caisseTypeValue !== 'all'
+      ? `Caisse: ${caisseTypeLabels[caisseTypeValue] || caisseTypeValue}`
+      : null,
+    isCreatedAtRangeActive ? 'Période de création' : null,
+    isNextDueRangeActive ? 'Prochaine échéance' : null,
+    !isOverdueTab && safeFilters.overdueOnly ? 'Retard uniquement' : null,
+    typeof safeFilters.monthlyAmountMin === 'number' || typeof safeFilters.monthlyAmountMax === 'number'
+      ? 'Montant à verser'
+      : null,
+    typeof safeFilters.contractAmountMin === 'number' || typeof safeFilters.contractAmountMax === 'number'
+      ? 'Montant contrat'
+      : null,
+    typeof safeFilters.bonusAmountMin === 'number' || typeof safeFilters.bonusAmountMax === 'number'
+      ? 'Montant bonus'
+      : null,
+    typeof safeFilters.penaltiesAmountMin === 'number' || typeof safeFilters.penaltiesAmountMax === 'number'
+      ? 'Montant pénalité cumulée'
+      : null,
+    typeof safeFilters.paidAmountMin === 'number' || typeof safeFilters.paidAmountMax === 'number'
+      ? 'Montant déjà versé'
+      : null,
+    typeof safeFilters.durationMonthsMin === 'number' || typeof safeFilters.durationMonthsMax === 'number'
+      ? 'Durée contrat'
+      : null,
+    typeof safeFilters.paymentCountMin === 'number' || typeof safeFilters.paymentCountMax === 'number'
+      ? 'Nombre de versements effectués'
+      : null,
+  ].filter(Boolean) as string[]
+
+  const activeFiltersCount = activeFilterLabels.length
+  const advancedFiltersCount = activeFilterLabels.filter(
+    (label) =>
+      label !== (safeFilters.search?.trim() ? `Recherche: ${safeFilters.search.trim()}` : '') &&
+      label !== (hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : '') &&
+      label !== (!isCaisseTabLocked && caisseTypeValue !== 'all'
+        ? `Caisse: ${caisseTypeLabels[caisseTypeValue] || caisseTypeValue}`
+        : '') &&
+      label !== (safeFilters.contractType !== 'all'
+        ? `Contrat: ${contractTypeLabels[safeFilters.contractType] || safeFilters.contractType}`
+        : '')
+  ).length
+  const controlClassName = 'h-11 rounded-xl border-2 border-slate-200 bg-white focus:ring-0 focus-visible:ring-0 focus-visible:border-[#234D65]'
+  const miniInputClassName = 'h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]'
 
   return (
-    <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-      <CardContent className="p-6">
-        {/* En-tête */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg shrink-0">
-            <Filter className="h-6 w-6 text-white" />
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+      <CardContent className="space-y-5 p-4 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+              <Filter className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Filtres et Recherche</h3>
+              <p className="text-sm text-slate-600">Affinez la liste des contrats en quelques critères.</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-            <p className="text-sm text-gray-600">Affinez votre recherche</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                'rounded-full border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700',
+                activeFiltersCount === 0 && 'border-slate-200 text-slate-500'
+              )}
+            >
+              {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+            </Badge>
+            <Button
+              variant="outline"
+              onClick={() => setIsFiltersExpanded((prev) => !prev)}
+              className={cn(
+                'h-10 rounded-xl border-2 transition-colors cursor-pointer',
+                isFiltersExpanded
+                  ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                  : 'border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]'
+              )}
+            >
+              Filtres avancés
+              {advancedFiltersCount > 0 ? ` (${advancedFiltersCount})` : ''}
+              <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onReset}
+              className="h-10 rounded-xl border-2 border-slate-300 text-slate-700 cursor-pointer hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réinitialiser
+            </Button>
           </div>
         </div>
 
-        {/* Ligne 1 : Recherche + listes déroulantes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 mb-4">
-          <div className="relative lg:col-span-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom, prénom ou matricule..."
-              className={`pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full transition-all duration-200`}
-              value={safeFilters.search || ''}
-              onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
-            />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="space-y-1.5 xl:col-span-5">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recherche</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Nom, prénom ou matricule..."
+                className={cn(controlClassName, 'pl-10')}
+                value={safeFilters.search || ''}
+                onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
+              />
+            </div>
           </div>
-          <select
-            className={`${inputBase} lg:col-span-2`}
-            value={statusValue}
-            onChange={(e) => onFiltersChange({ ...safeFilters, status: e.target.value })}
-          >
-            {!isOverdueTab && <option value="all">Tous les statuts</option>}
-            {!isOverdueTab && <option value="ACTIVE">Actif</option>}
-            <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
-            <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
-            {!isOverdueTab && <option value="RESCINDED">Cloture en urgence</option>}
-            {!isOverdueTab && <option value="CLOSED">Cloture finale</option>}
-          </select>
-          <select
-            className={`${inputBase} lg:col-span-3`}
-            value={caisseTypeValue}
-            onChange={(e) => onFiltersChange({ ...safeFilters, caisseType: e.target.value })}
-            disabled={isCaisseTabLocked}
-          >
-            <option value="all">Tous les types de contrat</option>
-            <option value="STANDARD">Standard</option>
-            <option value="JOURNALIERE">Journalière</option>
-            <option value="LIBRE">Libre</option>
-            <option value="STANDARD_CHARITABLE">Standard Charitable</option>
-            <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
-            <option value="LIBRE_CHARITABLE">Libre Charitable</option>
-          </select>
-          <select
-            className={`${inputBase} lg:col-span-2`}
-            value={safeFilters.contractType || 'all'}
-            onChange={(e) => onFiltersChange({ ...safeFilters, contractType: e.target.value })}
-          >
-            <option value="all">Tous les types</option>
-            <option value="INDIVIDUAL">Individuels</option>
-            <option value="GROUP">Groupes</option>
-          </select>
+
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</Label>
+            <Select
+              value={statusValue}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, status: value })}
+            >
+              <SelectTrigger className={controlClassName}>
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                {!isOverdueTab && <SelectItem value="all">Tous les statuts</SelectItem>}
+                {!isOverdueTab && <SelectItem value="ACTIVE">Actif</SelectItem>}
+                <SelectItem value="LATE_NO_PENALTY">Retard (J+0..3)</SelectItem>
+                <SelectItem value="LATE_WITH_PENALTY">Retard (J+4..12)</SelectItem>
+                {!isOverdueTab && <SelectItem value="RESCINDED">Cloture en urgence</SelectItem>}
+                {!isOverdueTab && <SelectItem value="CLOSED">Cloture finale</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 xl:col-span-3">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de caisse</Label>
+            <Select
+              value={caisseTypeValue}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, caisseType: value })}
+              disabled={isCaisseTabLocked}
+            >
+              <SelectTrigger className={cn(controlClassName, 'disabled:opacity-70')}>
+                <SelectValue placeholder="Tous les types de contrat" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types de contrat</SelectItem>
+                <SelectItem value="STANDARD">Standard</SelectItem>
+                <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                <SelectItem value="LIBRE">Libre</SelectItem>
+                <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Profil contrat</Label>
+            <Select
+              value={safeFilters.contractType || 'all'}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, contractType: value })}
+            >
+              <SelectTrigger className={controlClassName}>
+                <SelectValue placeholder="Tous les profils" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="INDIVIDUAL">Individuels</SelectItem>
+                <SelectItem value="GROUP">Groupes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Ligne 2 : Périodes + options + action */}
-        <div className="flex flex-wrap items-end gap-4">
-          {/* Période de création — en mobile : bloc pleine largeur, dates empilées */}
-          <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-0">
-            <span className="text-xs font-medium text-gray-500">Création</span>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <input
-                type="date"
-                className={`${inputBase} w-full sm:w-40`}
-                value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
-                    nextDueAtFrom: undefined,
-                    nextDueAtTo: undefined,
-                  })
-                }
-                disabled={isNextDueRangeActive}
-              />
-              <span className="text-gray-400 text-sm self-center sm:self-auto shrink-0">→</span>
-              <input
-                type="date"
-                className={`${inputBase} w-full sm:w-40`}
-                value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
-                    nextDueAtFrom: undefined,
-                    nextDueAtTo: undefined,
-                  })
-                }
-                disabled={isNextDueRangeActive}
-              />
+        {isFiltersExpanded && (
+          <>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Période de création</Label>
+                  {isNextDueRangeActive && (
+                    <span className="text-[11px] font-medium text-slate-500">Désactivé par l&apos;échéance</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                        nextDueAtFrom: undefined,
+                        nextDueAtTo: undefined,
+                      })
+                    }
+                    disabled={isNextDueRangeActive}
+                  />
+                  <span className="text-center text-sm text-slate-400">→</span>
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                        nextDueAtFrom: undefined,
+                        nextDueAtTo: undefined,
+                      })
+                    }
+                    disabled={isNextDueRangeActive}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Prochaine échéance</Label>
+                  {isCreatedAtRangeActive && (
+                    <span className="text-[11px] font-medium text-slate-500">Désactivé par la création</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                      })
+                    }
+                    disabled={isCreatedAtRangeActive}
+                  />
+                  <span className="text-center text-sm text-slate-400">→</span>
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                      })
+                    }
+                    disabled={isCreatedAtRangeActive}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          {/* Prochaine échéance — en mobile : bloc pleine largeur, dates empilées */}
-          <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-0">
-            <span className="text-xs font-medium text-gray-500">Prochaine échéance</span>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <input
-                type="date"
-                className={`${inputBase} w-full sm:w-40`}
-                value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
-                    createdAtFrom: undefined,
-                    createdAtTo: undefined,
-                  })
-                }
-                disabled={isCreatedAtRangeActive}
-              />
-              <span className="text-gray-400 text-sm self-center sm:self-auto shrink-0">→</span>
-              <input
-                type="date"
-                className={`${inputBase} w-full sm:w-40`}
-                value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
-                    createdAtFrom: undefined,
-                    createdAtTo: undefined,
-                  })
-                }
-                disabled={isCreatedAtRangeActive}
-              />
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+              <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant à verser</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.monthlyAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      monthlyAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.monthlyAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      monthlyAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
             </div>
-          </div>
-          {/* Séparateur visuel sur desktop */}
-          <div className="hidden sm:block w-px h-10 bg-gray-200 self-center" aria-hidden />
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pb-2.5">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-[#234D65] focus:ring-[#234D65]"
-                checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
-                onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
-                disabled={isOverdueTab}
-              />
-              Retard uniquement
-          </label>
-          <Button
-            variant="outline"
-            onClick={onReset}
-            className="shrink-0 px-4 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Réinitialiser
-          </Button>
-        </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant contrat</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.contractAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      contractAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.contractAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      contractAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant bonus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.bonusAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      bonusAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.bonusAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      bonusAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Pénalité cumulée</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.penaltiesAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      penaltiesAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.penaltiesAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      penaltiesAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant déjà versé</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.paidAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paidAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.paidAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paidAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Durée contrat (mois)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.durationMonthsMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      durationMonthsMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.durationMonthsMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      durationMonthsMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Nombre de versements effectués</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Min"
+                  className={miniInputClassName}
+                  value={safeFilters.paymentCountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paymentCountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Max"
+                  className={miniInputClassName}
+                  value={safeFilters.paymentCountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paymentCountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 pt-2 md:flex-row md:items-start md:justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-[#234D65] focus:ring-[#234D65]"
+                  checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
+                  onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
+                  disabled={isOverdueTab}
+                />
+                Afficher uniquement les contrats en retard
+              </label>
+
+              {activeFilterLabels.length > 0 && (
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {activeFilterLabels.map((label) => (
+                    <Badge
+                      key={label}
+                      variant="outline"
+                      className="border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-xs font-medium text-[#234D65]"
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -552,12 +1009,9 @@ const ListContracts = () => {
 
   const tabItems: CaisseTypeTabItem[] = [
     { value: 'all', label: 'Tous', icon: FileText },
-    { value: 'STANDARD', label: 'Standard', icon: FileText },
-    { value: 'JOURNALIERE', label: 'Journalier', icon: Calendar },
-    { value: 'LIBRE', label: 'Libre', icon: FileText },
-    { value: 'STANDARD_CHARITABLE', label: 'Standard Charitable', icon: FileText },
-    { value: 'JOURNALIERE_CHARITABLE', label: 'Journalier Charitable', icon: Calendar },
-    { value: 'LIBRE_CHARITABLE', label: 'Libre Charitable', icon: FileText },
+    { value: 'STANDARD_GROUP', label: 'Standard', icon: FileText },
+    { value: 'JOURNALIERE_GROUP', label: 'Journalier', icon: Calendar },
+    { value: 'LIBRE_GROUP', label: 'Libre', icon: FileText },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
   ]
@@ -568,17 +1022,14 @@ const ListContracts = () => {
   }
   
   // État pour l'onglet actif (Tous les contrats / Standard / Journalier / Libre / Retard / Mois en cours)
-  const [activeTab, setActiveTab] = useState<
-    | 'all'
-    | 'STANDARD'
-    | 'JOURNALIERE'
-    | 'LIBRE'
-    | 'STANDARD_CHARITABLE'
-    | 'JOURNALIERE_CHARITABLE'
-    | 'LIBRE_CHARITABLE'
-    | 'overdue'
-    | 'currentMonth'
-  >('all')
+  const [activeTab, setActiveTab] = useState<CaisseTypeTabValue>('all')
+  const [groupedCaisseSubFilters, setGroupedCaisseSubFilters] = useState<
+    Record<GroupedCaisseTabValue, GroupedCaisseSubFilterValue>
+  >({
+    STANDARD_GROUP: 'all',
+    JOURNALIERE_GROUP: 'all',
+    LIBRE_GROUP: 'all',
+  })
   
   // États
   const [filters, setFilters] = useState({
@@ -591,6 +1042,20 @@ const ListContracts = () => {
     nextDueAtFrom: undefined as Date | undefined,
     nextDueAtTo: undefined as Date | undefined,
     overdueOnly: false,
+    monthlyAmountMin: undefined as number | undefined,
+    monthlyAmountMax: undefined as number | undefined,
+    contractAmountMin: undefined as number | undefined,
+    contractAmountMax: undefined as number | undefined,
+    bonusAmountMin: undefined as number | undefined,
+    bonusAmountMax: undefined as number | undefined,
+    penaltiesAmountMin: undefined as number | undefined,
+    penaltiesAmountMax: undefined as number | undefined,
+    paidAmountMin: undefined as number | undefined,
+    paidAmountMax: undefined as number | undefined,
+    durationMonthsMin: undefined as number | undefined,
+    durationMonthsMax: undefined as number | undefined,
+    paymentCountMin: undefined as number | undefined,
+    paymentCountMax: undefined as number | undefined,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(12)
@@ -603,13 +1068,20 @@ const ListContracts = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
   const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
+  const [selectedContractForOverview, setSelectedContractForOverview] = useState<{
+    contract: any
+    member?: any
+  } | null>(null)
   const [contractToDelete, setContractToDelete] = useState<any>(null)
   const [contractToReplacePdf, setContractToReplacePdf] = useState<any>(null)
   const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
   const debouncedSearch = useDebounce(filters.search, 300)
+  const activeGroupedCaisseSubFilter = isGroupedCaisseTab(activeTab)
+    ? groupedCaisseSubFilters[activeTab]
+    : 'all'
 
   const effectiveFilters = React.useMemo(() => {
-    const nextFilters: any = { ...filters }
+    const nextFilters: any = { ...filters, caisseTypes: undefined }
 
     const searchValue = debouncedSearch.trim()
     if (searchValue.length >= 2) {
@@ -638,15 +1110,14 @@ const ListContracts = () => {
       nextFilters.createdAtTo = undefined
     }
 
-    if (
-      activeTab === 'STANDARD' ||
-      activeTab === 'JOURNALIERE' ||
-      activeTab === 'LIBRE' ||
-      activeTab === 'STANDARD_CHARITABLE' ||
-      activeTab === 'JOURNALIERE_CHARITABLE' ||
-      activeTab === 'LIBRE_CHARITABLE'
-    ) {
-      nextFilters.caisseType = activeTab
+    if (isGroupedCaisseTab(activeTab)) {
+      const groupedTypes = GROUPED_CAISSE_TAB_TO_TYPES[activeTab]
+      if (activeGroupedCaisseSubFilter === 'all') {
+        nextFilters.caisseType = 'all'
+        nextFilters.caisseTypes = groupedTypes
+      } else {
+        nextFilters.caisseType = activeGroupedCaisseSubFilter
+      }
     }
 
     const hasCreatedRange = Boolean(nextFilters.createdAtFrom || nextFilters.createdAtTo)
@@ -657,7 +1128,35 @@ const ListContracts = () => {
     }
 
     return nextFilters
-  }, [filters, activeTab, debouncedSearch])
+  }, [filters, activeTab, debouncedSearch, activeGroupedCaisseSubFilter])
+
+  const hasAnyActiveFilter = React.useMemo(() => {
+    return Boolean(
+      filters.search.trim() ||
+      filters.status !== 'all' ||
+      filters.contractType !== 'all' ||
+      filters.caisseType !== 'all' ||
+      filters.createdAtFrom ||
+      filters.createdAtTo ||
+      filters.nextDueAtFrom ||
+      filters.nextDueAtTo ||
+      filters.overdueOnly ||
+      typeof filters.monthlyAmountMin === 'number' ||
+      typeof filters.monthlyAmountMax === 'number' ||
+      typeof filters.contractAmountMin === 'number' ||
+      typeof filters.contractAmountMax === 'number' ||
+      typeof filters.bonusAmountMin === 'number' ||
+      typeof filters.bonusAmountMax === 'number' ||
+      typeof filters.penaltiesAmountMin === 'number' ||
+      typeof filters.penaltiesAmountMax === 'number' ||
+      typeof filters.paidAmountMin === 'number' ||
+      typeof filters.paidAmountMax === 'number' ||
+      typeof filters.durationMonthsMin === 'number' ||
+      typeof filters.durationMonthsMax === 'number' ||
+      typeof filters.paymentCountMin === 'number' ||
+      typeof filters.paymentCountMax === 'number'
+    )
+  }, [filters])
 
   const pagination = React.useMemo(
     () => ({ limit: itemsPerPage, cursor: pageCursors[currentPage] || null }),
@@ -680,7 +1179,7 @@ const ListContracts = () => {
   useEffect(() => {
     setCurrentPage(1)
     setPageCursors({ 1: null })
-  }, [filters, activeTab])
+  }, [filters, activeTab, activeGroupedCaisseSubFilter])
 
   // Charger les refunds pour chaque contrat
   useEffect(() => {
@@ -727,6 +1226,25 @@ const ListContracts = () => {
       nextDueAtFrom: undefined,
       nextDueAtTo: undefined,
       overdueOnly: false,
+      monthlyAmountMin: undefined,
+      monthlyAmountMax: undefined,
+      contractAmountMin: undefined,
+      contractAmountMax: undefined,
+      bonusAmountMin: undefined,
+      bonusAmountMax: undefined,
+      penaltiesAmountMin: undefined,
+      penaltiesAmountMax: undefined,
+      paidAmountMin: undefined,
+      paidAmountMax: undefined,
+      durationMonthsMin: undefined,
+      durationMonthsMax: undefined,
+      paymentCountMin: undefined,
+      paymentCountMax: undefined,
+    })
+    setGroupedCaisseSubFilters({
+      STANDARD_GROUP: 'all',
+      JOURNALIERE_GROUP: 'all',
+      LIBRE_GROUP: 'all',
     })
     setCurrentPage(1)
     setPageCursors({ 1: null })
@@ -923,6 +1441,17 @@ const ListContracts = () => {
         alternateRowStyles: { fillColor: [245, 247, 250] },
         margin: { top: 28 },
       })
+
+      // Pagination centrée en pied de page: "Page X / Y"
+      const totalPages = doc.getNumberOfPages()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      doc.setFontSize(9)
+      doc.setTextColor(75, 85, 99)
+      for (let page = 1; page <= totalPages; page++) {
+        doc.setPage(page)
+        doc.text(`Page ${page} / ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+      }
 
       const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.pdf`
       doc.save(filename)
@@ -1190,7 +1719,7 @@ const ListContracts = () => {
             Une erreur est survenue lors du chargement des contrats : {error instanceof Error ? error.message : String(error)}
             <Button
               variant="link"
-              className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
+              className="p-0 h-auto ml-2 text-red-700 underline font-bold cursor-pointer hover:text-red-800"
               onClick={handleRefresh}
             >
               Réessayer maintenant
@@ -1204,7 +1733,7 @@ const ListContracts = () => {
   const renderPagination = () => {
     if (totalPages <= 1) return null
     return (
-      <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
@@ -1216,7 +1745,7 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handlePrevPage}
                 disabled={currentPage === 1}
-                className="px-3 py-1"
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
               >
                 Précédent
               </Button>
@@ -1228,7 +1757,7 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handleNextPage}
                 disabled={!contractsPage?.nextCursor}
-                className="px-3 py-1"
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
               >
                 Suivant
               </Button>
@@ -1243,76 +1772,6 @@ const ListContracts = () => {
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Carrousel de statistiques */}
       {computedStats && <StatsCarousel stats={computedStats} totalPaidSum={totalPaidSum} />}
-
-      {/* Onglets pour filtrer par type et période */}
-      {/* Tabs desktop (grille) */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(
-            value as
-              | 'all'
-              | 'STANDARD'
-              | 'JOURNALIERE'
-              | 'LIBRE'
-              | 'STANDARD_CHARITABLE'
-              | 'JOURNALIERE_CHARITABLE'
-              | 'LIBRE_CHARITABLE'
-              | 'overdue'
-              | 'currentMonth'
-          )
-        }
-        className="hidden lg:block w-full"
-      >
-        <TabsList className="flex h-auto w-full max-w-6xl flex-nowrap gap-1.5 rounded-lg p-2">
-          {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className={cn(
-                'flex flex-initial items-center gap-1.5 px-2.5 py-1.5 whitespace-nowrap [&_svg]:shrink-0',
-                isDanger ? 'text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50' : ''
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {/* Tabs mobile/tablette (badges carousel sans boutons) */}
-      <div className="lg:hidden">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
-            const isActive = activeTab === value
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setActiveTab(value)}
-                className="shrink-0"
-              >
-                <Badge
-                  className={cn(
-                    'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
-                    isActive
-                      ? isDanger
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'bg-[#234D65] text-white border-transparent'
-                      : isDanger
-                      ? 'bg-white text-red-600 border-red-200'
-                      : 'bg-white text-gray-700 border-gray-200'
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </Badge>
-              </button>
-            )
-          })}
-        </div>
-      </div>
 
       {/* Diagramme circulaire par type de caisse */}
       {computedStats && computedStats.byCaisseType && Object.keys(computedStats.byCaisseType).length > 0 && (() => {
@@ -1391,15 +1850,16 @@ const ListContracts = () => {
       />
 
       {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
                   Liste des Contrats
                 </h2>
                 <p className="text-gray-600 font-medium">
@@ -1408,32 +1868,32 @@ const ListContracts = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden lg:flex">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Boutons de vue (cards/liste) */}
+              <div className="flex w-full sm:w-auto items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg cursor-pointer transition-all duration-200 ${viewMode === 'grid'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
-                  Grille
+                  Cards
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg cursor-pointer transition-all duration-200 ${viewMode === 'list'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <List className="h-4 w-4 mr-2" />
-                  Liste
+                  Table
                 </Button>
               </div>
 
@@ -1443,56 +1903,60 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-10 w-full sm:w-auto rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] cursor-pointer transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                disabled={isExporting || contractsData.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExporting || contractsData.length === 0}
+                    className="h-10 w-full sm:w-auto rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin mr-2" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToExcel()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-emerald-700" />
                     Exporter Excel
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToPDF}
-                disabled={isExporting || contractsData.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToPDF()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-rose-700" />
                     Exporter PDF
-                  </>
-                )}
-              </Button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <Button
                 size="sm"
                 onClick={handleCreateContract}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="h-10 w-full sm:w-auto rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white cursor-pointer shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Nouveau Contrat
@@ -1504,28 +1968,133 @@ const ListContracts = () => {
 
       {renderPagination()}
 
+      {/* Onglets pour filtrer par type et période (rattachés à la liste) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (isCaisseTypeTabValue(value)) {
+            setActiveTab(value)
+          }
+        }}
+        className="w-full"
+      >
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={cn(
+                    'shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]',
+                    isDanger ? 'data-[state=active]:text-red-700 data-[state=active]:border-red-300' : ''
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Tabs mobile/tablette (badges carousel sans boutons) */}
+        <div className="lg:hidden">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+              const isActive = activeTab === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    if (isCaisseTypeTabValue(value)) {
+                      setActiveTab(value)
+                    }
+                  }}
+                  className="shrink-0"
+                >
+                  <Badge
+                    className={cn(
+                      'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                      isActive
+                        ? isDanger
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#234D65] text-white border-transparent'
+                        : isDanger
+                        ? 'bg-white text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {isGroupedCaisseTab(activeTab) && (
+          <div className="mt-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {GROUPED_CAISSE_SUBFILTER_OPTIONS[activeTab].map((option) => {
+                const isActive = activeGroupedCaisseSubFilter === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      setGroupedCaisseSubFilters((prev) => ({
+                        ...prev,
+                        [activeTab]: option.value,
+                      }))
+                    }
+                    className={cn(
+                      'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all',
+                      isActive
+                        ? 'border-[#234D65] bg-white text-[#234D65] shadow-sm'
+                        : 'border-slate-200 bg-white/80 text-slate-600 hover:border-[#234D65]/40 hover:text-[#234D65]'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </Tabs>
+
       {/* Liste des contrats */}
       {isLoading ? (
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-            : 'space-y-6'
-        }>
-          {[...Array(itemsPerPage)].map((_, i) => (
-            <ModernSkeleton key={i} viewMode={viewMode} />
-          ))}
+        <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/35 p-4 md:p-5">
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              : 'space-y-4'
+          }>
+            {[...Array(itemsPerPage)].map((_, i) => (
+              <ModernSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         </div>
       ) : currentContracts.length > 0 ? (
         <>
           {viewMode === 'grid' && (
+          <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {currentContracts.map((contract: any, _index: number) => (
               <div
                 key={contract.id}
-                className="animate-in fade-in-0 slide-in-from-bottom-4"
+                className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
                 style={{ animationDelay: `${_index * 0.05}s` }}
               >
-                <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
+                <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   
                   {/* Badge "En retard" */}
@@ -1539,10 +2108,9 @@ const ListContracts = () => {
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
                     {(() => {
                       const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
-                      const memberContacts = member?.contacts?.length ? member.contacts.join(' / ') : '—'
-                      const memberEmail = member?.email ? ` • ${member.email}` : ''
-                      const emergency = contract.emergencyContact
                       const fullName = member ? `${member.firstName} ${member.lastName}` : ''
+                      const displayName = fullName || getContractDisplayName(contract)
+                      const primaryContact = member?.contacts?.[0] || member?.email || '—'
                       const initials = member
                         ? `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()
                         : 'CS'
@@ -1551,11 +2119,11 @@ const ListContracts = () => {
                         <>
                           <div className="flex items-start gap-3">
                             <div className="shrink-0">
-                              <Avatar className="size-12 border border-gray-200 shadow-sm">
+                              <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
                                 {member?.photoURL ? (
-                                  <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} />
+                                  <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} className="h-full w-full object-cover object-center" />
                                 ) : (
-                                  <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                                  <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
                                     {isGroupContract(contract) ? <GroupIcon className="h-5 w-5" /> : initials}
                                   </AvatarFallback>
                                 )}
@@ -1563,7 +2131,9 @@ const ListContracts = () => {
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs text-gray-500">Matricule contrat</div>
-                              <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
+                              <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
+                              <div className="mt-1 text-sm font-bold text-slate-900 truncate">{displayName}</div>
+                              <div className="text-xs text-slate-500 truncate">{primaryContact}</div>
                             </div>
                           </div>
 
@@ -1582,89 +2152,49 @@ const ListContracts = () => {
                             )}
                           </div>
 
-                          <div className="space-y-2 mt-4 text-sm">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Type de contrat:</span>
-                              <span className="font-medium text-gray-900">{getContractTypeLabel(contract)}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Nom:</span>
-                              <span className="font-medium text-gray-900">{member?.lastName || '—'}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Prénom:</span>
-                              <span className="font-medium text-gray-900">{member?.firstName || '—'}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Matricule membre:</span>
-                              <span className="font-mono text-xs font-semibold text-gray-900 break-all">{member?.matricule || '—'}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Contacts:</span>
-                              <span className="font-medium text-gray-900 text-right">{memberContacts}{memberEmail}</span>
-                            </div>
-
-                            <div className="pt-2 text-gray-500">Contact urgent:</div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Nom:</span>
-                              <span className="font-medium text-gray-900">{emergency?.lastName || '—'}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Prénom:</span>
-                              <span className="font-medium text-gray-900">{emergency?.firstName || '—'}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Téléphone:</span>
-                              <span className="font-medium text-gray-900">{emergency?.phone1 || (emergency as any)?.phone || '—'}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Mensualité:</span>
-                              <span className="font-semibold text-green-600">
-                                {(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Durée:</span>
-                              <span className="font-medium text-gray-900">{contract.monthsPlanned} mois</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Début d'échéance:</span>
-                              <div className="flex items-center gap-1 text-gray-700">
-                                <Calendar className="h-3 w-3" />
-                                {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                          <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Type de contrat</p>
+                                <p className="font-semibold text-slate-900">{getContractTypeLabel(contract)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
+                                <p className="font-extrabold text-[#234D65]">{(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
+                                <p className="font-semibold text-slate-900">{contract.monthsPlanned} mois</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
+                                <p className="font-medium text-slate-900">
+                                  {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                                </p>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Prochaine échéance:</span>
-                              <div className="flex items-center gap-1 text-gray-700">
-                                <Calendar className="h-3 w-3" />
-                                {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">Contrat PDF:</span>
-                              <div className="flex items-center gap-1">
+
+                            <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+                              <div className="flex items-center gap-1.5">
                                 {hasValidContractPdf(contract) ? (
                                   <>
-                                    <CheckCircle className="h-3 w-3 text-green-600" />
-                                    <span className="text-green-600 font-medium">Disponible</span>
+                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span className="text-xs font-medium text-emerald-700">PDF disponible</span>
                                   </>
                                 ) : (
                                   <>
-                                    <AlertCircle className="h-3 w-3 text-orange-500" />
-                                    <span className="text-orange-500 font-medium">À téléverser</span>
+                                    <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                    <span className="text-xs font-medium text-orange-600">PDF à téléverser</span>
                                   </>
                                 )}
                               </div>
-                            </div>
-                            <div className="text-xs text-gray-600 pt-2">
-                              Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
+                              <span className="text-xs font-semibold text-slate-700">
+                                Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
+                              </span>
                             </div>
                           </div>
 
-                          <div className="pt-3 border-t border-gray-100 mt-auto">
+                          <div className="pt-3 border-t border-slate-200 mt-auto">
                             <div className="space-y-2">
                               {hasValidContractPdf(contract) ? (
                                 <>
@@ -1676,9 +2206,17 @@ const ListContracts = () => {
                                     Ouvrir
                                   </Button>
                                   <Button
+                                    onClick={() => setSelectedContractForOverview({ contract, member })}
+                                    variant="outline"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                  >
+                                    <User className="h-4 w-4" />
+                                    Voir toutes les infos
+                                  </Button>
+                                  <Button
                                     onClick={() => handleViewUploadedContractPDF(contract)}
                                     variant="outline"
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all cursor-pointer hover:bg-[#234D65] hover:text-white"
                                   >
                                     <FileText className="h-4 w-4" />
                                     Voir contrat
@@ -1687,7 +2225,7 @@ const ListContracts = () => {
                                     <Button
                                       onClick={() => setContractToReplacePdf(contract)}
                                       variant="outline"
-                                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 hover:border-amber-400"
                                     >
                                       <FileEdit className="h-4 w-4" />
                                       Modifier contrat
@@ -1695,28 +2233,38 @@ const ListContracts = () => {
                                   )}
                                 </>
                               ) : (
-                                <Button
-                                  onClick={() => handleUploadPDF(contract)}
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  Téléverser le document PDF
-                                </Button>
+                                <>
+                                  <Button
+                                    onClick={() => handleUploadPDF(contract)}
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 hover:text-orange-800"
+                                  >
+                                    <Upload className="h-4 w-4" />
+                                    Téléverser le document PDF
+                                  </Button>
+                                  <Button
+                                    onClick={() => setSelectedContractForOverview({ contract, member })}
+                                    variant="outline"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                  >
+                                    <User className="h-4 w-4" />
+                                    Voir toutes les infos
+                                  </Button>
+                                </>
                               )}
 
                               <Button
                                 onClick={() => handleViewContractPDF(contract)}
                                 variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
                               >
-                                <FileText className="h-4 w-4" />
+                                <Download className="h-4 w-4" />
                                 Télécharger contrat
                               </Button>
                               {canDeleteCaisseContract(contract) && (
                                 <Button
                                   onClick={() => setContractToDelete(contract)}
                                   variant="destructive"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                   Supprimer
@@ -1732,12 +2280,13 @@ const ListContracts = () => {
               </div>
             ))}
           </div>
+          </div>
           )}
 
           {viewMode === 'list' && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+            <div className="overflow-x-auto rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white to-slate-50/35 shadow-sm">
               <table className="min-w-[1400px] w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
+                <thead className="bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/[0.06] to-transparent text-[#234D65]">
                   <tr>
                     <th className="text-left px-4 py-3">Photo</th>
                     <th className="text-left px-4 py-3">Matricule contrat</th>
@@ -1757,7 +2306,7 @@ const ListContracts = () => {
                     <th className="text-left px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {currentContracts.map((contract: any) => {
                     const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
                     const contacts = member?.contacts?.length ? member.contacts.join(' / ') : '—'
@@ -1768,13 +2317,13 @@ const ListContracts = () => {
                       : 'CS'
 
                     return (
-                      <tr key={contract.id} className="hover:bg-gray-50/50">
+                      <tr key={contract.id} className="transition-colors hover:bg-[#234D65]/[0.045]">
                         <td className="px-4 py-3">
-                          <Avatar className="size-9 border border-gray-200 shadow-sm">
+                          <Avatar className="size-10 rounded-lg ring-1 ring-[#234D65]/15">
                             {member?.photoURL ? (
-                              <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} />
+                              <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} className="h-full w-full object-cover object-center" />
                             ) : (
-                              <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                              <AvatarFallback className="rounded-lg bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
                                 {isGroupContract(contract) ? <GroupIcon className="h-4 w-4" /> : initials}
                               </AvatarFallback>
                             )}
@@ -1818,7 +2367,7 @@ const ListContracts = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 rounded-full data-[state=open]:bg-gray-100"
+                                  className="h-8 w-8 rounded-full cursor-pointer data-[state=open]:bg-gray-100"
                                   title="Actions"
                                 >
                                   <MoreVertical className="h-4 w-4 text-gray-600" />
@@ -1864,7 +2413,7 @@ const ListContracts = () => {
                                   onClick={() => handleViewContractPDF(contract)}
                                   className="cursor-pointer"
                                 >
-                                  <FileText className="h-4 w-4 mr-2" />
+                                  <Download className="h-4 w-4 mr-2" />
                                   Télécharger contrat
                                 </DropdownMenuItem>
                                 {canDeleteCaisseContract(contract) && (
@@ -1891,7 +2440,7 @@ const ListContracts = () => {
           {renderPagination()}
         </>
       ) : (
-        <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
@@ -1902,18 +2451,18 @@ const ListContracts = () => {
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '')
+                  {hasAnyActiveFilter
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {hasAnyActiveFilter && (
                   <Button
                     variant="outline"
                     onClick={handleResetFilters}
-                    className="h-12 px-6 border-2 border-gray-300 hover:border-gray-400 transition-all duration-300 hover:scale-105"
+                    className="h-12 px-6 border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-all duration-300 hover:scale-105"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Réinitialiser les filtres
@@ -1921,7 +2470,7 @@ const ListContracts = () => {
                 )}
                 <Button
                   onClick={handleCreateContract}
-                  className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Ajouter un contrat
@@ -1961,6 +2510,191 @@ const ListContracts = () => {
           onClose={handleCloseViewUploadedModal}
           contract={selectedContractForViewUploaded}
         />
+      )}
+
+      {/* Modal récapitulatif complet du contrat */}
+      {selectedContractForOverview && (
+        <Dialog open={!!selectedContractForOverview} onOpenChange={(open) => { if (!open) setSelectedContractForOverview(null) }}>
+          <DialogContent className="!w-[95vw] !max-w-[1400px] p-0 overflow-hidden border-0 shadow-2xl">
+            {(() => {
+              const contract = selectedContractForOverview.contract
+              const member = selectedContractForOverview.member
+              const emergency = contract?.emergencyContact
+              const hasPdf = hasValidContractPdf(contract)
+              const contractStatus = getStatusLabel(contract?.status || 'DRAFT')
+              const memberFullName = `${member?.firstName || ''} ${member?.lastName || ''}`.trim() || 'Membre non renseigné'
+              const memberInitials = `${member?.firstName?.[0] || ''}${member?.lastName?.[0] || ''}`.toUpperCase() || 'CS'
+              const contacts = member?.contacts?.length ? member.contacts.join(' • ') : '—'
+              const memberEmail = member?.email || '—'
+              const firstPaymentDate = contract?.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'
+              const nextDueDate = contract?.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'
+              const monthlyAmount = (contract?.monthlyAmount || 0).toLocaleString('fr-FR')
+              const paidAmount = (contract?.nominalPaid || 0).toLocaleString('fr-FR')
+              const durationMonths = contract?.monthsPlanned || 0
+
+              return (
+                <div className="bg-gradient-to-b from-white via-white to-slate-50/80 text-sm">
+                  <DialogHeader className="border-b border-[#234D65]/15 bg-gradient-to-r from-[#234D65] via-[#285773] to-[#234D65] px-6 py-5 text-white">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <DialogTitle className="text-xl font-semibold tracking-tight text-white">Détails complets du contrat</DialogTitle>
+                        <p className="mt-1 text-sm text-white/85">Vue détaillée harmonisée avec le thème Caisse Spéciale</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={cn('border bg-white/90 text-xs font-semibold', getStatusColor(contract?.status || 'DRAFT'))}>
+                          {contractStatus}
+                        </Badge>
+                        <Badge
+                          className={cn(
+                            'border text-xs font-semibold',
+                            hasPdf
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-orange-200 bg-orange-50 text-orange-700'
+                          )}
+                        >
+                          {hasPdf ? 'PDF disponible' : 'PDF manquant'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="max-h-[78vh] overflow-y-auto px-5 py-5 sm:px-6">
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="flex items-start gap-4">
+                            <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/15">
+                              {member?.photoURL ? (
+                                <AvatarImage src={member.photoURL} alt={`Photo de ${memberFullName}`} className="h-full w-full object-cover object-center" />
+                              ) : (
+                                <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white text-base font-semibold">
+                                  {isGroupContract(contract) ? <GroupIcon className="h-5 w-5" /> : memberInitials}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className="truncate text-base font-semibold text-slate-900">{memberFullName}</p>
+                              <p className="font-mono text-xs text-slate-500">{member?.matricule || 'Matricule non renseigné'}</p>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <Badge className="border border-[#234D65]/25 bg-[#234D65]/10 text-[#234D65] hover:bg-[#234D65]/15">
+                                  <User className="mr-1 h-3.5 w-3.5" />
+                                  {getContractTypeLabel(contract)}
+                                </Badge>
+                                <Badge className="border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200">
+                                  ID: {contract?.id?.slice(-8) || '—'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contacts</p>
+                              <p className="mt-1 text-sm font-medium text-slate-800">{contacts}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Email</p>
+                              <p className="mt-1 text-sm font-medium text-slate-800 break-all">{memberEmail}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Contact urgent</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Nom</p>
+                              <p className="mt-1 font-medium text-slate-900">{emergency?.lastName || '—'}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Prénom</p>
+                              <p className="mt-1 font-medium text-slate-900">{emergency?.firstName || '—'}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Téléphone</p>
+                              <p className="mt-1 font-medium text-slate-900">{emergency?.phone1 || (emergency as any)?.phone || '—'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Montants</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3">
+                            <div className="rounded-xl bg-gradient-to-r from-[#234D65]/10 to-[#234D65]/5 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-[#234D65]/80">Mensualité</p>
+                              <p className="text-lg font-semibold text-[#234D65]">{monthlyAmount} FCFA</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Total versé</p>
+                              <p className="text-base font-semibold text-slate-900">{paidAmount} FCFA</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée prévue</p>
+                              <p className="text-base font-semibold text-slate-900">{durationMonths} mois</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Échéances</p>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Début d'échéance</p>
+                              <p className="text-base font-semibold text-slate-900">{firstPaymentDate}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
+                              <p className="text-base font-semibold text-slate-900">{nextDueDate}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-2 flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Document</p>
+                          </div>
+                          <div
+                            className={cn(
+                              'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold',
+                              hasPdf
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-orange-200 bg-orange-50 text-orange-700'
+                            )}
+                          >
+                            {hasPdf ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+                            {hasPdf ? 'Contrat PDF disponible' : 'Contrat PDF à téléverser'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedContractForOverview(null)}
+                        className="rounded-xl border-[#234D65]/30 px-5 text-[#234D65] cursor-pointer hover:bg-[#234D65]/10 hover:text-[#234D65]"
+                      >
+                        Fermer
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Modal Suppression contrat */}

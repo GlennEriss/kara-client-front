@@ -7,10 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import { useContractCI, useSupportHistory } from '@/hooks/caisse-imprevue'
+import RepaySupportCIModal from '@/components/caisse-imprevue/RepaySupportCIModal'
+import { useCreateVersement, useContractCI, useSupportHistory } from '@/hooks/caisse-imprevue'
+import { useAuth } from '@/hooks/useAuth'
 import { useMember } from '@/hooks/useMembers'
 import { generateSingleSupportCIPDF, generateSupportHistoryCIPDF } from '@/services/caisse-imprevue/generateSupportHistoryCIPDF'
 import { CONTRACT_CI_STATUS_LABELS, SupportCI } from '@/types/types'
+import { calculateMonthIndex } from '@/utils/caisse-imprevue-utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -29,6 +32,7 @@ import {
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 function toDateSafe(value: unknown): Date | null {
   if (!value) return null
@@ -48,19 +52,27 @@ function getSupportDate(support: SupportCI): Date | null {
   return toDateSafe(support.approvedAt) || toDateSafe(support.requestedAt) || toDateSafe(support.createdAt)
 }
 
+function formatDateKey(date: Date): string {
+  return format(date, 'yyyy-MM-dd')
+}
+
 export default function ContractCISupportsPage() {
   const params = useParams() as { id: string }
   const contractId = params.id
   const router = useRouter()
+  const { user } = useAuth()
 
   const { data: contract, isLoading: isLoadingContract, isError: isErrorContract, error: errorContract } = useContractCI(contractId)
   const { data: supports = [], isLoading: isLoadingSupports, isError: isErrorSupports, error: errorSupports } = useSupportHistory(contractId)
+  const createVersementMutation = useCreateVersement()
   const { data: member } = useMember(contract?.memberId)
 
   const [adminInfos, setAdminInfos] = useState<Record<string, { firstName: string; lastName: string }>>({})
   const [loadingAdmins, setLoadingAdmins] = useState<Set<string>>(new Set())
   const [isExportingGlobalPDF, setIsExportingGlobalPDF] = useState(false)
   const [exportingSupportId, setExportingSupportId] = useState<string | null>(null)
+  const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
+  const [supportToRepay, setSupportToRepay] = useState<SupportCI | null>(null)
 
   const sortedSupports = useMemo(() => {
     return [...supports].sort((a, b) => {
@@ -167,6 +179,81 @@ export default function ContractCISupportsPage() {
       console.error("Erreur lors de l'export PDF de l'aide:", error)
     } finally {
       setExportingSupportId(null)
+    }
+  }
+
+  const handleOpenRepaySupportModal = (support: SupportCI) => {
+    if (support.status === 'REPAID' || support.amountRemaining <= 0) {
+      toast.error('Cette aide est déjà remboursée')
+      return
+    }
+    setSupportToRepay(support)
+    setShowRepaySupportModal(true)
+  }
+
+  const handleCloseRepaySupportModal = () => {
+    if (createVersementMutation.isPending) return
+    setShowRepaySupportModal(false)
+    setSupportToRepay(null)
+  }
+
+  const handleRepaySupportSubmit = async (data: {
+    date: string
+    time: string
+    amount: number
+    proofFile: File
+  }) => {
+    if (!contract || !supportToRepay) return
+    if (!user?.uid) {
+      toast.error('Utilisateur non authentifié')
+      return
+    }
+
+    const firstPaymentDate = new Date(contract.firstPaymentDate)
+    firstPaymentDate.setHours(0, 0, 0, 0)
+    const selectedDate = new Date(`${data.date}T00:00:00`)
+    selectedDate.setHours(0, 0, 0, 0)
+
+    if (selectedDate < firstPaymentDate) {
+      toast.error('Impossible de rembourser avant la première date de paiement du contrat')
+      return
+    }
+
+    const monthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+    const supportRemaining = supportToRepay.amountRemaining
+    const isFullyRepaid = data.amount >= supportRemaining
+    const surplus = Math.max(0, data.amount - supportRemaining)
+
+    try {
+      await createVersementMutation.mutateAsync({
+        contractId: contract.id,
+        monthIndex,
+        versementData: {
+          date: data.date,
+          time: data.time,
+          amount: data.amount,
+          mode: 'airtel_money',
+        },
+        proofFile: data.proofFile,
+        userId: user.uid,
+      })
+
+      setShowRepaySupportModal(false)
+      setSupportToRepay(null)
+
+      if (isFullyRepaid) {
+        toast.success('Support entièrement remboursé', {
+          description:
+            surplus > 0
+              ? `${supportRemaining.toLocaleString('fr-FR')} FCFA remboursés + ${surplus.toLocaleString('fr-FR')} FCFA versés`
+              : `${supportRemaining.toLocaleString('fr-FR')} FCFA remboursés`,
+        })
+      } else {
+        toast.success('Remboursement enregistré')
+      }
+    } catch (error) {
+      console.error('Erreur lors du remboursement du support depuis la page aides:', error)
+      throw error
     }
   }
 
@@ -419,6 +506,18 @@ export default function ContractCISupportsPage() {
                           </div>
 
                           <div className="flex items-center gap-2">
+                            {!isRepaid && support.amountRemaining > 0 && (
+                              <Button
+                                onClick={() => handleOpenRepaySupportModal(support)}
+                                disabled={createVersementMutation.isPending}
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1 border-orange-300 text-orange-700 hover:bg-orange-50"
+                              >
+                                <RefreshCw className={`h-3 w-3 ${createVersementMutation.isPending && supportToRepay?.id === support.id ? 'animate-spin' : ''}`} />
+                                {createVersementMutation.isPending && supportToRepay?.id === support.id ? 'Traitement...' : 'Rembourser'}
+                              </Button>
+                            )}
                             <Button
                               onClick={() => exportSingleSupportToPDF(support)}
                               disabled={exportingSupportId === support.id}
@@ -549,6 +648,16 @@ export default function ContractCISupportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {supportToRepay && (
+        <RepaySupportCIModal
+          isOpen={showRepaySupportModal}
+          onClose={handleCloseRepaySupportModal}
+          activeSupport={supportToRepay}
+          defaultDate={formatDateKey(new Date())}
+          onSubmit={handleRepaySupportSubmit}
+        />
+      )}
     </div>
   )
 }

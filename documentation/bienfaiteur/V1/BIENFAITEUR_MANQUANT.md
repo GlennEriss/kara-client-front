@@ -615,7 +615,7 @@
 
 ---
 
-#### 12.4 Filtres avancés
+#### 12.4 Filtres et Recherche
 **Fichier** : `src/components/bienfaiteur/CharityFilters.tsx`  
 **Statut** : ⚠️ Basique (statut + recherche)
 
@@ -719,7 +719,7 @@
 
 ### Priorité 3 (Améliorations)
 13. ❌ **Rapport PDF global**
-14. ❌ **Filtres avancés**
+14. ❌ **Filtres et Recherche**
 15. ❌ **Validation Zod**
 16. ❌ **Optimisations performance**
 

@@ -5,7 +5,7 @@
  * - INT-LIST-01 : Chargement réussi (stats, liste, pagination visibles)
  * - INT-LIST-02 : Erreur réseau (message + bouton retry)
  * - INT-LIST-03 : Changement de tab (Adhérents → Bienfaiteurs → Sympathisants)
- * - INT-LIST-04 : Filtres avancés (géographie : province → ville → arrondissement → quartier)
+ * - INT-LIST-04 : Filtres et Recherche (géographie : province → ville → arrondissement → quartier)
  * - INT-LIST-05 : Recherche texte (nom, matricule, email)
  * - INT-LIST-06 : Pagination (changement page, items par page)
  * - INT-LIST-07 : Toggle vue grille/liste
@@ -520,15 +520,17 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
       expect(listButton).toBeInTheDocument()
 
       // Vérifier que le mode grille est actif par défaut
-      expect(gridButton).toHaveClass(/bg-\[#234D65\]|bg-\[#2c5a73\]/)
+      expect(gridButton).toHaveClass('bg-white')
+      expect(listButton).not.toHaveClass('bg-white')
 
       // Cliquer sur le bouton liste
-      if (listButton) {
+      if (listButton && gridButton) {
         fireEvent.click(listButton)
         
         await waitFor(() => {
           // Vérifier que le mode liste est maintenant actif
-          expect(listButton).toHaveClass(/bg-\[#234D65\]|bg-\[#2c5a73\]/)
+          expect(listButton).toHaveClass('bg-white')
+          expect(gridButton).not.toHaveClass('bg-white')
         })
       }
     })

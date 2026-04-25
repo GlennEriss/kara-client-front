@@ -11,10 +11,13 @@ export type CaisseTypeFilter =
   | 'LIBRE_CHARITABLE'
   | 'all'
 
+export type SpecificCaisseTypeFilter = Exclude<CaisseTypeFilter, 'all'>
+
 export interface ContractFilters {
   status?: ContractStatusFilter
   contractType?: ContractTypeFilter
   caisseType?: CaisseTypeFilter
+  caisseTypes?: SpecificCaisseTypeFilter[]
   memberId?: string
   groupeId?: string
   createdAtFrom?: Date
@@ -23,6 +26,20 @@ export interface ContractFilters {
   nextDueAtTo?: Date
   overdueOnly?: boolean
   search?: string
+  monthlyAmountMin?: number
+  monthlyAmountMax?: number
+  contractAmountMin?: number
+  contractAmountMax?: number
+  bonusAmountMin?: number
+  bonusAmountMax?: number
+  penaltiesAmountMin?: number
+  penaltiesAmountMax?: number
+  paidAmountMin?: number
+  paidAmountMax?: number
+  durationMonthsMin?: number
+  durationMonthsMax?: number
+  paymentCountMin?: number
+  paymentCountMax?: number
 }
 
 export interface PaginationParams {

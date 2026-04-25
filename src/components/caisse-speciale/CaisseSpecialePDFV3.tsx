@@ -397,7 +397,7 @@ const CaisseSpecialePDFV3 = ({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Image src={logoUrl} style={styles.logo} />
 
@@ -535,7 +535,7 @@ const CaisseSpecialePDFV3 = ({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title1}>CAISSE SPÉCIALE</Text>
         <Text style={styles.paragraph}>
@@ -624,7 +624,7 @@ const CaisseSpecialePDFV3 = ({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={[styles.paragraph, { marginTop: 2 }]}>Ce délai permet une gestion saine, responsable et transparente de la trésorerie.</Text>
 
@@ -674,7 +674,7 @@ const CaisseSpecialePDFV3 = ({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title2}>FICHE D’ADHESION</Text>
 
@@ -738,7 +738,7 @@ const CaisseSpecialePDFV3 = ({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 4 : MONTANT DE REMBOURSEMENT</Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>L’association LE KARA s’engage à la date de fin du contrat à verser au membre le nominal correspondant aux sommes versées durant toute la durée du contrat.</Text>

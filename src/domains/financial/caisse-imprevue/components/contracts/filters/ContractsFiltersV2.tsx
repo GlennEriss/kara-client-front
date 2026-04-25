@@ -9,6 +9,7 @@ interface ContractsFiltersV2Props {
   onReset: () => void
   subscriptions?: Array<{ id: string; code: string; label?: string }>
   showPaymentFrequencyFilter?: boolean
+  isOverdueTab?: boolean
 }
 
 export default function ContractsFiltersV2(props: ContractsFiltersV2Props) {

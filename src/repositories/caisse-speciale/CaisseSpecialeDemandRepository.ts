@@ -7,6 +7,142 @@ const getFirestore = () => import("@/firebase/firestore");
 export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepository {
     readonly name = "CaisseSpecialeDemandRepository";
 
+    private toDemand(docSnap: any): CaisseSpecialeDemand {
+        const data = docSnap.data();
+        const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
+        return {
+            id: docSnap.id,
+            ...(data as any),
+            createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
+            updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+            decisionMadeAt: toDate(data.decisionMadeAt),
+            reopenedAt: toDate(data.reopenedAt),
+            approvedAt: toDate(data.approvedAt),
+            rejectedAt: toDate(data.rejectedAt),
+            convertedAt: toDate(data.convertedAt),
+        } as CaisseSpecialeDemand;
+    }
+
+    private hasExtendedDemandFilters(filters?: CaisseSpecialeDemandFilters): boolean {
+        if (!filters) return false;
+        return (
+            typeof filters.requestedAmountMin === 'number' ||
+            typeof filters.requestedAmountMax === 'number' ||
+            typeof filters.monthsPlannedMin === 'number' ||
+            typeof filters.monthsPlannedMax === 'number' ||
+            typeof filters.monthlyAmountMin === 'number' ||
+            typeof filters.monthlyAmountMax === 'number' ||
+            filters.sortBy === 'requestedAmount' ||
+            (filters.memberGender !== undefined && filters.memberGender !== 'all')
+        );
+    }
+
+    private applyExtendedDemandFilters(items: CaisseSpecialeDemand[], filters?: CaisseSpecialeDemandFilters): CaisseSpecialeDemand[] {
+        if (!this.hasExtendedDemandFilters(filters)) return items;
+
+        const inRange = (value: number, min?: number, max?: number) => {
+            if (typeof min === 'number' && value < min) return false;
+            if (typeof max === 'number' && value > max) return false;
+            return true;
+        };
+
+        return items.filter((d) => {
+            const monthlyAmount = Number(d.monthlyAmount || 0);
+            const monthsPlanned = Number(d.monthsPlanned || 0);
+            const requestedAmount = monthlyAmount * monthsPlanned;
+
+            const rawGender = String((d as any).memberGender || '').trim().toLowerCase();
+            const normalizedGender =
+                rawGender === 'homme' || rawGender === 'male' || rawGender === 'masculin'
+                    ? 'Homme'
+                    : rawGender === 'femme' || rawGender === 'female' || rawGender === 'feminin' || rawGender === 'féminin'
+                        ? 'Femme'
+                        : '';
+
+            const genderOk =
+                !filters?.memberGender ||
+                filters.memberGender === 'all' ||
+                normalizedGender === filters.memberGender;
+
+            return (
+                inRange(requestedAmount, filters?.requestedAmountMin, filters?.requestedAmountMax) &&
+                inRange(monthsPlanned, filters?.monthsPlannedMin, filters?.monthsPlannedMax) &&
+                inRange(monthlyAmount, filters?.monthlyAmountMin, filters?.monthlyAmountMax) &&
+                genderOk
+            );
+        });
+    }
+
+    private async getDemandsWithClientSideFilters(filters: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandsPaginated> {
+        const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+        const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
+        const constraints: any[] = [];
+
+        if (filters?.status && filters.status !== 'all') constraints.push(where("status", "==", filters.status));
+        if (filters?.contractType && filters.contractType !== 'all') constraints.push(where("contractType", "==", filters.contractType));
+        if (filters?.caisseType && filters.caisseType !== 'all') constraints.push(where("caisseType", "==", filters.caisseType));
+        if (filters?.memberId) constraints.push(where("memberId", "==", filters.memberId));
+        if (filters?.groupeId) constraints.push(where("groupeId", "==", filters.groupeId));
+        if (filters?.decisionMadeBy) constraints.push(where("decisionMadeBy", "==", filters.decisionMadeBy));
+        if (filters?.createdAtFrom) constraints.push(where("createdAt", ">=", filters.createdAtFrom));
+        if (filters?.createdAtTo) constraints.push(where("createdAt", "<=", filters.createdAtTo));
+
+        constraints.push(orderBy("createdAt", "desc"));
+
+        const snap = await getDocs(query(colRef, ...constraints));
+        let filtered = snap.docs.map((docSnap) => this.toDemand(docSnap));
+
+        if (filters?.search && filters.search.trim().length >= 2) {
+            const normalizedQuery = filters.search.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            filtered = filtered.filter((d) => {
+                const haystack = `${d.searchableText || ''} ${d.searchableTextFirstNameFirst || ''} ${d.searchableTextMatriculeFirst || ''}`
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '');
+                return haystack.includes(normalizedQuery);
+            });
+        }
+
+        if (filters?.desiredDateFrom) filtered = filtered.filter((d) => new Date(d.desiredDate) >= filters.desiredDateFrom!);
+        if (filters?.desiredDateTo) filtered = filtered.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
+
+        filtered = this.applyExtendedDemandFilters(filtered, filters);
+        filtered = this.sortDemands(filtered, filters);
+
+        const total = filtered.length;
+        const pageSize = filters.limit || 12;
+        const currentPage = filters.page || 1;
+        const start = (currentPage - 1) * pageSize;
+        const items = filtered.slice(start, start + pageSize);
+        return { items, total };
+    }
+
+    private sortDemands(items: CaisseSpecialeDemand[], filters?: CaisseSpecialeDemandFilters): CaisseSpecialeDemand[] {
+        const sortBy = filters?.sortBy ?? 'date';
+        const sortOrder = filters?.sortOrder ?? 'desc';
+        const direction = sortOrder === 'asc' ? 1 : -1;
+
+        return [...items].sort((a, b) => {
+            if (sortBy === 'alphabetical') {
+                const nameA = (a.searchableTextFirstNameFirst || a.searchableText || '').trim().toLowerCase();
+                const nameB = (b.searchableTextFirstNameFirst || b.searchableText || '').trim().toLowerCase();
+                const nameCompare = nameA.localeCompare(nameB, 'fr');
+                if (nameCompare !== 0) return nameCompare * direction;
+                return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+            }
+
+            if (sortBy === 'requestedAmount') {
+                const requestedAmountA = Number(a.monthlyAmount || 0) * Number(a.monthsPlanned || 0);
+                const requestedAmountB = Number(b.monthlyAmount || 0) * Number(b.monthsPlanned || 0);
+                const amountCompare = requestedAmountA - requestedAmountB;
+                if (amountCompare !== 0) return amountCompare * direction;
+                return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+            }
+
+            return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+        });
+    }
+
     async createDemand(data: Omit<CaisseSpecialeDemand, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CaisseSpecialeDemand> {
         try {
             const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
@@ -99,6 +235,10 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
     async getDemandsWithFilters(filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandsPaginated> {
         try {
+            if (filters && this.hasExtendedDemandFilters(filters)) {
+                return this.getDemandsWithClientSideFilters(filters);
+            }
+
             const hasSearch = Boolean(filters?.search && filters.search.trim().length >= 2);
             const normalizedSearch = hasSearch
                 ? filters!.search!.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -144,7 +284,17 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 constraints.push(where("createdAt", "<=", filters.createdAtTo));
             }
 
-            constraints.push(orderBy("createdAt", "desc"));
+            const shouldSortAlphabetical = (filters?.sortBy ?? 'date') === 'alphabetical';
+            const shouldSortDateAsc = (filters?.sortBy ?? 'date') === 'date' && (filters?.sortOrder ?? 'desc') === 'asc';
+
+            if (shouldSortAlphabetical) {
+                constraints.push(orderBy("searchableTextFirstNameFirst", "asc"));
+                constraints.push(orderBy("createdAt", "desc"));
+            } else if (shouldSortDateAsc) {
+                constraints.push(orderBy("createdAt", "asc"));
+            } else {
+                constraints.push(orderBy("createdAt", "desc"));
+            }
 
             const baseQuery = query(colRef, ...constraints);
 
@@ -175,19 +325,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             const demands: CaisseSpecialeDemand[] = [];
 
             querySnapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
-                demands.push({
-                    id: docSnap.id,
-                    ...(data as any),
-                    createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
-                    updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
-                    decisionMadeAt: toDate(data.decisionMadeAt),
-                    reopenedAt: toDate(data.reopenedAt),
-                    approvedAt: toDate(data.approvedAt),
-                    rejectedAt: toDate(data.rejectedAt),
-                    convertedAt: toDate(data.convertedAt),
-                } as CaisseSpecialeDemand);
+                demands.push(this.toDemand(docSnap));
             });
 
             let filteredDemands = demands;
@@ -198,7 +336,9 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 filteredDemands = filteredDemands.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
             }
 
-            return { items: filteredDemands, total };
+            const extendedFilteredDemands = this.applyExtendedDemandFilters(filteredDemands, filters);
+            const sortedDemands = this.sortDemands(extendedFilteredDemands, filters);
+            return { items: sortedDemands, total };
         } catch (error) {
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
             // Propager l'erreur pour afficher un message à l'utilisateur (ex: index Firestore manquant)
@@ -241,19 +381,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
         const addDoc = (docSnap: any) => {
             if (!seen.has(docSnap.id)) {
                 seen.add(docSnap.id);
-                const data = docSnap.data();
-                const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
-                merged.push({
-                    id: docSnap.id,
-                    ...(data as any),
-                    createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
-                    updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
-                    decisionMadeAt: toDate(data.decisionMadeAt),
-                    reopenedAt: toDate(data.reopenedAt),
-                    approvedAt: toDate(data.approvedAt),
-                    rejectedAt: toDate(data.rejectedAt),
-                    convertedAt: toDate(data.convertedAt),
-                } as CaisseSpecialeDemand);
+                merged.push(this.toDemand(docSnap));
             }
         };
         [snap1, snap2, snap3].forEach((snap) => snap.forEach(addDoc));
@@ -272,7 +400,8 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             filtered = filtered.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
         }
 
-        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        filtered = this.applyExtendedDemandFilters(filtered, filters);
+        filtered = this.sortDemands(filtered, filters);
 
         const total = filtered.length;
         const pageSize = filters.limit || 12;
