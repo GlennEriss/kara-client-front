@@ -633,6 +633,8 @@ export default function PaymentHistory({ requestId }: Props) {
 
   const activeAdvancedFiltersCount = useMemo(() => {
     let count = 0
+    if (dateFrom) count += 1
+    if (dateTo) count += 1
     if (amountMin !== '') count += 1
     if (amountMax !== '') count += 1
     if (createdAtFrom) count += 1
@@ -640,7 +642,7 @@ export default function PaymentHistory({ requestId }: Props) {
     if (updatedAtFrom) count += 1
     if (updatedAtTo) count += 1
     return count
-  }, [amountMin, amountMax, createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo])
+  }, [dateFrom, dateTo, amountMin, amountMax, createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo])
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -838,7 +840,7 @@ export default function PaymentHistory({ requestId }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_minmax(160px,1fr)_minmax(160px,1fr)]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de paiement</Label>
               <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypePayment | 'all')}>
@@ -890,25 +892,6 @@ export default function PaymentHistory({ requestId }: Props) {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date versement debut</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date versement fin</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
-              />
-            </div>
           </div>
 
           {isFiltersExpanded && (
@@ -940,7 +923,25 @@ export default function PaymentHistory({ requestId }: Props) {
                 </div>
 
                 <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates techniques</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date de versement</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                      <Input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-slate-500">Date de creation</Label>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
