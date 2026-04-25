@@ -520,15 +520,17 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
       expect(listButton).toBeInTheDocument()
 
       // Vérifier que le mode grille est actif par défaut
-      expect(gridButton).toHaveClass(/bg-\[#234D65\]|bg-\[#2c5a73\]/)
+      expect(gridButton).toHaveClass('bg-white')
+      expect(listButton).not.toHaveClass('bg-white')
 
       // Cliquer sur le bouton liste
-      if (listButton) {
+      if (listButton && gridButton) {
         fireEvent.click(listButton)
         
         await waitFor(() => {
           // Vérifier que le mode liste est maintenant actif
-          expect(listButton).toHaveClass(/bg-\[#234D65\]|bg-\[#2c5a73\]/)
+          expect(listButton).toHaveClass('bg-white')
+          expect(gridButton).not.toHaveClass('bg-white')
         })
       }
     })
