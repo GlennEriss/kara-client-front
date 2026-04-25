@@ -137,8 +137,16 @@ export function MembershipsListPage() {
         
         return newFilters
       })
+    } else {
+      // Sur "all", on supprime les filtres injectés automatiquement par les tabs
+      // pour éviter qu'ils restent actifs après un retour depuis un onglet spécifique.
+      setFilters(prevFilters => {
+        const nextFilters = { ...prevFilters }
+        delete nextFilters.membershipType
+        delete nextFilters.isActive
+        return nextFilters
+      })
     }
-    // Note: Sur le tab "all", on garde les filtres existants (l'utilisateur peut les modifier librement)
   }, [activeTab])
 
   // Gestionnaires d'événements
@@ -419,15 +427,6 @@ export function MembershipsListPage() {
         }}
       />
 
-      {/* Tabs de filtres */}
-      <MembershipsListTabs
-        activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab)
-          setCurrentPage(1)
-        }}
-      />
-
       {/* Barre d'actions moderne */}
       <MembershipsListHeader
         totalItems={membersData?.pagination.totalItems ?? 0}
@@ -439,6 +438,15 @@ export function MembershipsListPage() {
         onExport={handleExport}
         pagination={membersData?.pagination}
         onPageChange={handlePageChange}
+      />
+
+      {/* Tabs de filtres (rattachés directement à la liste) */}
+      <MembershipsListTabs
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab)
+          setCurrentPage(1)
+        }}
       />
 
       {/* Liste des membres */}

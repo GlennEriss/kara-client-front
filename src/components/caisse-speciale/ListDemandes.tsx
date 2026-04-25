@@ -36,16 +36,19 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     CheckCircle,
+    ChevronDown,
     Clock,
     Eye,
     FileEdit,
     FileText,
+    Filter,
     Grid3X3,
     List,
     MoreVertical,
     Plus,
     RefreshCw,
     RotateCcw,
+    Search,
     Trash2,
     XCircle,
 } from 'lucide-react'
@@ -60,6 +63,13 @@ import StatisticsCaisseSpecialeDemandes from './StatisticsCaisseSpecialeDemandes
 import { StatusFilterBadgesCarousel } from './StatusFilterBadgesCarousel'
 
 type ViewMode = 'grid' | 'list'
+type DemandSortOption =
+  | 'date_desc'
+  | 'date_asc'
+  | 'alphabetical_asc'
+  | 'alphabetical_desc'
+  | 'requested_amount_asc'
+  | 'requested_amount_desc'
 
 const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
   label: string
@@ -73,7 +83,7 @@ const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
-  <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+  <Card className="group animate-pulse border border-[#234D65]/15 bg-gradient-to-br from-white via-slate-50/60 to-[#234D65]/[0.03] shadow-sm">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
         <Skeleton className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
@@ -124,11 +134,13 @@ const DemandCard = ({
 
   const memberPhotoUrl = member?.photoURL || ''
   const memberInitials = `${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase()
+  const requestedTotalAmount = Number(demande.monthlyAmount || 0) * Number(demande.monthsPlanned || 0)
 
   return (
-    <Card className="group relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg border-gray-200 h-full flex flex-col">
+    <Card className="group relative flex h-full flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
       <CardContent className="p-4 md:p-5 flex-1 flex flex-col gap-4">
-        <div className="font-mono text-sm font-bold text-gray-900 break-all">
+        <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">
           #{demande.id}
         </div>
 
@@ -141,10 +153,10 @@ const DemandCard = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 opacity-70 group-hover:opacity-100 transition-opacity"
+                className="h-8 w-8 rounded-full border border-transparent bg-white/80 opacity-80 transition-all group-hover:opacity-100 hover:border-[#234D65]/25 hover:bg-[#234D65]/10"
                 title="Actions"
               >
-                <MoreVertical className="h-4 w-4 text-gray-600" />
+                <MoreVertical className="h-4 w-4 text-[#234D65]" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[190px]">
@@ -174,31 +186,35 @@ const DemandCard = ({
         </div>
 
         <div className="flex items-start gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
+          <Avatar className="h-14 w-14 shrink-0 rounded-xl ring-2 ring-[#234D65]/12">
             {memberPhotoUrl ? (
-              <AvatarImage src={memberPhotoUrl} alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`} />
+              <AvatarImage
+                src={memberPhotoUrl}
+                alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`}
+                className="h-full w-full object-cover object-center"
+              />
             ) : null}
-            <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+            <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-[11px] font-semibold text-white">
               {memberInitials || '--'}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             {isLoadingMember ? (
-              <span className="text-gray-400 animate-pulse text-sm">Chargement...</span>
+              <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
             ) : (
               <>
-                <div className="font-semibold text-gray-900 leading-tight">{member?.firstName ?? '—'}</div>
-                <div className="font-semibold text-gray-900 leading-tight">{member?.lastName ?? '—'}</div>
+                <div className="text-base font-bold leading-tight text-slate-900">{member?.firstName ?? '—'}</div>
+                <div className="text-base font-bold leading-tight text-slate-900">{member?.lastName ?? '—'}</div>
               </>
             )}
           </div>
         </div>
 
-        <div className="text-sm font-mono text-gray-700">
+        <div className="rounded-lg bg-[#234D65]/[0.06] px-2.5 py-1.5 text-xs font-mono font-semibold text-[#234D65]">
           {member?.matricule || demande.memberId || '—'}
         </div>
 
-        <div className="text-sm text-gray-700">
+        <div className="text-sm text-slate-600">
           {isLoadingMember ? (
             <span className="text-gray-400 animate-pulse">—</span>
           ) : memberPhone || member?.email ? (
@@ -208,36 +224,42 @@ const DemandCard = ({
           )}
         </div>
 
-        <div className="space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
+        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500">Montant demandé</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-gray-500">Montant total demandé</span>
+            <span className="font-extrabold text-[#234D65]">
+              {requestedTotalAmount.toLocaleString('fr-FR')} FCFA
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Mensualité</span>
+            <span className="font-semibold text-slate-900">
               {demande.monthlyAmount.toLocaleString('fr-FR')} FCFA
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500">Nombre de mois</span>
-            <span className="font-semibold text-gray-900">{demande.monthsPlanned} mois</span>
+            <span className="font-semibold text-slate-900">{demande.monthsPlanned} mois</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500">Date souhaitée</span>
-            <span className="font-semibold text-gray-900">
+            <span className="font-semibold text-slate-900">
               {demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}
             </span>
           </div>
         </div>
 
-        <div className="pt-3 border-t border-gray-100 mt-auto text-sm">
-          <span className="text-gray-500">Motif: </span>
-          <span className="text-gray-900">{demandReason || '—'}</span>
+        <div className="mt-auto min-h-[3.25rem] border-t border-slate-200 pt-3 text-sm">
+          <span className="text-slate-500">Motif: </span>
+          <span className="font-medium text-slate-900">{demandReason || '—'}</span>
         </div>
 
-        <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2 border-t border-slate-200 pt-3">
           {canAcceptOrReject && (
             <>
               <Button
                 onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
+                className="h-10 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm transition-all hover:from-emerald-700 hover:to-emerald-600 hover:shadow-md"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Accepter
@@ -245,7 +267,7 @@ const DemandCard = ({
               <Button
                 variant="outline"
                 onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                className="w-full h-10 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                className="h-10 w-full border-red-300/80 bg-red-50/70 text-red-700 transition-all hover:border-red-400 hover:bg-red-100/70"
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Refuser
@@ -257,7 +279,7 @@ const DemandCard = ({
             <Button
               variant="outline"
               onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-              className="w-full h-10 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+              className="h-10 w-full border-blue-300/80 bg-blue-50/70 text-blue-700 transition-all hover:border-blue-400 hover:bg-blue-100/70"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Réouvrir
@@ -267,7 +289,7 @@ const DemandCard = ({
           <Button
             variant="outline"
             onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-            className="w-full h-10"
+            className="h-10 w-full border-[#234D65]/30 bg-white text-[#234D65] transition-all hover:bg-[#234D65] hover:text-white"
           >
             <Eye className="h-4 w-4 mr-2" />
             Voir détails
@@ -322,7 +344,7 @@ const DemandTableRow = ({
   const { data: member } = useMember(demande.memberId)
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
   return (
-    <TableRow>
+    <TableRow className="border-b border-slate-100 transition-colors hover:bg-[#234D65]/[0.045]">
       <TableCell>
         <Badge className={cn('text-xs border', statusInfo.color)}>{statusInfo.label}</Badge>
       </TableCell>
@@ -330,7 +352,7 @@ const DemandTableRow = ({
         <MemberTableCell demande={demande} />
       </TableCell>
       <TableCell className="hidden md:table-cell">{member?.contacts?.[0] || member?.email || '—'}</TableCell>
-      <TableCell className="hidden lg:table-cell">{demande.monthlyAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+      <TableCell className="hidden lg:table-cell">{(Number(demande.monthlyAmount || 0) * Number(demande.monthsPlanned || 0)).toLocaleString('fr-FR')} FCFA</TableCell>
       <TableCell className="hidden lg:table-cell">{demande.monthsPlanned} mois</TableCell>
       <TableCell className="hidden md:table-cell">{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}</TableCell>
       <TableCell className="text-right">
@@ -424,6 +446,36 @@ const ListDemandes = () => {
   const [caisseTypeFilter, setCaisseTypeFilter] = useState<string>(searchParams.get('caisseType') || 'all')
   const [createdAtFrom, setCreatedAtFrom] = useState<string>(searchParams.get('createdAtFrom') || '')
   const [createdAtTo, setCreatedAtTo] = useState<string>(searchParams.get('createdAtTo') || '')
+  const [desiredDateFrom, setDesiredDateFrom] = useState<string>(searchParams.get('desiredDateFrom') || '')
+  const [desiredDateTo, setDesiredDateTo] = useState<string>(searchParams.get('desiredDateTo') || '')
+  const [currentMonthOnly, setCurrentMonthOnly] = useState<boolean>(searchParams.get('currentMonthOnly') === '1')
+  const [requestedAmountMin, setRequestedAmountMin] = useState<string>(searchParams.get('requestedAmountMin') || '')
+  const [requestedAmountMax, setRequestedAmountMax] = useState<string>(searchParams.get('requestedAmountMax') || '')
+  const [monthsPlannedMin, setMonthsPlannedMin] = useState<string>(searchParams.get('monthsPlannedMin') || '')
+  const [monthsPlannedMax, setMonthsPlannedMax] = useState<string>(searchParams.get('monthsPlannedMax') || '')
+  const [monthlyAmountMin, setMonthlyAmountMin] = useState<string>(searchParams.get('monthlyAmountMin') || '')
+  const [monthlyAmountMax, setMonthlyAmountMax] = useState<string>(searchParams.get('monthlyAmountMax') || '')
+  const [memberGender, setMemberGender] = useState<'all' | 'Homme' | 'Femme'>(
+    (searchParams.get('memberGender') as 'all' | 'Homme' | 'Femme') || 'all'
+  )
+  const [sortOption, setSortOption] = useState<DemandSortOption>(
+    (searchParams.get('sort') as DemandSortOption) || 'date_desc'
+  )
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(() =>
+    Boolean(
+      searchParams.get('createdAtFrom') ||
+      searchParams.get('createdAtTo') ||
+      searchParams.get('desiredDateFrom') ||
+      searchParams.get('desiredDateTo') ||
+      searchParams.get('currentMonthOnly') === '1' ||
+      searchParams.get('requestedAmountMin') ||
+      searchParams.get('requestedAmountMax') ||
+      searchParams.get('monthsPlannedMin') ||
+      searchParams.get('monthsPlannedMax') ||
+      searchParams.get('monthlyAmountMin') ||
+      searchParams.get('monthlyAmountMax')
+    )
+  )
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [acceptModalState, setAcceptModalState] = useState<{
@@ -462,6 +514,20 @@ const ListDemandes = () => {
     if (currentPage > 1) params.set('page', currentPage.toString())
     if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
     if (viewMode !== 'grid') params.set('view', viewMode)
+    if (sortOption !== 'date_desc') params.set('sort', sortOption)
+    if (caisseTypeFilter !== 'all') params.set('caisseType', caisseTypeFilter)
+    if (createdAtFrom) params.set('createdAtFrom', createdAtFrom)
+    if (createdAtTo) params.set('createdAtTo', createdAtTo)
+    if (desiredDateFrom) params.set('desiredDateFrom', desiredDateFrom)
+    if (desiredDateTo) params.set('desiredDateTo', desiredDateTo)
+    if (currentMonthOnly) params.set('currentMonthOnly', '1')
+    if (requestedAmountMin) params.set('requestedAmountMin', requestedAmountMin)
+    if (requestedAmountMax) params.set('requestedAmountMax', requestedAmountMax)
+    if (monthsPlannedMin) params.set('monthsPlannedMin', monthsPlannedMin)
+    if (monthsPlannedMax) params.set('monthsPlannedMax', monthsPlannedMax)
+    if (monthlyAmountMin) params.set('monthlyAmountMin', monthlyAmountMin)
+    if (monthlyAmountMax) params.set('monthlyAmountMax', monthlyAmountMax)
+    if (memberGender !== 'all') params.set('memberGender', memberGender)
     
     const queryString = params.toString()
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
@@ -469,7 +535,27 @@ const ListDemandes = () => {
     if (window.location.search !== `?${queryString}`) {
       router.replace(newUrl, { scroll: false })
     }
-  }, [activeTab, currentPage, itemsPerPage, viewMode, router])
+  }, [
+    activeTab,
+    currentPage,
+    itemsPerPage,
+    viewMode,
+    sortOption,
+    caisseTypeFilter,
+    createdAtFrom,
+    createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+    memberGender,
+    router,
+  ])
 
   // Hooks pour récupérer les données
   const getStatusFilter = () => {
@@ -483,6 +569,14 @@ const ListDemandes = () => {
             ? 'REJECTED'
             : 'CONVERTED'
   }
+
+  const currentMonthDateRange = React.useMemo(() => {
+    if (!currentMonthOnly) return { from: undefined as Date | undefined, to: undefined as Date | undefined }
+    const now = new Date()
+    const from = new Date(now.getFullYear(), now.getMonth(), 1)
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    return { from, to }
+  }, [currentMonthOnly])
 
   const queryFilters: CaisseSpecialeDemandFilters = {
     status: getStatusFilter(),
@@ -498,22 +592,41 @@ const ListDemandes = () => {
           | 'JOURNALIERE_CHARITABLE'
           | 'LIBRE_CHARITABLE')
       : undefined,
-    createdAtFrom: createdAtFrom ? new Date(createdAtFrom) : undefined,
-    createdAtTo: createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined,
+    createdAtFrom: currentMonthDateRange.from || (createdAtFrom ? new Date(createdAtFrom) : undefined),
+    createdAtTo: currentMonthDateRange.to || (createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined),
+    desiredDateFrom: desiredDateFrom ? new Date(desiredDateFrom) : undefined,
+    desiredDateTo: desiredDateTo ? new Date(desiredDateTo + 'T23:59:59') : undefined,
+    requestedAmountMin: requestedAmountMin === '' ? undefined : Number(requestedAmountMin),
+    requestedAmountMax: requestedAmountMax === '' ? undefined : Number(requestedAmountMax),
+    monthsPlannedMin: monthsPlannedMin === '' ? undefined : Number(monthsPlannedMin),
+    monthsPlannedMax: monthsPlannedMax === '' ? undefined : Number(monthsPlannedMax),
+    monthlyAmountMin: monthlyAmountMin === '' ? undefined : Number(monthlyAmountMin),
+    monthlyAmountMax: monthlyAmountMax === '' ? undefined : Number(monthlyAmountMax),
+    memberGender,
+    sortBy: sortOption.startsWith('alphabetical')
+      ? 'alphabetical'
+      : sortOption.startsWith('requested_amount')
+        ? 'requestedAmount'
+        : 'date',
+    sortOrder: sortOption.endsWith('_asc') ? 'asc' : 'desc',
   }
-
-  const activeFiltersCount = [
-    debouncedSearch.trim().length >= 2,
-    caisseTypeFilter !== 'all',
-    !!createdAtFrom,
-    !!createdAtTo,
-  ].filter(Boolean).length
 
   const resetFilters = () => {
     setSearchQuery('')
     setCaisseTypeFilter('all')
     setCreatedAtFrom('')
     setCreatedAtTo('')
+    setDesiredDateFrom('')
+    setDesiredDateTo('')
+    setCurrentMonthOnly(false)
+    setRequestedAmountMin('')
+    setRequestedAmountMax('')
+    setMonthsPlannedMin('')
+    setMonthsPlannedMax('')
+    setMonthlyAmountMin('')
+    setMonthlyAmountMax('')
+    setMemberGender('all')
+    setSortOption('date_desc')
     setCurrentPage(1)
   }
 
@@ -528,7 +641,24 @@ const ListDemandes = () => {
   // Reset page when tab or filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeTab, debouncedSearch, caisseTypeFilter, createdAtFrom, createdAtTo])
+  }, [
+    activeTab,
+    debouncedSearch,
+    caisseTypeFilter,
+    createdAtFrom,
+    createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+    memberGender,
+    sortOption,
+  ])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -566,6 +696,70 @@ const ListDemandes = () => {
     }
   }, [statsData])
 
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (debouncedSearch.trim().length >= 2) count += 1
+    if (sortOption !== 'date_desc') count += 1
+    if (caisseTypeFilter !== 'all') count += 1
+    if (memberGender !== 'all') count += 1
+    if (createdAtFrom) count += 1
+    if (createdAtTo) count += 1
+    if (desiredDateFrom) count += 1
+    if (desiredDateTo) count += 1
+    if (currentMonthOnly) count += 1
+    if (requestedAmountMin !== '') count += 1
+    if (requestedAmountMax !== '') count += 1
+    if (monthsPlannedMin !== '') count += 1
+    if (monthsPlannedMax !== '') count += 1
+    if (monthlyAmountMin !== '') count += 1
+    if (monthlyAmountMax !== '') count += 1
+    return count
+  }, [
+    debouncedSearch,
+    sortOption,
+    caisseTypeFilter,
+    memberGender,
+    createdAtFrom,
+    createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+  ])
+
+  const activeAdvancedFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (createdAtFrom) count += 1
+    if (createdAtTo) count += 1
+    if (desiredDateFrom) count += 1
+    if (desiredDateTo) count += 1
+    if (currentMonthOnly) count += 1
+    if (requestedAmountMin !== '') count += 1
+    if (requestedAmountMax !== '') count += 1
+    if (monthsPlannedMin !== '') count += 1
+    if (monthsPlannedMax !== '') count += 1
+    if (monthlyAmountMin !== '') count += 1
+    if (monthlyAmountMax !== '') count += 1
+    return count
+  }, [
+    createdAtFrom,
+    createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+  ])
+
   // Gestion des erreurs
   if (error) {
     return (
@@ -592,32 +786,385 @@ const ListDemandes = () => {
       {/* Statistiques EN PREMIER (C.1) - chargées une seule fois */}
       <StatisticsCaisseSpecialeDemandes />
 
-      {/* Filtres de statut : Tabs en desktop, badges carousel en mobile/tablette */}
+      {/* Barre filtres : version allégée et structurée */}
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="space-y-4 p-4 md:p-5">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+                <Filter className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
+                  {activeFiltersCount > 0 && (
+                    <Badge className="rounded-full bg-[#234D65]/10 px-2.5 py-0.5 text-xs font-semibold text-[#234D65] border border-[#234D65]/20">
+                      {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-slate-600">
+                  Recherche rapide en haut, critères numériques dans les filtres avancés.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="h-10 rounded-xl border-2 border-[#234D65]/40 text-[#234D65] hover:bg-[#234D65] hover:text-white"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Actualiser
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              >
+                Réinitialiser
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFiltersExpanded((prev) => !prev)}
+                className={cn(
+                  'h-10 rounded-xl border-2 transition-colors',
+                  isFiltersExpanded
+                    ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                    : 'border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5'
+                )}
+              >
+                Filtres avancés
+                {activeAdvancedFiltersCount > 0 ? ` (${activeAdvancedFiltersCount})` : ''}
+                <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_minmax(220px,1fr)_minmax(180px,1fr)]">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
+              <div className="relative group">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-[#234D65]" />
+                <Input
+                  placeholder="Nom, prénom, matricule..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Tri</Label>
+              <Select
+                value={sortOption}
+                onValueChange={(v: DemandSortOption) => {
+                  setSortOption(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Trier par" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="date_desc">Plus récentes</SelectItem>
+                  <SelectItem value="date_asc">Plus anciennes</SelectItem>
+                  <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
+                  <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
+                  <SelectItem value="requested_amount_asc">Montant total: croissant</SelectItem>
+                  <SelectItem value="requested_amount_desc">Montant total: décroissant</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
+              <Select
+                value={caisseTypeFilter}
+                onValueChange={(v) => {
+                  setCaisseTypeFilter(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Type de caisse" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="STANDARD">Standard</SelectItem>
+                  <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                  <SelectItem value="LIBRE">Libre</SelectItem>
+                  <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                  <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                  <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Sexe du demandeur</Label>
+              <Select
+                value={memberGender}
+                onValueChange={(v: 'all' | 'Homme' | 'Femme') => {
+                  setMemberGender(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Sexe" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="Homme">Homme</SelectItem>
+                  <SelectItem value="Femme">Femme</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {isFiltersExpanded && (
+            <div className="rounded-2xl border border-[#234D65]/15 bg-gradient-to-br from-[#234D65]/[0.04] via-white to-slate-50 p-4 md:p-5">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Montant total demandé (FCFA)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={requestedAmountMin}
+                        onChange={(e) => setRequestedAmountMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={requestedAmountMax}
+                        onChange={(e) => setRequestedAmountMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Mensualité (FCFA)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={monthlyAmountMin}
+                        onChange={(e) => setMonthlyAmountMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={monthlyAmountMax}
+                        onChange={(e) => setMonthlyAmountMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Durée et dates</p>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Période de création</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentMonthOnly((prev) => !prev)}
+                      className={cn(
+                        'h-10 w-full justify-start rounded-lg border transition-colors',
+                        currentMonthOnly
+                          ? 'border-[#234D65] bg-[#234D65]/10 text-[#234D65] hover:bg-[#234D65]/15'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-[#234D65]/30'
+                      )}
+                    >
+                      {currentMonthOnly ? 'Mois actuel (activé)' : 'Filtrer sur le mois actuel'}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Nombre de mois</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={monthsPlannedMin}
+                        onChange={(e) => setMonthsPlannedMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={monthsPlannedMax}
+                        onChange={(e) => setMonthsPlannedMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date de création</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={createdAtFrom}
+                        onChange={(e) => setCreatedAtFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="date"
+                        value={createdAtTo}
+                        onChange={(e) => setCreatedAtTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date souhaitée</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={desiredDateFrom}
+                        onChange={(e) => setDesiredDateFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="date"
+                        value={desiredDateTo}
+                        onChange={(e) => setDesiredDateTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3">
+            <div className="hidden items-center rounded-xl bg-gray-100 p-1 md:flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-10 rounded-lg px-4 text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
+                  ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                  : 'text-gray-500 hover:bg-transparent hover:text-gray-700'
+                  }`}
+              >
+                <Grid3X3 className="mr-2 h-4 w-4" />
+                Cards
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={`h-10 rounded-lg px-4 text-sm font-medium transition-all duration-200 ${viewMode === 'list'
+                  ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                  : 'text-gray-500 hover:bg-transparent hover:text-gray-700'
+                  }`}
+              >
+                <List className="mr-2 h-4 w-4" />
+                Table
+              </Button>
+            </div>
+
+            <p className="ml-auto text-xs font-medium text-slate-500">
+              {totalCount.toLocaleString()} demande{totalCount > 1 ? 's' : ''} trouvée{totalCount > 1 ? 's' : ''}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabs de statut (rattachés à la liste) */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
-        {/* Tabs - Vue desktop uniquement */}
-        <div className="hidden lg:block">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Toutes ({stats.total})
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              En attente ({stats.pending})
-            </TabsTrigger>
-            <TabsTrigger value="approved" className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Acceptées ({stats.approved})
-            </TabsTrigger>
-            <TabsTrigger value="rejected" className="flex items-center gap-2">
-              <XCircle className="h-4 w-4" />
-              Refusées ({stats.rejected})
-            </TabsTrigger>
-            <TabsTrigger value="converted" className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Converties ({stats.converted})
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              <TabsTrigger
+                value="all"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Toutes</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.total}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span className="whitespace-nowrap">En attente</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.pending}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="approved"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Acceptées</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.approved}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="rejected"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Refusées</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.rejected}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="converted"
+                className="shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Converties</span>
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-gray-200/80 text-gray-700 shrink-0">
+                    {stats.converted}
+                  </span>
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         {/* Badges carousel - Vue mobile et tablette */}
@@ -636,135 +1183,33 @@ const ListDemandes = () => {
         </div>
       </Tabs>
 
-      {/* Barre unique : filtres + actions */}
-      <Card className="border-0 shadow-lg overflow-hidden">
-        <CardContent className="p-4 md:p-5 bg-white">
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(320px,1.8fr)_1fr_1fr_1fr] gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
-                <Input
-                  placeholder="Rechercher par nom, prénom ou matricule..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
-                <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
-                  <SelectTrigger className="w-full h-11 border-slate-200 focus:ring-[#234D65]/30">
-                    <SelectValue placeholder="Type de caisse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="STANDARD">Standard</SelectItem>
-                    <SelectItem value="JOURNALIERE">Journalière</SelectItem>
-                    <SelectItem value="LIBRE">Libre</SelectItem>
-                    <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
-                    <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
-                    <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
-                <Input
-                  type="date"
-                  value={createdAtFrom}
-                  onChange={(e) => setCreatedAtFrom(e.target.value)}
-                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
-                <Input
-                  type="date"
-                  value={createdAtTo}
-                  onChange={(e) => setCreatedAtTo(e.target.value)}
-                  className="w-full h-11 border-slate-200 focus-visible:ring-[#234D65]/30"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 justify-between">
-              <div className="items-center p-1 bg-gray-100 rounded-xl hidden md:flex">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
-                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
-                    }`}
-                >
-                  <Grid3X3 className="h-4 w-4 mr-2" />
-                  Cards
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'list'
-                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
-                    }`}
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  Table
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 ml-auto">
-                {activeFiltersCount > 0 && (
-                  <Button variant="outline" size="sm" onClick={resetFilters}>
-                    Réinitialiser filtres
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="h-12 sm:h-10 w-full sm:w-auto px-4 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Actualiser
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Liste des demandes */}
       {isLoading ? (
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-            : 'space-y-6'
-        }>
-          {[...Array(itemsPerPage)].map((_, i) => (
-            <ModernSkeleton key={i} viewMode={viewMode} />
-          ))}
+        <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/40 p-4 md:p-5">
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'
+              : 'space-y-4'
+          }>
+            {[...Array(itemsPerPage)].map((_, i) => (
+              <ModernSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         </div>
       ) : currentDemandes.length > 0 ? (
         <>
           {viewMode === 'list' ? (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden">
+            <Card className="overflow-hidden rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white to-slate-50/40 shadow-sm">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[120px]">Statut</TableHead>
-                    <TableHead>Membre</TableHead>
-                    <TableHead className="hidden md:table-cell">Contact</TableHead>
-                    <TableHead className="hidden lg:table-cell">Montant</TableHead>
-                    <TableHead className="hidden lg:table-cell">Durée</TableHead>
-                    <TableHead className="hidden md:table-cell">Date souhaitée</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="border-b border-[#234D65]/20 bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/[0.06] to-transparent">
+                    <TableHead className="w-[120px] font-semibold text-[#234D65]">Statut</TableHead>
+                    <TableHead className="font-semibold text-[#234D65]">Membre</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] md:table-cell">Contact</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] lg:table-cell">Montant total</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] lg:table-cell">Durée</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] md:table-cell">Date souhaitée</TableHead>
+                    <TableHead className="text-right font-semibold text-[#234D65]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -782,23 +1227,30 @@ const ListDemandes = () => {
               </Table>
             </Card>
           ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-            {currentDemandes.map((demande) => (
-              <DemandCard
-                key={demande.id}
-                demande={demande}
-                setAcceptModalState={setAcceptModalState}
-                setRejectModalState={setRejectModalState}
-                setReopenModalState={setReopenModalState}
-                setDeleteModalState={setDeleteModalState}
-              />
-            ))}
-          </div>
+            <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
+              <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                {currentDemandes.map((demande, index) => (
+                  <div
+                    key={demande.id}
+                    className="animate-in fade-in-0 slide-in-from-bottom-3 duration-500"
+                    style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}
+                  >
+                    <DemandCard
+                      demande={demande}
+                      setAcceptModalState={setAcceptModalState}
+                      setRejectModalState={setRejectModalState}
+                      setReopenModalState={setReopenModalState}
+                      setDeleteModalState={setDeleteModalState}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+            <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
@@ -810,7 +1262,7 @@ const ListDemandes = () => {
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Précédent
                     </Button>
@@ -822,7 +1274,7 @@ const ListDemandes = () => {
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Suivant
                     </Button>
@@ -833,7 +1285,7 @@ const ListDemandes = () => {
           )}
         </>
       ) : (
-        <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">

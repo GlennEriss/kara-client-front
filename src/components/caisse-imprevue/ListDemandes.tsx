@@ -19,6 +19,7 @@ import {
     CreditCard,
     Eye,
     FileText,
+    Filter,
     Grid3X3,
     List,
     Loader2,
@@ -248,7 +249,18 @@ const ListDemandes = () => {
 
       <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
         <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-md">
+                <Filter className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Filtres et Recherche</h3>
+                <p className="text-sm text-slate-600">Affinez la liste des demandes en quelques critères.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
             <div className="flex items-center space-x-4">
               <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
                 <FileText className="h-6 w-6 text-white" />
@@ -310,6 +322,7 @@ const ListDemandes = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Nouvelle Demande
               </Button>
+            </div>
             </div>
           </div>
         </CardContent>
@@ -582,4 +595,3 @@ const ListDemandes = () => {
 }
 
 export default ListDemandes
-

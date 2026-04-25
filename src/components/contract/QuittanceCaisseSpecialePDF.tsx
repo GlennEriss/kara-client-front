@@ -99,6 +99,15 @@ const styles = StyleSheet.create({
     height: 56,
     marginTop: 12,
   },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: '#111827',
+  },
 })
 
 // PDF basé sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
@@ -295,6 +304,12 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
           secondarySectionTitle="Informations Concernant le Contact Urgent"
           secondaryRows={emergencyRows}
         />
+        <Text
+          style={styles.pageNumber}
+          fixed
+        >
+          Page 1 / 2
+        </Text>
       </Page>
 
       {/* PAGE 2 - Quittance de paiement (template) */}
@@ -367,6 +382,12 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
             </View>
           </View>
         </View>
+        <Text
+          style={styles.pageNumber}
+          fixed
+        >
+          Page 2 / 2
+        </Text>
       </Page>
     </Document>
   )

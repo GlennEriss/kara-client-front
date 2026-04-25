@@ -57,7 +57,7 @@ Implémenter une recherche full-text professionnelle avec Algolia pour les deman
 │              CLIENT (React/Next.js)                       │
 │  algoliasearch client                                    │
 │  - Recherche instantanée                                 │
-│  - Filtres avancés                                        │
+│  - Filtres et Recherche                                        │
 │  - Pagination                                             │
 └─────────────────────────────────────────────────────────┘
 ```

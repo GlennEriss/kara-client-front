@@ -265,7 +265,7 @@ useEffect(() => {
 - ✅ État vide
 
 **Tests recommandés en E2E** :
-- Filtres avancés (géographie, entreprise, profession)
+- Filtres et Recherche (géographie, entreprise, profession)
 - Recherche texte (nom, matricule, email)
 
 ### 7.2 Génération de données de test

@@ -159,7 +159,7 @@ Chaque tab sera un **preset de `UserFilters`** passé au hook `useMembershipsLis
 
 > **Note** : Les tabs "Abonnement valide/invalide" nécessitent un enrichissement avec les subscriptions (comme actuellement via `getMemberWithSubscription`), donc la logique peut rester partiellement côté client ou nécessiter un index Firestore composite.
 
-#### 3.4 Filtres avancés (via `MemberFilters`)
+#### 3.4 Filtres et Recherche (via `MemberFilters`)
 
 Les filtres avancés restent accessibles via le composant `MembershipsListFilters`, mais la logique de construction de requête sera dans le hook/repository V2 :
 

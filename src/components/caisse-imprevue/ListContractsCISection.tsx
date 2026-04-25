@@ -20,6 +20,7 @@ import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hoo
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
+import { cn } from '@/lib/utils'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
 import { useQueries } from '@tanstack/react-query'
 import {
@@ -62,6 +63,18 @@ const FREQUENCY_LABELS = {
 }
 
 type ViewMode = 'grid' | 'list'
+type ContractTabValue = 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'
+
+type ContractTabItem = {
+  value: ContractTabValue
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isDanger?: boolean
+}
+
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue']
+const isContractTabValue = (value: string): value is ContractTabValue =>
+  CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
 /** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). Utilise les stats de paiement réelles si fournies. */
 function canDeleteContractCI(
@@ -89,6 +102,43 @@ function formatContractDate(value: string | Date | { toDate?: () => Date } | und
   return date.toLocaleDateString('fr-FR')
 }
 
+function getCurrentMonthRange(): { start: Date; end: Date } {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  return { start, end }
+}
+
+function hasActiveContractFilters(filters: ContractCIFilters): boolean {
+  return Boolean(
+    (filters.search && filters.search.trim() !== '') ||
+      (filters.status && filters.status !== 'all') ||
+      (filters.paymentFrequency && filters.paymentFrequency !== 'all') ||
+      filters.subscriptionCIID ||
+      filters.createdAtFrom ||
+      filters.createdAtTo ||
+      filters.nextDueAtFrom ||
+      filters.nextDueAtTo ||
+      filters.overdueOnly ||
+      typeof filters.monthlyAmountMin === 'number' ||
+      typeof filters.monthlyAmountMax === 'number' ||
+      typeof filters.contractAmountMin === 'number' ||
+      typeof filters.contractAmountMax === 'number' ||
+      typeof filters.paidAmountMin === 'number' ||
+      typeof filters.paidAmountMax === 'number' ||
+      typeof filters.durationMonthsMin === 'number' ||
+      typeof filters.durationMonthsMax === 'number' ||
+      typeof filters.supportRemainingAmountMin === 'number' ||
+      typeof filters.supportRemainingAmountMax === 'number' ||
+      typeof filters.supportRepaidAmountMin === 'number' ||
+      typeof filters.supportRepaidAmountMax === 'number' ||
+      typeof filters.supportCountMin === 'number' ||
+      typeof filters.supportCountMax === 'number' ||
+      typeof filters.paymentCountMin === 'number' ||
+      typeof filters.paymentCountMax === 'number'
+  )
+}
+
 // Composant skeleton moderne
 const ModernSkeleton = () => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
@@ -112,9 +162,17 @@ const ModernSkeleton = () => (
 export default function ListContractsCISection() {
   const router = useRouter()
   useCaisseImprevueContractsRealtimeSync(true)
+
+  const tabItems: ContractTabItem[] = [
+    { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'DAILY', label: 'Journalier', icon: CalendarDays },
+    { value: 'MONTHLY', label: 'Mensuel', icon: Calendar },
+    { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
+    { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+  ]
   
   // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard, Mois en cours)
-  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'>('all')
+  const [activeTab, setActiveTab] = useState<ContractTabValue>('all')
   
   // États
   const [filters, setFilters] = useState<ContractCIFilters>({
@@ -122,6 +180,27 @@ export default function ListContractsCISection() {
     status: 'all' as ContractCIStatus | 'all',
     paymentFrequency: 'all',
     subscriptionCIID: undefined,
+    createdAtFrom: undefined,
+    createdAtTo: undefined,
+    nextDueAtFrom: undefined,
+    nextDueAtTo: undefined,
+    overdueOnly: false,
+    monthlyAmountMin: undefined,
+    monthlyAmountMax: undefined,
+    contractAmountMin: undefined,
+    contractAmountMax: undefined,
+    paidAmountMin: undefined,
+    paidAmountMax: undefined,
+    durationMonthsMin: undefined,
+    durationMonthsMax: undefined,
+    supportRemainingAmountMin: undefined,
+    supportRemainingAmountMax: undefined,
+    supportRepaidAmountMin: undefined,
+    supportRepaidAmountMax: undefined,
+    supportCountMin: undefined,
+    supportCountMax: undefined,
+    paymentCountMin: undefined,
+    paymentCountMax: undefined,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -143,77 +222,39 @@ export default function ListContractsCISection() {
   const [selectedContractForReplace, setSelectedContractForReplace] = useState<ContractCI | null>(null)
   const { data: subscriptions } = useSubscriptionsCICache()
 
-  /**
-   * Vérifie si un contrat CI a une échéance dans le mois actuel
-   */
-  const hasDueDateInCurrentMonth = (contract: ContractCI): boolean => {
-    if (!contract.firstPaymentDate) return false
-    
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
-    
-    const firstPayment = new Date(contract.firstPaymentDate)
-    
-    // Pour les contrats mensuels, calculer les dates d'échéance
-    if (contract.paymentFrequency === 'MONTHLY') {
-      // Vérifier si une échéance mensuelle tombe dans le mois actuel
-      for (let monthIndex = 0; monthIndex < contract.subscriptionCIDuration; monthIndex++) {
-        const dueDate = new Date(firstPayment)
-        dueDate.setMonth(firstPayment.getMonth() + monthIndex)
-        
-        if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
-          return true
-        }
-      }
+  // Construire les filtres effectifs (aligné sur caisse-spéciale)
+  const effectiveFilters = useMemo<ContractCIFilters>(() => {
+    const nextFilters: ContractCIFilters = {
+      ...filters,
+      paymentFrequency:
+        activeTab === 'DAILY' || activeTab === 'MONTHLY'
+          ? activeTab
+          : (filters.paymentFrequency || 'all'),
+      overdueOnly: activeTab === 'overdue' ? true : Boolean(filters.overdueOnly),
     }
-    // Pour les contrats quotidiens, vérifier si le contrat est actif et couvre le mois actuel
-    else if (contract.paymentFrequency === 'DAILY') {
-      // Vérifier si le contrat est actif et si firstPaymentDate est dans le mois actuel
-      // ou si le contrat couvre le mois actuel (premier versement avant ou pendant le mois actuel)
-      if (contract.status === 'ACTIVE') {
-        const firstPaymentMonth = firstPayment.getMonth()
-        const firstPaymentYear = firstPayment.getFullYear()
-        
-        // Si le premier versement est dans le mois actuel ou avant
-        if (firstPaymentYear < currentYear || 
-            (firstPaymentYear === currentYear && firstPaymentMonth <= currentMonth)) {
-          // Calculer la date de fin du contrat
-          const endDate = new Date(firstPayment)
-          endDate.setMonth(firstPayment.getMonth() + contract.subscriptionCIDuration)
-          
-          // Vérifier si le mois actuel est couvert par le contrat
-          if (endDate.getMonth() >= currentMonth && endDate.getFullYear() >= currentYear) {
-            return true
-          }
-        }
-      }
-    }
-    
-    return false
-  }
 
-  // Construire les filtres : dans l'onglet "Tous" (et Retard / Mois en cours), utiliser le filtre "Type de contrat" ; sinon l'onglet impose le type (Journalier / Mensuel)
-  const effectiveFilters: ContractCIFilters = {
-    ...filters,
-    paymentFrequency:
-      activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : (filters.paymentFrequency || 'all'),
-    overdueOnly: activeTab === 'overdue'
-  }
+    if (activeTab === 'currentMonth') {
+      const { start, end } = getCurrentMonthRange()
+      nextFilters.nextDueAtFrom = start
+      nextFilters.nextDueAtTo = end
+      nextFilters.createdAtFrom = undefined
+      nextFilters.createdAtTo = undefined
+    }
+
+    const hasCreatedRange = Boolean(nextFilters.createdAtFrom || nextFilters.createdAtTo)
+    const hasNextDueRange = Boolean(nextFilters.nextDueAtFrom || nextFilters.nextDueAtTo)
+    if (hasCreatedRange && hasNextDueRange) {
+      nextFilters.nextDueAtFrom = undefined
+      nextFilters.nextDueAtTo = undefined
+    }
+
+    return nextFilters
+  }, [filters, activeTab])
 
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
   
-  // Filtrer par mois en cours si nécessaire
-  const filteredContracts = React.useMemo(() => {
-    if (!contracts) return []
-    
-    if (activeTab === 'currentMonth') {
-      return contracts.filter((contract: ContractCI) => hasDueDateInCurrentMonth(contract))
-    }
-    
-    return contracts
-  }, [contracts, activeTab])
+  const filteredContracts = useMemo(() => contracts || [], [contracts])
 
   const subscriptionOptions = useMemo(
     () =>
@@ -228,7 +269,7 @@ export default function ListContractsCISection() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters.status, filters.search, filters.subscriptionCIID, activeTab])
+  }, [filters, activeTab])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: ContractCIFilters) => {
@@ -242,6 +283,27 @@ export default function ListContractsCISection() {
       status: 'all',
       paymentFrequency: 'all',
       subscriptionCIID: undefined,
+      createdAtFrom: undefined,
+      createdAtTo: undefined,
+      nextDueAtFrom: undefined,
+      nextDueAtTo: undefined,
+      overdueOnly: false,
+      monthlyAmountMin: undefined,
+      monthlyAmountMax: undefined,
+      contractAmountMin: undefined,
+      contractAmountMax: undefined,
+      paidAmountMin: undefined,
+      paidAmountMax: undefined,
+      durationMonthsMin: undefined,
+      durationMonthsMax: undefined,
+      supportRemainingAmountMin: undefined,
+      supportRemainingAmountMax: undefined,
+      supportRepaidAmountMin: undefined,
+      supportRepaidAmountMax: undefined,
+      supportCountMin: undefined,
+      supportCountMax: undefined,
+      paymentCountMin: undefined,
+      paymentCountMax: undefined,
     })
     setCurrentPage(1)
   }
@@ -489,6 +551,7 @@ export default function ListContractsCISection() {
     })
     return map
   }, [contractIds, paymentStatsQueries])
+  const hasAnyActiveFilter = hasActiveContractFilters(filters) || activeTab !== 'all'
 
   // Gestion des erreurs
   if (error) {
@@ -516,32 +579,6 @@ export default function ListContractsCISection() {
       {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
       <StatisticsCI />
 
-      {/* Onglets pour filtrer par type de contrat */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth')} className="w-full">
-        <TabsList className="grid w-full max-w-4xl grid-cols-5 gap-2">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Tous
-          </TabsTrigger>
-          <TabsTrigger value="DAILY" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Journalier
-          </TabsTrigger>
-          <TabsTrigger value="MONTHLY" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Mensuel
-          </TabsTrigger>
-          <TabsTrigger value="currentMonth" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Mois en cours
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
-            <AlertCircle className="h-4 w-4" />
-            Retard
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {/* Filtres : filtre "Type de contrat" visible uniquement dans l'onglet Tous (et Retard / Mois en cours) */}
       <ContractsFiltersV2
         filters={filters}
@@ -549,6 +586,7 @@ export default function ListContractsCISection() {
         onReset={handleResetFilters}
         subscriptions={subscriptionOptions}
         showPaymentFrequencyFilter={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth'}
+        isOverdueTab={activeTab === 'overdue'}
       />
 
       {/* Barre d'actions moderne */}
@@ -614,6 +652,77 @@ export default function ListContractsCISection() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Onglets pour filtrer par type de contrat (rattachés à la liste) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (isContractTabValue(value)) {
+            setActiveTab(value)
+          }
+        }}
+        className="w-full"
+      >
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={cn(
+                    'shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]',
+                    isDanger ? 'data-[state=active]:text-red-700 data-[state=active]:border-red-300' : ''
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Tabs mobile/tablette (badges scrollables) */}
+        <div className="lg:hidden">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+              const isActive = activeTab === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    if (isContractTabValue(value)) {
+                      setActiveTab(value)
+                    }
+                  }}
+                  className="shrink-0"
+                >
+                  <Badge
+                    className={cn(
+                      'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                      isActive
+                        ? isDanger
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#234D65] text-white border-transparent'
+                        : isDanger
+                        ? 'bg-white text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </Tabs>
 
       {/* Liste des contrats */}
       {isLoading ? (
@@ -1020,14 +1129,14 @@ export default function ListContractsCISection() {
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '')
+                  {hasAnyActiveFilter
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {hasAnyActiveFilter && (
                   <Button
                     variant="outline"
                     onClick={handleResetFilters}

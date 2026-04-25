@@ -6,7 +6,27 @@ export interface ContractsCIFilters {
     status?: ContractCIStatus | 'all';
     paymentFrequency?: CaisseImprevuePaymentFrequency | 'all';
     subscriptionCIID?: string;
+    createdAtFrom?: Date;
+    createdAtTo?: Date;
+    nextDueAtFrom?: Date;
+    nextDueAtTo?: Date;
     overdueOnly?: boolean; // Nouveau : filtrer uniquement les contrats en retard
+    monthlyAmountMin?: number;
+    monthlyAmountMax?: number;
+    contractAmountMin?: number;
+    contractAmountMax?: number;
+    paidAmountMin?: number;
+    paidAmountMax?: number;
+    durationMonthsMin?: number;
+    durationMonthsMax?: number;
+    supportRemainingAmountMin?: number;
+    supportRemainingAmountMax?: number;
+    supportRepaidAmountMin?: number;
+    supportRepaidAmountMax?: number;
+    supportCountMin?: number;
+    supportCountMax?: number;
+    paymentCountMin?: number;
+    paymentCountMax?: number;
 }
 
 export interface ContractsCIStats {

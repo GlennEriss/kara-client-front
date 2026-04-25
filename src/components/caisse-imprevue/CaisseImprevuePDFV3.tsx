@@ -22,19 +22,19 @@ const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times New Roman',
     fontSize: 12,
-    paddingTop: 72,
-    paddingRight: 72,
-    paddingBottom: 72,
-    paddingLeft: 72,
+    paddingTop: 30,
+    paddingRight: 50,
+    paddingBottom: 20,
+    paddingLeft: 50,
     color: '#000000',
     lineHeight: 1.3,
   },
   logo: {
-    width: 200,
-    height: 100,
+    width: 180,
+    height: 86,
     objectFit: 'contain',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   table: {
     borderWidth: 0.5,
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   title: {
-     fontSize: 20, // Augmenté de 18 à 20
+    fontSize: 20, // Augmenté de 18 à 20
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#1f3a4e',
@@ -236,6 +236,10 @@ const TableRow = ({
   )
 }
 
+const PageNumber = ({ label }: { label: string }) => (
+  <Text style={styles.pageNumber}>{label}</Text>
+)
+
 export interface CaisseImprevuePdfFillData {
   paymentDueDay: string
   memberSignature: string | null
@@ -288,17 +292,13 @@ const CaisseImprevuePDFV3 = ({
 
   return (
     <Document>
-      <Page size="A4" style={styles.page} wrap>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
+      <Page size="A4" style={styles.page}>
+        <PageNumber label="Page 1 / 4" />
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
           <TableRow
-            height={40.85}
+            height={43.35}
             cells={[
               {
                 content: 'Informations Personnelles du Membre :',
@@ -309,30 +309,30 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={30.5}
+            height={26.15}
             cells={[
               { content: 'MATRICULE', textStyle: styles.tableLabelText },
               { content: contract?.memberId || '—', textStyle: styles.tableValueText },
               { content: 'MEMBRE', textStyle: styles.tableLabelText },
-             { content: '  ', textStyle: styles.tableValueText },
+              { content: '  ', textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={35.4}
+            height={26.15}
             cells={[
               { content: 'NOM', textStyle: styles.tableLabelText },
               { content: contract?.member?.lastName?.toUpperCase() || '—', span: 3, textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={32.8}
+            height={26.15}
             cells={[
               { content: 'PRÉNOM', textStyle: styles.tableLabelText },
               { content: contract?.member?.firstName || '—', span: 3, textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={30.15}
+            height={26.15}
             cells={[
               { content: 'LIEU / NAISSANCE', textStyle: styles.tableLabelText },
               { content: contract?.member?.birthPlace || '—', textStyle: styles.tableValueText },
@@ -341,7 +341,7 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={34.25}
+            height={26.15}
             cells={[
               { content: 'NATIONALITÉ', textStyle: styles.tableLabelText },
               { content: getNationalityName(contract?.member?.nationality) || '—', textStyle: styles.tableValueText },
@@ -350,7 +350,7 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={30.8}
+            height={26.15}
             cells={[
               { content: 'TÉLÉPHONES', textStyle: styles.tableLabelText },
               {
@@ -364,16 +364,16 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={28.15}
+            height={26.15}
             cells={[
               { content: 'SEXE', textStyle: styles.tableLabelText },
               { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
               { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: memberAge+' ans' , textStyle: styles.tableValueText },
+              { content: memberAge + ' ans', textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={33.05}
+            height={26.15}
             cells={[
               { content: 'QUARTIER', textStyle: styles.tableLabelText },
               { content: contract?.member?.address?.district || '—', textStyle: styles.tableValueText },
@@ -382,7 +382,7 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={39.45}
+            height={41.9}
             cells={[
               {
                 content: 'Informations Concernant Le Contact Urgent :',
@@ -393,32 +393,28 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={24.65}
-            cells={[{ content: '', span: 4, textStyle: styles.tableLabelText }]}
-          />
-          <TableRow
-            height={32.15}
+            height={26.15}
             cells={[
               { content: 'NOM', textStyle: styles.tableLabelText },
               { content: contract?.emergencyContact?.lastName || '—', span: 3, textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={35.35}
+            height={26.15}
             cells={[
               { content: 'PRÉNOM', textStyle: styles.tableLabelText },
               { content: contract?.emergencyContact?.firstName || '—', span: 3, textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={31.45}
+            height={26.15}
             cells={[
               { content: 'LIENS', textStyle: styles.tableLabelText },
               { content: contract?.emergencyContact?.relationship || '—', span: 3, textStyle: styles.tableValueText },
             ]}
           />
           <TableRow
-            height={34.65}
+            height={26.15}
             cells={[
               { content: 'TÉLÉPHONE', textStyle: styles.tableLabelText },
               { content: contract?.emergencyContact?.phone1 || '—', textStyle: styles.tableValueText },
@@ -426,7 +422,7 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
           <TableRow
-            height={37.85}
+            height={26.15}
             isLastRow
             cells={[
               { content: 'N°CNI/PASS/CS', textStyle: styles.tableLabelText },
@@ -434,7 +430,10 @@ const CaisseImprevuePDFV3 = ({
             ]}
           />
         </View>
+      </Page>
 
+      <Page size="A4" style={styles.page}>
+        <PageNumber label="Page 2 / 4" />
         <Text style={styles.title}>VOLET ENTRAIDE</Text>
         <Text style={styles.paragraph}>
         </Text>
@@ -492,7 +491,7 @@ const CaisseImprevuePDFV3 = ({
           biais de cotisations volontaires conformément au règlement intérieur.
         </Text>
         <Text style={styles.bullet}>• Le refus ou l’abandon pour un membre du Volet Entraide entraine le retrait du membre de l’association car il est considéré comme la rupture de l’aspiration à l’idéologie de l’association.</Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>2. Durée du contrat : </Text>
@@ -500,7 +499,7 @@ const CaisseImprevuePDFV3 = ({
           KARA, soit sur une année.
         </Text>
         <Text style={styles.bullet}>• Le retrait de l’association entraine automatiquement rupture du contrat du Volet Entraide et emporte remboursement des sommes versées.</Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>3. Déroulement des versements : </Text>
@@ -514,6 +513,10 @@ const CaisseImprevuePDFV3 = ({
         </Text>
         <Text style={styles.bullet}>• À compter du quatrième jour jusqu’au septième jour succédant l’expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l’équilibre et la bonne tenue de la caisse commune.</Text>
         <Text style={styles.bullet}>• A compter du septième jour les mesures disciplinaires ci-après, non cumulatives, sont applicables :</Text>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
+        <PageNumber label="Page 3 / 4" />
         <Text style={styles.subParagraph}>
           La non prise en compte de ce versement pour le mois auquel il est normalement dû. Il sera
           considéré comme non acquitté et sera compté pour le mois suivant.
@@ -522,7 +525,7 @@ const CaisseImprevuePDFV3 = ({
           La perte de tous les avantages liés à la régularité dans les versements conformément aux
           dispositions du règlement intérieur.
         </Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>5. Le retrait de l’association : </Text>
@@ -544,12 +547,12 @@ const CaisseImprevuePDFV3 = ({
           Le remboursement des sommes visées au ci-dessus, intervient dans un délai maximal de 30 jours
           suivant la date du terme du contrat.
         </Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.sectionTitle}>II.  Des accompagnements réguliers  (appuis)</Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
         </Text>
@@ -591,6 +594,10 @@ const CaisseImprevuePDFV3 = ({
           Tout appui accordé doit être remboursé au plus tard avant le versement de la prochaine
           contribution.
         </Text>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
+        <PageNumber label="Page 4 / 4" />
         <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
@@ -613,7 +620,7 @@ const CaisseImprevuePDFV3 = ({
         </Text>
         <Text style={styles.paragraph}>Les appuis octroyés sont plafonnés en fonction du forfait souscrit par le membre.</Text>
         <Text style={styles.paragraph}>Ces appuis sont détaillés dans le tableau ci-après :</Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
         </Text>
@@ -637,10 +644,10 @@ const CaisseImprevuePDFV3 = ({
             const customRow: [string, string, string] | null =
               !isFixed && contract
                 ? [
-                    `${contract.subscriptionCICode ?? ''}- ${Number(contract.subscriptionCIAmountPerMonth ?? 0).toLocaleString('fr-FR')}`,
-                    Number(contract.subscriptionCINominal ?? 0).toLocaleString('fr-FR'),
-                    `[${Number(contract.subscriptionCISupportMin ?? 0).toLocaleString('fr-FR')} ; ${Number(contract.subscriptionCISupportMax ?? 0).toLocaleString('fr-FR')}]`,
-                  ]
+                  `${contract.subscriptionCICode ?? ''}- ${Number(contract.subscriptionCIAmountPerMonth ?? 0).toLocaleString('fr-FR')}`,
+                  Number(contract.subscriptionCINominal ?? 0).toLocaleString('fr-FR'),
+                  `[${Number(contract.subscriptionCISupportMin ?? 0).toLocaleString('fr-FR')} ; ${Number(contract.subscriptionCISupportMax ?? 0).toLocaleString('fr-FR')}]`,
+                ]
                 : null
             const rows = customRow ? [...fixedRows, customRow] : fixedRows
             const highlightedIndex = isFixed ? codeToIndex[code] : 5
@@ -660,7 +667,7 @@ const CaisseImprevuePDFV3 = ({
         </View>
 
         <Text style={[styles.paragraph, styles.bold]}>NB : LE FORFAIT CHOISIT NE PEUT ÊTRE CHANGEABLE</Text>
-<Text style={styles.paragraph}>
+        <Text style={styles.paragraph}>
         </Text>
         <View style={styles.signatures}>
           <Text style={styles.paragraph}>Signature membre précédée de la mention « lu et approuvé »</Text>
