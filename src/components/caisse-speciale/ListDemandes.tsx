@@ -439,7 +439,18 @@ const ListDemandes = () => {
   const [sortOption, setSortOption] = useState<'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc'>(
     (searchParams.get('sort') as 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') || 'date_desc'
   )
-  const [isFiltersExpanded, setIsFiltersExpanded] = useState(true)
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(() =>
+    Boolean(
+      searchParams.get('createdAtFrom') ||
+      searchParams.get('createdAtTo') ||
+      searchParams.get('requestedAmountMin') ||
+      searchParams.get('requestedAmountMax') ||
+      searchParams.get('monthsPlannedMin') ||
+      searchParams.get('monthsPlannedMax') ||
+      searchParams.get('monthlyAmountMin') ||
+      searchParams.get('monthlyAmountMax')
+    )
+  )
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [acceptModalState, setAcceptModalState] = useState<{
@@ -634,6 +645,58 @@ const ListDemandes = () => {
     }
   }, [statsData])
 
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (debouncedSearch.trim().length >= 2) count += 1
+    if (sortOption !== 'date_desc') count += 1
+    if (caisseTypeFilter !== 'all') count += 1
+    if (memberGender !== 'all') count += 1
+    if (createdAtFrom) count += 1
+    if (createdAtTo) count += 1
+    if (requestedAmountMin !== '') count += 1
+    if (requestedAmountMax !== '') count += 1
+    if (monthsPlannedMin !== '') count += 1
+    if (monthsPlannedMax !== '') count += 1
+    if (monthlyAmountMin !== '') count += 1
+    if (monthlyAmountMax !== '') count += 1
+    return count
+  }, [
+    debouncedSearch,
+    sortOption,
+    caisseTypeFilter,
+    memberGender,
+    createdAtFrom,
+    createdAtTo,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+  ])
+
+  const activeAdvancedFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (createdAtFrom) count += 1
+    if (createdAtTo) count += 1
+    if (requestedAmountMin !== '') count += 1
+    if (requestedAmountMax !== '') count += 1
+    if (monthsPlannedMin !== '') count += 1
+    if (monthsPlannedMax !== '') count += 1
+    if (monthlyAmountMin !== '') count += 1
+    if (monthlyAmountMax !== '') count += 1
+    return count
+  }, [
+    createdAtFrom,
+    createdAtTo,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+  ])
+
   // Gestion des erreurs
   if (error) {
     return (
@@ -660,202 +723,275 @@ const ListDemandes = () => {
       {/* Statistiques EN PREMIER (C.1) - chargées une seule fois */}
       <StatisticsCaisseSpecialeDemandes />
 
-      {/* Barre unique : filtres + actions */}
-      <Card className="border-0 shadow-lg overflow-hidden">
-        <CardContent className="p-4 md:p-5 bg-white">
-          <div className="flex flex-col gap-4">
+      {/* Barre filtres : version allégée et structurée */}
+      <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <CardContent className="space-y-4 p-4 md:p-5">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-md">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <Filter className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Filtres et Recherche</h3>
-                <p className="text-sm text-slate-600">Affinez la liste des demandes en quelques critères.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
+                  {activeFiltersCount > 0 && (
+                    <Badge className="rounded-full bg-[#234D65]/10 px-2.5 py-0.5 text-xs font-semibold text-[#234D65] border border-[#234D65]/20">
+                      {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-slate-600">
+                  Recherche rapide en haut, critères numériques dans les filtres avancés.
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(340px,1.8fr)_auto] gap-3 items-end">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
-                <div className="relative group">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#234D65]" />
-                  <Input
-                    placeholder="Rechercher par nom, prénom ou matricule..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-11 pl-10 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
-                  />
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="h-10 rounded-xl border-2 border-[#234D65]/40 text-[#234D65] hover:bg-[#234D65] hover:text-white"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Actualiser
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              >
+                Réinitialiser
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFiltersExpanded((prev) => !prev)}
+                className={cn(
+                  'h-10 rounded-xl border-2 transition-colors',
+                  isFiltersExpanded
+                    ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                    : 'border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5'
+                )}
+              >
+                Filtres avancés
+                {activeAdvancedFiltersCount > 0 ? ` (${activeAdvancedFiltersCount})` : ''}
+                <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_minmax(220px,1fr)_minmax(180px,1fr)]">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
+              <div className="relative group">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-[#234D65]" />
+                <Input
+                  placeholder="Nom, prénom, matricule..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Tri</Label>
+              <Select
+                value={sortOption}
+                onValueChange={(v: 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') => {
+                  setSortOption(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Trier par" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="date_desc">Plus récentes</SelectItem>
+                  <SelectItem value="date_asc">Plus anciennes</SelectItem>
+                  <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
+                  <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
+              <Select
+                value={caisseTypeFilter}
+                onValueChange={(v) => {
+                  setCaisseTypeFilter(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Type de caisse" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="STANDARD">Standard</SelectItem>
+                  <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                  <SelectItem value="LIBRE">Libre</SelectItem>
+                  <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                  <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                  <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Sexe du demandeur</Label>
+              <Select
+                value={memberGender}
+                onValueChange={(v: 'all' | 'Homme' | 'Femme') => {
+                  setMemberGender(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Sexe" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="Homme">Homme</SelectItem>
+                  <SelectItem value="Femme">Femme</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {isFiltersExpanded && (
+            <div className="rounded-2xl border border-[#234D65]/15 bg-gradient-to-br from-[#234D65]/[0.04] via-white to-slate-50 p-4 md:p-5">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Montant demandé (FCFA)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={requestedAmountMin}
+                        onChange={(e) => setRequestedAmountMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={requestedAmountMax}
+                        onChange={(e) => setRequestedAmountMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Mensualité (FCFA)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={monthlyAmountMin}
+                        onChange={(e) => setMonthlyAmountMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={monthlyAmountMax}
+                        onChange={(e) => setMonthlyAmountMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Durée et dates</p>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Nombre de mois</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={monthsPlannedMin}
+                        onChange={(e) => setMonthsPlannedMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={monthsPlannedMax}
+                        onChange={(e) => setMonthsPlannedMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date de création</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={createdAtFrom}
+                        onChange={(e) => setCreatedAtFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="date"
+                        value={createdAtTo}
+                        onChange={(e) => setCreatedAtTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetFilters}
-                  className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                >
-                  Réinitialiser filtres
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="h-10 rounded-xl border-2 border-[#234D65]/40 text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Actualiser
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsFiltersExpanded((prev) => !prev)}
-                  className="h-10 rounded-xl border-2 border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5"
-                >
-                  Filtres avancés
-                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isFiltersExpanded ? 'rotate-180' : ''}`} />
-                </Button>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3">
+            <div className="hidden items-center rounded-xl bg-gray-100 p-1 md:flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-10 rounded-lg px-4 text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
+                  ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                  : 'text-gray-500 hover:bg-transparent hover:text-gray-700'
+                  }`}
+              >
+                <Grid3X3 className="mr-2 h-4 w-4" />
+                Cards
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={`h-10 rounded-lg px-4 text-sm font-medium transition-all duration-200 ${viewMode === 'list'
+                  ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                  : 'text-gray-500 hover:bg-transparent hover:text-gray-700'
+                  }`}
+              >
+                <List className="mr-2 h-4 w-4" />
+                Table
+              </Button>
             </div>
 
-            {isFiltersExpanded && (
-              <div className="space-y-4 pt-4 border-t border-slate-200/80">
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Organisation</p>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-500">Tri</Label>
-                      <Select
-                        value={sortOption}
-                        onValueChange={(v: 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') => { setSortOption(v); setCurrentPage(1) }}
-                      >
-                        <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
-                          <SelectValue placeholder="Trier par" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
-                          <SelectItem value="date_desc">Plus récentes</SelectItem>
-                          <SelectItem value="date_asc">Plus anciennes</SelectItem>
-                          <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
-                          <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
-                      <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
-                        <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
-                          <SelectValue placeholder="Type de caisse" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
-                          <SelectItem value="all">Tous les types</SelectItem>
-                          <SelectItem value="STANDARD">Standard</SelectItem>
-                          <SelectItem value="JOURNALIERE">Journalière</SelectItem>
-                          <SelectItem value="LIBRE">Libre</SelectItem>
-                          <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
-                          <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
-                          <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-500">Sexe du demandeur</Label>
-                      <Select value={memberGender} onValueChange={(v: 'all' | 'Homme' | 'Femme') => { setMemberGender(v); setCurrentPage(1) }}>
-                        <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
-                          <SelectValue placeholder="Sexe" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
-                          <SelectItem value="all">Tous</SelectItem>
-                          <SelectItem value="Homme">Homme</SelectItem>
-                          <SelectItem value="Femme">Femme</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Montant demandé min</Label>
-                        <Input type="number" min="0" value={requestedAmountMin} onChange={(e) => setRequestedAmountMin(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Montant demandé max</Label>
-                        <Input type="number" min="0" value={requestedAmountMax} onChange={(e) => setRequestedAmountMax(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Mensualité min</Label>
-                        <Input type="number" min="0" value={monthlyAmountMin} onChange={(e) => setMonthlyAmountMin(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Mensualité max</Label>
-                        <Input type="number" min="0" value={monthlyAmountMax} onChange={(e) => setMonthlyAmountMax(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Durée Et Dates</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Nombre de mois min</Label>
-                        <Input type="number" min="0" value={monthsPlannedMin} onChange={(e) => setMonthsPlannedMin(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Nombre de mois max</Label>
-                        <Input type="number" min="0" value={monthsPlannedMax} onChange={(e) => setMonthsPlannedMax(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
-                      <Input type="date" value={createdAtFrom} onChange={(e) => setCreatedAtFrom(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
-                      <Input type="date" value={createdAtTo} onChange={(e) => setCreatedAtTo(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-3 justify-between">
-              <div className="items-center p-1 bg-gray-100 rounded-xl hidden md:flex">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
-                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
-                    }`}
-                >
-                  <Grid3X3 className="h-4 w-4 mr-2" />
-                  Cards
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'list'
-                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-transparent'
-                    }`}
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  Table
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 ml-auto" />
-            </div>
+            <p className="ml-auto text-xs font-medium text-slate-500">
+              {totalCount.toLocaleString()} demande{totalCount > 1 ? 's' : ''} trouvée{totalCount > 1 ? 's' : ''}
+            </p>
           </div>
         </CardContent>
       </Card>
