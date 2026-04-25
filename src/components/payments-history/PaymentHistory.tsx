@@ -1,284 +1,362 @@
 'use client'
 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import routes from '@/constantes/routes'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import { db } from '@/firebase/firestore'
 import { getAdminById } from '@/db/admin.db'
-import { useAuth } from '@/hooks/useAuth'
-import { useMembershipRequest } from '@/hooks/useMembershipRequests'
 import type { Payment, TypePayment } from '@/types/types'
-import { ArrowLeft, Calendar, ExternalLink, Filter, PieChart, Receipt, Sparkles, Target, Zap } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  AlertCircle,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Filter,
+  Grid3X3,
+  List,
+  RefreshCw,
+  SearchX,
+  User,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import React from 'react'
-import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Cell,
+  Pie,
+  PieChart as RechartsPieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts'
+import {
+  type DocumentData,
+  type QueryDocumentSnapshot,
+  collection,
+  getCountFromServer,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  where,
+} from 'firebase/firestore'
 
-function toDate(value: any): Date | null {
+type Props = { requestId: string }
+type ViewMode = 'cards' | 'table'
+
+type CentralizedPayment = Payment & {
+  id: string
+  beneficiaryId?: string
+  beneficiaryName?: string
+  sourceType?: string
+  sourceId?: string
+}
+
+const PAYMENT_COLORS: Record<TypePayment, string> = {
+  Membership: '#234D65',
+  Subscription: '#2c5a73',
+  SpecialFund: '#CBB171',
+  UnexpectedFund: '#e28743',
+  SpecialCredit: '#b45309',
+  FixedCredit: '#3b82f6',
+  AidCredit: '#10b981',
+  Charity: '#f43f5e',
+  Benefactor: '#8b5cf6',
+}
+
+const PAYMENT_LABELS: Record<TypePayment, string> = {
+  Membership: 'Adhesion',
+  Subscription: 'Abonnement',
+  SpecialFund: 'Caisse speciale',
+  UnexpectedFund: 'Caisse imprevue',
+  SpecialCredit: 'Credit speciale',
+  FixedCredit: 'Credit fixe',
+  AidCredit: 'Credit aide',
+  Charity: 'Charite',
+  Benefactor: 'Bienfaiteur',
+}
+
+const PAYMENT_TYPES: TypePayment[] = [
+  'Membership',
+  'Subscription',
+  'SpecialFund',
+  'UnexpectedFund',
+  'SpecialCredit',
+  'FixedCredit',
+  'AidCredit',
+  'Charity',
+  'Benefactor',
+]
+
+const PAGE_SIZE = 12
+const STATS_SCAN_LIMIT = 500
+
+function toDate(value: unknown): Date | null {
   try {
     if (!value) return null
     if (value instanceof Date) return value
-    if (value.toDate) return value.toDate()
-    return new Date(value)
+    if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as any).toDate === 'function') {
+      return (value as any).toDate()
+    }
+    const date = new Date(value as string | number)
+    return Number.isNaN(date.getTime()) ? null : date
   } catch {
     return null
   }
 }
 
-function formatAmount(amount: number) {
+function formatAmount(amount: number): string {
   try {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XAF' }).format(amount)
+    return new Intl.NumberFormat('fr-FR').format(amount || 0)
   } catch {
-    return `${amount}`
+    return `${amount || 0}`
   }
 }
 
-function formatDate(d: any) {
-  const date = toDate(d)
-  if (!date) return '—'
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+function formatDate(value: unknown): string {
+  const d = toDate(value)
+  if (!d) return '—'
+  return d.toLocaleDateString('fr-FR')
 }
 
-const PAYMENT_COLORS = {
-  Membership: '#10b981',    // Emerald
-  Subscription: '#3b82f6',  // Blue  
-  SpecialFund: '#f59e0b', // Amber
-  UnexpectedFund: '#f97316', // Orange
-  SpecialCredit: '#ef4444', // Red
-  FixedCredit: '#8b5cf6', // Violet
-  AidCredit: '#14b8a6', // Teal
-  Charity: '#ec4899', // Pink
-  Benefactor: '#6366f1', // Indigo
-}
-
-const PAYMENT_ICONS = {
-  Membership: Target,
-  Subscription: Zap,
-  SpecialFund: PieChart,
-  UnexpectedFund: PieChart,
-  SpecialCredit: Receipt,
-  FixedCredit: Receipt,
-  AidCredit: Sparkles,
-  Charity: Sparkles,
-  Benefactor: Sparkles,
-}
-
-const PAYMENT_LABELS = {
-  Membership: 'Adhésion',
-  Subscription: 'Abonnement',
-  SpecialFund: 'Caisse spéciale',
-  UnexpectedFund: 'Caisse Imprévue',
-  SpecialCredit: 'Crédit spéciale',
-  FixedCredit: 'Crédit Fixe',
-  AidCredit: 'Crédit Aide',
-  Charity: 'Charité',
-  Benefactor: 'Bienfaiteur',
-}
-
-type Props = { requestId: string }
-
-// Composant pour les statistiques colorées
-const StatCard = ({ 
-  type, 
-  count, 
-  amount, 
-  isHighlighted = false 
-}: { 
-  type: TypePayment
-  count: number
-  amount: number
-  isHighlighted?: boolean
-}) => {
-  const Icon = PAYMENT_ICONS[type]
-  const color = PAYMENT_COLORS[type]
-  
-  return (
-    <Card className={`group relative overflow-hidden transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-2 hover:shadow-xl sm:hover:shadow-2xl border-0 ${
-      isHighlighted ? 'scale-105' : ''
-    }`} style={isHighlighted ? { boxShadow: `0 0 0 2px ${color}` } : undefined}>
-      {/* Effet de fond animé */}
-      <div 
-        className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500"
-        style={{ backgroundColor: color }}
-      />
-      <div 
-        className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 rounded-full opacity-10 group-hover:opacity-20 transition-all duration-700 transform translate-x-12 sm:translate-x-16 -translate-y-12 sm:-translate-y-16 group-hover:scale-150"
-        style={{ backgroundColor: color }}
-      />
-      
-      <CardContent className="p-4 sm:p-6 relative z-10">
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <div 
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
-            style={{ backgroundColor: `${color}20` }}
-          >
-            <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color }} />
-          </div>
-          <div className="text-right">
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 group-hover:scale-110 transition-transform duration-300">
-              {count}
-            </div>
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-              {PAYMENT_LABELS[type]}
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <div className="text-lg sm:text-xl font-bold truncate" style={{ color }}>
-            {formatAmount(amount)}
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="h-2 rounded-full transition-all duration-1000 ease-out"
-              style={{ 
-                backgroundColor: color,
-                width: count > 0 ? '100%' : '0%'
-              }}
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Composant pour une ligne de paiement moderne
-const PaymentRow = ({ 
-  payment, 
-  index, 
-  adminInfos, 
-  loadingAdmins 
-}: { 
-  payment: Payment
-  index: number
-  adminInfos: Record<string, { firstName: string; lastName: string }>
-  loadingAdmins: Set<string>
-}) => {
-  const color = PAYMENT_COLORS[payment.paymentType]
-  const Icon = PAYMENT_ICONS[payment.paymentType]
-  
-  // Obtenir le nom de l'administrateur
-  const getAdminDisplayName = () => {
-    if (loadingAdmins.has(payment.acceptedBy)) {
-      return 'Chargement...'
-    }
-    
-    const adminInfo = adminInfos[payment.acceptedBy]
-    if (adminInfo) {
-      return `${adminInfo.firstName} ${adminInfo.lastName}`
-    }
-    
-    return payment.acceptedBy // Fallback vers l'UID si pas d'info
+function formatMode(mode: Payment['mode']): string {
+  const labels: Record<Payment['mode'], string> = {
+    airtel_money: 'Airtel Money',
+    mobicash: 'Mobicash',
+    cash: 'Cash',
+    bank_transfer: 'Virement',
+    other: 'Autre',
   }
-  
-  return (
-    <div 
-      className="group p-4 sm:p-6 hover:bg-gradient-to-r hover:from-white hover:to-gray-50 transition-all duration-300 relative overflow-hidden"
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      {/* Ligne colorée à gauche */}
-      <div 
-        className="absolute left-0 top-0 bottom-0 w-1 opacity-60 group-hover:opacity-100 group-hover:w-2 transition-all duration-300"
-        style={{ backgroundColor: color }}
-      />
-      
-      <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex items-start gap-3 sm:gap-4">
-          <div 
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 flex-shrink-0"
-            style={{ backgroundColor: `${color}15` }}
-          >
-            <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
-          </div>
-          
-          <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <Badge 
-                variant="outline" 
-                className="font-medium border-0 px-2 py-1 text-xs sm:text-sm self-start"
-                style={{ backgroundColor: `${color}15`, color }}
-              >
-                {PAYMENT_LABELS[payment.paymentType]}
-              </Badge>
-              <span className="text-xl sm:text-2xl font-bold text-gray-900">
-                {formatAmount(payment.amount)}
-              </span>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-600">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                {formatDate(payment.date)}
-              </span>
-              <Separator orientation="vertical" className="h-4 hidden sm:block" />
-              <span className="font-medium text-gray-700 uppercase tracking-wide">
-                {payment.mode.replace('_', ' ')}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 pl-0 sm:pl-16">
-          <span>Enregistré par:</span>
-          <Badge 
-            variant="secondary" 
-            className={`text-xs ${loadingAdmins.has(payment.acceptedBy) ? 'animate-pulse' : ''}`}
-          >
-            {getAdminDisplayName()}
-          </Badge>
-        </div>
-      </div>
-    </div>
-  )
+  return labels[mode] || mode
+}
+
+function useCarousel(itemCount: number, itemsPerView: number = 1) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const maxIndex = Math.max(0, itemCount - itemsPerView)
+
+  useEffect(() => {
+    const clamped = Math.min(currentIndex, maxIndex)
+    setCurrentIndex(clamped)
+    setTranslateX(-clamped * (100 / itemsPerView))
+  }, [currentIndex, maxIndex, itemsPerView])
+
+  const goNext = () => setCurrentIndex((prev) => Math.min(prev + 1, maxIndex))
+  const goPrev = () => setCurrentIndex((prev) => Math.max(prev - 1, 0))
+
+  const handleMove = (clientX: number) => {
+    if (!isDragging) return
+    const delta = clientX - startPos
+    const container = containerRef.current
+    if (!container) return
+    const percentage = (delta / container.offsetWidth) * 100
+    const clamped = Math.max(-20, Math.min(20, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clamped)
+  }
+
+  const handleEnd = () => {
+    if (!isDragging) return
+    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
+    if (Math.abs(dragDistance) > 10) {
+      if (dragDistance > 0 && currentIndex > 0) {
+        goPrev()
+      } else if (dragDistance < 0 && currentIndex < maxIndex) {
+        goNext()
+      }
+    }
+    setTranslateX(-currentIndex * (100 / itemsPerView))
+    setIsDragging(false)
+  }
+
+  return {
+    currentIndex,
+    goNext,
+    goPrev,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
+    translateX,
+    containerRef,
+    isDragging,
+    handleMouseDown: (e: React.MouseEvent) => {
+      setIsDragging(true)
+      setStartPos(e.clientX)
+    },
+    handleTouchStart: (e: React.TouchEvent) => {
+      setIsDragging(true)
+      setStartPos(e.touches[0].clientX)
+    },
+    handleTouchMove: (e: React.TouchEvent) => handleMove(e.touches[0].clientX),
+    handleTouchEnd: handleEnd,
+    onGlobalMouseMove: (e: MouseEvent) => handleMove(e.clientX),
+    onGlobalMouseUp: handleEnd,
+  }
 }
 
 export default function PaymentHistory({ requestId }: Props) {
   const router = useRouter()
-  const { user } = useAuth()
-  const { data: request, isLoading, isError } = useMembershipRequest(requestId)
 
-  const [typeFilter, setTypeFilter] = React.useState<TypePayment | 'all'>('all')
-  const [dateFrom, setDateFrom] = React.useState<string>('')
-  const [dateTo, setDateTo] = React.useState<string>('')
-  const [page, setPage] = React.useState(1)
-  const pageSize = 10
-  
-  // État pour stocker les informations des administrateurs
-  const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
-  const [loadingAdmins, setLoadingAdmins] = React.useState<Set<string>>(new Set())
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+  const [typeFilter, setTypeFilter] = useState<TypePayment | 'all'>('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(true)
 
-  const payments: Payment[] = React.useMemo(() => {
-    const list = request?.payments || []
-    return [...list].sort((a, b) => {
-      const da = toDate(a.date)?.getTime() || 0
-      const db = toDate(b.date)?.getTime() || 0
-      return db - da
-    })
-  }, [request])
+  const [payments, setPayments] = useState<CentralizedPayment[]>([])
+  const [isLoadingPayments, setIsLoadingPayments] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
-  const filtered = React.useMemo(() => {
-    return payments.filter(p => {
-      if (typeFilter !== 'all' && p.paymentType !== typeFilter) return false
-      const d = toDate(p.date)
-      if (dateFrom) {
-        const from = new Date(dateFrom)
-        if (!d || d < from) return false
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoadingCount, setIsLoadingCount] = useState(true)
+
+  const [statsSample, setStatsSample] = useState<CentralizedPayment[]>([])
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [nextCursor, setNextCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null)
+  const [pageStartCursors, setPageStartCursors] = useState<Record<number, QueryDocumentSnapshot<DocumentData> | null>>({ 1: null })
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  const [adminInfos, setAdminInfos] = useState<Record<string, { firstName: string; lastName: string }>>({})
+
+  const buildConstraints = useCallback(() => {
+    const constraints: any[] = [where('beneficiaryId', '==', requestId)]
+
+    if (typeFilter !== 'all') {
+      constraints.push(where('paymentType', '==', typeFilter))
+    }
+
+    if (dateFrom) {
+      constraints.push(where('date', '>=', new Date(dateFrom)))
+    }
+
+    if (dateTo) {
+      const end = new Date(dateTo)
+      end.setHours(23, 59, 59, 999)
+      constraints.push(where('date', '<=', end))
+    }
+
+    return constraints
+  }, [requestId, typeFilter, dateFrom, dateTo])
+
+  const fetchTotalCount = useCallback(async () => {
+    setIsLoadingCount(true)
+    try {
+      const constraints = buildConstraints()
+      const q = query(collection(db, firebaseCollectionNames.payments), ...constraints)
+      const countSnap = await getCountFromServer(q)
+      setTotalCount(countSnap.data().count)
+    } catch (error) {
+      console.error('Erreur count paiements:', error)
+      setTotalCount(0)
+    } finally {
+      setIsLoadingCount(false)
+    }
+  }, [buildConstraints])
+
+  const fetchStatsSample = useCallback(async () => {
+    setIsLoadingStats(true)
+    try {
+      const constraints = [...buildConstraints(), orderBy('date', 'desc'), limit(STATS_SCAN_LIMIT)]
+      const q = query(collection(db, firebaseCollectionNames.payments), ...constraints)
+      const snap = await getDocs(q)
+      const parsed = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Payment) }))
+      setStatsSample(parsed)
+    } catch (error) {
+      console.error('Erreur stats paiements:', error)
+      setStatsSample([])
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }, [buildConstraints])
+
+  const fetchPage = useCallback(async () => {
+    setIsLoadingPayments(true)
+    setFetchError(null)
+
+    try {
+      const pageStartCursor = pageStartCursors[currentPage] ?? null
+      const constraints = [...buildConstraints(), orderBy('date', 'desc')]
+      const pageQuery = pageStartCursor
+        ? query(collection(db, firebaseCollectionNames.payments), ...constraints, startAfter(pageStartCursor), limit(PAGE_SIZE))
+        : query(collection(db, firebaseCollectionNames.payments), ...constraints, limit(PAGE_SIZE))
+
+      const pageSnap = await getDocs(pageQuery)
+      const pageItems = pageSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Payment) }))
+      setPayments(pageItems)
+
+      const lastDoc = pageSnap.docs.length > 0 ? pageSnap.docs[pageSnap.docs.length - 1] : null
+      setNextCursor(lastDoc)
+
+      if (lastDoc) {
+        const probeQuery = query(
+          collection(db, firebaseCollectionNames.payments),
+          ...constraints,
+          startAfter(lastDoc),
+          limit(1)
+        )
+        const probeSnap = await getDocs(probeQuery)
+        setHasNextPage(!probeSnap.empty)
+      } else {
+        setHasNextPage(false)
       }
-      if (dateTo) {
-        const to = new Date(dateTo)
-        to.setHours(23,59,59,999)
-        if (!d || d > to) return false
+    } catch (error) {
+      console.error('Erreur chargement paiements:', error)
+      setFetchError('Impossible de charger les paiements avec les filtres actuels.')
+      setPayments([])
+      setHasNextPage(false)
+      setNextCursor(null)
+    } finally {
+      setIsLoadingPayments(false)
+    }
+  }, [buildConstraints, currentPage, pageStartCursors])
+
+  useEffect(() => {
+    setCurrentPage(1)
+    setPageStartCursors({ 1: null })
+  }, [requestId, typeFilter, dateFrom, dateTo])
+
+  useEffect(() => {
+    fetchTotalCount()
+    fetchStatsSample()
+  }, [fetchTotalCount, fetchStatsSample, refreshToken])
+
+  useEffect(() => {
+    fetchPage()
+  }, [fetchPage, refreshToken])
+
+  useEffect(() => {
+    if (payments.length === 0) return
+
+    const uniqueAdminIds = [...new Set(payments.map((p) => p.acceptedBy).filter(Boolean))]
+    uniqueAdminIds.forEach(async (adminId) => {
+      if (!adminId || adminInfos[adminId]) return
+      try {
+        const adminData = await getAdminById(adminId)
+        if (!adminData) return
+        setAdminInfos((prev) => ({
+          ...prev,
+          [adminId]: { firstName: adminData.firstName, lastName: adminData.lastName },
+        }))
+      } catch (error) {
+        console.error('Erreur admin info:', error)
       }
-      return true
     })
-  }, [payments, typeFilter, dateFrom, dateTo])
+  }, [payments, adminInfos])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
-
-  const statsByType = React.useMemo(() => {
-    const map: Record<TypePayment, { count: number; amount: number }> = {
+  const statsByType = useMemo(() => {
+    const initial: Record<TypePayment, { count: number; amount: number }> = {
       Membership: { count: 0, amount: 0 },
       Subscription: { count: 0, amount: 0 },
       SpecialFund: { count: 0, amount: 0 },
@@ -289,425 +367,502 @@ export default function PaymentHistory({ requestId }: Props) {
       Charity: { count: 0, amount: 0 },
       Benefactor: { count: 0, amount: 0 },
     }
-    for (const p of filtered) {
-      map[p.paymentType].count += 1
-      map[p.paymentType].amount += p.amount || 0
-    }
-    return map
-  }, [filtered])
 
-  // Données pour les graphiques
-  const pieData = Object.entries(statsByType)
-    .filter(([_, stats]) => stats.count > 0)
-    .map(([type, stats]) => ({
-      name: PAYMENT_LABELS[type as TypePayment],
-      value: stats.amount,
-      fill: PAYMENT_COLORS[type as TypePayment],
-      count: stats.count
+    for (const p of statsSample) {
+      if (!p.paymentType || !initial[p.paymentType]) continue
+      initial[p.paymentType].count += 1
+      initial[p.paymentType].amount += Number(p.amount || 0)
+    }
+
+    return initial
+  }, [statsSample])
+
+  const totalAmount = useMemo(() => {
+    return Object.values(statsByType).reduce((acc, item) => acc + item.amount, 0)
+  }, [statsByType])
+
+  const pieData = useMemo(() => {
+    return PAYMENT_TYPES
+      .map((type) => ({
+        type,
+        name: PAYMENT_LABELS[type],
+        value: statsByType[type].amount,
+        count: statsByType[type].count,
+        fill: PAYMENT_COLORS[type],
+      }))
+      .filter((item) => item.count > 0)
+  }, [statsByType])
+
+  const statsCardsData = useMemo(() => {
+    return PAYMENT_TYPES.map((type) => ({
+      type,
+      label: PAYMENT_LABELS[type],
+      color: PAYMENT_COLORS[type],
+      count: statsByType[type].count,
+      amount: statsByType[type].amount,
     }))
+  }, [statsByType])
 
-  const totalAmount = Object.values(statsByType).reduce((sum, stats) => sum + stats.amount, 0)
+  const [itemsPerView, setItemsPerView] = useState(1)
+  const carousel = useCarousel(statsCardsData.length, itemsPerView)
 
-  // Fonction pour récupérer les informations d'un administrateur
-  const fetchAdminInfo = React.useCallback(async (adminId: string) => {
-    if (adminInfos[adminId] || loadingAdmins.has(adminId)) return
-
-    setLoadingAdmins(prev => new Set(prev).add(adminId))
-    
-    try {
-      // Si c'est l'utilisateur connecté, utiliser ses informations
-      if (user?.uid === adminId) {
-        setAdminInfos(prev => ({
-          ...prev,
-          [adminId]: {
-            firstName: user.displayName?.split(' ')[0] || 'Utilisateur',
-            lastName: user.displayName?.split(' ').slice(1).join(' ') || 'Connecté'
-          }
-        }))
-      } else {
-        // Sinon, récupérer les informations depuis la collection admins
-        const adminData = await getAdminById(adminId)
-        if (adminData) {
-          setAdminInfos(prev => ({
-            ...prev,
-            [adminId]: {
-              firstName: adminData.firstName,
-              lastName: adminData.lastName
-            }
-          }))
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'administrateur:', error)
-    } finally {
-      setLoadingAdmins(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(adminId)
-        return newSet
-      })
+  useEffect(() => {
+    const updateItemsPerView = () => {
+      if (window.innerWidth >= 1280) setItemsPerView(4)
+      else if (window.innerWidth >= 1024) setItemsPerView(3)
+      else if (window.innerWidth >= 640) setItemsPerView(2)
+      else setItemsPerView(1)
     }
-  }, [adminInfos, loadingAdmins, user])
 
-  // Charger les informations des administrateurs pour tous les paiements
-  React.useEffect(() => {
-    if (!payments.length) return
+    updateItemsPerView()
+    window.addEventListener('resize', updateItemsPerView)
+    return () => window.removeEventListener('resize', updateItemsPerView)
+  }, [])
 
-    const uniqueAdminIds = [...new Set(payments.map(p => p.acceptedBy))]
-    uniqueAdminIds.forEach(adminId => {
-      fetchAdminInfo(adminId)
-    })
-  }, [payments, fetchAdminInfo])
+  useEffect(() => {
+    document.addEventListener('mousemove', carousel.onGlobalMouseMove)
+    document.addEventListener('mouseup', carousel.onGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', carousel.onGlobalMouseMove)
+      document.removeEventListener('mouseup', carousel.onGlobalMouseUp)
+    }
+  }, [carousel.onGlobalMouseMove, carousel.onGlobalMouseUp])
 
-  React.useEffect(() => {
-    setPage(1)
-  }, [typeFilter, dateFrom, dateTo])
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
-        <div className="container mx-auto">
-          <Card className="shadow-2xl border-0 overflow-hidden">
-            <CardContent className="p-8 sm:p-12 lg:p-16 text-center">
-              <div className="animate-pulse space-y-4">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-[#234D65] to-blue-600 rounded-xl sm:rounded-2xl mx-auto opacity-80" />
-                <div className="h-6 sm:h-8 bg-gray-200 rounded-lg w-48 sm:w-64 mx-auto" />
-                <div className="h-3 sm:h-4 bg-gray-100 rounded w-32 sm:w-48 mx-auto" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
+  const handleNextPage = () => {
+    if (!hasNextPage || !nextCursor) return
+    const nextPage = currentPage + 1
+    setPageStartCursors((prev) => ({ ...prev, [nextPage]: nextCursor }))
+    setCurrentPage(nextPage)
   }
 
-  if (isError || !request) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-rose-50 to-pink-100 p-4 sm:p-6 lg:p-8">
-        <div className="container mx-auto">
-          <Card className="shadow-2xl border-0 overflow-hidden">
-            <CardContent className="p-8 sm:p-12 lg:p-16 text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-500 to-rose-600 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-                <Receipt className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Données indisponibles</h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">Impossible de charger l'historique des paiements.</p>
-              <Button 
-                onClick={() => router.back()} 
-                className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 sm:h-12 px-4 sm:px-6"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Retour
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
+  const handlePrevPage = () => {
+    if (currentPage <= 1) return
+    setCurrentPage((prev) => Math.max(1, prev - 1))
   }
+
+  const handleResetFilters = () => {
+    setTypeFilter('all')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const getAdminDisplay = (adminId: string) => {
+    const info = adminInfos[adminId]
+    if (!info) return 'Administrateur'
+    return `${info.firstName} ${info.lastName}`
+  }
+
+  const hasActiveFilters = typeFilter !== 'all' || Boolean(dateFrom) || Boolean(dateTo)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Éléments de fond décoratifs */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-1/4 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-[#234D65]/10 to-blue-600/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 right-1/4 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-emerald-400/10 to-green-600/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-1/3 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-purple-400/10 to-pink-600/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="space-y-8 p-4 md:p-6">
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+                <CreditCard className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-2xl font-black text-transparent md:text-3xl">
+                  Historique des paiements
+                </h1>
+                <p className="text-sm font-medium text-slate-600 md:text-base">
+                  Beneficiaire: <span className="font-mono text-[#234D65]">{requestId}</span>
+                </p>
+              </div>
+            </div>
 
-      <div className="relative z-10 container mx-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
-        {/* En-tête spectaculaire */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#234D65]/20 to-blue-600/20 rounded-2xl lg:rounded-3xl blur-xl opacity-60" />
-          <Card className="relative bg-white/80 backdrop-blur-xl rounded-2xl lg:rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#234D65] via-blue-600 to-purple-600" />
-            <CardContent className="p-4 sm:p-6 lg:p-8">
-              <div className="flex flex-col gap-4 lg:gap-6">
-                {/* Header mobile/desktop */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <Button
-                      variant="ghost"
-                      onClick={() => router.back()}
-                      className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl lg:rounded-2xl bg-white/80 hover:bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border-0 flex-shrink-0"
+            <div className="flex items-center gap-2">
+              <Badge className="border border-[#234D65]/20 bg-[#234D65]/10 text-[#234D65]">
+                {isLoadingCount ? '...' : `${totalCount} paiement${totalCount > 1 ? 's' : ''}`}
+              </Badge>
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="h-10 rounded-xl border-[#234D65]/35 text-[#234D65] hover:bg-[#234D65] hover:text-white"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Retour
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
+        <CardContent className="p-4 md:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-slate-900 md:text-lg">Statistiques des paiements</h3>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={carousel.goPrev}
+                disabled={!carousel.canGoPrev}
+                className="h-9 w-9 rounded-full border-[#234D65]/25 text-[#234D65] disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={carousel.goNext}
+                disabled={!carousel.canGoNext}
+                className="h-9 w-9 rounded-full border-[#234D65]/25 text-[#234D65] disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div
+            ref={carousel.containerRef}
+            className="overflow-hidden"
+            onMouseDown={carousel.handleMouseDown}
+            onTouchStart={carousel.handleTouchStart}
+            onTouchMove={carousel.handleTouchMove}
+            onTouchEnd={carousel.handleTouchEnd}
+          >
+            <div
+              className={cn('flex gap-4 transition-transform duration-300', carousel.isDragging && 'transition-none')}
+              style={{ transform: `translateX(${carousel.translateX}%)` }}
+            >
+              {statsCardsData.map((stat) => (
+                <div
+                  key={stat.type}
+                  className="shrink-0"
+                  style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
+                >
+                  <Card className="h-full border border-slate-200/80 bg-white shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{stat.label}</p>
+                      <p className="mt-1 text-2xl font-black" style={{ color: stat.color }}>
+                        {stat.count}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700">{formatAmount(stat.amount)} FCFA</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-slate-200/80 bg-white shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-slate-900 md:text-lg">Repartition des montants</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-[340px_1fr]">
+          <div className="h-[260px]">
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={48} outerRadius={90}>
+                    {pieData.map((entry) => (
+                      <Cell key={entry.type} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => `${formatAmount(value)} FCFA`} />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">Aucune donnee</div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {pieData.map((item) => (
+              <div key={item.type} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                  <span className="text-sm font-medium text-slate-800">{item.name}</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-900">{formatAmount(item.value)} FCFA</span>
+              </div>
+            ))}
+            <div className="mt-3 rounded-xl border border-[#234D65]/20 bg-[#234D65]/5 px-3 py-2 text-sm font-semibold text-[#234D65]">
+              Total: {formatAmount(totalAmount)} FCFA
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="space-y-5 p-4 md:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+                <Filter className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
+                <p className="text-sm text-slate-600">Affinez les paiements par type et periode.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                {hasActiveFilters ? 'Filtres actifs' : 'Aucun filtre'}
+              </Badge>
+              <Button
+                variant="outline"
+                onClick={() => setIsFiltersExpanded((prev) => !prev)}
+                className={cn(
+                  'h-10 rounded-xl border-2 transition-colors',
+                  isFiltersExpanded
+                    ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                    : 'border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]'
+                )}
+              >
+                Filtres avances
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleResetFilters}
+                className="h-10 rounded-xl border-2 border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
+              >
+                Reinitialiser
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+            <div className="space-y-1.5 xl:col-span-4">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de paiement</Label>
+              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypePayment | 'all')}>
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white">
+                  <SelectValue placeholder="Tous les types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  {PAYMENT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {PAYMENT_LABELS[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 xl:col-span-4">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date debut</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white"
+              />
+            </div>
+
+            <div className="space-y-1.5 xl:col-span-4">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date fin</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white"
+              />
+            </div>
+          </div>
+
+          {isFiltersExpanded && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-xs text-slate-600">
+              Pagination serveur active: cette liste charge les paiements directement depuis la collection `payments`
+              avec le filtre `beneficiaryId = {requestId}`.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h2 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-xl font-black text-transparent md:text-2xl">
+                Liste des paiements
+              </h2>
+              <p className="text-sm font-medium text-slate-600">
+                {isLoadingCount ? '...' : `${totalCount} paiements`} • Page {currentPage}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1">
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
+                  <TabsList className="h-auto bg-transparent p-0">
+                    <TabsTrigger
+                      value="cards"
+                      className="h-10 rounded-lg px-4 data-[state=active]:bg-white data-[state=active]:text-[#234D65]"
                     >
-                      <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </Button>
-                    
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-[#234D65] to-blue-600 rounded-xl lg:rounded-2xl flex items-center justify-center flex-shrink-0">
-                          <Receipt className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                      <Grid3X3 className="mr-2 h-4 w-4" /> Cards
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="table"
+                      className="h-10 rounded-lg px-4 data-[state=active]:bg-white data-[state=active]:text-[#234D65]"
+                    >
+                      <List className="mr-2 h-4 w-4" /> Table
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => setRefreshToken((prev) => prev + 1)}
+                className="h-10 rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] hover:bg-[#234D65] hover:text-white"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" /> Actualiser
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {fetchError && (
+        <Card className="border border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-2 p-4 text-sm font-medium text-red-700">
+            <AlertCircle className="h-4 w-4" />
+            {fetchError}
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoadingPayments ? (
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardContent className="p-10 text-center text-sm text-slate-500">Chargement des paiements...</CardContent>
+        </Card>
+      ) : payments.length === 0 ? (
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardContent className="space-y-3 p-12 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+              <SearchX className="h-7 w-7 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900">Aucun paiement trouve</h3>
+            <p className="text-sm text-slate-600">Modifiez les filtres ou verifiez l'identifiant beneficiaire.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {viewMode === 'cards' ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {payments.map((payment) => {
+                const color = PAYMENT_COLORS[payment.paymentType]
+                const label = PAYMENT_LABELS[payment.paymentType]
+                const adminName = getAdminDisplay(payment.acceptedBy)
+                const initials = label.slice(0, 2).toUpperCase()
+
+                return (
+                  <Card key={payment.id} className="group overflow-hidden border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                    <div className="h-1" style={{ backgroundColor: color }} />
+                    <CardContent className="space-y-4 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <Badge className="border-0" style={{ backgroundColor: `${color}20`, color }}>
+                            {label}
+                          </Badge>
+                          <p className="mt-2 text-xl font-bold text-slate-900">{formatAmount(payment.amount)} FCFA</p>
                         </div>
-                        <h1 className="text-lg sm:text-2xl lg:text-4xl font-black bg-gradient-to-r from-[#234D65] to-blue-600 bg-clip-text text-transparent leading-tight">
-                          Historique des Paiements
-                        </h1>
+                        <Avatar className="h-10 w-10 rounded-lg ring-1 ring-slate-200">
+                          <AvatarFallback className="rounded-lg bg-slate-100 text-xs font-semibold text-slate-700">{initials}</AvatarFallback>
+                        </Avatar>
                       </div>
-                      
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                        <Badge variant="outline" className="bg-white/60 border-[#234D65]/30 text-xs sm:text-sm self-start">
-                          Dossier: {request.id}
-                        </Badge>
-                        <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 text-xs sm:text-sm self-start">
-                          {filtered.length} paiement{filtered.length !== 1 ? 's' : ''}
-                        </Badge>
+
+                      <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-sm">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-slate-500">Date</p>
+                          <p className="font-medium text-slate-900">{formatDate(payment.date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-slate-500">Mode</p>
+                          <p className="font-medium text-slate-900">{formatMode(payment.mode)}</p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  
+
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1">
+                          <User className="h-3.5 w-3.5" />
+                          Enregistre par
+                        </span>
+                        <span className="font-medium text-slate-700">{adminName}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table className="min-w-[980px] w-full text-sm">
+                <thead className="bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/5 to-transparent text-[#234D65]">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-right">Montant</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Mode</th>
+                    <th className="px-4 py-3 text-left">Enregistre par</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="hover:bg-[#234D65]/[0.03]">
+                      <td className="px-4 py-3">
+                        <Badge className="border-0" style={{ backgroundColor: `${PAYMENT_COLORS[payment.paymentType]}20`, color: PAYMENT_COLORS[payment.paymentType] }}>
+                          {PAYMENT_LABELS[payment.paymentType]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatAmount(payment.amount)} FCFA</td>
+                      <td className="px-4 py-3">{formatDate(payment.date)}</td>
+                      <td className="px-4 py-3">{formatMode(payment.mode)}</td>
+                      <td className="px-4 py-3">{getAdminDisplay(payment.acceptedBy)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-slate-600">
+                  Page {currentPage} sur {totalPages} • {isLoadingCount ? '...' : `${totalCount} resultats`}
+                </div>
+                <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => router.push(routes.admin.membershipRequestDetails(request.id))}
-                    className="bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 sm:h-11 lg:h-12 px-4 sm:px-6 lg:px-8 text-sm sm:text-base flex-shrink-0"
+                    variant="outline"
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    className="h-10 rounded-xl border-[#234D65]/35 px-4 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                   >
-                    <ExternalLink className="w-4 h-4 mr-2 flex-shrink-0" /> 
-                    <span className="hidden sm:inline">Voir le dossier complet</span>
-                    <span className="sm:hidden">Dossier</span>
+                    <ChevronLeft className="mr-1 h-4 w-4" /> Precedent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleNextPage}
+                    disabled={!hasNextPage}
+                    className="h-10 rounded-xl border-[#234D65]/35 px-4 text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                  >
+                    Suivant <ChevronRight className="ml-1 h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
+        </>
+      )}
 
-        {/* Filtres modernes */}
-        <Card className="bg-white/70 backdrop-blur-sm rounded-xl lg:rounded-2xl shadow-xl border border-white/50">
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                  <Filter className="w-4 h-4" />
-                  Type de paiement
-                </label>
-                <select
-                  className="h-10 sm:h-12 w-full rounded-lg lg:rounded-xl border-2 border-gray-200 bg-white/80 px-3 sm:px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#234D65] focus:border-transparent transition-all duration-300"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as any)}
-                >
-                  <option value="all">🎯 Tous les types</option>
-                  <option value="Membership">🎯 Adhésion</option>
-                  <option value="Subscription">⚡ Abonnement</option>
-                  <option value="SpecialFund">🥧 Caisse spéciale</option>
-                  <option value="Charity">✨ Charité</option>
-                </select>
-              </div>
-              
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Date début
-                </label>
-                <input 
-                  type="date" 
-                  className="h-10 sm:h-12 w-full rounded-lg lg:rounded-xl border-2 border-gray-200 bg-white/80 px-3 sm:px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#234D65] focus:border-transparent transition-all duration-300" 
-                  value={dateFrom} 
-                  onChange={(e) => setDateFrom(e.target.value)} 
-                />
-              </div>
-              
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Date fin
-                </label>
-                <input 
-                  type="date" 
-                  className="h-10 sm:h-12 w-full rounded-lg lg:rounded-xl border-2 border-gray-200 bg-white/80 px-3 sm:px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#234D65] focus:border-transparent transition-all duration-300" 
-                  value={dateTo} 
-                  onChange={(e) => setDateTo(e.target.value)} 
-                />
-              </div>
-              
-              <div className="flex items-end col-span-1 sm:col-span-2 lg:col-span-1">
-                <Button 
-                  variant="outline" 
-                  className="h-10 sm:h-12 w-full rounded-lg lg:rounded-xl border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 font-medium text-sm sm:text-base" 
-                  onClick={() => { setTypeFilter('all'); setDateFrom(''); setDateTo('') }}
-                >
-                  <Sparkles className="w-4 h-4 mr-2" /> 
-                  Réinitialiser
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Vue d'ensemble avec graphiques */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Statistiques par type */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
-              {Object.entries(statsByType).map(([type, stats]) => (
-                <StatCard
-                  key={type}
-                  type={type as TypePayment}
-                  count={stats.count}
-                  amount={stats.amount}
-                  isHighlighted={typeFilter === type}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Graphique circulaire */}
-          <Card className="bg-white/70 backdrop-blur-sm rounded-xl lg:rounded-2xl shadow-xl border border-white/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base lg:text-lg font-bold text-gray-900 flex items-center gap-2">
-                <PieChart className="w-4 h-4 lg:w-5 lg:h-5 text-[#234D65]" />
-                Répartition des montants
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 lg:p-6 pt-0">
-              {pieData.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="h-40 sm:h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={25}
-                          outerRadius={60}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: number) => [formatAmount(value), 'Montant']}
-                          labelFormatter={(label) => `${label}`}
-                        />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {pieData.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between text-xs sm:text-sm">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0" 
-                            style={{ backgroundColor: item.fill }} 
-                          />
-                          <span className="font-medium truncate">{item.name}</span>
-                        </div>
-                        <span className="font-bold ml-2 flex-shrink-0" style={{ color: item.fill }}>
-                          {formatAmount(item.value)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="pt-3 border-t border-gray-200">
-                    <div className="flex items-center justify-between font-bold text-sm sm:text-lg">
-                      <span>Total</span>
-                      <span className="text-[#234D65]">{formatAmount(totalAmount)}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <PieChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm">Aucune donnée à afficher</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Liste des paiements */}
-        <Card className="bg-white/70 backdrop-blur-sm rounded-xl lg:rounded-2xl shadow-xl border border-white/50 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-[#234D65] to-blue-600 text-white p-4 sm:p-6">
-            <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 sm:gap-3">
-              <Receipt className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="hidden sm:inline">Détail des Paiements</span>
-              <span className="sm:hidden">Paiements</span>
-              <Badge className="bg-white/20 text-white border-0 text-xs sm:text-sm">
-                {filtered.length} {filtered.length === 1 ? 'paiement' : 'paiements'}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          
-          <CardContent className="p-0">
-            {paged.length === 0 ? (
-              <div className="text-center py-12 sm:py-16 px-4">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-                  <Receipt className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Aucun paiement trouvé</h3>
-                <p className="text-sm sm:text-base text-gray-600">Essayez de modifier vos filtres pour voir plus de résultats.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {paged.map((payment, index) => (
-                  <PaymentRow 
-                    key={index} 
-                    payment={payment} 
-                    index={index}
-                    adminInfos={adminInfos}
-                    loadingAdmins={loadingAdmins}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Pagination moderne */}
-            {filtered.length > pageSize && (
-              <div className="bg-gray-50/50 p-4 sm:p-6 border-t border-gray-100">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-xs sm:text-sm font-medium text-gray-700">
-                    Page {page} sur {totalPages} • {filtered.length} résultats
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      disabled={page === 1} 
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="rounded-lg lg:rounded-xl border-2 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 h-9 sm:h-10 px-3 sm:px-4 text-sm"
-                    >
-                      ← Précédent
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      disabled={page === totalPages} 
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      className="rounded-lg lg:rounded-xl border-2 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 h-9 sm:h-10 px-3 sm:px-4 text-sm"
-                    >
-                      Suivant →
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <style jsx>{`
-        @keyframes blob {
-          0% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          33% {
-            transform: translate(30px, -50px) scale(1.1);
-          }
-          66% {
-            transform: translate(-20px, 20px) scale(0.9);
-          }
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
+      {!isLoadingStats && statsSample.length >= STATS_SCAN_LIMIT && (
+        <p className="text-xs text-slate-500">
+          Les statistiques affichent un echantillon recent (max {STATS_SCAN_LIMIT} paiements) pour garder la page fluide.
+        </p>
+      )}
     </div>
   )
 }
