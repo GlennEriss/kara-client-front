@@ -181,10 +181,12 @@ const styles = StyleSheet.create({
   },
   pageNumber: {
     position: 'absolute',
-    bottom: 16,
-    right: 24,
-    fontSize: 10,
-    color: '#4B5563',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: '#111827',
   },
 })
 
@@ -292,8 +294,9 @@ const CaisseImprevuePDFV3 = ({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
+        >
+          Page 1 / 1
+        </Text>
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>

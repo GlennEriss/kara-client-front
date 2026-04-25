@@ -20,6 +20,7 @@ import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hoo
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
+import { cn } from '@/lib/utils'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
 import { useQueries } from '@tanstack/react-query'
 import {
@@ -62,6 +63,18 @@ const FREQUENCY_LABELS = {
 }
 
 type ViewMode = 'grid' | 'list'
+type ContractTabValue = 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'
+
+type ContractTabItem = {
+  value: ContractTabValue
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isDanger?: boolean
+}
+
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue']
+const isContractTabValue = (value: string): value is ContractTabValue =>
+  CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
 /** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). Utilise les stats de paiement réelles si fournies. */
 function canDeleteContractCI(
@@ -133,9 +146,17 @@ const ModernSkeleton = () => (
 export default function ListContractsCISection() {
   const router = useRouter()
   useCaisseImprevueContractsRealtimeSync(true)
+
+  const tabItems: ContractTabItem[] = [
+    { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'DAILY', label: 'Journalier', icon: CalendarDays },
+    { value: 'MONTHLY', label: 'Mensuel', icon: Calendar },
+    { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
+    { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+  ]
   
   // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard, Mois en cours)
-  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'>('all')
+  const [activeTab, setActiveTab] = useState<ContractTabValue>('all')
   
   // États
   const [filters, setFilters] = useState<ContractCIFilters>({
@@ -510,32 +531,6 @@ export default function ListContractsCISection() {
       {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
       <StatisticsCI />
 
-      {/* Onglets pour filtrer par type de contrat */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth')} className="w-full">
-        <TabsList className="grid w-full max-w-4xl grid-cols-5 gap-2">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Tous
-          </TabsTrigger>
-          <TabsTrigger value="DAILY" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Journalier
-          </TabsTrigger>
-          <TabsTrigger value="MONTHLY" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Mensuel
-          </TabsTrigger>
-          <TabsTrigger value="currentMonth" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Mois en cours
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
-            <AlertCircle className="h-4 w-4" />
-            Retard
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {/* Filtres : filtre "Type de contrat" visible uniquement dans l'onglet Tous (et Retard / Mois en cours) */}
       <ContractsFiltersV2
         filters={filters}
@@ -609,6 +604,77 @@ export default function ListContractsCISection() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Onglets pour filtrer par type de contrat (rattachés à la liste) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (isContractTabValue(value)) {
+            setActiveTab(value)
+          }
+        }}
+        className="w-full"
+      >
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={cn(
+                    'shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]',
+                    isDanger ? 'data-[state=active]:text-red-700 data-[state=active]:border-red-300' : ''
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Tabs mobile/tablette (badges scrollables) */}
+        <div className="lg:hidden">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+              const isActive = activeTab === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    if (isContractTabValue(value)) {
+                      setActiveTab(value)
+                    }
+                  }}
+                  className="shrink-0"
+                >
+                  <Badge
+                    className={cn(
+                      'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                      isActive
+                        ? isDanger
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#234D65] text-white border-transparent'
+                        : isDanger
+                        ? 'bg-white text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </Tabs>
 
       {/* Liste des contrats */}
       {isLoading ? (
