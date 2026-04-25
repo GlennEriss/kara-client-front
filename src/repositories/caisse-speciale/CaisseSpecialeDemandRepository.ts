@@ -32,6 +32,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             typeof filters.monthsPlannedMax === 'number' ||
             typeof filters.monthlyAmountMin === 'number' ||
             typeof filters.monthlyAmountMax === 'number' ||
+            filters.sortBy === 'requestedAmount' ||
             (filters.memberGender !== undefined && filters.memberGender !== 'all')
         );
     }
@@ -129,6 +130,15 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 if (nameCompare !== 0) return nameCompare * direction;
                 return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
             }
+
+            if (sortBy === 'requestedAmount') {
+                const requestedAmountA = Number(a.monthlyAmount || 0) * Number(a.monthsPlanned || 0);
+                const requestedAmountB = Number(b.monthlyAmount || 0) * Number(b.monthsPlanned || 0);
+                const amountCompare = requestedAmountA - requestedAmountB;
+                if (amountCompare !== 0) return amountCompare * direction;
+                return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+            }
+
             return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
         });
     }

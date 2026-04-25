@@ -63,6 +63,13 @@ import StatisticsCaisseSpecialeDemandes from './StatisticsCaisseSpecialeDemandes
 import { StatusFilterBadgesCarousel } from './StatusFilterBadgesCarousel'
 
 type ViewMode = 'grid' | 'list'
+type DemandSortOption =
+  | 'date_desc'
+  | 'date_asc'
+  | 'alphabetical_asc'
+  | 'alphabetical_desc'
+  | 'requested_amount_asc'
+  | 'requested_amount_desc'
 
 const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
   label: string
@@ -76,7 +83,7 @@ const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
-  <Card className="group animate-pulse border border-slate-200 bg-white shadow-sm">
+  <Card className="group animate-pulse border border-[#234D65]/15 bg-gradient-to-br from-white via-slate-50/60 to-[#234D65]/[0.03] shadow-sm">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
         <Skeleton className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
@@ -127,11 +134,13 @@ const DemandCard = ({
 
   const memberPhotoUrl = member?.photoURL || ''
   const memberInitials = `${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase()
+  const requestedTotalAmount = Number(demande.monthlyAmount || 0) * Number(demande.monthsPlanned || 0)
 
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#234D65]/35 hover:shadow-md">
+    <Card className="group relative flex h-full flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
       <CardContent className="p-4 md:p-5 flex-1 flex flex-col gap-4">
-        <div className="font-mono text-sm font-bold text-gray-900 break-all">
+        <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">
           #{demande.id}
         </div>
 
@@ -144,10 +153,10 @@ const DemandCard = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 opacity-70 group-hover:opacity-100 transition-opacity"
+                className="h-8 w-8 rounded-full border border-transparent bg-white/80 opacity-80 transition-all group-hover:opacity-100 hover:border-[#234D65]/25 hover:bg-[#234D65]/10"
                 title="Actions"
               >
-                <MoreVertical className="h-4 w-4 text-gray-600" />
+                <MoreVertical className="h-4 w-4 text-[#234D65]" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[190px]">
@@ -177,31 +186,35 @@ const DemandCard = ({
         </div>
 
         <div className="flex items-start gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
+          <Avatar className="h-14 w-14 shrink-0 rounded-xl ring-2 ring-[#234D65]/12">
             {memberPhotoUrl ? (
-              <AvatarImage src={memberPhotoUrl} alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`} />
+              <AvatarImage
+                src={memberPhotoUrl}
+                alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`}
+                className="h-full w-full object-cover object-center"
+              />
             ) : null}
-            <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+            <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-[11px] font-semibold text-white">
               {memberInitials || '--'}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             {isLoadingMember ? (
-              <span className="text-gray-400 animate-pulse text-sm">Chargement...</span>
+              <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
             ) : (
               <>
-                <div className="font-semibold text-gray-900 leading-tight">{member?.firstName ?? '—'}</div>
-                <div className="font-semibold text-gray-900 leading-tight">{member?.lastName ?? '—'}</div>
+                <div className="text-base font-bold leading-tight text-slate-900">{member?.firstName ?? '—'}</div>
+                <div className="text-base font-bold leading-tight text-slate-900">{member?.lastName ?? '—'}</div>
               </>
             )}
           </div>
         </div>
 
-        <div className="text-sm font-mono text-gray-700">
+        <div className="rounded-lg bg-[#234D65]/[0.06] px-2.5 py-1.5 text-xs font-mono font-semibold text-[#234D65]">
           {member?.matricule || demande.memberId || '—'}
         </div>
 
-        <div className="text-sm text-gray-700">
+        <div className="text-sm text-slate-600">
           {isLoadingMember ? (
             <span className="text-gray-400 animate-pulse">—</span>
           ) : memberPhone || member?.email ? (
@@ -211,28 +224,34 @@ const DemandCard = ({
           )}
         </div>
 
-        <div className="space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
+        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500">Montant demandé</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-gray-500">Montant total demandé</span>
+            <span className="font-extrabold text-[#234D65]">
+              {requestedTotalAmount.toLocaleString('fr-FR')} FCFA
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Mensualité</span>
+            <span className="font-semibold text-slate-900">
               {demande.monthlyAmount.toLocaleString('fr-FR')} FCFA
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500">Nombre de mois</span>
-            <span className="font-semibold text-gray-900">{demande.monthsPlanned} mois</span>
+            <span className="font-semibold text-slate-900">{demande.monthsPlanned} mois</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500">Date souhaitée</span>
-            <span className="font-semibold text-gray-900">
+            <span className="font-semibold text-slate-900">
               {demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}
             </span>
           </div>
         </div>
 
-        <div className="pt-3 border-t border-gray-100 mt-auto text-sm">
-          <span className="text-gray-500">Motif: </span>
-          <span className="text-gray-900">{demandReason || '—'}</span>
+        <div className="mt-auto min-h-[3.25rem] border-t border-slate-200 pt-3 text-sm">
+          <span className="text-slate-500">Motif: </span>
+          <span className="font-medium text-slate-900">{demandReason || '—'}</span>
         </div>
 
         <div className="flex flex-col gap-2 border-t border-slate-200 pt-3">
@@ -240,7 +259,7 @@ const DemandCard = ({
             <>
               <Button
                 onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                className="h-10 w-full bg-green-600 text-white hover:bg-green-700"
+                className="h-10 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm transition-all hover:from-emerald-700 hover:to-emerald-600 hover:shadow-md"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Accepter
@@ -248,7 +267,7 @@ const DemandCard = ({
               <Button
                 variant="outline"
                 onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                className="h-10 w-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50"
+                className="h-10 w-full border-red-300/80 bg-red-50/70 text-red-700 transition-all hover:border-red-400 hover:bg-red-100/70"
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Refuser
@@ -260,7 +279,7 @@ const DemandCard = ({
             <Button
               variant="outline"
               onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-              className="h-10 w-full border-blue-200 text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+              className="h-10 w-full border-blue-300/80 bg-blue-50/70 text-blue-700 transition-all hover:border-blue-400 hover:bg-blue-100/70"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Réouvrir
@@ -270,7 +289,7 @@ const DemandCard = ({
           <Button
             variant="outline"
             onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-            className="h-10 w-full border-slate-200 text-slate-700 hover:border-[#234D65]/40 hover:text-[#234D65]"
+            className="h-10 w-full border-[#234D65]/30 bg-white text-[#234D65] transition-all hover:bg-[#234D65] hover:text-white"
           >
             <Eye className="h-4 w-4 mr-2" />
             Voir détails
@@ -325,7 +344,7 @@ const DemandTableRow = ({
   const { data: member } = useMember(demande.memberId)
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
   return (
-    <TableRow className="border-b border-slate-100 hover:bg-slate-50/70">
+    <TableRow className="border-b border-slate-100 transition-colors hover:bg-[#234D65]/[0.045]">
       <TableCell>
         <Badge className={cn('text-xs border', statusInfo.color)}>{statusInfo.label}</Badge>
       </TableCell>
@@ -333,7 +352,7 @@ const DemandTableRow = ({
         <MemberTableCell demande={demande} />
       </TableCell>
       <TableCell className="hidden md:table-cell">{member?.contacts?.[0] || member?.email || '—'}</TableCell>
-      <TableCell className="hidden lg:table-cell">{demande.monthlyAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+      <TableCell className="hidden lg:table-cell">{(Number(demande.monthlyAmount || 0) * Number(demande.monthsPlanned || 0)).toLocaleString('fr-FR')} FCFA</TableCell>
       <TableCell className="hidden lg:table-cell">{demande.monthsPlanned} mois</TableCell>
       <TableCell className="hidden md:table-cell">{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}</TableCell>
       <TableCell className="text-right">
@@ -439,8 +458,8 @@ const ListDemandes = () => {
   const [memberGender, setMemberGender] = useState<'all' | 'Homme' | 'Femme'>(
     (searchParams.get('memberGender') as 'all' | 'Homme' | 'Femme') || 'all'
   )
-  const [sortOption, setSortOption] = useState<'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc'>(
-    (searchParams.get('sort') as 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') || 'date_desc'
+  const [sortOption, setSortOption] = useState<DemandSortOption>(
+    (searchParams.get('sort') as DemandSortOption) || 'date_desc'
   )
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(() =>
     Boolean(
@@ -584,7 +603,11 @@ const ListDemandes = () => {
     monthlyAmountMin: monthlyAmountMin === '' ? undefined : Number(monthlyAmountMin),
     monthlyAmountMax: monthlyAmountMax === '' ? undefined : Number(monthlyAmountMax),
     memberGender,
-    sortBy: sortOption.startsWith('alphabetical') ? 'alphabetical' : 'date',
+    sortBy: sortOption.startsWith('alphabetical')
+      ? 'alphabetical'
+      : sortOption.startsWith('requested_amount')
+        ? 'requestedAmount'
+        : 'date',
     sortOrder: sortOption.endsWith('_asc') ? 'asc' : 'desc',
   }
 
@@ -841,7 +864,7 @@ const ListDemandes = () => {
               <Label className="text-xs font-semibold text-slate-500">Tri</Label>
               <Select
                 value={sortOption}
-                onValueChange={(v: 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') => {
+                onValueChange={(v: DemandSortOption) => {
                   setSortOption(v)
                   setCurrentPage(1)
                 }}
@@ -854,6 +877,8 @@ const ListDemandes = () => {
                   <SelectItem value="date_asc">Plus anciennes</SelectItem>
                   <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
                   <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
+                  <SelectItem value="requested_amount_asc">Montant total: croissant</SelectItem>
+                  <SelectItem value="requested_amount_desc">Montant total: décroissant</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -910,7 +935,7 @@ const ListDemandes = () => {
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-500">Montant demandé (FCFA)</Label>
+                    <Label className="text-xs font-semibold text-slate-500">Montant total demandé (FCFA)</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <Input
                         type="number"
@@ -1159,7 +1184,7 @@ const ListDemandes = () => {
 
       {/* Liste des demandes */}
       {isLoading ? (
-        <div className="rounded-b-2xl border-x border-b border-slate-200 bg-slate-50/35 p-4 md:p-5">
+        <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/40 p-4 md:p-5">
           <div className={
             viewMode === 'grid'
               ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'
@@ -1173,17 +1198,17 @@ const ListDemandes = () => {
       ) : currentDemandes.length > 0 ? (
         <>
           {viewMode === 'list' ? (
-            <Card className="overflow-hidden rounded-t-none rounded-b-2xl border-x border-b border-slate-200 bg-white shadow-sm">
+            <Card className="overflow-hidden rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white to-slate-50/40 shadow-sm">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200 bg-slate-50/80">
-                    <TableHead className="w-[120px] font-semibold text-slate-600">Statut</TableHead>
-                    <TableHead className="font-semibold text-slate-600">Membre</TableHead>
-                    <TableHead className="hidden font-semibold text-slate-600 md:table-cell">Contact</TableHead>
-                    <TableHead className="hidden font-semibold text-slate-600 lg:table-cell">Montant</TableHead>
-                    <TableHead className="hidden font-semibold text-slate-600 lg:table-cell">Durée</TableHead>
-                    <TableHead className="hidden font-semibold text-slate-600 md:table-cell">Date souhaitée</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-600">Actions</TableHead>
+                  <TableRow className="border-b border-[#234D65]/20 bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/[0.06] to-transparent">
+                    <TableHead className="w-[120px] font-semibold text-[#234D65]">Statut</TableHead>
+                    <TableHead className="font-semibold text-[#234D65]">Membre</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] md:table-cell">Contact</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] lg:table-cell">Montant total</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] lg:table-cell">Durée</TableHead>
+                    <TableHead className="hidden font-semibold text-[#234D65] md:table-cell">Date souhaitée</TableHead>
+                    <TableHead className="text-right font-semibold text-[#234D65]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1201,17 +1226,22 @@ const ListDemandes = () => {
               </Table>
             </Card>
           ) : (
-            <div className="rounded-b-2xl border-x border-b border-slate-200 bg-slate-50/35 p-4 md:p-5">
+            <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
               <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-                {currentDemandes.map((demande) => (
-                  <DemandCard
+                {currentDemandes.map((demande, index) => (
+                  <div
                     key={demande.id}
-                    demande={demande}
-                    setAcceptModalState={setAcceptModalState}
-                    setRejectModalState={setRejectModalState}
-                    setReopenModalState={setReopenModalState}
-                    setDeleteModalState={setDeleteModalState}
-                  />
+                    className="animate-in fade-in-0 slide-in-from-bottom-3 duration-500"
+                    style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}
+                  >
+                    <DemandCard
+                      demande={demande}
+                      setAcceptModalState={setAcceptModalState}
+                      setRejectModalState={setRejectModalState}
+                      setReopenModalState={setReopenModalState}
+                      setDeleteModalState={setDeleteModalState}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -1219,7 +1249,7 @@ const ListDemandes = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card className="border border-slate-200 bg-white shadow-sm">
+            <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
@@ -1231,7 +1261,7 @@ const ListDemandes = () => {
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Précédent
                     </Button>
@@ -1243,7 +1273,7 @@ const ListDemandes = () => {
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Suivant
                     </Button>
@@ -1254,7 +1284,7 @@ const ListDemandes = () => {
           )}
         </>
       ) : (
-        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-slate-200 bg-white shadow-sm">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
