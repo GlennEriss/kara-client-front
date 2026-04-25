@@ -427,6 +427,9 @@ const ListDemandes = () => {
   const [caisseTypeFilter, setCaisseTypeFilter] = useState<string>(searchParams.get('caisseType') || 'all')
   const [createdAtFrom, setCreatedAtFrom] = useState<string>(searchParams.get('createdAtFrom') || '')
   const [createdAtTo, setCreatedAtTo] = useState<string>(searchParams.get('createdAtTo') || '')
+  const [desiredDateFrom, setDesiredDateFrom] = useState<string>(searchParams.get('desiredDateFrom') || '')
+  const [desiredDateTo, setDesiredDateTo] = useState<string>(searchParams.get('desiredDateTo') || '')
+  const [currentMonthOnly, setCurrentMonthOnly] = useState<boolean>(searchParams.get('currentMonthOnly') === '1')
   const [requestedAmountMin, setRequestedAmountMin] = useState<string>(searchParams.get('requestedAmountMin') || '')
   const [requestedAmountMax, setRequestedAmountMax] = useState<string>(searchParams.get('requestedAmountMax') || '')
   const [monthsPlannedMin, setMonthsPlannedMin] = useState<string>(searchParams.get('monthsPlannedMin') || '')
@@ -443,6 +446,9 @@ const ListDemandes = () => {
     Boolean(
       searchParams.get('createdAtFrom') ||
       searchParams.get('createdAtTo') ||
+      searchParams.get('desiredDateFrom') ||
+      searchParams.get('desiredDateTo') ||
+      searchParams.get('currentMonthOnly') === '1' ||
       searchParams.get('requestedAmountMin') ||
       searchParams.get('requestedAmountMax') ||
       searchParams.get('monthsPlannedMin') ||
@@ -493,6 +499,9 @@ const ListDemandes = () => {
     if (caisseTypeFilter !== 'all') params.set('caisseType', caisseTypeFilter)
     if (createdAtFrom) params.set('createdAtFrom', createdAtFrom)
     if (createdAtTo) params.set('createdAtTo', createdAtTo)
+    if (desiredDateFrom) params.set('desiredDateFrom', desiredDateFrom)
+    if (desiredDateTo) params.set('desiredDateTo', desiredDateTo)
+    if (currentMonthOnly) params.set('currentMonthOnly', '1')
     if (requestedAmountMin) params.set('requestedAmountMin', requestedAmountMin)
     if (requestedAmountMax) params.set('requestedAmountMax', requestedAmountMax)
     if (monthsPlannedMin) params.set('monthsPlannedMin', monthsPlannedMin)
@@ -516,6 +525,9 @@ const ListDemandes = () => {
     caisseTypeFilter,
     createdAtFrom,
     createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
     requestedAmountMin,
     requestedAmountMax,
     monthsPlannedMin,
@@ -539,6 +551,14 @@ const ListDemandes = () => {
             : 'CONVERTED'
   }
 
+  const currentMonthDateRange = React.useMemo(() => {
+    if (!currentMonthOnly) return { from: undefined as Date | undefined, to: undefined as Date | undefined }
+    const now = new Date()
+    const from = new Date(now.getFullYear(), now.getMonth(), 1)
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    return { from, to }
+  }, [currentMonthOnly])
+
   const queryFilters: CaisseSpecialeDemandFilters = {
     status: getStatusFilter(),
     page: currentPage,
@@ -553,8 +573,10 @@ const ListDemandes = () => {
           | 'JOURNALIERE_CHARITABLE'
           | 'LIBRE_CHARITABLE')
       : undefined,
-    createdAtFrom: createdAtFrom ? new Date(createdAtFrom) : undefined,
-    createdAtTo: createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined,
+    createdAtFrom: currentMonthDateRange.from || (createdAtFrom ? new Date(createdAtFrom) : undefined),
+    createdAtTo: currentMonthDateRange.to || (createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined),
+    desiredDateFrom: desiredDateFrom ? new Date(desiredDateFrom) : undefined,
+    desiredDateTo: desiredDateTo ? new Date(desiredDateTo + 'T23:59:59') : undefined,
     requestedAmountMin: requestedAmountMin === '' ? undefined : Number(requestedAmountMin),
     requestedAmountMax: requestedAmountMax === '' ? undefined : Number(requestedAmountMax),
     monthsPlannedMin: monthsPlannedMin === '' ? undefined : Number(monthsPlannedMin),
@@ -571,6 +593,9 @@ const ListDemandes = () => {
     setCaisseTypeFilter('all')
     setCreatedAtFrom('')
     setCreatedAtTo('')
+    setDesiredDateFrom('')
+    setDesiredDateTo('')
+    setCurrentMonthOnly(false)
     setRequestedAmountMin('')
     setRequestedAmountMax('')
     setMonthsPlannedMin('')
@@ -599,6 +624,9 @@ const ListDemandes = () => {
     caisseTypeFilter,
     createdAtFrom,
     createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
     requestedAmountMin,
     requestedAmountMax,
     monthsPlannedMin,
@@ -653,6 +681,9 @@ const ListDemandes = () => {
     if (memberGender !== 'all') count += 1
     if (createdAtFrom) count += 1
     if (createdAtTo) count += 1
+    if (desiredDateFrom) count += 1
+    if (desiredDateTo) count += 1
+    if (currentMonthOnly) count += 1
     if (requestedAmountMin !== '') count += 1
     if (requestedAmountMax !== '') count += 1
     if (monthsPlannedMin !== '') count += 1
@@ -667,6 +698,9 @@ const ListDemandes = () => {
     memberGender,
     createdAtFrom,
     createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
     requestedAmountMin,
     requestedAmountMax,
     monthsPlannedMin,
@@ -679,6 +713,9 @@ const ListDemandes = () => {
     let count = 0
     if (createdAtFrom) count += 1
     if (createdAtTo) count += 1
+    if (desiredDateFrom) count += 1
+    if (desiredDateTo) count += 1
+    if (currentMonthOnly) count += 1
     if (requestedAmountMin !== '') count += 1
     if (requestedAmountMax !== '') count += 1
     if (monthsPlannedMin !== '') count += 1
@@ -689,6 +726,9 @@ const ListDemandes = () => {
   }, [
     createdAtFrom,
     createdAtTo,
+    desiredDateFrom,
+    desiredDateTo,
+    currentMonthOnly,
     requestedAmountMin,
     requestedAmountMax,
     monthsPlannedMin,
@@ -918,6 +958,23 @@ const ListDemandes = () => {
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Durée et dates</p>
 
                   <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Période de création</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentMonthOnly((prev) => !prev)}
+                      className={cn(
+                        'h-10 w-full justify-start rounded-lg border transition-colors',
+                        currentMonthOnly
+                          ? 'border-[#234D65] bg-[#234D65]/10 text-[#234D65] hover:bg-[#234D65]/15'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-[#234D65]/30'
+                      )}
+                    >
+                      {currentMonthOnly ? 'Mois actuel (activé)' : 'Filtrer sur le mois actuel'}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-slate-500">Nombre de mois</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <Input
@@ -952,6 +1009,24 @@ const ListDemandes = () => {
                         type="date"
                         value={createdAtTo}
                         onChange={(e) => setCreatedAtTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date souhaitée</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={desiredDateFrom}
+                        onChange={(e) => setDesiredDateFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                      />
+                      <Input
+                        type="date"
+                        value={desiredDateTo}
+                        onChange={(e) => setDesiredDateTo(e.target.value)}
                         className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
                       />
                     </div>
