@@ -116,6 +116,11 @@ const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecific
   LIBRE_GROUP: ['LIBRE', 'LIBRE_CHARITABLE'],
 }
 
+type ContractRefundDocuments = {
+  FINAL?: any
+  EARLY?: any
+}
+
 const GROUPED_CAISSE_SUBFILTER_OPTIONS: Record<
   GroupedCaisseTabValue,
   { value: GroupedCaisseSubFilterValue; label: string }[]
@@ -1074,7 +1079,7 @@ const ListContracts = () => {
   } | null>(null)
   const [contractToDelete, setContractToDelete] = useState<any>(null)
   const [contractToReplacePdf, setContractToReplacePdf] = useState<any>(null)
-  const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
+  const [contractRefunds, setContractRefunds] = useState<Record<string, ContractRefundDocuments>>({})
   const debouncedSearch = useDebounce(filters.search, 300)
   const activeGroupedCaisseSubFilter = isGroupedCaisseTab(activeTab)
     ? groupedCaisseSubFilters[activeTab]
@@ -1186,16 +1191,23 @@ const ListContracts = () => {
     const loadRefunds = async () => {
       if (!contractsData || contractsData.length === 0) return
       
-      const refundsMap: Record<string, any> = {}
+      const refundsMap: Record<string, ContractRefundDocuments> = {}
       
       for (const contract of contractsData) {
         if (!contract.id) continue
         try {
           const refunds = await listRefunds(contract.id)
-          // Récupérer le refund avec un document (EARLY ou FINAL)
-          const refundWithDoc = refunds.find((r: any) => r.document && r.document.url)
-          if (refundWithDoc) {
-            refundsMap[contract.id] = refundWithDoc
+          const finalRefundWithDoc = refunds.find(
+            (r: any) => r.type === 'FINAL' && r.document?.url
+          )
+          const earlyRefundWithDoc = refunds.find(
+            (r: any) => r.type === 'EARLY' && r.document?.url
+          )
+          if (finalRefundWithDoc || earlyRefundWithDoc) {
+            refundsMap[contract.id] = {
+              FINAL: finalRefundWithDoc,
+              EARLY: earlyRefundWithDoc,
+            }
           }
         } catch (error) {
           console.error(`Erreur lors du chargement des refunds pour ${contract.id}:`, error)
@@ -1297,10 +1309,9 @@ const ListContracts = () => {
     setIsViewUploadedModalOpen(true)
   }
 
-  const _handleViewRefundPDF = (contract: any) => {
-    const refund = contractRefunds[contract.id]
+  const handleViewRefundPDF = (contractId: string, type: 'FINAL' | 'EARLY') => {
+    const refund = contractRefunds[contractId]?.[type]
     if (refund && refund.document && refund.document.url) {
-      // Ouvrir le PDF dans un nouvel onglet
       window.open(refund.document.url, '_blank')
     } else {
       toast.error('Document non disponible')
@@ -2260,6 +2271,26 @@ const ListContracts = () => {
                                 <Download className="h-4 w-4" />
                                 Télécharger contrat
                               </Button>
+                              {contractRefunds[contract.id]?.FINAL?.document?.url && (
+                                <Button
+                                  onClick={() => handleViewRefundPDF(contract.id, 'FINAL')}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Contrat de remboursement
+                                </Button>
+                              )}
+                              {contractRefunds[contract.id]?.EARLY?.document?.url && (
+                                <Button
+                                  onClick={() => handleViewRefundPDF(contract.id, 'EARLY')}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Contrat de résiliation
+                                </Button>
+                              )}
                               {canDeleteCaisseContract(contract) && (
                                 <Button
                                   onClick={() => setContractToDelete(contract)}
@@ -2416,6 +2447,24 @@ const ListContracts = () => {
                                   <Download className="h-4 w-4 mr-2" />
                                   Télécharger contrat
                                 </DropdownMenuItem>
+                                {contractRefunds[contract.id]?.FINAL?.document?.url && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewRefundPDF(contract.id, 'FINAL')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Contrat de remboursement
+                                  </DropdownMenuItem>
+                                )}
+                                {contractRefunds[contract.id]?.EARLY?.document?.url && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewRefundPDF(contract.id, 'EARLY')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Contrat de résiliation
+                                  </DropdownMenuItem>
+                                )}
                                 {canDeleteCaisseContract(contract) && (
                                   <DropdownMenuItem
                                     onClick={() => setContractToDelete(contract)}
