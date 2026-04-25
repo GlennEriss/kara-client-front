@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import {
   AlertCircle,
   ArrowLeft,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -58,6 +59,8 @@ type CentralizedPayment = Payment & {
   beneficiaryName?: string
   sourceType?: string
   sourceId?: string
+  createdAt?: unknown
+  updatedAt?: unknown
 }
 
 const PAYMENT_COLORS: Record<TypePayment, string> = {
@@ -94,6 +97,14 @@ const PAYMENT_TYPES: TypePayment[] = [
   'AidCredit',
   'Charity',
   'Benefactor',
+]
+
+const PAYMENT_MODE_OPTIONS: Array<{ value: Payment['mode']; label: string }> = [
+  { value: 'airtel_money', label: 'Airtel Money' },
+  { value: 'mobicash', label: 'Mobicash' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'bank_transfer', label: 'Virement' },
+  { value: 'other', label: 'Autre' },
 ]
 
 const PAYMENT_TYPE_ICONS: Record<TypePayment, React.ComponentType<any>> = {
@@ -159,20 +170,21 @@ function useCarousel(itemCount: number, itemsPerView: number = 1) {
 
   const maxIndex = Math.max(0, itemCount - itemsPerView)
 
-  const goTo = (index: number) => {
+  const goTo = useCallback((index: number) => {
     const clampedIndex = Math.max(0, Math.min(index, maxIndex))
     setCurrentIndex(clampedIndex)
     setTranslateX(-clampedIndex * (100 / itemsPerView))
-  }
+  }, [maxIndex, itemsPerView])
 
-  const goNext = () => goTo(currentIndex + 1)
-  const goPrev = () => goTo(currentIndex - 1)
+  const goNext = useCallback(() => goTo(currentIndex + 1), [goTo, currentIndex])
+  const goPrev = useCallback(() => goTo(currentIndex - 1), [goTo, currentIndex])
 
-  const handleStart = (clientX: number) => {
+  const handleStart = useCallback((clientX: number) => {
     setIsDragging(true)
     setStartPos(clientX)
-  }
-  const handleMove = (clientX: number) => {
+  }, [])
+
+  const handleMove = useCallback((clientX: number) => {
     if (!isDragging || !containerRef.current) return
     const diff = clientX - startPos
     const containerWidth = containerRef.current.offsetWidth
@@ -180,8 +192,9 @@ function useCarousel(itemCount: number, itemsPerView: number = 1) {
     const maxDrag = 30
     const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
     setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
-  }
-  const handleEnd = () => {
+  }, [isDragging, startPos, currentIndex, itemsPerView])
+
+  const handleEnd = useCallback(() => {
     if (!isDragging || !containerRef.current) return
     const dragDistance = translateX + currentIndex * (100 / itemsPerView)
     const threshold = 15
@@ -193,21 +206,24 @@ function useCarousel(itemCount: number, itemsPerView: number = 1) {
       setTranslateX(-currentIndex * (100 / itemsPerView))
     }
     setIsDragging(false)
-  }
+  }, [isDragging, translateX, currentIndex, itemsPerView, maxIndex, goPrev, goNext])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     handleStart(e.clientX)
-  }
-  const handleTouchStart = (e: React.TouchEvent) => {
+  }, [handleStart])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     handleStart(e.touches[0].clientX)
-  }
-  const handleTouchMove = (e: React.TouchEvent) => {
+  }, [handleStart])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     handleMove(e.touches[0].clientX)
-  }
-  const handleTouchEnd = () => {
+  }, [handleMove])
+
+  const handleTouchEnd = useCallback(() => {
     handleEnd()
-  }
+  }, [handleEnd])
 
   useEffect(() => {
     if (!isDragging) return
@@ -219,7 +235,7 @@ function useCarousel(itemCount: number, itemsPerView: number = 1) {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -321,8 +337,16 @@ export default function PaymentHistory({ requestId }: Props) {
 
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [typeFilter, setTypeFilter] = useState<TypePayment | 'all'>('all')
+  const [modeFilter, setModeFilter] = useState<Payment['mode'] | 'all'>('all')
+  const [adminFilter, setAdminFilter] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
+  const [createdAtFrom, setCreatedAtFrom] = useState('')
+  const [createdAtTo, setCreatedAtTo] = useState('')
+  const [updatedAtFrom, setUpdatedAtFrom] = useState('')
+  const [updatedAtTo, setUpdatedAtTo] = useState('')
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true)
 
   const [payments, setPayments] = useState<CentralizedPayment[]>([])
@@ -350,6 +374,14 @@ export default function PaymentHistory({ requestId }: Props) {
       constraints.push(where('paymentType', '==', typeFilter))
     }
 
+    if (modeFilter !== 'all') {
+      constraints.push(where('mode', '==', modeFilter))
+    }
+
+    if (adminFilter !== 'all') {
+      constraints.push(where('acceptedBy', '==', adminFilter))
+    }
+
     if (dateFrom) {
       constraints.push(where('date', '>=', new Date(dateFrom)))
     }
@@ -360,8 +392,49 @@ export default function PaymentHistory({ requestId }: Props) {
       constraints.push(where('date', '<=', end))
     }
 
+    if (amountMin !== '' && !Number.isNaN(Number(amountMin))) {
+      constraints.push(where('amount', '>=', Number(amountMin)))
+    }
+
+    if (amountMax !== '' && !Number.isNaN(Number(amountMax))) {
+      constraints.push(where('amount', '<=', Number(amountMax)))
+    }
+
+    if (createdAtFrom) {
+      constraints.push(where('createdAt', '>=', new Date(createdAtFrom)))
+    }
+
+    if (createdAtTo) {
+      const end = new Date(createdAtTo)
+      end.setHours(23, 59, 59, 999)
+      constraints.push(where('createdAt', '<=', end))
+    }
+
+    if (updatedAtFrom) {
+      constraints.push(where('updatedAt', '>=', new Date(updatedAtFrom)))
+    }
+
+    if (updatedAtTo) {
+      const end = new Date(updatedAtTo)
+      end.setHours(23, 59, 59, 999)
+      constraints.push(where('updatedAt', '<=', end))
+    }
+
     return constraints
-  }, [requestId, typeFilter, dateFrom, dateTo])
+  }, [
+    requestId,
+    typeFilter,
+    modeFilter,
+    adminFilter,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    createdAtFrom,
+    createdAtTo,
+    updatedAtFrom,
+    updatedAtTo,
+  ])
 
   const fetchTotalCount = useCallback(async () => {
     setIsLoadingCount(true)
@@ -438,7 +511,20 @@ export default function PaymentHistory({ requestId }: Props) {
   useEffect(() => {
     setCurrentPage(1)
     setPageStartCursors({ 1: null })
-  }, [requestId, typeFilter, dateFrom, dateTo])
+  }, [
+    requestId,
+    typeFilter,
+    modeFilter,
+    adminFilter,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    createdAtFrom,
+    createdAtTo,
+    updatedAtFrom,
+    updatedAtTo,
+  ])
 
   useEffect(() => {
     fetchTotalCount()
@@ -450,9 +536,11 @@ export default function PaymentHistory({ requestId }: Props) {
   }, [fetchPage, refreshToken])
 
   useEffect(() => {
-    if (payments.length === 0) return
+    const uniqueAdminIds = [
+      ...new Set([...payments, ...statsSample].map((p) => p.acceptedBy).filter(Boolean)),
+    ]
+    if (uniqueAdminIds.length === 0) return
 
-    const uniqueAdminIds = [...new Set(payments.map((p) => p.acceptedBy).filter(Boolean))]
     uniqueAdminIds.forEach(async (adminId) => {
       if (!adminId || adminInfos[adminId]) return
       try {
@@ -466,7 +554,7 @@ export default function PaymentHistory({ requestId }: Props) {
         console.error('Erreur admin info:', error)
       }
     })
-  }, [payments, adminInfos])
+  }, [payments, statsSample, adminInfos])
 
   const statsByType = useMemo(() => {
     const initial: Record<TypePayment, { count: number; amount: number }> = {
@@ -553,8 +641,16 @@ export default function PaymentHistory({ requestId }: Props) {
 
   const handleResetFilters = () => {
     setTypeFilter('all')
+    setModeFilter('all')
+    setAdminFilter('all')
     setDateFrom('')
     setDateTo('')
+    setAmountMin('')
+    setAmountMax('')
+    setCreatedAtFrom('')
+    setCreatedAtTo('')
+    setUpdatedAtFrom('')
+    setUpdatedAtTo('')
   }
 
   const getAdminDisplay = (adminId: string) => {
@@ -563,7 +659,65 @@ export default function PaymentHistory({ requestId }: Props) {
     return `${info.firstName} ${info.lastName}`
   }
 
-  const hasActiveFilters = typeFilter !== 'all' || Boolean(dateFrom) || Boolean(dateTo)
+  const adminFilterOptions = useMemo(() => {
+    const adminIds = new Set<string>()
+    for (const payment of statsSample) {
+      if (payment.acceptedBy) adminIds.add(payment.acceptedBy)
+    }
+    for (const payment of payments) {
+      if (payment.acceptedBy) adminIds.add(payment.acceptedBy)
+    }
+    if (adminFilter !== 'all') adminIds.add(adminFilter)
+
+    return Array.from(adminIds)
+      .map((id) => {
+        const info = adminInfos[id]
+        return {
+          id,
+          label: info ? `${info.firstName} ${info.lastName}` : 'Administrateur',
+        }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }))
+  }, [statsSample, payments, adminFilter, adminInfos])
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0
+    if (typeFilter !== 'all') count += 1
+    if (modeFilter !== 'all') count += 1
+    if (adminFilter !== 'all') count += 1
+    if (dateFrom) count += 1
+    if (dateTo) count += 1
+    if (amountMin !== '') count += 1
+    if (amountMax !== '') count += 1
+    if (createdAtFrom) count += 1
+    if (createdAtTo) count += 1
+    if (updatedAtFrom) count += 1
+    if (updatedAtTo) count += 1
+    return count
+  }, [
+    typeFilter,
+    modeFilter,
+    adminFilter,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    createdAtFrom,
+    createdAtTo,
+    updatedAtFrom,
+    updatedAtTo,
+  ])
+
+  const activeAdvancedFiltersCount = useMemo(() => {
+    let count = 0
+    if (amountMin !== '') count += 1
+    if (amountMax !== '') count += 1
+    if (createdAtFrom) count += 1
+    if (createdAtTo) count += 1
+    if (updatedAtFrom) count += 1
+    if (updatedAtTo) count += 1
+    return count
+  }, [amountMin, amountMax, createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo])
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -715,52 +869,60 @@ export default function PaymentHistory({ requestId }: Props) {
 
       <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
-        <CardContent className="space-y-5 p-4 md:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <CardContent className="space-y-4 p-4 md:p-5">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex items-start gap-3">
               <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <Filter className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
-                <p className="text-sm text-slate-600">Affinez les paiements par type et periode.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
+                  {activeFiltersCount > 0 && (
+                    <Badge className="rounded-full border border-[#234D65]/20 bg-[#234D65]/10 px-2.5 py-0.5 text-xs font-semibold text-[#234D65]">
+                      {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-slate-600">
+                  Filtrez par type, mode, admin, montant et dates techniques.
+                </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                {hasActiveFilters ? 'Filtres actifs' : 'Aucun filtre'}
-              </Badge>
+              <Button
+                variant="outline"
+                onClick={handleResetFilters}
+                className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-50 hover:text-red-600 hover:shadow-sm"
+              >
+                Reinitialiser
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setIsFiltersExpanded((prev) => !prev)}
                 className={cn(
-                  'h-10 rounded-xl border-2 transition-colors',
+                  'h-10 rounded-xl border-2 transition-all duration-300 hover:-translate-y-0.5',
                   isFiltersExpanded
-                    ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
-                    : 'border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]'
+                    ? 'border-[#234D65] bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white shadow-sm hover:from-[#2c5a73] hover:to-[#234D65]'
+                    : 'border-slate-200 bg-white text-[#234D65] hover:border-[#234D65]/40 hover:bg-[#234D65]/5 hover:text-[#234D65]'
                 )}
               >
                 Filtres avances
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleResetFilters}
-                className="h-10 rounded-xl border-2 border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
-              >
-                Reinitialiser
+                {activeAdvancedFiltersCount > 0 ? ` (${activeAdvancedFiltersCount})` : ''}
+                <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-            <div className="space-y-1.5 xl:col-span-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_minmax(160px,1fr)_minmax(160px,1fr)]">
+            <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de paiement</Label>
               <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypePayment | 'all')}>
-                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white">
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
                   <SelectValue placeholder="Tous les types" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
                   <SelectItem value="all">Tous les types</SelectItem>
                   {PAYMENT_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
@@ -771,31 +933,128 @@ export default function PaymentHistory({ requestId }: Props) {
               </Select>
             </div>
 
-            <div className="space-y-1.5 xl:col-span-4">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date debut</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mode de paiement</Label>
+              <Select value={modeFilter} onValueChange={(v) => setModeFilter(v as Payment['mode'] | 'all')}>
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Tous les modes" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les modes</SelectItem>
+                  {PAYMENT_MODE_OPTIONS.map((mode) => (
+                    <SelectItem key={mode.value} value={mode.value}>
+                      {mode.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Admin enregistrement</Label>
+              <Select value={adminFilter} onValueChange={setAdminFilter}>
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Tous les admins" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les admins</SelectItem>
+                  {adminFilterOptions.map((admin) => (
+                    <SelectItem key={admin.id} value={admin.id}>
+                      {admin.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date versement debut</Label>
               <Input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white"
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
               />
             </div>
 
-            <div className="space-y-1.5 xl:col-span-4">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date fin</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date versement fin</Label>
               <Input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white"
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
               />
             </div>
           </div>
 
           {isFiltersExpanded && (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-xs text-slate-600">
-              Pagination serveur active: cette liste charge les paiements directement depuis la collection `payments`
-              avec le filtre `beneficiaryId = {requestId}`.
+            <div className="rounded-2xl border border-[#234D65]/15 bg-gradient-to-br from-[#234D65]/[0.04] via-white to-slate-50 p-4 md:p-5">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Montant du paiement (FCFA)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Min"
+                        value={amountMin}
+                        onChange={(e) => setAmountMin(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={amountMax}
+                        onChange={(e) => setAmountMax(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates techniques</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date de creation</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={createdAtFrom}
+                        onChange={(e) => setCreatedAtFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                      <Input
+                        type="date"
+                        value={createdAtTo}
+                        onChange={(e) => setCreatedAtTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date de modification</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={updatedAtFrom}
+                        onChange={(e) => setUpdatedAtFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                      <Input
+                        type="date"
+                        value={updatedAtTo}
+                        onChange={(e) => setUpdatedAtTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
