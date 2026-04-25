@@ -375,7 +375,7 @@ const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: numb
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
-  <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+  <Card className="group animate-pulse border border-[#234D65]/15 bg-gradient-to-br from-white via-slate-50/60 to-[#234D65]/[0.03] shadow-sm">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
         <Skeleton className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
@@ -506,12 +506,12 @@ const ContractFilters = ({
   const activeFiltersCount = activeFilterLabels.length
 
   return (
-    <Card className="relative overflow-hidden border border-slate-200/70 bg-white shadow-xl">
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
       <CardContent className="space-y-5 p-4 md:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-md">
+            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
               <Filter className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -1690,7 +1690,7 @@ const ListContracts = () => {
   const renderPagination = () => {
     if (totalPages <= 1) return null
     return (
-      <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
@@ -1702,7 +1702,7 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handlePrevPage}
                 disabled={currentPage === 1}
-                className="px-3 py-1"
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
               >
                 Précédent
               </Button>
@@ -1714,7 +1714,7 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handleNextPage}
                 disabled={!contractsPage?.nextCursor}
-                className="px-3 py-1"
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
               >
                 Suivant
               </Button>
@@ -2023,26 +2023,30 @@ const ListContracts = () => {
 
       {/* Liste des contrats */}
       {isLoading ? (
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-            : 'space-y-6'
-        }>
-          {[...Array(itemsPerPage)].map((_, i) => (
-            <ModernSkeleton key={i} viewMode={viewMode} />
-          ))}
+        <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/35 p-4 md:p-5">
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              : 'space-y-4'
+          }>
+            {[...Array(itemsPerPage)].map((_, i) => (
+              <ModernSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         </div>
       ) : currentContracts.length > 0 ? (
         <>
           {viewMode === 'grid' && (
+          <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {currentContracts.map((contract: any, _index: number) => (
               <div
                 key={contract.id}
-                className="animate-in fade-in-0 slide-in-from-bottom-4"
+                className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
                 style={{ animationDelay: `${_index * 0.05}s` }}
               >
-                <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
+                <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   
                   {/* Badge "En retard" */}
@@ -2068,11 +2072,11 @@ const ListContracts = () => {
                         <>
                           <div className="flex items-start gap-3">
                             <div className="shrink-0">
-                              <Avatar className="size-12 border border-gray-200 shadow-sm">
+                              <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
                                 {member?.photoURL ? (
-                                  <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} />
+                                  <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} className="h-full w-full object-cover object-center" />
                                 ) : (
-                                  <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                                  <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
                                     {isGroupContract(contract) ? <GroupIcon className="h-5 w-5" /> : initials}
                                   </AvatarFallback>
                                 )}
@@ -2080,7 +2084,7 @@ const ListContracts = () => {
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs text-gray-500">Matricule contrat</div>
-                              <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
+                              <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
                             </div>
                           </div>
 
@@ -2099,7 +2103,7 @@ const ListContracts = () => {
                             )}
                           </div>
 
-                          <div className="space-y-2 mt-4 text-sm">
+                          <div className="space-y-2 mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
                             <div className="flex items-center justify-between">
                               <span className="text-gray-500">Type de contrat:</span>
                               <span className="font-medium text-gray-900">{getContractTypeLabel(contract)}</span>
@@ -2138,7 +2142,7 @@ const ListContracts = () => {
 
                             <div className="flex items-center justify-between">
                               <span className="text-gray-500">Mensualité:</span>
-                              <span className="font-semibold text-green-600">
+                              <span className="font-extrabold text-[#234D65]">
                                 {(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA
                               </span>
                             </div>
@@ -2181,7 +2185,7 @@ const ListContracts = () => {
                             </div>
                           </div>
 
-                          <div className="pt-3 border-t border-gray-100 mt-auto">
+                          <div className="pt-3 border-t border-slate-200 mt-auto">
                             <div className="space-y-2">
                               {hasValidContractPdf(contract) ? (
                                 <>
@@ -2195,7 +2199,7 @@ const ListContracts = () => {
                                   <Button
                                     onClick={() => handleViewUploadedContractPDF(contract)}
                                     variant="outline"
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all hover:bg-[#234D65] hover:text-white"
                                   >
                                     <FileText className="h-4 w-4" />
                                     Voir contrat
@@ -2249,12 +2253,13 @@ const ListContracts = () => {
               </div>
             ))}
           </div>
+          </div>
           )}
 
           {viewMode === 'list' && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+            <div className="overflow-x-auto rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white to-slate-50/35 shadow-sm">
               <table className="min-w-[1400px] w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
+                <thead className="bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/[0.06] to-transparent text-[#234D65]">
                   <tr>
                     <th className="text-left px-4 py-3">Photo</th>
                     <th className="text-left px-4 py-3">Matricule contrat</th>
@@ -2274,7 +2279,7 @@ const ListContracts = () => {
                     <th className="text-left px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {currentContracts.map((contract: any) => {
                     const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
                     const contacts = member?.contacts?.length ? member.contacts.join(' / ') : '—'
@@ -2285,13 +2290,13 @@ const ListContracts = () => {
                       : 'CS'
 
                     return (
-                      <tr key={contract.id} className="hover:bg-gray-50/50">
+                      <tr key={contract.id} className="transition-colors hover:bg-[#234D65]/[0.045]">
                         <td className="px-4 py-3">
-                          <Avatar className="size-9 border border-gray-200 shadow-sm">
+                          <Avatar className="size-10 rounded-lg ring-1 ring-[#234D65]/15">
                             {member?.photoURL ? (
-                              <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} />
+                              <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} className="h-full w-full object-cover object-center" />
                             ) : (
-                              <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
+                              <AvatarFallback className="rounded-lg bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
                                 {isGroupContract(contract) ? <GroupIcon className="h-4 w-4" /> : initials}
                               </AvatarFallback>
                             )}
@@ -2408,7 +2413,7 @@ const ListContracts = () => {
           {renderPagination()}
         </>
       ) : (
-        <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
