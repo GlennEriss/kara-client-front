@@ -27,8 +27,10 @@ import {
     AlertCircle,
     Calendar,
     CalendarDays,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
+    Download,
     DollarSign,
     Eye,
     FileText,
@@ -204,6 +206,7 @@ export default function ListContractsCISection() {
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [isExporting, setIsExporting] = useState(false)
   const itemsPerPage = 14
 
   // États pour les modals
@@ -402,12 +405,13 @@ export default function ListContractsCISection() {
     })
   }
 
-  const _handleExportExcel = async () => {
+  const exportToExcel = async () => {
     if (!contracts || contracts.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
 
+    setIsExporting(true)
     try {
       const XLSX = await import('xlsx')
       const rows = buildExportRows()
@@ -456,15 +460,18 @@ export default function ListContractsCISection() {
     } catch (error) {
       console.error('Erreur lors de l\'export Excel:', error)
       toast.error('Erreur lors de l\'export Excel')
+    } finally {
+      setIsExporting(false)
     }
   }
 
-  const _handleExportPDF = async () => {
+  const exportToPDF = async () => {
     if (!contracts || contracts.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
 
+    setIsExporting(true)
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
@@ -510,6 +517,8 @@ export default function ListContractsCISection() {
     } catch (error) {
       console.error('Erreur lors de l\'export PDF:', error)
       toast.error('Erreur lors de l\'export PDF')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -517,7 +526,10 @@ export default function ListContractsCISection() {
   const totalPages = Math.ceil((filteredContracts?.length || 0) / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContracts = filteredContracts?.slice(startIndex, endIndex) || []
+  const currentContracts = useMemo(
+    () => filteredContracts.slice(startIndex, endIndex),
+    [filteredContracts, startIndex, endIndex]
+  )
   const contractIds = useMemo(() => currentContracts.map((c) => c.id), [currentContracts])
   const currentMemberIds = useMemo(
     () => Array.from(new Set(currentContracts.map((c) => c.memberId).filter(Boolean))),
@@ -589,63 +601,114 @@ export default function ListContractsCISection() {
         isOverdueTab={activeTab === 'overdue'}
       />
 
-      {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+      {/* Barre d'actions - design aligné avec caisse spéciale */}
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                <h2 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-xl font-black text-transparent md:text-2xl">
                   Liste des Contrats
                 </h2>
-                <p className="text-gray-600 font-medium">
+                <p className="font-medium text-gray-600">
                   {(filteredContracts?.length || 0).toLocaleString()} contrat{(filteredContracts?.length || 0) !== 1 ? 's' : ''} • Page {currentPage}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-                className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid' ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                title="Affichage en grille"
-              >
-                <Grid3X3 className="h-4 w-4 mr-2" />
-                Grille
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list' ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                title="Affichage en liste"
-              >
-                <List className="h-4 w-4 mr-2" />
-                Liste
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1 sm:w-auto">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className={`h-10 flex-1 cursor-pointer rounded-lg px-4 transition-all duration-200 sm:flex-none ${viewMode === 'grid'
+                      ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                      : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
+                    }`}
+                >
+                  <Grid3X3 className="mr-2 h-4 w-4" />
+                  Cards
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className={`h-10 flex-1 cursor-pointer rounded-lg px-4 transition-all duration-200 sm:flex-none ${viewMode === 'list'
+                      ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                      : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
+                    }`}
+                >
+                  <List className="mr-2 h-4 w-4" />
+                  Table
+                </Button>
+              </div>
 
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-10 px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-10 w-full cursor-pointer rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50 sm:w-auto"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExporting || filteredContracts.length === 0}
+                    className="h-10 w-full cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50 sm:w-auto"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToExcel()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-2 h-4 w-4 text-emerald-700" />
+                    Exporter Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToPDF()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-2 h-4 w-4 text-rose-700" />
+                    Exporter PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <Button
                 size="sm"
                 onClick={handleCreateContract}
-                className="cursor-pointer h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="h-10 w-full cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md sm:w-auto"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 Nouveau Contrat
               </Button>
             </div>
