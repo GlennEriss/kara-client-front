@@ -427,6 +427,15 @@ const ListDemandes = () => {
   const [caisseTypeFilter, setCaisseTypeFilter] = useState<string>(searchParams.get('caisseType') || 'all')
   const [createdAtFrom, setCreatedAtFrom] = useState<string>(searchParams.get('createdAtFrom') || '')
   const [createdAtTo, setCreatedAtTo] = useState<string>(searchParams.get('createdAtTo') || '')
+  const [requestedAmountMin, setRequestedAmountMin] = useState<string>(searchParams.get('requestedAmountMin') || '')
+  const [requestedAmountMax, setRequestedAmountMax] = useState<string>(searchParams.get('requestedAmountMax') || '')
+  const [monthsPlannedMin, setMonthsPlannedMin] = useState<string>(searchParams.get('monthsPlannedMin') || '')
+  const [monthsPlannedMax, setMonthsPlannedMax] = useState<string>(searchParams.get('monthsPlannedMax') || '')
+  const [monthlyAmountMin, setMonthlyAmountMin] = useState<string>(searchParams.get('monthlyAmountMin') || '')
+  const [monthlyAmountMax, setMonthlyAmountMax] = useState<string>(searchParams.get('monthlyAmountMax') || '')
+  const [memberGender, setMemberGender] = useState<'all' | 'Homme' | 'Femme'>(
+    (searchParams.get('memberGender') as 'all' | 'Homme' | 'Femme') || 'all'
+  )
   const [sortOption, setSortOption] = useState<'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc'>(
     (searchParams.get('sort') as 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') || 'date_desc'
   )
@@ -470,6 +479,16 @@ const ListDemandes = () => {
     if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
     if (viewMode !== 'grid') params.set('view', viewMode)
     if (sortOption !== 'date_desc') params.set('sort', sortOption)
+    if (caisseTypeFilter !== 'all') params.set('caisseType', caisseTypeFilter)
+    if (createdAtFrom) params.set('createdAtFrom', createdAtFrom)
+    if (createdAtTo) params.set('createdAtTo', createdAtTo)
+    if (requestedAmountMin) params.set('requestedAmountMin', requestedAmountMin)
+    if (requestedAmountMax) params.set('requestedAmountMax', requestedAmountMax)
+    if (monthsPlannedMin) params.set('monthsPlannedMin', monthsPlannedMin)
+    if (monthsPlannedMax) params.set('monthsPlannedMax', monthsPlannedMax)
+    if (monthlyAmountMin) params.set('monthlyAmountMin', monthlyAmountMin)
+    if (monthlyAmountMax) params.set('monthlyAmountMax', monthlyAmountMax)
+    if (memberGender !== 'all') params.set('memberGender', memberGender)
     
     const queryString = params.toString()
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
@@ -477,7 +496,24 @@ const ListDemandes = () => {
     if (window.location.search !== `?${queryString}`) {
       router.replace(newUrl, { scroll: false })
     }
-  }, [activeTab, currentPage, itemsPerPage, viewMode, sortOption, router])
+  }, [
+    activeTab,
+    currentPage,
+    itemsPerPage,
+    viewMode,
+    sortOption,
+    caisseTypeFilter,
+    createdAtFrom,
+    createdAtTo,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+    memberGender,
+    router,
+  ])
 
   // Hooks pour récupérer les données
   const getStatusFilter = () => {
@@ -508,6 +544,13 @@ const ListDemandes = () => {
       : undefined,
     createdAtFrom: createdAtFrom ? new Date(createdAtFrom) : undefined,
     createdAtTo: createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined,
+    requestedAmountMin: requestedAmountMin === '' ? undefined : Number(requestedAmountMin),
+    requestedAmountMax: requestedAmountMax === '' ? undefined : Number(requestedAmountMax),
+    monthsPlannedMin: monthsPlannedMin === '' ? undefined : Number(monthsPlannedMin),
+    monthsPlannedMax: monthsPlannedMax === '' ? undefined : Number(monthsPlannedMax),
+    monthlyAmountMin: monthlyAmountMin === '' ? undefined : Number(monthlyAmountMin),
+    monthlyAmountMax: monthlyAmountMax === '' ? undefined : Number(monthlyAmountMax),
+    memberGender,
     sortBy: sortOption.startsWith('alphabetical') ? 'alphabetical' : 'date',
     sortOrder: sortOption.endsWith('_asc') ? 'asc' : 'desc',
   }
@@ -517,6 +560,13 @@ const ListDemandes = () => {
     setCaisseTypeFilter('all')
     setCreatedAtFrom('')
     setCreatedAtTo('')
+    setRequestedAmountMin('')
+    setRequestedAmountMax('')
+    setMonthsPlannedMin('')
+    setMonthsPlannedMax('')
+    setMonthlyAmountMin('')
+    setMonthlyAmountMax('')
+    setMemberGender('all')
     setSortOption('date_desc')
     setCurrentPage(1)
   }
@@ -532,7 +582,21 @@ const ListDemandes = () => {
   // Reset page when tab or filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeTab, debouncedSearch, caisseTypeFilter, createdAtFrom, createdAtTo])
+  }, [
+    activeTab,
+    debouncedSearch,
+    caisseTypeFilter,
+    createdAtFrom,
+    createdAtTo,
+    requestedAmountMin,
+    requestedAmountMax,
+    monthsPlannedMin,
+    monthsPlannedMax,
+    monthlyAmountMin,
+    monthlyAmountMax,
+    memberGender,
+    sortOption,
+  ])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -610,7 +674,7 @@ const ListDemandes = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(320px,1.8fr)_auto] gap-3 items-end">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(340px,1.8fr)_auto] gap-3 items-end">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
                 <div className="relative group">
@@ -624,7 +688,7 @@ const ListDemandes = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 md:justify-end">
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 <Button
                   variant="outline"
                   size="sm"
@@ -634,73 +698,130 @@ const ListDemandes = () => {
                   Réinitialiser filtres
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="h-10 rounded-xl border-2 border-[#234D65]/40 text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+                <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsFiltersExpanded((prev) => !prev)}
                   className="h-10 rounded-xl border-2 border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5"
                 >
-                  Filtres
+                  Filtres avancés
                   <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isFiltersExpanded ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
             </div>
 
             {isFiltersExpanded && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pt-4 border-t border-slate-200/80">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-500">Tri</Label>
-                  <Select
-                    value={sortOption}
-                    onValueChange={(v: 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') => { setSortOption(v); setCurrentPage(1) }}
-                  >
-                    <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
-                      <SelectValue placeholder="Trier par" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
-                      <SelectItem value="date_desc">Plus récentes</SelectItem>
-                      <SelectItem value="date_asc">Plus anciennes</SelectItem>
-                      <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
-                      <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-4 pt-4 border-t border-slate-200/80">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Organisation</p>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500">Tri</Label>
+                      <Select
+                        value={sortOption}
+                        onValueChange={(v: 'date_desc' | 'date_asc' | 'alphabetical_asc' | 'alphabetical_desc') => { setSortOption(v); setCurrentPage(1) }}
+                      >
+                        <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
+                          <SelectValue placeholder="Trier par" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                          <SelectItem value="date_desc">Plus récentes</SelectItem>
+                          <SelectItem value="date_asc">Plus anciennes</SelectItem>
+                          <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
+                          <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
-                  <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
-                    <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
-                      <SelectValue placeholder="Type de caisse" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
-                      <SelectItem value="all">Tous les types</SelectItem>
-                      <SelectItem value="STANDARD">Standard</SelectItem>
-                      <SelectItem value="JOURNALIERE">Journalière</SelectItem>
-                      <SelectItem value="LIBRE">Libre</SelectItem>
-                      <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
-                      <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
-                      <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500">Type de caisse</Label>
+                      <Select value={caisseTypeFilter} onValueChange={(v) => { setCaisseTypeFilter(v); setCurrentPage(1) }}>
+                        <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
+                          <SelectValue placeholder="Type de caisse" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                          <SelectItem value="all">Tous les types</SelectItem>
+                          <SelectItem value="STANDARD">Standard</SelectItem>
+                          <SelectItem value="JOURNALIERE">Journalière</SelectItem>
+                          <SelectItem value="LIBRE">Libre</SelectItem>
+                          <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                          <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                          <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
-                  <Input
-                    type="date"
-                    value={createdAtFrom}
-                    onChange={(e) => setCreatedAtFrom(e.target.value)}
-                    className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500">Sexe du demandeur</Label>
+                      <Select value={memberGender} onValueChange={(v: 'all' | 'Homme' | 'Femme') => { setMemberGender(v); setCurrentPage(1) }}>
+                        <SelectTrigger className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:ring-0 focus:border-[#234D65]">
+                          <SelectValue placeholder="Sexe" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                          <SelectItem value="all">Tous</SelectItem>
+                          <SelectItem value="Homme">Homme</SelectItem>
+                          <SelectItem value="Femme">Femme</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
-                  <Input
-                    type="date"
-                    value={createdAtTo}
-                    onChange={(e) => setCreatedAtTo(e.target.value)}
-                    className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
-                  />
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Montant demandé min</Label>
+                        <Input type="number" min="0" value={requestedAmountMin} onChange={(e) => setRequestedAmountMin(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Montant demandé max</Label>
+                        <Input type="number" min="0" value={requestedAmountMax} onChange={(e) => setRequestedAmountMax(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Mensualité min</Label>
+                        <Input type="number" min="0" value={monthlyAmountMin} onChange={(e) => setMonthlyAmountMin(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Mensualité max</Label>
+                        <Input type="number" min="0" value={monthlyAmountMax} onChange={(e) => setMonthlyAmountMax(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Durée Et Dates</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Nombre de mois min</Label>
+                        <Input type="number" min="0" value={monthsPlannedMin} onChange={(e) => setMonthsPlannedMin(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Nombre de mois max</Label>
+                        <Input type="number" min="0" value={monthsPlannedMax} onChange={(e) => setMonthsPlannedMax(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500">Date création - Début</Label>
+                      <Input type="date" value={createdAtFrom} onChange={(e) => setCreatedAtFrom(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500">Date création - Fin</Label>
+                      <Input type="date" value={createdAtTo} onChange={(e) => setCreatedAtTo(e.target.value)} className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]" />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -733,18 +854,7 @@ const ListDemandes = () => {
                 </Button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 ml-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="h-12 sm:h-10 w-full sm:w-auto px-4 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Actualiser
-                </Button>
-              </div>
+              <div className="flex flex-wrap items-center gap-3 ml-auto" />
             </div>
           </div>
         </CardContent>

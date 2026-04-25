@@ -33,6 +33,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         let memberLastName = '';
         let memberFirstName = '';
         let memberMatricule = '';
+        let memberGender = '';
 
         if (data.memberId) {
             const member = await this.memberRepository.getMemberById(data.memberId);
@@ -40,6 +41,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
                 memberLastName = member.lastName || '';
                 memberFirstName = member.firstName || '';
                 memberMatricule = member.matricule || '';
+                memberGender = (member as any).gender || '';
                 memberName = `${memberFirstName} ${memberLastName}`.trim();
                 if (member.matricule) {
                     const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
@@ -68,6 +70,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             contractType: 'INDIVIDUAL' as const, // Toujours individuel
             status: 'PENDING' as const,
             createdBy: adminId,
+            memberGender: memberGender || undefined,
             ...searchableTexts,
         };
 

@@ -1333,6 +1333,7 @@ export interface CaisseSpecialeDemand {
     | 'LIBRE_CHARITABLE'
   monthlyAmount: number // Montant mensuel souhaité
   monthsPlanned: number // Durée souhaitée (en mois)
+  memberGender?: string // Sexe du demandeur (dénormalisé pour filtres)
   desiredDate: string // Date souhaitée pour le début du contrat (format: YYYY-MM-DD)
   cause?: string // Raison de la demande (optionnel)
   
@@ -1408,6 +1409,13 @@ export interface CaisseSpecialeDemandFilters {
   desiredDateFrom?: Date // Filtre par date souhaitée (début)
   desiredDateTo?: Date // Filtre par date souhaitée (fin)
   search?: string // Recherche textuelle (nom, prénom, matricule via searchableText*)
+  requestedAmountMin?: number // Montant demandé total min (mensualité * mois)
+  requestedAmountMax?: number // Montant demandé total max (mensualité * mois)
+  monthsPlannedMin?: number // Nombre de mois min
+  monthsPlannedMax?: number // Nombre de mois max
+  monthlyAmountMin?: number // Mensualité min
+  monthlyAmountMax?: number // Mensualité max
+  memberGender?: 'Homme' | 'Femme' | 'all'
   sortBy?: 'date' | 'alphabetical'
   sortOrder?: 'asc' | 'desc'
   page?: number
