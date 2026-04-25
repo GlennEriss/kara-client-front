@@ -33,6 +33,7 @@ import {
     BarChart3,
     Calendar,
     CheckCircle,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Clock,
@@ -405,6 +406,7 @@ const ContractFilters = ({
   onReset: () => void
   activeTab: CaisseTypeTabValue
 }) => {
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
   const safeFilters = {
     search: '',
     status: 'all',
@@ -504,6 +506,19 @@ const ContractFilters = ({
   ].filter(Boolean) as string[]
 
   const activeFiltersCount = activeFilterLabels.length
+  const advancedFiltersCount = activeFilterLabels.filter(
+    (label) =>
+      label !== (safeFilters.search?.trim() ? `Recherche: ${safeFilters.search.trim()}` : '') &&
+      label !== (hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : '') &&
+      label !== (!isCaisseTabLocked && caisseTypeValue !== 'all'
+        ? `Caisse: ${caisseTypeLabels[caisseTypeValue] || caisseTypeValue}`
+        : '') &&
+      label !== (safeFilters.contractType !== 'all'
+        ? `Contrat: ${contractTypeLabels[safeFilters.contractType] || safeFilters.contractType}`
+        : '')
+  ).length
+  const controlClassName = 'h-11 rounded-xl border-2 border-slate-200 bg-white focus:ring-0 focus-visible:ring-0 focus-visible:border-[#234D65]'
+  const miniInputClassName = 'h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]'
 
   return (
     <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
@@ -531,8 +546,22 @@ const ContractFilters = ({
             </Badge>
             <Button
               variant="outline"
+              onClick={() => setIsFiltersExpanded((prev) => !prev)}
+              className={cn(
+                'h-10 rounded-xl border-2 transition-colors',
+                isFiltersExpanded
+                  ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                  : 'border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]'
+              )}
+            >
+              Filtres avancés
+              {advancedFiltersCount > 0 ? ` (${advancedFiltersCount})` : ''}
+              <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+            </Button>
+            <Button
+              variant="outline"
               onClick={onReset}
-              className="h-10 border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
+              className="h-10 rounded-xl border-2 border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Réinitialiser
@@ -548,7 +577,7 @@ const ContractFilters = ({
               <Input
                 type="text"
                 placeholder="Nom, prénom ou matricule..."
-                className="h-11 border-slate-200 bg-white pl-10 focus-visible:ring-[#234D65]/30"
+                className={cn(controlClassName, 'pl-10')}
                 value={safeFilters.search || ''}
                 onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
               />
@@ -561,7 +590,7 @@ const ContractFilters = ({
               value={statusValue}
               onValueChange={(value) => onFiltersChange({ ...safeFilters, status: value })}
             >
-              <SelectTrigger className="h-11 border-slate-200 bg-white focus:ring-[#234D65]/30">
+              <SelectTrigger className={controlClassName}>
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
@@ -582,7 +611,7 @@ const ContractFilters = ({
               onValueChange={(value) => onFiltersChange({ ...safeFilters, caisseType: value })}
               disabled={isCaisseTabLocked}
             >
-              <SelectTrigger className="h-11 border-slate-200 bg-white focus:ring-[#234D65]/30 disabled:opacity-70">
+              <SelectTrigger className={cn(controlClassName, 'disabled:opacity-70')}>
                 <SelectValue placeholder="Tous les types de contrat" />
               </SelectTrigger>
               <SelectContent>
@@ -603,7 +632,7 @@ const ContractFilters = ({
               value={safeFilters.contractType || 'all'}
               onValueChange={(value) => onFiltersChange({ ...safeFilters, contractType: value })}
             >
-              <SelectTrigger className="h-11 border-slate-200 bg-white focus:ring-[#234D65]/30">
+              <SelectTrigger className={controlClassName}>
                 <SelectValue placeholder="Tous les profils" />
               </SelectTrigger>
               <SelectContent>
@@ -615,99 +644,101 @@ const ContractFilters = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Période de création</Label>
-              {isNextDueRangeActive && (
-                <span className="text-[11px] font-medium text-slate-500">Désactivé par l&apos;échéance</span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
-              <Input
-                type="date"
-                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
-                value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
-                    nextDueAtFrom: undefined,
-                    nextDueAtTo: undefined,
-                  })
-                }
-                disabled={isNextDueRangeActive}
-              />
-              <span className="text-center text-sm text-slate-400">→</span>
-              <Input
-                type="date"
-                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
-                value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
-                    nextDueAtFrom: undefined,
-                    nextDueAtTo: undefined,
-                  })
-                }
-                disabled={isNextDueRangeActive}
-              />
-            </div>
-          </div>
+        {isFiltersExpanded && (
+          <>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Période de création</Label>
+                  {isNextDueRangeActive && (
+                    <span className="text-[11px] font-medium text-slate-500">Désactivé par l&apos;échéance</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                        nextDueAtFrom: undefined,
+                        nextDueAtTo: undefined,
+                      })
+                    }
+                    disabled={isNextDueRangeActive}
+                  />
+                  <span className="text-center text-sm text-slate-400">→</span>
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                        nextDueAtFrom: undefined,
+                        nextDueAtTo: undefined,
+                      })
+                    }
+                    disabled={isNextDueRangeActive}
+                  />
+                </div>
+              </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Prochaine échéance</Label>
-              {isCreatedAtRangeActive && (
-                <span className="text-[11px] font-medium text-slate-500">Désactivé par la création</span>
-              )}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Prochaine échéance</Label>
+                  {isCreatedAtRangeActive && (
+                    <span className="text-[11px] font-medium text-slate-500">Désactivé par la création</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                      })
+                    }
+                    disabled={isCreatedAtRangeActive}
+                  />
+                  <span className="text-center text-sm text-slate-400">→</span>
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                      })
+                    }
+                    disabled={isCreatedAtRangeActive}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
-              <Input
-                type="date"
-                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
-                value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
-                    createdAtFrom: undefined,
-                    createdAtTo: undefined,
-                  })
-                }
-                disabled={isCreatedAtRangeActive}
-              />
-              <span className="text-center text-sm text-slate-400">→</span>
-              <Input
-                type="date"
-                className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
-                value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
-                onChange={(e) =>
-                  onFiltersChange({
-                    ...safeFilters,
-                    nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
-                    createdAtFrom: undefined,
-                    createdAtTo: undefined,
-                  })
-                }
-                disabled={isCreatedAtRangeActive}
-              />
-            </div>
-          </div>
-        </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-          <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Montant à verser</Label>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+              <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant à verser</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.monthlyAmountMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -720,7 +751,7 @@ const ContractFilters = ({
                   type="number"
                   min={0}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.monthlyAmountMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -732,14 +763,14 @@ const ContractFilters = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Montant contrat</Label>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant contrat</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.contractAmountMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -752,7 +783,7 @@ const ContractFilters = ({
                   type="number"
                   min={0}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.contractAmountMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -764,14 +795,14 @@ const ContractFilters = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Montant bonus</Label>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant bonus</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.bonusAmountMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -784,7 +815,7 @@ const ContractFilters = ({
                   type="number"
                   min={0}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.bonusAmountMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -796,14 +827,14 @@ const ContractFilters = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Pénalité cumulée</Label>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Pénalité cumulée</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.penaltiesAmountMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -816,7 +847,7 @@ const ContractFilters = ({
                   type="number"
                   min={0}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.penaltiesAmountMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -828,14 +859,14 @@ const ContractFilters = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Montant déjà versé</Label>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant déjà versé</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.paidAmountMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -848,7 +879,7 @@ const ContractFilters = ({
                   type="number"
                   min={0}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.paidAmountMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -860,15 +891,15 @@ const ContractFilters = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Durée contrat (mois)</Label>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Durée contrat (mois)</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   step={1}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.durationMonthsMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -882,7 +913,7 @@ const ContractFilters = ({
                   min={0}
                   step={1}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.durationMonthsMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -894,15 +925,15 @@ const ContractFilters = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-slate-500">Nombre de versements effectués</Label>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Nombre de versements effectués</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   min={0}
                   step={1}
                   placeholder="Min"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.paymentCountMin ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -916,7 +947,7 @@ const ContractFilters = ({
                   min={0}
                   step={1}
                   placeholder="Max"
-                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  className={miniInputClassName}
                   value={safeFilters.paymentCountMax ?? ''}
                   onChange={(e) =>
                     onFiltersChange({
@@ -927,35 +958,37 @@ const ContractFilters = ({
                 />
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-slate-100 pt-2 md:flex-row md:items-start md:justify-between">
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-[#234D65] focus:ring-[#234D65]"
-              checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
-              onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
-              disabled={isOverdueTab}
-            />
-            Afficher uniquement les contrats en retard
-          </label>
-
-          {activeFilterLabels.length > 0 && (
-            <div className="flex flex-wrap gap-2 md:justify-end">
-              {activeFilterLabels.map((label) => (
-                <Badge
-                  key={label}
-                  variant="outline"
-                  className="border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-xs font-medium text-[#234D65]"
-                >
-                  {label}
-                </Badge>
-              ))}
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 pt-2 md:flex-row md:items-start md:justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-[#234D65] focus:ring-[#234D65]"
+                  checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
+                  onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
+                  disabled={isOverdueTab}
+                />
+                Afficher uniquement les contrats en retard
+              </label>
+
+              {activeFilterLabels.length > 0 && (
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {activeFilterLabels.map((label) => (
+                    <Badge
+                      key={label}
+                      variant="outline"
+                      className="border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-xs font-medium text-[#234D65]"
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -1807,15 +1840,16 @@ const ListContracts = () => {
       />
 
       {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
                   Liste des Contrats
                 </h2>
                 <p className="text-gray-600 font-medium">
@@ -1824,32 +1858,32 @@ const ListContracts = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden lg:flex">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Boutons de vue (cards/liste) */}
+              <div className="flex w-full sm:w-auto items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg transition-all duration-200 ${viewMode === 'grid'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
-                  Grille
+                  Cards
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg transition-all duration-200 ${viewMode === 'list'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <List className="h-4 w-4 mr-2" />
-                  Liste
+                  Table
                 </Button>
               </div>
 
@@ -1859,56 +1893,60 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-10 w-full sm:w-auto rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                disabled={isExporting || contractsData.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExporting || contractsData.length === 0}
+                    className="h-10 w-full sm:w-auto rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin mr-2" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToExcel()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-emerald-700" />
                     Exporter Excel
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToPDF}
-                disabled={isExporting || contractsData.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToPDF()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-rose-700" />
                     Exporter PDF
-                  </>
-                )}
-              </Button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <Button
                 size="sm"
                 onClick={handleCreateContract}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="h-10 w-full sm:w-auto rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Nouveau Contrat
