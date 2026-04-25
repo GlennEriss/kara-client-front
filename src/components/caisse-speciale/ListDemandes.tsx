@@ -797,7 +797,7 @@ const ListDemandes = () => {
       {isLoading ? (
         <div className={
           viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6'
             : 'space-y-6'
         }>
           {[...Array(itemsPerPage)].map((_, i) => (
@@ -835,7 +835,7 @@ const ListDemandes = () => {
               </Table>
             </Card>
           ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 items-stretch">
             {currentDemandes.map((demande) => (
               <DemandCard
                 key={demande.id}

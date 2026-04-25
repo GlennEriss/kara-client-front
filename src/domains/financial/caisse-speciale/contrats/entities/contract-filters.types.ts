@@ -26,6 +26,16 @@ export interface ContractFilters {
   nextDueAtTo?: Date
   overdueOnly?: boolean
   search?: string
+  monthlyAmountMin?: number
+  monthlyAmountMax?: number
+  contractAmountMin?: number
+  contractAmountMax?: number
+  bonusAmountMin?: number
+  bonusAmountMax?: number
+  penaltiesAmountMin?: number
+  penaltiesAmountMax?: number
+  paidAmountMin?: number
+  paidAmountMax?: number
 }
 
 export interface PaginationParams {

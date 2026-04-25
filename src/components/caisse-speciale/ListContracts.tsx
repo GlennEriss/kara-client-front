@@ -415,6 +415,16 @@ const ContractFilters = ({
     nextDueAtFrom: undefined,
     nextDueAtTo: undefined,
     overdueOnly: false,
+    monthlyAmountMin: undefined,
+    monthlyAmountMax: undefined,
+    contractAmountMin: undefined,
+    contractAmountMax: undefined,
+    bonusAmountMin: undefined,
+    bonusAmountMax: undefined,
+    penaltiesAmountMin: undefined,
+    penaltiesAmountMax: undefined,
+    paidAmountMin: undefined,
+    paidAmountMax: undefined,
     ...filters,
   }
   const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
@@ -466,6 +476,21 @@ const ContractFilters = ({
     isCreatedAtRangeActive ? 'Période de création' : null,
     isNextDueRangeActive ? 'Prochaine échéance' : null,
     !isOverdueTab && safeFilters.overdueOnly ? 'Retard uniquement' : null,
+    typeof safeFilters.monthlyAmountMin === 'number' || typeof safeFilters.monthlyAmountMax === 'number'
+      ? 'Montant à verser'
+      : null,
+    typeof safeFilters.contractAmountMin === 'number' || typeof safeFilters.contractAmountMax === 'number'
+      ? 'Montant contrat'
+      : null,
+    typeof safeFilters.bonusAmountMin === 'number' || typeof safeFilters.bonusAmountMax === 'number'
+      ? 'Montant bonus'
+      : null,
+    typeof safeFilters.penaltiesAmountMin === 'number' || typeof safeFilters.penaltiesAmountMax === 'number'
+      ? 'Montant pénalité cumulée'
+      : null,
+    typeof safeFilters.paidAmountMin === 'number' || typeof safeFilters.paidAmountMax === 'number'
+      ? 'Montant déjà versé'
+      : null,
   ].filter(Boolean) as string[]
 
   const activeFiltersCount = activeFilterLabels.length
@@ -662,6 +687,171 @@ const ContractFilters = ({
           </div>
         </div>
 
+        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+          <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant à verser</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.monthlyAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      monthlyAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.monthlyAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      monthlyAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant contrat</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.contractAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      contractAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.contractAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      contractAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant bonus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.bonusAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      bonusAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.bonusAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      bonusAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Pénalité cumulée</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.penaltiesAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      penaltiesAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.penaltiesAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      penaltiesAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-slate-500">Montant déjà versé</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paidAmountMin ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paidAmountMin: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  className="h-10 border-slate-200 bg-white focus-visible:ring-[#234D65]/30"
+                  value={safeFilters.paidAmountMax ?? ''}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...safeFilters,
+                      paidAmountMax: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-2 md:flex-row md:items-start md:justify-between">
           <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
             <input
@@ -735,6 +925,16 @@ const ListContracts = () => {
     nextDueAtFrom: undefined as Date | undefined,
     nextDueAtTo: undefined as Date | undefined,
     overdueOnly: false,
+    monthlyAmountMin: undefined as number | undefined,
+    monthlyAmountMax: undefined as number | undefined,
+    contractAmountMin: undefined as number | undefined,
+    contractAmountMax: undefined as number | undefined,
+    bonusAmountMin: undefined as number | undefined,
+    bonusAmountMax: undefined as number | undefined,
+    penaltiesAmountMin: undefined as number | undefined,
+    penaltiesAmountMax: undefined as number | undefined,
+    paidAmountMin: undefined as number | undefined,
+    paidAmountMax: undefined as number | undefined,
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(12)
@@ -805,6 +1005,30 @@ const ListContracts = () => {
     return nextFilters
   }, [filters, activeTab, debouncedSearch, activeGroupedCaisseSubFilter])
 
+  const hasAnyActiveFilter = React.useMemo(() => {
+    return Boolean(
+      filters.search.trim() ||
+      filters.status !== 'all' ||
+      filters.contractType !== 'all' ||
+      filters.caisseType !== 'all' ||
+      filters.createdAtFrom ||
+      filters.createdAtTo ||
+      filters.nextDueAtFrom ||
+      filters.nextDueAtTo ||
+      filters.overdueOnly ||
+      typeof filters.monthlyAmountMin === 'number' ||
+      typeof filters.monthlyAmountMax === 'number' ||
+      typeof filters.contractAmountMin === 'number' ||
+      typeof filters.contractAmountMax === 'number' ||
+      typeof filters.bonusAmountMin === 'number' ||
+      typeof filters.bonusAmountMax === 'number' ||
+      typeof filters.penaltiesAmountMin === 'number' ||
+      typeof filters.penaltiesAmountMax === 'number' ||
+      typeof filters.paidAmountMin === 'number' ||
+      typeof filters.paidAmountMax === 'number'
+    )
+  }, [filters])
+
   const pagination = React.useMemo(
     () => ({ limit: itemsPerPage, cursor: pageCursors[currentPage] || null }),
     [itemsPerPage, pageCursors, currentPage]
@@ -873,6 +1097,16 @@ const ListContracts = () => {
       nextDueAtFrom: undefined,
       nextDueAtTo: undefined,
       overdueOnly: false,
+      monthlyAmountMin: undefined,
+      monthlyAmountMax: undefined,
+      contractAmountMin: undefined,
+      contractAmountMax: undefined,
+      bonusAmountMin: undefined,
+      bonusAmountMax: undefined,
+      penaltiesAmountMin: undefined,
+      penaltiesAmountMax: undefined,
+      paidAmountMin: undefined,
+      paidAmountMax: undefined,
     })
     setGroupedCaisseSubFilters({
       STANDARD_GROUP: 'all',
@@ -2095,14 +2329,14 @@ const ListContracts = () => {
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '')
+                  {hasAnyActiveFilter
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {hasAnyActiveFilter && (
                   <Button
                     variant="outline"
                     onClick={handleResetFilters}
