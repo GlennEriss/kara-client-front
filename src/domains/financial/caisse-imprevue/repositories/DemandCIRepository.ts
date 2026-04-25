@@ -137,6 +137,154 @@ export class DemandCIRepository implements IDemandCIRepository {
       .replace(/[\u0300-\u036f]/g, '')
   }
 
+  private toDateValue(value: unknown): Date | null {
+    if (!value) return null
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+    if (typeof value === 'object' && value && 'toDate' in value && typeof (value as any).toDate === 'function') {
+      const converted = (value as any).toDate()
+      return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted : null
+    }
+    const converted = new Date(value as string | number)
+    return Number.isNaN(converted.getTime()) ? null : converted
+  }
+
+  private toDayStart(value?: string): Date | null {
+    if (!value) return null
+    const date = this.toDateValue(value)
+    if (!date) return null
+    date.setHours(0, 0, 0, 0)
+    return date
+  }
+
+  private toDayEnd(value?: string): Date | null {
+    if (!value) return null
+    const date = this.toDateValue(value)
+    if (!date) return null
+    date.setHours(23, 59, 59, 999)
+    return date
+  }
+
+  private hasAdvancedFilters(filters: DemandFilters): boolean {
+    return Boolean(
+      typeof filters.monthlyAmountMin === 'number' ||
+      typeof filters.monthlyAmountMax === 'number' ||
+      typeof filters.durationMonthsMin === 'number' ||
+      typeof filters.durationMonthsMax === 'number' ||
+      filters.createdAtFrom ||
+      filters.createdAtTo ||
+      filters.desiredDateFrom ||
+      filters.desiredDateTo ||
+      filters.dateStart ||
+      filters.dateEnd
+    )
+  }
+
+  private applyAdvancedFilters(items: CaisseImprevueDemand[], filters: DemandFilters): CaisseImprevueDemand[] {
+    const createdFrom = this.toDayStart(filters.createdAtFrom || filters.dateStart)
+    const createdTo = this.toDayEnd(filters.createdAtTo || filters.dateEnd)
+    const desiredFrom = this.toDayStart(filters.desiredDateFrom)
+    const desiredTo = this.toDayEnd(filters.desiredDateTo)
+
+    return items.filter((item) => {
+      const monthlyAmount = Number(item.subscriptionCIAmountPerMonth || 0)
+      const durationMonths = Number(item.subscriptionCIDuration || 0)
+      const createdAt = this.toDateValue(item.createdAt)
+      const desiredDate = this.toDateValue(item.desiredStartDate)
+
+      if (typeof filters.monthlyAmountMin === 'number' && monthlyAmount < filters.monthlyAmountMin) {
+        return false
+      }
+      if (typeof filters.monthlyAmountMax === 'number' && monthlyAmount > filters.monthlyAmountMax) {
+        return false
+      }
+      if (typeof filters.durationMonthsMin === 'number' && durationMonths < filters.durationMonthsMin) {
+        return false
+      }
+      if (typeof filters.durationMonthsMax === 'number' && durationMonths > filters.durationMonthsMax) {
+        return false
+      }
+
+      if (createdFrom && (!createdAt || createdAt < createdFrom)) {
+        return false
+      }
+      if (createdTo && (!createdAt || createdAt > createdTo)) {
+        return false
+      }
+
+      if (desiredFrom && (!desiredDate || desiredDate < desiredFrom)) {
+        return false
+      }
+      if (desiredTo && (!desiredDate || desiredDate > desiredTo)) {
+        return false
+      }
+
+      return true
+    })
+  }
+
+  private sortDemands(
+    items: CaisseImprevueDemand[],
+    filters: DemandFilters,
+    sort: SortParams
+  ): CaisseImprevueDemand[] {
+    const sorted = [...items]
+
+    if (filters.status === 'all' || !filters.status) {
+      sorted.sort((a, b) => {
+        const pA = this.getStatusPriority(a.status)
+        const pB = this.getStatusPriority(b.status)
+        if (pA !== pB) return pA - pB
+
+        const dateA = this.toDateValue(a.createdAt)?.getTime() ?? 0
+        const dateB = this.toDateValue(b.createdAt)?.getTime() ?? 0
+        return sort.sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+      })
+      return sorted
+    }
+
+    if (sort.sortBy === 'alphabetical') {
+      sorted.sort((a, b) => {
+        const ln = (a.memberLastName || '').localeCompare(b.memberLastName || '')
+        if (ln !== 0) return sort.sortOrder === 'desc' ? -ln : ln
+        const fn = (a.memberFirstName || '').localeCompare(b.memberFirstName || '')
+        return sort.sortOrder === 'desc' ? -fn : fn
+      })
+      return sorted
+    }
+
+    sorted.sort((a, b) => {
+      const dateA = this.toDateValue(a.createdAt)?.getTime() ?? 0
+      const dateB = this.toDateValue(b.createdAt)?.getTime() ?? 0
+      return sort.sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    })
+    return sorted
+  }
+
+  private paginateDemands(
+    sortedItems: CaisseImprevueDemand[],
+    pagination: PaginationParams
+  ): PaginatedDemands {
+    const total = sortedItems.length
+    const totalPages = Math.ceil(total / pagination.limit)
+    const safePage = totalPages > 0 ? Math.min(Math.max(pagination.page, 1), totalPages) : 1
+    const start = (safePage - 1) * pagination.limit
+    const pageItems = sortedItems.slice(start, start + pagination.limit)
+
+    return {
+      items: pageItems,
+      pagination: {
+        page: safePage,
+        limit: pagination.limit,
+        total,
+        totalPages,
+        hasNextPage: safePage < totalPages,
+        hasPreviousPage: safePage > 1,
+        nextCursor: pageItems.length > 0 ? pageItems[pageItems.length - 1]?.id : undefined,
+        previousCursor: pageItems.length > 0 ? pageItems[0]?.id : undefined,
+      },
+    }
+  }
+
   /**
    * Recherche avec 3 variantes searchableText (nom, prénom ou matricule en premier)
    * Fusionne les résultats des 3 requêtes pour permettre recherche flexible
@@ -153,7 +301,9 @@ export class DemandCIRepository implements IDemandCIRepository {
       'searchableTextFirstNameFirst',
       'searchableTextMatriculeFirst',
     ] as const
-    const fetchLimit = Math.min(100, pagination.limit * 3) // Suffisant pour déduplication
+    const fetchLimit = this.hasAdvancedFilters(filters)
+      ? 2000
+      : Math.min(200, pagination.limit * 6) // Suffisant pour déduplication
 
     const buildConstraints = (searchField: string) => {
       const c: any[] = []
@@ -168,6 +318,9 @@ export class DemandCIRepository implements IDemandCIRepository {
       }
       if (filters.memberId) {
         c.push(where('memberId', '==', filters.memberId))
+      }
+      if (filters.decisionMadeBy) {
+        c.push(where('decisionMadeBy', '==', filters.decisionMadeBy))
       }
       c.push(where(searchField, '>=', normalizedQuery))
       c.push(where(searchField, '<=', normalizedQuery + '\uf8ff'))
@@ -198,51 +351,9 @@ export class DemandCIRepository implements IDemandCIRepository {
       })
     }
 
-    // Trier
-    if (filters.status === 'all' || !filters.status) {
-      merged.sort((a, b) => {
-        const pA = this.getStatusPriority(a.status)
-        const pB = this.getStatusPriority(b.status)
-        if (pA !== pB) return pA - pB
-        return sort.sortOrder === 'desc'
-          ? b.createdAt.getTime() - a.createdAt.getTime()
-          : a.createdAt.getTime() - b.createdAt.getTime()
-      })
-    } else if (sort.sortBy === 'alphabetical') {
-      merged.sort((a, b) => {
-        const ln = (a.memberLastName || '').localeCompare(b.memberLastName || '')
-        if (ln !== 0) return sort.sortOrder === 'desc' ? -ln : ln
-        const fn = (a.memberFirstName || '').localeCompare(b.memberFirstName || '')
-        return sort.sortOrder === 'desc' ? -fn : fn
-      })
-    } else {
-      merged.sort((a, b) =>
-        sort.sortOrder === 'desc'
-          ? b.createdAt.getTime() - a.createdAt.getTime()
-          : a.createdAt.getTime() - b.createdAt.getTime()
-      )
-    }
-
-    const total = merged.length
-    const totalPages = Math.ceil(total / pagination.limit)
-    const start = (pagination.page - 1) * pagination.limit
-    const items = merged.slice(start, start + pagination.limit)
-    const lastItem = items[items.length - 1]
-    const firstItem = items[0]
-
-    return {
-      items,
-      pagination: {
-        page: pagination.page,
-        limit: pagination.limit,
-        total,
-        totalPages,
-        hasNextPage: pagination.page < totalPages,
-        hasPreviousPage: pagination.page > 1,
-        nextCursor: lastItem?.id,
-        previousCursor: firstItem?.id,
-      },
-    }
+    const filteredItems = this.applyAdvancedFilters(merged, filters)
+    const sortedItems = this.sortDemands(filteredItems, filters, sort)
+    return this.paginateDemands(sortedItems, pagination)
   }
 
   async getPaginated(
@@ -253,6 +364,7 @@ export class DemandCIRepository implements IDemandCIRepository {
     try {
       const hasSearchQuery = Boolean(filters.searchQuery && filters.searchQuery.trim().length >= 2)
       const normalizedQuery = hasSearchQuery ? this.normalizeSearchQuery(filters.searchQuery!) : ''
+      const hasAdvancedFilters = this.hasAdvancedFilters(filters)
 
       if (hasSearchQuery) {
         return this.getPaginatedWithSearchMerge(filters, pagination, sort, normalizedQuery)
@@ -273,6 +385,23 @@ export class DemandCIRepository implements IDemandCIRepository {
       if (filters.memberId) {
         constraints.push(where('memberId', '==', filters.memberId))
       }
+      if (filters.decisionMadeBy) {
+        constraints.push(where('decisionMadeBy', '==', filters.decisionMadeBy))
+      }
+
+      if (hasAdvancedFilters) {
+        constraints.push(orderBy('createdAt', 'desc'))
+        const baseSnapshot = await getDocs(query(collectionRef, ...constraints))
+        const baseItems: CaisseImprevueDemand[] = []
+        baseSnapshot.forEach((docSnap) => {
+          baseItems.push(this.transformDocument(docSnap))
+        })
+
+        const filteredItems = this.applyAdvancedFilters(baseItems, filters)
+        const sortedItems = this.sortDemands(filteredItems, filters, sort)
+        return this.paginateDemands(sortedItems, pagination)
+      }
+
       if (sort.sortBy === 'date') {
         constraints.push(orderBy('createdAt', sort.sortOrder))
       } else if (sort.sortBy === 'alphabetical') {
