@@ -76,7 +76,7 @@ const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
-  <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+  <Card className="group animate-pulse border border-slate-200 bg-white shadow-sm">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
         <Skeleton className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
@@ -129,7 +129,7 @@ const DemandCard = ({
   const memberInitials = `${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase()
 
   return (
-    <Card className="group relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg border-gray-200 h-full flex flex-col">
+    <Card className="group relative flex h-full flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#234D65]/35 hover:shadow-md">
       <CardContent className="p-4 md:p-5 flex-1 flex flex-col gap-4">
         <div className="font-mono text-sm font-bold text-gray-900 break-all">
           #{demande.id}
@@ -235,12 +235,12 @@ const DemandCard = ({
           <span className="text-gray-900">{demandReason || '—'}</span>
         </div>
 
-        <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2 border-t border-slate-200 pt-3">
           {canAcceptOrReject && (
             <>
               <Button
                 onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
+                className="h-10 w-full bg-green-600 text-white hover:bg-green-700"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Accepter
@@ -248,7 +248,7 @@ const DemandCard = ({
               <Button
                 variant="outline"
                 onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                className="w-full h-10 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                className="h-10 w-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50"
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Refuser
@@ -260,7 +260,7 @@ const DemandCard = ({
             <Button
               variant="outline"
               onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-              className="w-full h-10 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+              className="h-10 w-full border-blue-200 text-blue-600 hover:border-blue-300 hover:bg-blue-50"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Réouvrir
@@ -270,7 +270,7 @@ const DemandCard = ({
           <Button
             variant="outline"
             onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-            className="w-full h-10"
+            className="h-10 w-full border-slate-200 text-slate-700 hover:border-[#234D65]/40 hover:text-[#234D65]"
           >
             <Eye className="h-4 w-4 mr-2" />
             Voir détails
@@ -325,7 +325,7 @@ const DemandTableRow = ({
   const { data: member } = useMember(demande.memberId)
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
   return (
-    <TableRow>
+    <TableRow className="border-b border-slate-100 hover:bg-slate-50/70">
       <TableCell>
         <Badge className={cn('text-xs border', statusInfo.color)}>{statusInfo.label}</Badge>
       </TableCell>
@@ -1084,29 +1084,31 @@ const ListDemandes = () => {
 
       {/* Liste des demandes */}
       {isLoading ? (
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6'
-            : 'space-y-6'
-        }>
-          {[...Array(itemsPerPage)].map((_, i) => (
-            <ModernSkeleton key={i} viewMode={viewMode} />
-          ))}
+        <div className="rounded-b-2xl border-x border-b border-slate-200 bg-slate-50/35 p-4 md:p-5">
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'
+              : 'space-y-4'
+          }>
+            {[...Array(itemsPerPage)].map((_, i) => (
+              <ModernSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         </div>
       ) : currentDemandes.length > 0 ? (
         <>
           {viewMode === 'list' ? (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden">
+            <Card className="overflow-hidden rounded-t-none rounded-b-2xl border-x border-b border-slate-200 bg-white shadow-sm">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[120px]">Statut</TableHead>
-                    <TableHead>Membre</TableHead>
-                    <TableHead className="hidden md:table-cell">Contact</TableHead>
-                    <TableHead className="hidden lg:table-cell">Montant</TableHead>
-                    <TableHead className="hidden lg:table-cell">Durée</TableHead>
-                    <TableHead className="hidden md:table-cell">Date souhaitée</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="border-b border-slate-200 bg-slate-50/80">
+                    <TableHead className="w-[120px] font-semibold text-slate-600">Statut</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Membre</TableHead>
+                    <TableHead className="hidden font-semibold text-slate-600 md:table-cell">Contact</TableHead>
+                    <TableHead className="hidden font-semibold text-slate-600 lg:table-cell">Montant</TableHead>
+                    <TableHead className="hidden font-semibold text-slate-600 lg:table-cell">Durée</TableHead>
+                    <TableHead className="hidden font-semibold text-slate-600 md:table-cell">Date souhaitée</TableHead>
+                    <TableHead className="text-right font-semibold text-slate-600">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1124,23 +1126,25 @@ const ListDemandes = () => {
               </Table>
             </Card>
           ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 items-stretch">
-            {currentDemandes.map((demande) => (
-              <DemandCard
-                key={demande.id}
-                demande={demande}
-                setAcceptModalState={setAcceptModalState}
-                setRejectModalState={setRejectModalState}
-                setReopenModalState={setReopenModalState}
-                setDeleteModalState={setDeleteModalState}
-              />
-            ))}
-          </div>
+            <div className="rounded-b-2xl border-x border-b border-slate-200 bg-slate-50/35 p-4 md:p-5">
+              <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                {currentDemandes.map((demande) => (
+                  <DemandCard
+                    key={demande.id}
+                    demande={demande}
+                    setAcceptModalState={setAcceptModalState}
+                    setRejectModalState={setRejectModalState}
+                    setReopenModalState={setReopenModalState}
+                    setDeleteModalState={setDeleteModalState}
+                  />
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+            <Card className="border border-slate-200 bg-white shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
@@ -1175,7 +1179,7 @@ const ListDemandes = () => {
           )}
         </>
       ) : (
-        <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-slate-200 bg-white shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
