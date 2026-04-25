@@ -68,16 +68,16 @@ export function MembershipsListHeader({
         {/* Ligne 3 (mobile) : Exporter + Nouveau ; desktop : tous les boutons d'actions */}
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
             {/* Boutons de vue modernes - Cachés sur mobile */}
-            <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
+            <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onViewModeChange('grid')}
                 data-testid="view-mode-grid"
-                className={`h-10 px-4 rounded-lg transition-all duration-300 ${
+                className={`h-10 px-4 rounded-lg cursor-pointer transition-all duration-200 ${
                   viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                 }`}
               >
                 <Grid3X3 className="h-4 w-4 mr-2" />
@@ -88,10 +88,10 @@ export function MembershipsListHeader({
                 size="sm"
                 onClick={() => onViewModeChange('list')}
                 data-testid="view-mode-list"
-                className={`h-10 px-4 rounded-lg transition-all duration-300 ${
+                className={`h-10 px-4 rounded-lg cursor-pointer transition-all duration-200 ${
                   viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                 }`}
               >
                 <List className="h-4 w-4 mr-2" />
@@ -105,7 +105,7 @@ export function MembershipsListHeader({
               size="sm"
               onClick={onRefresh}
               disabled={isLoading}
-              className="hidden md:flex h-10 px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+              className="hidden md:flex h-10 rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] cursor-pointer transition-all duration-200 hover:bg-[#234D65] hover:text-white hover:shadow-sm disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Actualiser
@@ -118,7 +118,7 @@ export function MembershipsListHeader({
                 size="sm"
                 onClick={onExport}
                 data-testid="export-button-mobile"
-                className="flex-1 h-12 bg-white border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg font-medium"
+                className="flex-1 h-12 rounded-xl border-2 border-[#CBB171]/70 bg-white text-[#9c833f] cursor-pointer transition-all duration-200 hover:border-[#CBB171] hover:bg-[#CBB171]/10 hover:text-[#7d6731] font-medium"
               >
                 <FileDown className="h-5 w-5 mr-2" />
                 Exporter
@@ -129,7 +129,7 @@ export function MembershipsListHeader({
                 onClick={() => {
                   window.location.href = routes.admin.membershipAdd
                 }}
-                className="flex-1 h-12 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-medium"
+                className="flex-1 h-12 rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white cursor-pointer shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md font-medium"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Nouveau
@@ -142,7 +142,7 @@ export function MembershipsListHeader({
                 variant="outline"
                 size="sm"
                 onClick={onExport}
-                className="h-10 px-4 bg-white border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                className="h-10 rounded-xl border-2 border-[#CBB171]/70 bg-white px-4 text-[#9c833f] cursor-pointer transition-all duration-200 hover:border-[#CBB171] hover:bg-[#CBB171]/10 hover:text-[#7d6731] hover:shadow-sm"
               >
                 <FileDown className="h-4 w-4 mr-2" />
                 Exporter
@@ -153,7 +153,7 @@ export function MembershipsListHeader({
                 onClick={() => {
                   window.location.href = routes.admin.membershipAdd
                 }}
-                className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="h-10 rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white cursor-pointer shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Nouveau Membre
