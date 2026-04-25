@@ -122,6 +122,12 @@ function CaisseSpecialeSimulationPage() {
     }
   }, [result])
 
+  const smoothFieldClass =
+    'w-full min-h-[44px] sm:min-h-[40px] rounded-xl border-slate-300/80 bg-white/90 shadow-sm transition-all duration-300 ease-out placeholder:text-slate-400 hover:border-[#234D65]/45 hover:bg-white focus-visible:border-[#234D65] focus-visible:ring-4 focus-visible:ring-[#234D65]/15 focus-visible:shadow-[0_0_0_1px_rgba(35,77,101,0.25)] disabled:cursor-not-allowed disabled:opacity-60'
+
+  const smoothFieldContainerClass =
+    'space-y-2 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 p-3 transition-all duration-300 ease-out hover:border-[#234D65]/25 hover:shadow-sm focus-within:border-[#234D65]/40 focus-within:shadow-[0_0_0_3px_rgba(35,77,101,0.08)]'
+
   return (
     <div className="space-y-6">
       {/* Formulaire */}
@@ -144,15 +150,18 @@ function CaisseSpecialeSimulationPage() {
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-4 sm:space-y-6"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="caisseType">Type de caisse</Label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className={smoothFieldContainerClass}>
+                <Label htmlFor="caisseType" className="text-sm font-semibold text-slate-700">Type de caisse</Label>
                 <Select
                   value={form.watch('caisseType')}
                   onValueChange={(v) => form.setValue('caisseType', v as 'STANDARD' | 'STANDARD_CHARITABLE')}
                   disabled={isLoading}
                 >
-                  <SelectTrigger id="caisseType" className="w-full min-h-[44px] sm:min-h-[40px]">
+                  <SelectTrigger
+                    id="caisseType"
+                    className={`${smoothFieldClass} data-[state=open]:border-[#234D65]/55 data-[state=open]:ring-4 data-[state=open]:ring-[#234D65]/10`}
+                  >
                     <SelectValue placeholder="Choisir" />
                   </SelectTrigger>
                   <SelectContent>
@@ -168,8 +177,8 @@ function CaisseSpecialeSimulationPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="monthlyAmount">Montant mensuel (FCFA)</Label>
+              <div className={smoothFieldContainerClass}>
+                <Label htmlFor="monthlyAmount" className="text-sm font-semibold text-slate-700">Montant mensuel (FCFA)</Label>
                 <Input
                   id="monthlyAmount"
                   type="number"
@@ -177,15 +186,15 @@ function CaisseSpecialeSimulationPage() {
                   placeholder="Ex. 50 000"
                   {...form.register('monthlyAmount', { valueAsNumber: true })}
                   disabled={isLoading}
-                  className="min-h-[44px] sm:min-h-[40px]"
+                  className={smoothFieldClass}
                 />
                 {form.formState.errors.monthlyAmount && (
                   <p className="text-sm text-destructive">{form.formState.errors.monthlyAmount.message}</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="durationMonths">Durée prévue (mois, 1-12)</Label>
+              <div className={smoothFieldContainerClass}>
+                <Label htmlFor="durationMonths" className="text-sm font-semibold text-slate-700">Durée prévue (mois, 1-12)</Label>
                 <Input
                   id="durationMonths"
                   type="number"
@@ -193,21 +202,21 @@ function CaisseSpecialeSimulationPage() {
                   max={12}
                   {...form.register('durationMonths', { valueAsNumber: true })}
                   disabled={isLoading}
-                  className="min-h-[44px] sm:min-h-[40px]"
+                  className={smoothFieldClass}
                 />
                 {form.formState.errors.durationMonths && (
                   <p className="text-sm text-destructive">{form.formState.errors.durationMonths.message}</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Date souhaitée</Label>
+              <div className={smoothFieldContainerClass}>
+                <Label htmlFor="startDate" className="text-sm font-semibold text-slate-700">Date souhaitée</Label>
                 <Input
                   id="startDate"
                   type="date"
                   {...form.register('startDate')}
                   disabled={isLoading}
-                  className="min-h-[44px] sm:min-h-[40px]"
+                  className={smoothFieldClass}
                 />
                 {form.formState.errors.startDate && (
                   <p className="text-sm text-destructive">{form.formState.errors.startDate.message}</p>
@@ -489,8 +498,14 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
     toast.success('PDF exporté')
   }
   return (
-    <Button type="button" variant="outline" size="default" onClick={handleExport} className="gap-2 min-h-[44px] sm:min-h-[40px]">
-      <Download className="h-4 w-4" />
+    <Button
+      type="button"
+      variant="outline"
+      size="default"
+      onClick={handleExport}
+      className="gap-2 min-h-[44px] sm:min-h-[40px] border-rose-300/80 bg-gradient-to-r from-rose-50 to-rose-100/80 text-rose-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
+    >
+      <Download className="h-4 w-4 text-rose-600" />
       Exporter PDF
     </Button>
   )
@@ -515,8 +530,14 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
     toast.success('Excel exporté')
   }
   return (
-    <Button type="button" variant="outline" size="default" onClick={handleExport} className="gap-2 min-h-[44px] sm:min-h-[40px]">
-      <FileSpreadsheet className="h-4 w-4" />
+    <Button
+      type="button"
+      variant="outline"
+      size="default"
+      onClick={handleExport}
+      className="gap-2 min-h-[44px] sm:min-h-[40px] border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-emerald-100/80 text-emerald-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-100 hover:text-emerald-800 hover:shadow-md"
+    >
+      <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
       Exporter Excel
     </Button>
   )
@@ -556,8 +577,14 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
     toast.success('Ouverture de WhatsApp')
   }
   return (
-    <Button type="button" variant="outline" size="default" onClick={handleShare} className="gap-2 min-h-[44px] sm:min-h-[40px]">
-      <MessageCircle className="h-4 w-4" />
+    <Button
+      type="button"
+      variant="outline"
+      size="default"
+      onClick={handleShare}
+      className="gap-2 min-h-[44px] sm:min-h-[40px] border-[#21b45a] bg-gradient-to-r from-[#25D366] to-[#1ebe5d] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#199f4e] hover:from-[#22c35f] hover:to-[#18a94f] hover:text-white hover:shadow-md"
+    >
+      <MessageCircle className="h-4 w-4 text-white" />
       Partager WhatsApp
     </Button>
   )
