@@ -1323,6 +1323,17 @@ const ListContracts = () => {
     setSelectedContractForViewUploaded(null)
   }
 
+  const formatAmountWithSpaces = (value: number | string | undefined | null): string => {
+    const numeric = typeof value === 'number' ? value : Number(value ?? 0)
+    if (!Number.isFinite(numeric)) return '0'
+
+    const rounded = Math.round(numeric)
+    const sign = rounded < 0 ? '-' : ''
+    const digits = String(Math.abs(rounded))
+
+    return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`
+  }
+
   const buildExportData = () => {
     return contractsData.map((contract: any) => {
       const _toISO = (v: any) => {
@@ -1405,39 +1416,49 @@ const ListContracts = () => {
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
-
-      doc.setFontSize(16)
-      doc.text('Liste des Contrats Caisse Spéciale', 14, 14)
-      doc.setFontSize(10)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 20)
-      doc.text(`Total: ${contractsData.length} contrat(s)`, 14, 24)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const activeTabLabel = tabItems.find((tab) => tab.value === activeTab)?.label || 'Tous'
 
       const rows = buildExportData().map((row) => [
         row['ID Contrat'],
         row['Type'],
         row['Nom'],
         row['Statut'],
-        row['Montant mensuel (FCFA)'],
-        row['Durée (mois)'],
-        row['Montant total (FCFA)'],
-        row['Montant versé (FCFA)'],
-        row['Montant restant (FCFA)'],
+        formatAmountWithSpaces(row['Montant mensuel (FCFA)']),
+        `${row['Durée (mois)']} mois`,
+        formatAmountWithSpaces(row['Montant total (FCFA)']),
+        formatAmountWithSpaces(row['Montant versé (FCFA)']),
+        formatAmountWithSpaces(row['Montant restant (FCFA)']),
         row['Prochaine échéance'],
         row['Date de création'],
         row['Type de caisse'],
       ])
+
+      doc.setFont('times', 'bold')
+      doc.setTextColor(20, 33, 50)
+      doc.setFontSize(16)
+      doc.text('Liste des Contrats Caisse Spéciale', 14, 14)
+
+      doc.setFont('times', 'normal')
+      doc.setTextColor(70, 70, 70)
+      doc.setFontSize(10)
+      doc.text(`Type: ${activeTabLabel}`, 14, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+      doc.text(`Total: ${rows.length} contrat(s)`, 14, 28)
+      doc.setDrawColor(35, 77, 101)
+      doc.setLineWidth(0.3)
+      doc.line(14, 31, 283, 31)
 
       const headers = [
         'ID',
         'Type',
         'Nom',
         'Statut',
-        'Mensualité',
+        'Mensualité FCFA',
         'Durée',
-        'Total',
-        'Versé',
-        'Restant',
+        'Total FCFA',
+        'Versé FCFA',
+        'Restant FCFA',
         'Prochaine échéance',
         'Créé le',
         'Caisse',
@@ -1446,22 +1467,58 @@ const ListContracts = () => {
       autoTable(doc, {
         head: [headers],
         body: rows,
-        startY: 28,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 28 },
+        startY: 35,
+        theme: 'grid',
+        styles: {
+          font: 'times',
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [30, 41, 59],
+          valign: 'middle',
+          overflow: 'linebreak',
+        },
+        headStyles: {
+          font: 'times',
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineColor: [35, 77, 101],
+          lineWidth: 0.2,
+        },
+        bodyStyles: {
+          font: 'times',
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { top: 35, right: 14, bottom: 14, left: 14 },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 17, halign: 'center' },
+          2: { cellWidth: 33 },
+          3: { cellWidth: 24 },
+          4: { cellWidth: 24, halign: 'right' },
+          5: { cellWidth: 17, halign: 'center' },
+          6: { cellWidth: 24, halign: 'right' },
+          7: { cellWidth: 24, halign: 'right' },
+          8: { cellWidth: 24, halign: 'right' },
+          9: { cellWidth: 22, halign: 'center' },
+          10: { cellWidth: 20, halign: 'center' },
+          11: { cellWidth: 18, halign: 'center' },
+        },
       })
 
-      // Pagination centrée en pied de page: "Page X / Y"
+      // Pagination centrée en pied de page: "Page X/Y"
       const totalPages = doc.getNumberOfPages()
       const pageHeight = doc.internal.pageSize.getHeight()
       const pageWidth = doc.internal.pageSize.getWidth()
-      doc.setFontSize(9)
-      doc.setTextColor(75, 85, 99)
       for (let page = 1; page <= totalPages; page++) {
         doc.setPage(page)
-        doc.text(`Page ${page} / ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+        doc.setFont('times', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(75, 85, 99)
+        doc.text(`Page ${page}/${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
       }
 
       const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.pdf`
