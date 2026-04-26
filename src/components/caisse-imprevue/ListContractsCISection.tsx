@@ -384,6 +384,25 @@ export default function ListContractsCISection() {
   }
 
   // Fonctions d'export
+  const formatAmountWithSpaces = (value: number | string | undefined | null): string => {
+    const numeric = typeof value === 'number' ? value : Number(value ?? 0)
+    if (!Number.isFinite(numeric)) return '0'
+
+    const rounded = Math.round(numeric)
+    const sign = rounded < 0 ? '-' : ''
+    const digits = String(Math.abs(rounded))
+
+    return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`
+  }
+
+  const getExportTypeLabel = (): string => {
+    if (activeTab === 'DAILY') return 'Journalier'
+    if (activeTab === 'MONTHLY') return 'Mensuel'
+    if (activeTab === 'overdue') return 'Retard'
+    if (activeTab === 'currentMonth') return 'Mois en cours'
+    return 'Tous'
+  }
+
   const buildExportRows = () => {
     const contractsToExport = filteredContracts || contracts || []
     if (!contractsToExport || contractsToExport.length === 0) return []
@@ -403,8 +422,8 @@ export default function ListContractsCISection() {
         frequencyLabel,
         `${contract.memberFirstName} ${contract.memberLastName}`,
         statusLabel,
-        new Intl.NumberFormat('fr-FR').format(contract.subscriptionCIAmountPerMonth),
-        new Intl.NumberFormat('fr-FR').format(contract.subscriptionCINominal),
+        formatAmountWithSpaces(contract.subscriptionCIAmountPerMonth),
+        formatAmountWithSpaces(contract.subscriptionCINominal),
         contract.subscriptionCIDuration,
         formatContractDate(contract.firstPaymentDate).replace('—', ''),
         endDate ? endDate.toLocaleDateString('fr-FR') : '',
@@ -484,41 +503,96 @@ export default function ListContractsCISection() {
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 
-      // En-tête
-      doc.setFontSize(16)
-      doc.text('Liste des Contrats - Caisse Imprévue', 14, 14)
-      doc.setFontSize(10)
-      const typeLabel = activeTab === 'all' ? 'Tous' : activeTab === 'DAILY' ? 'Journalier' : 'Mensuel'
-      doc.text(`Type: ${typeLabel}`, 14, 20)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${contracts.length} contrat(s)`, 14, 28)
-
+      const typeLabel = getExportTypeLabel()
       const rows = buildExportRows()
       const headers = [
-        'ID',
+        'ID Contrat',
         'Type',
         'Membre',
         'Statut',
-        'Montant mensuel',
-        'Nominal',
+        'Mensualité FCFA',
+        'Nominal FCFA',
         'Durée',
         'Date début',
-        'Date de fin',
+        'Date fin',
         'Mois payés',
-        'En attente',
+        'Restants',
       ]
+
+      // En-tête document
+      doc.setFont('times', 'bold')
+      doc.setTextColor(20, 33, 50)
+      doc.setFontSize(16)
+      doc.text('Liste des Contrats - Caisse Imprévue', 14, 14)
+
+      doc.setFont('times', 'normal')
+      doc.setTextColor(70, 70, 70)
+      doc.setFontSize(10)
+      doc.text(`Type: ${typeLabel}`, 14, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+      doc.text(`Total: ${rows.length} contrat(s)`, 14, 28)
+      doc.setDrawColor(35, 77, 101)
+      doc.setLineWidth(0.3)
+      doc.line(14, 31, 283, 31)
 
       autoTable(doc, {
         head: [headers],
         body: rows,
-        startY: 32,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 32 },
+        startY: 35,
+        theme: 'grid',
+        styles: {
+          font: 'times',
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [30, 41, 59],
+          valign: 'middle',
+          overflow: 'linebreak',
+        },
+        headStyles: {
+          font: 'times',
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineColor: [35, 77, 101],
+          lineWidth: 0.2,
+        },
+        bodyStyles: {
+          font: 'times',
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { top: 35, right: 14, bottom: 14, left: 14 },
+        columnStyles: {
+          0: { cellWidth: 36 },
+          1: { cellWidth: 17, halign: 'center' },
+          2: { cellWidth: 38 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 24, halign: 'right' },
+          5: { cellWidth: 24, halign: 'right' },
+          6: { cellWidth: 16, halign: 'center' },
+          7: { cellWidth: 20, halign: 'center' },
+          8: { cellWidth: 20, halign: 'center' },
+          9: { cellWidth: 17, halign: 'center' },
+          10: { cellWidth: 16, halign: 'center' },
+        },
       })
+
+      // Pagination en pied de page (Page X/Y)
+      const totalPages = doc.getNumberOfPages()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      for (let page = 1; page <= totalPages; page++) {
+        doc.setPage(page)
+        doc.setFont('times', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(75, 85, 99)
+        doc.text(`Page ${page}/${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
+      }
 
       const filename = `contrats_ci_${activeTab === 'all' ? 'tous' : activeTab.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(filename)
