@@ -1116,38 +1116,6 @@ const ListDemandes = ({
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
-      {/* Onglets pour filtrer par statut */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
-        {/* Tabs - Vue desktop uniquement */}
-        <TabsList className="hidden md:grid w-full max-w-2xl grid-cols-4">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Toutes ({stats.total})
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            En attente ({stats.pending})
-          </TabsTrigger>
-          <TabsTrigger value="approved" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Approuvées ({stats.approved})
-          </TabsTrigger>
-          <TabsTrigger value="rejected" className="flex items-center gap-2">
-            <XCircle className="h-4 w-4" />
-            Rejetées ({stats.rejected})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Badges carousel - Vue mobile et tablette */}
-        <div className="md:hidden">
-          <DemandTabBadgesCarousel
-            value={activeTab}
-            onChange={(tab) => setActiveTab(tab)}
-            stats={stats}
-          />
-        </div>
-      </Tabs>
-
       {/* Statistiques */}
       <StatisticsCreditDemandes 
         status={
@@ -1302,25 +1270,100 @@ const ListDemandes = ({
         </CardContent>
       </Card>
 
+      {/* Tabs de statut (rattachés à la liste) */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="min-w-0 flex-1">
+            <TabsList className="relative flex h-auto w-full flex-nowrap gap-0.5 overflow-x-auto bg-transparent p-0 scrollbar-hide">
+              <TabsTrigger
+                value="all"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Toutes</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.total}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span className="whitespace-nowrap">En attente</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.pending}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="approved"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Acceptées</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.approved}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="rejected"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Refusées</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.rejected}
+                  </span>
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Badges carousel - Vue mobile et tablette */}
+        <div className="lg:hidden">
+          <DemandTabBadgesCarousel
+            value={activeTab}
+            onChange={(tab) => setActiveTab(tab)}
+            stats={stats}
+          />
+        </div>
+      </Tabs>
+
       {/* Liste des demandes */}
       {isLoading ? (
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-            : 'space-y-6'
-        }>
-          {[...Array(itemsPerPage)].map((_, i) => (
-            <ModernSkeleton key={i} viewMode={viewMode} />
-          ))}
+        <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/40 p-4 md:p-5">
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'
+              : 'space-y-4'
+          }>
+            {[...Array(itemsPerPage)].map((_, i) => (
+              <ModernSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         </div>
       ) : currentDemandes.length > 0 ? (
         <>
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-              {currentDemandes.map((demande) => (
-                <Card
+            <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
+              <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+              {currentDemandes.map((demande, index) => (
+                <div
                   key={demande.id}
-                  className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
+                  className="animate-in fade-in-0 slide-in-from-bottom-3 duration-500"
+                  style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}
+                >
+                <Card
+                  className="group relative flex h-full flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl"
                 >
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
                     {/* Ligne 1: Matricule complet (sans troncature) */}
@@ -1497,21 +1540,23 @@ const ListDemandes = ({
                     </div>
                   </CardContent>
                 </Card>
+                </div>
               ))}
+              </div>
             </div>
           ) : (
-            <Card className="bg-white border-0 shadow-lg overflow-hidden">
+            <Card className="overflow-hidden rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white to-slate-50/40 shadow-sm">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-slate-50">
-                      <TableRow>
-                        <TableHead className="min-w-[240px]">Demande</TableHead>
-                        <TableHead className="min-w-[220px]">Client</TableHead>
-                        <TableHead className="min-w-[170px]">Montant / Date</TableHead>
-                        <TableHead className="min-w-[180px]">Garant</TableHead>
-                        <TableHead className="min-w-[120px]">Score</TableHead>
-                        <TableHead className="min-w-[320px]">Actions</TableHead>
+                    <TableHeader>
+                      <TableRow className="border-b border-[#234D65]/20 bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/[0.06] to-transparent">
+                        <TableHead className="min-w-[240px] font-semibold text-[#234D65]">Demande</TableHead>
+                        <TableHead className="min-w-[220px] font-semibold text-[#234D65]">Client</TableHead>
+                        <TableHead className="min-w-[170px] font-semibold text-[#234D65]">Montant / Date</TableHead>
+                        <TableHead className="min-w-[180px] font-semibold text-[#234D65]">Garant</TableHead>
+                        <TableHead className="min-w-[120px] font-semibold text-[#234D65]">Score</TableHead>
+                        <TableHead className="min-w-[320px] font-semibold text-[#234D65]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1667,7 +1712,7 @@ const ListDemandes = ({
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+            <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
@@ -1679,7 +1724,7 @@ const ListDemandes = ({
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Précédent
                     </Button>
@@ -1691,7 +1736,7 @@ const ListDemandes = ({
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Suivant
                     </Button>
@@ -1702,7 +1747,7 @@ const ListDemandes = ({
           )}
         </>
       ) : (
-        <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">

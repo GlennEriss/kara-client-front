@@ -1588,12 +1588,18 @@ const ListContracts = () => {
     switch (type) {
       case 'STANDARD':
         return 'Standard'
+      case 'STANDARD_CHARITABLE':
+        return 'Standard charitable'
       case 'JOURNALIERE':
         return 'Journalière'
+      case 'JOURNALIERE_CHARITABLE':
+        return 'Journalière charitable'
       case 'LIBRE':
         return 'Libre'
+      case 'LIBRE_CHARITABLE':
+        return 'Libre charitable'
       default:
-        return type
+        return String(type).replace(/_/g, ' ')
     }
   }
 
@@ -2224,20 +2230,22 @@ const ListContracts = () => {
                           </div>
 
                           <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                              <div className="min-w-0">
                                 <p className="text-[11px] uppercase tracking-wide text-slate-500">Type de contrat</p>
-                                <p className="font-semibold text-slate-900">{getContractTypeLabel(contract)}</p>
+                                <p className="font-semibold leading-tight text-slate-900 break-words">
+                                  {getContractTypeLabel(contract)}
+                                </p>
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
-                                <p className="font-extrabold text-[#234D65]">{(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                                <p className="font-extrabold text-[#234D65] whitespace-nowrap">{(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</p>
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
                                 <p className="font-semibold text-slate-900">{contract.monthsPlanned} mois</p>
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
                                 <p className="font-medium text-slate-900">
                                   {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
