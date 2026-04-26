@@ -1418,6 +1418,9 @@ const ListContracts = () => {
       const autoTable = (await import('jspdf-autotable')).default
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
       const activeTabLabel = tabItems.find((tab) => tab.value === activeTab)?.label || 'Tous'
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const horizontalMargin = 20
 
       const rows = buildExportData().map((row) => [
         row['ID Contrat'],
@@ -1437,17 +1440,17 @@ const ListContracts = () => {
       doc.setFont('times', 'bold')
       doc.setTextColor(20, 33, 50)
       doc.setFontSize(16)
-      doc.text('Liste des Contrats Caisse Spéciale', 14, 14)
+      doc.text('Liste des Contrats Caisse Spéciale', horizontalMargin, 14)
 
       doc.setFont('times', 'normal')
       doc.setTextColor(70, 70, 70)
       doc.setFontSize(10)
-      doc.text(`Type: ${activeTabLabel}`, 14, 20)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${rows.length} contrat(s)`, 14, 28)
+      doc.text(`Type: ${activeTabLabel}`, horizontalMargin, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, horizontalMargin, 24)
+      doc.text(`Total: ${rows.length} contrat(s)`, horizontalMargin, 28)
       doc.setDrawColor(35, 77, 101)
       doc.setLineWidth(0.3)
-      doc.line(14, 31, 283, 31)
+      doc.line(horizontalMargin, 31, pageWidth - horizontalMargin, 31)
 
       const headers = [
         'ID',
@@ -1468,6 +1471,7 @@ const ListContracts = () => {
         head: [headers],
         body: rows,
         startY: 35,
+        tableWidth: pageWidth - horizontalMargin * 2,
         theme: 'grid',
         styles: {
           font: 'times',
@@ -1492,27 +1496,26 @@ const ListContracts = () => {
           font: 'times',
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
-        margin: { top: 35, right: 14, bottom: 14, left: 14 },
+        margin: { top: 35, right: horizontalMargin, bottom: 14, left: horizontalMargin },
         columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 17, halign: 'center' },
-          2: { cellWidth: 33 },
-          3: { cellWidth: 24 },
-          4: { cellWidth: 24, halign: 'right' },
-          5: { cellWidth: 17, halign: 'center' },
-          6: { cellWidth: 24, halign: 'right' },
-          7: { cellWidth: 24, halign: 'right' },
-          8: { cellWidth: 24, halign: 'right' },
-          9: { cellWidth: 22, halign: 'center' },
-          10: { cellWidth: 20, halign: 'center' },
-          11: { cellWidth: 18, halign: 'center' },
+          // Largeurs calibrées pour totaliser exactement la largeur utile (257mm)
+          0: { cellWidth: 34 },
+          1: { cellWidth: 15, halign: 'center' },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 21 },
+          4: { cellWidth: 22, halign: 'right' },
+          5: { cellWidth: 14, halign: 'center' },
+          6: { cellWidth: 22, halign: 'right' },
+          7: { cellWidth: 22, halign: 'right' },
+          8: { cellWidth: 22, halign: 'right' },
+          9: { cellWidth: 21, halign: 'center' },
+          10: { cellWidth: 18, halign: 'center' },
+          11: { cellWidth: 16, halign: 'center' },
         },
       })
 
       // Pagination centrée en pied de page: "Page X/Y"
       const totalPages = doc.getNumberOfPages()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      const pageWidth = doc.internal.pageSize.getWidth()
       for (let page = 1; page <= totalPages; page++) {
         doc.setPage(page)
         doc.setFont('times', 'normal')
