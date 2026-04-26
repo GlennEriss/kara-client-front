@@ -116,6 +116,11 @@ const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecific
   LIBRE_GROUP: ['LIBRE', 'LIBRE_CHARITABLE'],
 }
 
+type ContractRefundDocuments = {
+  FINAL?: any
+  EARLY?: any
+}
+
 const GROUPED_CAISSE_SUBFILTER_OPTIONS: Record<
   GroupedCaisseTabValue,
   { value: GroupedCaisseSubFilterValue; label: string }[]
@@ -1074,7 +1079,7 @@ const ListContracts = () => {
   } | null>(null)
   const [contractToDelete, setContractToDelete] = useState<any>(null)
   const [contractToReplacePdf, setContractToReplacePdf] = useState<any>(null)
-  const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
+  const [contractRefunds, setContractRefunds] = useState<Record<string, ContractRefundDocuments>>({})
   const debouncedSearch = useDebounce(filters.search, 300)
   const activeGroupedCaisseSubFilter = isGroupedCaisseTab(activeTab)
     ? groupedCaisseSubFilters[activeTab]
@@ -1186,16 +1191,23 @@ const ListContracts = () => {
     const loadRefunds = async () => {
       if (!contractsData || contractsData.length === 0) return
       
-      const refundsMap: Record<string, any> = {}
+      const refundsMap: Record<string, ContractRefundDocuments> = {}
       
       for (const contract of contractsData) {
         if (!contract.id) continue
         try {
           const refunds = await listRefunds(contract.id)
-          // Récupérer le refund avec un document (EARLY ou FINAL)
-          const refundWithDoc = refunds.find((r: any) => r.document && r.document.url)
-          if (refundWithDoc) {
-            refundsMap[contract.id] = refundWithDoc
+          const finalRefundWithDoc = refunds.find(
+            (r: any) => r.type === 'FINAL' && r.document?.url
+          )
+          const earlyRefundWithDoc = refunds.find(
+            (r: any) => r.type === 'EARLY' && r.document?.url
+          )
+          if (finalRefundWithDoc || earlyRefundWithDoc) {
+            refundsMap[contract.id] = {
+              FINAL: finalRefundWithDoc,
+              EARLY: earlyRefundWithDoc,
+            }
           }
         } catch (error) {
           console.error(`Erreur lors du chargement des refunds pour ${contract.id}:`, error)
@@ -1297,10 +1309,9 @@ const ListContracts = () => {
     setIsViewUploadedModalOpen(true)
   }
 
-  const _handleViewRefundPDF = (contract: any) => {
-    const refund = contractRefunds[contract.id]
+  const handleViewRefundPDF = (contractId: string, type: 'FINAL' | 'EARLY') => {
+    const refund = contractRefunds[contractId]?.[type]
     if (refund && refund.document && refund.document.url) {
-      // Ouvrir le PDF dans un nouvel onglet
       window.open(refund.document.url, '_blank')
     } else {
       toast.error('Document non disponible')
@@ -1310,6 +1321,17 @@ const ListContracts = () => {
   const handleCloseViewUploadedModal = () => {
     setIsViewUploadedModalOpen(false)
     setSelectedContractForViewUploaded(null)
+  }
+
+  const formatAmountWithSpaces = (value: number | string | undefined | null): string => {
+    const numeric = typeof value === 'number' ? value : Number(value ?? 0)
+    if (!Number.isFinite(numeric)) return '0'
+
+    const rounded = Math.round(numeric)
+    const sign = rounded < 0 ? '-' : ''
+    const digits = String(Math.abs(rounded))
+
+    return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`
   }
 
   const buildExportData = () => {
@@ -1394,39 +1416,52 @@ const ListContracts = () => {
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
-
-      doc.setFontSize(16)
-      doc.text('Liste des Contrats Caisse Spéciale', 14, 14)
-      doc.setFontSize(10)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 20)
-      doc.text(`Total: ${contractsData.length} contrat(s)`, 14, 24)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const activeTabLabel = tabItems.find((tab) => tab.value === activeTab)?.label || 'Tous'
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const horizontalMargin = 20
 
       const rows = buildExportData().map((row) => [
         row['ID Contrat'],
         row['Type'],
         row['Nom'],
         row['Statut'],
-        row['Montant mensuel (FCFA)'],
-        row['Durée (mois)'],
-        row['Montant total (FCFA)'],
-        row['Montant versé (FCFA)'],
-        row['Montant restant (FCFA)'],
+        formatAmountWithSpaces(row['Montant mensuel (FCFA)']),
+        `${row['Durée (mois)']} mois`,
+        formatAmountWithSpaces(row['Montant total (FCFA)']),
+        formatAmountWithSpaces(row['Montant versé (FCFA)']),
+        formatAmountWithSpaces(row['Montant restant (FCFA)']),
         row['Prochaine échéance'],
         row['Date de création'],
         row['Type de caisse'],
       ])
+
+      doc.setFont('times', 'bold')
+      doc.setTextColor(20, 33, 50)
+      doc.setFontSize(16)
+      doc.text('Liste des Contrats Caisse Spéciale', horizontalMargin, 14)
+
+      doc.setFont('times', 'normal')
+      doc.setTextColor(70, 70, 70)
+      doc.setFontSize(10)
+      doc.text(`Type: ${activeTabLabel}`, horizontalMargin, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, horizontalMargin, 24)
+      doc.text(`Total: ${rows.length} contrat(s)`, horizontalMargin, 28)
+      doc.setDrawColor(35, 77, 101)
+      doc.setLineWidth(0.3)
+      doc.line(horizontalMargin, 31, pageWidth - horizontalMargin, 31)
 
       const headers = [
         'ID',
         'Type',
         'Nom',
         'Statut',
-        'Mensualité',
+        'Mensualité FCFA',
         'Durée',
-        'Total',
-        'Versé',
-        'Restant',
+        'Total FCFA',
+        'Versé FCFA',
+        'Restant FCFA',
         'Prochaine échéance',
         'Créé le',
         'Caisse',
@@ -1435,22 +1470,58 @@ const ListContracts = () => {
       autoTable(doc, {
         head: [headers],
         body: rows,
-        startY: 28,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 28 },
+        startY: 35,
+        tableWidth: pageWidth - horizontalMargin * 2,
+        theme: 'grid',
+        styles: {
+          font: 'times',
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [30, 41, 59],
+          valign: 'middle',
+          overflow: 'linebreak',
+        },
+        headStyles: {
+          font: 'times',
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineColor: [35, 77, 101],
+          lineWidth: 0.2,
+        },
+        bodyStyles: {
+          font: 'times',
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { top: 35, right: horizontalMargin, bottom: 14, left: horizontalMargin },
+        columnStyles: {
+          // Largeurs calibrées pour totaliser exactement la largeur utile (257mm)
+          0: { cellWidth: 34 },
+          1: { cellWidth: 15, halign: 'center' },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 21 },
+          4: { cellWidth: 22, halign: 'right' },
+          5: { cellWidth: 14, halign: 'center' },
+          6: { cellWidth: 22, halign: 'right' },
+          7: { cellWidth: 22, halign: 'right' },
+          8: { cellWidth: 22, halign: 'right' },
+          9: { cellWidth: 21, halign: 'center' },
+          10: { cellWidth: 18, halign: 'center' },
+          11: { cellWidth: 16, halign: 'center' },
+        },
       })
 
-      // Pagination centrée en pied de page: "Page X / Y"
+      // Pagination centrée en pied de page: "Page X/Y"
       const totalPages = doc.getNumberOfPages()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      const pageWidth = doc.internal.pageSize.getWidth()
-      doc.setFontSize(9)
-      doc.setTextColor(75, 85, 99)
       for (let page = 1; page <= totalPages; page++) {
         doc.setPage(page)
-        doc.text(`Page ${page} / ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+        doc.setFont('times', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(75, 85, 99)
+        doc.text(`Page ${page}/${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
       }
 
       const filename = `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.pdf`
@@ -2260,6 +2331,26 @@ const ListContracts = () => {
                                 <Download className="h-4 w-4" />
                                 Télécharger contrat
                               </Button>
+                              {contractRefunds[contract.id]?.FINAL?.document?.url && (
+                                <Button
+                                  onClick={() => handleViewRefundPDF(contract.id, 'FINAL')}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Contrat de remboursement
+                                </Button>
+                              )}
+                              {contractRefunds[contract.id]?.EARLY?.document?.url && (
+                                <Button
+                                  onClick={() => handleViewRefundPDF(contract.id, 'EARLY')}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Contrat de résiliation
+                                </Button>
+                              )}
                               {canDeleteCaisseContract(contract) && (
                                 <Button
                                   onClick={() => setContractToDelete(contract)}
@@ -2416,6 +2507,24 @@ const ListContracts = () => {
                                   <Download className="h-4 w-4 mr-2" />
                                   Télécharger contrat
                                 </DropdownMenuItem>
+                                {contractRefunds[contract.id]?.FINAL?.document?.url && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewRefundPDF(contract.id, 'FINAL')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Contrat de remboursement
+                                  </DropdownMenuItem>
+                                )}
+                                {contractRefunds[contract.id]?.EARLY?.document?.url && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleViewRefundPDF(contract.id, 'EARLY')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Contrat de résiliation
+                                  </DropdownMenuItem>
+                                )}
                                 {canDeleteCaisseContract(contract) && (
                                   <DropdownMenuItem
                                     onClick={() => setContractToDelete(contract)}

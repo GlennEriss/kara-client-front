@@ -18,16 +18,22 @@ const colWidths = [0.269, 0.307, 0.152, 0.272]
 const sumCols = (start: number, span: number) =>
   colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
 
+const ACCENT_BLUE = '#1f4f68'
+const BORDER_SOFT = '#cbd5e1'
+const BORDER_MEDIUM = '#94a3b8'
+const TEXT_PRIMARY = '#1f2937'
+const TEXT_MUTED = '#475569'
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times New Roman',
-    fontSize: 12,
+    fontSize: 11,
     paddingTop: 30,
     paddingRight: 50,
     paddingBottom: 20,
     paddingLeft: 50,
-    color: '#000000',
-    lineHeight: 1.3,
+    color: TEXT_PRIMARY,
+    lineHeight: 1.33,
   },
   logo: {
     width: 180,
@@ -38,7 +44,7 @@ const styles = StyleSheet.create({
   },
   table: {
     borderWidth: 0.5,
-    borderColor: '#999999',
+    borderColor: BORDER_SOFT,
   },
   tableRow: {
     flexDirection: 'row',
@@ -50,77 +56,83 @@ const styles = StyleSheet.create({
   },
   tableCellRightBorder: {
     borderRightWidth: 0.5,
-    borderRightColor: '#999999',
+    borderRightColor: BORDER_SOFT,
   },
   tableCellBottomBorder: {
     borderBottomWidth: 0.5,
-    borderBottomColor: '#999999',
+    borderBottomColor: BORDER_SOFT,
   },
   tableHeaderText: {
     fontFamily: 'Times New Roman',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableSectionText: {
     fontFamily: 'Times New Roman',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableLabelText: {
     fontFamily: 'Times New Roman',
-    fontSize: 12,
+    fontSize: 11,
+    color: TEXT_MUTED,
   },
   tableValueText: {
     fontFamily: 'Times New Roman',
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
+    color: TEXT_PRIMARY,
   },
   title: {
-    fontSize: 20, // Augmenté de 18 à 20
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#1f3a4e',
+    color: ACCENT_BLUE,
     textDecoration: 'underline',
     marginBottom: 12,
     marginTop: 5,
 
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     textDecoration: 'underline',
     marginTop: 12,
     marginBottom: 6,
     color: '#FFFFFF',
     textAlign: 'center',
-    backgroundColor: '#224d62',
+    backgroundColor: ACCENT_BLUE,
   },
   paragraph: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'justify',
     marginBottom: 6,
+    color: TEXT_PRIMARY,
   },
   paragraphIndented: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'justify',
     textIndent: 36,
     marginBottom: 6,
+    color: TEXT_PRIMARY,
   },
   bullet: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'justify',
     marginLeft: 18,
     marginBottom: 6,
+    color: TEXT_PRIMARY,
   },
   subParagraph: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'justify',
     marginLeft: 18,
     marginBottom: 6,
+    color: TEXT_PRIMARY,
   },
   bold: {
     fontWeight: 'bold',
@@ -129,7 +141,7 @@ const styles = StyleSheet.create({
     width: '63%',
     alignSelf: 'center',
     borderWidth: 0.5,
-    borderColor: '#000000',
+    borderColor: BORDER_MEDIUM,
     marginTop: 8,
     marginBottom: 8,
   },
@@ -139,34 +151,40 @@ const styles = StyleSheet.create({
   forfaitCell: {
     flex: 1,
     borderRightWidth: 0.5,
-    borderRightColor: '#000000',
+    borderRightColor: BORDER_MEDIUM,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#000000',
+    borderBottomColor: BORDER_MEDIUM,
     paddingVertical: 4,
     paddingHorizontal: 6,
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
+    color: TEXT_PRIMARY,
   },
   forfaitHeaderCell: {
     flex: 1,
     borderRightWidth: 0.5,
-    borderRightColor: '#000000',
+    borderRightColor: BORDER_MEDIUM,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#000000',
+    borderBottomColor: BORDER_MEDIUM,
     paddingVertical: 4,
     paddingHorizontal: 6,
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
     fontWeight: 'bold',
+    color: TEXT_PRIMARY,
+    backgroundColor: '#f8fafc',
   },
   forfaitRowHighlight: {
-    backgroundColor: '#E8F4FC',
+    backgroundColor: '#eaf3f8',
   },
   forfaitCellHighlight: {
-    backgroundColor: '#E8F4FC',
+    backgroundColor: '#eaf3f8',
   },
   signatures: {
     marginTop: 18,
+    borderTopWidth: 0.5,
+    borderTopColor: BORDER_SOFT,
+    paddingTop: 10,
   },
   signatureImage: {
     width: 220,
@@ -178,13 +196,17 @@ const styles = StyleSheet.create({
     width: 220,
     height: 64,
     marginLeft: 18,
+    borderWidth: 0.5,
+    borderColor: BORDER_MEDIUM,
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
   },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
     right: 24,
-    fontSize: 10,
-    color: '#4B5563',
+    fontSize: 9,
+    color: TEXT_MUTED,
   },
 })
 
@@ -304,7 +326,7 @@ const CaisseImprevuePDFV3 = ({
                 content: 'Informations Personnelles du Membre :',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: '#224d62',
+                backgroundColor: ACCENT_BLUE,
               },
             ]}
           />
@@ -388,7 +410,7 @@ const CaisseImprevuePDFV3 = ({
                 content: 'Informations Concernant Le Contact Urgent :',
                 span: 4,
                 textStyle: styles.tableSectionText,
-                backgroundColor: '#224d62',
+                backgroundColor: ACCENT_BLUE,
               },
             ]}
           />
@@ -594,6 +616,12 @@ const CaisseImprevuePDFV3 = ({
           Tout appui accordé doit être remboursé au plus tard avant le versement de la prochaine
           contribution.
         </Text>
+        <Text style={styles.paragraph}>
+          En cas de non remboursement de l’accompagnement par un adhérent dans le délai fixé à l’alinéa
+          précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal
+          cumulé de l’adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en
+          demeure adressée à l’adhérent par le Secrétaire exécutif.
+        </Text>
       </Page>
 
       <Page size="A4" style={styles.page}>
@@ -601,12 +629,6 @@ const CaisseImprevuePDFV3 = ({
         <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          En cas de non remboursement de l’accompagnement par un adhérent dans le délai fixé à l’alinéa
-          précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal
-          cumulé de l’adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en
-          demeure adressée à l’adhérent par le Secrétaire exécutif.
         </Text>
         <Text style={styles.paragraph}>
         </Text>
