@@ -692,15 +692,7 @@ const CaisseSpecialePDFV3 = ({
             [Signature de l’épargnant précédée de la mention « lu et approuvé »]
           </Text>
         </View>
-      </Page>
 
-      {/* PAGE 4 */}
-      <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.title2}>FICHE D’ADHESION</Text>
 
         <Text style={styles.paragraphIndented}>Je soussigné(e),</Text>
@@ -723,7 +715,7 @@ const CaisseSpecialePDFV3 = ({
           Qu’il a été Conclu en date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayFirstPaymentDate)}</Text>  et prend donc fin en
         </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          Date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayLastPaymentDate)}</Text> 
+          Date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayLastPaymentDate)}</Text>
         </Text>
 <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
         </Text>
@@ -756,9 +748,10 @@ const CaisseSpecialePDFV3 = ({
           A l’échéance prévue pour le <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayFirstPaymentDate)}</Text>. Et ce
         </Text>
         <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
+
       </Page>
 
-      {/* PAGE 5 */}
+      {/* PAGE 4 */}
       <Page size="A4" style={styles.page}>
         <Text
           style={styles.pageNumber}
