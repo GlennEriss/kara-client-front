@@ -4,6 +4,11 @@ import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/qui
 import { getNationalityName } from '@/constantes/nationality'
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
+const ACCENT_BLUE = '#1f4f68'
+const BORDER_SOFT = '#cbd5e1'
+const TEXT_PRIMARY = '#1f2937'
+const TEXT_MUTED = '#475569'
+
 // Styles - basés sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
 const styles = StyleSheet.create({
   page: {
@@ -14,14 +19,16 @@ const styles = StyleSheet.create({
     paddingRight: 30,
     paddingTop: 50,
     paddingBottom: 40,
-    lineHeight: 1.6,
+    lineHeight: 1.45,
+    color: TEXT_PRIMARY,
   },
   pageContainer: {
     width: '100%',
     height: '100%',
-    border: '2px solid #265169',
+    border: '1px solid #94a3b8',
+    borderRadius: 2,
     position: 'relative',
-    padding: 15,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -38,14 +45,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
-    border: '1px solid #265169',
-    backgroundColor: '#234D65',
+    marginBottom: 16,
+    border: '1px solid #1f4f68',
+    backgroundColor: ACCENT_BLUE,
     color: 'white',
-    padding: 5,
+    paddingVertical: 5,
   },
   section: {
     border: '1px solid black',
@@ -64,15 +71,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   articleText: {
-    marginBottom: 6,
+    marginBottom: 7,
+    lineHeight: 1.45,
     textAlign: 'justify',
+    color: TEXT_PRIMARY,
   },
   signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 50,
-    minHeight: 100,
-    border: '1px solid black',
+    marginTop: 26,
+    minHeight: 120,
+    border: `1px solid ${BORDER_SOFT}`,
+    backgroundColor: '#f8fafc',
     padding: 15,
   },
   signatureBlock: {
@@ -84,9 +94,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
+  signatureTitle: {
+    fontWeight: 'bold',
+    color: TEXT_PRIMARY,
+  },
+  signatureTitleRight: {
+    fontWeight: 'bold',
+    color: TEXT_PRIMARY,
+    textAlign: 'right',
+  },
   dateText: {
-    fontSize: 10,
+    fontSize: 9,
     marginTop: 12,
+    color: TEXT_MUTED,
   },
   signatureImage: {
     width: 185,
@@ -98,6 +118,8 @@ const styles = StyleSheet.create({
     width: 185,
     height: 56,
     marginTop: 12,
+    border: '1px dashed #94a3b8',
+    backgroundColor: '#ffffff',
   },
   pageNumber: {
     position: 'absolute',
@@ -106,7 +128,7 @@ const styles = StyleSheet.create({
     right: 0,
     textAlign: 'center',
     fontSize: 9,
-    color: '#111827',
+    color: TEXT_MUTED,
   },
 })
 
@@ -247,6 +269,14 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
     return `${day}/${month}/${year}`
   }
 
+  const formatAmountWithSpaces = (amount: unknown) => {
+    const numericValue = Number(amount ?? 0)
+    if (!Number.isFinite(numericValue)) return '0'
+    return Math.trunc(numericValue)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
   const refundDelayDaysLabel =
     resolvedFillData.refundDelayDays.trim() ||
     (contract?.refundDelayDays != null ? String(contract.refundDelayDays) : '.......')
@@ -350,18 +380,18 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
           )}
 
           <Text style={styles.articleText}>
-            Le nominal remboursé s'élève à <Text style={styles.bold}>{contract?.nominalPaid || 0} FCFA</Text> (chiffres),
+            Le nominal remboursé s'élève à <Text style={styles.bold}>{formatAmountWithSpaces(contract?.nominalPaid)} FCFA</Text> (chiffres),
             <Text style={styles.bold}> {numberToWords(contract?.nominalPaid || 0)} francs CFA</Text> (lettres).
           </Text>
 
-          <Text style={{ marginTop: 15 }}>
+          <Text style={[styles.articleText, { marginTop: 8 }]}>
             Cette quittance est libératoire de tout engagement de l'Association KARA vis-à-vis de l'épargnant.
             Elle est établie pour faire valoir ce que de droit.
           </Text>
 
           <View style={styles.signatureRow}>
             <View style={styles.signatureBlock}>
-              <Text style={styles.bold}>Signature du Secrétaire exécutif</Text>
+              <Text style={styles.signatureTitle}>Signature du Secrétaire exécutif</Text>
               {resolvedFillData.secretarySignature ? (
                 <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
               ) : (
@@ -370,7 +400,7 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
               <Text style={styles.dateText}>Date : {secretaryDateLabel}</Text>
             </View>
             <View style={styles.signatureBlockRight}>
-              <Text style={styles.bold}>
+              <Text style={styles.signatureTitleRight}>
                 Signature de l'épargnant (Précédée de la mention Lu et Approuvé)
               </Text>
               {resolvedFillData.memberSignature ? (
