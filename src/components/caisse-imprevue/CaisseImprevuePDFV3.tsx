@@ -616,6 +616,12 @@ const CaisseImprevuePDFV3 = ({
           Tout appui accordé doit être remboursé au plus tard avant le versement de la prochaine
           contribution.
         </Text>
+        <Text style={styles.paragraph}>
+          En cas de non remboursement de l’accompagnement par un adhérent dans le délai fixé à l’alinéa
+          précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal
+          cumulé de l’adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en
+          demeure adressée à l’adhérent par le Secrétaire exécutif.
+        </Text>
       </Page>
 
       <Page size="A4" style={styles.page}>
@@ -623,12 +629,6 @@ const CaisseImprevuePDFV3 = ({
         <Text style={styles.paragraph}>
         </Text>
         <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          En cas de non remboursement de l’accompagnement par un adhérent dans le délai fixé à l’alinéa
-          précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal
-          cumulé de l’adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en
-          demeure adressée à l’adhérent par le Secrétaire exécutif.
         </Text>
         <Text style={styles.paragraph}>
         </Text>
