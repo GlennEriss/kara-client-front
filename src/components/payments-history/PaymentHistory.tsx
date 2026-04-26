@@ -38,15 +38,10 @@ import {
   Tooltip,
 } from 'recharts'
 import {
-  type DocumentData,
-  type QueryDocumentSnapshot,
   collection,
-  getCountFromServer,
   getDocs,
-  limit,
   orderBy,
   query,
-  startAfter,
   where,
 } from 'firebase/firestore'
 
@@ -349,168 +344,104 @@ export default function PaymentHistory({ requestId }: Props) {
   const [updatedAtTo, setUpdatedAtTo] = useState('')
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true)
 
-  const [payments, setPayments] = useState<CentralizedPayment[]>([])
+  const [allPayments, setAllPayments] = useState<CentralizedPayment[]>([])
   const [isLoadingPayments, setIsLoadingPayments] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoadingCount, setIsLoadingCount] = useState(true)
-
-  const [statsSample, setStatsSample] = useState<CentralizedPayment[]>([])
-  const [isLoadingStats, setIsLoadingStats] = useState(true)
-
   const [currentPage, setCurrentPage] = useState(1)
-  const [hasNextPage, setHasNextPage] = useState(false)
-  const [nextCursor, setNextCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null)
-  const [pageStartCursors, setPageStartCursors] = useState<Record<number, QueryDocumentSnapshot<DocumentData> | null>>({ 1: null })
   const [refreshToken, setRefreshToken] = useState(0)
 
   const [adminInfos, setAdminInfos] = useState<Record<string, { firstName: string; lastName: string }>>({})
 
-  const buildConstraints = useCallback(() => {
-    const constraints: any[] = [where('beneficiaryId', '==', requestId)]
-
-    if (typeFilter !== 'all') {
-      constraints.push(where('paymentType', '==', typeFilter))
-    }
-
-    if (modeFilter !== 'all') {
-      constraints.push(where('mode', '==', modeFilter))
-    }
-
-    if (adminFilter !== 'all') {
-      constraints.push(where('acceptedBy', '==', adminFilter))
-    }
-
-    if (dateFrom) {
-      constraints.push(where('date', '>=', new Date(dateFrom)))
-    }
-
-    if (dateTo) {
-      const end = new Date(dateTo)
-      end.setHours(23, 59, 59, 999)
-      constraints.push(where('date', '<=', end))
-    }
-
-    if (amountMin !== '' && !Number.isNaN(Number(amountMin))) {
-      constraints.push(where('amount', '>=', Number(amountMin)))
-    }
-
-    if (amountMax !== '' && !Number.isNaN(Number(amountMax))) {
-      constraints.push(where('amount', '<=', Number(amountMax)))
-    }
-
-    if (createdAtFrom) {
-      constraints.push(where('createdAt', '>=', new Date(createdAtFrom)))
-    }
-
-    if (createdAtTo) {
-      const end = new Date(createdAtTo)
-      end.setHours(23, 59, 59, 999)
-      constraints.push(where('createdAt', '<=', end))
-    }
-
-    if (updatedAtFrom) {
-      constraints.push(where('updatedAt', '>=', new Date(updatedAtFrom)))
-    }
-
-    if (updatedAtTo) {
-      const end = new Date(updatedAtTo)
-      end.setHours(23, 59, 59, 999)
-      constraints.push(where('updatedAt', '<=', end))
-    }
-
-    return constraints
-  }, [
-    requestId,
-    typeFilter,
-    modeFilter,
-    adminFilter,
-    dateFrom,
-    dateTo,
-    amountMin,
-    amountMax,
-    createdAtFrom,
-    createdAtTo,
-    updatedAtFrom,
-    updatedAtTo,
-  ])
-
-  const fetchTotalCount = useCallback(async () => {
-    setIsLoadingCount(true)
-    try {
-      const constraints = buildConstraints()
-      const q = query(collection(db, firebaseCollectionNames.payments), ...constraints)
-      const countSnap = await getCountFromServer(q)
-      setTotalCount(countSnap.data().count)
-    } catch (error) {
-      console.error('Erreur count paiements:', error)
-      setTotalCount(0)
-    } finally {
-      setIsLoadingCount(false)
-    }
-  }, [buildConstraints])
-
-  const fetchStatsSample = useCallback(async () => {
-    setIsLoadingStats(true)
-    try {
-      const constraints = [...buildConstraints(), orderBy('date', 'desc'), limit(STATS_SCAN_LIMIT)]
-      const q = query(collection(db, firebaseCollectionNames.payments), ...constraints)
-      const snap = await getDocs(q)
-      const parsed = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Payment) }))
-      setStatsSample(parsed)
-    } catch (error) {
-      console.error('Erreur stats paiements:', error)
-      setStatsSample([])
-    } finally {
-      setIsLoadingStats(false)
-    }
-  }, [buildConstraints])
-
-  const fetchPage = useCallback(async () => {
+  const fetchBasePayments = useCallback(async () => {
     setIsLoadingPayments(true)
     setFetchError(null)
 
     try {
-      const pageStartCursor = pageStartCursors[currentPage] ?? null
-      const constraints = [...buildConstraints(), orderBy('date', 'desc')]
-      const pageQuery = pageStartCursor
-        ? query(collection(db, firebaseCollectionNames.payments), ...constraints, startAfter(pageStartCursor), limit(PAGE_SIZE))
-        : query(collection(db, firebaseCollectionNames.payments), ...constraints, limit(PAGE_SIZE))
-
-      const pageSnap = await getDocs(pageQuery)
-      const pageItems = pageSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Payment) }))
-      setPayments(pageItems)
-
-      const lastDoc = pageSnap.docs.length > 0 ? pageSnap.docs[pageSnap.docs.length - 1] : null
-      setNextCursor(lastDoc)
-
-      if (lastDoc) {
-        const probeQuery = query(
-          collection(db, firebaseCollectionNames.payments),
-          ...constraints,
-          startAfter(lastDoc),
-          limit(1)
-        )
-        const probeSnap = await getDocs(probeQuery)
-        setHasNextPage(!probeSnap.empty)
-      } else {
-        setHasNextPage(false)
-      }
+      const q = query(
+        collection(db, firebaseCollectionNames.payments),
+        where('beneficiaryId', '==', requestId),
+        orderBy('date', 'desc')
+      )
+      const snap = await getDocs(q)
+      const parsed = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Payment) }))
+      setAllPayments(parsed)
     } catch (error) {
       console.error('Erreur chargement paiements:', error)
       setFetchError('Impossible de charger les paiements avec les filtres actuels.')
-      setPayments([])
-      setHasNextPage(false)
-      setNextCursor(null)
+      setAllPayments([])
     } finally {
       setIsLoadingPayments(false)
     }
-  }, [buildConstraints, currentPage, pageStartCursors])
+  }, [requestId])
+
+  const filteredPayments = useMemo(() => {
+    const dateFromValue = dateFrom ? new Date(dateFrom) : null
+    const dateToValue = dateTo ? new Date(dateTo) : null
+    if (dateToValue) dateToValue.setHours(23, 59, 59, 999)
+
+    const amountMinValue = amountMin !== '' && !Number.isNaN(Number(amountMin)) ? Number(amountMin) : null
+    const amountMaxValue = amountMax !== '' && !Number.isNaN(Number(amountMax)) ? Number(amountMax) : null
+
+    const createdAtFromValue = createdAtFrom ? new Date(createdAtFrom) : null
+    const createdAtToValue = createdAtTo ? new Date(createdAtTo) : null
+    if (createdAtToValue) createdAtToValue.setHours(23, 59, 59, 999)
+
+    const updatedAtFromValue = updatedAtFrom ? new Date(updatedAtFrom) : null
+    const updatedAtToValue = updatedAtTo ? new Date(updatedAtTo) : null
+    if (updatedAtToValue) updatedAtToValue.setHours(23, 59, 59, 999)
+
+    return allPayments.filter((payment) => {
+      if (typeFilter !== 'all' && payment.paymentType !== typeFilter) return false
+      if (modeFilter !== 'all' && payment.mode !== modeFilter) return false
+      if (adminFilter !== 'all' && payment.acceptedBy !== adminFilter) return false
+
+      const paymentDate = toDate(payment.date)
+      if (dateFromValue && (!paymentDate || paymentDate < dateFromValue)) return false
+      if (dateToValue && (!paymentDate || paymentDate > dateToValue)) return false
+
+      const paymentAmount = Number(payment.amount || 0)
+      if (amountMinValue !== null && paymentAmount < amountMinValue) return false
+      if (amountMaxValue !== null && paymentAmount > amountMaxValue) return false
+
+      const createdAtDate = toDate(payment.createdAt)
+      if (createdAtFromValue && (!createdAtDate || createdAtDate < createdAtFromValue)) return false
+      if (createdAtToValue && (!createdAtDate || createdAtDate > createdAtToValue)) return false
+
+      const updatedAtDate = toDate(payment.updatedAt)
+      if (updatedAtFromValue && (!updatedAtDate || updatedAtDate < updatedAtFromValue)) return false
+      if (updatedAtToValue && (!updatedAtDate || updatedAtDate > updatedAtToValue)) return false
+
+      return true
+    })
+  }, [
+    allPayments,
+    typeFilter,
+    modeFilter,
+    adminFilter,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    createdAtFrom,
+    createdAtTo,
+    updatedAtFrom,
+    updatedAtTo,
+  ])
+
+  const totalCount = filteredPayments.length
+  const statsSample = useMemo(() => filteredPayments.slice(0, STATS_SCAN_LIMIT), [filteredPayments])
+  const isLoadingCount = isLoadingPayments
+  const isLoadingStats = isLoadingPayments
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const hasNextPage = currentPage < totalPages
+  const payments = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredPayments.slice(start, start + PAGE_SIZE)
+  }, [filteredPayments, currentPage])
 
   useEffect(() => {
     setCurrentPage(1)
-    setPageStartCursors({ 1: null })
   }, [
     requestId,
     typeFilter,
@@ -527,17 +458,16 @@ export default function PaymentHistory({ requestId }: Props) {
   ])
 
   useEffect(() => {
-    fetchTotalCount()
-    fetchStatsSample()
-  }, [fetchTotalCount, fetchStatsSample, refreshToken])
+    fetchBasePayments()
+  }, [fetchBasePayments, refreshToken])
 
   useEffect(() => {
-    fetchPage()
-  }, [fetchPage, refreshToken])
+    setCurrentPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
 
   useEffect(() => {
     const uniqueAdminIds = [
-      ...new Set([...payments, ...statsSample].map((p) => p.acceptedBy).filter(Boolean)),
+      ...new Set(allPayments.map((p) => p.acceptedBy).filter((id): id is string => Boolean(id))),
     ]
     if (uniqueAdminIds.length === 0) return
 
@@ -554,7 +484,7 @@ export default function PaymentHistory({ requestId }: Props) {
         console.error('Erreur admin info:', error)
       }
     })
-  }, [payments, statsSample, adminInfos])
+  }, [allPayments, adminInfos])
 
   const statsByType = useMemo(() => {
     const initial: Record<TypePayment, { count: number; amount: number }> = {
@@ -625,13 +555,9 @@ export default function PaymentHistory({ requestId }: Props) {
     return () => window.removeEventListener('resize', updateItemsPerView)
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
   const handleNextPage = () => {
-    if (!hasNextPage || !nextCursor) return
-    const nextPage = currentPage + 1
-    setPageStartCursors((prev) => ({ ...prev, [nextPage]: nextCursor }))
-    setCurrentPage(nextPage)
+    if (!hasNextPage) return
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
   }
 
   const handlePrevPage = () => {
@@ -661,10 +587,7 @@ export default function PaymentHistory({ requestId }: Props) {
 
   const adminFilterOptions = useMemo(() => {
     const adminIds = new Set<string>()
-    for (const payment of statsSample) {
-      if (payment.acceptedBy) adminIds.add(payment.acceptedBy)
-    }
-    for (const payment of payments) {
+    for (const payment of allPayments) {
       if (payment.acceptedBy) adminIds.add(payment.acceptedBy)
     }
     if (adminFilter !== 'all') adminIds.add(adminFilter)
@@ -678,7 +601,7 @@ export default function PaymentHistory({ requestId }: Props) {
         }
       })
       .sort((a, b) => a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }))
-  }, [statsSample, payments, adminFilter, adminInfos])
+  }, [allPayments, adminFilter, adminInfos])
 
   const activeFiltersCount = useMemo(() => {
     let count = 0
@@ -710,6 +633,8 @@ export default function PaymentHistory({ requestId }: Props) {
 
   const activeAdvancedFiltersCount = useMemo(() => {
     let count = 0
+    if (dateFrom) count += 1
+    if (dateTo) count += 1
     if (amountMin !== '') count += 1
     if (amountMax !== '') count += 1
     if (createdAtFrom) count += 1
@@ -717,7 +642,7 @@ export default function PaymentHistory({ requestId }: Props) {
     if (updatedAtFrom) count += 1
     if (updatedAtTo) count += 1
     return count
-  }, [amountMin, amountMax, createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo])
+  }, [dateFrom, dateTo, amountMin, amountMax, createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo])
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -915,7 +840,7 @@ export default function PaymentHistory({ requestId }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(200px,1fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_minmax(160px,1fr)_minmax(160px,1fr)]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de paiement</Label>
               <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypePayment | 'all')}>
@@ -967,25 +892,6 @@ export default function PaymentHistory({ requestId }: Props) {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date versement debut</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date versement fin</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
-              />
-            </div>
           </div>
 
           {isFiltersExpanded && (
@@ -1017,7 +923,25 @@ export default function PaymentHistory({ requestId }: Props) {
                 </div>
 
                 <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates techniques</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500">Date de versement</Label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                      <Input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="h-10 rounded-lg border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-slate-500">Date de creation</Label>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

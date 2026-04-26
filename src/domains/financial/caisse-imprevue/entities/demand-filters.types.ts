@@ -15,6 +15,22 @@ export interface DemandFilters {
   decisionMadeBy?: string
   dateStart?: string // Format: YYYY-MM-DD
   dateEnd?: string // Format: YYYY-MM-DD
+  /** Montant mensuel min (FCFA) */
+  monthlyAmountMin?: number
+  /** Montant mensuel max (FCFA) */
+  monthlyAmountMax?: number
+  /** Durée min (mois) */
+  durationMonthsMin?: number
+  /** Durée max (mois) */
+  durationMonthsMax?: number
+  /** Date de création (borne basse) */
+  createdAtFrom?: string // Format: YYYY-MM-DD
+  /** Date de création (borne haute) */
+  createdAtTo?: string // Format: YYYY-MM-DD
+  /** Date souhaitée de début (borne basse) */
+  desiredDateFrom?: string // Format: YYYY-MM-DD
+  /** Date souhaitée de début (borne haute) */
+  desiredDateTo?: string // Format: YYYY-MM-DD
   /** Recherche par nom/prénom (préfixe sur memberLastName côté serveur) */
   searchQuery?: string
 }

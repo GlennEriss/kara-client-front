@@ -4,6 +4,12 @@ import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/qui
 import { getNationalityName } from '@/constantes/nationality'
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
+const ACCENT_BLUE = '#1f4f68'
+const BORDER_SOFT = '#cbd5e1'
+const BORDER_MEDIUM = '#94a3b8'
+const TEXT_PRIMARY = '#1f2937'
+const TEXT_MUTED = '#475569'
+
 // Styles
 const styles = StyleSheet.create({
   page: {
@@ -13,14 +19,16 @@ const styles = StyleSheet.create({
     padding: 50,
     paddingTop: 40,
     paddingBottom: 40,
-    lineHeight: 1.6,
+    lineHeight: 1.45,
+    color: TEXT_PRIMARY,
   },
   pageContainer: {
     width: '100%',
     height: '100%',
-    border: '2px solid #265169',
+    border: `1px solid ${BORDER_MEDIUM}`,
+    borderRadius: 2,
     position: 'relative',
-    padding: 15,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -37,14 +45,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
-    border: '1px solid #265169',
-    backgroundColor: '#234D65',
+    marginBottom: 16,
+    border: `1px solid ${ACCENT_BLUE}`,
+    backgroundColor: ACCENT_BLUE,
     color: 'white',
-    padding: 5
+    paddingVertical: 5,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 18,
+    color: ACCENT_BLUE,
+    textTransform: 'uppercase',
   },
   section: {
     border: '1px solid black',
@@ -72,21 +89,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   articleText: {
-    marginBottom: 6,
+    marginBottom: 7,
     textAlign: 'justify',
+    lineHeight: 1.45,
+    color: TEXT_PRIMARY,
   },
   signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 50,
+    marginTop: 26,
+    minHeight: 120,
+    border: `1px solid ${BORDER_SOFT}`,
+    backgroundColor: '#f8fafc',
+    padding: 14,
     alignItems: 'flex-start',
   },
   signatureBlock: {
     width: '48%',
+    justifyContent: 'space-between',
   },
   signatureBlockRight: {
     width: '48%',
+    justifyContent: 'space-between',
     alignItems: 'flex-end',
+  },
+  signatureTitle: {
+    fontWeight: 'bold',
+    color: TEXT_PRIMARY,
+  },
+  signatureTitleRight: {
+    fontWeight: 'bold',
+    color: TEXT_PRIMARY,
+    textAlign: 'right',
+  },
+  signatureSubtitle: {
+    fontSize: 10,
+    marginTop: 4,
+    color: TEXT_MUTED,
+    textAlign: 'right',
   },
   signatureImage: {
     width: 185,
@@ -98,6 +138,17 @@ const styles = StyleSheet.create({
     width: 185,
     height: 56,
     marginTop: 12,
+    border: `1px dashed ${BORDER_MEDIUM}`,
+    backgroundColor: '#ffffff',
+  },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: TEXT_MUTED,
   },
 })
 
@@ -254,6 +305,14 @@ const QuittanceCaisseImprevuePDF = ({
     }
   }
 
+  const formatAmountWithSpaces = (amount: unknown) => {
+    const numericValue = Number(amount ?? 0)
+    if (!Number.isFinite(numericValue)) return '0'
+    return Math.trunc(numericValue)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
   // Utiliser les données du membre depuis memberData (complet depuis la DB) avec fallback sur le contrat
   // memberData contient toutes les informations complètes du membre récupérées via useMember(contract.memberId)
   const member = {
@@ -332,6 +391,9 @@ const QuittanceCaisseImprevuePDF = ({
           secondarySectionTitle="Informations Concernant le Contact Urgent"
           secondaryRows={emergencyRows}
         />
+        <Text style={styles.pageNumber} fixed>
+          Page 1 / 2
+        </Text>
       </Page>
 
       {/* PAGE 3 - QUITTANCE DE PAIEMENT */}
@@ -350,7 +412,7 @@ const QuittanceCaisseImprevuePDF = ({
           </View>
 
           <Text style={styles.title}>QUITTANCE DE PAIEMENT</Text>
-          <Text style={[styles.title, { fontSize: 14, marginTop: 10, marginBottom: 20 }]}>VOLET ENTRAIDE</Text>
+          <Text style={styles.subtitle}>VOLET ENTRAIDE</Text>
 
           <Text style={styles.articleText}>
             L'association LE KARA, ayant son siège social à Awoungou/Owendo, immatriculée au régistre du Ministère de l'Intérieur, sous le numéro n° 0650/MIS/SG/DGELP/DPPALC/KMOG, atteste avoir procédé au remboursement de la totalité des versements du membre , {member.firstName} {member.lastName.toUpperCase()}
@@ -365,7 +427,7 @@ const QuittanceCaisseImprevuePDF = ({
           </Text>
 
           <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 5, fontWeight: 'bold', textAlign: 'center' }]}>
-            {nominalAmount} FCFA (chiffres),
+            {formatAmountWithSpaces(nominalAmount)} FCFA (chiffres),
           </Text>
 
           <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15, fontWeight: 'bold', textAlign: 'center' }]}>
@@ -378,7 +440,7 @@ const QuittanceCaisseImprevuePDF = ({
 
           <View style={styles.signatureRow}>
             <View style={styles.signatureBlock}>
-              <Text style={styles.bold}>Signature du Secrétaire exécutif.</Text>
+              <Text style={styles.signatureTitle}>Signature du Secrétaire exécutif.</Text>
               {resolvedFillData.secretarySignature ? (
                 <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
               ) : (
@@ -387,8 +449,8 @@ const QuittanceCaisseImprevuePDF = ({
             </View>
 
             <View style={styles.signatureBlockRight}>
-              <Text style={styles.bold}>Signature de l'épargnant</Text>
-              <Text style={{ fontSize: 11, marginTop: 5 }}>(Précédée de la mention Lu et Approuvé)</Text>
+              <Text style={styles.signatureTitleRight}>Signature de l'épargnant</Text>
+              <Text style={styles.signatureSubtitle}>(Précédée de la mention Lu et Approuvé)</Text>
               {resolvedFillData.memberSignature ? (
                 <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
               ) : (
@@ -397,6 +459,9 @@ const QuittanceCaisseImprevuePDF = ({
             </View>
           </View>
         </View>
+        <Text style={styles.pageNumber} fixed>
+          Page 2 / 2
+        </Text>
       </Page>
     </Document>
   )

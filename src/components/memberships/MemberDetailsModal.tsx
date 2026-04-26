@@ -20,17 +20,18 @@ import { toast } from 'sonner'
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 12, // Augmenté de 10 à 12
+    fontSize: 11,
     paddingTop: 15,
     paddingBottom: 20,
     paddingHorizontal: 25,
-    lineHeight: 1.3, // Augmenté de 1.2 à 1.3
+    lineHeight: 1.35,
+    color: '#1f2937',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
     width: '100%',
   },
   logo: {
@@ -43,25 +44,26 @@ const styles = StyleSheet.create({
   photoId: {
     width: 60,
     height: 60,
-    border: '1px solid #000',
+    border: '1px solid #94a3b8',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 2,
   },
   titleListe: {
-    fontSize: 20, // Augmenté de 18 à 20
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#1f3a4e',
+    color: '#1f4f68',
     textDecoration: 'underline',
     marginBottom: 12,
-    marginTop: 5,
+    marginTop: 4,
   },
   infoType: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 12,
-    fontSize: 13, // Augmenté de 11 à 13
+    marginBottom: 10,
+    fontSize: 12,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -71,16 +73,16 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 10,
     height: 10,
-    border: '2px solid #ba0c2f',
+    border: '1px solid #1f4f68',
     marginRight: 4,
     backgroundColor: 'white',
   },
   checkboxChecked: {
     width: 10,
     height: 10,
-    border: '2px solid #ba0c2f',
+    border: '1px solid #1f4f68',
     marginRight: 4,
-    backgroundColor: '#ba0c2f',
+    backgroundColor: '#1f4f68',
     position: 'relative',
   },
   checkmark: {
@@ -94,25 +96,26 @@ const styles = StyleSheet.create({
     transform: 'rotate(45deg)',
   },
   section: {
-    border: '1px solid black',
+    border: '1px solid #cbd5e1',
     marginBottom: 8,
+    borderRadius: 2,
   },
   sectionHeader: {
-    backgroundColor: '#224d62',
+    backgroundColor: '#1f4f68',
     color: 'white',
     textAlign: 'center',
     padding: 5,
-    fontSize: 15, // Augmenté de 13 à 15
+    fontSize: 14,
     fontWeight: 'bold',
   },
   stripedTable: {
     width: '100%',
-    border: '1px solid black',
+    border: '1px solid #cbd5e1',
   },
   stripedRow: {
     flexDirection: 'row',
     padding: 5,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#f8fafc',
     minHeight: 20,
   },
   stripedRowEven: {
@@ -123,7 +126,7 @@ const styles = StyleSheet.create({
   },
   stripedCell: {
     flex: 1,
-    fontSize: 11, // Augmenté de 9 à 11
+    fontSize: 10,
     paddingRight: 5,
   },
   modeReglementTable: {
@@ -132,13 +135,11 @@ const styles = StyleSheet.create({
   modeReglementRow: {
     flexDirection: 'row',
     height: 50,
-
-    border: '1px solid black',
+    border: '1px solid #cbd5e1',
   },
   modeReglementCell: {
     flex: 1,
-
-    borderRight: '1px solid black',
+    borderRight: '1px solid #cbd5e1',
     padding: 8,
     justifyContent: 'space-around',
     alignItems: 'flex-start',
@@ -152,18 +153,18 @@ const styles = StyleSheet.create({
   rectangle: {
     width: 15,
     height: 15,
-    border: '1px solid black',
+    border: '1px solid #64748b',
     marginRight: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   rectangleChecked: {
-    backgroundColor: '#111',
+    backgroundColor: '#1f4f68',
   },
   rectangleFill: {
     width: 11,
     height: 11,
-    backgroundColor: '#111',
+    backgroundColor: '#1f4f68',
   },
   rectangleRow: {
     flexDirection: 'row',
@@ -173,12 +174,12 @@ const styles = StyleSheet.create({
   },
   signatureTable: {
     width: '100%',
-    border: '1px solid black',
+    border: '1px solid #cbd5e1',
     marginBottom: 8,
   },
   signatureTableB: {
     width: '100%',
-    border: '1px solid black',
+    border: '1px solid #cbd5e1',
     marginBottom: 0,
   },
   signatureRow: {
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   },
   signatureCell: {
     flex: 1,
-    border: '1px solid black',
+    border: '1px solid #cbd5e1',
     padding: 12,
     justifyContent: 'space-between',
   },
@@ -220,44 +221,49 @@ const styles = StyleSheet.create({
   italic: {
     fontStyle: 'italic',
     marginBottom: 8,
-    fontSize: 11, // Augmenté de 9 à 11
-    lineHeight: 1.4, // Augmenté de 1.3 à 1.4
+    fontSize: 10,
+    lineHeight: 1.45,
+    color: '#334155',
   },
   footer: {
     marginTop: 10,
-    fontSize: 10, // Augmenté de 8 à 10
-    lineHeight: 1.3, // Augmenté de 1.2 à 1.3
+    fontSize: 9,
+    lineHeight: 1.35,
+    color: '#475569',
   },
   boldText: {
     fontWeight: 'bold',
   },
   confidentialityTitle: {
-    fontSize: 18, // Augmenté de 16 à 18
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 15,
     marginTop: 10,
+    color: '#1f4f68',
   },
   articleHeader: {
-    backgroundColor: '#224d62',
+    backgroundColor: '#1f4f68',
     color: 'white',
     textAlign: 'center',
     padding: 5,
-    fontSize: 15, // Augmenté de 13 à 15
+    fontSize: 14,
     fontWeight: 'bold',
   },
   articleText: {
     marginBottom: 8,
-    fontSize: 11, // Augmenté de 9 à 11
-    lineHeight: 1.4, // Augmenté de 1.3 à 1.4
+    fontSize: 10,
+    lineHeight: 1.45,
+    color: '#1f2937',
   },
   redText: {
-    color: '#ba0c2f',
+    color: '#9f1239',
   },
   contractSignatureDate: {
     marginTop: 10,
     marginBottom: 6,
-    fontSize: 12, // Augmenté de 10 à 12
+    fontSize: 11,
+    color: '#1f2937',
   },
   pageNumber: {
     position: 'absolute',
@@ -266,7 +272,7 @@ const styles = StyleSheet.create({
     right: 0,
     textAlign: 'center',
     fontSize: 9,
-    color: '#111827',
+    color: '#475569',
   },
 })
 
@@ -553,16 +559,16 @@ const MutuelleKaraPDF = ({
               <View style={{
                 width: 60,
                 height: 60,
-                border: '2px solid #000',
+                border: '1px solid #94a3b8',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: '#f8f9fa'
+                backgroundColor: '#f8fafc'
               }}>
                 <Text style={{
                   fontSize: 9, // Augmenté de 7 à 9
                   textAlign: 'center',
-                  color: '#666'
+                  color: '#64748b'
                 }}>
                   PHOTO{'\n'}IDENTITÉ
                 </Text>
