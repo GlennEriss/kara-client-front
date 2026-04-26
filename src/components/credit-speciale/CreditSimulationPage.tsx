@@ -32,19 +32,23 @@ import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
     AlertTriangle,
+    BarChart3,
     Calculator,
     CheckCircle,
     Download,
     LayoutGrid,
     Loader2,
     MessageCircle,
+    PieChart as PieChartIcon,
     Printer,
     SlidersHorizontal,
+    Sparkles,
     Table as TableIcon,
     TrendingUp,
 } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { toast } from 'sonner'
 
 type SimulationTabValue = 'standard' | 'custom' | 'proposed'
@@ -54,6 +58,12 @@ const simulationTabChips: { value: SimulationTabValue; label: string; icon: Reac
   { value: 'custom', label: 'Simulation personnalisée', icon: <SlidersHorizontal className="w-4 h-4" /> },
   { value: 'proposed', label: 'Simulation proposée', icon: <TrendingUp className="w-4 h-4" /> },
 ]
+
+const smoothFieldClass =
+  'w-full min-h-[44px] sm:min-h-[40px] rounded-xl border-slate-300/80 bg-white/90 shadow-sm transition-all duration-300 ease-out placeholder:text-slate-400 hover:border-[#234D65]/45 hover:bg-white focus-visible:border-[#234D65] focus-visible:ring-4 focus-visible:ring-[#234D65]/15 focus-visible:shadow-[0_0_0_1px_rgba(35,77,101,0.25)] disabled:cursor-not-allowed disabled:opacity-60'
+
+const smoothFieldContainerClass =
+  'space-y-2 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 p-3 transition-all duration-300 ease-out hover:border-[#234D65]/25 hover:shadow-sm focus-within:border-[#234D65]/40 focus-within:shadow-[0_0_0_3px_rgba(35,77,101,0.08)]'
 
 function SimulationTypeBadgesCarousel({
   value,
@@ -118,6 +128,8 @@ export default function CreditSimulationPage() {
   const [customResult, setCustomResult] = useState<CustomSimulation | null>(null)
   const [proposedResult, setProposedResult] = useState<StandardSimulation | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [resultAnimationKey, setResultAnimationKey] = useState(0)
+  const resultSectionRef = useRef<HTMLDivElement | null>(null)
   
   const { calculateStandard, calculateCustom, calculateProposed } = useSimulations()
 
@@ -197,8 +209,13 @@ export default function CreditSimulationPage() {
         creditType: data.creditType,
       })
       setStandardResult(result)
+      setResultAnimationKey((prev) => prev + 1)
       setShowResults(true)
-    } catch (error) {
+      setTimeout(() => {
+        resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 120)
+      toast.success('Simulation calculée.')
+    } catch {
       toast.error('Erreur lors du calcul de la simulation')
     }
   }
@@ -213,8 +230,13 @@ export default function CreditSimulationPage() {
         creditType: data.creditType,
       })
       setCustomResult(result)
+      setResultAnimationKey((prev) => prev + 1)
       setShowResults(true)
-    } catch (error) {
+      setTimeout(() => {
+        resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 120)
+      toast.success('Simulation calculée.')
+    } catch {
       toast.error('Erreur lors du calcul de la simulation')
     }
   }
@@ -229,8 +251,13 @@ export default function CreditSimulationPage() {
         creditType: data.creditType,
       })
       setProposedResult(result)
+      setResultAnimationKey((prev) => prev + 1)
       setShowResults(true)
-    } catch (error) {
+      setTimeout(() => {
+        resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 120)
+      toast.success('Simulation calculée.')
+    } catch {
       toast.error('Erreur lors du calcul de la simulation')
     }
   }
@@ -265,20 +292,25 @@ export default function CreditSimulationPage() {
 
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   const creditTypeLabel = creditType === 'SPECIALE' ? 'Spéciale' : creditType === 'FIXE' ? 'Fixe' : 'Aide'
+  const isCalculatingAny = calculateStandard.isPending || calculateCustom.isPending || calculateProposed.isPending
 
   return (
     <div className="space-y-6">
       {/* Sélection du type de crédit */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="relative overflow-hidden border-[#234D65]/20 shadow-lg">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-[#234D65]">
             <Calculator className="h-5 w-5" />
             Type de crédit
           </CardTitle>
+          <p className="text-sm text-slate-600">
+            Choisissez le type puis lancez une simulation avec aperçu enrichi.
+          </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <Select value={creditType} onValueChange={(value) => setCreditType(value as CreditType)}>
-            <SelectTrigger className="w-full md:w-[300px]">
+            <SelectTrigger className={`${smoothFieldClass} w-full md:w-[320px]`}>
               <SelectValue placeholder="Sélectionner un type de crédit" />
             </SelectTrigger>
             <SelectContent>
@@ -301,7 +333,7 @@ export default function CreditSimulationPage() {
         setProposedResult(null)
       }}>
         {/* Tabs - Vue desktop uniquement */}
-        <TabsList className="hidden md:grid w-full grid-cols-3">
+        <TabsList className="hidden md:grid w-full grid-cols-3 rounded-xl border border-[#234D65]/15 bg-white p-1">
           <TabsTrigger value="standard">Simulation standard</TabsTrigger>
           <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
           <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>
@@ -321,13 +353,31 @@ export default function CreditSimulationPage() {
           />
         </div>
 
+        {isCalculatingAny && (
+          <Card className="border-[#234D65]/20 bg-gradient-to-r from-white via-[#234D65]/5 to-[#cbb171]/10 shadow-sm animate-in fade-in-0 slide-in-from-bottom-3 duration-500">
+            <CardContent className="space-y-4 p-6">
+              <div className="flex items-center gap-3 text-[#234D65]">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="font-semibold">Simulation en cours de calcul…</span>
+              </div>
+              <div className="space-y-2">
+                <div className="h-2 w-full rounded-full bg-[#234D65]/10">
+                  <div className="h-2 w-2/3 animate-pulse rounded-full bg-gradient-to-r from-[#234D65] to-[#2c5a73]" />
+                </div>
+                <p className="text-xs text-slate-600">Calcul de l&apos;échéancier et préparation des indicateurs visuels…</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Simulation standard */}
         <TabsContent value="standard" className="space-y-6">
           <Form {...standardForm}>
             <form onSubmit={standardForm.handleSubmit(onStandardSubmit)} className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Paramètres de la simulation</CardTitle>
+              <Card className="relative overflow-hidden border-[#234D65]/20 shadow-md">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-[#234D65]">Paramètres de la simulation</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -335,7 +385,7 @@ export default function CreditSimulationPage() {
                       control={standardForm.control}
                       name="amount"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Montant emprunté (FCFA)</FormLabel>
                           <FormControl>
                             <Input
@@ -343,6 +393,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 500000"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -354,7 +405,7 @@ export default function CreditSimulationPage() {
                       control={standardForm.control}
                       name="interestRate"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
                           <FormControl>
                             <Input
@@ -363,6 +414,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 5.5"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -374,7 +426,7 @@ export default function CreditSimulationPage() {
                       control={standardForm.control}
                       name="monthlyPayment"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
                           <FormControl>
                             <Input
@@ -382,6 +434,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 100000"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -393,7 +446,7 @@ export default function CreditSimulationPage() {
                       control={standardForm.control}
                       name="firstPaymentDate"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Date du premier versement</FormLabel>
                           <FormControl>
                             <Input
@@ -401,6 +454,7 @@ export default function CreditSimulationPage() {
                               {...field}
                               value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
                               onChange={(e) => field.onChange(new Date(e.target.value))}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -431,7 +485,7 @@ export default function CreditSimulationPage() {
                   <Button
                     type="submit"
                     disabled={calculateStandard.isPending}
-                    className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                    className="group w-full min-h-[44px] sm:min-h-[40px] bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#1f455b] text-white shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                   >
                     {calculateStandard.isPending ? (
                       <>
@@ -440,7 +494,7 @@ export default function CreditSimulationPage() {
                       </>
                     ) : (
                       <>
-                        <Calculator className="h-4 w-4 mr-2" />
+                        <Sparkles className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:rotate-12" />
                         Calculer la simulation
                       </>
                     )}
@@ -452,11 +506,17 @@ export default function CreditSimulationPage() {
 
           {/* Résultats simulation standard */}
           {showResults && standardResult && (
-            <StandardSimulationResults
-              result={standardResult}
-              creditType={creditType}
-              onReset={handleReset}
-            />
+            <div
+              key={`standard-${resultAnimationKey}`}
+              ref={resultSectionRef}
+              className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700"
+            >
+              <StandardSimulationResults
+                result={standardResult}
+                creditType={creditType}
+                onReset={handleReset}
+              />
+            </div>
           )}
         </TabsContent>
 
@@ -464,9 +524,10 @@ export default function CreditSimulationPage() {
         <TabsContent value="custom" className="space-y-6">
           <Form {...customForm}>
             <form onSubmit={customForm.handleSubmit(onCustomSubmit)} className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Paramètres de la simulation</CardTitle>
+              <Card className="relative overflow-hidden border-[#234D65]/20 shadow-md">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-[#234D65]">Paramètres de la simulation</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -474,7 +535,7 @@ export default function CreditSimulationPage() {
                       control={customForm.control}
                       name="amount"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Montant emprunté (FCFA)</FormLabel>
                           <FormControl>
                             <Input
@@ -482,6 +543,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 500000"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -493,7 +555,7 @@ export default function CreditSimulationPage() {
                       control={customForm.control}
                       name="interestRate"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
                           <FormControl>
                             <Input
@@ -502,6 +564,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 5.5"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -513,7 +576,7 @@ export default function CreditSimulationPage() {
                       control={customForm.control}
                       name="firstPaymentDate"
                       render={({ field }) => (
-                        <FormItem className="md:col-span-2">
+                        <FormItem className={`${smoothFieldContainerClass} md:col-span-2`}>
                           <FormLabel>Date du premier versement</FormLabel>
                           <FormControl>
                             <Input
@@ -521,6 +584,7 @@ export default function CreditSimulationPage() {
                               {...field}
                               value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
                               onChange={(e) => field.onChange(new Date(e.target.value))}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -550,7 +614,7 @@ export default function CreditSimulationPage() {
                   <Button
                     type="submit"
                     disabled={calculateCustom.isPending}
-                    className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                    className="group w-full min-h-[44px] sm:min-h-[40px] bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#1f455b] text-white shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                   >
                     {calculateCustom.isPending ? (
                       <>
@@ -559,7 +623,7 @@ export default function CreditSimulationPage() {
                       </>
                     ) : (
                       <>
-                        <Calculator className="h-4 w-4 mr-2" />
+                        <Sparkles className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:rotate-12" />
                         Calculer la simulation
                       </>
                     )}
@@ -571,11 +635,17 @@ export default function CreditSimulationPage() {
 
           {/* Résultats simulation personnalisée */}
           {showResults && customResult && (
-            <CustomSimulationResults
-              result={customResult}
-              creditType={creditType}
-              onReset={handleReset}
-            />
+            <div
+              key={`custom-${resultAnimationKey}`}
+              ref={resultSectionRef}
+              className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700"
+            >
+              <CustomSimulationResults
+                result={customResult}
+                creditType={creditType}
+                onReset={handleReset}
+              />
+            </div>
           )}
         </TabsContent>
 
@@ -583,9 +653,10 @@ export default function CreditSimulationPage() {
         <TabsContent value="proposed" className="space-y-6">
           <Form {...proposedForm}>
             <form onSubmit={proposedForm.handleSubmit(onProposedSubmit)} className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Paramètres de la simulation</CardTitle>
+              <Card className="relative overflow-hidden border-[#234D65]/20 shadow-md">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-[#234D65]">Paramètres de la simulation</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -593,7 +664,7 @@ export default function CreditSimulationPage() {
                       control={proposedForm.control}
                       name="totalAmount"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Montant emprunté (FCFA)</FormLabel>
                           <FormControl>
                             <Input
@@ -601,6 +672,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 100000"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -612,7 +684,7 @@ export default function CreditSimulationPage() {
                       control={proposedForm.control}
                       name="duration"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Nombre de mois (0 à 7 max)</FormLabel>
                           <FormControl>
                             <Input
@@ -622,6 +694,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 3"
                               {...field}
                               onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -633,7 +706,7 @@ export default function CreditSimulationPage() {
                       control={proposedForm.control}
                       name="interestRate"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
                           <FormControl>
                             <Input
@@ -642,6 +715,7 @@ export default function CreditSimulationPage() {
                               placeholder="Ex: 10"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -653,7 +727,7 @@ export default function CreditSimulationPage() {
                       control={proposedForm.control}
                       name="firstPaymentDate"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className={smoothFieldContainerClass}>
                           <FormLabel>Date du premier versement</FormLabel>
                           <FormControl>
                             <Input
@@ -661,6 +735,7 @@ export default function CreditSimulationPage() {
                               {...field}
                               value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
                               onChange={(e) => field.onChange(new Date(e.target.value))}
+                              className={smoothFieldClass}
                             />
                           </FormControl>
                           <FormMessage />
@@ -691,7 +766,7 @@ export default function CreditSimulationPage() {
                   <Button
                     type="submit"
                     disabled={calculateProposed.isPending}
-                    className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                    className="group w-full min-h-[44px] sm:min-h-[40px] bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#1f455b] text-white shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                   >
                     {calculateProposed.isPending ? (
                       <>
@@ -700,7 +775,7 @@ export default function CreditSimulationPage() {
                       </>
                     ) : (
                       <>
-                        <Calculator className="h-4 w-4 mr-2" />
+                        <Sparkles className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:rotate-12" />
                         Calculer la simulation
                       </>
                     )}
@@ -712,12 +787,18 @@ export default function CreditSimulationPage() {
 
           {/* Résultats simulation proposée */}
           {showResults && proposedResult && (
-            <StandardSimulationResults
-              result={proposedResult}
-              creditType={creditType}
-              onReset={handleReset}
-              isProposed={true}
-            />
+            <div
+              key={`proposed-${resultAnimationKey}`}
+              ref={resultSectionRef}
+              className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700"
+            >
+              <StandardSimulationResults
+                result={proposedResult}
+                creditType={creditType}
+                onReset={handleReset}
+                isProposed={true}
+              />
+            </div>
           )}
         </TabsContent>
       </Tabs>
@@ -782,15 +863,16 @@ function CustomPaymentsInput({
   const globalRemainingAmount = customRound(remainingBalance)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 p-4">
       <div className="flex items-center justify-between">
-        <FormLabel>Paiements mensuels personnalisés</FormLabel>
+        <FormLabel className="text-sm font-semibold text-slate-700">Paiements mensuels personnalisés</FormLabel>
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={addPayment}
           disabled={maxDuration !== Infinity && payments.length >= maxDuration}
+          className="border-[#234D65]/35 text-[#234D65] hover:bg-[#234D65]/10"
         >
           Ajouter un mois
         </Button>
@@ -816,6 +898,7 @@ function CustomPaymentsInput({
                       value={payment.amount || ''}
                       onChange={(e) => updatePayment(index, parseFloat(e.target.value) || 0)}
                       placeholder="0"
+                      className={smoothFieldClass}
                     />
                   </TableCell>
                   <TableCell>
@@ -892,7 +975,6 @@ function StandardSimulationResults({
   const displayDuration = schedule.length
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
   const calculatedTotalInterest = schedule.reduce((sum, row) => sum + row.interest, 0)
-  const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
 
   const calculateReferenceSchedule = () => {
     if (creditType !== 'SPECIALE' || maxDuration !== 7) return []
@@ -940,8 +1022,17 @@ function StandardSimulationResults({
 
   const referenceSchedule = calculateReferenceSchedule()
   const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
-  const referenceTotalInterest = referenceSchedule.reduce((sum, row) => sum + row.interest, 0)
   const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
+  const finalRemaining = schedule.length > 0 ? Math.max(customRound(schedule[schedule.length - 1].remaining), 0) : result.amount
+  const reimbursedAmount = Math.max(customRound(result.amount - finalRemaining), 0)
+  const financialBreakdown = [
+    { name: 'Capital', value: customRound(result.amount), fill: '#234D65' },
+    { name: 'Intérêts', value: Math.max(customRound(calculatedTotalInterest), 0), fill: '#CBB171' },
+  ].filter((entry) => entry.value > 0)
+  const repaymentBreakdown = [
+    { name: 'Remboursé', value: reimbursedAmount, fill: '#16A34A' },
+    { name: 'Reste dû', value: finalRemaining, fill: '#F97316' },
+  ].filter((entry) => entry.value > 0)
 
   // Fonction pour formater les nombres avec des espaces normaux (pas d'espaces insécables)
   const formatNumberForPDF = (value: number): string => {
@@ -1201,8 +1292,8 @@ function StandardSimulationResults({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-[#234D65]/20 shadow-md">
+      <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-white via-[#234D65]/5 to-[#cbb171]/10">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
@@ -1308,6 +1399,68 @@ function StandardSimulationResults({
           )}
         </div>
 
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card className="border-[#234D65]/15 shadow-sm animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-100">
+            <CardContent className="p-4 sm:p-6">
+              <div className="mb-4 flex items-center gap-2 text-[#234D65]">
+                <PieChartIcon className="h-5 w-5" />
+                <h3 className="font-semibold">Répartition financière</h3>
+              </div>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={financialBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={82}
+                      paddingAngle={3}
+                    >
+                      {financialBreakdown.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number | string) => `${customRound(Number(value)).toLocaleString('fr-FR')} FCFA`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#234D65]/15 shadow-sm animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150">
+            <CardContent className="p-4 sm:p-6">
+              <div className="mb-4 flex items-center gap-2 text-[#234D65]">
+                <BarChart3 className="h-5 w-5" />
+                <h3 className="font-semibold">Statut du remboursement</h3>
+              </div>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={repaymentBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={82}
+                      paddingAngle={3}
+                    >
+                      {repaymentBreakdown.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number | string) => `${customRound(Number(value)).toLocaleString('fr-FR')} FCFA`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {(!result.isValid || (creditType === 'SPECIALE' && result.remainingAtMaxDuration !== undefined && result.remainingAtMaxDuration > 0)) && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -1353,7 +1506,7 @@ function StandardSimulationResults({
                   variant="outline"
                   size="sm"
                   onClick={handleDownloadCalculatedPDF}
-                  className="gap-2"
+                  className="gap-2 border-rose-300/80 bg-gradient-to-r from-rose-50 to-rose-100/80 text-rose-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
                 >
                   <Download className="h-4 w-4" />
                   Télécharger PDF
@@ -1362,7 +1515,7 @@ function StandardSimulationResults({
                   variant="outline"
                   size="sm"
                   onClick={handlePrintCalculated}
-                  className="gap-2"
+                  className="gap-2 border-slate-300/80 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:shadow-md"
                 >
                   <Printer className="h-4 w-4" />
                   Imprimer
@@ -1371,7 +1524,7 @@ function StandardSimulationResults({
                   variant="outline"
                   size="sm"
                   onClick={handleShareWhatsAppCalculated}
-                  className="gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700"
+                  className="gap-2 border-[#21b45a] bg-gradient-to-r from-[#25D366] to-[#1ebe5d] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#199f4e] hover:from-[#22c35f] hover:to-[#18a94f] hover:text-white hover:shadow-md"
                 >
                   <MessageCircle className="h-4 w-4" />
                   WhatsApp
@@ -1417,24 +1570,24 @@ function StandardSimulationResults({
                   Échéancier référence (7 mois)
                 </h4>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadReferencePDF}
-                    className="gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Télécharger PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrintReference}
-                    className="gap-2"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Imprimer
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadReferencePDF}
+                  className="gap-2 border-rose-300/80 bg-gradient-to-r from-rose-50 to-rose-100/80 text-rose-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
+                >
+                  <Download className="h-4 w-4" />
+                  Télécharger PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintReference}
+                  className="gap-2 border-slate-300/80 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:shadow-md"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimer
+                </Button>
                 </div>
               </div>
               <div className="border rounded-lg overflow-hidden">
@@ -1552,8 +1705,17 @@ function CustomSimulationResults({
   const calculatedTotalInterest = schedule.reduce((sum, row) => sum + row.interest, 0)
   const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
   const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
-  const referenceTotalInterest = referenceSchedule.reduce((sum, row) => sum + (row.interest || 0), 0)
   const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
+  const finalRemaining = schedule.length > 0 ? Math.max(customRound(schedule[schedule.length - 1].remaining), 0) : result.amount
+  const reimbursedAmount = Math.max(customRound(result.amount - finalRemaining), 0)
+  const financialBreakdown = [
+    { name: 'Capital', value: customRound(result.amount), fill: '#234D65' },
+    { name: 'Intérêts', value: Math.max(customRound(calculatedTotalInterest), 0), fill: '#CBB171' },
+  ].filter((entry) => entry.value > 0)
+  const repaymentBreakdown = [
+    { name: 'Remboursé', value: reimbursedAmount, fill: '#16A34A' },
+    { name: 'Reste dû', value: finalRemaining, fill: '#F97316' },
+  ].filter((entry) => entry.value > 0)
 
   // Fonction pour formater les nombres avec des espaces normaux (pas d'espaces insécables)
   const formatNumberForPDF = (value: number): string => {
@@ -1810,8 +1972,8 @@ function CustomSimulationResults({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-[#234D65]/20 shadow-md">
+      <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-white via-[#234D65]/5 to-[#cbb171]/10">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
@@ -1917,6 +2079,68 @@ function CustomSimulationResults({
           )}
         </div>
 
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card className="border-[#234D65]/15 shadow-sm animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-100">
+            <CardContent className="p-4 sm:p-6">
+              <div className="mb-4 flex items-center gap-2 text-[#234D65]">
+                <PieChartIcon className="h-5 w-5" />
+                <h3 className="font-semibold">Répartition financière</h3>
+              </div>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={financialBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={82}
+                      paddingAngle={3}
+                    >
+                      {financialBreakdown.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number | string) => `${customRound(Number(value)).toLocaleString('fr-FR')} FCFA`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#234D65]/15 shadow-sm animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150">
+            <CardContent className="p-4 sm:p-6">
+              <div className="mb-4 flex items-center gap-2 text-[#234D65]">
+                <BarChart3 className="h-5 w-5" />
+                <h3 className="font-semibold">Statut du remboursement</h3>
+              </div>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={repaymentBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={82}
+                      paddingAngle={3}
+                    >
+                      {repaymentBreakdown.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number | string) => `${customRound(Number(value)).toLocaleString('fr-FR')} FCFA`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {!result.isValid && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -1943,7 +2167,7 @@ function CustomSimulationResults({
                   variant="outline"
                   size="sm"
                   onClick={handleDownloadCustomPDF}
-                  className="gap-2"
+                  className="gap-2 border-rose-300/80 bg-gradient-to-r from-rose-50 to-rose-100/80 text-rose-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
                 >
                   <Download className="h-4 w-4" />
                   Télécharger PDF
@@ -1952,7 +2176,7 @@ function CustomSimulationResults({
                   variant="outline"
                   size="sm"
                   onClick={handlePrintCustom}
-                  className="gap-2"
+                  className="gap-2 border-slate-300/80 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:shadow-md"
                 >
                   <Printer className="h-4 w-4" />
                   Imprimer
@@ -1961,7 +2185,7 @@ function CustomSimulationResults({
                   variant="outline"
                   size="sm"
                   onClick={handleShareWhatsAppCustom}
-                  className="gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700"
+                  className="gap-2 border-[#21b45a] bg-gradient-to-r from-[#25D366] to-[#1ebe5d] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#199f4e] hover:from-[#22c35f] hover:to-[#18a94f] hover:text-white hover:shadow-md"
                 >
                   <MessageCircle className="h-4 w-4" />
                   WhatsApp
@@ -2005,24 +2229,24 @@ function CustomSimulationResults({
                   Échéancier référence ({maxDuration} mois)
                 </h4>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadReferencePDFCustom}
-                    className="gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Télécharger PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrintReferenceCustom}
-                    className="gap-2"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Imprimer
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadReferencePDFCustom}
+                  className="gap-2 border-rose-300/80 bg-gradient-to-r from-rose-50 to-rose-100/80 text-rose-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
+                >
+                  <Download className="h-4 w-4" />
+                  Télécharger PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintReferenceCustom}
+                  className="gap-2 border-slate-300/80 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:shadow-md"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimer
+                </Button>
                 </div>
               </div>
               <div className="border rounded-lg overflow-hidden">

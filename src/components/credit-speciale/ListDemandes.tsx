@@ -4,6 +4,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
     Table,
@@ -31,6 +34,7 @@ import {
     Calendar,
     CheckCircle,
     CheckCircle2,
+    ChevronDown,
     Clock,
     Download,
     Edit,
@@ -134,10 +138,17 @@ interface DemandFiltersState {
   search: string
   status: CreditDemandStatus | 'all'
   creditType: CreditTypeFilter
-  clientId: string
   guarantorId: string
   dateFrom: string
   dateTo: string
+  updatedAtFrom: string
+  updatedAtTo: string
+  desiredDateFrom: string
+  desiredDateTo: string
+  amountMin: string
+  amountMax: string
+  monthlyAmountMin: string
+  monthlyAmountMax: string
 }
 
 interface ListDemandesProps {
@@ -205,7 +216,7 @@ const GuarantorInfo = ({
 }
 
 // Composant skeleton moderne
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -229,6 +240,8 @@ const DemandFilters = ({
   filters,
   onFiltersChange,
   onReset,
+  onRefresh,
+  isRefreshing = false,
   onStatusChange,
   activeTab,
   showCreditTypeFilter,
@@ -236,142 +249,309 @@ const DemandFilters = ({
   filters: DemandFiltersState
   onFiltersChange: (filters: DemandFiltersState) => void
   onReset: () => void
+  onRefresh?: () => void
+  isRefreshing?: boolean
   onStatusChange?: (status: CreditDemandStatus | 'all') => void
   activeTab: DemandTab
   showCreditTypeFilter: boolean
 }) => {
-  const { data: selectedClient } = useMember(filters.clientId)
   const { data: selectedGuarantor } = useMember(filters.guarantorId)
-  const rowCols = activeTab === 'all'
-    ? showCreditTypeFilter ? 'md:grid-cols-3' : 'md:grid-cols-2'
-    : showCreditTypeFilter ? 'md:grid-cols-2' : 'md:grid-cols-1'
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
+
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (filters.search !== '') count += 1
+    if (filters.status !== 'all') count += 1
+    if (showCreditTypeFilter && filters.creditType !== 'all') count += 1
+    if (filters.guarantorId !== '') count += 1
+    if (filters.dateFrom !== '') count += 1
+    if (filters.dateTo !== '') count += 1
+    if (filters.updatedAtFrom !== '') count += 1
+    if (filters.updatedAtTo !== '') count += 1
+    if (filters.desiredDateFrom !== '') count += 1
+    if (filters.desiredDateTo !== '') count += 1
+    if (filters.amountMin !== '') count += 1
+    if (filters.amountMax !== '') count += 1
+    if (filters.monthlyAmountMin !== '') count += 1
+    if (filters.monthlyAmountMax !== '') count += 1
+    return count
+  }, [filters, showCreditTypeFilter])
+
+  const activeAdvancedFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (filters.guarantorId !== '') count += 1
+    if (filters.dateFrom !== '') count += 1
+    if (filters.dateTo !== '') count += 1
+    if (filters.updatedAtFrom !== '') count += 1
+    if (filters.updatedAtTo !== '') count += 1
+    if (filters.desiredDateFrom !== '') count += 1
+    if (filters.desiredDateTo !== '') count += 1
+    if (filters.amountMin !== '') count += 1
+    if (filters.amountMax !== '') count += 1
+    if (filters.monthlyAmountMin !== '') count += 1
+    if (filters.monthlyAmountMax !== '') count += 1
+    return count
+  }, [
+    filters.guarantorId,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.updatedAtFrom,
+    filters.updatedAtTo,
+    filters.desiredDateFrom,
+    filters.desiredDateTo,
+    filters.amountMin,
+    filters.amountMax,
+    filters.monthlyAmountMin,
+    filters.monthlyAmountMax,
+  ])
 
   return (
-    <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-      <CardContent className="p-6">
-        {/* En-tête */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
-              <Filter className="h-6 w-6 text-white" />
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+      <CardContent className="space-y-4 p-4 md:p-5">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+              <Filter className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-              <p className="text-gray-600 text-sm">Affinez votre recherche</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
+                {activeFiltersCount > 0 && (
+                  <Badge className="rounded-full bg-[#234D65]/10 px-2.5 py-0.5 text-xs font-semibold text-[#234D65] border border-[#234D65]/20">
+                    {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-slate-600">
+                Recherche rapide en haut, critères numériques dans les filtres avancés.
+              </p>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            onClick={onReset}
-            size="sm"
-            className="px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Réinitialiser
-          </Button>
           </div>
 
-        {/* Grille de filtres organisée */}
-        <div className="space-y-4">
-          {/* Ligne 1: Recherche générale */}
-          <div className={`grid grid-cols-1 ${rowCols} gap-4`}>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher une demande..."
-                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                value={filters.search || ''}
-                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-              />
-            </div>
-            {activeTab === 'all' && (
-            <select
-                className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.status || 'all'}
-                onChange={(e) => {
-                  const newStatus = e.target.value as CreditDemandStatus | 'all'
-                  onFiltersChange({ ...filters, status: newStatus })
-                  // Synchroniser l'onglet actif avec le filtre de statut
-                  if (onStatusChange) {
-                    onStatusChange(newStatus)
-                  }
-                }}
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="PENDING">En attente</option>
-              <option value="APPROVED">Approuvée</option>
-              <option value="REJECTED">Refusée</option>
-            </select>
-            )}
-            {showCreditTypeFilter && (
-              <select
-                className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                value={filters.creditType || 'all'}
-                onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value as CreditTypeFilter })}
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-10 rounded-xl border-2 border-[#234D65]/40 text-[#234D65] hover:bg-[#234D65] hover:text-white"
               >
-                <option value="all">Tous les types</option>
-                <option value="SPECIALE">Spéciale</option>
-                <option value="FIXE">Fixe</option>
-                <option value="AIDE">Aide</option>
-              </select>
+                <RefreshCw className={cn('mr-2 h-4 w-4', isRefreshing && 'animate-spin')} />
+                Actualiser
+              </Button>
             )}
-          </div>
-
-          {/* Ligne 2: Membres (Client et Garant) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
-              <MemberSearchInput
-                value={filters.clientId || ''}
-                onChange={(memberId) => onFiltersChange({ ...filters, clientId: memberId })}
-                placeholder="Rechercher un client..."
-                label=""
-                isRequired={false}
-                initialDisplayName={selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : ''}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Garant</label>
-              <MemberSearchInput
-                value={filters.guarantorId || ''}
-                onChange={(memberId) => onFiltersChange({ ...filters, guarantorId: memberId })}
-                placeholder="Rechercher un garant..."
-                label=""
-                isRequired={false}
-                initialDisplayName={selectedGuarantor ? `${selectedGuarantor.firstName} ${selectedGuarantor.lastName}` : ''}
-              />
-            </div>
-          </div>
-
-          {/* Ligne 3: Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date de début</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="date"
-                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                  value={filters.dateFrom || ''}
-                  onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date de fin</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="date"
-                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                  value={filters.dateTo || ''}
-                  onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
-                />
-              </div>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              Réinitialiser
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFiltersExpanded((prev) => !prev)}
+              className={cn(
+                'h-10 rounded-xl border-2 transition-colors',
+                isFiltersExpanded
+                  ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                  : 'border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5'
+              )}
+            >
+              Filtres avancés
+              {activeAdvancedFiltersCount > 0 ? ` (${activeAdvancedFiltersCount})` : ''}
+              <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+            </Button>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
+            <div className="relative group">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-[#234D65]" />
+              <Input
+                placeholder="ID, client, contact..."
+                value={filters.search}
+                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+              />
+            </div>
+          </div>
+
+          {activeTab === 'all' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Statut</Label>
+              <Select
+                value={filters.status || 'all'}
+                onValueChange={(value) => {
+                  const newStatus = value as CreditDemandStatus | 'all'
+                  onFiltersChange({ ...filters, status: newStatus })
+                  if (onStatusChange) onStatusChange(newStatus)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Tous les statuts" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="PENDING">En attente</SelectItem>
+                  <SelectItem value="APPROVED">Approuvée</SelectItem>
+                  <SelectItem value="REJECTED">Refusée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {showCreditTypeFilter && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Type de crédit</Label>
+              <Select
+                value={filters.creditType || 'all'}
+                onValueChange={(value) => onFiltersChange({ ...filters, creditType: value as CreditTypeFilter })}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Type de crédit" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="SPECIALE">Spéciale</SelectItem>
+                  <SelectItem value="FIXE">Fixe</SelectItem>
+                  <SelectItem value="AIDE">Aide</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        {isFiltersExpanded && (
+          <div className="rounded-2xl border border-[#234D65]/15 bg-gradient-to-br from-[#234D65]/[0.04] via-white to-slate-50 p-4 md:p-5">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Montant du crédit (FCFA)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Min"
+                      value={filters.amountMin}
+                      onChange={(e) => onFiltersChange({ ...filters, amountMin: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Max"
+                      value={filters.amountMax}
+                      onChange={(e) => onFiltersChange({ ...filters, amountMax: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Mensualité prévue (FCFA)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Min"
+                      value={filters.monthlyAmountMin}
+                      onChange={(e) => onFiltersChange({ ...filters, monthlyAmountMin: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Max"
+                      value={filters.monthlyAmountMax}
+                      onChange={(e) => onFiltersChange({ ...filters, monthlyAmountMax: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates</p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Garant</Label>
+                  <div className="rounded-lg border border-slate-200 bg-white p-1.5 focus-within:border-[#234D65]">
+                    <MemberSearchInput
+                      value={filters.guarantorId || ''}
+                      onChange={(memberId) => onFiltersChange({ ...filters, guarantorId: memberId })}
+                      placeholder="Rechercher un garant..."
+                      label=""
+                      isRequired={false}
+                      initialDisplayName={selectedGuarantor ? `${selectedGuarantor.firstName} ${selectedGuarantor.lastName}` : ''}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date de création</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Input
+                      type="date"
+                      value={filters.dateFrom}
+                      onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.dateTo}
+                      onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date de modification</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Input
+                      type="date"
+                      value={filters.updatedAtFrom}
+                      onChange={(e) => onFiltersChange({ ...filters, updatedAtFrom: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.updatedAtTo}
+                      onChange={(e) => onFiltersChange({ ...filters, updatedAtTo: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date souhaitée du crédit</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Input
+                      type="date"
+                      value={filters.desiredDateFrom}
+                      onChange={(e) => onFiltersChange({ ...filters, desiredDateFrom: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.desiredDateTo}
+                      onChange={(e) => onFiltersChange({ ...filters, desiredDateTo: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -411,13 +591,20 @@ const ListDemandes = ({
     search: searchParams.get('search') || '',
     status: initialStatus,
     creditType: forcedCreditType || initialCreditType,
-    clientId: searchParams.get('clientId') || '',
     guarantorId: searchParams.get('guarantorId') || '',
     dateFrom: searchParams.get('dateFrom') || '',
     dateTo: searchParams.get('dateTo') || '',
+    updatedAtFrom: searchParams.get('updatedAtFrom') || '',
+    updatedAtTo: searchParams.get('updatedAtTo') || '',
+    desiredDateFrom: searchParams.get('desiredDateFrom') || '',
+    desiredDateTo: searchParams.get('desiredDateTo') || '',
+    amountMin: searchParams.get('amountMin') || '',
+    amountMax: searchParams.get('amountMax') || '',
+    monthlyAmountMin: searchParams.get('monthlyAmountMin') || '',
+    monthlyAmountMax: searchParams.get('monthlyAmountMax') || '',
   })
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
-  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const itemsPerPage = Number(searchParams.get('limit')) || 12
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [activeTab, setActiveTab] = useState<DemandTab>(initialTab)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -478,10 +665,17 @@ const ListDemandes = ({
     if (filters.search) params.set('search', filters.search)
     if (filters.status !== 'all') params.set('status', filters.status)
     if (!isCreditTypeLocked && filters.creditType !== 'all') params.set('creditType', filters.creditType)
-    if (filters.clientId) params.set('clientId', filters.clientId)
     if (filters.guarantorId) params.set('guarantorId', filters.guarantorId)
     if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
     if (filters.dateTo) params.set('dateTo', filters.dateTo)
+    if (filters.updatedAtFrom) params.set('updatedAtFrom', filters.updatedAtFrom)
+    if (filters.updatedAtTo) params.set('updatedAtTo', filters.updatedAtTo)
+    if (filters.desiredDateFrom) params.set('desiredDateFrom', filters.desiredDateFrom)
+    if (filters.desiredDateTo) params.set('desiredDateTo', filters.desiredDateTo)
+    if (filters.amountMin) params.set('amountMin', filters.amountMin)
+    if (filters.amountMax) params.set('amountMax', filters.amountMax)
+    if (filters.monthlyAmountMin) params.set('monthlyAmountMin', filters.monthlyAmountMin)
+    if (filters.monthlyAmountMax) params.set('monthlyAmountMax', filters.monthlyAmountMax)
     if (currentPage > 1) params.set('page', currentPage.toString())
     if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
     if (viewMode !== 'grid') params.set('view', viewMode)
@@ -519,12 +713,9 @@ const ListDemandes = ({
     status: getStatusFilter(),
     creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
-    clientId: filters.clientId || undefined,
     guarantorId: filters.guarantorId || undefined,
     dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
     dateTo: filters.dateTo ? new Date(filters.dateTo) : undefined,
-    page: currentPage,
-    limit: itemsPerPage,
   }
 
   const { data: demandes = [], isLoading, error } = useCreditDemands(queryFilters)
@@ -540,7 +731,23 @@ const ListDemandes = ({
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [filters.search, filters.status, filters.creditType, filters.clientId, filters.guarantorId, filters.dateFrom, filters.dateTo, activeTab])
+  }, [
+    filters.search,
+    filters.status,
+    filters.creditType,
+    filters.guarantorId,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.updatedAtFrom,
+    filters.updatedAtTo,
+    filters.desiredDateFrom,
+    filters.desiredDateTo,
+    filters.amountMin,
+    filters.amountMax,
+    filters.monthlyAmountMin,
+    filters.monthlyAmountMax,
+    activeTab,
+  ])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: DemandFiltersState) => {
@@ -556,10 +763,17 @@ const ListDemandes = ({
       search: '', 
       status: 'all', 
       creditType: forcedCreditType || 'all',
-      clientId: '',
       guarantorId: '',
       dateFrom: '',
       dateTo: '',
+      updatedAtFrom: '',
+      updatedAtTo: '',
+      desiredDateFrom: '',
+      desiredDateTo: '',
+      amountMin: '',
+      amountMax: '',
+      monthlyAmountMin: '',
+      monthlyAmountMax: '',
     })
     setCurrentPage(1)
   }
@@ -571,6 +785,31 @@ const ListDemandes = ({
 
   const handleRefresh = async () => {
     // Le refetch est géré automatiquement par React Query
+  }
+
+  const parseDateOnly = (value?: string | Date | null): Date | null => {
+    if (!value) return null
+
+    if (value instanceof Date) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+    }
+
+    const trimmedValue = value.trim()
+    if (!trimmedValue) return null
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmedValue)) {
+      const [day, month, year] = trimmedValue.split('/').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+      const [year, month, day] = trimmedValue.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    const parsedDate = new Date(trimmedValue)
+    if (Number.isNaN(parsedDate.getTime())) return null
+    return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate())
   }
 
   const formatAmount = (amount: number): string => {
@@ -745,16 +984,69 @@ const ListDemandes = ({
     return labels[type as keyof typeof labels] || type
   }
 
-  // Les demandes sont déjà filtrées par le hook
-  const filteredDemandes = demandes
+  const filteredDemandes = React.useMemo(() => {
+    const amountMin = filters.amountMin !== '' ? Number(filters.amountMin) : null
+    const amountMax = filters.amountMax !== '' ? Number(filters.amountMax) : null
+    const monthlyAmountMin = filters.monthlyAmountMin !== '' ? Number(filters.monthlyAmountMin) : null
+    const monthlyAmountMax = filters.monthlyAmountMax !== '' ? Number(filters.monthlyAmountMax) : null
+
+    const createdAtFrom = parseDateOnly(filters.dateFrom)
+    const createdAtTo = parseDateOnly(filters.dateTo)
+    const updatedAtFrom = parseDateOnly(filters.updatedAtFrom)
+    const updatedAtTo = parseDateOnly(filters.updatedAtTo)
+    const desiredDateFrom = parseDateOnly(filters.desiredDateFrom)
+    const desiredDateTo = parseDateOnly(filters.desiredDateTo)
+
+    return demandes.filter((demande) => {
+      if (amountMin !== null && !Number.isNaN(amountMin) && Number(demande.amount || 0) < amountMin) return false
+      if (amountMax !== null && !Number.isNaN(amountMax) && Number(demande.amount || 0) > amountMax) return false
+
+      const monthlyAmount = Number(demande.monthlyPaymentAmount || 0)
+      if (monthlyAmountMin !== null && !Number.isNaN(monthlyAmountMin) && monthlyAmount < monthlyAmountMin) return false
+      if (monthlyAmountMax !== null && !Number.isNaN(monthlyAmountMax) && monthlyAmount > monthlyAmountMax) return false
+
+      const createdAt = parseDateOnly(demande.createdAt)
+      if (createdAtFrom && (!createdAt || createdAt < createdAtFrom)) return false
+      if (createdAtTo && (!createdAt || createdAt > createdAtTo)) return false
+
+      const updatedAt = parseDateOnly(demande.updatedAt)
+      if (updatedAtFrom && (!updatedAt || updatedAt < updatedAtFrom)) return false
+      if (updatedAtTo && (!updatedAt || updatedAt > updatedAtTo)) return false
+
+      const desiredDate = parseDateOnly(demande.desiredDate)
+      if (desiredDateFrom && (!desiredDate || desiredDate < desiredDateFrom)) return false
+      if (desiredDateTo && (!desiredDate || desiredDate > desiredDateTo)) return false
+
+      return true
+    })
+  }, [
+    demandes,
+    filters.amountMin,
+    filters.amountMax,
+    filters.monthlyAmountMin,
+    filters.monthlyAmountMax,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.updatedAtFrom,
+    filters.updatedAtTo,
+    filters.desiredDateFrom,
+    filters.desiredDateTo,
+  ])
   const hasActiveFilters =
     filters.search !== '' ||
     filters.status !== 'all' ||
     (!isCreditTypeLocked && filters.creditType !== 'all') ||
-    filters.clientId !== '' ||
     filters.guarantorId !== '' ||
     filters.dateFrom !== '' ||
-    filters.dateTo !== ''
+    filters.dateTo !== '' ||
+    filters.updatedAtFrom !== '' ||
+    filters.updatedAtTo !== '' ||
+    filters.desiredDateFrom !== '' ||
+    filters.desiredDateTo !== '' ||
+    filters.amountMin !== '' ||
+    filters.amountMax !== '' ||
+    filters.monthlyAmountMin !== '' ||
+    filters.monthlyAmountMax !== ''
 
   // Pagination
   const totalPages = Math.ceil(filteredDemandes.length / itemsPerPage)
@@ -860,6 +1152,8 @@ const ListDemandes = ({
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        onRefresh={handleRefresh}
+        isRefreshing={isLoading}
         activeTab={activeTab}
         showCreditTypeFilter={!isCreditTypeLocked}
         onStatusChange={(status) => {

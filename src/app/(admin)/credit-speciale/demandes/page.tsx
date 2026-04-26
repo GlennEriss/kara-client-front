@@ -25,16 +25,15 @@ export default function DemandesPage() {
             <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
               Demandes de Crédit Spéciale
             </h1>
-            <p className="text-gray-600 text-base md:text-lg">Gestion des demandes de crédit spéciale, fixe et aide</p>
+            <p className="text-gray-600 text-base md:text-lg">Gestion des demandes de crédit spéciale</p>
           </div>
         </div>
 
         {/* Composant principal avec Suspense */}
         <Suspense fallback={<ListDemandesSkeleton />}>
-          <ListDemandes />
+          <ListDemandes forcedCreditType="SPECIALE" />
         </Suspense>
       </div>
     </div>
   )
 }
-
