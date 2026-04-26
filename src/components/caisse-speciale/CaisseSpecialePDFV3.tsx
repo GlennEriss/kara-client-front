@@ -8,15 +8,20 @@ const colWidths = [0.269, 0.307, 0.152, 0.272]
 const sumCols = (start: number, span: number) =>
   colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
 
+const ACCENT_BLUE = '#1f4f68'
+const BORDER_SOFT = '#cbd5e1'
+const TEXT_PRIMARY = '#1f2937'
+const TEXT_MUTED = '#334155'
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 12,
+    fontSize: 11,
     paddingTop: 30, // 1820 twips
     paddingRight: 50, // 1240 twips
     paddingBottom: 14, // 280 twips
     paddingLeft: 50, // 1300 twips
-    color: '#000000',
+    color: TEXT_PRIMARY,
   },
   logo: {
     width: 201,
@@ -27,7 +32,7 @@ const styles = StyleSheet.create({
   },
   table: {
     borderWidth: 0.5,
-    borderColor: '#999999',
+    borderColor: BORDER_SOFT,
   },
   tableRow: {
     flexDirection: 'row',
@@ -39,33 +44,35 @@ const styles = StyleSheet.create({
   },
   tableCellRightBorder: {
     borderRightWidth: 0.5,
-    borderRightColor: '#999999',
+    borderRightColor: BORDER_SOFT,
   },
   tableCellBottomBorder: {
     borderBottomWidth: 0.5,
-    borderBottomColor: '#999999',
+    borderBottomColor: BORDER_SOFT,
   },
   tableHeaderCell: {
-    backgroundColor: '#0070C0',
+    backgroundColor: ACCENT_BLUE,
   },
   tableHeaderText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableSectionText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableLabelText: {
-    fontSize: 12,
+    fontSize: 11,
+    color: TEXT_MUTED,
   },
   tableValueText: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
+    color: TEXT_PRIMARY,
   },
   title1: {
     fontSize: 20,
@@ -73,62 +80,67 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textDecoration: 'underline',
     marginBottom: 12,
-    color: '#1f3a4e',
+    color: ACCENT_BLUE,
     marginTop: 5,
   },
   title2Underline: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     textDecoration: 'underline',
     marginTop: 12,
     marginBottom: 6,
     color: '#FFFFFF',
     textAlign: 'center',
-    backgroundColor: '#224d62',
+    backgroundColor: ACCENT_BLUE,
   },
   title2: {
-   fontSize: 15,
+   fontSize: 14,
     fontWeight: 'bold',
     textDecoration: 'underline',
     marginTop: 12,
     marginBottom: 6,
     color: '#FFFFFF',
     textAlign: 'center',
-    backgroundColor: '#224d62',
+    backgroundColor: ACCENT_BLUE,
   },
   articleTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
-    
+
     marginTop: 12,
     marginBottom: 6,
     color: '#FFFFFF',
     textAlign: 'center',
-    backgroundColor: '#224d62',
+    backgroundColor: ACCENT_BLUE,
   },
   paragraph: {
-    fontSize: 12,
-    lineHeight: 1.3,
+    fontSize: 11,
+    lineHeight: 1.35,
     textAlign: 'justify',
+    color: TEXT_PRIMARY,
   },
   paragraphIndented: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'justify',
     textIndent: 36,
     marginBottom: 6,
+    lineHeight: 1.35,
+    color: TEXT_PRIMARY,
   },
   paragraphIndented2: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
     textIndent: 36,
     marginBottom: 6,
     fontWeight: 'bold',
+    color: TEXT_PRIMARY,
   },
   paragraphListIndent: {
-    fontSize: 12,
-    lineHeight: 1.3,
+    fontSize: 11,
+    lineHeight: 1.35,
     textAlign: 'justify',
     marginLeft: 24,
+    color: TEXT_PRIMARY,
   },
   numberedItem: {
     flexDirection: 'row',
@@ -138,17 +150,20 @@ const styles = StyleSheet.create({
   },
   numberedIndex: {
     width: 18,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
+    color: TEXT_PRIMARY,
   },
   numberedText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 1.3,
+    fontSize: 11,
+    lineHeight: 1.35,
     textAlign: 'justify',
+    color: TEXT_PRIMARY,
   },
   italicText: {
     fontStyle: 'italic',
+    color: TEXT_MUTED,
   },
   rightAlign: {
     textAlign: 'right',
@@ -169,7 +184,7 @@ const styles = StyleSheet.create({
     height: 18.5,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: '#64748b',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
@@ -178,16 +193,18 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#000000',
+    backgroundColor: ACCENT_BLUE,
   },
   dotsLine: {
-    fontSize: 12,
-    lineHeight: 1.3,
+    fontSize: 11,
+    lineHeight: 1.35,
     textAlign: 'justify',
     marginLeft: 6,
+    color: TEXT_MUTED,
   },
   signatureTextSmall: {
-    fontSize: 12,
+    fontSize: 11,
+    color: TEXT_PRIMARY,
   },
   signatureImageRight: {
     width: 180,
@@ -199,6 +216,10 @@ const styles = StyleSheet.create({
     width: 180,
     height: 54,
     alignSelf: 'flex-end',
+    borderWidth: 0.5,
+    borderColor: '#94a3b8',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
   },
   signatureImageWide: {
     width: 220,
@@ -210,13 +231,17 @@ const styles = StyleSheet.create({
     width: 220,
     height: 64,
     marginLeft: 36,
+    borderWidth: 0.5,
+    borderColor: '#94a3b8',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
   },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
     right: 24,
     fontSize: 10,
-    color: '#4B5563',
+    color: '#475569',
   },
 })
 
@@ -409,7 +434,7 @@ const CaisseSpecialePDFV3 = ({
                 content: 'Informations Personnelles du Membre :',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: '#224d62',
+                backgroundColor: ACCENT_BLUE,
               },
             ]}
           />
@@ -486,7 +511,7 @@ const CaisseSpecialePDFV3 = ({
                 content: 'Informations Concernant Le Contact Urgent :',
                 span: 4,
                 textStyle: styles.tableSectionText,
-                backgroundColor: '#224d62',
+                backgroundColor: ACCENT_BLUE,
               },
             ]}
           />
@@ -617,6 +642,18 @@ const CaisseSpecialePDFV3 = ({
             </Text>
           </View>
         ))}
+        <Text style={[styles.paragraph, { marginTop: 4 }]}>
+          Ce délai permet une gestion saine, responsable et transparente de la trésorerie.
+        </Text>
+        <Text style={[styles.paragraphListIndent, { marginTop: 4 }]}>
+          •À compter du quatrième jour jusqu'au douzième jour succédant à l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l’équilibre et
+          la bonne tenue de la caisse commune.
+        </Text>
+        <Text style={styles.paragraphListIndent}>
+          •Tout versement intervenu après le douzième jour est irrecevable et s’assimile à un manquement substantiel
+          de l’épargnant à ses obligations contractuelles. Ainsi, il entraîne la résiliation du contrat à l’initiative du
+          secrétaire exécutif, comme précisé ci-après.
+        </Text>
       </Page>
 
       {/* PAGE 3 */}
@@ -626,18 +663,6 @@ const CaisseSpecialePDFV3 = ({
           fixed
           render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
-        <Text style={[styles.paragraph, { marginTop: 2 }]}>Ce délai permet une gestion saine, responsable et transparente de la trésorerie.</Text>
-
-        <Text style={[styles.paragraphListIndent, { marginTop: 4 }]}>
-          •À compter du quatrième jour jusqu'au douzième jour succédant à l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver 
-          l’équilibre et la bonne tenue de la caisse commune.
-        </Text>
-        <Text style={styles.paragraphListIndent}>
-          •Tout versement intervenu après le douzième jour est irrecevable et s’assimile à un manquement
-          substantiel de l’épargnant à ses obligations contractuelles. Ainsi, il entraîne la résiliation
-          du contrat à l’initiative du secrétaire exécutif, comme précisé ci-après.
-        </Text>
-
         <Text style={[styles.paragraph, { marginTop: 4 }]}>
           <Text style={{ fontWeight: 'bold' }}>7. Résiliation</Text> : Le contrat est de plein droit résolu si :
         </Text>
