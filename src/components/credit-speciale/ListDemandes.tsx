@@ -4,6 +4,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
     Table,
@@ -31,6 +40,7 @@ import {
     Calendar,
     CheckCircle,
     CheckCircle2,
+    ChevronDown,
     Clock,
     Download,
     Edit,
@@ -134,10 +144,17 @@ interface DemandFiltersState {
   search: string
   status: CreditDemandStatus | 'all'
   creditType: CreditTypeFilter
-  clientId: string
   guarantorId: string
   dateFrom: string
   dateTo: string
+  updatedAtFrom: string
+  updatedAtTo: string
+  desiredDateFrom: string
+  desiredDateTo: string
+  amountMin: string
+  amountMax: string
+  monthlyAmountMin: string
+  monthlyAmountMax: string
 }
 
 interface ListDemandesProps {
@@ -205,7 +222,7 @@ const GuarantorInfo = ({
 }
 
 // Composant skeleton moderne
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -229,6 +246,8 @@ const DemandFilters = ({
   filters,
   onFiltersChange,
   onReset,
+  onRefresh,
+  isRefreshing = false,
   onStatusChange,
   activeTab,
   showCreditTypeFilter,
@@ -236,142 +255,309 @@ const DemandFilters = ({
   filters: DemandFiltersState
   onFiltersChange: (filters: DemandFiltersState) => void
   onReset: () => void
+  onRefresh?: () => void
+  isRefreshing?: boolean
   onStatusChange?: (status: CreditDemandStatus | 'all') => void
   activeTab: DemandTab
   showCreditTypeFilter: boolean
 }) => {
-  const { data: selectedClient } = useMember(filters.clientId)
   const { data: selectedGuarantor } = useMember(filters.guarantorId)
-  const rowCols = activeTab === 'all'
-    ? showCreditTypeFilter ? 'md:grid-cols-3' : 'md:grid-cols-2'
-    : showCreditTypeFilter ? 'md:grid-cols-2' : 'md:grid-cols-1'
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
+
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (filters.search !== '') count += 1
+    if (filters.status !== 'all') count += 1
+    if (showCreditTypeFilter && filters.creditType !== 'all') count += 1
+    if (filters.guarantorId !== '') count += 1
+    if (filters.dateFrom !== '') count += 1
+    if (filters.dateTo !== '') count += 1
+    if (filters.updatedAtFrom !== '') count += 1
+    if (filters.updatedAtTo !== '') count += 1
+    if (filters.desiredDateFrom !== '') count += 1
+    if (filters.desiredDateTo !== '') count += 1
+    if (filters.amountMin !== '') count += 1
+    if (filters.amountMax !== '') count += 1
+    if (filters.monthlyAmountMin !== '') count += 1
+    if (filters.monthlyAmountMax !== '') count += 1
+    return count
+  }, [filters, showCreditTypeFilter])
+
+  const activeAdvancedFiltersCount = React.useMemo(() => {
+    let count = 0
+    if (filters.guarantorId !== '') count += 1
+    if (filters.dateFrom !== '') count += 1
+    if (filters.dateTo !== '') count += 1
+    if (filters.updatedAtFrom !== '') count += 1
+    if (filters.updatedAtTo !== '') count += 1
+    if (filters.desiredDateFrom !== '') count += 1
+    if (filters.desiredDateTo !== '') count += 1
+    if (filters.amountMin !== '') count += 1
+    if (filters.amountMax !== '') count += 1
+    if (filters.monthlyAmountMin !== '') count += 1
+    if (filters.monthlyAmountMax !== '') count += 1
+    return count
+  }, [
+    filters.guarantorId,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.updatedAtFrom,
+    filters.updatedAtTo,
+    filters.desiredDateFrom,
+    filters.desiredDateTo,
+    filters.amountMin,
+    filters.amountMax,
+    filters.monthlyAmountMin,
+    filters.monthlyAmountMax,
+  ])
 
   return (
-    <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-      <CardContent className="p-6">
-        {/* En-tête */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
-              <Filter className="h-6 w-6 text-white" />
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+      <CardContent className="space-y-4 p-4 md:p-5">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+              <Filter className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-              <p className="text-gray-600 text-sm">Affinez votre recherche</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900">Filtres et recherche</h3>
+                {activeFiltersCount > 0 && (
+                  <Badge className="rounded-full bg-[#234D65]/10 px-2.5 py-0.5 text-xs font-semibold text-[#234D65] border border-[#234D65]/20">
+                    {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-slate-600">
+                Recherche rapide en haut, critères numériques dans les filtres avancés.
+              </p>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            onClick={onReset}
-            size="sm"
-            className="px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Réinitialiser
-          </Button>
           </div>
 
-        {/* Grille de filtres organisée */}
-        <div className="space-y-4">
-          {/* Ligne 1: Recherche générale */}
-          <div className={`grid grid-cols-1 ${rowCols} gap-4`}>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher une demande..."
-                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                value={filters.search || ''}
-                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-              />
-            </div>
-            {activeTab === 'all' && (
-            <select
-                className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.status || 'all'}
-                onChange={(e) => {
-                  const newStatus = e.target.value as CreditDemandStatus | 'all'
-                  onFiltersChange({ ...filters, status: newStatus })
-                  // Synchroniser l'onglet actif avec le filtre de statut
-                  if (onStatusChange) {
-                    onStatusChange(newStatus)
-                  }
-                }}
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="PENDING">En attente</option>
-              <option value="APPROVED">Approuvée</option>
-              <option value="REJECTED">Refusée</option>
-            </select>
-            )}
-            {showCreditTypeFilter && (
-              <select
-                className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                value={filters.creditType || 'all'}
-                onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value as CreditTypeFilter })}
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-10 rounded-xl border-2 border-[#234D65]/40 text-[#234D65] hover:bg-[#234D65] hover:text-white"
               >
-                <option value="all">Tous les types</option>
-                <option value="SPECIALE">Spéciale</option>
-                <option value="FIXE">Fixe</option>
-                <option value="AIDE">Aide</option>
-              </select>
+                <RefreshCw className={cn('mr-2 h-4 w-4', isRefreshing && 'animate-spin')} />
+                Actualiser
+              </Button>
             )}
-          </div>
-
-          {/* Ligne 2: Membres (Client et Garant) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
-              <MemberSearchInput
-                value={filters.clientId || ''}
-                onChange={(memberId) => onFiltersChange({ ...filters, clientId: memberId })}
-                placeholder="Rechercher un client..."
-                label=""
-                isRequired={false}
-                initialDisplayName={selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : ''}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Garant</label>
-              <MemberSearchInput
-                value={filters.guarantorId || ''}
-                onChange={(memberId) => onFiltersChange({ ...filters, guarantorId: memberId })}
-                placeholder="Rechercher un garant..."
-                label=""
-                isRequired={false}
-                initialDisplayName={selectedGuarantor ? `${selectedGuarantor.firstName} ${selectedGuarantor.lastName}` : ''}
-              />
-            </div>
-          </div>
-
-          {/* Ligne 3: Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date de début</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="date"
-                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                  value={filters.dateFrom || ''}
-                  onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date de fin</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="date"
-                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                  value={filters.dateTo || ''}
-                  onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
-                />
-              </div>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              className="h-10 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              Réinitialiser
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFiltersExpanded((prev) => !prev)}
+              className={cn(
+                'h-10 rounded-xl border-2 transition-colors',
+                isFiltersExpanded
+                  ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                  : 'border-slate-200 bg-white text-[#234D65] hover:bg-[#234D65]/5'
+              )}
+            >
+              Filtres avancés
+              {activeAdvancedFiltersCount > 0 ? ` (${activeAdvancedFiltersCount})` : ''}
+              <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+            </Button>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-1.5 xl:col-span-2">
+            <Label className="text-xs font-semibold text-slate-500">Recherche</Label>
+            <div className="relative group">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-[#234D65]" />
+              <Input
+                placeholder="ID, client, contact..."
+                value={filters.search}
+                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+              />
+            </div>
+          </div>
+
+          {activeTab === 'all' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Statut</Label>
+              <Select
+                value={filters.status || 'all'}
+                onValueChange={(value) => {
+                  const newStatus = value as CreditDemandStatus | 'all'
+                  onFiltersChange({ ...filters, status: newStatus })
+                  if (onStatusChange) onStatusChange(newStatus)
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Tous les statuts" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="PENDING">En attente</SelectItem>
+                  <SelectItem value="APPROVED">Approuvée</SelectItem>
+                  <SelectItem value="REJECTED">Refusée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {showCreditTypeFilter && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500">Type de crédit</Label>
+              <Select
+                value={filters.creditType || 'all'}
+                onValueChange={(value) => onFiltersChange({ ...filters, creditType: value as CreditTypeFilter })}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 bg-white focus:border-[#234D65] focus:ring-0">
+                  <SelectValue placeholder="Type de crédit" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-2 border-slate-200 shadow-xl">
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="SPECIALE">Spéciale</SelectItem>
+                  <SelectItem value="FIXE">Fixe</SelectItem>
+                  <SelectItem value="AIDE">Aide</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        {isFiltersExpanded && (
+          <div className="rounded-2xl border border-[#234D65]/15 bg-gradient-to-br from-[#234D65]/[0.04] via-white to-slate-50 p-4 md:p-5">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Montants</p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Montant du crédit (FCFA)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Min"
+                      value={filters.amountMin}
+                      onChange={(e) => onFiltersChange({ ...filters, amountMin: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Max"
+                      value={filters.amountMax}
+                      onChange={(e) => onFiltersChange({ ...filters, amountMax: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Mensualité prévue (FCFA)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Min"
+                      value={filters.monthlyAmountMin}
+                      onChange={(e) => onFiltersChange({ ...filters, monthlyAmountMin: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Max"
+                      value={filters.monthlyAmountMax}
+                      onChange={(e) => onFiltersChange({ ...filters, monthlyAmountMax: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-slate-200/80 bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dates</p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Garant</Label>
+                  <div className="rounded-lg border border-slate-200 bg-white p-1.5 focus-within:border-[#234D65]">
+                    <MemberSearchInput
+                      value={filters.guarantorId || ''}
+                      onChange={(memberId) => onFiltersChange({ ...filters, guarantorId: memberId })}
+                      placeholder="Rechercher un garant..."
+                      label=""
+                      isRequired={false}
+                      initialDisplayName={selectedGuarantor ? `${selectedGuarantor.firstName} ${selectedGuarantor.lastName}` : ''}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date de création</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Input
+                      type="date"
+                      value={filters.dateFrom}
+                      onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.dateTo}
+                      onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date de modification</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Input
+                      type="date"
+                      value={filters.updatedAtFrom}
+                      onChange={(e) => onFiltersChange({ ...filters, updatedAtFrom: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.updatedAtTo}
+                      onChange={(e) => onFiltersChange({ ...filters, updatedAtTo: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500">Date souhaitée du crédit</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Input
+                      type="date"
+                      value={filters.desiredDateFrom}
+                      onChange={(e) => onFiltersChange({ ...filters, desiredDateFrom: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.desiredDateTo}
+                      onChange={(e) => onFiltersChange({ ...filters, desiredDateTo: e.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -411,13 +597,20 @@ const ListDemandes = ({
     search: searchParams.get('search') || '',
     status: initialStatus,
     creditType: forcedCreditType || initialCreditType,
-    clientId: searchParams.get('clientId') || '',
     guarantorId: searchParams.get('guarantorId') || '',
     dateFrom: searchParams.get('dateFrom') || '',
     dateTo: searchParams.get('dateTo') || '',
+    updatedAtFrom: searchParams.get('updatedAtFrom') || '',
+    updatedAtTo: searchParams.get('updatedAtTo') || '',
+    desiredDateFrom: searchParams.get('desiredDateFrom') || '',
+    desiredDateTo: searchParams.get('desiredDateTo') || '',
+    amountMin: searchParams.get('amountMin') || '',
+    amountMax: searchParams.get('amountMax') || '',
+    monthlyAmountMin: searchParams.get('monthlyAmountMin') || '',
+    monthlyAmountMax: searchParams.get('monthlyAmountMax') || '',
   })
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
-  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const itemsPerPage = Number(searchParams.get('limit')) || 12
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [activeTab, setActiveTab] = useState<DemandTab>(initialTab)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -461,6 +654,7 @@ const ListDemandes = ({
     isOpen: boolean
     demand: CreditDemand | null
   }>({ isOpen: false, demand: null })
+  const [isExporting, setIsExporting] = useState(false)
   const { createFromDemand } = useCreditContractMutations()
 
   // Synchroniser l'URL avec l'état
@@ -478,10 +672,17 @@ const ListDemandes = ({
     if (filters.search) params.set('search', filters.search)
     if (filters.status !== 'all') params.set('status', filters.status)
     if (!isCreditTypeLocked && filters.creditType !== 'all') params.set('creditType', filters.creditType)
-    if (filters.clientId) params.set('clientId', filters.clientId)
     if (filters.guarantorId) params.set('guarantorId', filters.guarantorId)
     if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
     if (filters.dateTo) params.set('dateTo', filters.dateTo)
+    if (filters.updatedAtFrom) params.set('updatedAtFrom', filters.updatedAtFrom)
+    if (filters.updatedAtTo) params.set('updatedAtTo', filters.updatedAtTo)
+    if (filters.desiredDateFrom) params.set('desiredDateFrom', filters.desiredDateFrom)
+    if (filters.desiredDateTo) params.set('desiredDateTo', filters.desiredDateTo)
+    if (filters.amountMin) params.set('amountMin', filters.amountMin)
+    if (filters.amountMax) params.set('amountMax', filters.amountMax)
+    if (filters.monthlyAmountMin) params.set('monthlyAmountMin', filters.monthlyAmountMin)
+    if (filters.monthlyAmountMax) params.set('monthlyAmountMax', filters.monthlyAmountMax)
     if (currentPage > 1) params.set('page', currentPage.toString())
     if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
     if (viewMode !== 'grid') params.set('view', viewMode)
@@ -519,12 +720,9 @@ const ListDemandes = ({
     status: getStatusFilter(),
     creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
-    clientId: filters.clientId || undefined,
     guarantorId: filters.guarantorId || undefined,
     dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
     dateTo: filters.dateTo ? new Date(filters.dateTo) : undefined,
-    page: currentPage,
-    limit: itemsPerPage,
   }
 
   const { data: demandes = [], isLoading, error } = useCreditDemands(queryFilters)
@@ -540,7 +738,23 @@ const ListDemandes = ({
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [filters.search, filters.status, filters.creditType, filters.clientId, filters.guarantorId, filters.dateFrom, filters.dateTo, activeTab])
+  }, [
+    filters.search,
+    filters.status,
+    filters.creditType,
+    filters.guarantorId,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.updatedAtFrom,
+    filters.updatedAtTo,
+    filters.desiredDateFrom,
+    filters.desiredDateTo,
+    filters.amountMin,
+    filters.amountMax,
+    filters.monthlyAmountMin,
+    filters.monthlyAmountMax,
+    activeTab,
+  ])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: DemandFiltersState) => {
@@ -556,10 +770,17 @@ const ListDemandes = ({
       search: '', 
       status: 'all', 
       creditType: forcedCreditType || 'all',
-      clientId: '',
       guarantorId: '',
       dateFrom: '',
       dateTo: '',
+      updatedAtFrom: '',
+      updatedAtTo: '',
+      desiredDateFrom: '',
+      desiredDateTo: '',
+      amountMin: '',
+      amountMax: '',
+      monthlyAmountMin: '',
+      monthlyAmountMax: '',
     })
     setCurrentPage(1)
   }
@@ -571,6 +792,31 @@ const ListDemandes = ({
 
   const handleRefresh = async () => {
     // Le refetch est géré automatiquement par React Query
+  }
+
+  const parseDateOnly = (value?: string | Date | null): Date | null => {
+    if (!value) return null
+
+    if (value instanceof Date) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+    }
+
+    const trimmedValue = value.trim()
+    if (!trimmedValue) return null
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmedValue)) {
+      const [day, month, year] = trimmedValue.split('/').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+      const [year, month, day] = trimmedValue.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    const parsedDate = new Date(trimmedValue)
+    if (Number.isNaN(parsedDate.getTime())) return null
+    return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate())
   }
 
   const formatAmount = (amount: number): string => {
@@ -592,11 +838,13 @@ const ListDemandes = ({
   }
 
   const exportToExcel = async () => {
-    if (!demandes || demandes.length === 0) {
+    if (isExporting) return
+    if (!filteredDemandes || filteredDemandes.length === 0) {
       toast.error('Aucune demande à exporter')
       return
     }
 
+    setIsExporting(true)
     try {
       const XLSX = await import('xlsx')
       const rows = buildExportRows()
@@ -653,15 +901,19 @@ const ListDemandes = ({
     } catch (error) {
       console.error('Erreur lors de l\'export Excel:', error)
       toast.error('Erreur lors de l\'export Excel')
+    } finally {
+      setIsExporting(false)
     }
   }
 
   const exportToPDF = async () => {
-    if (!demandes || demandes.length === 0) {
+    if (isExporting) return
+    if (!filteredDemandes || filteredDemandes.length === 0) {
       toast.error('Aucune demande à exporter')
       return
     }
 
+    setIsExporting(true)
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
@@ -683,7 +935,7 @@ const ListDemandes = ({
             : 'Rejetées'
       doc.text(`Onglet: ${tabLabel}`, 14, 20)
       doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${demandes.length} demande(s)`, 14, 28)
+      doc.text(`Total: ${filteredDemandes.length} demande(s)`, 14, 28)
 
       const rows = buildExportRows()
       const headers = [
@@ -714,6 +966,8 @@ const ListDemandes = ({
     } catch (error) {
       console.error('Erreur lors de l\'export PDF:', error)
       toast.error('Erreur lors de l\'export PDF')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -745,16 +999,69 @@ const ListDemandes = ({
     return labels[type as keyof typeof labels] || type
   }
 
-  // Les demandes sont déjà filtrées par le hook
-  const filteredDemandes = demandes
+  const filteredDemandes = React.useMemo(() => {
+    const amountMin = filters.amountMin !== '' ? Number(filters.amountMin) : null
+    const amountMax = filters.amountMax !== '' ? Number(filters.amountMax) : null
+    const monthlyAmountMin = filters.monthlyAmountMin !== '' ? Number(filters.monthlyAmountMin) : null
+    const monthlyAmountMax = filters.monthlyAmountMax !== '' ? Number(filters.monthlyAmountMax) : null
+
+    const createdAtFrom = parseDateOnly(filters.dateFrom)
+    const createdAtTo = parseDateOnly(filters.dateTo)
+    const updatedAtFrom = parseDateOnly(filters.updatedAtFrom)
+    const updatedAtTo = parseDateOnly(filters.updatedAtTo)
+    const desiredDateFrom = parseDateOnly(filters.desiredDateFrom)
+    const desiredDateTo = parseDateOnly(filters.desiredDateTo)
+
+    return demandes.filter((demande) => {
+      if (amountMin !== null && !Number.isNaN(amountMin) && Number(demande.amount || 0) < amountMin) return false
+      if (amountMax !== null && !Number.isNaN(amountMax) && Number(demande.amount || 0) > amountMax) return false
+
+      const monthlyAmount = Number(demande.monthlyPaymentAmount || 0)
+      if (monthlyAmountMin !== null && !Number.isNaN(monthlyAmountMin) && monthlyAmount < monthlyAmountMin) return false
+      if (monthlyAmountMax !== null && !Number.isNaN(monthlyAmountMax) && monthlyAmount > monthlyAmountMax) return false
+
+      const createdAt = parseDateOnly(demande.createdAt)
+      if (createdAtFrom && (!createdAt || createdAt < createdAtFrom)) return false
+      if (createdAtTo && (!createdAt || createdAt > createdAtTo)) return false
+
+      const updatedAt = parseDateOnly(demande.updatedAt)
+      if (updatedAtFrom && (!updatedAt || updatedAt < updatedAtFrom)) return false
+      if (updatedAtTo && (!updatedAt || updatedAt > updatedAtTo)) return false
+
+      const desiredDate = parseDateOnly(demande.desiredDate)
+      if (desiredDateFrom && (!desiredDate || desiredDate < desiredDateFrom)) return false
+      if (desiredDateTo && (!desiredDate || desiredDate > desiredDateTo)) return false
+
+      return true
+    })
+  }, [
+    demandes,
+    filters.amountMin,
+    filters.amountMax,
+    filters.monthlyAmountMin,
+    filters.monthlyAmountMax,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.updatedAtFrom,
+    filters.updatedAtTo,
+    filters.desiredDateFrom,
+    filters.desiredDateTo,
+  ])
   const hasActiveFilters =
     filters.search !== '' ||
     filters.status !== 'all' ||
     (!isCreditTypeLocked && filters.creditType !== 'all') ||
-    filters.clientId !== '' ||
     filters.guarantorId !== '' ||
     filters.dateFrom !== '' ||
-    filters.dateTo !== ''
+    filters.dateTo !== '' ||
+    filters.updatedAtFrom !== '' ||
+    filters.updatedAtTo !== '' ||
+    filters.desiredDateFrom !== '' ||
+    filters.desiredDateTo !== '' ||
+    filters.amountMin !== '' ||
+    filters.amountMax !== '' ||
+    filters.monthlyAmountMin !== '' ||
+    filters.monthlyAmountMax !== ''
 
   // Pagination
   const totalPages = Math.ceil(filteredDemandes.length / itemsPerPage)
@@ -809,38 +1116,6 @@ const ListDemandes = ({
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
-      {/* Onglets pour filtrer par statut */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
-        {/* Tabs - Vue desktop uniquement */}
-        <TabsList className="hidden md:grid w-full max-w-2xl grid-cols-4">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Toutes ({stats.total})
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            En attente ({stats.pending})
-          </TabsTrigger>
-          <TabsTrigger value="approved" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Approuvées ({stats.approved})
-          </TabsTrigger>
-          <TabsTrigger value="rejected" className="flex items-center gap-2">
-            <XCircle className="h-4 w-4" />
-            Rejetées ({stats.rejected})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Badges carousel - Vue mobile et tablette */}
-        <div className="md:hidden">
-          <DemandTabBadgesCarousel
-            value={activeTab}
-            onChange={(tab) => setActiveTab(tab)}
-            stats={stats}
-          />
-        </div>
-      </Tabs>
-
       {/* Statistiques */}
       <StatisticsCreditDemandes 
         status={
@@ -860,6 +1135,8 @@ const ListDemandes = ({
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        onRefresh={handleRefresh}
+        isRefreshing={isLoading}
         activeTab={activeTab}
         showCreditTypeFilter={!isCreditTypeLocked}
         onStatusChange={(status) => {
@@ -876,93 +1153,116 @@ const ListDemandes = ({
         }}
       />
 
-      {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+      {/* Barre d'actions */}
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                <h2 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-xl font-black text-transparent md:text-2xl">
                   Liste des Demandes
                 </h2>
-                <p className="text-gray-600 font-medium">
+                <p className="font-medium text-gray-600">
                   {filteredDemandes.length.toLocaleString()} demande{filteredDemandes.length !== 1 ? 's' : ''} • Page {currentPage}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Boutons de vue modernes */}
-              <div className="items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1 sm:w-auto">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
-                    }`}
+                  className={`h-10 flex-1 cursor-pointer rounded-lg px-4 transition-all duration-200 sm:flex-none ${
+                    viewMode === 'grid'
+                      ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                      : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
+                  }`}
                 >
-                  <Grid3X3 className="h-4 w-4 mr-2" />
+                  <Grid3X3 className="mr-2 h-4 w-4" />
                   Grille
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
-                    }`}
+                  className={`h-10 flex-1 cursor-pointer rounded-lg px-4 transition-all duration-200 sm:flex-none ${
+                    viewMode === 'list'
+                      ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                      : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
+                  }`}
                 >
-                  <List className="h-4 w-4 mr-2" />
+                  <List className="mr-2 h-4 w-4" />
                   Liste
                 </Button>
               </div>
 
-              {/* Actions avec animations */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-10 w-full cursor-pointer rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50 sm:w-auto"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                disabled={filteredDemandes.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Exporter Excel
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToPDF}
-                disabled={filteredDemandes.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Exporter PDF
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExporting || filteredDemandes.length === 0}
+                    className="h-10 w-full cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50 sm:w-auto"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToExcel()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-2 h-4 w-4 text-emerald-700" />
+                    Exporter Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToPDF()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-2 h-4 w-4 text-rose-700" />
+                    Exporter PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <Button
                 size="sm"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="h-10 w-full cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md sm:w-auto"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 Nouvelle Demande
               </Button>
             </div>
@@ -970,25 +1270,100 @@ const ListDemandes = ({
         </CardContent>
       </Card>
 
+      {/* Tabs de statut (rattachés à la liste) */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
+        {/* Tabs desktop : style onglets classeur */}
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="min-w-0 flex-1">
+            <TabsList className="relative flex h-auto w-full flex-nowrap gap-0.5 overflow-x-auto bg-transparent p-0 scrollbar-hide">
+              <TabsTrigger
+                value="all"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Toutes</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.total}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span className="whitespace-nowrap">En attente</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.pending}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="approved"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Acceptées</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.approved}
+                  </span>
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="rejected"
+                className="shrink-0 min-w-[110px] rounded-b-none rounded-t-lg border-x border-t border-gray-200 bg-gray-50/70 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-[#234D65] data-[state=active]:z-10 data-[state=active]:border-[#234D65] data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:shadow-none"
+              >
+                <span className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  <span className="whitespace-nowrap">Refusées</span>
+                  <span className="ml-0.5 shrink-0 rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {stats.rejected}
+                  </span>
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Badges carousel - Vue mobile et tablette */}
+        <div className="lg:hidden">
+          <DemandTabBadgesCarousel
+            value={activeTab}
+            onChange={(tab) => setActiveTab(tab)}
+            stats={stats}
+          />
+        </div>
+      </Tabs>
+
       {/* Liste des demandes */}
       {isLoading ? (
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-            : 'space-y-6'
-        }>
-          {[...Array(itemsPerPage)].map((_, i) => (
-            <ModernSkeleton key={i} viewMode={viewMode} />
-          ))}
+        <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/40 p-4 md:p-5">
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'
+              : 'space-y-4'
+          }>
+            {[...Array(itemsPerPage)].map((_, i) => (
+              <ModernSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         </div>
       ) : currentDemandes.length > 0 ? (
         <>
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-              {currentDemandes.map((demande) => (
-                <Card
+            <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
+              <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+              {currentDemandes.map((demande, index) => (
+                <div
                   key={demande.id}
-                  className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
+                  className="animate-in fade-in-0 slide-in-from-bottom-3 duration-500"
+                  style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}
+                >
+                <Card
+                  className="group relative flex h-full flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl"
                 >
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
                     {/* Ligne 1: Matricule complet (sans troncature) */}
@@ -1165,21 +1540,23 @@ const ListDemandes = ({
                     </div>
                   </CardContent>
                 </Card>
+                </div>
               ))}
+              </div>
             </div>
           ) : (
-            <Card className="bg-white border-0 shadow-lg overflow-hidden">
+            <Card className="overflow-hidden rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white to-slate-50/40 shadow-sm">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-slate-50">
-                      <TableRow>
-                        <TableHead className="min-w-[240px]">Demande</TableHead>
-                        <TableHead className="min-w-[220px]">Client</TableHead>
-                        <TableHead className="min-w-[170px]">Montant / Date</TableHead>
-                        <TableHead className="min-w-[180px]">Garant</TableHead>
-                        <TableHead className="min-w-[120px]">Score</TableHead>
-                        <TableHead className="min-w-[320px]">Actions</TableHead>
+                    <TableHeader>
+                      <TableRow className="border-b border-[#234D65]/20 bg-gradient-to-r from-[#234D65]/10 via-[#234D65]/[0.06] to-transparent">
+                        <TableHead className="min-w-[240px] font-semibold text-[#234D65]">Demande</TableHead>
+                        <TableHead className="min-w-[220px] font-semibold text-[#234D65]">Client</TableHead>
+                        <TableHead className="min-w-[170px] font-semibold text-[#234D65]">Montant / Date</TableHead>
+                        <TableHead className="min-w-[180px] font-semibold text-[#234D65]">Garant</TableHead>
+                        <TableHead className="min-w-[120px] font-semibold text-[#234D65]">Score</TableHead>
+                        <TableHead className="min-w-[320px] font-semibold text-[#234D65]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1335,7 +1712,7 @@ const ListDemandes = ({
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
+            <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
@@ -1347,7 +1724,7 @@ const ListDemandes = ({
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Précédent
                     </Button>
@@ -1359,7 +1736,7 @@ const ListDemandes = ({
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1"
+                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
                     >
                       Suivant
                     </Button>
@@ -1370,7 +1747,7 @@ const ListDemandes = ({
           )}
         </>
       ) : (
-        <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
+        <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
           <CardContent className="text-center p-16">
             <div className="space-y-6">
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">

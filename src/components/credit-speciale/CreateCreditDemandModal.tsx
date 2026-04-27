@@ -137,318 +137,354 @@ export default function CreateCreditDemandModal({
     }
   }
 
+  const creditTypeLabel =
+    selectedCreditType === 'SPECIALE'
+      ? 'Crédit Spéciale'
+      : selectedCreditType === 'FIXE'
+        ? 'Crédit Fixe'
+        : 'Crédit Aide'
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62]">
-            Nouvelle demande de crédit
-          </DialogTitle>
-          <DialogDescription>
-            Créez une nouvelle demande de crédit spéciale, fixe ou aide
-          </DialogDescription>
+      <DialogContent className="w-[96vw] bg-white !max-w-[1200px] max-h-[94vh] overflow-hidden border border-slate-200   to-white p-0 shadow-2xl">
+        <DialogHeader className="border-b border-slate-200/80 bg-white/90 px-5 py-4 md:px-7 md:py-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle className="text-2xl font-black text-[#224D62]">
+                {lockCreditType && initialCreditType === 'SPECIALE'
+                  ? 'Nouvelle demande de crédit spéciale'
+                  : 'Nouvelle demande de crédit'}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-slate-600">
+                {lockCreditType && initialCreditType === 'SPECIALE'
+                  ? 'Remplissez les informations du client, du crédit et du garant.'
+                  : 'Créez une nouvelle demande de crédit spéciale, fixe ou aide.'}
+              </DialogDescription>
+            </div>
+            <div className="hidden rounded-full border border-[#234D65]/20 bg-[#234D65]/10 px-3 py-1.5 text-xs font-semibold text-[#234D65] sm:block">
+              {creditTypeLabel}
+            </div>
+          </div>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Section 1: Type de crédit */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Type de crédit</h3>
-                
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex max-h-[calc(94vh-96px)] flex-col">
+            <div className="space-y-5 overflow-y-auto px-5 py-5 md:px-7">
+              {/* Type de crédit (masqué si verrouillé) */}
+              {!lockCreditType ? (
+                <Card className="border border-slate-200/80 bg-white shadow-sm">
+                  <CardContent className="space-y-4 p-4 md:p-5">
+                    <h3 className="text-lg font-bold text-slate-900">Type de crédit</h3>
+
+                    <FormField
+                      control={form.control}
+                      name="creditType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type de crédit</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-11 rounded-xl border-2 border-slate-200 focus:border-[#234D65] focus:ring-0">
+                                <SelectValue placeholder="Sélectionnez un type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="rounded-xl border border-slate-200">
+                              <SelectItem value="SPECIALE">Spéciale (≤7 mois)</SelectItem>
+                              <SelectItem value="FIXE">Fixe (illimité)</SelectItem>
+                              <SelectItem value="AIDE">Aide (≤3 mois)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            {field.value === 'SPECIALE' && 'Crédit spéciale : durée maximale de 7 mois'}
+                            {field.value === 'FIXE' && "Crédit fixe : durée illimitée jusqu'au remboursement complet"}
+                            {field.value === 'AIDE' && 'Crédit aide : durée maximale de 3 mois'}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              ) : (
                 <FormField
                   control={form.control}
                   name="creditType"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Type de crédit</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={lockCreditType}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionnez un type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="SPECIALE">Spéciale (≤7 mois)</SelectItem>
-                          <SelectItem value="FIXE">Fixe (illimité)</SelectItem>
-                          <SelectItem value="AIDE">Aide (≤3 mois)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        {lockCreditType
-                          ? 'Type verrouillé pour ce module. '
-                          : ''}
-                        {form.watch('creditType') === 'SPECIALE' && 'Crédit spéciale : durée maximale de 7 mois'}
-                        {form.watch('creditType') === 'FIXE' && 'Crédit fixe : durée illimitée jusqu\'au remboursement complet'}
-                        {form.watch('creditType') === 'AIDE' && 'Crédit aide : durée maximale de 3 mois'}
-                      </FormDescription>
-                      <FormMessage />
+                    <FormItem className="hidden">
+                      <FormControl>
+                        <Input {...field} type="hidden" />
+                      </FormControl>
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
+              )}
 
-            {/* Section 2: Client */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Client</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Rechercher un membre</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Nom, prénom ou matricule..."
-                        value={clientSearch}
-                        onChange={(e) => setClientSearch(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    
-                    {clientSearch && filteredClients.length > 0 && (
-                      <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto">
-                        {filteredClients.map((member) => (
-                          <div
-                            key={member.id}
-                            onClick={() => handleClientSelect(member.id)}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 flex items-center gap-3"
-                          >
-                            <User className="h-5 w-5 text-gray-400" />
-                            <div className="flex-1">
-                              <div className="font-medium">{[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}</div>
-                              <div className="text-sm text-gray-500">Matricule: {member.matricule}</div>
-                            </div>
-                          </div>
-                        ))}
+              {/* Client */}
+              <Card className="border border-slate-200/80 bg-white shadow-sm">
+                <CardContent className="space-y-4 p-4 md:p-5">
+                  <h3 className="text-lg font-bold text-slate-900">Client</h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Rechercher un membre</label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          placeholder="Nom, prénom ou matricule..."
+                          value={clientSearch}
+                          onChange={(e) => setClientSearch(e.target.value)}
+                          className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+                        />
                       </div>
-                    )}
-                  </div>
 
-                  {selectedClientId && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <div>
-                          <div className="font-medium text-green-900">
-                            {[form.watch('clientFirstName'), form.watch('clientLastName')].filter(Boolean).join(' ') || 'Client'}
+                      {clientSearch && filteredClients.length > 0 && (
+                        <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                          {filteredClients.map((member) => (
+                            <div
+                              key={member.id}
+                              onClick={() => handleClientSelect(member.id)}
+                              className="flex cursor-pointer items-center gap-3 border-b border-slate-100 p-3 transition-colors last:border-b-0 hover:bg-[#234D65]/5"
+                            >
+                              <User className="h-5 w-5 text-slate-400" />
+                              <div className="flex-1">
+                                <div className="font-medium text-slate-900">
+                                  {[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}
+                                </div>
+                                <div className="text-sm text-slate-500">Matricule: {member.matricule}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedClientId && (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-emerald-600" />
+                          <div>
+                            <div className="font-medium text-emerald-900">
+                              {[form.watch('clientFirstName'), form.watch('clientLastName')].filter(Boolean).join(' ') || 'Client'}
+                            </div>
+                            <div className="text-sm text-emerald-700">Client sélectionné</div>
                           </div>
-                          <div className="text-sm text-green-700">Client sélectionné</div>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem className="hidden">
-                        <FormControl>
-                          <Input {...field} type="hidden" />
-                        </FormControl>
-                      </FormItem>
                     )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Section 3: Informations du crédit */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Informations du crédit</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Montant (FCFA)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Ex: 500000"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {!isSimpleCredit && (
                     <FormField
                       control={form.control}
-                      name="monthlyPaymentAmount"
+                      name="clientId"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input {...field} type="hidden" />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Informations du crédit */}
+              <Card className="border border-slate-200/80 bg-white shadow-sm">
+                <CardContent className="space-y-4 p-4 md:p-5">
+                  <h3 className="text-lg font-bold text-slate-900">Informations du crédit</h3>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="amount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
+                          <FormLabel>Montant (FCFA)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
-                              placeholder="Ex: 100000"
+                              placeholder="Ex: 500000"
                               {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
-                              value={field.value || ''}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  )}
+
+                    {!isSimpleCredit && (
+                      <FormField
+                        control={form.control}
+                        name="monthlyPaymentAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="Ex: 100000"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                                value={field.value || ''}
+                                className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    <FormField
+                      control={form.control}
+                      name="desiredDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date souhaitée du crédit</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <Input
+                                type="date"
+                                className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+                                {...field}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormDescription>Pour quand avez-vous besoin de ce crédit ?</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <FormField
                     control={form.control}
-                    name="desiredDate"
+                    name="cause"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Date souhaitée du crédit</FormLabel>
+                        <FormLabel>Cause / Motif du crédit</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                              type="date"
-                              className="pl-10"
-                              {...field}
-                            />
-                          </div>
+                          <Textarea
+                            placeholder="Décrivez la raison de la demande de crédit..."
+                            className="min-h-[110px] rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
+                            {...field}
+                          />
                         </FormControl>
-                        <FormDescription>
-                          Pour quand avez-vous besoin de ce crédit ?
-                        </FormDescription>
+                        <FormDescription>Minimum 10 caractères, maximum 500 caractères</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
+                </CardContent>
+              </Card>
 
-                <FormField
-                  control={form.control}
-                  name="cause"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cause / Motif du crédit</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Décrivez la raison de la demande de crédit..."
-                          className="min-h-[100px]"
-                          {...field}
+              {/* Garant */}
+              <Card className="border border-slate-200/80 bg-white shadow-sm">
+                <CardContent className="space-y-4 p-4 md:p-5">
+                  <h3 className="text-lg font-bold text-slate-900">Garant</h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Rechercher un garant</label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          placeholder="Nom, prénom ou matricule..."
+                          value={guarantorSearch}
+                          onChange={(e) => setGuarantorSearch(e.target.value)}
+                          className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
                         />
-                      </FormControl>
-                      <FormDescription>
-                        Minimum 10 caractères, maximum 500 caractères
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Section 4: Garant */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Garant</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Rechercher un garant</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Nom, prénom ou matricule..."
-                        value={guarantorSearch}
-                        onChange={(e) => setGuarantorSearch(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    
-                    {guarantorSearch && filteredGuarantors.length > 0 && (
-                      <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto">
-                        {filteredGuarantors.map((member) => (
-                          <div
-                            key={member.id}
-                            onClick={() => handleGuarantorSelect(member.id)}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 flex items-center gap-3"
-                          >
-                            <User className="h-5 w-5 text-gray-400" />
-                            <div className="flex-1">
-                              <div className="font-medium">{[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}</div>
-                              <div className="text-sm text-gray-500">Matricule: {member.matricule}</div>
-                            </div>
-                          </div>
-                        ))}
                       </div>
-                    )}
-                  </div>
 
-                  {selectedGuarantorId && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <User className="h-5 w-5 text-blue-600" />
-                        <div>
-                          <div className="font-medium text-blue-900">
-                            {[form.watch('guarantorFirstName'), form.watch('guarantorLastName')].filter(Boolean).join(' ') || 'Garant'}
+                      {guarantorSearch && filteredGuarantors.length > 0 && (
+                        <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                          {filteredGuarantors.map((member) => (
+                            <div
+                              key={member.id}
+                              onClick={() => handleGuarantorSelect(member.id)}
+                              className="flex cursor-pointer items-center gap-3 border-b border-slate-100 p-3 transition-colors last:border-b-0 hover:bg-[#234D65]/5"
+                            >
+                              <User className="h-5 w-5 text-slate-400" />
+                              <div className="flex-1">
+                                <div className="font-medium text-slate-900">
+                                  {[member.firstName, member.lastName].filter(Boolean).join(' ') || member.matricule || 'Membre'}
+                                </div>
+                                <div className="text-sm text-slate-500">Matricule: {member.matricule}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedGuarantorId && (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
+                        <div className="flex items-center gap-2">
+                          <User className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <div className="font-medium text-blue-900">
+                              {[form.watch('guarantorFirstName'), form.watch('guarantorLastName')].filter(Boolean).join(' ') || 'Garant'}
+                            </div>
+                            <div className="text-sm text-blue-700">Garant sélectionné</div>
                           </div>
-                          <div className="text-sm text-blue-700">Garant sélectionné</div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {selectedGuarantorId && (
-                    <FormField
-                      control={form.control}
-                      name="guarantorRelation"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium text-gray-900">Lien de parenté</FormLabel>
-                          <FormControl>
-                            <SelectApp
-                              options={RELATIONSHIP_OPTIONS}
-                              value={field.value || ''}
-                              onChange={field.onChange}
-                              placeholder="Sélectionner le lien de parenté"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {selectedGuarantorId && (
+                      <FormField
+                        control={form.control}
+                        name="guarantorRelation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium text-slate-900">Lien de parenté</FormLabel>
+                            <FormControl>
+                              <SelectApp
+                                options={RELATIONSHIP_OPTIONS}
+                                value={field.value || ''}
+                                onChange={field.onChange}
+                                placeholder="Sélectionner le lien de parenté"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={create.isPending}
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                disabled={create.isPending}
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-              >
-                {create.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Création...
-                  </>
-                ) : (
-                  'Créer la demande'
-                )}
-              </Button>
+            <div className="border-t border-slate-200/80 bg-white/95 px-5 py-4 md:px-7">
+              <div className="flex flex-col-reverse justify-end gap-2 sm:flex-row sm:gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={create.isPending}
+                  className="h-11 rounded-xl border-2 border-slate-200 px-5"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={create.isPending}
+                  className="h-11 rounded-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-5 text-white hover:from-[#2c5a73] hover:to-[#234D65]"
+                >
+                  {create.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Création...
+                    </>
+                  ) : (
+                    'Créer la demande'
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>
