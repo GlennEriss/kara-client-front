@@ -19,14 +19,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
-import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
-import { useCreditContractMutations, useCreditContracts, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
+import { useCreditContractMutations, useCreditContracts } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
 import {
     AlertCircle,
-    AlertTriangle,
     Calendar,
     ChevronDown,
     CheckCircle2,
@@ -157,82 +155,6 @@ function canOpenContractDetail(contract: CreditContract): boolean {
 function canUploadSignedContract(contract: CreditContract): boolean {
   const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
   return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
-}
-
-const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
-  const { data: unpaidPenalties = [], isLoading } = useUnpaidCreditPenaltiesByCreditId(creditId)
-
-  if (isLoading || unpaidPenalties.length === 0) return null
-
-  const total = unpaidPenalties.reduce((sum, p) => sum + (p.amount || 0), 0)
-
-  return (
-    <Badge className="bg-orange-50 text-orange-800 border border-orange-300 text-xs flex items-center gap-1">
-      <AlertTriangle className="h-3 w-3" />
-      Pénalités impayées: {unpaidPenalties.length} ({Math.round(total).toLocaleString('fr-FR')} FCFA)
-    </Badge>
-  )
-}
-
-// Composant pour afficher les infos garant avec statut CI
-const GuarantorInfo = ({
-  guarantorId,
-  guarantorFirstName,
-  guarantorLastName,
-  guarantorIsMember,
-}: {
-  guarantorId: string
-  guarantorFirstName?: string
-  guarantorLastName?: string
-  guarantorIsMember?: boolean
-}) => {
-  const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500 flex items-center gap-1">
-          <Shield className="h-3.5 w-3.5" />
-          Garant:
-        </span>
-        {guarantorIsMember && (
-          <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
-        )}
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">Nom:</span>
-        <span className="font-medium text-gray-900">{guarantorLastName || '—'}</span>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">Prénom:</span>
-        <span className="font-medium text-gray-900">{guarantorFirstName || '—'}</span>
-      </div>
-      {guarantorIsMember && !isLoading && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Statut CI:</span>
-          <div className="flex items-center gap-1.5">
-            {hasActiveContract ? (
-              isUpToDate ? (
-                <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  À jour
-                </Badge>
-              ) : (
-                <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  En retard
-                </Badge>
-              )
-            ) : (
-              <Badge className="bg-gray-50 text-gray-500 border border-gray-300 text-xs">
-                Pas de contrat CI
-              </Badge>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
 
 // Composant skeleton moderne
@@ -1635,198 +1557,205 @@ const ListContrats = ({
       ) : currentContrats.length > 0 ? (
         <>
           {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-            {currentContrats.map((contract) => (
-              <Card
-                key={contract.id}
-                className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
-              >
-                {isContractOverdue(contract) && (
-                  <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    En retard
-                  </Badge>
-                )}
+          <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            {currentContrats.map((contract, _index) => {
+              const fullName = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.trim()
+              const displayName = fullName || 'Client non renseigné'
+              const primaryContact = contract.clientContacts?.[0] || '—'
+              const initials = `${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'
+              const hasSignedContract = Boolean(contract.signedContractUrl)
+              const scoreValue = contract.score
 
-                <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0">
-                      <Avatar className="size-12 border border-gray-200 shadow-sm">
-                        <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
-                          {`${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || <User className="h-5 w-5" />}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-gray-500">Matricule contrat</div>
-                      <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
-                    </div>
-                  </div>
+              return (
+                <div
+                  key={contract.id}
+                  className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+                  style={{ animationDelay: `${_index * 0.05}s` }}
+                >
+                  <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
-                      {getStatusLabel(contract.status)}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                      {getCreditTypeLabel(contract.creditType)}
-                    </span>
-                    <UnpaidPenaltiesBadge creditId={contract.id} />
-                  </div>
-
-                  <div className="space-y-2 mt-4 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Nom:</span>
-                      <span className="font-medium text-gray-900">{contract.clientLastName || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Prénom:</span>
-                      <span className="font-medium text-gray-900">{contract.clientFirstName || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Matricule:</span>
-                      <span className="font-mono text-xs font-semibold text-gray-900 break-all">{contract.clientId || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Contacts:</span>
-                      <span className="font-medium text-gray-900 text-right text-xs break-all">
-                        {contract.clientContacts?.length ? contract.clientContacts.join(' / ') : '—'}
-                      </span>
-                    </div>
-
-                    {contract.emergencyContact && (
-                      <>
-                        <div className="pt-2 text-gray-500">Contact urgent:</div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Nom:</span>
-                          <span className="font-medium text-gray-900">{contract.emergencyContact.lastName || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Prénom:</span>
-                          <span className="font-medium text-gray-900">{contract.emergencyContact.firstName || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Téléphone:</span>
-                          <span className="font-medium text-gray-900">{contract.emergencyContact.phone1 || '—'}</span>
-                        </div>
-                      </>
+                    {isContractOverdue(contract) && (
+                      <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        En retard
+                      </Badge>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Montant:</span>
-                      <span className="font-semibold text-green-600">{contract.amount.toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Durée:</span>
-                      <span className="font-medium text-gray-900">{contract.duration} mois</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Versé:</span>
-                      <span className="font-semibold text-green-600">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Reste:</span>
-                      <span className="font-semibold text-orange-600">{Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    {contract.nextDueAt && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Prochaine échéance:</span>
-                        <div className="flex items-center gap-1 text-gray-700">
-                          <Calendar className="h-3 w-3" />
-                          {contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')}
+                    <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
+                      <div className="flex items-start gap-3">
+                        <div className="shrink-0">
+                          <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
+                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs text-gray-500">Matricule contrat</div>
+                          <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
+                          <div className="mt-1 text-sm font-bold text-slate-900 truncate">{displayName}</div>
+                          <div className="text-xs text-slate-500 truncate">{primaryContact}</div>
                         </div>
                       </div>
-                    )}
-                    {contract.guarantorId && (
-                      <GuarantorInfo
-                        guarantorId={contract.guarantorId}
-                        guarantorFirstName={contract.guarantorFirstName}
-                        guarantorLastName={contract.guarantorLastName}
-                        guarantorIsMember={contract.guarantorIsMember}
-                      />
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Score:</span>
-                      <Badge className={cn(
-                        'font-bold text-sm px-2.5 py-1',
-                        contract.score !== undefined && contract.score >= 8 ? 'bg-green-100 text-green-700 border border-green-300' :
-                        contract.score !== undefined && contract.score >= 5 ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
-                        contract.score !== undefined ? 'bg-red-100 text-red-700 border border-red-300' :
-                        'bg-gray-100 text-gray-500 border border-gray-300'
-                      )}>
-                        {contract.score !== undefined ? `${contract.score}/10` : 'N/A'}
-                      </Badge>
-                    </div>
-                  </div>
 
-                  <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
-                    <Button
-                      onClick={() => {
-                        if (!canOpenContractDetail(contract)) return
-                        router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
-                      }}
-                      disabled={!canOpenContractDetail(contract)}
-                      title={!canOpenContractDetail(contract) ? 'Téléversez d’abord le contrat signé pour ouvrir le dossier' : undefined}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Ouvrir
-                    </Button>
-                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
-                      <Button
-                        variant="outline"
-                        onClick={contract.contractUrl
-                          ? () => window.open(contract.contractUrl, '_blank')
-                          : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                      >
-                        <Download className="h-4 w-4" />
-                        Télécharger contrat
-                      </Button>
-                    )}
-                    {canUploadSignedContract(contract) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
-                      >
-                        <Upload className="h-4 w-4" />
-                        {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
-                      </Button>
-                    )}
-                    {contract.signedContractUrl && (
-                      <Button
-                        variant="outline"
-                        onClick={() => window.open(contract.signedContractUrl, '_blank')}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Voir contrat
-                      </Button>
-                    )}
-                    {canReplaceSignedContract(contract) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Modifier contrat signé
-                      </Button>
-                    )}
-                    {canDeleteContract(contract) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Supprimer
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <Badge className="bg-blue-100 text-blue-700 border border-blue-200">
+                          {getCreditTypeLabel(contract.creditType)}
+                        </Badge>
+                        <Badge className={`border ${getStatusColor(contract.status)}`}>
+                          {getStatusLabel(contract.status)}
+                        </Badge>
+                        {isContractOverdue(contract) && (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            Retard
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Montant emprunté</p>
+                            <p className="font-extrabold text-[#234D65] whitespace-nowrap">{(contract.amount || 0).toLocaleString('fr-FR')} FCFA</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
+                            <p className="font-semibold leading-tight text-slate-900 break-words">{(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
+                            <p className="font-semibold text-slate-900">{contract.duration} mois</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
+                            <p className="font-medium text-slate-900">
+                              {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+                          <div className="flex items-center gap-1.5">
+                            {hasSignedContract ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="text-xs font-medium text-emerald-700">Contrat signé disponible</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                <span className="text-xs font-medium text-orange-600">Contrat signé à téléverser</span>
+                              </>
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold text-slate-700">
+                            Score: {scoreValue !== undefined ? `${scoreValue}/10` : 'N/A'}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 text-xs text-slate-600">
+                          Versé: {(contract.amountPaid || 0).toLocaleString('fr-FR')} FCFA • Reste: {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200 mt-auto">
+                        <div className="space-y-2">
+                          {hasSignedContract ? (
+                            <>
+                              <Button
+                                onClick={() => {
+                                  if (!canOpenContractDetail(contract)) return
+                                  router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                                }}
+                                disabled={!canOpenContractDetail(contract)}
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Ouvrir
+                              </Button>
+                              <Button
+                                onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <User className="h-4 w-4" />
+                                Voir toutes les infos
+                              </Button>
+                              <Button
+                                onClick={() => window.open(contract.signedContractUrl, '_blank')}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all cursor-pointer hover:bg-[#234D65] hover:text-white"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Voir contrat
+                              </Button>
+                              {canReplaceSignedContract(contract) && (
+                                <Button
+                                  onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 hover:border-amber-400"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Modifier contrat signé
+                                </Button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {canUploadSignedContract(contract) && (
+                                <Button
+                                  onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 hover:text-orange-800"
+                                >
+                                  <Upload className="h-4 w-4" />
+                                  {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
+                                </Button>
+                              )}
+                              <Button
+                                onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <User className="h-4 w-4" />
+                                Voir toutes les infos
+                              </Button>
+                            </>
+                          )}
+
+                          {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                            <Button
+                              onClick={contract.contractUrl
+                                ? () => window.open(contract.contractUrl, '_blank')
+                                : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+                            >
+                              <Download className="h-4 w-4" />
+                              Télécharger contrat
+                            </Button>
+                          )}
+                          {canDeleteContract(contract) && (
+                            <Button
+                              onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
+                              variant="destructive"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Supprimer
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })}
+          </div>
           </div>
           )}
 
