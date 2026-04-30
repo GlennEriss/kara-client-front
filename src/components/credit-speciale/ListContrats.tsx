@@ -1062,10 +1062,23 @@ const ListContrats = ({
       doc.setLineWidth(0.3)
       doc.line(horizontalMargin, 31, pageWidth - horizontalMargin, 31)
 
-      const rows = buildExportRows()
+      const rows = buildExportRows().map((row) => [
+        row[0],  // ID Contrat
+        row[2],  // Client
+        row[3],  // Statut
+        row[4],  // Montant FCFA
+        row[5],  // Total FCFA
+        row[6],  // Durée
+        row[7],  // Mensualité FCFA
+        row[8],  // Versé FCFA
+        row[9],  // Restant FCFA
+        row[10], // Garant
+        row[12], // 1ère échéance
+        row[13], // Prochaine échéance
+        row[14], // Créé le
+      ])
       const headers = [
         'ID Contrat',
-        'Type',
         'Client',
         'Statut',
         'Montant FCFA',
@@ -1075,7 +1088,6 @@ const ListContrats = ({
         'Versé FCFA',
         'Restant FCFA',
         'Garant',
-        'Garant membre',
         '1ère échéance',
         'Prochaine échéance',
         'Créé le',
@@ -1112,17 +1124,16 @@ const ListContrats = ({
         alternateRowStyles: { fillColor: [248, 250, 252] },
         margin: { top: 35, right: horizontalMargin, bottom: 14, left: horizontalMargin },
         columnStyles: {
-          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'right' },
           4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'right' },
           7: { halign: 'right' },
           8: { halign: 'right' },
-          9: { halign: 'right' },
+          10: { halign: 'center' },
           11: { halign: 'center' },
           12: { halign: 'center' },
-          13: { halign: 'center' },
-          14: { halign: 'center' },
         },
       })
 
