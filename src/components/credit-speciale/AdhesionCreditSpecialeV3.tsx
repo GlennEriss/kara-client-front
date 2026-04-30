@@ -181,6 +181,15 @@ const styles = StyleSheet.create({
     borderWidth: '0 1px 1px 0',
     transform: 'rotate(45deg)',
   },
+  checkboxLabel: {
+    fontSize: 12,
+    lineHeight: 1.2,
+  },
+  checkboxLabelBold: {
+    fontSize: 12,
+    lineHeight: 1.2,
+    fontWeight: 'bold',
+  },
   signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -776,9 +785,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             <View style={accompanimentType === 'EXCEPTIONNEL' ? styles.checkboxChecked : styles.checkbox}>
               {accompanimentType === 'EXCEPTIONNEL' ? <View style={styles.checkmark} /> : null}
             </View>
-            <Text style={styles.paragraph14}>
-              <Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text>
-            </Text>
+            <Text style={styles.checkboxLabelBold}>Exceptionnel</Text>
           </View>
         </View>
         <View style={styles.checkboxRow}>
@@ -786,7 +793,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             <View style={accompanimentType === 'REGULIER' ? styles.checkboxChecked : styles.checkbox}>
               {accompanimentType === 'REGULIER' ? <View style={styles.checkmark} /> : null}
             </View>
-            <Text style={styles.paragraph14}>Régulier</Text>
+            <Text style={styles.checkboxLabel}>Régulier</Text>
           </View>
         </View>
         <Text style={styles.paragraph14}>À hauteur de :</Text>
