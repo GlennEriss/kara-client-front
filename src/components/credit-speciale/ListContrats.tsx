@@ -1377,15 +1377,16 @@ const ListContrats = ({
       />
 
       {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
                   Liste des Contrats
                 </h2>
                 <p className="text-gray-600 font-medium">
@@ -1394,16 +1395,16 @@ const ListContrats = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Boutons de vue modernes */}
-              <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Boutons de vue (cards/liste) */}
+              <div className="flex w-full sm:w-auto items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg cursor-pointer transition-all duration-200 ${viewMode === 'grid'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
@@ -1413,9 +1414,9 @@ const ListContrats = ({
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg cursor-pointer transition-all duration-200 ${viewMode === 'list'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <List className="h-4 w-4 mr-2" />
@@ -1423,57 +1424,61 @@ const ListContrats = ({
                 </Button>
               </div>
 
-              {/* Actions avec animations */}
+              {/* Actions */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-10 w-full sm:w-auto rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] cursor-pointer transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                disabled={isExporting || filteredContrats.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExporting || filteredContrats.length === 0}
+                    className="h-10 w-full sm:w-auto rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin mr-2" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToExcel()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-emerald-700" />
                     Exporter Excel
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToPDF}
-                disabled={isExporting || filteredContrats.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4 mr-2" />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToPDF()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-rose-700" />
                     Exporter PDF
-                  </>
-                )}
-              </Button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardContent>
