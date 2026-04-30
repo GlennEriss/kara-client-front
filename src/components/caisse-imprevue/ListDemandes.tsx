@@ -194,6 +194,45 @@ const ListDemandes = () => {
     }
   }, [statsData])
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+
+    return (
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Affichage {startIndex + 1}-{Math.min(endIndex, filteredDemandes.length)} sur {filteredDemandes.length} demandes
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Précédent
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Suivant
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (error) {
     return (
       <div className="space-y-8 animate-in fade-in-0 duration-500">
@@ -216,6 +255,8 @@ const ListDemandes = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {renderPagination()}
+
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
         <TabsList className="grid w-full max-w-4xl grid-cols-6">
           <TabsTrigger value="all" className="flex items-center gap-2">
@@ -501,40 +542,7 @@ const ListDemandes = () => {
             ))}
           </div>
 
-          {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredDemandes.length)} sur {filteredDemandes.length} demandes
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1"
-                    >
-                      Précédent
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} sur {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1"
-                    >
-                      Suivant
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {renderPagination()}
         </>
       ) : (
         <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">

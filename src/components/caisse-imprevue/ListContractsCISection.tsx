@@ -671,6 +671,47 @@ export default function ListContractsCISection() {
   }, [contractIds, paymentStatsQueries])
   const hasAnyActiveFilter = hasActiveContractFilters(filters) || activeTab !== 'all'
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+
+    return (
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts?.length || 0)} sur {filteredContracts?.length || 0} contrats
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Précédent
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Suivant
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Gestion des erreurs
   if (error) {
     return (
@@ -821,6 +862,8 @@ export default function ListContractsCISection() {
           </div>
         </CardContent>
       </Card>
+
+      {renderPagination()}
 
       {/* Onglets pour filtrer par type de contrat (rattachés à la liste) */}
       <Tabs
@@ -1306,43 +1349,7 @@ export default function ListContractsCISection() {
             </div>
           )}
 
-          {/* Pagination simple */}
-          {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts?.length || 0)} sur {filteredContracts?.length || 0} contrats
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Précédent
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} sur {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1"
-                    >
-                      Suivant
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {renderPagination()}
         </>
       ) : (
         <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">

@@ -14,19 +14,19 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
-import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
-import { useCreditContractMutations, useCreditContracts, useCreditContractsStats, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
+import { useCreditContractMutations, useCreditContracts } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
 import {
     AlertCircle,
-    AlertTriangle,
     Calendar,
+    ChevronDown,
     CheckCircle2,
     Download,
     Eye,
@@ -52,6 +52,84 @@ import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 type CreditTypeFilter = CreditType | 'all'
+type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'discharged' | 'overdue'
+type CreditContractFilterState = {
+  search: string
+  status: CreditContractStatus | 'all'
+  creditType: CreditTypeFilter
+  createdAtFrom?: Date
+  createdAtTo?: Date
+  nextDueAtFrom?: Date
+  nextDueAtTo?: Date
+  overdueOnly?: boolean
+  amountMin?: number
+  amountMax?: number
+  totalAmountMin?: number
+  totalAmountMax?: number
+  monthlyAmountMin?: number
+  monthlyAmountMax?: number
+  paidAmountMin?: number
+  paidAmountMax?: number
+  remainingAmountMin?: number
+  remainingAmountMax?: number
+  durationMonthsMin?: number
+  durationMonthsMax?: number
+  interestRateMin?: number
+  interestRateMax?: number
+}
+
+type ContractTabItem = {
+  value: ContractTabValue
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isDanger?: boolean
+}
+
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'discharged', 'overdue']
+const isContractTabValue = (value: string | null): value is ContractTabValue =>
+  value !== null && CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
+
+const CLOSED_CREDIT_STATUSES: CreditContractStatus[] = ['CLOSED', 'DISCHARGED']
+
+function getCurrentMonthRange(): { start: Date; end: Date } {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  return { start, end }
+}
+
+function normalizeToDate(value: unknown): Date | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value as string | number)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function hasActiveContractFilters(filters: CreditContractFilterState, options?: { ignoreCreditType?: boolean }): boolean {
+  return Boolean(
+    filters.search.trim() ||
+      filters.status !== 'all' ||
+      (!options?.ignoreCreditType && filters.creditType !== 'all') ||
+      filters.createdAtFrom ||
+      filters.createdAtTo ||
+      filters.nextDueAtFrom ||
+      filters.nextDueAtTo ||
+      filters.overdueOnly ||
+      typeof filters.amountMin === 'number' ||
+      typeof filters.amountMax === 'number' ||
+      typeof filters.totalAmountMin === 'number' ||
+      typeof filters.totalAmountMax === 'number' ||
+      typeof filters.monthlyAmountMin === 'number' ||
+      typeof filters.monthlyAmountMax === 'number' ||
+      typeof filters.paidAmountMin === 'number' ||
+      typeof filters.paidAmountMax === 'number' ||
+      typeof filters.remainingAmountMin === 'number' ||
+      typeof filters.remainingAmountMax === 'number' ||
+      typeof filters.durationMonthsMin === 'number' ||
+      typeof filters.durationMonthsMax === 'number' ||
+      typeof filters.interestRateMin === 'number' ||
+      typeof filters.interestRateMax === 'number'
+  )
+}
 
 interface ListContratsProps {
   forcedCreditType?: CreditType
@@ -79,84 +157,8 @@ function canUploadSignedContract(contract: CreditContract): boolean {
   return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
 }
 
-const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
-  const { data: unpaidPenalties = [], isLoading } = useUnpaidCreditPenaltiesByCreditId(creditId)
-
-  if (isLoading || unpaidPenalties.length === 0) return null
-
-  const total = unpaidPenalties.reduce((sum, p) => sum + (p.amount || 0), 0)
-
-  return (
-    <Badge className="bg-orange-50 text-orange-800 border border-orange-300 text-xs flex items-center gap-1">
-      <AlertTriangle className="h-3 w-3" />
-      Pénalités impayées: {unpaidPenalties.length} ({Math.round(total).toLocaleString('fr-FR')} FCFA)
-    </Badge>
-  )
-}
-
-// Composant pour afficher les infos garant avec statut CI
-const GuarantorInfo = ({
-  guarantorId,
-  guarantorFirstName,
-  guarantorLastName,
-  guarantorIsMember,
-}: {
-  guarantorId: string
-  guarantorFirstName?: string
-  guarantorLastName?: string
-  guarantorIsMember?: boolean
-}) => {
-  const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500 flex items-center gap-1">
-          <Shield className="h-3.5 w-3.5" />
-          Garant:
-        </span>
-        {guarantorIsMember && (
-          <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
-        )}
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">Nom:</span>
-        <span className="font-medium text-gray-900">{guarantorLastName || '—'}</span>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">Prénom:</span>
-        <span className="font-medium text-gray-900">{guarantorFirstName || '—'}</span>
-      </div>
-      {guarantorIsMember && !isLoading && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Statut CI:</span>
-          <div className="flex items-center gap-1.5">
-            {hasActiveContract ? (
-              isUpToDate ? (
-                <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  À jour
-                </Badge>
-              ) : (
-                <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  En retard
-                </Badge>
-              )
-            ) : (
-              <Badge className="bg-gray-50 text-gray-500 border border-gray-300 text-xs">
-                Pas de contrat CI
-              </Badge>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // Composant skeleton moderne
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -180,81 +182,509 @@ const ContractFilters = ({
   filters,
   onFiltersChange,
   onReset,
+  activeTab,
   showCreditTypeFilter,
 }: {
-  filters: any
-  onFiltersChange: (filters: any) => void
+  filters: CreditContractFilterState
+  onFiltersChange: (filters: CreditContractFilterState) => void
   onReset: () => void
+  activeTab: ContractTabValue
   showCreditTypeFilter: boolean
 }) => {
-  const gridCols = showCreditTypeFilter ? 'md:grid-cols-3' : 'md:grid-cols-2'
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
+  const defaultFilters: CreditContractFilterState = {
+    search: '',
+    status: 'all',
+    creditType: 'all',
+    createdAtFrom: undefined,
+    createdAtTo: undefined,
+    nextDueAtFrom: undefined,
+    nextDueAtTo: undefined,
+    overdueOnly: false,
+    amountMin: undefined,
+    amountMax: undefined,
+    totalAmountMin: undefined,
+    totalAmountMax: undefined,
+    monthlyAmountMin: undefined,
+    monthlyAmountMax: undefined,
+    paidAmountMin: undefined,
+    paidAmountMax: undefined,
+    remainingAmountMin: undefined,
+    remainingAmountMax: undefined,
+    durationMonthsMin: undefined,
+    durationMonthsMax: undefined,
+    interestRateMin: undefined,
+    interestRateMax: undefined,
+  }
+  const safeFilters: CreditContractFilterState = { ...defaultFilters, ...filters }
+
+  const isCreatedAtRangeActive = Boolean(safeFilters.createdAtFrom || safeFilters.createdAtTo)
+  const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
+  const isOverdueTab = activeTab === 'overdue'
+  const forcedStatusByTab: CreditContractStatus | null =
+    activeTab === 'closed' ? 'CLOSED' : activeTab === 'discharged' ? 'DISCHARGED' : null
+  const isStatusLockedByTab = Boolean(forcedStatusByTab)
+  const statusValue = (isStatusLockedByTab ? forcedStatusByTab : safeFilters.status) || 'all'
+  const hasCustomStatus = !isStatusLockedByTab && statusValue !== 'all'
+  const creditTypeValue = safeFilters.creditType || 'all'
+
+  const statusLabels: Record<string, string> = {
+    all: 'Tous les statuts',
+    DRAFT: 'Brouillon',
+    PENDING: 'En attente',
+    APPROVED: 'Approuvé',
+    SIMULATED: 'Simulé',
+    ACTIVE: 'Actif',
+    PARTIAL: 'Partiel',
+    OVERDUE: 'En retard',
+    BLOCKED: 'Bloqué',
+    TRANSFORMED: 'Transformé',
+    EXTENDED: 'Étendu',
+    DISCHARGED: 'Déchargé',
+    CLOSED: 'Clos',
+  }
+
+  const creditTypeLabels: Record<string, string> = {
+    all: 'Tous les types',
+    SPECIALE: 'Spéciale',
+    FIXE: 'Fixe',
+    AIDE: 'Aide',
+  }
+
+  const activeFilterLabels = [
+    safeFilters.search.trim() ? `Recherche: ${safeFilters.search.trim()}` : null,
+    hasCustomStatus ? `Statut: ${statusLabels[statusValue] || statusValue}` : null,
+    showCreditTypeFilter && creditTypeValue !== 'all'
+      ? `Type: ${creditTypeLabels[creditTypeValue] || creditTypeValue}`
+      : null,
+    isCreatedAtRangeActive ? 'Période de création' : null,
+    isNextDueRangeActive ? 'Prochaine échéance' : null,
+    !isOverdueTab && safeFilters.overdueOnly ? 'Retard uniquement' : null,
+    typeof safeFilters.amountMin === 'number' || typeof safeFilters.amountMax === 'number'
+      ? 'Montant emprunté'
+      : null,
+    typeof safeFilters.totalAmountMin === 'number' || typeof safeFilters.totalAmountMax === 'number'
+      ? 'Montant total'
+      : null,
+    typeof safeFilters.monthlyAmountMin === 'number' || typeof safeFilters.monthlyAmountMax === 'number'
+      ? 'Mensualité'
+      : null,
+    typeof safeFilters.paidAmountMin === 'number' || typeof safeFilters.paidAmountMax === 'number'
+      ? 'Montant déjà versé'
+      : null,
+    typeof safeFilters.remainingAmountMin === 'number' || typeof safeFilters.remainingAmountMax === 'number'
+      ? 'Montant restant'
+      : null,
+    typeof safeFilters.durationMonthsMin === 'number' || typeof safeFilters.durationMonthsMax === 'number'
+      ? 'Durée'
+      : null,
+    typeof safeFilters.interestRateMin === 'number' || typeof safeFilters.interestRateMax === 'number'
+      ? "Taux d'intérêt"
+      : null,
+  ].filter(Boolean) as string[]
+
+  const activeFiltersCount = activeFilterLabels.length
+  const basicFiltersCount =
+    (safeFilters.search.trim() ? 1 : 0) +
+    (hasCustomStatus ? 1 : 0) +
+    (showCreditTypeFilter && creditTypeValue !== 'all' ? 1 : 0)
+  const advancedFiltersCount = Math.max(activeFiltersCount - basicFiltersCount, 0)
+
+  const controlClassName = 'h-11 rounded-xl border-2 border-slate-200 bg-white focus:ring-0 focus-visible:ring-0 focus-visible:border-[#234D65]'
+  const miniInputClassName = 'h-10 rounded-lg border-slate-200 bg-white focus-visible:ring-0 focus-visible:border-[#234D65]'
 
   return (
-    <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-      <CardContent className="p-6">
-        {/* En-tête */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
-              <Filter className="h-6 w-6 text-white" />
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+      <CardContent className="space-y-5 p-4 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+              <Filter className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-              <p className="text-gray-600 text-sm">Affinez votre recherche</p>
+              <h3 className="text-lg font-bold text-slate-900">Filtres et Recherche</h3>
+              <p className="text-sm text-slate-600">Affinez la liste des contrats en quelques critères.</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={onReset}
-            size="sm"
-            className="px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Réinitialiser
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                'rounded-full border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700',
+                activeFiltersCount === 0 && 'border-slate-200 text-slate-500'
+              )}
+            >
+              {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+            </Badge>
+            <Button
+              variant="outline"
+              onClick={() => setIsFiltersExpanded((prev) => !prev)}
+              className={cn(
+                'h-10 rounded-xl border-2 transition-colors cursor-pointer',
+                isFiltersExpanded
+                  ? 'border-[#234D65] bg-[#234D65] text-white hover:bg-[#2c5a73]'
+                  : 'border-slate-300 text-slate-700 hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]'
+              )}
+            >
+              Filtres avancés
+              {advancedFiltersCount > 0 ? ` (${advancedFiltersCount})` : ''}
+              <ChevronDown className={cn('ml-2 h-4 w-4 transition-transform', isFiltersExpanded ? 'rotate-180' : '')} />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onReset}
+              className="h-10 rounded-xl border-2 border-slate-300 text-slate-700 cursor-pointer hover:border-[#234D65] hover:bg-[#234D65]/5 hover:text-[#234D65]"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réinitialiser
+            </Button>
           </div>
+        </div>
 
-        {/* Grille de filtres organisée */}
-        <div className={`grid grid-cols-1 ${gridCols} gap-4`}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className={cn('space-y-1.5', showCreditTypeFilter ? 'xl:col-span-6' : 'xl:col-span-9')}>
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recherche</Label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
                 type="text"
-                placeholder="Rechercher un contrat..."
-              className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                value={filters.search || ''}
-                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+                placeholder="Nom, prénom, contact ou matricule..."
+                className={cn(controlClassName, 'pl-10')}
+                value={safeFilters.search || ''}
+                onChange={(e) => onFiltersChange({ ...safeFilters, search: e.target.value })}
               />
             </div>
+          </div>
 
-            <select
-            className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-              value={filters.status || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+          <div className={cn('space-y-1.5', showCreditTypeFilter ? 'xl:col-span-3' : 'xl:col-span-3')}>
+            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</Label>
+            <Select
+              value={statusValue}
+              onValueChange={(value) => onFiltersChange({ ...safeFilters, status: value as CreditContractStatus | 'all' })}
+              disabled={isStatusLockedByTab}
             >
-              <option value="all">Tous les statuts</option>
-              <option value="ACTIVE">Actif</option>
-              <option value="OVERDUE">En retard</option>
-              <option value="PARTIAL">Partiel</option>
-              <option value="TRANSFORMED">Transformé</option>
-              <option value="BLOCKED">Bloqué</option>
-              <option value="DISCHARGED">Déchargé</option>
-              <option value="CLOSED">Clos</option>
-            </select>
+              <SelectTrigger className={cn(controlClassName, 'disabled:opacity-70')}>
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                {isStatusLockedByTab ? (
+                  <SelectItem value={statusValue}>{statusLabels[statusValue] || statusValue}</SelectItem>
+                ) : (
+                  <>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="DRAFT">Brouillon</SelectItem>
+                    <SelectItem value="PENDING">En attente</SelectItem>
+                    <SelectItem value="APPROVED">Approuvé</SelectItem>
+                    <SelectItem value="SIMULATED">Simulé</SelectItem>
+                    <SelectItem value="ACTIVE">Actif</SelectItem>
+                    <SelectItem value="PARTIAL">Partiel</SelectItem>
+                    <SelectItem value="OVERDUE">En retard</SelectItem>
+                    <SelectItem value="BLOCKED">Bloqué</SelectItem>
+                    <SelectItem value="TRANSFORMED">Transformé</SelectItem>
+                    <SelectItem value="EXTENDED">Étendu</SelectItem>
+                    <SelectItem value="DISCHARGED">Déchargé</SelectItem>
+                    <SelectItem value="CLOSED">Clos</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {showCreditTypeFilter && (
-              <select
-              className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
-                value={filters.creditType || 'all'}
-                onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value as CreditTypeFilter })}
+          {showCreditTypeFilter && (
+            <div className="space-y-1.5 xl:col-span-3">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type de crédit</Label>
+              <Select
+                value={creditTypeValue}
+                onValueChange={(value) => onFiltersChange({ ...safeFilters, creditType: value as CreditTypeFilter })}
               >
-                <option value="all">Tous les types</option>
-                <option value="SPECIALE">Spéciale</option>
-                <option value="FIXE">Fixe</option>
-                <option value="AIDE">Aide</option>
-              </select>
-            )}
+                <SelectTrigger className={controlClassName}>
+                  <SelectValue placeholder="Tous les types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="SPECIALE">Spéciale</SelectItem>
+                  <SelectItem value="FIXE">Fixe</SelectItem>
+                  <SelectItem value="AIDE">Aide</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
+
+        {isFiltersExpanded && (
+          <>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Période de création</Label>
+                  {isNextDueRangeActive && (
+                    <span className="text-[11px] font-medium text-slate-500">Désactivé par l&apos;échéance</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.createdAtFrom ? new Date(safeFilters.createdAtFrom).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        createdAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                        nextDueAtFrom: undefined,
+                        nextDueAtTo: undefined,
+                      })
+                    }
+                    disabled={isNextDueRangeActive}
+                  />
+                  <span className="text-center text-sm text-slate-400">→</span>
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.createdAtTo ? new Date(safeFilters.createdAtTo).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        createdAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                        nextDueAtFrom: undefined,
+                        nextDueAtTo: undefined,
+                      })
+                    }
+                    disabled={isNextDueRangeActive}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Prochaine échéance</Label>
+                  {isCreatedAtRangeActive && (
+                    <span className="text-[11px] font-medium text-slate-500">Désactivé par la création</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.nextDueAtFrom ? new Date(safeFilters.nextDueAtFrom).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        nextDueAtFrom: e.target.value ? new Date(e.target.value) : undefined,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                      })
+                    }
+                    disabled={isCreatedAtRangeActive}
+                  />
+                  <span className="text-center text-sm text-slate-400">→</span>
+                  <Input
+                    type="date"
+                    className={miniInputClassName}
+                    value={safeFilters.nextDueAtTo ? new Date(safeFilters.nextDueAtTo).toISOString().slice(0, 10) : ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...safeFilters,
+                        nextDueAtTo: e.target.value ? new Date(e.target.value) : undefined,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                      })
+                    }
+                    disabled={isCreatedAtRangeActive}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+              <Label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-slate-600">Filtres de montants (FCFA)</Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant emprunté</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.amountMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, amountMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.amountMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, amountMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant total</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.totalAmountMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, totalAmountMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.totalAmountMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, totalAmountMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mensualité</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.monthlyAmountMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, monthlyAmountMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.monthlyAmountMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, monthlyAmountMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant déjà versé</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.paidAmountMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, paidAmountMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.paidAmountMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, paidAmountMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Montant restant</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.remainingAmountMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, remainingAmountMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.remainingAmountMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, remainingAmountMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Durée contrat (mois)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.durationMonthsMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, durationMonthsMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.durationMonthsMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, durationMonthsMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Taux d&apos;intérêt (%)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Min"
+                      className={miniInputClassName}
+                      value={safeFilters.interestRateMin ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, interestRateMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Max"
+                      className={miniInputClassName}
+                      value={safeFilters.interestRateMax ?? ''}
+                      onChange={(e) => onFiltersChange({ ...safeFilters, interestRateMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 pt-2 md:flex-row md:items-start md:justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-[#234D65] focus:ring-[#234D65]"
+                  checked={isOverdueTab ? true : !!safeFilters.overdueOnly}
+                  onChange={(e) => onFiltersChange({ ...safeFilters, overdueOnly: e.target.checked })}
+                  disabled={isOverdueTab}
+                />
+                Afficher uniquement les contrats en retard
+              </label>
+
+              {activeFilterLabels.length > 0 && (
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {activeFilterLabels.map((label) => (
+                    <Badge
+                      key={label}
+                      variant="outline"
+                      className="border-[#234D65]/25 bg-[#234D65]/5 px-2.5 py-1 text-xs font-medium text-[#234D65]"
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -276,20 +706,37 @@ const ListContrats = ({
     searchParamCreditType === 'SPECIALE' || searchParamCreditType === 'FIXE' || searchParamCreditType === 'AIDE'
       ? searchParamCreditType
       : 'all'
+  const searchParamTab = searchParams.get('tab')
+  const initialTab: ContractTabValue = isContractTabValue(searchParamTab) ? searchParamTab : 'all'
   
   // Initialiser les états depuis l'URL
-  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>((searchParams.get('tab') as 'all' | 'overdue') || 'all')
-  const [filters, setFilters] = useState<{
-    search: string
-    status: string
-    creditType: CreditTypeFilter
-  }>({
+  const [activeTab, setActiveTab] = useState<ContractTabValue>(initialTab)
+  const [filters, setFilters] = useState<CreditContractFilterState>({
     search: searchParams.get('search') || '',
-    status: searchParams.get('status') || 'all',
-    creditType: forcedCreditType || initialCreditType
+    status: (searchParams.get('status') as CreditContractStatus | 'all') || 'all',
+    creditType: forcedCreditType || initialCreditType,
+    createdAtFrom: undefined,
+    createdAtTo: undefined,
+    nextDueAtFrom: undefined,
+    nextDueAtTo: undefined,
+    overdueOnly: false,
+    amountMin: undefined,
+    amountMax: undefined,
+    totalAmountMin: undefined,
+    totalAmountMax: undefined,
+    monthlyAmountMin: undefined,
+    monthlyAmountMax: undefined,
+    paidAmountMin: undefined,
+    paidAmountMax: undefined,
+    remainingAmountMin: undefined,
+    remainingAmountMax: undefined,
+    durationMonthsMin: undefined,
+    durationMonthsMax: undefined,
+    interestRateMin: undefined,
+    interestRateMax: undefined,
   })
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
-  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const [itemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isExporting, setIsExporting] = useState(false)
 
@@ -300,6 +747,15 @@ const ListContrats = ({
       return { ...prev, creditType: forcedCreditType }
     })
   }, [forcedCreditType])
+
+  const tabItems: ContractTabItem[] = [
+    { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'active', label: 'Actif', icon: CheckCircle2 },
+    { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
+    { value: 'closed', label: 'Clos', icon: Shield },
+    { value: 'discharged', label: 'Déchargé', icon: Download },
+    { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+  ]
 
   // Synchroniser l'URL avec l'état
   useEffect(() => {
@@ -323,21 +779,30 @@ const ListContrats = ({
 
   // Hooks pour récupérer les données
   const effectiveCreditType: CreditTypeFilter = forcedCreditType || filters.creditType
+  const statusFilter = filters.status === 'all' ? 'all' : filters.status
+  const tabStatusFilter: CreditContractStatus | 'all' =
+    activeTab === 'closed'
+      ? 'CLOSED'
+      : activeTab === 'discharged'
+      ? 'DISCHARGED'
+      : statusFilter
 
   const queryFilters: CreditContractFilters = {
-    status: filters.status === 'all' ? 'all' : filters.status as any,
+    status: tabStatusFilter,
     creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
-    overdueOnly: activeTab === 'overdue',
-    page: currentPage,
-    limit: itemsPerPage,
-    orderByField: activeTab === 'overdue' ? 'nextDueAt' : 'createdAt',
-    orderByDirection: activeTab === 'overdue' ? 'asc' : 'desc',
+    overdueOnly: activeTab === 'overdue' ? true : Boolean(filters.overdueOnly),
+    dateFrom: filters.createdAtFrom,
+    dateTo: filters.createdAtTo,
+    // Toujours trier côté Firestore sur createdAt pour éviter les résultats vides
+    // quand un index composite nextDueAt n'est pas disponible.
+    // Le tri nextDueAt (Retard / Mois en cours) est ensuite appliqué en mémoire.
+    orderByField: 'createdAt',
+    orderByDirection: 'desc',
   }
 
   const { data: contrats = [], isLoading, error } = useCreditContracts(queryFilters)
-  const { data: statsData } = useCreditContractsStats(queryFilters)
-  const { generateContractPDF, uploadSignedContract, replaceSignedContract } = useCreditContractMutations()
+  const { uploadSignedContract, replaceSignedContract } = useCreditContractMutations()
   
   // États pour les modals
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -355,10 +820,10 @@ const ListContrats = ({
   // Reset page when filters or tab change
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [filters.search, filters.status, filters.creditType, activeTab])
+  }, [filters, activeTab])
 
   // Gestionnaires d'événements
-  const handleFiltersChange = (newFilters: any) => {
+  const handleFiltersChange = (newFilters: CreditContractFilterState) => {
     setFilters({
       ...newFilters,
       creditType: forcedCreditType || newFilters.creditType,
@@ -367,7 +832,30 @@ const ListContrats = ({
   }
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'all', creditType: forcedCreditType || 'all' })
+    setFilters({
+      search: '',
+      status: 'all',
+      creditType: forcedCreditType || 'all',
+      createdAtFrom: undefined,
+      createdAtTo: undefined,
+      nextDueAtFrom: undefined,
+      nextDueAtTo: undefined,
+      overdueOnly: false,
+      amountMin: undefined,
+      amountMax: undefined,
+      totalAmountMin: undefined,
+      totalAmountMax: undefined,
+      monthlyAmountMin: undefined,
+      monthlyAmountMax: undefined,
+      paidAmountMin: undefined,
+      paidAmountMax: undefined,
+      remainingAmountMin: undefined,
+      remainingAmountMax: undefined,
+      durationMonthsMin: undefined,
+      durationMonthsMax: undefined,
+      interestRateMin: undefined,
+      interestRateMax: undefined,
+    })
     setCurrentPage(1)
   }
 
@@ -381,7 +869,7 @@ const ListContrats = ({
   }
 
   const exportToExcel = async () => {
-    if (!contrats || contrats.length === 0) {
+    if (!filteredContrats || filteredContrats.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
@@ -409,7 +897,15 @@ const ListContrats = ({
         'Date de création',
       ]
 
-      const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
+      const tabLabels: Record<ContractTabValue, string> = {
+        all: 'Tous',
+        active: 'Actif',
+        currentMonth: 'Mois en cours',
+        closed: 'Clos',
+        discharged: 'Déchargé',
+        overdue: 'Retard',
+      }
+      const tabLabel = tabLabels[activeTab]
       const exportModuleLabel = forcedCreditType
         ? `CRÉDIT ${getCreditTypeLabel(forcedCreditType).toUpperCase()}`
         : 'CRÉDIT SPÉCIALE'
@@ -449,7 +945,7 @@ const ListContrats = ({
   }
 
   const exportToPDF = async () => {
-    if (!contrats || contrats.length === 0) {
+    if (!filteredContrats || filteredContrats.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
@@ -458,48 +954,122 @@ const ListContrats = ({
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const horizontalMargin = 14
 
-      // En-tête
-      doc.setFontSize(16)
+      const tabLabels: Record<ContractTabValue, string> = {
+        all: 'Tous',
+        active: 'Actif',
+        currentMonth: 'Mois en cours',
+        closed: 'Clos',
+        discharged: 'Déchargé',
+        overdue: 'Retard',
+      }
+      const tabLabel = tabLabels[activeTab]
       const exportModuleLabel = forcedCreditType
         ? `Crédit ${getCreditTypeLabel(forcedCreditType)}`
         : 'Crédit Spéciale'
-      doc.text(`Liste des Contrats de ${exportModuleLabel}`, 14, 14)
-      doc.setFontSize(10)
-      const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
-      doc.text(`Onglet: ${tabLabel}`, 14, 20)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${contrats.length} contrat(s)`, 14, 28)
 
-      const rows = buildExportRows()
+      doc.setFont('times', 'bold')
+      doc.setTextColor(20, 33, 50)
+      doc.setFontSize(16)
+      doc.text(`Liste des Contrats de ${exportModuleLabel}`, horizontalMargin, 14)
+
+      doc.setFont('times', 'normal')
+      doc.setTextColor(70, 70, 70)
+      doc.setFontSize(10)
+      doc.text(`Type: ${tabLabel}`, horizontalMargin, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, horizontalMargin, 24)
+      doc.text(`Total: ${filteredContrats.length} contrat(s)`, horizontalMargin, 28)
+      doc.setDrawColor(35, 77, 101)
+      doc.setLineWidth(0.3)
+      doc.line(horizontalMargin, 31, pageWidth - horizontalMargin, 31)
+
+      const rows = buildExportRows().map((row) => [
+        row[0],  // ID Contrat
+        row[2],  // Client
+        row[3],  // Statut
+        row[4],  // Montant FCFA
+        row[5],  // Total FCFA
+        row[6],  // Durée
+        row[7],  // Mensualité FCFA
+        row[8],  // Versé FCFA
+        row[9],  // Restant FCFA
+        row[10], // Garant
+        row[12], // 1ère échéance
+        row[13], // Prochaine échéance
+        row[14], // Créé le
+      ])
       const headers = [
-        'ID',
-        'Type',
+        'ID Contrat',
         'Client',
         'Statut',
-        'Montant',
-        'Total',
+        'Montant FCFA',
+        'Total FCFA',
         'Durée',
-        'Mensualité',
-        'Versé',
-        'Restant',
+        'Mensualité FCFA',
+        'Versé FCFA',
+        'Restant FCFA',
         'Garant',
-        'Garant membre',
-        '1er versement',
+        '1ère échéance',
         'Prochaine échéance',
-        'Date création',
+        'Créé le',
       ]
 
       autoTable(doc, {
         head: [headers],
         body: rows,
-        startY: 32,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 32 },
+        startY: 35,
+        tableWidth: pageWidth - horizontalMargin * 2,
+        theme: 'grid',
+        styles: {
+          font: 'times',
+          fontSize: 7,
+          cellPadding: 1.8,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [30, 41, 59],
+          valign: 'middle',
+          overflow: 'linebreak',
+        },
+        headStyles: {
+          font: 'times',
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineColor: [35, 77, 101],
+          lineWidth: 0.2,
+        },
+        bodyStyles: {
+          font: 'times',
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { top: 35, right: horizontalMargin, bottom: 14, left: horizontalMargin },
+        columnStyles: {
+          2: { halign: 'center' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'center' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          10: { halign: 'center' },
+          11: { halign: 'center' },
+          12: { halign: 'center' },
+        },
       })
+
+      const totalPages = doc.getNumberOfPages()
+      for (let page = 1; page <= totalPages; page++) {
+        doc.setPage(page)
+        doc.setFont('times', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(75, 85, 99)
+        doc.text(`Page ${page}/${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
+      }
 
       const filename = `contrats_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(filename)
@@ -585,8 +1155,120 @@ const ListContrats = ({
     return false
   }
 
-  // Les contrats sont déjà filtrés par le hook
-  const filteredContrats = contrats
+  const filteredContrats = React.useMemo(() => {
+    let items = [...contrats]
+    const matchesRange = (value: number, min?: number, max?: number) => {
+      if (typeof min === 'number' && value < min) return false
+      if (typeof max === 'number' && value > max) return false
+      return true
+    }
+
+    const searchValue = filters.search.trim().toLowerCase()
+    if (searchValue) {
+      items = items.filter((contract) => {
+        const fullName = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.toLowerCase()
+        const contacts = (contract.clientContacts || []).join(' ').toLowerCase()
+        return (
+          contract.id.toLowerCase().includes(searchValue) ||
+          fullName.includes(searchValue) ||
+          (contract.clientFirstName || '').toLowerCase().includes(searchValue) ||
+          (contract.clientLastName || '').toLowerCase().includes(searchValue) ||
+          (contract.clientId || '').toLowerCase().includes(searchValue) ||
+          contacts.includes(searchValue)
+        )
+      })
+    }
+
+    if (!isCreditTypeLocked && filters.creditType !== 'all') {
+      items = items.filter((contract) => contract.creditType === filters.creditType)
+    }
+
+    if (activeTab === 'active') {
+      items = items.filter((contract) => !CLOSED_CREDIT_STATUSES.includes(contract.status))
+    }
+
+    if (activeTab === 'closed') {
+      items = items.filter((contract) => contract.status === 'CLOSED')
+    }
+
+    if (activeTab === 'discharged') {
+      items = items.filter((contract) => contract.status === 'DISCHARGED')
+    }
+
+    if (activeTab === 'currentMonth') {
+      const { start, end } = getCurrentMonthRange()
+      items = items.filter((contract) => {
+        const nextDueAt = normalizeToDate(contract.nextDueAt)
+        return Boolean(nextDueAt && nextDueAt >= start && nextDueAt <= end)
+      })
+    }
+
+    if (activeTab === 'overdue') {
+      items = items.filter((contract) => isContractOverdue(contract))
+    }
+
+    if (filters.status !== 'all' && activeTab !== 'closed' && activeTab !== 'discharged') {
+      items = items.filter((contract) => contract.status === filters.status)
+    }
+
+    if (filters.overdueOnly && activeTab !== 'overdue') {
+      items = items.filter((contract) => isContractOverdue(contract))
+    }
+
+    if (activeTab === 'overdue' || activeTab === 'currentMonth') {
+      items = items.sort((a, b) => {
+        const aDue = normalizeToDate(a.nextDueAt)
+        const bDue = normalizeToDate(b.nextDueAt)
+        const aTime = aDue ? aDue.getTime() : Number.POSITIVE_INFINITY
+        const bTime = bDue ? bDue.getTime() : Number.POSITIVE_INFINITY
+        return aTime - bTime
+      })
+    }
+
+    if (filters.createdAtFrom) {
+      items = items.filter((contract) => {
+        const createdAt = normalizeToDate(contract.createdAt)
+        return Boolean(createdAt && createdAt >= filters.createdAtFrom!)
+      })
+    }
+
+    if (filters.createdAtTo) {
+      const createdAtTo = new Date(filters.createdAtTo)
+      createdAtTo.setHours(23, 59, 59, 999)
+      items = items.filter((contract) => {
+        const createdAt = normalizeToDate(contract.createdAt)
+        return Boolean(createdAt && createdAt <= createdAtTo)
+      })
+    }
+
+    if (filters.nextDueAtFrom) {
+      items = items.filter((contract) => {
+        const nextDueAt = normalizeToDate(contract.nextDueAt)
+        return Boolean(nextDueAt && nextDueAt >= filters.nextDueAtFrom!)
+      })
+    }
+
+    if (filters.nextDueAtTo) {
+      const nextDueAtTo = new Date(filters.nextDueAtTo)
+      nextDueAtTo.setHours(23, 59, 59, 999)
+      items = items.filter((contract) => {
+        const nextDueAt = normalizeToDate(contract.nextDueAt)
+        return Boolean(nextDueAt && nextDueAt <= nextDueAtTo)
+      })
+    }
+
+    items = items.filter((contract) =>
+      matchesRange(contract.amount, filters.amountMin, filters.amountMax) &&
+      matchesRange(contract.totalAmount, filters.totalAmountMin, filters.totalAmountMax) &&
+      matchesRange(contract.monthlyPaymentAmount, filters.monthlyAmountMin, filters.monthlyAmountMax) &&
+      matchesRange(contract.amountPaid, filters.paidAmountMin, filters.paidAmountMax) &&
+      matchesRange(contract.amountRemaining, filters.remainingAmountMin, filters.remainingAmountMax) &&
+      matchesRange(contract.duration, filters.durationMonthsMin, filters.durationMonthsMax) &&
+      matchesRange(contract.interestRate, filters.interestRateMin, filters.interestRateMax)
+    )
+
+    return items
+  }, [activeTab, contrats, filters, isCreditTypeLocked])
 
   // Fonction pour construire les lignes d'export
   const formatAmount = (amount: number): string => {
@@ -620,29 +1302,44 @@ const ListContrats = ({
   const endIndex = startIndex + itemsPerPage
   const currentContrats = filteredContrats.slice(startIndex, endIndex)
 
-  // Stats
-  const stats = React.useMemo(() => {
-    if (statsData) {
-      return {
-        total: statsData.total,
-        active: statsData.active,
-        overdue: statsData.overdue,
-        blocked: statsData.blocked,
-        discharged: statsData.discharged,
-        activePercentage: statsData.total > 0 ? (statsData.active / statsData.total) * 100 : 0,
-        overduePercentage: statsData.total > 0 ? (statsData.overdue / statsData.total) * 100 : 0,
-      }
-    }
-    return {
-      total: 0,
-      active: 0,
-      overdue: 0,
-      blocked: 0,
-      discharged: 0,
-      activePercentage: 0,
-      overduePercentage: 0,
-    }
-  }, [statsData])
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+
+    return (
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Affichage {startIndex + 1}-{Math.min(endIndex, filteredContrats.length)} sur {filteredContrats.length} contrats
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Précédent
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Suivant
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   // Gestion des erreurs
   if (error) {
@@ -671,38 +1368,26 @@ const ListContrats = ({
       {/* Carrousel de statistiques (chargé une fois, mêmes stats pour tous les onglets) */}
       <StatisticsCreditContrats creditType={forcedCreditType} />
 
-      {/* Onglets pour filtrer par retard */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Tous les contrats
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
-            <AlertCircle className="h-4 w-4" />
-            Retard
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {/* Filtres */}
       <ContractFilters
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        activeTab={activeTab}
         showCreditTypeFilter={!isCreditTypeLocked}
       />
 
       {/* Barre d'actions moderne */}
-      <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
                   Liste des Contrats
                 </h2>
                 <p className="text-gray-600 font-medium">
@@ -711,16 +1396,16 @@ const ListContrats = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Boutons de vue modernes */}
-              <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Boutons de vue (cards/liste) */}
+              <div className="flex w-full sm:w-auto items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg cursor-pointer transition-all duration-200 ${viewMode === 'grid'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
@@ -730,9 +1415,9 @@ const ListContrats = ({
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
-                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
-                    : 'hover:bg-white hover:shadow-md'
+                  className={`h-10 flex-1 sm:flex-none px-4 rounded-lg cursor-pointer transition-all duration-200 ${viewMode === 'list'
+                    ? 'bg-white text-[#234D65] shadow-sm hover:bg-white'
+                    : 'text-slate-600 hover:bg-white hover:text-[#234D65]'
                     }`}
                 >
                   <List className="h-4 w-4 mr-2" />
@@ -740,61 +1425,136 @@ const ListContrats = ({
                 </Button>
               </div>
 
-              {/* Actions avec animations */}
+              {/* Actions */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-10 w-full sm:w-auto rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] cursor-pointer transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                disabled={isExporting || filteredContrats.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExporting || filteredContrats.length === 0}
+                    className="h-10 w-full sm:w-auto rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin mr-2" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToExcel()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-emerald-700" />
                     Exporter Excel
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToPDF}
-                disabled={isExporting || filteredContrats.length === 0}
-                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
-                    Export...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4 mr-2" />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!isExporting) exportToPDF()
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-rose-700" />
                     Exporter PDF
-                  </>
-                )}
-              </Button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {renderPagination()}
+
+      {/* Onglets de contrat - proche de la liste (comme caisse spéciale) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (isContractTabValue(value)) {
+            setActiveTab(value)
+          }
+        }}
+        className="w-full"
+      >
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={cn(
+                    'shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]',
+                    isDanger ? 'data-[state=active]:text-red-700 data-[state=active]:border-red-300' : ''
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        <div className="lg:hidden">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+              const isActive = activeTab === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    if (isContractTabValue(value)) {
+                      setActiveTab(value)
+                    }
+                  }}
+                  className="shrink-0"
+                >
+                  <Badge
+                    className={cn(
+                      'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                      isActive
+                        ? isDanger
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#234D65] text-white border-transparent'
+                        : isDanger
+                        ? 'bg-white text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </Tabs>
 
       {/* Liste des contrats */}
       {isLoading ? (
@@ -810,198 +1570,205 @@ const ListContrats = ({
       ) : currentContrats.length > 0 ? (
         <>
           {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-            {currentContrats.map((contract) => (
-              <Card
-                key={contract.id}
-                className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
-              >
-                {isContractOverdue(contract) && (
-                  <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    En retard
-                  </Badge>
-                )}
+          <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            {currentContrats.map((contract, _index) => {
+              const fullName = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.trim()
+              const displayName = fullName || 'Client non renseigné'
+              const primaryContact = contract.clientContacts?.[0] || '—'
+              const initials = `${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'
+              const hasSignedContract = Boolean(contract.signedContractUrl)
+              const scoreValue = contract.score
 
-                <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0">
-                      <Avatar className="size-12 border border-gray-200 shadow-sm">
-                        <AvatarFallback className="bg-slate-100 text-slate-600 font-semibold">
-                          {`${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || <User className="h-5 w-5" />}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-gray-500">Matricule contrat</div>
-                      <div className="font-mono text-sm font-bold text-gray-900 break-all">{contract.id}</div>
-                    </div>
-                  </div>
+              return (
+                <div
+                  key={contract.id}
+                  className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+                  style={{ animationDelay: `${_index * 0.05}s` }}
+                >
+                  <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
-                      {getStatusLabel(contract.status)}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                      {getCreditTypeLabel(contract.creditType)}
-                    </span>
-                    <UnpaidPenaltiesBadge creditId={contract.id} />
-                  </div>
-
-                  <div className="space-y-2 mt-4 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Nom:</span>
-                      <span className="font-medium text-gray-900">{contract.clientLastName || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Prénom:</span>
-                      <span className="font-medium text-gray-900">{contract.clientFirstName || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Matricule:</span>
-                      <span className="font-mono text-xs font-semibold text-gray-900 break-all">{contract.clientId || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Contacts:</span>
-                      <span className="font-medium text-gray-900 text-right text-xs break-all">
-                        {contract.clientContacts?.length ? contract.clientContacts.join(' / ') : '—'}
-                      </span>
-                    </div>
-
-                    {contract.emergencyContact && (
-                      <>
-                        <div className="pt-2 text-gray-500">Contact urgent:</div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Nom:</span>
-                          <span className="font-medium text-gray-900">{contract.emergencyContact.lastName || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Prénom:</span>
-                          <span className="font-medium text-gray-900">{contract.emergencyContact.firstName || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Téléphone:</span>
-                          <span className="font-medium text-gray-900">{contract.emergencyContact.phone1 || '—'}</span>
-                        </div>
-                      </>
+                    {isContractOverdue(contract) && (
+                      <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        En retard
+                      </Badge>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Montant:</span>
-                      <span className="font-semibold text-green-600">{contract.amount.toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Durée:</span>
-                      <span className="font-medium text-gray-900">{contract.duration} mois</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Versé:</span>
-                      <span className="font-semibold text-green-600">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Reste:</span>
-                      <span className="font-semibold text-orange-600">{Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA</span>
-                    </div>
-                    {contract.nextDueAt && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Prochaine échéance:</span>
-                        <div className="flex items-center gap-1 text-gray-700">
-                          <Calendar className="h-3 w-3" />
-                          {contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')}
+                    <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
+                      <div className="flex items-start gap-3">
+                        <div className="shrink-0">
+                          <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
+                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs text-gray-500">Matricule contrat</div>
+                          <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
+                          <div className="mt-1 text-sm font-bold text-slate-900 truncate">{displayName}</div>
+                          <div className="text-xs text-slate-500 truncate">{primaryContact}</div>
                         </div>
                       </div>
-                    )}
-                    {contract.guarantorId && (
-                      <GuarantorInfo
-                        guarantorId={contract.guarantorId}
-                        guarantorFirstName={contract.guarantorFirstName}
-                        guarantorLastName={contract.guarantorLastName}
-                        guarantorIsMember={contract.guarantorIsMember}
-                      />
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Score:</span>
-                      <Badge className={cn(
-                        'font-bold text-sm px-2.5 py-1',
-                        contract.score !== undefined && contract.score >= 8 ? 'bg-green-100 text-green-700 border border-green-300' :
-                        contract.score !== undefined && contract.score >= 5 ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
-                        contract.score !== undefined ? 'bg-red-100 text-red-700 border border-red-300' :
-                        'bg-gray-100 text-gray-500 border border-gray-300'
-                      )}>
-                        {contract.score !== undefined ? `${contract.score}/10` : 'N/A'}
-                      </Badge>
-                    </div>
-                  </div>
 
-                  <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
-                    <Button
-                      onClick={() => {
-                        if (!canOpenContractDetail(contract)) return
-                        router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
-                      }}
-                      disabled={!canOpenContractDetail(contract)}
-                      title={!canOpenContractDetail(contract) ? 'Téléversez d’abord le contrat signé pour ouvrir le dossier' : undefined}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Ouvrir
-                    </Button>
-                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
-                      <Button
-                        variant="outline"
-                        onClick={contract.contractUrl
-                          ? () => window.open(contract.contractUrl, '_blank')
-                          : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                      >
-                        <Download className="h-4 w-4" />
-                        Télécharger contrat
-                      </Button>
-                    )}
-                    {canUploadSignedContract(contract) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
-                      >
-                        <Upload className="h-4 w-4" />
-                        {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
-                      </Button>
-                    )}
-                    {contract.signedContractUrl && (
-                      <Button
-                        variant="outline"
-                        onClick={() => window.open(contract.signedContractUrl, '_blank')}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Voir contrat
-                      </Button>
-                    )}
-                    {canReplaceSignedContract(contract) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Modifier contrat signé
-                      </Button>
-                    )}
-                    {canDeleteContract(contract) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Supprimer
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <Badge className="bg-blue-100 text-blue-700 border border-blue-200">
+                          {getCreditTypeLabel(contract.creditType)}
+                        </Badge>
+                        <Badge className={`border ${getStatusColor(contract.status)}`}>
+                          {getStatusLabel(contract.status)}
+                        </Badge>
+                        {isContractOverdue(contract) && (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            Retard
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Montant emprunté</p>
+                            <p className="font-extrabold text-[#234D65] whitespace-nowrap">{(contract.amount || 0).toLocaleString('fr-FR')} FCFA</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
+                            <p className="font-semibold leading-tight text-slate-900 break-words">{(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
+                            <p className="font-semibold text-slate-900">{contract.duration} mois</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
+                            <p className="font-medium text-slate-900">
+                              {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+                          <div className="flex items-center gap-1.5">
+                            {hasSignedContract ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="text-xs font-medium text-emerald-700">Contrat signé disponible</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                <span className="text-xs font-medium text-orange-600">Contrat signé à téléverser</span>
+                              </>
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold text-slate-700">
+                            Score: {scoreValue !== undefined ? `${scoreValue}/10` : 'N/A'}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 text-xs text-slate-600">
+                          Versé: {(contract.amountPaid || 0).toLocaleString('fr-FR')} FCFA • Reste: {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200 mt-auto">
+                        <div className="space-y-2">
+                          {hasSignedContract ? (
+                            <>
+                              <Button
+                                onClick={() => {
+                                  if (!canOpenContractDetail(contract)) return
+                                  router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                                }}
+                                disabled={!canOpenContractDetail(contract)}
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Ouvrir
+                              </Button>
+                              <Button
+                                onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <User className="h-4 w-4" />
+                                Voir toutes les infos
+                              </Button>
+                              <Button
+                                onClick={() => window.open(contract.signedContractUrl, '_blank')}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all cursor-pointer hover:bg-[#234D65] hover:text-white"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Voir contrat
+                              </Button>
+                              {canReplaceSignedContract(contract) && (
+                                <Button
+                                  onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 hover:border-amber-400"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Modifier contrat signé
+                                </Button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {canUploadSignedContract(contract) && (
+                                <Button
+                                  onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 hover:text-orange-800"
+                                >
+                                  <Upload className="h-4 w-4" />
+                                  {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
+                                </Button>
+                              )}
+                              <Button
+                                onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                              >
+                                <User className="h-4 w-4" />
+                                Voir toutes les infos
+                              </Button>
+                            </>
+                          )}
+
+                          {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                            <Button
+                              onClick={contract.contractUrl
+                                ? () => window.open(contract.contractUrl, '_blank')
+                                : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+                            >
+                              <Download className="h-4 w-4" />
+                              Télécharger contrat
+                            </Button>
+                          )}
+                          {canDeleteContract(contract) && (
+                            <Button
+                              onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
+                              variant="destructive"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Supprimer
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })}
+          </div>
           </div>
           )}
 
@@ -1130,41 +1897,7 @@ const ListContrats = ({
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredContrats.length)} sur {filteredContrats.length} contrats
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1"
-                    >
-                      Précédent
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} sur {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1"
-                    >
-                      Suivant
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {renderPagination()}
         </>
       ) : (
         <Card className="bg-gradient-to-br from-white via-gray-50/50 to-white border-0 shadow-2xl">
@@ -1178,17 +1911,20 @@ const ListContrats = ({
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {(filters.search !== '' || filters.status !== 'all' || (!isCreditTypeLocked && filters.creditType !== 'all'))
+                  {(activeTab !== 'all' || hasActiveContractFilters(filters, { ignoreCreditType: isCreditTypeLocked }))
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {(activeTab !== 'all' || hasActiveContractFilters(filters, { ignoreCreditType: isCreditTypeLocked })) && (
                   <Button
                     variant="outline"
-                    onClick={handleResetFilters}
+                    onClick={() => {
+                      handleResetFilters()
+                      setActiveTab('all')
+                    }}
                     className="h-12 px-6 border-2 border-gray-300 hover:border-gray-400 transition-all duration-300 hover:scale-105"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />

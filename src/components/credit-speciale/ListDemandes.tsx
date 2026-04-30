@@ -50,6 +50,7 @@ import {
     Grid3X3,
     List,
     Loader2,
+    MoreVertical,
     Plus,
     RefreshCw,
     RotateCcw,
@@ -1093,6 +1094,45 @@ const ListDemandes = ({
     }
   }, [statsData])
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+
+    return (
+      <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Affichage {startIndex + 1}-{Math.min(endIndex, filteredDemandes.length)} sur {filteredDemandes.length} demandes
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Précédent
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+              >
+                Suivant
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Gestion des erreurs
   if (error) {
     return (
@@ -1270,6 +1310,8 @@ const ListDemandes = ({
         </CardContent>
       </Card>
 
+      {renderPagination()}
+
       {/* Tabs de statut (rattachés à la liste) */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DemandTab)} className="w-full">
         {/* Tabs desktop : style onglets classeur */}
@@ -1372,13 +1414,52 @@ const ListDemandes = ({
                     </h3>
 
                     {/* Ligne 2: Badges alignés horizontalement avec flex-wrap */}
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                        {getCreditTypeLabel(demande.creditType)}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-                        {getStatusLabel(demande.status)}
-                      </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                          {getCreditTypeLabel(demande.creditType)}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
+                          {getStatusLabel(demande.status)}
+                        </span>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 rounded-full border border-transparent bg-white/80 opacity-80 transition-all group-hover:opacity-100 hover:border-[#234D65]/25 hover:bg-[#234D65]/10"
+                            title="Actions"
+                          >
+                            <MoreVertical className="h-4 w-4 text-[#234D65]" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[190px]">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`${normalizedDetailsBasePath}/${demande.id}`)}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Voir détails
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setEditModalState({ isOpen: true, demand: demande })}
+                            disabled={demande.status !== 'PENDING'}
+                            className="cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
+                            disabled={demande.status !== 'PENDING'}
+                            className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
                     {/* Nom et prénom du client (espacement réduit) */}
@@ -1459,15 +1540,6 @@ const ListDemandes = ({
                         <>
                           <Button
                             size="sm"
-                            onClick={() => setEditModalState({ isOpen: true, demand: demande })}
-                            variant="outline"
-                            className="w-full border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Modifier
-                          </Button>
-                          <Button
-                            size="sm"
                             onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
                             className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
                           >
@@ -1481,15 +1553,6 @@ const ListDemandes = ({
                           >
                             <XCircle className="h-4 w-4 mr-1" />
                             Rejeter
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
-                            variant="outline"
-                            className="w-full border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Supprimer
                           </Button>
                         </>
                       )}
@@ -1710,41 +1773,7 @@ const ListDemandes = ({
             </Card>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredDemandes.length)} sur {filteredDemandes.length} demandes
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                    >
-                      Précédent
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} sur {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="border-[#234D65]/35 px-3 py-1 text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                    >
-                      Suivant
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {renderPagination()}
         </>
       ) : (
         <Card className="rounded-t-none rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-white via-slate-50/40 to-[#234D65]/[0.05] shadow-sm">
