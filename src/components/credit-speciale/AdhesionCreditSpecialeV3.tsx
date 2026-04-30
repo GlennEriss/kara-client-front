@@ -149,14 +149,46 @@ const styles = StyleSheet.create({
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 2,
   },
-  checkboxBox: {
-    width: 12,
-    height: 12,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  checkbox: {
+    width: 10,
+    height: 10,
+    border: '1px solid #1f4f68',
+    marginRight: 4,
+    backgroundColor: 'white',
+  },
+  checkboxChecked: {
+    width: 10,
+    height: 10,
+    border: '1px solid #1f4f68',
+    marginRight: 4,
+    backgroundColor: '#1f4f68',
+    position: 'relative',
+  },
+  checkmark: {
+    position: 'absolute',
+    left: 1,
+    top: -1,
+    width: 2,
+    height: 5,
+    border: '1px solid white',
+    borderWidth: '0 1px 1px 0',
+    transform: 'rotate(45deg)',
+  },
+  checkboxLabel: {
+    fontSize: 12,
+    lineHeight: 1.2,
+  },
+  checkboxLabelBold: {
+    fontSize: 12,
+    lineHeight: 1.2,
+    fontWeight: 'bold',
   },
   signatureRow: {
     flexDirection: 'row',
@@ -215,7 +247,46 @@ const styles = StyleSheet.create({
     bottom: 16,
     right: 24,
     fontSize: 10,
-    color: '#4B5563',
+    color: '#475569',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 2,
+    zIndex: 20,
+  },
+  signatureCaptureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  signatureCaptureSlot: {
+    width: '42%',
+  },
+  signatureCaptureSlotRight: {
+    width: '42%',
+    alignItems: 'flex-end',
+  },
+  signatureImage: {
+    width: 170,
+    height: 56,
+    objectFit: 'contain',
+  },
+  signaturePlaceholder: {
+    width: 170,
+    height: 56,
+    borderWidth: 0.5,
+    borderColor: '#94a3b8',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
+  },
+  signatureStack: {
+    marginTop: 6,
+  },
+  signatureStackItem: {
+    marginTop: 10,
+  },
+  signatureInlineLabel: {
+    fontSize: 13,
+    marginBottom: 6,
   },
 })
 
@@ -332,9 +403,32 @@ interface AdhesionCreditSpecialeV3Props {
   contract: CreditContract
   memberData?: any
   guarantorData?: any
+  fillData?: AdhesionCreditSpecialeFillData
 }
 
-const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: AdhesionCreditSpecialeV3Props) => {
+export interface AdhesionCreditSpecialeFillData {
+  memberSignature: string | null
+  secretarySignature: string | null
+  guarantorSignature: string | null
+  accompanimentType: 'EXCEPTIONNEL' | 'REGULIER' | null
+  reconnaissanceCity: string
+  reconnaissanceDate: string
+  sanctionsCity: string
+  sanctionsDate: string
+}
+
+export const EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA: AdhesionCreditSpecialeFillData = {
+  memberSignature: null,
+  secretarySignature: null,
+  guarantorSignature: null,
+  accompanimentType: null,
+  reconnaissanceCity: '',
+  reconnaissanceDate: '',
+  sanctionsCity: '',
+  sanctionsDate: '',
+}
+
+const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData }: AdhesionCreditSpecialeV3Props) => {
   const logoUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/assets/credit-speciale/image1.png`
     : '/assets/credit-speciale/image1.png'
@@ -453,15 +547,37 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
   const bandColor = COLORS.rowAlt
   const withBand = (cells: TableCellConfig[], shaded: boolean) =>
     shaded ? cells.map((cell) => ({ ...cell, backgroundColor: bandColor })) : cells
+  const resolvedFillData = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
+  const accompanimentType = resolvedFillData.accompanimentType
+
+  const formatFilledDate = (rawDate: string, placeholder: string) => {
+    if (!rawDate || !rawDate.trim()) return placeholder
+    const asDate = new Date(rawDate)
+    if (!Number.isNaN(asDate.getTime())) {
+      return asDate.toLocaleDateString('fr-FR')
+    }
+    return rawDate
+  }
+
+  const safeCity = (rawCity: string, placeholder: string) => {
+    const value = rawCity?.trim()
+    return value ? value : placeholder
+  }
+
+  const renderSignatureCapture = (signature: string | null) =>
+    signature ? (
+      <Image src={signature} style={styles.signatureImage} cache={false} />
+    ) : (
+      <View style={styles.signaturePlaceholder} />
+    )
+
+  const renderPageNumber = (page: number) => (
+    <Text style={styles.pageNumber}>{`Page ${page} / 7`}</Text>
+  )
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
@@ -587,14 +703,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
             ], true)}
           />
         </View>
+        {renderPageNumber(1)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -628,7 +740,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
 <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph12}>
-          Fait à …………….….........….. Le …….......……... /………............…..…../………….........
+          Fait à <Text style={{ fontWeight: 'bold' }}>{safeCity(resolvedFillData.reconnaissanceCity, '…………….….........…..')}</Text> Le <Text style={{ fontWeight: 'bold' }}>{formatFilledDate(resolvedFillData.reconnaissanceDate, '…….......……... /………............…..…../………….........')}</Text>
         </Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -636,18 +748,22 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={styles.signatureText14}>SECRÉTAIRE EXÉCUTIF</Text>
           <Text style={styles.signatureText14}>MEMBRE BÉNÉFICIAIRE</Text>
         </View>
+        <View style={styles.signatureCaptureRow}>
+          <View style={styles.signatureCaptureSlot}>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+          </View>
+          <View style={styles.signatureCaptureSlotRight}>
+            {renderSignatureCapture(resolvedFillData.memberSignature)}
+          </View>
+        </View>
         <View style={styles.signatureRow}>
           <Text style={styles.signatureText14}> </Text>
           <Text style={styles.signatureTextRight}>(Précédée de la mention lue et approuvé)</Text>
         </View>
+        {renderPageNumber(2)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
         <Text style={styles.articleTitle}>ARTICLE 1 : MONTANT ET DURÉE DE LA CRÉANCE</Text>
@@ -657,12 +773,20 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           L’Association accorde et consent au membre bénéficiaire un accompagnement
         </Text>
         <View style={styles.checkboxRow}>
-          <View style={styles.checkboxBox} />
-          <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text></Text>
+          <View style={styles.checkboxContainer}>
+            <View style={accompanimentType === 'EXCEPTIONNEL' ? styles.checkboxChecked : styles.checkbox}>
+              {accompanimentType === 'EXCEPTIONNEL' ? <View style={styles.checkmark} /> : null}
+            </View>
+            <Text style={styles.checkboxLabelBold}>Exceptionnel</Text>
+          </View>
         </View>
         <View style={styles.checkboxRow}>
-          <View style={styles.checkboxBox} />
-          <Text style={styles.paragraph14}>Régulier</Text>
+          <View style={styles.checkboxContainer}>
+            <View style={accompanimentType === 'REGULIER' ? styles.checkboxChecked : styles.checkbox}>
+              {accompanimentType === 'REGULIER' ? <View style={styles.checkmark} /> : null}
+            </View>
+            <Text style={styles.checkboxLabel}>Régulier</Text>
+          </View>
         </View>
         <Text style={styles.paragraph14}>À hauteur de :</Text>
         <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres),</Text></Text>
@@ -708,14 +832,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph14}>
           Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.
         </Text>
+        {renderPageNumber(3)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -750,14 +870,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={[styles.paragraph14, styles.indent]}>
           Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires à l’encontre du débiteur pour le recouvrement de ladite créance.
         </Text>
+        {renderPageNumber(4)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -773,24 +889,28 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
-          Fait à……………………….........…Le ……..........……/……..........…/……........……….
+          Fait à <Text style={{ fontWeight: 'bold' }}>{safeCity(resolvedFillData.sanctionsCity, '……………………….........…')}</Text> Le <Text style={{ fontWeight: 'bold' }}>{formatFilledDate(resolvedFillData.sanctionsDate, '……..........……/……..........…/……........……….')}</Text>
         </Text>
         <Text style={styles.paragraph12}>
         </Text>
-        <View />
-        <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
-        <View style={{ height: 80 }} />
-        <Text style={styles.signatureText14}>Signature  Membre(précédée de la mention membre lu et approuvé)</Text>
-        <View style={{ height: 100 }} />
-        <Text style={styles.signatureText14}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+        <View style={styles.signatureStack}>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Secrétaire Exécutif</Text>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.memberSignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.guarantorSignature)}
+          </View>
+        </View>
+        {renderPageNumber(5)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber }) => `${pageNumber}`}
-        />
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 <Text style={styles.paragraph12}>
         </Text>
@@ -849,6 +969,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
            <Text style={styles.paragraph14}>
             somme couvrant l’intégralité de la créance.
         </Text>
+        {renderPageNumber(6)}
+      </Page>
+
+      <Page size="A4" style={styles.page}>
         <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
@@ -879,12 +1003,21 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         </Text>
 <Text style={styles.paragraph12}>
         </Text>
-        <View />
-        <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
-        <View style={{ height: 40 }} />
-        <Text style={styles.signatureText14}>Signature Membre(précédée de la mention membre lu et approuvé)</Text>
-        <View style={{ height: 50 }} />
-        <Text style={styles.signatureText14}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+        <View style={styles.signatureStack}>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Secrétaire Exécutif</Text>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.memberSignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.guarantorSignature)}
+          </View>
+        </View>
+        {renderPageNumber(7)}
       </Page>
     </Document>
   )
