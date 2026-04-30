@@ -2,7 +2,6 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -518,38 +517,29 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                           Article 1: Montant et durée
                         </p>
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="accompaniment-exceptionnel"
-                              checked={fillData.accompanimentType === 'EXCEPTIONNEL'}
-                              onCheckedChange={() => {
+                          {([
+                            { value: 'EXCEPTIONNEL', label: 'Exceptionnel' },
+                            { value: 'REGULIER', label: 'Régulier' },
+                          ] as const).map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
                                 skipDebouncePreviewRef.current = true
                                 setFillData((prev) => ({
                                   ...prev,
-                                  accompanimentType: prev.accompanimentType === 'EXCEPTIONNEL' ? null : 'EXCEPTIONNEL',
+                                  accompanimentType: prev.accompanimentType === option.value ? null : option.value,
                                 }))
                               }}
-                            />
-                            <Label htmlFor="accompaniment-exceptionnel" className="text-xs text-gray-700 cursor-pointer">
-                              Exceptionnel
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="accompaniment-regulier"
-                              checked={fillData.accompanimentType === 'REGULIER'}
-                              onCheckedChange={() => {
-                                skipDebouncePreviewRef.current = true
-                                setFillData((prev) => ({
-                                  ...prev,
-                                  accompanimentType: prev.accompanimentType === 'REGULIER' ? null : 'REGULIER',
-                                }))
-                              }}
-                            />
-                            <Label htmlFor="accompaniment-regulier" className="text-xs text-gray-700 cursor-pointer">
-                              Régulier
-                            </Label>
-                          </div>
+                              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                                fillData.accompanimentType === option.value
+                                  ? 'border-kara-primary-dark bg-kara-primary-dark/10 text-kara-primary-dark font-semibold'
+                                  : 'border-gray-200 hover:border-kara-primary-dark/40'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
 

@@ -149,21 +149,37 @@ const styles = StyleSheet.create({
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 2,
   },
-  checkboxBox: {
-    width: 12,
-    height: 12,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    justifyContent: 'center',
+  checkboxContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 15,
   },
-  checkboxMark: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+  checkbox: {
+    width: 10,
+    height: 10,
+    border: '1px solid #1f4f68',
+    marginRight: 4,
+    backgroundColor: 'white',
+  },
+  checkboxChecked: {
+    width: 10,
+    height: 10,
+    border: '1px solid #1f4f68',
+    marginRight: 4,
+    backgroundColor: '#1f4f68',
+    position: 'relative',
+  },
+  checkmark: {
+    position: 'absolute',
+    left: 1,
+    top: -1,
+    width: 2,
+    height: 5,
+    border: '1px solid white',
+    borderWidth: '0 1px 1px 0',
+    transform: 'rotate(45deg)',
   },
   signatureRow: {
     flexDirection: 'row',
@@ -756,18 +772,22 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           L’Association accorde et consent au membre bénéficiaire un accompagnement
         </Text>
         <View style={styles.checkboxRow}>
-          <View style={styles.checkboxBox}>
-            {accompanimentType === 'EXCEPTIONNEL' ? <Text style={styles.checkboxMark}>X</Text> : null}
+          <View style={styles.checkboxContainer}>
+            <View style={accompanimentType === 'EXCEPTIONNEL' ? styles.checkboxChecked : styles.checkbox}>
+              {accompanimentType === 'EXCEPTIONNEL' ? <View style={styles.checkmark} /> : null}
+            </View>
+            <Text style={styles.paragraph14}>
+              <Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text>
+            </Text>
           </View>
-          <Text style={styles.paragraph14}>
-            <Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text>
-          </Text>
         </View>
         <View style={styles.checkboxRow}>
-          <View style={styles.checkboxBox}>
-            {accompanimentType === 'REGULIER' ? <Text style={styles.checkboxMark}>X</Text> : null}
+          <View style={styles.checkboxContainer}>
+            <View style={accompanimentType === 'REGULIER' ? styles.checkboxChecked : styles.checkbox}>
+              {accompanimentType === 'REGULIER' ? <View style={styles.checkmark} /> : null}
+            </View>
+            <Text style={styles.paragraph14}>Régulier</Text>
           </View>
-          <Text style={styles.paragraph14}>Régulier</Text>
         </View>
         <Text style={styles.paragraph14}>À hauteur de :</Text>
         <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres),</Text></Text>
