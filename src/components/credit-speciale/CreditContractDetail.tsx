@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 import routes from '@/constantes/routes'
 import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
@@ -1604,6 +1605,7 @@ export default function CreditContractDetail({
             Retour aux contrats
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
+            <EmergencyContact emergencyContact={contract.emergencyContact} />
             {/* Bouton d'augmentation - un seul rajout autorisé, masqué si déjà fait ou DISCHARGED/CLOSED */}
             {(contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
               (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') &&
@@ -1752,6 +1754,48 @@ export default function CreditContractDetail({
           </Card>
         )}
 
+        {/* Informations client + contrat (même esprit que la section avant stats en caisse spéciale) */}
+        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+          <CardHeader className="overflow-hidden">
+            <CardTitle className="text-xl sm:text-2xl font-black text-white flex items-center gap-3 break-words">
+              <User className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
+              <span className="break-words">{contract.clientFirstName} {contract.clientLastName}</span>
+            </CardTitle>
+            <div className="space-y-1.5 text-blue-100 break-words">
+              <p className="text-sm sm:text-base break-words">
+                Contrat <span className="font-mono text-xs sm:text-sm break-all">#{contract.id}</span>
+              </p>
+              <p className="text-sm break-words">
+                Contacts client: <span className="font-medium">{contract.clientContacts.join(', ') || '—'}</span>
+              </p>
+              <p className="text-xs break-words">
+                Type: <span className="font-mono">{contract.creditType}</span> • Statut: <span className="font-mono">{statusConfig.label}</span>
+              </p>
+              <p className="text-xs break-words">
+                Taux: <span className="font-mono">{contract.interestRate}%</span> • Durée: <span className="font-mono">{contract.duration} mois</span> • Mensualité: <span className="font-mono">{contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA</span>
+              </p>
+              <p className="text-xs break-words">
+                Premier versement: <span className="font-mono">{formatDate(contract.firstPaymentDate)}</span>
+                {contract.nextDueAt ? (
+                  <>
+                    {' '}• Prochaine échéance: <span className="font-mono">{formatDate(contract.nextDueAt)}</span>
+                  </>
+                ) : null}
+              </p>
+              {contract.guarantorId && (
+                <p className="text-xs break-words">
+                  Garant: <span className="font-medium">{contract.guarantorFirstName} {contract.guarantorLastName}</span>
+                  {contract.guarantorRelation ? (
+                    <>
+                      {' '}• Relation: <span className="font-medium">{contract.guarantorRelation}</span>
+                    </>
+                  ) : null}
+                </p>
+              )}
+            </div>
+          </CardHeader>
+        </Card>
+
         {/* Statistiques */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
@@ -1764,86 +1808,6 @@ export default function CreditContractDetail({
             actualSchedule={actualSchedule}
             totalLosses={totalLosses}
           />
-        </div>
-
-        {/* Informations principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Informations du contrat */}
-          <Card className="border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Informations du contrat
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-600">Type de crédit</p>
-                <p className="text-lg font-semibold">{contract.creditType}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Taux d'intérêt</p>
-                <p className="text-lg font-semibold">{contract.interestRate}%</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Durée</p>
-                <p className="text-lg font-semibold">{contract.duration} mois</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Mensualité</p>
-                <p className="text-lg font-semibold">{contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Premier versement</p>
-                <p className="text-lg font-semibold">{formatDate(contract.firstPaymentDate)}</p>
-              </div>
-              {contract.nextDueAt && (
-                <div>
-                  <p className="text-sm text-gray-600">Prochaine échéance</p>
-                  <p className="text-lg font-semibold">{formatDate(contract.nextDueAt)}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Informations client et garant */}
-          <Card className="border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Client et garant
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-600">Client</p>
-                <p className="text-lg font-semibold">{contract.clientFirstName} {contract.clientLastName}</p>
-                <p className="text-sm text-gray-500">{contract.clientContacts.join(', ')}</p>
-              </div>
-              {contract.guarantorId && (
-                <div>
-                  <p className="text-sm text-gray-600 flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    Garant
-                  </p>
-                  <p className="text-lg font-semibold">
-                    {contract.guarantorFirstName} {contract.guarantorLastName}
-                  </p>
-                  {contract.guarantorRelation && (
-                    <p className="text-sm text-gray-500">Relation : {contract.guarantorRelation}</p>
-                  )}
-                  <div className="flex gap-2 mt-2">
-                    {contract.guarantorIsMember && (
-                      <Badge variant="outline" className="text-xs">Membre</Badge>
-                    )}
-                    {contract.guarantorIsParrain && (
-                      <Badge variant="outline" className="text-xs">Parrain</Badge>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Barre de progression */}
