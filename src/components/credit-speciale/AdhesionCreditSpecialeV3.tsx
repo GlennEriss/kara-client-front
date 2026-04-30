@@ -245,11 +245,9 @@ const styles = StyleSheet.create({
   pageNumber: {
     position: 'absolute',
     bottom: 16,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
+    right: 24,
     fontSize: 10,
-    color: '#4B5563',
+    color: '#475569',
   },
   signatureCaptureRow: {
     flexDirection: 'row',
@@ -576,7 +574,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Image src={logoUrl} style={styles.logo} />
 
@@ -709,7 +707,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
         <Text style={styles.paragraph12}>
@@ -770,7 +768,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
@@ -846,7 +844,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
@@ -888,7 +886,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
@@ -929,7 +927,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 <Text style={styles.paragraph12}>
@@ -995,7 +993,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.paragraph12}>
         </Text>
