@@ -248,6 +248,9 @@ const styles = StyleSheet.create({
     right: 24,
     fontSize: 10,
     color: '#475569',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 2,
+    zIndex: 20,
   },
   signatureCaptureRow: {
     flexDirection: 'row',
@@ -568,14 +571,13 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
       <View style={styles.signaturePlaceholder} />
     )
 
+  const renderPageNumber = (page: number) => (
+    <Text style={styles.pageNumber}>{`Page ${page} / 7`}</Text>
+  )
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
@@ -701,14 +703,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             ], true)}
           />
         </View>
+        {renderPageNumber(1)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -762,14 +760,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           <Text style={styles.signatureText14}> </Text>
           <Text style={styles.signatureTextRight}>(Précédée de la mention lue et approuvé)</Text>
         </View>
+        {renderPageNumber(2)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
         <Text style={styles.articleTitle}>ARTICLE 1 : MONTANT ET DURÉE DE LA CRÉANCE</Text>
@@ -838,14 +832,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text style={styles.paragraph14}>
           Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.
         </Text>
+        {renderPageNumber(3)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -880,14 +870,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text style={[styles.paragraph14, styles.indent]}>
           Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires à l’encontre du débiteur pour le recouvrement de ladite créance.
         </Text>
+        {renderPageNumber(4)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -921,14 +907,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             {renderSignatureCapture(resolvedFillData.guarantorSignature)}
           </View>
         </View>
+        {renderPageNumber(5)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 <Text style={styles.paragraph12}>
         </Text>
@@ -987,14 +969,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
            <Text style={styles.paragraph14}>
             somme couvrant l’intégralité de la créance.
         </Text>
+        {renderPageNumber(6)}
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
         <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
@@ -1039,6 +1017,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             {renderSignatureCapture(resolvedFillData.guarantorSignature)}
           </View>
         </View>
+        {renderPageNumber(7)}
       </Page>
     </Document>
   )
