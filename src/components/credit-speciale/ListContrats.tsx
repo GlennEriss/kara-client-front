@@ -1029,15 +1029,11 @@ const ListContrats = ({
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const horizontalMargin = 14
 
-      // En-tête
-      doc.setFontSize(16)
-      const exportModuleLabel = forcedCreditType
-        ? `Crédit ${getCreditTypeLabel(forcedCreditType)}`
-        : 'Crédit Spéciale'
-      doc.text(`Liste des Contrats de ${exportModuleLabel}`, 14, 14)
-      doc.setFontSize(10)
       const tabLabels: Record<ContractTabValue, string> = {
         all: 'Tous',
         active: 'Actif',
@@ -1047,38 +1043,97 @@ const ListContrats = ({
         overdue: 'Retard',
       }
       const tabLabel = tabLabels[activeTab]
-      doc.text(`Onglet: ${tabLabel}`, 14, 20)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
-      doc.text(`Total: ${filteredContrats.length} contrat(s)`, 14, 28)
+      const exportModuleLabel = forcedCreditType
+        ? `Crédit ${getCreditTypeLabel(forcedCreditType)}`
+        : 'Crédit Spéciale'
+
+      doc.setFont('times', 'bold')
+      doc.setTextColor(20, 33, 50)
+      doc.setFontSize(16)
+      doc.text(`Liste des Contrats de ${exportModuleLabel}`, horizontalMargin, 14)
+
+      doc.setFont('times', 'normal')
+      doc.setTextColor(70, 70, 70)
+      doc.setFontSize(10)
+      doc.text(`Type: ${tabLabel}`, horizontalMargin, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, horizontalMargin, 24)
+      doc.text(`Total: ${filteredContrats.length} contrat(s)`, horizontalMargin, 28)
+      doc.setDrawColor(35, 77, 101)
+      doc.setLineWidth(0.3)
+      doc.line(horizontalMargin, 31, pageWidth - horizontalMargin, 31)
 
       const rows = buildExportRows()
       const headers = [
-        'ID',
+        'ID Contrat',
         'Type',
         'Client',
         'Statut',
-        'Montant',
-        'Total',
+        'Montant FCFA',
+        'Total FCFA',
         'Durée',
-        'Mensualité',
-        'Versé',
-        'Restant',
+        'Mensualité FCFA',
+        'Versé FCFA',
+        'Restant FCFA',
         'Garant',
         'Garant membre',
-        '1er versement',
+        '1ère échéance',
         'Prochaine échéance',
-        'Date création',
+        'Créé le',
       ]
 
       autoTable(doc, {
         head: [headers],
         body: rows,
-        startY: 32,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { top: 32 },
+        startY: 35,
+        tableWidth: pageWidth - horizontalMargin * 2,
+        theme: 'grid',
+        styles: {
+          font: 'times',
+          fontSize: 7,
+          cellPadding: 1.8,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [30, 41, 59],
+          valign: 'middle',
+          overflow: 'linebreak',
+        },
+        headStyles: {
+          font: 'times',
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineColor: [35, 77, 101],
+          lineWidth: 0.2,
+        },
+        bodyStyles: {
+          font: 'times',
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { top: 35, right: horizontalMargin, bottom: 14, left: horizontalMargin },
+        columnStyles: {
+          1: { halign: 'center' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'center' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          9: { halign: 'right' },
+          11: { halign: 'center' },
+          12: { halign: 'center' },
+          13: { halign: 'center' },
+          14: { halign: 'center' },
+        },
       })
+
+      const totalPages = doc.getNumberOfPages()
+      for (let page = 1; page <= totalPages; page++) {
+        doc.setPage(page)
+        doc.setFont('times', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(75, 85, 99)
+        doc.text(`Page ${page}/${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
+      }
 
       const filename = `contrats_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(filename)
