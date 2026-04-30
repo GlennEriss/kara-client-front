@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
-import { useCreditContractMutations, useCreditContracts, useCreditContractsStats, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
+import { useCreditContractMutations, useCreditContracts, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
@@ -52,6 +52,33 @@ import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 type CreditTypeFilter = CreditType | 'all'
+type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'discharged' | 'overdue'
+
+type ContractTabItem = {
+  value: ContractTabValue
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isDanger?: boolean
+}
+
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'discharged', 'overdue']
+const isContractTabValue = (value: string | null): value is ContractTabValue =>
+  value !== null && CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
+
+const CLOSED_CREDIT_STATUSES: CreditContractStatus[] = ['CLOSED', 'DISCHARGED']
+
+function getCurrentMonthRange(): { start: Date; end: Date } {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  return { start, end }
+}
+
+function normalizeToDate(value: unknown): Date | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value as string | number)
+  return Number.isNaN(date.getTime()) ? null : date
+}
 
 interface ListContratsProps {
   forcedCreditType?: CreditType
@@ -156,7 +183,7 @@ const GuarantorInfo = ({
 }
 
 // Composant skeleton moderne
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -276,9 +303,11 @@ const ListContrats = ({
     searchParamCreditType === 'SPECIALE' || searchParamCreditType === 'FIXE' || searchParamCreditType === 'AIDE'
       ? searchParamCreditType
       : 'all'
+  const searchParamTab = searchParams.get('tab')
+  const initialTab: ContractTabValue = isContractTabValue(searchParamTab) ? searchParamTab : 'all'
   
   // Initialiser les états depuis l'URL
-  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>((searchParams.get('tab') as 'all' | 'overdue') || 'all')
+  const [activeTab, setActiveTab] = useState<ContractTabValue>(initialTab)
   const [filters, setFilters] = useState<{
     search: string
     status: string
@@ -289,7 +318,7 @@ const ListContrats = ({
     creditType: forcedCreditType || initialCreditType
   })
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
-  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const [itemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isExporting, setIsExporting] = useState(false)
 
@@ -300,6 +329,15 @@ const ListContrats = ({
       return { ...prev, creditType: forcedCreditType }
     })
   }, [forcedCreditType])
+
+  const tabItems: ContractTabItem[] = [
+    { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'active', label: 'Actif', icon: CheckCircle2 },
+    { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
+    { value: 'closed', label: 'Clos', icon: Shield },
+    { value: 'discharged', label: 'Déchargé', icon: Download },
+    { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+  ]
 
   // Synchroniser l'URL avec l'état
   useEffect(() => {
@@ -323,21 +361,25 @@ const ListContrats = ({
 
   // Hooks pour récupérer les données
   const effectiveCreditType: CreditTypeFilter = forcedCreditType || filters.creditType
+  const statusFilter = filters.status === 'all' ? 'all' : (filters.status as CreditContractStatus)
+  const tabStatusFilter: CreditContractStatus | 'all' =
+    activeTab === 'closed'
+      ? 'CLOSED'
+      : activeTab === 'discharged'
+      ? 'DISCHARGED'
+      : statusFilter
 
   const queryFilters: CreditContractFilters = {
-    status: filters.status === 'all' ? 'all' : filters.status as any,
+    status: tabStatusFilter,
     creditType: effectiveCreditType === 'all' ? 'all' : effectiveCreditType,
     search: filters.search || undefined,
     overdueOnly: activeTab === 'overdue',
-    page: currentPage,
-    limit: itemsPerPage,
-    orderByField: activeTab === 'overdue' ? 'nextDueAt' : 'createdAt',
+    orderByField: activeTab === 'overdue' || activeTab === 'currentMonth' ? 'nextDueAt' : 'createdAt',
     orderByDirection: activeTab === 'overdue' ? 'asc' : 'desc',
   }
 
   const { data: contrats = [], isLoading, error } = useCreditContracts(queryFilters)
-  const { data: statsData } = useCreditContractsStats(queryFilters)
-  const { generateContractPDF, uploadSignedContract, replaceSignedContract } = useCreditContractMutations()
+  const { uploadSignedContract, replaceSignedContract } = useCreditContractMutations()
   
   // États pour les modals
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -409,7 +451,15 @@ const ListContrats = ({
         'Date de création',
       ]
 
-      const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
+      const tabLabels: Record<ContractTabValue, string> = {
+        all: 'Tous',
+        active: 'Actif',
+        currentMonth: 'Mois en cours',
+        closed: 'Clos',
+        discharged: 'Déchargé',
+        overdue: 'Retard',
+      }
+      const tabLabel = tabLabels[activeTab]
       const exportModuleLabel = forcedCreditType
         ? `CRÉDIT ${getCreditTypeLabel(forcedCreditType).toUpperCase()}`
         : 'CRÉDIT SPÉCIALE'
@@ -467,7 +517,15 @@ const ListContrats = ({
         : 'Crédit Spéciale'
       doc.text(`Liste des Contrats de ${exportModuleLabel}`, 14, 14)
       doc.setFontSize(10)
-      const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
+      const tabLabels: Record<ContractTabValue, string> = {
+        all: 'Tous',
+        active: 'Actif',
+        currentMonth: 'Mois en cours',
+        closed: 'Clos',
+        discharged: 'Déchargé',
+        overdue: 'Retard',
+      }
+      const tabLabel = tabLabels[activeTab]
       doc.text(`Onglet: ${tabLabel}`, 14, 20)
       doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
       doc.text(`Total: ${contrats.length} contrat(s)`, 14, 28)
@@ -585,8 +643,21 @@ const ListContrats = ({
     return false
   }
 
-  // Les contrats sont déjà filtrés par le hook
-  const filteredContrats = contrats
+  const filteredContrats = React.useMemo(() => {
+    if (activeTab === 'active') {
+      return contrats.filter((contract) => !CLOSED_CREDIT_STATUSES.includes(contract.status))
+    }
+
+    if (activeTab === 'currentMonth') {
+      const { start, end } = getCurrentMonthRange()
+      return contrats.filter((contract) => {
+        const nextDueAt = normalizeToDate(contract.nextDueAt)
+        return Boolean(nextDueAt && nextDueAt >= start && nextDueAt <= end)
+      })
+    }
+
+    return contrats
+  }, [activeTab, contrats])
 
   // Fonction pour construire les lignes d'export
   const formatAmount = (amount: number): string => {
@@ -619,30 +690,6 @@ const ListContrats = ({
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentContrats = filteredContrats.slice(startIndex, endIndex)
-
-  // Stats
-  const stats = React.useMemo(() => {
-    if (statsData) {
-      return {
-        total: statsData.total,
-        active: statsData.active,
-        overdue: statsData.overdue,
-        blocked: statsData.blocked,
-        discharged: statsData.discharged,
-        activePercentage: statsData.total > 0 ? (statsData.active / statsData.total) * 100 : 0,
-        overduePercentage: statsData.total > 0 ? (statsData.overdue / statsData.total) * 100 : 0,
-      }
-    }
-    return {
-      total: 0,
-      active: 0,
-      overdue: 0,
-      blocked: 0,
-      discharged: 0,
-      activePercentage: 0,
-      overduePercentage: 0,
-    }
-  }, [statsData])
 
   const renderPagination = () => {
     if (totalPages <= 1) return null
@@ -712,18 +759,73 @@ const ListContrats = ({
 
       {renderPagination()}
 
-      {/* Onglets pour filtrer par retard */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Tous les contrats
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
-            <AlertCircle className="h-4 w-4" />
-            Retard
-          </TabsTrigger>
-        </TabsList>
+      {/* Onglets de contrat - design aligné sur caisse imprévue */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (isContractTabValue(value)) {
+            setActiveTab(value)
+          }
+        }}
+        className="w-full"
+      >
+        <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
+          <div className="flex-1 min-w-0">
+            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+              {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={cn(
+                    'shrink-0 min-w-[110px] px-3 py-2.5 text-sm rounded-t-lg rounded-b-none border-x border-t border-gray-200 bg-gray-50/70 font-semibold text-gray-600 transition-all data-[state=active]:z-10 data-[state=active]:bg-white data-[state=active]:text-[#234D65] data-[state=active]:border-[#234D65] data-[state=active]:shadow-none hover:bg-gray-100 hover:text-[#234D65]',
+                    isDanger ? 'data-[state=active]:text-red-700 data-[state=active]:border-red-300' : ''
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        <div className="lg:hidden">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabItems.map(({ value, label, icon: Icon, isDanger }) => {
+              const isActive = activeTab === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    if (isContractTabValue(value)) {
+                      setActiveTab(value)
+                    }
+                  }}
+                  className="shrink-0"
+                >
+                  <Badge
+                    className={cn(
+                      'px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2',
+                      isActive
+                        ? isDanger
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#234D65] text-white border-transparent'
+                        : isDanger
+                        ? 'bg-white text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </Tabs>
 
       {/* Filtres */}
@@ -1185,17 +1287,20 @@ const ListContrats = ({
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {(filters.search !== '' || filters.status !== 'all' || (!isCreditTypeLocked && filters.creditType !== 'all'))
+                  {(activeTab !== 'all' || filters.search !== '' || filters.status !== 'all' || (!isCreditTypeLocked && filters.creditType !== 'all'))
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
                 </p>
               </div>
               <div className="flex justify-center space-x-4">
-                {Object.values(filters).some(f => f !== 'all' && f !== '') && (
+                {(activeTab !== 'all' || Object.values(filters).some(f => f !== 'all' && f !== '')) && (
                   <Button
                     variant="outline"
-                    onClick={handleResetFilters}
+                    onClick={() => {
+                      handleResetFilters()
+                      setActiveTab('all')
+                    }}
                     className="h-12 px-6 border-2 border-gray-300 hover:border-gray-400 transition-all duration-300 hover:scale-105"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
