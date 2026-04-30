@@ -157,6 +157,13 @@ const styles = StyleSheet.create({
     height: 12,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxMark: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: COLORS.primary,
   },
   signatureRow: {
     flexDirection: 'row',
@@ -377,12 +384,22 @@ export interface AdhesionCreditSpecialeFillData {
   memberSignature: string | null
   secretarySignature: string | null
   guarantorSignature: string | null
+  accompanimentType: 'EXCEPTIONNEL' | 'REGULIER' | null
+  reconnaissanceCity: string
+  reconnaissanceDate: string
+  sanctionsCity: string
+  sanctionsDate: string
 }
 
 export const EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA: AdhesionCreditSpecialeFillData = {
   memberSignature: null,
   secretarySignature: null,
   guarantorSignature: null,
+  accompanimentType: null,
+  reconnaissanceCity: '',
+  reconnaissanceDate: '',
+  sanctionsCity: '',
+  sanctionsDate: '',
 }
 
 const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData }: AdhesionCreditSpecialeV3Props) => {
@@ -505,6 +522,21 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
   const withBand = (cells: TableCellConfig[], shaded: boolean) =>
     shaded ? cells.map((cell) => ({ ...cell, backgroundColor: bandColor })) : cells
   const resolvedFillData = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
+  const accompanimentType = resolvedFillData.accompanimentType
+
+  const formatFilledDate = (rawDate: string, placeholder: string) => {
+    if (!rawDate || !rawDate.trim()) return placeholder
+    const asDate = new Date(rawDate)
+    if (!Number.isNaN(asDate.getTime())) {
+      return asDate.toLocaleDateString('fr-FR')
+    }
+    return rawDate
+  }
+
+  const safeCity = (rawCity: string, placeholder: string) => {
+    const value = rawCity?.trim()
+    return value ? value : placeholder
+  }
 
   const renderSignatureCapture = (signature: string | null) =>
     signature ? (
@@ -519,7 +551,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
         />
         <Image src={logoUrl} style={styles.logo} />
 
@@ -652,7 +684,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
         />
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
         <Text style={styles.paragraph12}>
@@ -687,7 +719,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
 <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph12}>
-          Fait à …………….….........….. Le …….......……... /………............…..…../………….........
+          Fait à <Text style={{ fontWeight: 'bold' }}>{safeCity(resolvedFillData.reconnaissanceCity, '…………….….........…..')}</Text> Le <Text style={{ fontWeight: 'bold' }}>{formatFilledDate(resolvedFillData.reconnaissanceDate, '…….......……... /………............…..…../………….........')}</Text>
         </Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -713,7 +745,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
         />
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
@@ -724,11 +756,17 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           L’Association accorde et consent au membre bénéficiaire un accompagnement
         </Text>
         <View style={styles.checkboxRow}>
-          <View style={styles.checkboxBox} />
-          <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text></Text>
+          <View style={styles.checkboxBox}>
+            {accompanimentType === 'EXCEPTIONNEL' ? <Text style={styles.checkboxMark}>X</Text> : null}
+          </View>
+          <Text style={styles.paragraph14}>
+            <Text style={{ fontWeight: 'bold' }}>Exceptionnel</Text>
+          </Text>
         </View>
         <View style={styles.checkboxRow}>
-          <View style={styles.checkboxBox} />
+          <View style={styles.checkboxBox}>
+            {accompanimentType === 'REGULIER' ? <Text style={styles.checkboxMark}>X</Text> : null}
+          </View>
           <Text style={styles.paragraph14}>Régulier</Text>
         </View>
         <Text style={styles.paragraph14}>À hauteur de :</Text>
@@ -781,7 +819,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
@@ -823,7 +861,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
@@ -840,7 +878,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
-          Fait à……………………….........…Le ……..........……/……..........…/……........……….
+          Fait à <Text style={{ fontWeight: 'bold' }}>{safeCity(resolvedFillData.sanctionsCity, '……………………….........…')}</Text> Le <Text style={{ fontWeight: 'bold' }}>{formatFilledDate(resolvedFillData.sanctionsDate, '……..........……/……..........…/……........……….')}</Text>
         </Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -864,7 +902,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
         />
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 <Text style={styles.paragraph12}>
@@ -924,6 +962,14 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
            <Text style={styles.paragraph14}>
             somme couvrant l’intégralité de la créance.
         </Text>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
+        <Text
+          style={styles.pageNumber}
+          fixed
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+        />
         <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>

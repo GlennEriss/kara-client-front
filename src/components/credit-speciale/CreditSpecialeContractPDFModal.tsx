@@ -2,7 +2,10 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract } from '@/types/types'
@@ -380,7 +383,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">6 pages</span>
+                      <span className="font-medium text-gray-900">7 pages</span>
                     </div>
                   </div>
 
@@ -473,6 +476,114 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                           setFillData((prev) => ({ ...prev, guarantorSignature: value }))
                         }}
                       />
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                      <p className="text-xs font-semibold text-kara-primary-dark">Mentions à compléter</p>
+
+                      <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
+                        <p className="text-[11px] font-semibold text-kara-primary-dark uppercase tracking-wide">
+                          Reconnaissance de dette
+                        </p>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="reconnaissance-city" className="text-xs text-gray-700">Fait à</Label>
+                          <Input
+                            id="reconnaissance-city"
+                            value={fillData.reconnaissanceCity}
+                            onChange={(event) => {
+                              skipDebouncePreviewRef.current = true
+                              setFillData((prev) => ({ ...prev, reconnaissanceCity: event.target.value }))
+                            }}
+                            placeholder="Libreville"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="reconnaissance-date" className="text-xs text-gray-700">Le</Label>
+                          <Input
+                            id="reconnaissance-date"
+                            type="date"
+                            value={fillData.reconnaissanceDate}
+                            onChange={(event) => {
+                              skipDebouncePreviewRef.current = true
+                              setFillData((prev) => ({ ...prev, reconnaissanceDate: event.target.value }))
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
+                        <p className="text-[11px] font-semibold text-kara-primary-dark uppercase tracking-wide">
+                          Article 1: Montant et durée
+                        </p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="accompaniment-exceptionnel"
+                              checked={fillData.accompanimentType === 'EXCEPTIONNEL'}
+                              onCheckedChange={() => {
+                                skipDebouncePreviewRef.current = true
+                                setFillData((prev) => ({
+                                  ...prev,
+                                  accompanimentType: prev.accompanimentType === 'EXCEPTIONNEL' ? null : 'EXCEPTIONNEL',
+                                }))
+                              }}
+                            />
+                            <Label htmlFor="accompaniment-exceptionnel" className="text-xs text-gray-700 cursor-pointer">
+                              Exceptionnel
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="accompaniment-regulier"
+                              checked={fillData.accompanimentType === 'REGULIER'}
+                              onCheckedChange={() => {
+                                skipDebouncePreviewRef.current = true
+                                setFillData((prev) => ({
+                                  ...prev,
+                                  accompanimentType: prev.accompanimentType === 'REGULIER' ? null : 'REGULIER',
+                                }))
+                              }}
+                            />
+                            <Label htmlFor="accompaniment-regulier" className="text-xs text-gray-700 cursor-pointer">
+                              Régulier
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
+                        <p className="text-[11px] font-semibold text-kara-primary-dark uppercase tracking-wide">
+                          Article 5: Sanctions
+                        </p>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="sanctions-city" className="text-xs text-gray-700">Fait à</Label>
+                          <Input
+                            id="sanctions-city"
+                            value={fillData.sanctionsCity}
+                            onChange={(event) => {
+                              skipDebouncePreviewRef.current = true
+                              setFillData((prev) => ({ ...prev, sanctionsCity: event.target.value }))
+                            }}
+                            placeholder="Libreville"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="sanctions-date" className="text-xs text-gray-700">Le</Label>
+                          <Input
+                            id="sanctions-date"
+                            type="date"
+                            value={fillData.sanctionsDate}
+                            onChange={(event) => {
+                              skipDebouncePreviewRef.current = true
+                              setFillData((prev) => ({ ...prev, sanctionsDate: event.target.value }))
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
