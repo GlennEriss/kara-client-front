@@ -1,20 +1,162 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract } from '@/types/types'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
-import { Download, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
-import React, { useState } from 'react'
+import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import AdhesionCreditSpecialeV3 from './AdhesionCreditSpecialeV3'
+import AdhesionCreditSpecialeV3, {
+  EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA,
+  type AdhesionCreditSpecialeFillData,
+} from './AdhesionCreditSpecialeV3'
 
 interface AdhesionCreditSpecialeV2ModalProps {
   isOpen: boolean
   onClose: () => void
   contract: CreditContract
+}
+
+const SignaturePad = ({
+  title,
+  value,
+  onChange,
+}: {
+  title: string
+  value: string | null
+  onChange: (value: string | null) => void
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    const rect = canvas.getBoundingClientRect()
+    const ratio = Math.max(window.devicePixelRatio || 1, 1)
+    canvas.width = Math.floor(rect.width * ratio)
+    canvas.height = Math.floor(rect.height * ratio)
+
+    const context = canvas.getContext('2d')
+    if (!context) return null
+
+    context.scale(ratio, ratio)
+    context.lineWidth = 2
+    context.lineCap = 'round'
+    context.strokeStyle = '#1f2937'
+    return context
+  }
+
+  useEffect(() => {
+    const context = setupCanvas()
+    if (!context) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+
+    if (value) {
+      const image = new window.Image()
+      image.onload = () => {
+        context.drawImage(image, 0, 0, rect.width, rect.height)
+      }
+      image.src = value
+    }
+  }, [value])
+
+  const getCanvasPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!canvas || !context || !position) return
+
+    canvas.setPointerCapture(event.pointerId)
+    setIsDrawing(true)
+    context.beginPath()
+    context.moveTo(position.x, position.y)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    const context = canvasRef.current?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!context || !position) return
+
+    context.lineTo(position.x, position.y)
+    context.stroke()
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas || !isDrawing) return
+    canvas.releasePointerCapture(event.pointerId)
+    setIsDrawing(false)
+    onChange(canvas.toDataURL('image/png'))
+  }
+
+  const handleClear = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    const rect = canvas.getBoundingClientRect()
+
+    context.clearRect(0, 0, rect.width, rect.height)
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+    onChange(null)
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold text-kara-primary-dark">{title}</p>
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleClear}>
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Effacer
+        </Button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="h-24 w-full cursor-crosshair rounded-md border border-dashed border-gray-300 bg-white touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      />
+    </div>
+  )
 }
 
 const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps> = ({
@@ -23,7 +165,10 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
   contract
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [fillData, setFillData] = useState<AdhesionCreditSpecialeFillData>(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
+  const [previewFillData, setPreviewFillData] = useState<AdhesionCreditSpecialeFillData>(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
+  const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre
   const { data: memberData, isLoading: memberLoading } = useMember(contract.clientId)
@@ -33,15 +178,42 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
     contract.guarantorIsMember && contract.guarantorId ? contract.guarantorId : undefined
   )
 
-  // Détecter si on est sur mobile
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024) // lg breakpoint
+  useEffect(() => {
+    if (!isOpen) return
+    setFillData(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
+    setPreviewFillData(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
+    setIsPreviewRefreshing(false)
+  }, [isOpen, contract.id])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (skipDebouncePreviewRef.current) {
+      skipDebouncePreviewRef.current = false
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+      return
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+
+    setIsPreviewRefreshing(true)
+    const timer = window.setTimeout(() => {
+      setPreviewFillData(fillData)
+      setIsPreviewRefreshing(false)
+    }, 180)
+
+    return () => window.clearTimeout(timer)
+  }, [fillData, isOpen])
+
+  const pdfDocument = useMemo(
+    () => (
+      <AdhesionCreditSpecialeV3
+        contract={contract}
+        memberData={memberData}
+        guarantorData={guarantorData}
+        fillData={previewFillData}
+      />
+    ),
+    [contract, memberData, guarantorData, previewFillData]
+  )
 
   // Fonction pour télécharger le PDF
   const handleDownload = async () => {
@@ -54,6 +226,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
           contract={contract}
           memberData={memberData}
           guarantorData={guarantorData}
+          fillData={fillData}
         />
       )
 
@@ -92,6 +265,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
           contract={contract}
           memberData={memberData}
           guarantorData={guarantorData}
+          fillData={fillData}
         />
       )
 
@@ -121,7 +295,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
       <DialogContent className="!w-[95vw] !max-w-[1400px] max-h-[95vh] lg:max-h-[95vh] overflow-y-auto lg:overflow-hidden bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
         {/* Header */}
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 lg:pb-6 border-b border-gray-200">
-          <div className="space-y-1 flex-1 min-w-0">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center gap-2 lg:gap-3">
               <div className="p-2 lg:p-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg flex-shrink-0">
                 <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
@@ -206,20 +380,12 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">3 pages</span>
+                      <span className="font-medium text-gray-900">6 pages</span>
                     </div>
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider 
-                    document={
-                      <AdhesionCreditSpecialeV3
-                        contract={contract}
-                        memberData={memberData}
-                        guarantorData={guarantorData}
-                      />
-                    }
-                  >
+                  <BlobProvider document={pdfDocument}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -269,19 +435,60 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
               </div>
 
               {/* Version desktop */}
-              <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-                <PDFViewer style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  borderRadius: '0.75rem'
-                }}>
-                <AdhesionCreditSpecialeV3
-                  contract={contract}
-                  memberData={memberData}
-                  guarantorData={guarantorData}
-                />
-                </PDFViewer>
+              <div className="hidden lg:flex h-full gap-4">
+                <Card className="w-[420px] h-full overflow-y-auto border border-gray-200 shadow-sm">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <PenLine className="w-4 h-4 text-kara-primary-dark" />
+                      <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du contrat</h3>
+                    </div>
+
+                    {isPreviewRefreshing ? (
+                      <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
+                    ) : null}
+
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
+                      <SignaturePad
+                        title="Signature membre"
+                        value={fillData.memberSignature}
+                        onChange={(value) => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({ ...prev, memberSignature: value }))
+                        }}
+                      />
+                      <SignaturePad
+                        title="Signature secrétaire exécutif"
+                        value={fillData.secretarySignature}
+                        onChange={(value) => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({ ...prev, secretarySignature: value }))
+                        }}
+                      />
+                      <SignaturePad
+                        title="Signature caution"
+                        value={fillData.guarantorSignature}
+                        onChange={(value) => {
+                          skipDebouncePreviewRef.current = true
+                          setFillData((prev) => ({ ...prev, guarantorSignature: value }))
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex-1 rounded-xl overflow-hidden shadow-inner bg-white border">
+                  <PDFViewer
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      borderRadius: '0.75rem',
+                    }}
+                  >
+                    {pdfDocument}
+                  </PDFViewer>
+                </div>
               </div>
             </>
           )}

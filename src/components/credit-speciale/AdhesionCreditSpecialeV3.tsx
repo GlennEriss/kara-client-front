@@ -213,9 +213,47 @@ const styles = StyleSheet.create({
   pageNumber: {
     position: 'absolute',
     bottom: 16,
-    right: 24,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontSize: 10,
     color: '#4B5563',
+  },
+  signatureCaptureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  signatureCaptureSlot: {
+    width: '42%',
+  },
+  signatureCaptureSlotRight: {
+    width: '42%',
+    alignItems: 'flex-end',
+  },
+  signatureImage: {
+    width: 170,
+    height: 56,
+    objectFit: 'contain',
+  },
+  signaturePlaceholder: {
+    width: 170,
+    height: 56,
+    borderWidth: 0.5,
+    borderColor: '#94a3b8',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
+  },
+  signatureStack: {
+    marginTop: 6,
+  },
+  signatureStackItem: {
+    marginTop: 10,
+  },
+  signatureInlineLabel: {
+    fontSize: 13,
+    marginBottom: 6,
   },
 })
 
@@ -332,9 +370,22 @@ interface AdhesionCreditSpecialeV3Props {
   contract: CreditContract
   memberData?: any
   guarantorData?: any
+  fillData?: AdhesionCreditSpecialeFillData
 }
 
-const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: AdhesionCreditSpecialeV3Props) => {
+export interface AdhesionCreditSpecialeFillData {
+  memberSignature: string | null
+  secretarySignature: string | null
+  guarantorSignature: string | null
+}
+
+export const EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA: AdhesionCreditSpecialeFillData = {
+  memberSignature: null,
+  secretarySignature: null,
+  guarantorSignature: null,
+}
+
+const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData }: AdhesionCreditSpecialeV3Props) => {
   const logoUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/assets/credit-speciale/image1.png`
     : '/assets/credit-speciale/image1.png'
@@ -453,6 +504,14 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
   const bandColor = COLORS.rowAlt
   const withBand = (cells: TableCellConfig[], shaded: boolean) =>
     shaded ? cells.map((cell) => ({ ...cell, backgroundColor: bandColor })) : cells
+  const resolvedFillData = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
+
+  const renderSignatureCapture = (signature: string | null) =>
+    signature ? (
+      <Image src={signature} style={styles.signatureImage} cache={false} />
+    ) : (
+      <View style={styles.signaturePlaceholder} />
+    )
 
   return (
     <Document>
@@ -460,7 +519,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Image src={logoUrl} style={styles.logo} />
 
@@ -593,7 +652,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
         <Text style={styles.paragraph12}>
@@ -636,6 +695,14 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
           <Text style={styles.signatureText14}>SECRÉTAIRE EXÉCUTIF</Text>
           <Text style={styles.signatureText14}>MEMBRE BÉNÉFICIAIRE</Text>
         </View>
+        <View style={styles.signatureCaptureRow}>
+          <View style={styles.signatureCaptureSlot}>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+          </View>
+          <View style={styles.signatureCaptureSlotRight}>
+            {renderSignatureCapture(resolvedFillData.memberSignature)}
+          </View>
+        </View>
         <View style={styles.signatureRow}>
           <Text style={styles.signatureText14}> </Text>
           <Text style={styles.signatureTextRight}>(Précédée de la mention lue et approuvé)</Text>
@@ -646,7 +713,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
 
@@ -714,7 +781,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
         <Text style={styles.paragraph12}>
@@ -756,7 +823,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph12}>
@@ -777,19 +844,27 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         </Text>
         <Text style={styles.paragraph12}>
         </Text>
-        <View />
-        <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
-        <View style={{ height: 80 }} />
-        <Text style={styles.signatureText14}>Signature  Membre(précédée de la mention membre lu et approuvé)</Text>
-        <View style={{ height: 100 }} />
-        <Text style={styles.signatureText14}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+        <View style={styles.signatureStack}>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Secrétaire Exécutif</Text>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.memberSignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.guarantorSignature)}
+          </View>
+        </View>
       </Page>
 
       <Page size="A4" style={styles.page}>
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
 <Text style={styles.paragraph12}>
@@ -879,12 +954,20 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData }: Adhes
         </Text>
 <Text style={styles.paragraph12}>
         </Text>
-        <View />
-        <Text style={styles.signatureText14}>Signature Secrétaire Exécutif</Text>
-        <View style={{ height: 40 }} />
-        <Text style={styles.signatureText14}>Signature Membre(précédée de la mention membre lu et approuvé)</Text>
-        <View style={{ height: 50 }} />
-        <Text style={styles.signatureText14}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+        <View style={styles.signatureStack}>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Secrétaire Exécutif</Text>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.memberSignature)}
+          </View>
+          <View style={styles.signatureStackItem}>
+            <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
+            {renderSignatureCapture(resolvedFillData.guarantorSignature)}
+          </View>
+        </View>
       </Page>
     </Document>
   )
