@@ -794,8 +794,11 @@ const ListContrats = ({
     overdueOnly: activeTab === 'overdue' ? true : Boolean(filters.overdueOnly),
     dateFrom: filters.createdAtFrom,
     dateTo: filters.createdAtTo,
-    orderByField: activeTab === 'overdue' || activeTab === 'currentMonth' ? 'nextDueAt' : 'createdAt',
-    orderByDirection: activeTab === 'overdue' ? 'asc' : 'desc',
+    // Toujours trier côté Firestore sur createdAt pour éviter les résultats vides
+    // quand un index composite nextDueAt n'est pas disponible.
+    // Le tri nextDueAt (Retard / Mois en cours) est ensuite appliqué en mémoire.
+    orderByField: 'createdAt',
+    orderByDirection: 'desc',
   }
 
   const { data: contrats = [], isLoading, error } = useCreditContracts(queryFilters)
@@ -1210,6 +1213,16 @@ const ListContrats = ({
 
     if (filters.overdueOnly && activeTab !== 'overdue') {
       items = items.filter((contract) => isContractOverdue(contract))
+    }
+
+    if (activeTab === 'overdue' || activeTab === 'currentMonth') {
+      items = items.sort((a, b) => {
+        const aDue = normalizeToDate(a.nextDueAt)
+        const bDue = normalizeToDate(b.nextDueAt)
+        const aTime = aDue ? aDue.getTime() : Number.POSITIVE_INFINITY
+        const bTime = bDue ? bDue.getTime() : Number.POSITIVE_INFINITY
+        return aTime - bTime
+      })
     }
 
     if (filters.createdAtFrom) {
