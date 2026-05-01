@@ -1876,6 +1876,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const cycleNumber = getCreditPaymentCycleNumber(contract, payment);
         const cycleContract = this.buildContractSnapshotForCycle(contract, cycleNumber);
         const monthNumber = getCreditPaymentMonthNumber(cycleContract, payment);
+        const installmentKey = `C${cycleNumber}_M${monthNumber}`;
 
         // Calculer la date prévue de l'échéance pour ce mois
         const firstPaymentDate = new Date(cycleContract.firstPaymentDate);
@@ -1924,9 +1925,19 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const existingPenalties = await this.getPenaltiesByCreditId(creditId);
         const existingPenalty = existingPenalties.find((penalty) => {
+            const sameInstallmentKey =
+                typeof penalty.installmentId === 'string' &&
+                penalty.installmentId.trim().length > 0 &&
+                penalty.installmentId.trim() === installmentKey;
+            if (sameInstallmentKey) {
+                return true;
+            }
+
             const penaltyDueDate = new Date(penalty.dueDate);
             penaltyDueDate.setHours(0, 0, 0, 0);
-            return Math.abs(penaltyDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000 && !penalty.paid;
+            // Compatibilité legacy: des anciennes pénalités n'ont pas de clé d'échéance.
+            // On bloque toute recréation sur la même date d'échéance (payée ou impayée).
+            return Math.abs(penaltyDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000;
         });
 
         if (existingPenalty) {
@@ -1935,7 +1946,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const penalty = await this.createPenalty({
             creditId,
-            installmentId: '',
+            installmentId: installmentKey,
             amount: Math.round(penaltyAmount),
             daysLate,
             dueDate,
@@ -1996,6 +2007,52 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const contractExists = await this.creditContractRepository.getContractById(creditId);
         if (!contractExists) {
             return;
+        }
+
+        // Nettoyage défensif des doublons legacy:
+        // pour une même échéance (même date + montant + jours de retard), on conserve
+        // la pénalité payée si elle existe (sinon la plus ancienne), et on supprime
+        // uniquement les doublons impayés sans lien de paiement.
+        try {
+            const penalties = await this.getPenaltiesByCreditId(creditId);
+            const groups = new Map<string, CreditPenalty[]>();
+
+            penalties.forEach((penalty) => {
+                const dueDate = new Date(penalty.dueDate);
+                dueDate.setHours(0, 0, 0, 0);
+                const groupKey = `${dueDate.getTime()}|${Math.round(penalty.amount)}|${penalty.daysLate}`;
+                const bucket = groups.get(groupKey) ?? [];
+                bucket.push(penalty);
+                groups.set(groupKey, bucket);
+            });
+
+            for (const bucket of groups.values()) {
+                if (bucket.length <= 1) continue;
+
+                const sorted = [...bucket].sort(
+                    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+                );
+                const paidPenalty = sorted.find((penalty) => penalty.paid);
+                const keeper = paidPenalty ?? sorted[0];
+
+                const duplicatesToDelete = sorted.filter((penalty) =>
+                    penalty.id !== keeper.id &&
+                    !penalty.paid &&
+                    !penalty.paymentId
+                );
+
+                if (duplicatesToDelete.length === 0) continue;
+
+                await Promise.all(
+                    duplicatesToDelete.map((penalty) =>
+                        this.creditPenaltyRepository.deletePenalty(penalty.id).catch(() => {
+                            // Échec non bloquant: on continue la consolidation
+                        })
+                    )
+                );
+            }
+        } catch (error) {
+            console.error('[checkAndCreateMissingPenalties] Erreur lors du nettoyage des doublons:', error);
         }
 
         // Récupérer tous les paiements

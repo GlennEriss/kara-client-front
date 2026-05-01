@@ -505,6 +505,7 @@ export default function CreditContractDetail({
   const [showRestMonthModal, setShowRestMonthModal] = useState(false)
   const [selectedRestMonth, setSelectedRestMonth] = useState<number | null>(null)
   const queryClient = useQueryClient()
+  const missingPenaltiesCheckRef = useRef<string | null>(null)
 
   const penaltyAdminIds = React.useMemo(
     () =>
@@ -550,17 +551,25 @@ export default function CreditContractDetail({
 
   // Vérifier et créer les pénalités manquantes au chargement
   useEffect(() => {
-    if (!isLoadingPayments && payments.length > 0) {
-      const service = ServiceFactory.getCreditSpecialeService()
-      service.checkAndCreateMissingPenalties(contract.id)
-        .then(() => {
-          // Rafraîchir les pénalités après vérification
-          queryClient.invalidateQueries({ queryKey: ['creditPenalties', contract.id] })
-        })
-        .catch((error: unknown) => {
-          console.error('Erreur lors de la vérification des pénalités:', error)
-        })
+    if (isLoadingPayments || payments.length === 0) {
+      return
     }
+
+    const runKey = `${contract.id}:${payments.length}`
+    if (missingPenaltiesCheckRef.current === runKey) {
+      return
+    }
+    missingPenaltiesCheckRef.current = runKey
+
+    const service = ServiceFactory.getCreditSpecialeService()
+    service.checkAndCreateMissingPenalties(contract.id)
+      .then(() => {
+        // Rafraîchir les pénalités après vérification
+        queryClient.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', contract.id] })
+      })
+      .catch((error: unknown) => {
+        console.error('Erreur lors de la vérification des pénalités:', error)
+      })
   }, [contract.id, payments.length, isLoadingPayments, queryClient])
 
   const statusConfig = getStatusConfig(contract.status)

@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import {
   useCreditContract,
@@ -33,7 +32,6 @@ import {
   getCreditPaymentsForCurrentCycle,
 } from '@/utils/credit-speciale-history'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
     AlertCircle,
@@ -112,7 +110,6 @@ export default function CreditPaymentModal({
   const { data: contract } = useCreditContract(creditId)
   const { data: payments = [] } = useCreditPaymentsByCreditId(creditId)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
-  const queryClient = useQueryClient()
 
   const autoComment = useMemo(() => getDefaultComment(true), [])
 
@@ -204,15 +201,6 @@ export default function CreditPaymentModal({
         )
         return
       }
-      // Nettoyer les pénalités rétroactives avant d'afficher la liste (création uniquement)
-      const service = ServiceFactory.getCreditSpecialeService()
-      service.checkAndCreateMissingPenalties(creditId)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['creditPenalties', creditId] })
-        })
-        .catch((error: unknown) => {
-          console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
-        })
       setAgentRecouvrementId('')
       setWithFees(undefined)
       if (defaultPaymentDate) {
@@ -220,10 +208,10 @@ export default function CreditPaymentModal({
       } else {
         form.setValue('paymentDate', new Date())
       }
-      form.setValue('note', autoNote)
+      form.setValue('note', 10)
       form.setValue('comment', autoComment)
     }
-  }, [isOpen, form, defaultPaymentDate, autoComment, paymentToEdit, creditId, queryClient])
+  }, [isOpen, form, defaultPaymentDate, autoComment, paymentToEdit])
 
   // En création, la note automatique peut suivre la date choisie sans réinitialiser
   // les autres champs du formulaire.
