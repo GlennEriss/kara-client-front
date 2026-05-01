@@ -53,6 +53,47 @@ export function CreateDemandFormV2({
     }
   }
 
+  const handleFinalSubmit = async () => {
+    try {
+      const isValid = await form.trigger()
+
+      if (!isValid) {
+        const errors = form.formState.errors
+        const errorMessages: string[] = []
+
+        if (errors.memberId) errorMessages.push('Membre non sélectionné')
+        if (errors.caisseType) errorMessages.push('Type de caisse invalide')
+        if (errors.monthlyAmount) errorMessages.push('Montant invalide')
+        if (errors.monthsPlanned) errorMessages.push('Durée invalide')
+        if (errors.desiredDate) errorMessages.push('Date souhaitée requise')
+
+        if (errors.emergencyContact) {
+          const ecErrors = errors.emergencyContact as Record<string, { message?: string }>
+          Object.values(ecErrors).forEach((err) => {
+            if (err?.message) errorMessages.push(err.message)
+          })
+        }
+
+        const description =
+          errorMessages.length > 0
+            ? errorMessages.slice(0, 3).join(', ') + (errorMessages.length > 3 ? '...' : '')
+            : 'Vérifiez que tous les champs obligatoires sont remplis.'
+
+        toast.error('Formulaire incomplet', { description })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
+
+      const formData = form.getValues()
+      await onSubmit(formData)
+    } catch (error) {
+      console.error('Erreur lors de la soumission:', error)
+      toast.error('Une erreur est survenue', {
+        description: error instanceof Error ? error.message : 'Veuillez réessayer.',
+      })
+    }
+  }
+
   return (
     <Form {...form}>
     <div className="space-y-6 md:space-y-8">
@@ -129,15 +170,82 @@ export function CreateDemandFormV2({
           </div>
 
           <div className="flex flex-col gap-3 pt-6 mt-6 border-t border-gray-200">
-            <div className="flex flex-col sm:flex-row items-stretch gap-3">
+            {onResetStep && (
+              <div className="sm:hidden flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleResetStep}
+                  className="h-10 px-3 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Réinitialiser
+                </Button>
+              </div>
+            )}
+
+            <div className="sm:hidden grid grid-cols-2 gap-3">
+              {currentStep > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onPrevious}
+                  className="h-11 px-4 text-sm font-medium hover:bg-gray-50 border-gray-300"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1.5" />
+                  Précédent
+                </Button>
+              )}
+
+              {currentStep < 3 ? (
+                <Button
+                  type="button"
+                  onClick={onNext}
+                  className={cn(
+                    'h-11 px-4 text-sm font-semibold bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-md',
+                    currentStep === 1 ? 'col-span-2' : 'col-span-1',
+                  )}
+                >
+                  Suivant
+                  <ChevronRight className="w-4 h-4 ml-1.5" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    await handleFinalSubmit()
+                  }}
+                  disabled={isSubmitting}
+                  className={cn(
+                    'h-11 px-4 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed',
+                    currentStep === 1 ? 'col-span-2' : 'col-span-1',
+                  )}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      {submittingLabel}
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-1.5" />
+                      {submitLabel}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            <div className="hidden sm:flex items-stretch gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={onPrevious}
                 disabled={currentStep === 1}
                 className={cn(
-                  'h-12 px-6 text-base font-medium',
-                  'sm:flex-1 sm:max-w-[180px]',
+                  'h-12 px-6 text-base font-medium sm:flex-1 sm:max-w-[180px]',
                   currentStep === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 border-gray-300',
                 )}
               >
@@ -172,45 +280,7 @@ export function CreateDemandFormV2({
                   onClick={async (e) => {
                     e.preventDefault()
                     e.stopPropagation()
-
-                    try {
-                      const isValid = await form.trigger()
-
-                      if (!isValid) {
-                        const errors = form.formState.errors
-                        const errorMessages: string[] = []
-
-                        if (errors.memberId) errorMessages.push('Membre non sélectionné')
-                        if (errors.caisseType) errorMessages.push('Type de caisse invalide')
-                        if (errors.monthlyAmount) errorMessages.push('Montant invalide')
-                        if (errors.monthsPlanned) errorMessages.push('Durée invalide')
-                        if (errors.desiredDate) errorMessages.push('Date souhaitée requise')
-
-                        if (errors.emergencyContact) {
-                          const ecErrors = errors.emergencyContact as Record<string, { message?: string }>
-                          Object.values(ecErrors).forEach((err) => {
-                            if (err?.message) errorMessages.push(err.message)
-                          })
-                        }
-
-                        const description =
-                          errorMessages.length > 0
-                            ? errorMessages.slice(0, 3).join(', ') + (errorMessages.length > 3 ? '...' : '')
-                            : 'Vérifiez que tous les champs obligatoires sont remplis.'
-
-                        toast.error('Formulaire incomplet', { description })
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                        return
-                      }
-
-                      const formData = form.getValues()
-                      await onSubmit(formData)
-                    } catch (error) {
-                      console.error('Erreur lors de la soumission:', error)
-                      toast.error('Une erreur est survenue', {
-                        description: error instanceof Error ? error.message : 'Veuillez réessayer.',
-                      })
-                    }
+                    await handleFinalSubmit()
                   }}
                   disabled={isSubmitting}
                   className="h-12 px-6 text-base font-medium bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed sm:flex-1 sm:max-w-[200px] sm:ml-auto"
