@@ -11,6 +11,14 @@ export interface ApproveMembershipRequestParams {
   companyId?: string | null
   professionId?: string | null
   adhesionPdfURL: string  // Obligatoire
+  requestSnapshot?: {
+    status?: string
+    isPaid?: boolean
+    identity?: {
+      firstName?: string
+      lastName?: string
+    }
+  }
 }
 
 export interface RejectMembershipRequestParams {

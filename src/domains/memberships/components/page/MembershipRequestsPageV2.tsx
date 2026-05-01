@@ -621,6 +621,14 @@ export function MembershipRequestsPageV2() {
         adhesionPdfURL: params.adhesionPdfURL,
         companyId: params.companyId,
         professionId: params.professionId,
+        requestSnapshot: {
+          status: selectedRequest.status,
+          isPaid: selectedRequest.isPaid,
+          identity: {
+            firstName: selectedRequest.identity?.firstName,
+            lastName: selectedRequest.identity?.lastName,
+          },
+        },
       })
     } catch (error: any) {
       // L'erreur est déjà gérée par le hook (toast)
