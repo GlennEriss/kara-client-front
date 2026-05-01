@@ -833,9 +833,9 @@ export function MembershipRequestsPageV2() {
 
   return (
     <div className="min-h-screen bg-kara-neutral-50">
-      <div className="space-y-4 md:space-y-6 p-3 md:p-4 lg:p-6 xl:p-8">
+      <div className="space-y-3 md:space-y-6 px-2 py-3 sm:px-3 md:p-4 lg:p-6 xl:p-8">
         {/* Header avec fond KARA - Réduit sur mobile */}
-        <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-kara-primary-dark p-4 md:p-6 lg:p-8">
+        <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-kara-primary-dark p-3 sm:p-4 md:p-6 lg:p-8">
           {/* Motif décoratif */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-kara-primary-light" />
@@ -844,18 +844,18 @@ export function MembershipRequestsPageV2() {
 
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight truncate">
+              <h1 className="text-[1.9rem] leading-[1.05] sm:text-3xl md:text-4xl font-black text-white tracking-tight break-words">
                 Demandes d'Adhésion
               </h1>
               <p className="text-kara-primary-light/80 mt-1 md:mt-2 text-xs sm:text-sm md:text-base font-medium line-clamp-2">
                 Gérez les demandes d'inscription des membres KARA
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+            <div className="flex w-full md:w-auto items-center gap-2 shrink-0 self-start md:self-auto flex-wrap md:flex-nowrap">
               <Button
                 onClick={() => router.push(routes.admin.membershipAdd)}
                 size="sm"
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border border-white/80 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border border-white/80 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 h-9 px-3"
                 title="Créer une nouvelle demande"
               >
                 <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
@@ -865,7 +865,7 @@ export function MembershipRequestsPageV2() {
               <Button
                 onClick={() => setExportModalOpen(true)}
                 size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group h-9 px-3"
                 title="Exporter les demandes"
               >
                 <Download className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
@@ -875,11 +875,11 @@ export function MembershipRequestsPageV2() {
               <Button
                 onClick={() => refetch()}
                 size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group h-9 px-3"
               >
                 <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 group-hover:animate-spin" />
                 <span className="hidden sm:inline">Actualiser</span>
-                <span className="sm:hidden">Actualiser</span>
+                <span className="sm:hidden">Actu</span>
               </Button>
             </div>
           </div>
@@ -922,7 +922,7 @@ export function MembershipRequestsPageV2() {
               {/* Container du carousel avec drag/swipe - Padding réduit sur mobile */}
               <div
                 ref={containerRef}
-                className="overflow-hidden px-2 sm:px-6 md:px-12 py-2"
+                className="overflow-hidden px-0 sm:px-6 md:px-12 py-2"
                 onMouseDown={handleMouseDown}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -1084,7 +1084,7 @@ export function MembershipRequestsPageV2() {
             {/* Contenu de la "page" du classeur - Fait partie intégrante du tab actif */}
             <div className="bg-white pt-0">
               {/* En-tête de liste avec titre, recherche et pagination - Pas de séparation avec tabs */}
-              <div className="px-3 sm:px-4 md:px-6 py-3 md:py-4 border-b border-kara-neutral-100">
+              <div className="px-2 sm:px-3 md:px-6 py-3 md:py-4 border-b border-kara-neutral-100">
                 <div className="flex flex-col gap-3 md:gap-4">
                   {/* Ligne 1 (mobile) / ligne unique (desktop) : icône + titre + compteur */}
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 w-full">
