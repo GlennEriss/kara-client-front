@@ -184,6 +184,22 @@ html {
   background: var(--kara-gold);
 }
 
+/* Masquer la barre de défilement sur mobile tout en conservant le scroll */
+@media (max-width: 767px) {
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
 /* Sélection de texte personnalisée */
 ::selection {
   background-color: var(--kara-gold);
@@ -431,6 +447,20 @@ html {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;  /* Chrome, Safari et Opera */
+}
+
+/* Variante mobile uniquement : masquer la scrollbar uniquement < md */
+@media (max-width: 767px) {
+  .no-scrollbar-mobile {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar-mobile::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }
 
 /* Responsive typography */

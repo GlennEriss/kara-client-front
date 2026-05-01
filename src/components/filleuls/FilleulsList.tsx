@@ -209,15 +209,79 @@ export default function FilleulsList() {
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape')
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const marginX = 14
 
-      // En-tête
-      doc.setFontSize(16)
-      doc.text('Liste des Filleuls', 14, 14)
+      const colors = {
+        brandDark: [35, 77, 101] as [number, number, number],
+        primary: [31, 81, 255] as [number, number, number],
+        ink: [15, 23, 42] as [number, number, number],
+        muted: [100, 116, 139] as [number, number, number],
+        line: [226, 232, 240] as [number, number, number],
+        success: [16, 185, 129] as [number, number, number],
+        info: [59, 130, 246] as [number, number, number],
+        warning: [245, 158, 11] as [number, number, number],
+      }
+
+      const generatedAtLabel = format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })
+      const parrainName = `${memberData.firstName || ''} ${memberData.lastName || ''}`.trim()
+
+      // Header principal
+      doc.setFillColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+      doc.rect(0, 0, pageWidth, 30, 'F')
+      doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2])
+      doc.setLineWidth(1)
+      doc.line(0, 30, pageWidth, 30)
+
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(15)
+      doc.text('Liste des Filleuls', marginX, 14)
       doc.setFontSize(10)
-      doc.text(`Parrain: ${memberData.firstName} ${memberData.lastName} (${memberData.matricule})`, 14, 20)
-      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, 14, 24)
-      doc.text(`Total: ${filleulsData.length} filleul${filleulsData.length > 1 ? 's' : ''}`, 14, 28)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Parrain: ${parrainName} (${memberData.matricule})`, marginX, 20)
+      doc.text('Mutuelle KARA', marginX, 25)
+
+      // Badge date (droite)
+      const badgeWidth = 92
+      const badgeX = pageWidth - marginX - badgeWidth
+      doc.setFillColor(255, 255, 255)
+      doc.roundedRect(badgeX, 5.5, badgeWidth, 13, 2, 2, 'F')
+      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8.5)
+      doc.text('Généré le', badgeX + 4, 10.5)
+      doc.setFont('helvetica', 'normal')
+      doc.text(generatedAtLabel, badgeX + 4, 15.5)
+
+      // Cartes de synthèse
+      const cardsY = 38
+      const cardH = 17
+      const cardGap = 4
+      const cardW = (pageWidth - marginX * 2 - cardGap * 2) / 3
+      const cards = [
+        { label: 'Total filleuls', value: `${totalFilleuls}`, bg: [239, 246, 255] as [number, number, number], fg: colors.info },
+        { label: 'Nouveaux ce mois', value: `${thisMonth}`, bg: [255, 247, 237] as [number, number, number], fg: colors.warning },
+        { label: 'Nouveaux cette année', value: `${thisYear}`, bg: [236, 253, 245] as [number, number, number], fg: colors.success },
+      ]
+
+      cards.forEach((card, index) => {
+        const x = marginX + index * (cardW + cardGap)
+        doc.setFillColor(card.bg[0], card.bg[1], card.bg[2])
+        doc.roundedRect(x, cardsY, cardW, cardH, 2, 2, 'F')
+
+        doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text(card.label, x + 3, cardsY + 6)
+
+        doc.setTextColor(card.fg[0], card.fg[1], card.fg[2])
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(12)
+        doc.text(card.value, x + 3, cardsY + 13)
+      })
 
       // Tableau
       const headers = ['Nom', 'Prénom', 'Matricule', 'Date d\'adhésion']
@@ -231,11 +295,49 @@ export default function FilleulsList() {
       autoTable(doc, {
         head: [headers],
         body: bodyRows,
-        startY: 35,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
+        startY: cardsY + cardH + 10,
+        margin: { left: marginX, right: marginX, top: 20, bottom: 16 },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.5,
+          textColor: colors.ink,
+          lineColor: colors.line,
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: colors.brandDark,
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8.5,
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 62 },
+          1: { cellWidth: 62 },
+          2: { cellWidth: 72 },
+          3: { cellWidth: 42, halign: 'center' },
+        },
+        didDrawPage: (data: any) => {
+          if (data.pageNumber > 1) {
+            doc.setFillColor(colors.brandDark[0], colors.brandDark[1], colors.brandDark[2])
+            doc.rect(0, 0, pageWidth, 10, 'F')
+            doc.setTextColor(255, 255, 255)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(9)
+            doc.text('Liste des Filleuls', marginX, 6.5)
+          }
+        },
       })
+
+      // Pagination pied de page
+      const totalPages = doc.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text(`Page ${i}/${totalPages}`, pageWidth - marginX, pageHeight - 8, { align: 'right' })
+      }
 
       const filename = `filleuls_${memberData.matricule}_${format(new Date(), 'yyyy-MM-dd', { locale: fr })}.pdf`
       doc.save(filename)

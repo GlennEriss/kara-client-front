@@ -538,62 +538,78 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
         isPaid: false,
       }
 
-      // Upload de la photo de profil si fournie via DocumentRepository
+      // Upload des médias en arrière-plan:
+      // on persiste d'abord la demande pour réduire le temps de soumission perçu,
+      // puis on enrichit le document avec les URLs dès que les uploads se terminent.
+      const mediaUploadTasks: Array<Promise<Record<string, string> | null>> = []
+
       if (formData.identity.photo && typeof formData.identity.photo === 'string' && formData.identity.photo.startsWith('data:image/')) {
-        try {
-          // Utiliser DocumentRepository pour uploader l'image
-          // userIdentifier comme memberId temporaire, matricule comme contractId
-          const { url: fileURL, path: filePATH } = await this.documentRepository.uploadImage(
-            formData.identity.photo,
-            userIdentifier,
-            matricule,
-            'membership-request-profile-photo'
-          )
-
-          membershipData.identity.photoURL = fileURL
-          membershipData.identity.photoPath = filePATH
-        } catch (photoError: any) {
-          console.error("❌ ERREUR lors de l'upload de la photo de profil:", photoError)
-          console.warn("   ⚠️ Continuons la création du document sans photo de profil")
-        }
+        mediaUploadTasks.push(
+          this.documentRepository
+            .uploadImage(
+              formData.identity.photo,
+              userIdentifier,
+              matricule,
+              'membership-request-profile-photo'
+            )
+            .then(({ url: fileURL, path: filePATH }) => {
+              return {
+                'identity.photoURL': fileURL,
+                'identity.photoPath': filePATH,
+              }
+            })
+            .catch((photoError: any) => {
+              console.error("❌ ERREUR lors de l'upload de la photo de profil:", photoError)
+              console.warn("   ⚠️ Continuons la création du document sans photo de profil")
+              return null
+            })
+        )
       }
 
-      // Upload de la photo recto du document si fournie via DocumentRepository
       if (formData.documents.documentPhotoFront && typeof formData.documents.documentPhotoFront === 'string' && formData.documents.documentPhotoFront.startsWith('data:image/')) {
-        try {
-          // Utiliser DocumentRepository pour uploader l'image
-          const { url: frontURL, path: frontPATH } = await this.documentRepository.uploadImage(
-            formData.documents.documentPhotoFront,
-            userIdentifier,
-            matricule,
-            'membership-request-document-front'
-          )
-
-          membershipData.documents.documentPhotoFrontURL = frontURL
-          membershipData.documents.documentPhotoFrontPath = frontPATH
-        } catch (frontPhotoError: any) {
-          console.error("❌ ERREUR lors de l'upload de la photo recto du document:", frontPhotoError)
-          console.warn("   ⚠️ Continuons la création du document sans photo recto")
-        }
+        mediaUploadTasks.push(
+          this.documentRepository
+            .uploadImage(
+              formData.documents.documentPhotoFront,
+              userIdentifier,
+              matricule,
+              'membership-request-document-front'
+            )
+            .then(({ url: frontURL, path: frontPATH }) => {
+              return {
+                'documents.documentPhotoFrontURL': frontURL,
+                'documents.documentPhotoFrontPath': frontPATH,
+              }
+            })
+            .catch((frontPhotoError: any) => {
+              console.error("❌ ERREUR lors de l'upload de la photo recto du document:", frontPhotoError)
+              console.warn("   ⚠️ Continuons la création du document sans photo recto")
+              return null
+            })
+        )
       }
 
-      // Upload de la photo verso du document si fournie via DocumentRepository
       if (formData.documents.documentPhotoBack && typeof formData.documents.documentPhotoBack === 'string' && formData.documents.documentPhotoBack.startsWith('data:image/')) {
-        try {
-          // Utiliser DocumentRepository pour uploader l'image
-          const { url: backURL, path: backPATH } = await this.documentRepository.uploadImage(
-            formData.documents.documentPhotoBack,
-            userIdentifier,
-            matricule,
-            'membership-request-document-back'
-          )
-
-          membershipData.documents.documentPhotoBackURL = backURL
-          membershipData.documents.documentPhotoBackPath = backPATH
-        } catch (backPhotoError: any) {
-          console.error("❌ ERREUR lors de l'upload de la photo verso du document:", backPhotoError)
-          console.warn("   ⚠️ Continuons la création du document sans photo verso")
-        }
+        mediaUploadTasks.push(
+          this.documentRepository
+            .uploadImage(
+              formData.documents.documentPhotoBack,
+              userIdentifier,
+              matricule,
+              'membership-request-document-back'
+            )
+            .then(({ url: backURL, path: backPATH }) => {
+              return {
+                'documents.documentPhotoBackURL': backURL,
+                'documents.documentPhotoBackPath': backPATH,
+              }
+            })
+            .catch((backPhotoError: any) => {
+              console.error("❌ ERREUR lors de l'upload de la photo verso du document:", backPhotoError)
+              console.warn("   ⚠️ Continuons la création du document sans photo verso")
+              return null
+            })
+        )
       }
 
       // Nettoyer toutes les valeurs undefined avant d'envoyer à Firestore
@@ -612,6 +628,30 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       // Sauvegarder avec l'ID personnalisé
       try {
         await setDoc(docRef, finalData)
+
+        // Enrichissement média post-création (non bloquant pour l'UX).
+        if (mediaUploadTasks.length > 0) {
+          void Promise.allSettled(mediaUploadTasks)
+            .then(async (results) => {
+              const mediaPatch: Record<string, string> = {}
+              for (const result of results) {
+                if (result.status === 'fulfilled' && result.value) {
+                  Object.assign(mediaPatch, result.value)
+                }
+              }
+
+              if (Object.keys(mediaPatch).length > 0) {
+                await updateDoc(docRef, {
+                  ...mediaPatch,
+                  updatedAt: serverTimestamp(),
+                })
+              }
+            })
+            .catch((mediaPatchError: any) => {
+              console.error("❌ ERREUR lors de la mise à jour média post-création:", mediaPatchError)
+            })
+        }
+
         return matricule // Retourner le matricule comme ID
       } catch (setDocError: any) {
         // Normaliser et re-lancer l'erreur avec le gestionnaire centralisé

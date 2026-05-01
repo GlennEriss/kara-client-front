@@ -171,32 +171,33 @@ export function ApprovalModalV2({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent 
-        className="max-w-[calc(100vw-24px)] sm:max-w-[700px] max-h-[90vh] overflow-y-auto overflow-x-hidden w-full" 
+        className="w-[95vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto overflow-x-hidden px-4 sm:px-6" 
         data-testid="approval-modal"
       >
         <DialogHeader data-testid="approval-modal-header">
           <DialogTitle 
-            className="flex items-center gap-2 text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent"
+            className="flex items-center gap-2 text-xl sm:text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent"
             data-testid="approval-modal-title"
           >
-            <CheckCircle className="w-6 h-6 text-[#234D65]" />
+            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-[#234D65]" />
             Approuver une Demande d'Adhésion
           </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            {request.identity?.firstName} {request.identity?.lastName}
+          <DialogDescription className="text-sm text-kara-neutral-600">
+            <span className="font-semibold text-kara-primary-dark">{request.identity?.firstName} {request.identity?.lastName}</span>
+            {' '}• Vérifiez le dossier avant validation.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4 px-4 sm:px-6">
+        <div className="space-y-3 py-3 sm:py-4">
           {/* Informations du Dossier */}
-          <Card data-testid="approval-modal-dossier-section">
-            <CardHeader className="pb-3 px-4 sm:px-6">
-              <CardTitle className="text-base flex items-center gap-2">
+          <Card className="rounded-xl border border-kara-neutral-200 shadow-sm" data-testid="approval-modal-dossier-section">
+            <CardHeader className="pb-2 px-4 sm:px-5">
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-kara-primary-dark">
                 <File className="w-4 h-4" />
                 Informations du Dossier
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 px-4 sm:px-6">
+            <CardContent className="space-y-2 px-4 sm:px-5 pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                 <span className="text-sm text-gray-600">Matricule:</span>
                 <span className="text-sm font-semibold break-words" data-testid="approval-modal-matricule">
@@ -239,14 +240,14 @@ export function ApprovalModalV2({
 
           {/* Entreprise (si applicable) */}
           {hasCompany && (
-            <Card data-testid="approval-modal-company-section">
-              <CardHeader className="pb-3 px-4 sm:px-6">
-                <CardTitle className="text-base flex items-center gap-2">
+            <Card className="rounded-xl border border-kara-neutral-200 shadow-sm" data-testid="approval-modal-company-section">
+              <CardHeader className="pb-2 px-4 sm:px-5">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-kara-primary-dark">
                   <Building2 className="w-4 h-4" />
                   Entreprise
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 px-4 sm:px-6">
+              <CardContent className="space-y-2 px-4 sm:px-5 pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                   <span className="text-sm text-gray-600">Nom:</span>
                   <span className="text-sm font-semibold break-words" data-testid="approval-modal-company-name">
@@ -265,14 +266,14 @@ export function ApprovalModalV2({
 
           {/* Profession (si applicable) */}
           {hasProfession && (
-            <Card data-testid="approval-modal-profession-section">
-              <CardHeader className="pb-3 px-4 sm:px-6">
-                <CardTitle className="text-base flex items-center gap-2">
+            <Card className="rounded-xl border border-kara-neutral-200 shadow-sm" data-testid="approval-modal-profession-section">
+              <CardHeader className="pb-2 px-4 sm:px-5">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-kara-primary-dark">
                   <Briefcase className="w-4 h-4" />
                   Profession
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 px-4 sm:px-6">
+              <CardContent className="space-y-2 px-4 sm:px-5 pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                   <span className="text-sm text-gray-600">Nom:</span>
                   <span className="text-sm font-semibold break-words" data-testid="approval-modal-profession-name">
@@ -290,14 +291,14 @@ export function ApprovalModalV2({
           )}
 
           {/* Type de Membre */}
-          <Card data-testid="approval-modal-membership-type-section">
-            <CardHeader className="pb-3 px-4 sm:px-6">
-              <CardTitle className="text-base flex items-center gap-2">
+          <Card className="rounded-xl border border-kara-neutral-200 shadow-sm" data-testid="approval-modal-membership-type-section">
+            <CardHeader className="pb-2 px-4 sm:px-5">
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-kara-primary-dark">
                 <User className="w-4 h-4" />
                 Type de Membre <span className="text-red-500">*</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 sm:px-6">
+            <CardContent className="px-4 sm:px-5 pb-4">
               <Select
                 value={membershipType}
                 onValueChange={(value) => {
@@ -307,7 +308,7 @@ export function ApprovalModalV2({
                 disabled={isLoading || isUploading}
                 data-testid="approval-modal-membership-type-select"
               >
-                <SelectTrigger className={errors.membershipType ? 'border-red-500' : ''}>
+                <SelectTrigger className={errors.membershipType ? 'border-red-500 focus:ring-red-200' : ''}>
                   <SelectValue placeholder="Sélectionner un type de membre" />
                 </SelectTrigger>
                 <SelectContent>
@@ -325,22 +326,22 @@ export function ApprovalModalV2({
           </Card>
 
           {/* PDF d'Adhésion */}
-          <Card data-testid="approval-modal-pdf-section">
-            <CardHeader className="pb-3 px-4 sm:px-6">
-              <CardTitle className="text-base flex items-center gap-2">
+          <Card className="rounded-xl border border-kara-neutral-200 shadow-sm" data-testid="approval-modal-pdf-section">
+            <CardHeader className="pb-2 px-4 sm:px-5">
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-kara-primary-dark">
                 <File className="w-4 h-4" />
                 Fiche d'Adhésion (PDF) <span className="text-red-500">*</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 sm:px-6">
+            <CardContent className="px-4 sm:px-5 pb-4">
               {!pdfUrl ? (
                 <div
-                  className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors w-full ${
+                  className={`border-2 border-dashed rounded-xl p-4 sm:p-5 text-center transition-colors w-full ${
                     errors.pdf
                       ? 'border-red-500 bg-red-50'
                       : isUploading
                       ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
+                      : 'border-kara-neutral-300 bg-kara-neutral-50 hover:border-kara-primary-dark/40 hover:bg-kara-neutral-100'
                   }`}
                   data-testid="approval-modal-pdf-upload-zone"
                 >
@@ -360,31 +361,31 @@ export function ApprovalModalV2({
                     {isUploading ? (
                       <>
                         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                        <span className="text-sm text-blue-600 break-words text-wrap">Upload en cours...</span>
+                        <span className="text-sm text-blue-600 break-words">Upload en cours...</span>
                       </>
                     ) : (
                       <>
-                        <Upload className="w-8 h-8 text-gray-400" />
-                        <span className="text-sm text-gray-600 break-words text-wrap px-2">
+                        <Upload className="w-8 h-8 text-kara-neutral-400" />
+                        <span className="text-sm text-kara-neutral-700 break-words px-2">
                           Glissez-déposez ou cliquez pour choisir
                         </span>
-                        <span className="text-xs text-gray-500 break-words text-wrap px-2">
+                        <span className="text-xs text-kara-neutral-500 break-words px-2">
                           Format: PDF uniquement, Max: 10 MB
                         </span>
                       </>
                     )}
                   </label>
                   {errors.pdf && (
-                    <p className="text-xs text-red-500 mt-2 break-words text-wrap" data-testid="approval-modal-pdf-error">
+                    <p className="text-xs text-red-500 mt-2 break-words" data-testid="approval-modal-pdf-error">
                       {errors.pdf}
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 w-full gap-2">
+                <div className="flex items-center justify-between p-3 sm:p-4 bg-kara-neutral-50 rounded-xl border border-kara-neutral-200 w-full gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <File className="w-5 h-5 text-blue-500 shrink-0" />
-                    <span className="text-sm font-medium break-words text-wrap" data-testid="approval-modal-pdf-file-name">
+                    <span className="text-sm font-medium truncate max-w-[180px] sm:max-w-[360px]" title={pdfFile?.name || 'Fichier PDF'} data-testid="approval-modal-pdf-file-name">
                       {pdfFile?.name || 'Fichier PDF'}
                     </span>
                   </div>
@@ -424,12 +425,12 @@ export function ApprovalModalV2({
           )}
         </div>
 
-        <DialogFooter className="gap-2 flex-col sm:flex-row px-4 sm:px-6 pb-4 sm:pb-6">
+        <DialogFooter className="gap-2 flex-col sm:flex-row pb-2 sm:pb-3">
           <Button
             variant="outline"
             onClick={handleClose}
             disabled={isLoading || isUploading}
-            className="border-gray-300 w-full sm:w-auto"
+            className="h-11 sm:h-10 border-kara-neutral-300 w-full sm:w-auto rounded-xl"
             data-testid="approval-modal-cancel-button"
           >
             Annuler
@@ -437,7 +438,7 @@ export function ApprovalModalV2({
           <Button
             onClick={handleApprove}
             disabled={isLoading || isUploading || !isValid}
-            className="bg-[#234D65] hover:bg-[#234D65]/90 text-white w-full sm:w-auto"
+            className="h-11 sm:h-10 bg-[#234D65] hover:bg-[#1e4356] text-white w-full sm:w-auto rounded-xl"
             data-testid="approval-modal-approve-button"
           >
             {isLoading ? (

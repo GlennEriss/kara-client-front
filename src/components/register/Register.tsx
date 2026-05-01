@@ -524,16 +524,16 @@ function Register() {
         )}
 
         {/* Boutons de navigation */}
-        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full">
-          {/* Mobile: flex-col, Desktop: flex-row */}
-          <div className="flex flex-col sm:flex-row w-full gap-3 sm:gap-4">
+        <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full">
+          {/* Mobile: grille 2 colonnes, Desktop: flex-row */}
+          <div className="grid grid-cols-2 sm:flex w-full gap-2.5 sm:gap-4">
             <Button
               variant="outline"
               onClick={handlePrev}
               disabled={currentStep === 1 || isLoading}
-              className="flex items-center justify-center space-x-2 w-full sm:w-auto h-12 border-2 border-[#224D62]/30 text-[#224D62] hover:border-[#224D62]/50 hover:text-[#224D62] hover:bg-[#224D62]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+              className="col-span-1 flex items-center justify-center gap-1.5 sm:space-x-2 w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl border-2 border-[#224D62]/25 text-[#224D62] hover:border-[#224D62]/45 hover:text-[#224D62] hover:bg-[#224D62]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-sm sm:text-base"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Précédent</span>
             </Button>
 
@@ -541,14 +541,14 @@ function Register() {
               <Button
                 onClick={handleNext}
                 disabled={isLoading}
-                className="flex items-center justify-center space-x-2 min-w-0 w-full sm:w-auto h-12 bg-gradient-to-r bg-[#224D62] hover:from-[#224D62]/90 hover:via-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                className="col-span-1 flex items-center justify-center gap-1.5 sm:space-x-2 min-w-0 w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl bg-[#224D62] hover:bg-[#1e4356] text-white font-semibold text-sm sm:text-base shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
               >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                 ) : (
                   <>
                     <span>Suivant</span>
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
               </Button>
@@ -556,14 +556,14 @@ function Register() {
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex items-center justify-center space-x-2 min-w-0 w-full sm:w-auto h-12 bg-[#224D62] hover:from-[#CBB171]/90 hover:via-[#CBB171]/90 hover:to-[#224D62]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                className="col-span-1 flex items-center justify-center gap-1.5 sm:space-x-2 min-w-0 w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl bg-[#224D62] hover:bg-[#1e4356] text-white font-semibold text-sm sm:text-base shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                 ) : (
                   <>
-                    <Send className="w-5 h-5" />
-                    <span>{correctionRequest?.isVerified ? 'Soumettre les corrections' : 'Finaliser'}</span>
+                    <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="truncate">{correctionRequest?.isVerified ? 'Soumettre' : 'Finaliser'}</span>
                   </>
                 )}
               </Button>
@@ -574,7 +574,7 @@ function Register() {
             variant="outline"
             size="sm"
             onClick={saveToCache}
-            className="flex items-center justify-center space-x-2 w-full sm:w-auto h-10 border-2 border-[#CBB171]/30 text-[#CBB171] hover:border-[#CBB171]/50 hover:bg-[#CBB171]/5 transition-all duration-200 font-medium"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto h-10 rounded-xl border-2 border-[#CBB171]/30 text-[#CBB171] hover:border-[#CBB171]/50 hover:bg-[#CBB171]/5 transition-all duration-200 font-medium"
           >
             <Save className="w-4 h-4" />
             <span>Sauvegarder</span>

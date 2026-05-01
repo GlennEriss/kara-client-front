@@ -296,6 +296,12 @@ export function DashboardBreadcrumb() {
   // Optimiser les segments pour mobile
   const optimizedSegments = optimizeBreadcrumbsForMobile(segments, isMobile)
 
+  const getMobileFriendlyLabel = (label: string, isCurrent: boolean): string => {
+    if (!isMobile) return label
+    if (!isCurrent && label === 'Tableau de bord') return 'Accueil'
+    return label
+  }
+
   // Ne pas afficher le breadcrumb si on est sur la page d'accueil du dashboard
   if (pathname === '/dashboard' && segments.length === 1) {
     return null
@@ -313,17 +319,17 @@ export function DashboardBreadcrumb() {
                   <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
                 </span>
               ) : segment.isCurrent ? (
-                <BreadcrumbPage className="text-gray-600 font-medium truncate max-w-[120px] sm:max-w-none">
-                  {segment.label}
+                <BreadcrumbPage className="text-gray-600 font-medium whitespace-normal break-words leading-tight">
+                  {getMobileFriendlyLabel(segment.label, true)}
                 </BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
                   <Link 
                     href={segment.href!}
-                    className="text-gray-500 hover:text-gray-700 transition-colors truncate max-w-[100px] sm:max-w-none"
+                    className="text-gray-500 hover:text-gray-700 transition-colors whitespace-normal break-words leading-tight"
                     title={segment.label}
                   >
-                    {segment.label}
+                    {getMobileFriendlyLabel(segment.label, false)}
                   </Link>
                 </BreadcrumbLink>
               )}
