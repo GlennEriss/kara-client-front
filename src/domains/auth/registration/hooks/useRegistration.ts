@@ -140,6 +140,7 @@ export function useRegistration({
                     duration: 8000,
                   })
                   setSecurityCodeInput('')
+                  setIsCacheLoaded(true)
                   setIsLoading(false)
                   return
                 }

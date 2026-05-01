@@ -51,17 +51,21 @@ export class MembershipServiceV2 implements IMembershipService {
 
   async approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<void> {
     const { requestId, adminId, membershipType, companyId, professionId, adhesionPdfURL, requestSnapshot } = params
-    const request = requestSnapshot ?? null
+    const request = requestSnapshot ?? await this.repository.getById(requestId)
+
+    if (!request) {
+      throw new Error(`Demande d'adhésion ${requestId} introuvable`)
+    }
 
     // ==================== VALIDATIONS ====================
     
     // Vérifier que la demande est payée
-    if (request && !request.isPaid) {
+    if (!request.isPaid) {
       throw new Error('La demande doit être payée avant approbation')
     }
 
     // Vérifier que le statut permet l'approbation
-    if (request && request.status !== 'pending' && request.status !== 'under_review') {
+    if (request.status !== 'pending' && request.status !== 'under_review') {
       throw new Error(`Statut invalide pour approbation: ${request.status}`)
     }
 
@@ -113,8 +117,8 @@ export class MembershipServiceV2 implements IMembershipService {
     }
 
     // Générer/télécharger le PDF en arrière-plan pour ne pas ralentir l'approbation UX.
-    const firstName = request?.identity?.firstName || ''
-    const lastName = request?.identity?.lastName || ''
+    const firstName = request.identity?.firstName || ''
+    const lastName = request.identity?.lastName || ''
     void (async () => {
       try {
         const pdfBlob = await generateCredentialsPDF({

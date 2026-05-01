@@ -80,7 +80,6 @@ export function MembershipsListTabs({
                   key={tab.value}
                   type="button"
                   onClick={() => onTabChange(tab.value)}
-                  data-testid={`memberships-list-tab-${tab.value}`}
                   className={`shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full border-2 font-semibold text-sm whitespace-nowrap transition-all duration-200 ${
                     isActive
                       ? 'bg-[#234D65] text-white border-[#234D65] shadow-lg shadow-[#234D65]/20'
