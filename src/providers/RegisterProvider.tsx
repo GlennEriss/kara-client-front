@@ -653,7 +653,6 @@ export function RegisterProvider({ children, initialData, requestId: adminReques
     try {
       // Nettoyer les données avant validation
       const currentData = getValues()
-      console.log('currentData', currentData)
       if ('insurance' in currentData) {
         console.warn('Suppression de la section insurance obsolète des données du formulaire')
         delete (currentData as any).insurance
@@ -743,8 +742,6 @@ export function RegisterProvider({ children, initialData, requestId: adminReques
         if (!result.success || !result.requestId) {
           throw new Error(result.error || 'Échec de l\'enregistrement de la demande d\'adhésion')
         }
-
-        console.log('membershipRequestId', result.requestId)
 
         // Succès - sauvegarder les données de soumission et nettoyer le cache du formulaire
         const userData = {

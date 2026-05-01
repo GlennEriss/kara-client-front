@@ -50,10 +50,9 @@ export class MembershipServiceV2 implements IMembershipService {
   }
 
   async approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<void> {
-    const { requestId, adminId, membershipType, companyId, professionId, adhesionPdfURL } = params
+    const { requestId, adminId, membershipType, companyId, professionId, adhesionPdfURL, requestSnapshot } = params
+    const request = requestSnapshot ?? await this.repository.getById(requestId)
 
-    // Récupérer la demande
-    const request = await this.repository.getById(requestId)
     if (!request) {
       throw new Error(`Demande d'adhésion ${requestId} introuvable`)
     }
@@ -117,22 +116,26 @@ export class MembershipServiceV2 implements IMembershipService {
       throw new Error('Erreur lors de l\'approbation de la demande d\'adhésion')
     }
 
-    // Générer et télécharger le PDF des identifiants de connexion
-    try {
-      const pdfBlob = await generateCredentialsPDF({
-        firstName: request.identity.firstName || '',
-        lastName: request.identity.lastName || '',
-        matricule: result.data.matricule || '',
-        email: result.data.email || '',
-        password: result.data.password || '',
-      })
+    // Générer/télécharger le PDF en arrière-plan pour ne pas ralentir l'approbation UX.
+    const firstName = request.identity?.firstName || ''
+    const lastName = request.identity?.lastName || ''
+    void (async () => {
+      try {
+        const pdfBlob = await generateCredentialsPDF({
+          firstName,
+          lastName,
+          matricule: result.data.matricule || '',
+          email: result.data.email || '',
+          password: result.data.password || '',
+        })
 
-      const filename = formatCredentialsFilename(result.data.matricule)
-      downloadPDF(pdfBlob, filename)
-    } catch (error) {
-      // Ne pas bloquer le processus d'approbation si le PDF échoue
-      console.error('[MembershipServiceV2] Erreur lors de la génération du PDF des identifiants:', error)
-    }
+        const filename = formatCredentialsFilename(result.data.matricule)
+        downloadPDF(pdfBlob, filename)
+      } catch (error) {
+        // Ne pas bloquer le processus d'approbation si le PDF échoue
+        console.error('[MembershipServiceV2] Erreur lors de la génération du PDF des identifiants:', error)
+      }
+    })()
   }
 
   async rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void> {

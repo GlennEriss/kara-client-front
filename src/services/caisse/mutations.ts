@@ -256,8 +256,10 @@ function getContractStartDate(contract: any): Date | null {
 export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; withFees?: boolean; paymentMethodOther?: string; agentRecouvrementId?: string }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
-  const settings = await getActiveSettings((contract as any).caisseType)
-  let payments = await listPayments(input.contractId)
+  const [settings, payments] = await Promise.all([
+    getActiveSettings((contract as any).caisseType),
+    listPayments(input.contractId),
+  ])
   let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
   const isDailyType = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
 
@@ -513,8 +515,11 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   await updateContract(input.contractId, updated)
   
   // Recalculer le statut du contrat après le paiement
-  const { recomputeNow } = await import('@/services/caisse/readers')
-  await recomputeNow(input.contractId)
+  void import('@/services/caisse/readers')
+    .then(({ recomputeNow }) => recomputeNow(input.contractId))
+    .catch((error) => {
+      console.warn('[pay] Recalcul différé du contrat échoué:', error)
+    })
   
   return { status, penalty, bonus, nextDueAt }
 }
@@ -1040,7 +1045,10 @@ export async function payGroup(input: {
     throw new Error('Cette fonction est réservée aux contrats de groupe')
   }
   
-  const payments = await listPayments(input.contractId)
+  const [payments, settings] = await Promise.all([
+    listPayments(input.contractId),
+    getActiveSettings((contract as any).caisseType),
+  ])
   let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
   const isDailyTypeGroup = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
 
@@ -1099,7 +1107,6 @@ export async function payGroup(input: {
   // }
 
   // Calculer les pénalités pour cette contribution
-  const settings = await getActiveSettings((contract as any).caisseType)
   let penalty = 0
   if (window === 'LATE_WITH_PENALTY') {
     penalty = computePenalty(contract.monthlyAmount, delayDays, settings as any)
@@ -1249,8 +1256,11 @@ export async function payGroup(input: {
   })
 
   // Recalculer le statut du contrat après le paiement
-  const { recomputeNow } = await import('@/services/caisse/readers')
-  await recomputeNow(input.contractId)
+  void import('@/services/caisse/readers')
+    .then(({ recomputeNow }) => recomputeNow(input.contractId))
+    .catch((error) => {
+      console.warn('[payGroup] Recalcul différé du contrat échoué:', error)
+    })
 
   return { 
     status: paymentUpdates.status || 'IN_PROGRESS', 

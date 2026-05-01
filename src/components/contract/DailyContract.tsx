@@ -564,9 +564,6 @@ export default function DailyContract({ id }: Props) {
         toast.success('Versement enregistré')
       }
 
-      queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
-      await new Promise((r) => setTimeout(r, 300))
-      await refetch()
       setShowPaymentModal(false)
       setSelectedDate(null)
       setPaymentAmount('')
@@ -576,6 +573,8 @@ export default function DailyContract({ id }: Props) {
       setPaymentFile(undefined)
       setSelectedGroupMemberId('')
       setAgentRecouvrementId('')
+      void queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
+      void refetch()
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de l\'enregistrement')
     } finally {
@@ -2753,9 +2752,6 @@ export default function DailyContract({ id }: Props) {
                     toast.success('Versement en retard enregistré avec succès')
                   }
 
-                  queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
-                  await new Promise((r) => setTimeout(r, 300))
-                  await refetch()
                   setShowLatePaymentModal(false)
                   setSelectedDate(null)
                   setPaymentAmount('')
@@ -2764,6 +2760,8 @@ export default function DailyContract({ id }: Props) {
                   setPaymentWithFees(undefined)
                   setPaymentFile(undefined)
                   setSelectedGroupMemberId('')
+                  void queryClient.invalidateQueries({ queryKey: ['caisse-contract', id] })
+                  void refetch()
                 } catch (err: any) {
                   toast.error(err?.message || 'Erreur lors de l\'enregistrement')
                 } finally {

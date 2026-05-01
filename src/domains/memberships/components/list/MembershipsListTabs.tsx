@@ -68,8 +68,43 @@ export function MembershipsListTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as MembersTab)} data-testid="memberships-list-tabs">
-      <div className="flex items-center gap-2 border-b border-gray-200">
-        <div className="flex-1 min-w-0">
+      <div className="border-b border-gray-200">
+        {/* Mobile/Tablet: badges scrollables */}
+        <div className="lg:hidden">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-2 px-1 touch-pan-x">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              const isActive = activeTab === tab.value
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => onTabChange(tab.value)}
+                  className={`shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full border-2 font-semibold text-sm whitespace-nowrap transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#234D65] text-white border-[#234D65] shadow-lg shadow-[#234D65]/20'
+                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span
+                      className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center ${
+                        isActive ? 'bg-white/25 text-white' : 'bg-white text-gray-700'
+                      }`}
+                    >
+                      {tab.count > 99 ? '99+' : tab.count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Desktop: tabs actuels */}
+        <div className="hidden lg:block flex-1 min-w-0">
           <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
             {tabs.map((tab) => {
               const Icon = tab.icon
