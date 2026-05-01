@@ -11,6 +11,8 @@ export interface DayWithStatus {
   status: CalendarDayStatus
   payment: unknown | null
   isToday: boolean
+  /** Index de la période d'échéance (M1 => 0, M2 => 1, ...), null si indisponible */
+  periodIndex: number | null
 }
 
 export const MONTH_NAMES = [

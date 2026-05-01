@@ -15,6 +15,7 @@ export interface ContractCalendarGridProps {
   onDayClick: (date: Date) => void
   onPrevMonth: () => void
   onNextMonth: () => void
+  totalMonths?: number
   /** Désactiver les clics (ex. contrat clôturé) */
   disabled?: boolean
 }
@@ -25,8 +26,34 @@ export function ContractCalendarGrid({
   onDayClick,
   onPrevMonth,
   onNextMonth,
+  totalMonths = 0,
   disabled = false,
 }: ContractCalendarGridProps) {
+  const periodPalette = React.useMemo(
+    () => [
+      'bg-sky-50 border-sky-200',
+      'bg-emerald-50 border-emerald-200',
+      'bg-amber-50 border-amber-200',
+      'bg-violet-50 border-violet-200',
+      'bg-rose-50 border-rose-200',
+      'bg-teal-50 border-teal-200',
+      'bg-orange-50 border-orange-200',
+      'bg-indigo-50 border-indigo-200',
+      'bg-lime-50 border-lime-200',
+      'bg-cyan-50 border-cyan-200',
+      'bg-fuchsia-50 border-fuchsia-200',
+      'bg-stone-50 border-stone-200',
+    ],
+    []
+  )
+
+  const getPeriodStyle = (periodIndex: number | null) => {
+    if (periodIndex == null || periodIndex < 0) {
+      return 'bg-white border-gray-200'
+    }
+    return periodPalette[periodIndex % periodPalette.length]
+  }
+
   const handleDayClick = (day: DayWithStatus) => {
     if (disabled) return
     if (day.status === 'unavailable') return
@@ -89,6 +116,7 @@ export function ContractCalendarGrid({
 
             let dayStyle = ''
             let dayContent: React.ReactNode = null
+            const basePeriodStyle = getPeriodStyle(day.periodIndex)
 
             if (day.status === 'unavailable' || !isCurrentMonth) {
               dayStyle = 'bg-gray-50 text-gray-400 cursor-not-allowed'
@@ -101,7 +129,7 @@ export function ContractCalendarGrid({
               }
             } else if (day.status === 'paid') {
               dayStyle =
-                'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
+                `${basePeriodStyle} hover:brightness-[0.98] cursor-pointer`
               dayContent = (
                 <div className="flex items-center justify-center gap-0.5 text-xs text-green-600">
                   <CheckCircle className="h-3 w-3" />
@@ -109,17 +137,16 @@ export function ContractCalendarGrid({
               )
             } else if (day.status === 'due') {
               dayStyle =
-                'bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer'
+                `${basePeriodStyle} hover:brightness-[0.98] cursor-pointer`
               dayContent = (
                 <div className="flex items-center justify-center gap-1 text-xs text-red-600">
                   <AlertCircle className="h-3 w-3" />
                 </div>
               )
             } else {
-              dayStyle =
-                'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+              dayStyle = `${basePeriodStyle} hover:brightness-[0.98] cursor-pointer`
               dayContent = (
-                <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                <div className="flex items-center justify-center gap-1 text-xs">
                   <Calendar className="h-3 w-3" />
                 </div>
               )
@@ -128,10 +155,13 @@ export function ContractCalendarGrid({
             if (day.isToday && isCurrentMonth && day.status !== 'unavailable') {
               if (day.status === 'paid') {
                 dayStyle =
-                  'bg-green-100 border-green-300 hover:bg-green-200 cursor-pointer ring-2 ring-blue-400'
+                  `${basePeriodStyle} cursor-pointer ring-2 ring-blue-400 border-green-400`
+              } else if (day.status === 'due') {
+                dayStyle =
+                  `${basePeriodStyle} cursor-pointer ring-2 ring-blue-400 border-red-400`
               } else {
                 dayStyle =
-                  'bg-red-100 border-red-300 hover:bg-red-200 cursor-pointer ring-2 ring-blue-400'
+                  `${basePeriodStyle} cursor-pointer ring-2 ring-blue-400 border-blue-400`
               }
             }
 
@@ -156,6 +186,11 @@ export function ContractCalendarGrid({
                   {day.date.getDate()}
                 </div>
                 {isCurrentMonth && dayContent}
+                {isCurrentMonth && day.status !== 'unavailable' && day.periodIndex != null && (
+                  <div className="mt-1 text-[10px] font-semibold text-slate-600">
+                    M{day.periodIndex + 1}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -163,7 +198,7 @@ export function ContractCalendarGrid({
 
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <div className="text-xs font-medium text-gray-700 mb-3">Légende :</div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs mb-4">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded" />
               <span className="text-green-700">Versé</span>
@@ -171,10 +206,6 @@ export function ContractCalendarGrid({
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded" />
               <span className="text-red-700">À verser (passé)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-white border-2 border-gray-200 rounded" />
-              <span className="text-gray-700">À venir</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-gray-100 border-2 border-gray-200 rounded" />
@@ -185,6 +216,23 @@ export function ContractCalendarGrid({
               <span className="text-blue-700">Aujourd&apos;hui</span>
             </div>
           </div>
+
+          {totalMonths > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-700 mb-2">Périodes d&apos;échéance :</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                {Array.from({ length: totalMonths }).map((_, index) => {
+                  const paletteClass = periodPalette[index % periodPalette.length]
+                  return (
+                    <div key={`period-legend-${index}`} className="flex items-center gap-2">
+                      <div className={`w-4 h-4 border-2 rounded ${paletteClass}`} />
+                      <span className="text-slate-700">Période M{index + 1}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

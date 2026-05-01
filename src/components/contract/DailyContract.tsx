@@ -787,6 +787,7 @@ export default function DailyContract({ id }: Props) {
                 next.setMonth(next.getMonth() + 1)
                 setCurrentMonth(next)
               }}
+              totalMonths={totalMonths}
               disabled={isClosed}
             />
           </div>
