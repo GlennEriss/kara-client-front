@@ -1343,7 +1343,14 @@ export default function CreditContractDetail({
       return
     }
 
-    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+    const previewWindow = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    if (previewWindow) {
+      try {
+        previewWindow.opener = null
+      } catch {
+        // Ignore les erreurs liées au navigateur
+      }
+    }
 
     try {
       setIsGeneratingGlobalFacturePdf(true)
@@ -1434,7 +1441,14 @@ export default function CreditContractDetail({
       return
     }
 
-    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+    const previewWindow = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    if (previewWindow) {
+      try {
+        previewWindow.opener = null
+      } catch {
+        // Ignore les erreurs liées au navigateur
+      }
+    }
 
     try {
       setIsGeneratingLossHistoryPdf(true)
@@ -1512,7 +1526,14 @@ export default function CreditContractDetail({
       return
     }
 
-    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+    const previewWindow = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    if (previewWindow) {
+      try {
+        previewWindow.opener = null
+      } catch {
+        // Ignore les erreurs liées au navigateur
+      }
+    }
 
     try {
       setIsGeneratingGuarantorCommissionsPdf(true)

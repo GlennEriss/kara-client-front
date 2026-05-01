@@ -1,20 +1,162 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMember } from '@/hooks/useMembers'
 import { CreditContract } from '@/types/types'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
-import { Download, FileText, Loader2, Monitor, Save, Smartphone } from 'lucide-react'
-import React, { useState } from 'react'
+import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Save, Smartphone } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import QuittanceCreditSpecialePDF from './QuittanceCreditSpecialePDF'
+import QuittanceCreditSpecialePDF, {
+  EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA,
+  type QuittanceCreditSpecialeFillData,
+} from './QuittanceCreditSpecialePDF'
 
 interface QuittanceCreditSpecialePDFModalProps {
   isOpen: boolean
   onClose: () => void
   contract: CreditContract
+}
+
+const SignaturePad = ({
+  title,
+  value,
+  onChange,
+}: {
+  title: string
+  value: string | null
+  onChange: (value: string | null) => void
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    const rect = canvas.getBoundingClientRect()
+    const ratio = Math.max(window.devicePixelRatio || 1, 1)
+    canvas.width = Math.floor(rect.width * ratio)
+    canvas.height = Math.floor(rect.height * ratio)
+
+    const context = canvas.getContext('2d')
+    if (!context) return null
+
+    context.scale(ratio, ratio)
+    context.lineWidth = 2
+    context.lineCap = 'round'
+    context.strokeStyle = '#1f2937'
+    return context
+  }
+
+  useEffect(() => {
+    const context = setupCanvas()
+    if (!context) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+
+    if (value) {
+      const image = new window.Image()
+      image.onload = () => {
+        context.drawImage(image, 0, 0, rect.width, rect.height)
+      }
+      image.src = value
+    }
+  }, [value])
+
+  const getCanvasPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!canvas || !context || !position) return
+
+    canvas.setPointerCapture(event.pointerId)
+    setIsDrawing(true)
+    context.beginPath()
+    context.moveTo(position.x, position.y)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    const context = canvasRef.current?.getContext('2d')
+    const position = getCanvasPosition(event)
+    if (!context || !position) return
+
+    context.lineTo(position.x, position.y)
+    context.stroke()
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas || !isDrawing) return
+    canvas.releasePointerCapture(event.pointerId)
+    setIsDrawing(false)
+    onChange(canvas.toDataURL('image/png'))
+  }
+
+  const handleClear = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    const rect = canvas.getBoundingClientRect()
+
+    context.clearRect(0, 0, rect.width, rect.height)
+    context.strokeStyle = '#d1d5db'
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(12, rect.height - 18)
+    context.lineTo(rect.width - 12, rect.height - 18)
+    context.stroke()
+    context.strokeStyle = '#1f2937'
+    context.lineWidth = 2
+    onChange(null)
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold text-kara-primary-dark">{title}</p>
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleClear}>
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Effacer
+        </Button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="h-24 w-full cursor-crosshair rounded-md border border-dashed border-gray-300 bg-white touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      />
+    </div>
+  )
 }
 
 const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalProps> = ({
@@ -24,7 +166,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
 }) => {
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [fillData, setFillData] = useState<QuittanceCreditSpecialeFillData>(EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA)
 
   // Récupérer le téléphone du garant (membre)
   const { data: guarantorData } = useMember(
@@ -40,15 +182,23 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
   const firstName = (contract.clientFirstName || 'Inconnu').replace(/[\s/\\?*:|"<>]/g, '_').trim()
   const quittanceFilename = `Quittance_Empunt_${lastName}_${firstName}_du_membre.pdf`
 
-  // Détecter si on est sur mobile
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024) // lg breakpoint
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  useEffect(() => {
+    if (!isOpen) return
+    setFillData(EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA)
+  }, [isOpen, contract.id])
+
+  const pdfDocument = useMemo(
+    () => (
+      <QuittanceCreditSpecialePDF
+        contract={contract}
+        guarantorPhone={guarantorPhone}
+        memberData={memberData}
+        guarantorData={guarantorData}
+        fillData={fillData}
+      />
+    ),
+    [contract, guarantorPhone, memberData, guarantorData, fillData]
+  )
 
   // Fonction pour télécharger le PDF
   const handleDownload = async () => {
@@ -62,6 +212,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
           guarantorPhone={guarantorPhone}
           memberData={memberData}
           guarantorData={guarantorData}
+          fillData={fillData}
         />
       )
 
@@ -96,6 +247,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
           guarantorPhone={guarantorPhone}
           memberData={memberData}
           guarantorData={guarantorData}
+          fillData={fillData}
         />
       )
 
@@ -195,14 +347,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
 
               {/* Boutons d'action mobile */}
               <BlobProvider
-                document={
-                  <QuittanceCreditSpecialePDF
-                    contract={contract}
-                    guarantorPhone={guarantorPhone}
-                    memberData={memberData}
-                    guarantorData={guarantorData}
-                  />
-                }
+                document={pdfDocument}
               >
                 {({ url, loading }) => (
                   <div className="w-full space-y-2">
@@ -253,20 +398,41 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
           </div>
 
           {/* Version desktop */}
-          <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-            <PDFViewer style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              borderRadius: '0.75rem'
-            }}>
-              <QuittanceCreditSpecialePDF
-                contract={contract}
-                guarantorPhone={guarantorPhone}
-                memberData={memberData}
-                guarantorData={guarantorData}
-              />
-            </PDFViewer>
+          <div className="hidden lg:flex h-full gap-4">
+            <Card className="w-[420px] h-full overflow-y-auto border border-gray-200 shadow-sm">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <PenLine className="w-4 h-4 text-kara-primary-dark" />
+                  <h3 className="text-sm font-bold text-kara-primary-dark">Signatures numériques</h3>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Ces signatures seront appliquées à la quittance PDF téléchargée et enregistrée.
+                </p>
+                <div className="space-y-3">
+                  <SignaturePad
+                    title="Signature de l'épargnant"
+                    value={fillData.memberSignature}
+                    onChange={(value) => setFillData((prev) => ({ ...prev, memberSignature: value }))}
+                  />
+                  <SignaturePad
+                    title="Signature du secrétaire exécutif"
+                    value={fillData.secretarySignature}
+                    onChange={(value) => setFillData((prev) => ({ ...prev, secretarySignature: value }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex-1 rounded-xl overflow-hidden shadow-inner bg-white border">
+              <PDFViewer style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                borderRadius: '0.75rem'
+              }}>
+                {pdfDocument}
+              </PDFViewer>
+            </div>
           </div>
         </div>
 

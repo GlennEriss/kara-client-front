@@ -4,7 +4,7 @@ import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/qui
 import { getNationalityName } from '@/constantes/nationality'
 import type { User } from '@/types/types'
 import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
-import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -76,7 +76,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     textDecoration: 'underline',
-    marginBottom: 50,
+    marginBottom: 10,
+  },
+  signatureImage: {
+    width: 170,
+    height: 56,
+    objectFit: 'contain',
+  },
+  signaturePlaceholder: {
+    width: 170,
+    height: 56,
+    borderWidth: 0.5,
+    borderColor: '#94a3b8',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
   },
   // Footer
   footer: {
@@ -165,6 +178,17 @@ interface QuittanceCreditSpecialePDFProps {
   guarantorPhone?: string
   memberData?: User | null
   guarantorData?: User | null
+  fillData?: QuittanceCreditSpecialeFillData
+}
+
+export interface QuittanceCreditSpecialeFillData {
+  memberSignature: string | null
+  secretarySignature: string | null
+}
+
+export const EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA: QuittanceCreditSpecialeFillData = {
+  memberSignature: null,
+  secretarySignature: null,
 }
 
 const QuittanceCreditSpecialePDF = ({
@@ -172,6 +196,7 @@ const QuittanceCreditSpecialePDF = ({
   guarantorPhone: guarantorPhoneProp,
   memberData,
   guarantorData,
+  fillData,
 }: QuittanceCreditSpecialePDFProps) => {
   const formatDate = (date: Date | any) => {
     if (!date) return '../../....'
@@ -315,6 +340,14 @@ const QuittanceCreditSpecialePDF = ({
 
   // Lieu (Libreville par défaut)
   const place = 'Libreville'
+  const resolvedFillData = { ...EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA, ...fillData }
+
+  const renderSignatureCapture = (signature: string | null) =>
+    signature ? (
+      <Image src={signature} style={styles.signatureImage} cache={false} />
+    ) : (
+      <View style={styles.signaturePlaceholder} />
+    )
 
   return (
     <Document>
@@ -358,11 +391,15 @@ const QuittanceCreditSpecialePDF = ({
         <View style={styles.signatureSection}>
           <View style={styles.signatureBox}>
             <Text style={styles.signatureLabel}>Signature du Secrétaire exécutif</Text>
+            {renderSignatureCapture(resolvedFillData.secretarySignature)}
           </View>
           <View style={styles.signatureBox}>
             <Text style={[styles.signatureLabel, { textAlign: 'right' }]}>
               Signature de l'épargnant (Précédée de la mention Lu et Approuvé)
             </Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              {renderSignatureCapture(resolvedFillData.memberSignature)}
+            </View>
           </View>
         </View>
 
