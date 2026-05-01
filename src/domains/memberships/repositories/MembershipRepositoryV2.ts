@@ -538,62 +538,71 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
         isPaid: false,
       }
 
-      // Upload de la photo de profil si fournie via DocumentRepository
+      // Upload des images en parallèle pour accélérer la soumission du step final.
+      const uploadTasks: Array<Promise<void>> = []
+
       if (formData.identity.photo && typeof formData.identity.photo === 'string' && formData.identity.photo.startsWith('data:image/')) {
-        try {
-          // Utiliser DocumentRepository pour uploader l'image
-          // userIdentifier comme memberId temporaire, matricule comme contractId
-          const { url: fileURL, path: filePATH } = await this.documentRepository.uploadImage(
-            formData.identity.photo,
-            userIdentifier,
-            matricule,
-            'membership-request-profile-photo'
-          )
-
-          membershipData.identity.photoURL = fileURL
-          membershipData.identity.photoPath = filePATH
-        } catch (photoError: any) {
-          console.error("❌ ERREUR lors de l'upload de la photo de profil:", photoError)
-          console.warn("   ⚠️ Continuons la création du document sans photo de profil")
-        }
+        uploadTasks.push(
+          this.documentRepository
+            .uploadImage(
+              formData.identity.photo,
+              userIdentifier,
+              matricule,
+              'membership-request-profile-photo'
+            )
+            .then(({ url: fileURL, path: filePATH }) => {
+              membershipData.identity.photoURL = fileURL
+              membershipData.identity.photoPath = filePATH
+            })
+            .catch((photoError: any) => {
+              console.error("❌ ERREUR lors de l'upload de la photo de profil:", photoError)
+              console.warn("   ⚠️ Continuons la création du document sans photo de profil")
+            })
+        )
       }
 
-      // Upload de la photo recto du document si fournie via DocumentRepository
       if (formData.documents.documentPhotoFront && typeof formData.documents.documentPhotoFront === 'string' && formData.documents.documentPhotoFront.startsWith('data:image/')) {
-        try {
-          // Utiliser DocumentRepository pour uploader l'image
-          const { url: frontURL, path: frontPATH } = await this.documentRepository.uploadImage(
-            formData.documents.documentPhotoFront,
-            userIdentifier,
-            matricule,
-            'membership-request-document-front'
-          )
-
-          membershipData.documents.documentPhotoFrontURL = frontURL
-          membershipData.documents.documentPhotoFrontPath = frontPATH
-        } catch (frontPhotoError: any) {
-          console.error("❌ ERREUR lors de l'upload de la photo recto du document:", frontPhotoError)
-          console.warn("   ⚠️ Continuons la création du document sans photo recto")
-        }
+        uploadTasks.push(
+          this.documentRepository
+            .uploadImage(
+              formData.documents.documentPhotoFront,
+              userIdentifier,
+              matricule,
+              'membership-request-document-front'
+            )
+            .then(({ url: frontURL, path: frontPATH }) => {
+              membershipData.documents.documentPhotoFrontURL = frontURL
+              membershipData.documents.documentPhotoFrontPath = frontPATH
+            })
+            .catch((frontPhotoError: any) => {
+              console.error("❌ ERREUR lors de l'upload de la photo recto du document:", frontPhotoError)
+              console.warn("   ⚠️ Continuons la création du document sans photo recto")
+            })
+        )
       }
 
-      // Upload de la photo verso du document si fournie via DocumentRepository
       if (formData.documents.documentPhotoBack && typeof formData.documents.documentPhotoBack === 'string' && formData.documents.documentPhotoBack.startsWith('data:image/')) {
-        try {
-          // Utiliser DocumentRepository pour uploader l'image
-          const { url: backURL, path: backPATH } = await this.documentRepository.uploadImage(
-            formData.documents.documentPhotoBack,
-            userIdentifier,
-            matricule,
-            'membership-request-document-back'
-          )
+        uploadTasks.push(
+          this.documentRepository
+            .uploadImage(
+              formData.documents.documentPhotoBack,
+              userIdentifier,
+              matricule,
+              'membership-request-document-back'
+            )
+            .then(({ url: backURL, path: backPATH }) => {
+              membershipData.documents.documentPhotoBackURL = backURL
+              membershipData.documents.documentPhotoBackPath = backPATH
+            })
+            .catch((backPhotoError: any) => {
+              console.error("❌ ERREUR lors de l'upload de la photo verso du document:", backPhotoError)
+              console.warn("   ⚠️ Continuons la création du document sans photo verso")
+            })
+        )
+      }
 
-          membershipData.documents.documentPhotoBackURL = backURL
-          membershipData.documents.documentPhotoBackPath = backPATH
-        } catch (backPhotoError: any) {
-          console.error("❌ ERREUR lors de l'upload de la photo verso du document:", backPhotoError)
-          console.warn("   ⚠️ Continuons la création du document sans photo verso")
-        }
+      if (uploadTasks.length > 0) {
+        await Promise.all(uploadTasks)
       }
 
       // Nettoyer toutes les valeurs undefined avant d'envoyer à Firestore
