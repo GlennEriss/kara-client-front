@@ -1,7 +1,7 @@
 'use client'
 
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,7 +19,19 @@ import { usePayCreditPenalty, useUpdateCreditPenaltyPayment } from '@/hooks/useC
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import type { CreditPaymentMode, CreditPenalty } from '@/types/types'
 import { format } from 'date-fns'
-import { Loader2, Upload } from 'lucide-react'
+import {
+  Banknote,
+  Building2,
+  Calendar,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Smartphone,
+  Upload,
+} from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -31,13 +43,6 @@ interface CreditPenaltyPaymentModalProps {
   modalMode?: 'pay' | 'edit'
   onSuccess?: () => void
 }
-
-const PAYMENT_MODE_OPTIONS: Array<{ value: CreditPaymentMode; label: string }> = [
-  { value: 'airtel_money', label: 'Airtel Money' },
-  { value: 'mobicash', label: 'Mobicash' },
-  { value: 'cash', label: 'Espèce' },
-  { value: 'bank_transfer', label: 'Virement bancaire' },
-]
 
 export default function CreditPenaltyPaymentModal({
   isOpen,
@@ -157,9 +162,12 @@ export default function CreditPenaltyPaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Modifier le paiement de la pénalité' : 'Payer une pénalité'}</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
+            <DollarSign className="h-6 w-6" />
+            {isEditMode ? 'Modifier le paiement de la pénalité' : 'Payer une pénalité'}
+          </DialogTitle>
           <DialogDescription>
             {isEditMode
               ? 'Mettez à jour les informations d’encaissement de cette pénalité payée.'
@@ -167,10 +175,13 @@ export default function CreditPenaltyPaymentModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6 py-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="penalty-payment-date">Date de paiement *</Label>
+              <Label htmlFor="penalty-payment-date" className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Date de paiement *
+              </Label>
               <Input
                 id="penalty-payment-date"
                 type="date"
@@ -180,7 +191,10 @@ export default function CreditPenaltyPaymentModal({
               />
             </div>
             <div>
-              <Label htmlFor="penalty-payment-time">Heure de paiement *</Label>
+              <Label htmlFor="penalty-payment-time" className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Heure de paiement *
+              </Label>
               <Input
                 id="penalty-payment-time"
                 type="time"
@@ -192,73 +206,119 @@ export default function CreditPenaltyPaymentModal({
           </div>
 
           <div>
-            <Label htmlFor="penalty-amount">Montant de la pénalité</Label>
+            <Label htmlFor="penalty-amount" className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Montant de la pénalité
+            </Label>
             <Input
               id="penalty-amount"
               type="text"
               value={penalty ? `${penalty.amount.toLocaleString('fr-FR')} FCFA` : ''}
               disabled
+              className="bg-muted cursor-not-allowed"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Montant fixe de la pénalité, non modifiable.
+            </p>
           </div>
 
           <div>
-            <Label>Moyen de paiement *</Label>
-            <Select
-              value={mode}
-              onValueChange={(value) => {
-                const paymentMode = value as CreditPaymentMode
-                setMode(paymentMode)
-                if (paymentMode !== 'airtel_money' && paymentMode !== 'mobicash') {
-                  setWithFees(undefined)
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_MODE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="flex items-center gap-2 mb-3">
+              <Smartphone className="h-4 w-4 text-muted-foreground" />
+              Moyen de paiement *
+            </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="penaltyPaymentMode"
+                  value="airtel_money"
+                  checked={mode === 'airtel_money'}
+                  onChange={(e) => setMode(e.target.value as CreditPaymentMode)}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-red-100 rounded-lg p-2">
+                    <Smartphone className="h-5 w-5 text-red-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Airtel Money</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="penaltyPaymentMode"
+                  value="mobicash"
+                  checked={mode === 'mobicash'}
+                  onChange={(e) => setMode(e.target.value as CreditPaymentMode)}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-blue-100 rounded-lg p-2">
+                    <Banknote className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Mobicash</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="penaltyPaymentMode"
+                  value="cash"
+                  checked={mode === 'cash'}
+                  onChange={(e) => {
+                    setMode(e.target.value as CreditPaymentMode)
+                    setWithFees(undefined)
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-green-100 rounded-lg p-2">
+                    <DollarSign className="h-5 w-5 text-green-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Espèce</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="penaltyPaymentMode"
+                  value="bank_transfer"
+                  checked={mode === 'bank_transfer'}
+                  onChange={(e) => {
+                    setMode(e.target.value as CreditPaymentMode)
+                    setWithFees(undefined)
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-purple-100 rounded-lg p-2">
+                    <Building2 className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Virement bancaire</span>
+                </div>
+              </label>
+            </div>
           </div>
 
           {(mode === 'airtel_money' || mode === 'mobicash') && (
-            <div>
-              <Label className="mb-2 block">Options de frais *</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <label
-                  className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer transition-colors ${
-                    withFees === true
-                      ? 'border-[#234D65] bg-[#234D65]/5 text-[#234D65]'
-                      : 'border-gray-200'
-                  }`}
-                >
-                  <Checkbox
-                    checked={withFees === true}
-                    onCheckedChange={() => setWithFees(true)}
-                    className="data-[state=checked]:border-[#234D65] data-[state=checked]:bg-[#234D65]"
-                  />
-                  <span className="text-sm">Avec frais</span>
-                </label>
-                <label
-                  className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer transition-colors ${
-                    withFees === false
-                      ? 'border-[#234D65] bg-[#234D65]/5 text-[#234D65]'
-                      : 'border-gray-200'
-                  }`}
-                >
-                  <Checkbox
-                    checked={withFees === false}
-                    onCheckedChange={() => setWithFees(false)}
-                    className="data-[state=checked]:border-[#234D65] data-[state=checked]:bg-[#234D65]"
-                  />
-                  <span className="text-sm">Sans frais</span>
-                </label>
-              </div>
+            <div className="mt-1">
+              <Label className="text-sm font-medium">Frais de transaction *</Label>
+              <Select
+                value={withFees === undefined ? '' : withFees ? 'yes' : 'no'}
+                onValueChange={(value) => setWithFees(value === 'yes')}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Avec ou sans frais ?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Avec frais</SelectItem>
+                  <SelectItem value="no">Sans frais</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -275,37 +335,59 @@ export default function CreditPenaltyPaymentModal({
 
           <div>
             <Label htmlFor="penalty-proof" className="flex items-center gap-2 mb-2">
-              <Upload className="h-4 w-4" />
-              Preuve de paiement
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              {isEditMode ? 'Nouvelle preuve (optionnel)' : 'Preuve de paiement'}
             </Label>
+            {isEditMode && penalty?.proofUrl && (
+              <div className="mb-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <p className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  Preuve actuelle
+                </p>
+                <a
+                  href={penalty.proofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#224D62] hover:underline flex items-center gap-1"
+                >
+                  Voir la preuve actuelle
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
             <Input
               id="penalty-proof"
               type="file"
               accept="image/*"
               onChange={handleFileChange}
+              disabled={isCompressing || activeMutation.isPending}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Formats acceptés : JPEG, PNG, WebP (max 10 MB).
+            </p>
             {isCompressing && (
-              <p className="mt-1 text-sm text-gray-500">Compression de l&apos;image...</p>
+              <Alert className="mt-2 border-blue-200 bg-blue-50">
+                <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                <AlertDescription className="text-blue-700">
+                  Compression de l&apos;image...
+                </AlertDescription>
+              </Alert>
             )}
             {proofFile && !isCompressing && (
-              <p className="mt-1 text-sm text-gray-600">
-                Fichier : {proofFile.name} ({ImageCompressionService.formatFileSize(proofFile.size)})
-              </p>
-            )}
-            {!proofFile && isEditMode && penalty?.proofUrl && (
-              <a
-                href={penalty.proofUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex text-sm text-[#234D65] underline"
-              >
-                Voir la preuve actuelle
-              </a>
+              <Alert className="mt-2 border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700">
+                  <strong>{proofFile.name}</strong> ({ImageCompressionService.formatFileSize(proofFile.size)})
+                </AlertDescription>
+              </Alert>
             )}
           </div>
 
           <div>
-            <Label htmlFor="penalty-comment">Commentaire</Label>
+            <Label htmlFor="penalty-comment" className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Commentaire
+            </Label>
             <Textarea
               id="penalty-comment"
               value={comment}
@@ -321,7 +403,7 @@ export default function CreditPenaltyPaymentModal({
             </Button>
             <Button
               type="submit"
-              className="bg-[#234D65] text-white hover:bg-[#1b3c4f]"
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
               disabled={activeMutation.isPending || isCompressing || !penalty}
             >
               {activeMutation.isPending ? (
