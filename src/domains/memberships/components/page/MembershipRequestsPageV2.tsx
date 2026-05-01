@@ -790,7 +790,7 @@ export function MembershipRequestsPageV2() {
       else if (w >= 1024) setItemsPerView(4)
       else if (w >= 768) setItemsPerView(3)
       else if (w >= 640) setItemsPerView(2)
-      else setItemsPerView(1) // Mobile : 1 seul item pour éviter débordement
+      else setItemsPerView(2) // Mobile : afficher 2 cartes de stats
     }
     update()
     window.addEventListener('resize', update)
@@ -818,6 +818,7 @@ export function MembershipRequestsPageV2() {
   }, [stats])
 
   const {
+    goTo,
     canGoPrev,
     canGoNext,
     translateX,
@@ -831,9 +832,26 @@ export function MembershipRequestsPageV2() {
     goNext,
   } = useCarousel(statsData.length, itemsPerView)
 
+  // Auto-défilement des stats sur mobile (toutes les ~3.5s)
+  useEffect(() => {
+    if (!isMobile) return
+    if (statsData.length <= 1) return
+
+    const interval = window.setInterval(() => {
+      if (isDragging) return
+      if (canGoNext) {
+        goNext()
+      } else {
+        goTo(0)
+      }
+    }, 3500)
+
+    return () => window.clearInterval(interval)
+  }, [isMobile, statsData.length, isDragging, canGoNext, goNext, goTo])
+
   return (
-    <div className="min-h-screen bg-kara-neutral-50">
-      <div className="space-y-3 md:space-y-6 px-2 py-3 sm:px-3 md:p-4 lg:p-6 xl:p-8">
+    <div className="min-h-screen bg-kara-neutral-50 overflow-x-hidden">
+      <div className="space-y-3 md:space-y-6 px-1 py-3 sm:px-3 md:p-4 lg:p-6 xl:p-8">
         {/* Header avec fond KARA - Réduit sur mobile */}
         <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-kara-primary-dark p-3 sm:p-4 md:p-6 lg:p-8">
           {/* Motif décoratif */}
@@ -879,7 +897,7 @@ export function MembershipRequestsPageV2() {
               >
                 <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 group-hover:animate-spin" />
                 <span className="hidden sm:inline">Actualiser</span>
-                <span className="sm:hidden">Actu</span>
+                <span className="sm:hidden">Actualiser</span>
               </Button>
             </div>
           </div>
@@ -961,6 +979,7 @@ export function MembershipRequestsPageV2() {
                           }}
                           className={cn(
                             'backdrop-blur-sm rounded-xl p-4 border transition-all group h-full',
+                            isMobile && itemsPerView === 1 && 'w-[50%] mx-auto',
                             stat.bgClass,
                             stat.borderClass,
                             stat.hoverClass,
@@ -1084,7 +1103,7 @@ export function MembershipRequestsPageV2() {
             {/* Contenu de la "page" du classeur - Fait partie intégrante du tab actif */}
             <div className="bg-white pt-0">
               {/* En-tête de liste avec titre, recherche et pagination - Pas de séparation avec tabs */}
-              <div className="px-2 sm:px-3 md:px-6 py-3 md:py-4 border-b border-kara-neutral-100">
+              <div className="px-1 sm:px-3 md:px-6 py-3 md:py-4 border-b border-kara-neutral-100">
                 <div className="flex flex-col gap-3 md:gap-4">
                   {/* Ligne 1 (mobile) / ligne unique (desktop) : icône + titre + compteur */}
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 w-full">
