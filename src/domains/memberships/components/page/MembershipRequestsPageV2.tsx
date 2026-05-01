@@ -1200,7 +1200,10 @@ export function MembershipRequestsPageV2() {
                           value={activeTab === 'rejected' || activeTab === 'paid' || activeTab === 'unpaid' ? activeTab : 'none'}
                           onValueChange={handleSecondaryFilterChange}
                         >
-                          <SelectTrigger className="h-8 sm:h-9 w-10 sm:w-12 p-0 border-kara-neutral-200 bg-kara-neutral-50 hover:bg-kara-neutral-100 rounded-lg">
+                          <SelectTrigger
+                            className="h-8 sm:h-9 w-10 sm:w-11 p-0 rounded-lg border border-kara-neutral-200 bg-white shadow-sm hover:bg-kara-neutral-50 focus:outline-none focus:ring-1 focus:ring-kara-primary-dark/20 focus:border-kara-primary-dark flex items-center justify-center [&>svg:last-child]:hidden"
+                            aria-label="Filtrer les demandes"
+                          >
                             <Filter className="w-4 h-4 text-kara-neutral-600" />
                             <span className="sr-only">Filtres</span>
                           </SelectTrigger>
