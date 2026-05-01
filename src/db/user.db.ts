@@ -54,12 +54,15 @@ function toDateSafe(value: any): Date {
  */
 export async function generateMatricule(): Promise<string> {
   try {
-    const { firebaseCollectionNames } = await import('@/constantes/firebase-collection-names')
-    
     let matricule: string = ''
     let isUnique = false
     let attempts = 0
     const maxAttempts = 50 // Réduire le nombre de tentatives
+    const uniquenessCollections = [
+      FIREBASE_COLLECTION_NAMES.MEMBERSHIP_REQUESTS || "membership-requests",
+      FIREBASE_COLLECTION_NAMES.USERS || "users",
+      FIREBASE_COLLECTION_NAMES.ADMINS || "admins",
+    ]
     
     // Date actuelle au format DDMMYY
     const now = new Date()
@@ -77,19 +80,11 @@ export async function generateMatricule(): Promise<string> {
       
       matricule = `${userNumber}.MK.${dateString}`
       
-      // Vérifier l'unicité dans membershipRequests ET users
-      const isUniqueInMembershipRequests = await checkMatriculeUniquenessInCollection(
-        firebaseCollectionNames.membershipRequests || "membership-requests", 
-        matricule
-      )
-      
-      const isUniqueInUsers = await checkMatriculeUniquenessInCollection(
-        firebaseCollectionNames.users || "users", 
-        matricule
-      )
-      const isUniqueInAdmins = await checkMatriculeUniquenessInCollection(
-        firebaseCollectionNames.admins || "admins", 
-        matricule
+      // Vérifier l'unicité en parallèle pour réduire la latence réseau.
+      const [isUniqueInMembershipRequests, isUniqueInUsers, isUniqueInAdmins] = await Promise.all(
+        uniquenessCollections.map((collectionName) =>
+          checkMatriculeUniquenessInCollection(collectionName, matricule)
+        )
       )
       if (isUniqueInMembershipRequests && isUniqueInUsers && isUniqueInAdmins) {
         isUnique = true
@@ -105,17 +100,13 @@ export async function generateMatricule(): Promise<string> {
       matricule = `${fallbackTimestamp}.MK.${dateString}`
       
       // Vérifier une dernière fois l'unicité avec le fallback
-      const isUniqueInMembershipRequests = await checkMatriculeUniquenessInCollection(
-        firebaseCollectionNames.membershipRequests || "membership-requests", 
-        matricule
+      const uniquenessChecks = await Promise.all(
+        uniquenessCollections.map((collectionName) =>
+          checkMatriculeUniquenessInCollection(collectionName, matricule)
+        )
       )
-      
-      const isUniqueInUsers = await checkMatriculeUniquenessInCollection(
-        firebaseCollectionNames.users || "users", 
-        matricule
-      )
-      
-      if (!isUniqueInMembershipRequests || !isUniqueInUsers) {
+
+      if (!uniquenessChecks.every(Boolean)) {
         // En dernier recours, ajouter des millisecondes pour garantir l'unicité
         const milliseconds = Date.now().toString().slice(-3)
         matricule = `${fallbackTimestamp}${milliseconds}.MK.${dateString}`
@@ -135,7 +126,7 @@ export async function generateMatricule(): Promise<string> {
 async function checkMatriculeUniquenessInCollection(collectionName: string, matricule: string): Promise<boolean> {
   try {
     const collectionRef = collection(firestore, collectionName)
-    const q = query(collectionRef, where("matricule", "==", matricule))
+    const q = query(collectionRef, where("matricule", "==", matricule), firestoreLimit(1))
     const snapshot = await getDocs(q)
     return snapshot.empty
   } catch (error) {
