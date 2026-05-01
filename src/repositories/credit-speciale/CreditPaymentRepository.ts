@@ -35,13 +35,14 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
                 // Générer un ID automatique
                 docRef = await addDoc(collection(db, firebaseCollectionNames.creditPayments || "creditPayments"), paymentData);
             }
-
-            const created = await this.getPaymentById(docRef.id);
-            if (!created) {
-                throw new Error("Erreur lors de la récupération du paiement créé");
-            }
-
-            return created;
+            const now = new Date();
+            return {
+                id: docRef.id,
+                ...(cleanData as any),
+                paymentDate: data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate),
+                createdAt: now,
+                updatedAt: now,
+            } as CreditPayment;
         } catch (error) {
             console.error("Erreur lors de la création du paiement:", error);
             throw error;
@@ -230,4 +231,3 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
         }
     }
 }
-

@@ -1134,12 +1134,6 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw new Error('Contrat introuvable');
         }
 
-        // Récupérer le membre pour obtenir le matricule
-        const member = await this.memberRepository.getMemberById(contract.clientId);
-        if (!member || !member.matricule) {
-            throw new Error('Membre non trouvé ou matricule manquant');
-        }
-
         // Générer la référence unique du paiement
         const now = new Date(data.paymentDate);
         const day = String(now.getDate()).padStart(2, '0');
@@ -1152,7 +1146,19 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const timeFormatted = `${hours}${minutes}`;
         
         // Extraire le matricule du client (4 premiers chiffres)
-        const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+        // Fast path: lire le matricule depuis l'ID de contrat (ex: MK_CSP_7425_...)
+        // Fallback: lire le membre si le format ne permet pas l'extraction.
+        let matriculePart = '';
+        const idMatriculeMatch = contract.id.match(/^MK_[A-Z_]+_(\d{3,})/)
+        if (idMatriculeMatch?.[1]) {
+            matriculePart = idMatriculeMatch[1]
+        } else {
+            const member = await this.memberRepository.getMemberById(contract.clientId);
+            if (!member || !member.matricule) {
+                throw new Error('Membre non trouvé ou matricule manquant');
+            }
+            matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+        }
         const matriculeFormatted = matriculePart.padStart(4, '0');
         
         // Format: MK_PAIEMENT_{TYPE}_matricule_date_heure
@@ -1167,7 +1173,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         let proofUrl: string | undefined = data.proofUrl;
         if (proofFile) {
             try {
-                const { url, path } = await this.documentRepository.uploadDocumentFile(
+                const { url } = await this.documentRepository.uploadDocumentFile(
                     proofFile,
                     contract.clientId,
                     'CREDIT_SPECIALE_RECEIPT'
@@ -1271,34 +1277,33 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Traiter les pénalités si sélectionnées
         let totalPenaltyAmount = 0;
         if (penaltyIds && penaltyIds.length > 0) {
-            for (const penaltyId of penaltyIds) {
-                const penalty = await this.creditPenaltyRepository.getPenaltyById(penaltyId);
-                if (penalty && !penalty.paid) {
-                    totalPenaltyAmount += penalty.amount;
-                    await this.creditPenaltyRepository.updatePenalty(penaltyId, {
+            const penalties = await this.creditPenaltyRepository.getPenaltiesByCreditId(contract.id);
+            const targetPenalties = penalties.filter((penalty) => penaltyIds.includes(penalty.id) && !penalty.paid);
+            totalPenaltyAmount = targetPenalties.reduce((sum, penalty) => sum + penalty.amount, 0);
+
+            await Promise.all(
+                targetPenalties.map((penalty) =>
+                    this.creditPenaltyRepository.updatePenalty(penalty.id, {
                         paid: true,
                         paidAt: new Date(),
                         paymentId: payment.id,
                         updatedBy: data.createdBy,
-                    });
-                }
-            }
+                    })
+                )
+            );
+
             // Mettre à jour le paiement avec le montant des pénalités
-            await this.creditPaymentRepository.updatePayment(payment.id, {
-                penaltyAmount: totalPenaltyAmount,
-            });
+            if (totalPenaltyAmount > 0) {
+                await this.creditPaymentRepository.updatePayment(payment.id, {
+                    penaltyAmount: totalPenaltyAmount,
+                });
+            }
         }
 
-        // Calculer et créer les pénalités si nécessaire (basé sur les paiements, pas les installments)
-        // Ne pas créer de pénalités pour les paiements de 0 FCFA
-        if (!isZeroPayment && paymentAmount > 0) {
-            await this.checkAndCreatePenalties(contract.id, payment);
-        }
-
-        // Recalculer le montant total payé et restant à partir de tous les paiements
-        // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pénalités uniquement ou paiement de 0)
-        const updatedPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
-        const updatedRealPayments = getCreditPaymentsForCurrentCycle(contract, updatedPayments).filter(p => 
+        // Recalculer le montant total payé et restant à partir du snapshot local + paiement courant
+        // (évite une requête Firestore complète supplémentaire)
+        const mergedPayments = [...allPayments.filter((existingPayment) => existingPayment.id !== payment.id), payment];
+        const updatedRealPayments = getCreditPaymentsForCurrentCycle(contract, mergedPayments).filter(p => 
             p.amount > 0 || 
             p.comment?.includes('Paiement de pénalités uniquement') ||
             p.comment?.includes('Paiement de 0 FCFA')
@@ -1352,13 +1357,6 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             newStatus = 'TRANSFORMED';
         }
 
-        // Calculer le nouveau score uniquement si ce n'est pas un paiement de pénalités uniquement
-        const newScore = isPenaltyOnlyPayment 
-            ? contract.score || 5
-            : await this.calculateScore(contract.id, payment);
-        const oldScore = contract.score || 5;
-        const scoreVariation = isPenaltyOnlyPayment ? 0 : newScore - oldScore;
-
         await this.creditContractRepository.updateContract(contract.id, {
             amountPaid: totalPaid,
             amountRemaining: Math.round(totalRemaining),
@@ -1368,41 +1366,62 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 transformedAt: new Date(),
                 blockedReason: `Crédit aide arrivé au terme de 3 mois. Solde restant à transformer en crédit spéciale : ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA.`,
             } : {}),
-            score: newScore,
-            scoreUpdatedAt: new Date(),
             updatedBy: data.createdBy,
         });
 
-        // Alerte score si variation forte (≥ 2 points ou ≤ -2 points)
-        if (Math.abs(scoreVariation) >= 2) {
+        void (async () => {
+            // Calculer et créer les pénalités si nécessaire (basé sur les paiements, pas les installments)
+            // Ne pas créer de pénalités pour les paiements de 0 FCFA
+            if (!isZeroPayment && paymentAmount > 0) {
                 try {
-                    const variationLabel = scoreVariation > 0 ? 'augmentation' : 'baisse';
-                    const variationEmoji = scoreVariation > 0 ? '📈' : '📉';
-                    
-                    await this.notificationService.createNotification({
-                        module: 'credit_speciale',
-                        entityId: contract.id,
-                        type: 'reminder',
-                        title: `${variationEmoji} Alerte : Variation importante du score`,
-                        message: `Le score de fiabilité du contrat de crédit ${contract.creditType} de ${contract.clientFirstName} ${contract.clientLastName} a connu une ${variationLabel} importante : ${oldScore.toFixed(1)} → ${newScore.toFixed(1)} (${scoreVariation > 0 ? '+' : ''}${scoreVariation.toFixed(1)} point${Math.abs(scoreVariation) > 1 ? 's' : ''}).`,
-                        metadata: {
-                            contractId: contract.id,
-                            clientId: contract.clientId,
-                            creditType: contract.creditType,
-                            oldScore,
-                            newScore,
-                            scoreVariation,
-                            paymentId: payment.id,
-                            paymentDate: payment.paymentDate.toISOString(),
-                        },
-                    });
+                    await this.checkAndCreatePenalties(contract.id, payment);
                 } catch {
-                    // Erreur lors de la création de la notification d'alerte score - continue sans
+                    // Erreur non bloquante
                 }
             }
 
-        // Notification si le contrat est terminé (DISCHARGED)
-        if (newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED') {
+            // Calculer le score en arrière-plan puis persister
+            if (!isPenaltyOnlyPayment) {
+                try {
+                    const oldScore = contract.score || 5;
+                    const newScore = await this.calculateScore(contract.id, payment);
+                    const scoreVariation = newScore - oldScore;
+
+                    await this.creditContractRepository.updateContract(contract.id, {
+                        score: newScore,
+                        scoreUpdatedAt: new Date(),
+                        updatedBy: data.createdBy,
+                    });
+
+                    // Alerte score si variation forte (>= 2 points ou <= -2 points)
+                    if (Math.abs(scoreVariation) >= 2) {
+                        const variationLabel = scoreVariation > 0 ? 'augmentation' : 'baisse';
+                        const variationEmoji = scoreVariation > 0 ? '📈' : '📉';
+                        await this.notificationService.createNotification({
+                            module: 'credit_speciale',
+                            entityId: contract.id,
+                            type: 'reminder',
+                            title: `${variationEmoji} Alerte : Variation importante du score`,
+                            message: `Le score de fiabilité du contrat de crédit ${contract.creditType} de ${contract.clientFirstName} ${contract.clientLastName} a connu une ${variationLabel} importante : ${oldScore.toFixed(1)} → ${newScore.toFixed(1)} (${scoreVariation > 0 ? '+' : ''}${scoreVariation.toFixed(1)} point${Math.abs(scoreVariation) > 1 ? 's' : ''}).`,
+                            metadata: {
+                                contractId: contract.id,
+                                clientId: contract.clientId,
+                                creditType: contract.creditType,
+                                oldScore,
+                                newScore,
+                                scoreVariation,
+                                paymentId: payment.id,
+                                paymentDate: payment.paymentDate.toISOString(),
+                            },
+                        });
+                    }
+                } catch {
+                    // Erreur score/notification non bloquante
+                }
+            }
+
+            // Notification si le contrat est terminé (DISCHARGED)
+            if (newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED') {
                 try {
                     await this.notificationService.createNotification({
                         module: 'credit_speciale',
@@ -1418,57 +1437,43 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         },
                     });
                 } catch {
-                    // Erreur lors de la création de la notification de contrat terminé - continue sans
+                    // Erreur notification non bloquante
                 }
             }
 
-        if (shouldTransformAideToSpeciale && contract.status !== 'TRANSFORMED') {
-            try {
-                await this.notificationService.createNotification({
-                    module: 'credit_speciale',
-                    entityId: contract.id,
-                    type: 'contract_finished',
-                    title: 'Crédit aide à transformer',
-                    message: `Le crédit aide de ${contract.clientFirstName} ${contract.clientLastName} a atteint 3 mois avec un solde restant de ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA. Créez un contrat de crédit spéciale pour ce solde.`,
-                    metadata: {
-                        contractId: contract.id,
-                        clientId: contract.clientId,
-                        creditType: contract.creditType,
-                        remainingAmount: Math.round(totalRemaining),
-                        actionRequired: 'transform_to_speciale',
-                    },
-                });
-            } catch {
-                // Erreur lors de la création de la notification de transformation - continue sans
-            }
-        }
-
-        // Marquer les pénalités sélectionnées comme payées
-        if (penaltyIds && penaltyIds.length > 0) {
-                for (const penaltyId of penaltyIds) {
-                    await this.creditPenaltyRepository.updatePenalty(penaltyId, {
-                        paid: true,
-                        paidAt: new Date(),
-                        updatedBy: data.createdBy,
+            if (shouldTransformAideToSpeciale && contract.status !== 'TRANSFORMED') {
+                try {
+                    await this.notificationService.createNotification({
+                        module: 'credit_speciale',
+                        entityId: contract.id,
+                        type: 'contract_finished',
+                        title: 'Crédit aide à transformer',
+                        message: `Le crédit aide de ${contract.clientFirstName} ${contract.clientLastName} a atteint 3 mois avec un solde restant de ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA. Créez un contrat de crédit spéciale pour ce solde.`,
+                        metadata: {
+                            contractId: contract.id,
+                            clientId: contract.clientId,
+                            creditType: contract.creditType,
+                            remainingAmount: Math.round(totalRemaining),
+                            actionRequired: 'transform_to_speciale',
+                        },
                     });
+                } catch {
+                    // Erreur notification non bloquante
                 }
             }
 
-        // Les pénalités sont déjà calculées dans la nouvelle logique basée sur les installments
-
-        // Calculer et créer la rémunération du garant si applicable
-        if (contract.creditType === 'SPECIALE' &&
-                contract.guarantorIsMember && 
-                contract.guarantorId && 
+            // Calculer et créer la rémunération du garant si applicable
+            if (contract.creditType === 'SPECIALE' &&
+                contract.guarantorIsMember &&
+                contract.guarantorId &&
                 contract.guarantorRemunerationPercentage > 0) {
-                
                 const month = getCreditPaymentMonthNumber(contract, payment);
                 const historyBeforeCurrentPayment = buildCreditSpecialeHistory(contract, realPayments, {
                     endMonth: month,
                     projectUntilZero: false,
                 });
                 const monthHistory = historyBeforeCurrentPayment.find((entry) => entry.month === month);
-                
+
                 if (monthHistory && !monthHistory.isRest && monthHistory.phase === 'SPECIALE') {
                     const remunerationAmount = Math.round(
                         (monthHistory.capitalStart * contract.guarantorRemunerationPercentage) / 100
@@ -1485,42 +1490,39 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                             updatedBy: data.createdBy,
                         });
 
-                        // Notification pour le garant
-                        try {
-                            await this.notificationService.createNotification({
-                                module: 'credit_speciale',
-                                entityId: contract.id,
-                                type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
-                                title: 'Rémunération reçue',
-                                message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
-                                metadata: {
-                                    contractId: contract.id,
-                                    paymentId: payment.id,
-                                    amount: remunerationAmount,
-                                    month,
-                                    guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
-                                    notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
-                                },
-                            });
-                        } catch {
-                            // Erreur lors de la création de la notification de rémunération - continue sans
-                        }
+                        void this.notificationService.createNotification({
+                            module: 'credit_speciale',
+                            entityId: contract.id,
+                            type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
+                            title: 'Rémunération reçue',
+                            message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
+                            metadata: {
+                                contractId: contract.id,
+                                paymentId: payment.id,
+                                amount: remunerationAmount,
+                                month,
+                                guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
+                                notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
+                            },
+                        }).catch(() => {
+                            // Erreur notification non bloquante
+                        });
                     }
                 }
             }
 
-        // Générer automatiquement le reçu PDF
-        try {
-            const receiptUrl = await this.generatePaymentReceiptPDF(payment, contract);
-            if (receiptUrl) {
-                // Mettre à jour le paiement avec l'URL du reçu
-                await this.creditPaymentRepository.updatePayment(payment.id, {
-                    receiptUrl,
-                });
+            // Générer automatiquement le reçu PDF en arrière-plan (non bloquant pour le formulaire)
+            try {
+                const receiptUrl = await this.generatePaymentReceiptPDF(payment, contract);
+                if (receiptUrl) {
+                    await this.creditPaymentRepository.updatePayment(payment.id, {
+                        receiptUrl,
+                    });
+                }
+            } catch {
+                // Ne pas faire échouer la création du paiement si le reçu échoue
             }
-        } catch {
-            // Ne pas faire échouer la création du paiement si le reçu échoue
-        }
+        })();
 
         return payment;
     }

@@ -447,28 +447,16 @@ export function useCreditPaymentMutations() {
                 updatedBy: user.uid,
             }, proofFile, penaltyIds, installmentNumber)
         },
-        onSuccess: async (_, variables) => {
+        onSuccess: (_, variables) => {
             const creditId = variables.data.creditId
-            // Invalider toutes les queries liées pour rafraîchir l'affichage
-            await Promise.all([
-                qc.invalidateQueries({ queryKey: ['creditPayments'] }),
-                qc.invalidateQueries({ queryKey: ['creditPayments', 'creditId', creditId] }),
-                qc.invalidateQueries({ queryKey: ['creditPenalties'] }),
-                qc.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', creditId] }),
-                qc.invalidateQueries({ queryKey: ['creditContract', creditId] }),
-                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
-                qc.invalidateQueries({ queryKey: ['creditInstallments', 'creditId', creditId] }),
-                qc.invalidateQueries({ queryKey: ['guarantorRemunerations', 'creditId', creditId] }),
-                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
-            ])
-            // Refetch explicite pour mettre à jour immédiatement
-            await Promise.all([
-                qc.refetchQueries({ queryKey: ['creditPayments', 'creditId', creditId] }),
-                qc.refetchQueries({ queryKey: ['creditInstallments', 'creditId', creditId] }),
-                qc.refetchQueries({ queryKey: ['creditContract', creditId] }),
-                qc.refetchQueries({ queryKey: ['creditPenalties', 'creditId', creditId] }),
-                qc.refetchQueries({ queryKey: ['guarantorRemunerations', 'creditId', creditId] }),
-            ])
+            // Rafraîchissement non bloquant : le modal peut se fermer immédiatement après mutateAsync.
+            qc.invalidateQueries({ queryKey: ['creditPayments', 'creditId', creditId] })
+            qc.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', creditId] })
+            qc.invalidateQueries({ queryKey: ['creditContract', creditId] })
+            qc.invalidateQueries({ queryKey: ['creditInstallments', 'creditId', creditId] })
+            qc.invalidateQueries({ queryKey: ['guarantorRemunerations', 'creditId', creditId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
             toast.success('Paiement enregistré avec succès')
         },
         onError: (error: any) => {
