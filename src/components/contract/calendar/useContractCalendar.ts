@@ -220,12 +220,14 @@ export function useContractCalendar(
       const isToday = dateOnly.getTime() === today.getTime()
 
       if (!isCurrentMonth) {
-        return { date, status: 'unavailable', payment: null, isToday: false }
+        return { date, status: 'unavailable', payment: null, isToday: false, periodIndex: null }
       }
 
       if (firstPaymentDate && dateOnly < firstPaymentDate) {
-        return { date, status: 'unavailable', payment: null, isToday: false }
+        return { date, status: 'unavailable', payment: null, isToday: false, periodIndex: null }
       }
+
+      const periodIndex = getMonthIndexFromStart(date)
 
       const payment = getPaymentForDateInternal(
         payments,
@@ -240,12 +242,13 @@ export function useContractCalendar(
           status: 'paid' as CalendarDayStatus,
           payment,
           isToday,
+          periodIndex,
         }
       }
 
       const isPastDay = dateOnly < today
       const status: CalendarDayStatus = isPastDay ? 'due' : 'upcoming'
-      return { date, status, payment: null, isToday }
+      return { date, status, payment: null, isToday, periodIndex }
     })
   }, [
     monthDays,
