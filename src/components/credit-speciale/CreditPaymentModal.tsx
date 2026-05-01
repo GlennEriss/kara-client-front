@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import {
   useCreditContract,
@@ -33,15 +32,17 @@ import {
   getCreditPaymentsForCurrentCycle,
 } from '@/utils/credit-speciale-history'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
     AlertCircle,
     AlertTriangle,
+    Banknote,
+    Building2,
     Calendar,
     Clock,
     DollarSign,
     Loader2,
+    Smartphone,
     Upload
 } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -109,7 +110,6 @@ export default function CreditPaymentModal({
   const { data: contract } = useCreditContract(creditId)
   const { data: payments = [] } = useCreditPaymentsByCreditId(creditId)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
-  const queryClient = useQueryClient()
 
   const autoComment = useMemo(() => getDefaultComment(true), [])
 
@@ -201,15 +201,6 @@ export default function CreditPaymentModal({
         )
         return
       }
-      // Nettoyer les pénalités rétroactives avant d'afficher la liste (création uniquement)
-      const service = ServiceFactory.getCreditSpecialeService()
-      service.checkAndCreateMissingPenalties(creditId)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['creditPenalties', creditId] })
-        })
-        .catch((error: unknown) => {
-          console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
-        })
       setAgentRecouvrementId('')
       setWithFees(undefined)
       if (defaultPaymentDate) {
@@ -217,10 +208,10 @@ export default function CreditPaymentModal({
       } else {
         form.setValue('paymentDate', new Date())
       }
-      form.setValue('note', autoNote)
+      form.setValue('note', 10)
       form.setValue('comment', autoComment)
     }
-  }, [isOpen, form, defaultPaymentDate, autoComment, paymentToEdit, creditId, queryClient])
+  }, [isOpen, form, defaultPaymentDate, autoComment, paymentToEdit])
 
   // En création, la note automatique peut suivre la date choisie sans réinitialiser
   // les autres champs du formulaire.
@@ -496,80 +487,135 @@ export default function CreditPaymentModal({
             </div>
           </div>
 
-          {/* Montant et Mode */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                Montant du versement (FCFA) *
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                {...form.register('amount', { valueAsNumber: true })}
-                required
-              />
-              {form.formState.errors.amount && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.amount.message}
-                </p>
-              )}
+          {/* Montant */}
+          <div>
+            <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Montant du versement (FCFA) *
+            </Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              {...form.register('amount', { valueAsNumber: true })}
+              required
+            />
+            {form.formState.errors.amount && (
+              <p className="text-sm text-red-600 mt-1">
+                {form.formState.errors.amount.message}
+              </p>
+            )}
+          </div>
+
+          {/* Moyen de paiement */}
+          <div>
+            <Label className="flex items-center gap-2 mb-3">
+              <Smartphone className="h-4 w-4 text-muted-foreground" />
+              Moyen de paiement *
+            </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="creditPaymentMode"
+                  value="airtel_money"
+                  checked={toCreditPaymentMode(form.watch('mode') as string) === 'airtel_money'}
+                  onChange={(e) => {
+                    form.setValue('mode', e.target.value as CreditPaymentMode, { shouldValidate: true, shouldDirty: true })
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-red-100 rounded-lg p-2">
+                    <Smartphone className="h-5 w-5 text-red-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Airtel Money</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="creditPaymentMode"
+                  value="mobicash"
+                  checked={toCreditPaymentMode(form.watch('mode') as string) === 'mobicash'}
+                  onChange={(e) => {
+                    form.setValue('mode', e.target.value as CreditPaymentMode, { shouldValidate: true, shouldDirty: true })
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-blue-100 rounded-lg p-2">
+                    <Banknote className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Mobicash</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="creditPaymentMode"
+                  value="cash"
+                  checked={toCreditPaymentMode(form.watch('mode') as string) === 'cash'}
+                  onChange={(e) => {
+                    form.setValue('mode', e.target.value as CreditPaymentMode, { shouldValidate: true, shouldDirty: true })
+                    setWithFees(undefined)
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-green-100 rounded-lg p-2">
+                    <DollarSign className="h-5 w-5 text-green-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Espèce</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="creditPaymentMode"
+                  value="bank_transfer"
+                  checked={toCreditPaymentMode(form.watch('mode') as string) === 'bank_transfer'}
+                  onChange={(e) => {
+                    form.setValue('mode', e.target.value as CreditPaymentMode, { shouldValidate: true, shouldDirty: true })
+                    setWithFees(undefined)
+                  }}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-purple-100 rounded-lg p-2">
+                    <Building2 className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Virement bancaire</span>
+                </div>
+              </label>
             </div>
-            <div>
-              <Label htmlFor="mode" className="mb-2">Moyen de paiement *</Label>
-              <Select
-                value={toCreditPaymentMode(form.watch('mode') as string)}
-                onValueChange={(value) => {
-                  form.setValue('mode', value as CreditPaymentMode)
-                  if (value !== 'airtel_money' && value !== 'mobicash') setWithFees(undefined)
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un moyen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                  <SelectItem value="mobicash">Mobicash</SelectItem>
-                  <SelectItem value="cash">Espèce</SelectItem>
-                  <SelectItem value="bank_transfer">Virement bancaire</SelectItem>
-                </SelectContent>
-              </Select>
-              {form.formState.errors.mode && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.mode.message}
-                </p>
-              )}
-            </div>
+            {form.formState.errors.mode && (
+              <p className="text-sm text-red-600 mt-2">
+                {form.formState.errors.mode.message}
+              </p>
+            )}
           </div>
 
           {/* Avec frais / Sans frais (Airtel Money et Mobicash uniquement) */}
           {(form.watch('mode') === 'airtel_money' || form.watch('mode') === 'mobicash') && (
-            <div className="space-y-2">
-              <Label>Frais</Label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="withFees"
-                    checked={withFees === true}
-                    onChange={() => setWithFees(true)}
-                    className="rounded-full border-gray-300"
-                  />
-                  <span>Avec frais</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="withFees"
-                    checked={withFees === false}
-                    onChange={() => setWithFees(false)}
-                    className="rounded-full border-gray-300"
-                  />
-                  <span>Sans frais</span>
-                </label>
-              </div>
+            <div className="mt-1">
+              <Label className="text-sm font-medium">Frais de transaction *</Label>
+              <Select
+                value={withFees === undefined ? '' : withFees ? 'yes' : 'no'}
+                onValueChange={(value) => setWithFees(value === 'yes')}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Avec ou sans frais ?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Avec frais</SelectItem>
+                  <SelectItem value="no">Sans frais</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
 
