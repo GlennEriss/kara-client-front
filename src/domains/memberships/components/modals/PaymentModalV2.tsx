@@ -266,7 +266,7 @@ export function PaymentModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto" data-testid="modal-payment">
+      <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[90vh] overflow-y-auto px-4 sm:px-6" data-testid="modal-payment">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark">
             <CreditCard className="w-5 h-5 text-blue-600" />
@@ -467,8 +467,11 @@ export function PaymentModalV2({
             
             {!hasProof && !proofPreview ? (
               <>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-3">
+                  <div
+                    className="border-2 border-dashed border-kara-neutral-300 bg-kara-neutral-50 rounded-xl p-4 sm:p-5 transition-colors hover:border-kara-primary-dark/40"
+                    data-testid="payment-proof-upload-zone"
+                  >
                     <Input
                       ref={fileInputRef}
                       id="proof"
@@ -476,20 +479,29 @@ export function PaymentModalV2({
                       accept="image/*"
                       onChange={handleFileChange}
                       disabled={isProcessing}
-                      className="h-10"
+                      className="hidden"
                       data-testid="payment-proof-file"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isProcessing}
-                      className="shrink-0"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Choisir
-                    </Button>
+                    <div className="flex flex-col items-center justify-center text-center gap-2">
+                      <Upload className="w-7 h-7 text-kara-neutral-500" />
+                      <p className="text-sm font-medium text-kara-primary-dark px-2">
+                        Ajoutez une preuve de paiement
+                      </p>
+                      <p className="text-xs text-kara-neutral-500 px-2">
+                        JPG, PNG ou WEBP • Taille max 5 MB
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing}
+                        className="mt-1 w-full sm:w-auto"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Choisir une image
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Feedback compression/upload */}
@@ -512,7 +524,7 @@ export function PaymentModalV2({
                 </div>
                 
                 {/* Justification si pas de preuve (cas exceptionnel) */}
-                <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="mt-3 p-3 sm:p-4 bg-amber-50 rounded-lg border border-amber-200">
                   <Label htmlFor="proofJustification" className="text-sm font-medium text-amber-800">
                     Justification (si pas de preuve) <span className="text-red-500">*</span>
                   </Label>
@@ -522,7 +534,7 @@ export function PaymentModalV2({
                     onChange={(e) => setProofJustification(e.target.value)}
                     placeholder="Expliquez pourquoi la preuve de paiement n'est pas disponible (min 20 caractères)..."
                     disabled={isProcessing || hasProof}
-                    className="mt-2 min-h-[80px]"
+                    className="mt-2 min-h-[90px] text-sm"
                     maxLength={500}
                     data-testid="payment-proof-justification"
                   />
@@ -533,15 +545,18 @@ export function PaymentModalV2({
               </>
             ) : (
               <div className="relative">
-                <div className="border border-gray-200 rounded-lg p-2 bg-gray-50">
-                  <div className="flex items-center gap-3">
+                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+                  <div className="flex items-start sm:items-center gap-3">
                     {hasProof ? (
-                      <CheckCircle2 className="w-8 h-8 text-green-600" />
+                      <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-green-600 shrink-0 mt-0.5 sm:mt-0" />
                     ) : (
-                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                      <ImageIcon className="w-7 h-7 sm:w-8 sm:h-8 text-gray-400 shrink-0 mt-0.5 sm:mt-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">
+                      <p
+                        className="text-sm font-medium text-gray-700 truncate max-w-[180px] sm:max-w-[320px]"
+                        title={proofFile?.name || 'Preuve uploadée'}
+                      >
                         {proofFile?.name || 'Preuve uploadée'}
                       </p>
                       {originalSize && compressedSize && (
@@ -556,17 +571,20 @@ export function PaymentModalV2({
                       size="sm"
                       onClick={handleRemoveProof}
                       disabled={isProcessing}
-                      className="shrink-0"
+                      className="shrink-0 h-8 w-8 p-0"
+                      aria-label="Supprimer la preuve"
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
                   {proofPreview && (
-                    <img
-                      src={proofPreview}
-                      alt="Aperçu de la preuve"
-                      className="mt-2 max-h-32 w-full object-contain rounded border border-gray-200"
-                    />
+                    <div className="mt-3 overflow-x-auto rounded border border-gray-200 bg-white">
+                      <img
+                        src={proofPreview}
+                        alt="Aperçu de la preuve"
+                        className="block h-44 sm:h-48 w-auto max-w-none object-contain"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
