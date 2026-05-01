@@ -56,6 +56,51 @@ const formatAmount = (amount: number): string => {
 
 const formatDateKey = (date: Date): string => format(date, 'yyyy-MM-dd')
 
+const ECHEANCE_COLOR_PALETTE = [
+  {
+    badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    upcomingBgClass: 'bg-emerald-50',
+    upcomingBorderClass: 'border-emerald-200',
+    paidBgClass: 'bg-emerald-100',
+    paidBorderClass: 'border-emerald-300',
+  },
+  {
+    badgeClass: 'border-blue-200 bg-blue-50 text-blue-700',
+    upcomingBgClass: 'bg-blue-50',
+    upcomingBorderClass: 'border-blue-200',
+    paidBgClass: 'bg-blue-100',
+    paidBorderClass: 'border-blue-300',
+  },
+  {
+    badgeClass: 'border-violet-200 bg-violet-50 text-violet-700',
+    upcomingBgClass: 'bg-violet-50',
+    upcomingBorderClass: 'border-violet-200',
+    paidBgClass: 'bg-violet-100',
+    paidBorderClass: 'border-violet-300',
+  },
+  {
+    badgeClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    upcomingBgClass: 'bg-amber-50',
+    upcomingBorderClass: 'border-amber-200',
+    paidBgClass: 'bg-amber-100',
+    paidBorderClass: 'border-amber-300',
+  },
+  {
+    badgeClass: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+    upcomingBgClass: 'bg-cyan-50',
+    upcomingBorderClass: 'border-cyan-200',
+    paidBgClass: 'bg-cyan-100',
+    paidBorderClass: 'border-cyan-300',
+  },
+  {
+    badgeClass: 'border-pink-200 bg-pink-50 text-pink-700',
+    upcomingBgClass: 'bg-pink-50',
+    upcomingBorderClass: 'border-pink-200',
+    paidBgClass: 'bg-pink-100',
+    paidBorderClass: 'border-pink-300',
+  },
+]
+
 interface DailyCIContractProps {
   contract: ContractCI
   document?: any | null
@@ -446,6 +491,10 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   }
 
   const monthDays = getMonthDays(currentMonth)
+  const getEcheanceColor = useCallback((monthIndex: number) => {
+    const paletteIndex = Math.abs(monthIndex) % ECHEANCE_COLOR_PALETTE.length
+    return ECHEANCE_COLOR_PALETTE[paletteIndex]
+  }, [])
 
   // Fonctions utilitaires pour les récapitulatifs mensuels
   const getMonthDateRange = useCallback((monthIndex: number) => {
@@ -1013,9 +1062,12 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-6">
-                {/* Grille du calendrier */}
-                <div className="grid grid-cols-7 gap-1">
+	              <CardContent className="p-6">
+	                <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-700">
+	                  Chaque échéance (M1, M2, M3...) est colorée pour faciliter le suivi visuel.
+	                </div>
+	                {/* Grille du calendrier */}
+	                <div className="grid grid-cols-7 gap-1">
                   {/* En-têtes des jours */}
                   {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
                     <div key={day} className="p-2 text-center text-xs font-medium text-gray-500 bg-gray-50 rounded-lg">
@@ -1024,12 +1076,16 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                   ))}
 
                   {/* Jours du mois */}
-                  {monthDays.map((date, index) => {
-                    const isCurrentMonth = date.getMonth() === currentMonth.getMonth()
-                    const isToday = date.toDateString() === new Date().toDateString()
-                    
-                    // Vérifier si la date est avant le premier versement
-                    const firstPaymentDate = new Date(contract.firstPaymentDate)
+	                  {monthDays.map((date, index) => {
+	                    const isCurrentMonth = date.getMonth() === currentMonth.getMonth()
+	                    const isToday = date.toDateString() === new Date().toDateString()
+	                    const dateMonthIndex = calculateMonthIndex(date, contract.firstPaymentDate)
+	                    const hasEcheance =
+	                      dateMonthIndex >= 0 && dateMonthIndex < (contract.subscriptionCIDuration || 0)
+	                    const echeanceColor = hasEcheance ? getEcheanceColor(dateMonthIndex) : null
+	                    
+	                    // Vérifier si la date est avant le premier versement
+	                    const firstPaymentDate = new Date(contract.firstPaymentDate)
                     firstPaymentDate.setHours(0, 0, 0, 0)
                     const dateToCheck = new Date(date)
                     dateToCheck.setHours(0, 0, 0, 0)
@@ -1054,11 +1110,13 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                           <XCircle className="h-3 w-3" />
                         </div>
                       )
-                    } else if (hasPayment) {
-                      dayStyle = 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
-                      dayContent = (
-                        <div className="flex items-center justify-center gap-0.5 text-xs text-green-600">
-                          <CheckCircle className="h-3 w-3" />
+	                    } else if (hasPayment) {
+	                      dayStyle = hasEcheance && echeanceColor
+	                        ? `${echeanceColor.paidBgClass} ${echeanceColor.paidBorderClass} hover:brightness-95 cursor-pointer`
+	                        : 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
+	                      dayContent = (
+	                        <div className="flex items-center justify-center gap-0.5 text-xs text-green-600">
+	                          <CheckCircle className="h-3 w-3" />
                         </div>
                       )
                     } else {
@@ -1081,11 +1139,13 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                             <AlertCircle className="h-3 w-3" />
                           </div>
                         )
-                      } else {
-                        dayStyle = 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
-                        dayContent = (
-                          <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
-                            <Calendar className="h-3 w-3" />
+	                      } else {
+	                        dayStyle = hasEcheance && echeanceColor
+	                          ? `${echeanceColor.upcomingBgClass} ${echeanceColor.upcomingBorderClass} hover:brightness-95 cursor-pointer`
+	                          : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+	                        dayContent = (
+	                          <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+	                            <Calendar className="h-3 w-3" />
                           </div>
                         )
                       }
@@ -1100,17 +1160,29 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                     }
 
                     return (
-                      <div
-                        key={index}
-                        className={`p-2 min-h-[60px] border rounded-lg transition-all duration-200 ${dayStyle}`}
-                        onClick={() => isCurrentMonth && !isBeforeFirstPayment && !isDisabled && onDateClick(date)}
-                      >
-                        <div className="text-xs font-medium mb-1">
-                          {date.getDate()}
-                        </div>
-                        {isCurrentMonth && dayContent}
-                      </div>
-                    )
+	                      <div
+	                        key={index}
+	                        className={`p-2 min-h-[60px] border rounded-lg transition-all duration-200 ${dayStyle}`}
+	                        onClick={() => isCurrentMonth && !isBeforeFirstPayment && !isDisabled && onDateClick(date)}
+	                      >
+	                        <div className="text-xs font-medium mb-1">
+	                          {date.getDate()}
+	                        </div>
+	                        {isCurrentMonth && !isBeforeFirstPayment && hasEcheance && echeanceColor && (
+	                          <div className="mb-1">
+	                            <span
+	                              className={cn(
+	                                'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-semibold',
+	                                echeanceColor.badgeClass,
+	                              )}
+	                            >
+	                              M{dateMonthIndex + 1}
+	                            </span>
+	                          </div>
+	                        )}
+	                        {isCurrentMonth && dayContent}
+	                      </div>
+	                    )
                   })}
                 </div>
 
