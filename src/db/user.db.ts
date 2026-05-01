@@ -673,82 +673,159 @@ export async function searchUsers(
       return []
     }
 
-    const searchTerm = searchQuery.trim().toLowerCase()
+    const normalizeText = (value: unknown): string =>
+      String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+
+    const compactText = (value: unknown): string =>
+      normalizeText(value).replace(/[^a-z0-9]/g, '')
+
+    const searchTermRaw = searchQuery.trim()
+    const searchTerm = normalizeText(searchTermRaw)
+    const searchCompact = compactText(searchTermRaw)
+    const searchTokens = searchTerm
+      .split(/\s+/)
+      .map(token => token.trim())
+      .filter(Boolean)
+
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
     
     // Si la recherche ressemble à un matricule (contient .MK.), chercher directement par ID
     if (searchTerm.includes('.mk.')) {
-      console.log('🔍 Recherche par matricule direct:', searchTerm)
+      console.log('🔍 Recherche par matricule direct:', searchTermRaw)
+      const matriculeCandidate = searchTermRaw.toUpperCase()
       try {
-        const user = await getUserById(searchTerm)
+        const user = await getUserById(matriculeCandidate)
         if (user) {
           console.log('✅ Utilisateur trouvé par matricule:', user.matricule, user.firstName, user.lastName)
           return [user]
         } else {
-          console.log('❌ Utilisateur non trouvé par matricule:', searchTerm)
+          console.log('❌ Utilisateur non trouvé par matricule:', matriculeCandidate)
         }
       } catch (error) {
         console.error('❌ Erreur lors de la recherche par matricule:', error)
       }
     }
-    
-    // Recherche par nom/prénom - récupérer plus d'utilisateurs pour un meilleur filtrage
-    console.log('🔍 Recherche générale dans les utilisateurs récents...')
-    const q = query(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(100)) // Augmenter la limite
-    const querySnapshot = await getDocs(q)
-    
-    console.log('📊 Nombre total d\'utilisateurs récupérés:', querySnapshot.size)
-    
-    const users: User[] = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as any
-      const user = {
-        id: doc.id,
+
+    const toUser = (snapshotDoc: any): User => {
+      const data = snapshotDoc.data() as any
+      return {
+        id: snapshotDoc.id,
         ...data,
         createdAt: toDateSafe(data.createdAt),
         updatedAt: toDateSafe(data.updatedAt),
       } as User
-      
-      // Filtrer côté client pour la recherche
-      const matchesSearch = 
-        user.firstName?.toLowerCase().includes(searchTerm) ||
-        user.lastName?.toLowerCase().includes(searchTerm) ||
-        user.matricule?.toLowerCase().includes(searchTerm) ||
-        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm) ||
-        `${user.lastName} ${user.firstName}`.toLowerCase().includes(searchTerm)
-      
-      if (matchesSearch) {
-        console.log('✅ Utilisateur correspondant trouvé:', user.matricule, user.firstName, user.lastName)
-        users.push(user)
+    }
+
+    const matchesSearch = (user: User): boolean => {
+      const rawFirstName = user.firstName || (user as any).prenom || ''
+      const rawLastName = user.lastName || (user as any).nom || ''
+      const firstName = normalizeText(rawFirstName)
+      const lastName = normalizeText(rawLastName)
+      const firstLast = `${firstName} ${lastName}`.trim()
+      const lastFirst = `${lastName} ${firstName}`.trim()
+      const matricule = normalizeText(user.matricule || '')
+      const matriculeCompact = compactText(user.matricule || '')
+      const email = normalizeText((user as any).email || '')
+      const contacts = (user.contacts || []).map(contact => normalizeText(contact))
+      const contactsCompact = (user.contacts || []).map(contact => compactText(contact))
+
+      const tokenMatch = searchTokens.every(token =>
+        firstName.includes(token) ||
+        lastName.includes(token) ||
+        firstLast.includes(token) ||
+        lastFirst.includes(token) ||
+        matricule.includes(token) ||
+        email.includes(token) ||
+        contacts.some(contact => contact.includes(token))
+      )
+
+      const compactMatch =
+        matriculeCompact.includes(searchCompact) ||
+        contactsCompact.some(contact => contact.includes(searchCompact))
+
+      return tokenMatch || compactMatch
+    }
+
+    const dedupe = new Map<string, User>()
+    const maxDocsToScan = 2000
+    const pageSize = Math.max(150, limit * 8)
+
+    // Passage principal : scan paginé par createdAt (rapide pour les docs "standards")
+    console.log('🔍 Recherche générale dans les utilisateurs (scan paginé)...')
+    let lastDoc: any | null = null
+    let scanned = 0
+    let pageCount = 0
+
+    while (scanned < maxDocsToScan && pageCount < 20) {
+      const constraints = [orderBy('createdAt', 'desc')] as any[]
+      if (lastDoc) {
+        constraints.push(startAfter(lastDoc))
       }
-    })
-    
+      constraints.push(firestoreLimit(pageSize))
+
+      const snap = await getDocs(query(usersRef, ...constraints))
+      if (snap.empty) {
+        break
+      }
+
+      scanned += snap.size
+      pageCount += 1
+
+      snap.docs.forEach(docSnap => {
+        const user = toUser(docSnap)
+        if (matchesSearch(user)) {
+          dedupe.set(user.id, user)
+        }
+      })
+
+      lastDoc = snap.docs[snap.docs.length - 1] || null
+
+      if (snap.size < pageSize || dedupe.size >= limit * 3) {
+        break
+      }
+    }
+
+    // Fallback : certains documents peuvent ne pas avoir createdAt, donc non retournés par orderBy(createdAt)
+    if (dedupe.size === 0) {
+      console.log('🔁 Fallback de recherche sans tri createdAt...')
+      const fallbackSnap = await getDocs(query(usersRef, firestoreLimit(Math.max(500, limit * 20))))
+      fallbackSnap.docs.forEach(docSnap => {
+        const user = toUser(docSnap)
+        if (matchesSearch(user)) {
+          dedupe.set(user.id, user)
+        }
+      })
+    }
+
+    const users = Array.from(dedupe.values())
     console.log('📊 Nombre d\'utilisateurs correspondants:', users.length)
-    
-    // Trier par pertinence (matricule exact en premier, puis nom/prénom)
+
+    // Trier par pertinence (matricule exact en premier, puis correspondance du nom)
     users.sort((a, b) => {
-      const aMatricule = a.matricule?.toLowerCase() || ''
-      const bMatricule = b.matricule?.toLowerCase() || ''
-      const aName = `${a.firstName} ${a.lastName}`.toLowerCase()
-      const bName = `${b.firstName} ${b.lastName}`.toLowerCase()
-      
+      const aMatricule = normalizeText(a.matricule || '')
+      const bMatricule = normalizeText(b.matricule || '')
+      const aName = normalizeText(`${a.firstName || (a as any).prenom || ''} ${a.lastName || (a as any).nom || ''}`)
+      const bName = normalizeText(`${b.firstName || (b as any).prenom || ''} ${b.lastName || (b as any).nom || ''}`)
+
       // Priorité aux matricules exacts
       if (aMatricule === searchTerm && bMatricule !== searchTerm) return -1
       if (bMatricule === searchTerm && aMatricule !== searchTerm) return 1
-      
+
       // Puis aux matricules qui commencent par la recherche
       if (aMatricule.startsWith(searchTerm) && !bMatricule.startsWith(searchTerm)) return -1
       if (bMatricule.startsWith(searchTerm) && !aMatricule.startsWith(searchTerm)) return 1
-      
+
       // Puis aux noms qui commencent par la recherche
       if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1
       if (bName.startsWith(searchTerm) && !aName.startsWith(searchTerm)) return 1
-      
+
       return 0
     })
-    
-    // Retourner seulement le nombre demandé
+
     return users.slice(0, limit)
   } catch (error) {
     console.error('Erreur lors de la recherche d\'utilisateurs:', error)
