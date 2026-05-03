@@ -438,7 +438,7 @@ export default function CreditContractDetail({
 }: CreditContractDetailProps) {
   const router = useRouter()
   const { user: _user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'payments' | 'history' | 'losses' | 'guarantor'>('payments')
+  const [activeTab, setActiveTab] = useState<'payments' | 'penalties' | 'history' | 'losses' | 'guarantor'>('payments')
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
@@ -618,9 +618,14 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
       : new Map<number, (typeof specialHistory)[number]>()
-  const currentCycle = React.useMemo(
-    () => getCreditContractCycles(contract).at(-1),
+  const contractCycles = React.useMemo(
+    () => getCreditContractCycles(contract),
     [contract]
+  )
+  const hasCreditAugmentation = contractCycles.length > 1
+  const currentCycle = React.useMemo(
+    () => contractCycles.at(-1),
+    [contractCycles]
   )
   const fixedTransitionMeta = React.useMemo(() => ({
     mode: currentCycle?.fixedTransitionMode ?? contract.fixedTransitionMode,
@@ -630,11 +635,10 @@ export default function CreditContractDetail({
     startMonth: currentCycle?.fixedTransitionStartMonth ?? contract.fixedTransitionStartMonth,
   }), [currentCycle, contract.fixedTransitionAt, contract.fixedTransitionBy, contract.fixedTransitionMode, contract.fixedTransitionReason, contract.fixedTransitionStartMonth])
   const contractDocumentsByCycle = React.useMemo(() => {
-    const cycles = getCreditContractCycles(contract)
-    const hasAugmentation = cycles.length > 1
-    const currentCycleNumber = cycles.at(-1)?.cycleNumber ?? 1
+    const hasAugmentation = contractCycles.length > 1
+    const currentCycleNumber = contractCycles.at(-1)?.cycleNumber ?? 1
 
-    return [...cycles]
+    return [...contractCycles]
       .sort((left, right) => right.cycleNumber - left.cycleNumber)
       .map((cycle) => {
         const isCurrentCycle = cycle.cycleNumber === currentCycleNumber
@@ -658,7 +662,7 @@ export default function CreditContractDetail({
           signedContractUrl,
         }
       })
-  }, [contract])
+  }, [contract, contractCycles])
   const currentCycleDocuments = contractDocumentsByCycle.find((entry) => entry.isCurrentCycle)
   const hasEnteredFixedPhase =
     contract.creditType === 'SPECIALE' &&
@@ -1042,8 +1046,8 @@ export default function CreditContractDetail({
       ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
       : 'Manque à gagner généré à partir du passage en partie fixe.'
   const tabsGridClassName = isSimpleCredit
-    ? shouldShowLossesTab ? 'grid-cols-3' : 'grid-cols-2'
-    : shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
+    ? shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
+    : shouldShowLossesTab ? 'grid-cols-5' : 'grid-cols-4'
   const guarantorCommissionRows = React.useMemo(() => {
     if (
       contract.creditType !== 'SPECIALE' ||
@@ -1311,6 +1315,136 @@ export default function CreditContractDetail({
     }
   }
 
+  const parseCycleAndMonthFromInstallmentRef = (ref?: string): { cycleNumber?: number; monthNumber?: number } => {
+    if (!ref) return {}
+    const cycleMatch = ref.match(/^C(\d+)_M(\d+)_/)
+    if (cycleMatch) {
+      return {
+        cycleNumber: parseInt(cycleMatch[1], 10),
+        monthNumber: parseInt(cycleMatch[2], 10),
+      }
+    }
+    const legacyMatch = ref.match(/^M(\d+)_/)
+    if (legacyMatch) {
+      return {
+        cycleNumber: 1,
+        monthNumber: parseInt(legacyMatch[1], 10),
+      }
+    }
+    return {}
+  }
+
+  const resolvePenaltyCycleNumber = (penalty: CreditPenalty): number => {
+    const cycleHints = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
+    if (cycleHints.cycleNumber) return cycleHints.cycleNumber
+
+    const dueDate = new Date(penalty.dueDate)
+    let detected = 1
+    for (const cycle of contractCycles) {
+      if (dueDate.getTime() >= new Date(cycle.startedAt).getTime()) {
+        detected = cycle.cycleNumber
+      }
+    }
+    return detected
+  }
+
+  const getPenaltyAugmentationMeta = (
+    penalty: CreditPenalty
+  ): { label: string; badgeClassName: string } | null => {
+    if (!hasCreditAugmentation) return null
+    const cycleNumber = resolvePenaltyCycleNumber(penalty)
+    if (cycleNumber <= 1) {
+      return {
+        label: 'Avant augmentation',
+        badgeClassName: 'bg-slate-100 text-slate-700 border border-slate-200',
+      }
+    }
+    return {
+      label: `Après augmentation · Cycle ${cycleNumber}`,
+      badgeClassName: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+    }
+  }
+
+  const getPenaltyReceiptContext = (penalty: CreditPenalty) => {
+    const dueDate = new Date(penalty.dueDate)
+    const cycleHints = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
+    const cycleNumberFromDate = (() => {
+      let detected = 1
+      for (const cycle of contractCycles) {
+        if (dueDate.getTime() >= new Date(cycle.startedAt).getTime()) {
+          detected = cycle.cycleNumber
+        }
+      }
+      return detected
+    })()
+    const cycleNumber = cycleHints.cycleNumber ?? cycleNumberFromDate
+    const receiptContract =
+      cycleNumber === 1 && !contract.creditCycles?.length
+        ? contract
+        : buildContractSnapshotForCycle(cycleNumber)
+    const receiptSchedule =
+      cycleNumber === (contract.creditCycles?.at(-1)?.cycleNumber ?? 1)
+        ? actualSchedule
+        : buildScheduleForCycle(cycleNumber)
+
+    const scheduleMonth = receiptSchedule.find((item) => {
+      const itemDate = new Date(item.date)
+      itemDate.setHours(0, 0, 0, 0)
+      const penaltyDueDate = new Date(dueDate)
+      penaltyDueDate.setHours(0, 0, 0, 0)
+      return itemDate.getTime() === penaltyDueDate.getTime()
+    })?.month
+
+    const cycleFirstDate = new Date(receiptContract.firstPaymentDate)
+    const fallbackMonth = Math.max(
+      1,
+      (dueDate.getFullYear() - cycleFirstDate.getFullYear()) * 12 +
+        (dueDate.getMonth() - cycleFirstDate.getMonth()) +
+        1
+    )
+    const installmentNumber = cycleHints.monthNumber ?? scheduleMonth ?? fallbackMonth
+    const resolvedDueDate = receiptSchedule.find((item) => item.month === installmentNumber)?.date ?? dueDate
+
+    return {
+      cycleNumber,
+      installmentNumber,
+      dueDate: resolvedDueDate,
+      receiptContract,
+      receiptSchedule,
+    }
+  }
+
+  const getPenaltyTotalForInstallment = (params: {
+    installmentNumber?: number
+    dueDate?: Date | null
+    cycleNumber?: number
+  }): number => {
+    const { installmentNumber, dueDate, cycleNumber } = params
+    const normalizedDueDate = dueDate ? new Date(dueDate) : null
+    if (normalizedDueDate) normalizedDueDate.setHours(0, 0, 0, 0)
+
+    return penalties.reduce((sum, penalty) => {
+      const parsedInstallment = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
+      const penaltyCycle = parsedInstallment.cycleNumber ?? resolvePenaltyCycleNumber(penalty)
+      const penaltyMonth = parsedInstallment.monthNumber
+
+      const sameCycleAndInstallment =
+        typeof installmentNumber === 'number' &&
+        penaltyMonth === installmentNumber &&
+        (typeof cycleNumber === 'number' ? penaltyCycle === cycleNumber : true)
+
+      let sameDueDate = false
+      if (normalizedDueDate) {
+        const penaltyDueDate = new Date(penalty.dueDate)
+        penaltyDueDate.setHours(0, 0, 0, 0)
+        sameDueDate = penaltyDueDate.getTime() === normalizedDueDate.getTime()
+      }
+
+      if (!sameCycleAndInstallment && !sameDueDate) return sum
+      return sum + Math.max(0, Math.round(penalty.amount || 0))
+    }, 0)
+  }
+
   const handleOpenGlobalFacturePDF = async () => {
     const canGenerateGlobalFacture =
       contract.creditType === 'SPECIALE' ||
@@ -1325,21 +1459,83 @@ export default function CreditContractDetail({
       .filter(
         (payment) =>
           payment.amount > 0 ||
+          payment.penaltyAmount > 0 ||
+          payment.comment?.includes('Paiement de pénalités uniquement') ||
           payment.comment?.includes('Paiement de 0 FCFA') ||
           (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
       )
-      .sort((left, right) => {
-        const leftCycle = getCreditPaymentCycleNumber(contract, left)
-        const rightCycle = getCreditPaymentCycleNumber(contract, right)
-        if (leftCycle !== rightCycle) return leftCycle - rightCycle
-        const leftMonth = getCreditPaymentMonthNumber(contract, left)
-        const rightMonth = getCreditPaymentMonthNumber(contract, right)
-        if (leftMonth !== rightMonth) return leftMonth - rightMonth
-        return new Date(left.paymentDate).getTime() - new Date(right.paymentDate).getTime()
-      })
+    const paymentsById = new Map(payments.map((payment) => [payment.id, payment]))
+    const penaltiesForGlobalFacture = penalties.filter((penalty) => {
+      if (!penalty.paymentId) return true
+      const linkedPayment = paymentsById.get(penalty.paymentId)
+      if (!linkedPayment) return true
+      return !(
+        linkedPayment.penaltyAmount > 0 ||
+        linkedPayment.comment?.includes('Paiement de pénalités uniquement')
+      )
+    })
 
-    if (paymentsForGlobalFacture.length === 0) {
-      toast.error('Aucun versement de mensualité à inclure dans la facture globale')
+    const paymentEntries = paymentsForGlobalFacture.map((payment) => {
+      const paymentContext = getPaymentReceiptContext(payment)
+      return {
+        kind: 'payment' as const,
+        payment,
+        ...paymentContext,
+      }
+    })
+
+    const penaltyEntries = penaltiesForGlobalFacture.map((penalty) => {
+      const penaltyContext = getPenaltyReceiptContext(penalty)
+      const paymentDate = penalty.paidAt ?? penalty.paymentRecordedAt ?? penalty.updatedAt ?? penalty.createdAt ?? penaltyContext.dueDate
+      const syntheticPayment: CreditPayment = {
+        id: `PENALTY_${penalty.id}`,
+        creditId: contract.id,
+        installmentId: penalty.installmentId,
+        amount: penalty.paid ? Math.round(penalty.amount) : 0,
+        principalAmount: 0,
+        interestAmount: 0,
+        penaltyAmount: Math.round(penalty.amount),
+        paymentDate: new Date(paymentDate),
+        paymentTime: penalty.paymentTime || '12H00',
+        mode: penalty.paymentMode ?? 'cash',
+        withFees: penalty.withFees,
+        comment: penalty.paid
+          ? `Pénalité payée (${penalty.daysLate} jour(s) de retard)`
+          : `Pénalité impayée (${penalty.daysLate} jour(s) de retard)`,
+        note: 0,
+        reference: penalty.paymentId ? `PENALITE:${penalty.id}` : undefined,
+        agentRecouvrementId: penalty.agentRecouvrementId,
+        createdAt: penalty.createdAt,
+        updatedAt: penalty.updatedAt,
+        createdBy: penalty.createdBy,
+        updatedBy: penalty.updatedBy,
+      }
+      return {
+        kind: 'penalty' as const,
+        penalty,
+        syntheticPayment,
+        ...penaltyContext,
+      }
+    })
+
+    const factureEntries = [...paymentEntries, ...penaltyEntries].sort((left, right) => {
+      if (left.cycleNumber !== right.cycleNumber) return left.cycleNumber - right.cycleNumber
+      if (left.installmentNumber !== right.installmentNumber) return left.installmentNumber - right.installmentNumber
+      const leftDate =
+        left.kind === 'payment'
+          ? new Date(left.payment.paymentDate).getTime()
+          : new Date(left.syntheticPayment.paymentDate).getTime()
+      const rightDate =
+        right.kind === 'payment'
+          ? new Date(right.payment.paymentDate).getTime()
+          : new Date(right.syntheticPayment.paymentDate).getTime()
+      if (leftDate !== rightDate) return leftDate - rightDate
+      if (left.kind !== right.kind) return left.kind === 'payment' ? -1 : 1
+      return 0
+    })
+
+    if (factureEntries.length === 0) {
+      toast.error('Aucun versement ni pénalité à inclure dans la facture globale')
       return
     }
 
@@ -1357,22 +1553,27 @@ export default function CreditContractDetail({
       toast.info('Génération de la facture globale en cours...')
 
       const page1Data = buildCreditSpecialFacturePage1Data(contract, member)
-      const factures = paymentsForGlobalFacture.map((payment) => {
-        const paymentContext = getPaymentReceiptContext(payment)
+      const factures = factureEntries.map((entry) => {
+        const payment = entry.kind === 'payment' ? entry.payment : entry.syntheticPayment
         const factureData = buildCreditSpecialFactureData({
-          contract: paymentContext.receiptContract,
+          contract: entry.receiptContract,
           payment,
-          installmentNumber: paymentContext.installmentNumber,
-          schedule: paymentContext.receiptSchedule,
-          dueDate: paymentContext.dueDate ?? null,
+          installmentNumber: entry.installmentNumber,
+          schedule: entry.receiptSchedule,
+          dueDate: entry.dueDate ?? null,
         })
+
+        const titleSuffix =
+          entry.kind === 'penalty'
+            ? ` - PENALITE ${entry.penalty.paid ? 'PAYEE' : 'IMPAYEE'}`
+            : ''
 
         return {
           factureData,
           titleDate:
-            paymentContext.cycleNumber > 1
-              ? `${factureData.dateEcheance} - M${paymentContext.installmentNumber} apres augmentation`
-              : factureData.dateEcheance,
+            entry.cycleNumber > 1
+              ? `${factureData.dateEcheance} - M${entry.installmentNumber} apres augmentation${titleSuffix}`
+              : `${factureData.dateEcheance}${titleSuffix}`,
         }
       })
 
@@ -1620,6 +1821,252 @@ export default function CreditContractDetail({
   const selectedPaymentReceiptContext = selectedPayment
     ? getPaymentReceiptContext(selectedPayment)
     : null
+  const selectedPaymentForReceipt = selectedPayment ?? getSelectedPaymentForReceipt()
+  const selectedReceiptInstallmentNumber =
+    selectedPaymentReceiptContext?.installmentNumber
+      ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
+  const selectedReceiptDueDate =
+    selectedPaymentReceiptContext?.dueDate
+      ?? (selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
+        ? actualSchedule[selectedDueIndexForReceipt].date
+        : undefined)
+  const selectedReceiptCycleNumber =
+    selectedPaymentReceiptContext?.cycleNumber
+      ?? (selectedPaymentForReceipt ? getCreditPaymentCycleNumber(contract, selectedPaymentForReceipt) : undefined)
+  const selectedReceiptPenaltyAmount = getPenaltyTotalForInstallment({
+    installmentNumber: selectedReceiptInstallmentNumber,
+    dueDate: selectedReceiptDueDate ?? null,
+    cycleNumber: selectedReceiptCycleNumber,
+  })
+
+  const renderPenaltiesContent = () => {
+    if (penalties.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-500 border rounded-lg">
+          Aucune pénalité enregistrée pour le moment
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-orange-600" />
+            Historique des pénalités
+          </h3>
+        </div>
+        <div className="space-y-3">
+          {penalties.map((penalty) => {
+            const paymentRecordedAt = penalty.paymentRecordedAt ?? (penalty.paid ? penalty.updatedAt : undefined)
+            const paymentRecordedBy = penalty.paymentRecordedBy ?? (penalty.paid ? penalty.updatedBy : undefined)
+            const paymentUpdatedAt = penalty.paymentUpdatedAt
+            const paymentUpdatedBy = penalty.paymentUpdatedBy
+            const penaltyAugmentationMeta = getPenaltyAugmentationMeta(penalty)
+            const penaltyReceiptContext = getPenaltyReceiptContext(penalty)
+            const penaltyInstallmentLabel =
+              hasCreditAugmentation && penaltyReceiptContext.cycleNumber > 1
+                ? `Échéance ${penaltyReceiptContext.installmentNumber} (Cycle ${penaltyReceiptContext.cycleNumber})`
+                : `Échéance ${penaltyReceiptContext.installmentNumber}`
+            const hasPaymentUpdate =
+              !!paymentUpdatedAt &&
+              !!paymentUpdatedBy &&
+              (!!paymentRecordedAt || !!paymentRecordedBy) &&
+              (
+                (paymentRecordedAt ? paymentUpdatedAt.getTime() !== paymentRecordedAt.getTime() : true) ||
+                paymentUpdatedBy !== paymentRecordedBy
+              )
+
+            return (
+              <div
+                key={penalty.id}
+                className={cn(
+                  'rounded-lg border p-4',
+                  penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                )}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="font-semibold">
+                        {penalty.amount.toLocaleString('fr-FR')} FCFA
+                      </span>
+                      {penalty.paid ? (
+                        <Badge className="bg-green-100 text-green-700">Payée</Badge>
+                      ) : (
+                        <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
+                      )}
+                      <Badge className="bg-blue-100 text-blue-700 border border-blue-200">
+                        {penaltyInstallmentLabel}
+                      </Badge>
+                      {penaltyAugmentationMeta && (
+                        <Badge className={penaltyAugmentationMeta.badgeClassName}>
+                          {penaltyAugmentationMeta.label}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
+                      <p>
+                        Retard : <span className="font-medium text-gray-800">{penalty.daysLate} jours</span>
+                      </p>
+                      <p>
+                        Échéance concernée : <span className="font-medium text-gray-800">{penaltyInstallmentLabel}</span>
+                      </p>
+                      <p>
+                        Date d'échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
+                      </p>
+                      <p>
+                        Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
+                      </p>
+                      <p className="sm:col-span-2 xl:col-span-1">
+                        Enregistrée par :{' '}
+                        <span className="font-medium text-gray-800">
+                          {getPenaltyAdminDisplayName(penalty.createdBy)}
+                        </span>
+                      </p>
+                      {penaltyAugmentationMeta && (
+                        <p className="sm:col-span-2 xl:col-span-1">
+                          Cycle crédit :{' '}
+                          <span className="font-medium text-gray-800">
+                            {penaltyAugmentationMeta.label}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {penalty.paid && (
+                      <div className="mt-3 rounded-md border border-green-200 bg-white/70 p-3 text-sm text-gray-600 space-y-2">
+                        {penalty.paidAt && (
+                          <p>
+                            Payée le :{' '}
+                            <span className="font-medium text-gray-800">
+                              {penalty.paymentTime
+                                ? formatDateTime(penalty.paidAt, penalty.paymentTime)
+                                : formatDate(penalty.paidAt)}
+                            </span>
+                          </p>
+                        )}
+                        {penalty.paymentMode && (
+                          <p>
+                            Mode :{' '}
+                            <span className="font-medium text-gray-800">
+                              {CREDIT_PAYMENT_MODE_LABELS[penalty.paymentMode] ?? penalty.paymentMode}
+                              {(penalty.paymentMode === 'airtel_money' || penalty.paymentMode === 'mobicash') &&
+                              penalty.withFees !== undefined
+                                ? ` (${penalty.withFees ? 'Avec frais' : 'Sans frais'})`
+                                : ''}
+                            </span>
+                          </p>
+                        )}
+                        {paymentRecordedAt && (
+                          <p>
+                            Paiement saisi le :{' '}
+                            <span className="font-medium text-gray-800">
+                              {formatDateTime(
+                                paymentRecordedAt,
+                                format(new Date(paymentRecordedAt), 'HH:mm')
+                              )}
+                            </span>
+                          </p>
+                        )}
+                        {paymentRecordedBy && (
+                          <p>
+                            Paiement saisi par :{' '}
+                            <span className="font-medium text-gray-800">
+                              {getPenaltyAdminDisplayName(paymentRecordedBy)}
+                            </span>
+                          </p>
+                        )}
+                        {hasPaymentUpdate && paymentUpdatedAt && (
+                          <p>
+                            Dernière modification :{' '}
+                            <span className="font-medium text-gray-800">
+                              {formatDateTime(
+                                paymentUpdatedAt,
+                                format(new Date(paymentUpdatedAt), 'HH:mm')
+                              )}
+                              {' • '}
+                              {getPenaltyAdminDisplayName(paymentUpdatedBy)}
+                            </span>
+                          </p>
+                        )}
+                        {penalty.paymentComment && (
+                          <p>
+                            Commentaire : <span className="font-medium text-gray-800">{penalty.paymentComment}</span>
+                          </p>
+                        )}
+                        {penalty.proofUrl && (
+                          <a
+                            href={penalty.proofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex text-[#234D65] hover:underline"
+                          >
+                            Voir la preuve de paiement
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2 lg:w-52">
+                    {penalty.paid ? (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={() => {
+                            setSelectedPenaltyForReceipt(penalty)
+                            setShowPenaltyReceiptModal(true)
+                          }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Voir la facture
+                        </Button>
+                        {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                            onClick={() => {
+                              setPenaltyPaymentModalMode('edit')
+                              setSelectedPenaltyToPay(penalty)
+                              setShowPenaltyPaymentModal(true)
+                            }}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-[#234D65] hover:bg-[#1b3c4f]"
+                        onClick={() => {
+                          setPenaltyPaymentModalMode('pay')
+                          setSelectedPenaltyToPay(penalty)
+                          setShowPenaltyPaymentModal(true)
+                        }}
+                      >
+                        <HandCoins className="mr-2 h-4 w-4" />
+                        Payer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
@@ -1871,7 +2318,7 @@ export default function CreditContractDetail({
         {/* Onglets */}
         <Card className="border-0 shadow-xl">
           <CardContent className="p-0">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'history' | 'losses' | 'guarantor')} className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'penalties' | 'history' | 'losses' | 'guarantor')} className="w-full">
               <TabsList className={cn(
                 'grid w-full rounded-none border-b',
                 tabsGridClassName
@@ -1879,6 +2326,10 @@ export default function CreditContractDetail({
                 <TabsTrigger value="payments" className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
                   Versements
+                </TabsTrigger>
+                <TabsTrigger value="penalties" className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Pénalité
                 </TabsTrigger>
                 <TabsTrigger value="history" className="flex items-center gap-2">
                   <History className="h-4 w-4" />
@@ -2245,200 +2696,11 @@ export default function CreditContractDetail({
                     </p>
                   </div>
                 </div>
-                {/* Pénalités */}
-                {penalties.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <AlertCircle className="h-5 w-5 text-orange-600" />
-                        Historique des pénalités
-                      </h3>
-                    </div>
-                    <div className="space-y-3">
-                      {penalties.map((penalty) => {
-                        const paymentRecordedAt = penalty.paymentRecordedAt ?? (penalty.paid ? penalty.updatedAt : undefined)
-                        const paymentRecordedBy = penalty.paymentRecordedBy ?? (penalty.paid ? penalty.updatedBy : undefined)
-                        const paymentUpdatedAt = penalty.paymentUpdatedAt
-                        const paymentUpdatedBy = penalty.paymentUpdatedBy
-                        const hasPaymentUpdate =
-                          !!paymentUpdatedAt &&
-                          !!paymentUpdatedBy &&
-                          (!!paymentRecordedAt || !!paymentRecordedBy) &&
-                          (
-                            (paymentRecordedAt ? paymentUpdatedAt.getTime() !== paymentRecordedAt.getTime() : true) ||
-                            paymentUpdatedBy !== paymentRecordedBy
-                          )
+              </TabsContent>
 
-                        return (
-                          <div
-                            key={penalty.id}
-                            className={cn(
-                              'rounded-lg border p-4',
-                              penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
-                            )}
-                          >
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                              <div className="flex-1">
-                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                  <span className="font-semibold">
-                                    {penalty.amount.toLocaleString('fr-FR')} FCFA
-                                  </span>
-                                  {penalty.paid ? (
-                                    <Badge className="bg-green-100 text-green-700">Payée</Badge>
-                                  ) : (
-                                    <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
-                                  )}
-                                </div>
-
-                                <div className="grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
-                                  <p>
-                                    Retard : <span className="font-medium text-gray-800">{penalty.daysLate} jours</span>
-                                  </p>
-                                  <p>
-                                    Échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
-                                  </p>
-                                  <p>
-                                    Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
-                                  </p>
-                                  <p className="sm:col-span-2 xl:col-span-1">
-                                    Enregistrée par :{' '}
-                                    <span className="font-medium text-gray-800">
-                                      {getPenaltyAdminDisplayName(penalty.createdBy)}
-                                    </span>
-                                  </p>
-                                </div>
-
-                                {penalty.paid && (
-                                  <div className="mt-3 rounded-md border border-green-200 bg-white/70 p-3 text-sm text-gray-600 space-y-2">
-                                    {penalty.paidAt && (
-                                      <p>
-                                        Payée le :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {penalty.paymentTime
-                                            ? formatDateTime(penalty.paidAt, penalty.paymentTime)
-                                            : formatDate(penalty.paidAt)}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {penalty.paymentMode && (
-                                      <p>
-                                        Mode :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {CREDIT_PAYMENT_MODE_LABELS[penalty.paymentMode] ?? penalty.paymentMode}
-                                          {(penalty.paymentMode === 'airtel_money' || penalty.paymentMode === 'mobicash') &&
-                                          penalty.withFees !== undefined
-                                            ? ` (${penalty.withFees ? 'Avec frais' : 'Sans frais'})`
-                                            : ''}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {paymentRecordedAt && (
-                                      <p>
-                                        Paiement saisi le :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {formatDateTime(
-                                            paymentRecordedAt,
-                                            format(new Date(paymentRecordedAt), 'HH:mm')
-                                          )}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {paymentRecordedBy && (
-                                      <p>
-                                        Paiement saisi par :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {getPenaltyAdminDisplayName(paymentRecordedBy)}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {hasPaymentUpdate && paymentUpdatedAt && (
-                                      <p>
-                                        Dernière modification :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {formatDateTime(
-                                            paymentUpdatedAt,
-                                            format(new Date(paymentUpdatedAt), 'HH:mm')
-                                          )}
-                                          {' • '}
-                                          {getPenaltyAdminDisplayName(paymentUpdatedBy)}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {penalty.paymentComment && (
-                                      <p>
-                                        Commentaire : <span className="font-medium text-gray-800">{penalty.paymentComment}</span>
-                                      </p>
-                                    )}
-                                    {penalty.proofUrl && (
-                                      <a
-                                        href={penalty.proofUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex text-[#234D65] hover:underline"
-                                      >
-                                        Voir la preuve de paiement
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex flex-col gap-2 lg:w-52">
-                                {penalty.paid ? (
-                                  <>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                                      onClick={() => {
-                                        setSelectedPenaltyForReceipt(penalty)
-                                        setShowPenaltyReceiptModal(true)
-                                      }}
-                                    >
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      Voir la facture
-                                    </Button>
-                                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                                        onClick={() => {
-                                          setPenaltyPaymentModalMode('edit')
-                                          setSelectedPenaltyToPay(penalty)
-                                          setShowPenaltyPaymentModal(true)
-                                        }}
-                                      >
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Modifier
-                                      </Button>
-                                    )}
-                                  </>
-                                ) : (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="bg-[#234D65] hover:bg-[#1b3c4f]"
-                                    onClick={() => {
-                                      setPenaltyPaymentModalMode('pay')
-                                      setSelectedPenaltyToPay(penalty)
-                                      setShowPenaltyPaymentModal(true)
-                                    }}
-                                  >
-                                    <HandCoins className="mr-2 h-4 w-4" />
-                                    Payer
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+              {/* Onglet Pénalité */}
+              <TabsContent value="penalties" className="p-6 space-y-6 m-0">
+                {renderPenaltiesContent()}
               </TabsContent>
 
               {/* Onglet Historique */}
@@ -3435,7 +3697,7 @@ export default function CreditContractDetail({
           queryClient.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', contract.id] })
         }}
       />
-      {((getSelectedPaymentForReceipt() && selectedDueIndexForReceipt !== null) || selectedPayment) && (
+      {(selectedPaymentForReceipt && (selectedDueIndexForReceipt !== null || !!selectedPayment)) && (
         <PaymentReceiptModal
           isOpen={showReceiptModal}
           onClose={() => {
@@ -3444,34 +3706,24 @@ export default function CreditContractDetail({
             setSelectedPayment(null)
           }}
           contract={selectedPaymentReceiptContext?.receiptContract ?? contract}
-          payment={selectedPayment || getSelectedPaymentForReceipt()!}
-          installmentNumber={
-            selectedPaymentReceiptContext?.installmentNumber
-              ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
-          }
+          payment={selectedPaymentForReceipt}
+          installmentNumber={selectedReceiptInstallmentNumber}
           schedule={selectedPaymentReceiptContext?.receiptSchedule ?? actualSchedule}
           pdfTitleText={
             selectedPaymentReceiptContext
               ? (selectedPaymentReceiptContext.cycleNumber > 1
-                ? `${format(new Date(selectedPaymentReceiptContext.dueDate ?? (selectedPayment || getSelectedPaymentForReceipt()!)!.paymentDate), 'yyyy-MM-dd')} - M${selectedPaymentReceiptContext.installmentNumber} apres augmentation`
+                ? `${format(new Date(selectedPaymentReceiptContext.dueDate ?? selectedPaymentForReceipt.paymentDate), 'yyyy-MM-dd')} - M${selectedPaymentReceiptContext.installmentNumber} apres augmentation`
                 : undefined)
               : undefined
           }
-          dueDate={
-            selectedPaymentReceiptContext?.dueDate
-              ?? (selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
-                ? actualSchedule[selectedDueIndexForReceipt].date
-                : undefined)
-          }
+          dueDate={selectedReceiptDueDate}
+          penaltyAmountOverride={selectedReceiptPenaltyAmount}
           onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
-            const p = selectedPayment || getSelectedPaymentForReceipt()
-            if (p) {
-              setPaymentToEdit(p)
-              setShowReceiptModal(false)
-              setSelectedDueIndexForReceipt(null)
-              setSelectedPayment(null)
-              setShowPaymentModal(true)
-            }
+            setPaymentToEdit(selectedPaymentForReceipt)
+            setShowReceiptModal(false)
+            setSelectedDueIndexForReceipt(null)
+            setSelectedPayment(null)
+            setShowPaymentModal(true)
           } : undefined}
         />
       )}
