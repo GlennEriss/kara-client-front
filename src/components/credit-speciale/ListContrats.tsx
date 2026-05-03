@@ -813,6 +813,7 @@ const ListContrats = ({
   const [replaceFile, setReplaceFile] = useState<File | undefined>()
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<CreditContract | null>(null)
+  const [selectedContractForOverview, setSelectedContractForOverview] = useState<CreditContract | null>(null)
   const [showDeleteContractModal, setShowDeleteContractModal] = useState(false)
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<CreditContract | null>(null)
   const isUploadActivationFlow = selectedContractForUpload?.status === 'PENDING'
@@ -1691,7 +1692,7 @@ const ListContrats = ({
                                 Ouvrir
                               </Button>
                               <Button
-                                onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                                onClick={() => setSelectedContractForOverview(contract)}
                                 variant="outline"
                                 className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                               >
@@ -1729,7 +1730,7 @@ const ListContrats = ({
                                 </Button>
                               )}
                               <Button
-                                onClick={() => router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)}
+                                onClick={() => setSelectedContractForOverview(contract)}
                                 variant="outline"
                                 className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                               >
@@ -1848,6 +1849,13 @@ const ListContrats = ({
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ouvrir
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setSelectedContractForOverview(contract)}
+                                className="cursor-pointer"
+                              >
+                                <User className="h-4 w-4 mr-2" />
+                                Voir toutes les infos
+                              </DropdownMenuItem>
                               {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={contract.contractUrl
@@ -1937,6 +1945,211 @@ const ListContrats = ({
         </Card>
       )}
     </div>
+
+      {/* Modal récapitulatif complet du contrat */}
+      {selectedContractForOverview && (
+        <Dialog
+          open={!!selectedContractForOverview}
+          onOpenChange={(open) => {
+            if (!open) setSelectedContractForOverview(null)
+          }}
+        >
+          <DialogContent className="!w-[95vw] !max-w-[1200px] p-0 overflow-hidden border-0 shadow-2xl">
+            {(() => {
+              const contract = selectedContractForOverview
+              const fullName = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.trim() || 'Client non renseigné'
+              const initials = `${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'
+              const contact1 = contract.clientContacts?.[0] || '—'
+              const contact2 = contract.clientContacts?.[1] || '—'
+              const emergency = contract.emergencyContact
+              const hasSignedContract = Boolean(contract.signedContractUrl)
+              const statusLabel = getStatusLabel(contract.status)
+              const creditTypeLabel = getCreditTypeLabel(contract.creditType)
+
+              return (
+                <div className="bg-gradient-to-b from-white via-white to-slate-50/80 text-sm">
+                  <DialogHeader className="border-b border-[#234D65]/15 bg-gradient-to-r from-[#234D65] via-[#285773] to-[#234D65] px-6 py-5 text-white">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <DialogTitle className="text-xl font-semibold tracking-tight text-white">Détails complets du contrat</DialogTitle>
+                        <p className="mt-1 text-sm text-white/85">
+                          Informations détaillées du contrat de crédit spéciale
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={cn('border text-xs font-semibold', getStatusColor(contract.status))}>
+                          {statusLabel}
+                        </Badge>
+                        <Badge
+                          className={cn(
+                            'border text-xs font-semibold',
+                            hasSignedContract
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-orange-200 bg-orange-50 text-orange-700'
+                          )}
+                        >
+                          {hasSignedContract ? 'Contrat signé disponible' : 'Contrat signé à téléverser'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="max-h-[78vh] overflow-y-auto px-5 py-5 sm:px-6">
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="flex items-start gap-4">
+                            <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/15">
+                              <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white text-base font-semibold">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className="truncate text-base font-semibold text-slate-900">{fullName}</p>
+                              <p className="font-mono text-xs text-slate-500">{contract.clientId || 'Matricule non renseigné'}</p>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <Badge className="border border-[#234D65]/25 bg-[#234D65]/10 text-[#234D65] hover:bg-[#234D65]/15">
+                                  <User className="mr-1 h-3.5 w-3.5" />
+                                  {creditTypeLabel}
+                                </Badge>
+                                <Badge className="border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200">
+                                  ID: {contract.id}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contact principal</p>
+                              <p className="mt-1 text-sm font-medium text-slate-800">{contact1}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contact secondaire</p>
+                              <p className="mt-1 text-sm font-medium text-slate-800">{contact2}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Garant</p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Identité</p>
+                            <p className="mt-1 font-medium text-slate-900">
+                              {contract.guarantorId
+                                ? `${contract.guarantorFirstName || ''} ${contract.guarantorLastName || ''}`.trim()
+                                : 'Aucun garant'}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {contract.guarantorId
+                                ? contract.guarantorIsMember ? 'Garant membre' : 'Garant externe'
+                                : '—'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Contact urgent</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Nom complet</p>
+                              <p className="mt-1 font-medium text-slate-900">
+                                {emergency ? `${emergency.lastName || '—'} ${emergency.firstName || ''}`.trim() : '—'}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Téléphone</p>
+                              <p className="mt-1 font-medium text-slate-900">{emergency?.phone1 || '—'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Montants</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3">
+                            <div className="rounded-xl bg-gradient-to-r from-[#234D65]/10 to-[#234D65]/5 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-[#234D65]/80">Montant emprunté</p>
+                              <p className="text-lg font-semibold text-[#234D65]">{(contract.amount || 0).toLocaleString('fr-FR')} FCFA</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Montant total</p>
+                              <p className="text-base font-semibold text-slate-900">{(contract.totalAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
+                              <p className="text-base font-semibold text-slate-900">{(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Déjà versé</p>
+                              <p className="text-base font-semibold text-slate-900">{(contract.amountPaid || 0).toLocaleString('fr-FR')} FCFA</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Reste à payer</p>
+                              <p className="text-base font-semibold text-slate-900">{Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-[#234D65]" />
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#234D65]">Calendrier du contrat</p>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée prévue</p>
+                              <p className="text-base font-semibold text-slate-900">{contract.duration || 0} mois</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Première échéance</p>
+                              <p className="text-base font-semibold text-slate-900">
+                                {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
+                              <p className="text-base font-semibold text-slate-900">
+                                {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">Date de création</p>
+                              <p className="text-base font-semibold text-slate-900">
+                                {contract.createdAt ? new Date(contract.createdAt).toLocaleDateString('fr-FR') : '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedContractForOverview(null)}
+                        className="rounded-xl border-[#234D65]/30 px-5 text-[#234D65] cursor-pointer hover:bg-[#234D65]/10 hover:text-[#234D65]"
+                      >
+                        Fermer
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Modal de téléversement de contrat */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
