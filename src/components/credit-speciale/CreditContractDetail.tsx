@@ -1311,6 +1311,75 @@ export default function CreditContractDetail({
     }
   }
 
+  const parseCycleAndMonthFromInstallmentRef = (ref?: string): { cycleNumber?: number; monthNumber?: number } => {
+    if (!ref) return {}
+    const cycleMatch = ref.match(/^C(\d+)_M(\d+)_/)
+    if (cycleMatch) {
+      return {
+        cycleNumber: parseInt(cycleMatch[1], 10),
+        monthNumber: parseInt(cycleMatch[2], 10),
+      }
+    }
+    const legacyMatch = ref.match(/^M(\d+)_/)
+    if (legacyMatch) {
+      return {
+        cycleNumber: 1,
+        monthNumber: parseInt(legacyMatch[1], 10),
+      }
+    }
+    return {}
+  }
+
+  const getPenaltyReceiptContext = (penalty: CreditPenalty) => {
+    const dueDate = new Date(penalty.dueDate)
+    const cycleHints = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
+    const cycles = getCreditContractCycles(contract)
+    const cycleNumberFromDate = (() => {
+      let detected = 1
+      for (const cycle of cycles) {
+        if (dueDate.getTime() >= new Date(cycle.startedAt).getTime()) {
+          detected = cycle.cycleNumber
+        }
+      }
+      return detected
+    })()
+    const cycleNumber = cycleHints.cycleNumber ?? cycleNumberFromDate
+    const receiptContract =
+      cycleNumber === 1 && !contract.creditCycles?.length
+        ? contract
+        : buildContractSnapshotForCycle(cycleNumber)
+    const receiptSchedule =
+      cycleNumber === (contract.creditCycles?.at(-1)?.cycleNumber ?? 1)
+        ? actualSchedule
+        : buildScheduleForCycle(cycleNumber)
+
+    const scheduleMonth = receiptSchedule.find((item) => {
+      const itemDate = new Date(item.date)
+      itemDate.setHours(0, 0, 0, 0)
+      const penaltyDueDate = new Date(dueDate)
+      penaltyDueDate.setHours(0, 0, 0, 0)
+      return itemDate.getTime() === penaltyDueDate.getTime()
+    })?.month
+
+    const cycleFirstDate = new Date(receiptContract.firstPaymentDate)
+    const fallbackMonth = Math.max(
+      1,
+      (dueDate.getFullYear() - cycleFirstDate.getFullYear()) * 12 +
+        (dueDate.getMonth() - cycleFirstDate.getMonth()) +
+        1
+    )
+    const installmentNumber = cycleHints.monthNumber ?? scheduleMonth ?? fallbackMonth
+    const resolvedDueDate = receiptSchedule.find((item) => item.month === installmentNumber)?.date ?? dueDate
+
+    return {
+      cycleNumber,
+      installmentNumber,
+      dueDate: resolvedDueDate,
+      receiptContract,
+      receiptSchedule,
+    }
+  }
+
   const handleOpenGlobalFacturePDF = async () => {
     const canGenerateGlobalFacture =
       contract.creditType === 'SPECIALE' ||
@@ -1325,21 +1394,83 @@ export default function CreditContractDetail({
       .filter(
         (payment) =>
           payment.amount > 0 ||
+          payment.penaltyAmount > 0 ||
+          payment.comment?.includes('Paiement de pénalités uniquement') ||
           payment.comment?.includes('Paiement de 0 FCFA') ||
           (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
       )
-      .sort((left, right) => {
-        const leftCycle = getCreditPaymentCycleNumber(contract, left)
-        const rightCycle = getCreditPaymentCycleNumber(contract, right)
-        if (leftCycle !== rightCycle) return leftCycle - rightCycle
-        const leftMonth = getCreditPaymentMonthNumber(contract, left)
-        const rightMonth = getCreditPaymentMonthNumber(contract, right)
-        if (leftMonth !== rightMonth) return leftMonth - rightMonth
-        return new Date(left.paymentDate).getTime() - new Date(right.paymentDate).getTime()
-      })
+    const paymentsById = new Map(payments.map((payment) => [payment.id, payment]))
+    const penaltiesForGlobalFacture = penalties.filter((penalty) => {
+      if (!penalty.paymentId) return true
+      const linkedPayment = paymentsById.get(penalty.paymentId)
+      if (!linkedPayment) return true
+      return !(
+        linkedPayment.penaltyAmount > 0 ||
+        linkedPayment.comment?.includes('Paiement de pénalités uniquement')
+      )
+    })
 
-    if (paymentsForGlobalFacture.length === 0) {
-      toast.error('Aucun versement de mensualité à inclure dans la facture globale')
+    const paymentEntries = paymentsForGlobalFacture.map((payment) => {
+      const paymentContext = getPaymentReceiptContext(payment)
+      return {
+        kind: 'payment' as const,
+        payment,
+        ...paymentContext,
+      }
+    })
+
+    const penaltyEntries = penaltiesForGlobalFacture.map((penalty) => {
+      const penaltyContext = getPenaltyReceiptContext(penalty)
+      const paymentDate = penalty.paidAt ?? penalty.paymentRecordedAt ?? penalty.updatedAt ?? penalty.createdAt ?? penaltyContext.dueDate
+      const syntheticPayment: CreditPayment = {
+        id: `PENALTY_${penalty.id}`,
+        creditId: contract.id,
+        installmentId: penalty.installmentId,
+        amount: penalty.paid ? Math.round(penalty.amount) : 0,
+        principalAmount: 0,
+        interestAmount: 0,
+        penaltyAmount: Math.round(penalty.amount),
+        paymentDate: new Date(paymentDate),
+        paymentTime: penalty.paymentTime || '12H00',
+        mode: penalty.paymentMode ?? 'cash',
+        withFees: penalty.withFees,
+        comment: penalty.paid
+          ? `Pénalité payée (${penalty.daysLate} jour(s) de retard)`
+          : `Pénalité impayée (${penalty.daysLate} jour(s) de retard)`,
+        note: 0,
+        reference: penalty.paymentId ? `PENALITE:${penalty.id}` : undefined,
+        agentRecouvrementId: penalty.agentRecouvrementId,
+        createdAt: penalty.createdAt,
+        updatedAt: penalty.updatedAt,
+        createdBy: penalty.createdBy,
+        updatedBy: penalty.updatedBy,
+      }
+      return {
+        kind: 'penalty' as const,
+        penalty,
+        syntheticPayment,
+        ...penaltyContext,
+      }
+    })
+
+    const factureEntries = [...paymentEntries, ...penaltyEntries].sort((left, right) => {
+      if (left.cycleNumber !== right.cycleNumber) return left.cycleNumber - right.cycleNumber
+      if (left.installmentNumber !== right.installmentNumber) return left.installmentNumber - right.installmentNumber
+      const leftDate =
+        left.kind === 'payment'
+          ? new Date(left.payment.paymentDate).getTime()
+          : new Date(left.syntheticPayment.paymentDate).getTime()
+      const rightDate =
+        right.kind === 'payment'
+          ? new Date(right.payment.paymentDate).getTime()
+          : new Date(right.syntheticPayment.paymentDate).getTime()
+      if (leftDate !== rightDate) return leftDate - rightDate
+      if (left.kind !== right.kind) return left.kind === 'payment' ? -1 : 1
+      return 0
+    })
+
+    if (factureEntries.length === 0) {
+      toast.error('Aucun versement ni pénalité à inclure dans la facture globale')
       return
     }
 
@@ -1357,22 +1488,27 @@ export default function CreditContractDetail({
       toast.info('Génération de la facture globale en cours...')
 
       const page1Data = buildCreditSpecialFacturePage1Data(contract, member)
-      const factures = paymentsForGlobalFacture.map((payment) => {
-        const paymentContext = getPaymentReceiptContext(payment)
+      const factures = factureEntries.map((entry) => {
+        const payment = entry.kind === 'payment' ? entry.payment : entry.syntheticPayment
         const factureData = buildCreditSpecialFactureData({
-          contract: paymentContext.receiptContract,
+          contract: entry.receiptContract,
           payment,
-          installmentNumber: paymentContext.installmentNumber,
-          schedule: paymentContext.receiptSchedule,
-          dueDate: paymentContext.dueDate ?? null,
+          installmentNumber: entry.installmentNumber,
+          schedule: entry.receiptSchedule,
+          dueDate: entry.dueDate ?? null,
         })
+
+        const titleSuffix =
+          entry.kind === 'penalty'
+            ? ` - PENALITE ${entry.penalty.paid ? 'PAYEE' : 'IMPAYEE'}`
+            : ''
 
         return {
           factureData,
           titleDate:
-            paymentContext.cycleNumber > 1
-              ? `${factureData.dateEcheance} - M${paymentContext.installmentNumber} apres augmentation`
-              : factureData.dateEcheance,
+            entry.cycleNumber > 1
+              ? `${factureData.dateEcheance} - M${entry.installmentNumber} apres augmentation${titleSuffix}`
+              : `${factureData.dateEcheance}${titleSuffix}`,
         }
       })
 
