@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useRecordGuarantorPayment } from '@/hooks/useCreditSpeciale'
 import type { GuarantorPayment } from '@/types/types'
 import { format } from 'date-fns'
-import { DollarSign, Upload } from 'lucide-react'
+import { CalendarClock, DollarSign, FileText, Landmark, MessageSquareText, Upload } from 'lucide-react'
 import React, { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -91,107 +91,155 @@ export default function GuarantorPaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Enregistrer un paiement au garant</DialogTitle>
-          <DialogDescription>
-            Saisissez les informations du versement effectué au garant et la preuve (recommandé).
-          </DialogDescription>
+      <DialogContent className="max-w-xl overflow-hidden border-0 p-0 shadow-2xl">
+        <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-[#234D65] to-[#2f6a8d] px-6 py-5 text-white">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-white/15 p-2.5">
+              <Landmark className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl font-bold text-white">Enregistrer un paiement au garant</DialogTitle>
+              <DialogDescription className="mt-1 text-slate-100">
+                Renseignez les informations du versement et ajoutez la preuve de paiement.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="gp-date">Date du paiement *</Label>
-              <Input
-                id="gp-date"
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                required
-              />
+        <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <CalendarClock className="h-4 w-4 text-[#234D65]" />
+              Détails du paiement
             </div>
-            <div>
-              <Label htmlFor="gp-time">Heure *</Label>
-              <Input
-                id="gp-time"
-                type="time"
-                value={paymentTime}
-                onChange={(e) => setPaymentTime(e.target.value)}
-                required
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="gp-date">Date du paiement *</Label>
+                <Input
+                  id="gp-date"
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  required
+                  className="bg-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="gp-time">Heure *</Label>
+                <Input
+                  id="gp-time"
+                  type="time"
+                  value={paymentTime}
+                  onChange={(e) => setPaymentTime(e.target.value)}
+                  required
+                  className="bg-white"
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <Label htmlFor="gp-amount" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Montant (FCFA) *
-            </Label>
-            <Input
-              id="gp-amount"
-              type="number"
-              min="1"
-              step="1"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
-              required
-            />
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <DollarSign className="h-4 w-4 text-[#234D65]" />
+              Montant et moyen de paiement
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="gp-amount">Montant (FCFA) *</Label>
+                <div className="relative">
+                  <Input
+                    id="gp-amount"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0"
+                    required
+                    className="bg-white pr-16"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">
+                    FCFA
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Moyen de paiement *</Label>
+                <Select value={mode} onValueChange={(v) => setMode(v as GuarantorPayment['mode'])}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_MODE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
-          <div>
-            <Label>Moyen de paiement *</Label>
-            <Select value={mode} onValueChange={(v) => setMode(v as GuarantorPayment['mode'])}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_MODE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="gp-proof" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Preuve (recommandé)
-            </Label>
+
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <Upload className="h-4 w-4 text-[#234D65]" />
+              Preuve de paiement (recommandé)
+            </div>
             <Input
               id="gp-proof"
               type="file"
               accept="image/*,.pdf"
               onChange={(e) => setProofFile(e.target.files?.[0])}
+              className="bg-white file:mr-3 file:rounded-md file:border-0 file:bg-[#234D65] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-[#1b3b4d]"
             />
-            {proofFile && (
-              <p className="text-sm text-gray-600 mt-1">Fichier : {proofFile.name}</p>
+            {proofFile ? (
+              <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                <FileText className="h-4 w-4 text-[#234D65]" />
+                {proofFile.name}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">
+                Formats acceptés: image ou PDF.
+              </p>
             )}
           </div>
-          <div>
-            <Label htmlFor="gp-reference">Référence (optionnel)</Label>
-            <Input
-              id="gp-reference"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="N° transaction, référence virement..."
-            />
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <MessageSquareText className="h-4 w-4 text-[#234D65]" />
+              Informations complémentaires
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="gp-reference">Référence (optionnel)</Label>
+                <Input
+                  id="gp-reference"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="N° transaction, référence virement..."
+                  className="bg-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="gp-comment">Commentaire (optionnel)</Label>
+                <Textarea
+                  id="gp-comment"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Note libre"
+                  rows={3}
+                  className="bg-white"
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <Label htmlFor="gp-comment">Commentaire (optionnel)</Label>
-            <Textarea
-              id="gp-comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Note libre"
-              rows={2}
-            />
-          </div>
-          <DialogFooter>
+
+          <DialogFooter className="border-t border-slate-200 pt-4 sm:justify-between">
             <Button type="button" variant="outline" onClick={handleClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={recordPayment.isPending}>
-              {recordPayment.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            <Button type="submit" disabled={recordPayment.isPending} className="bg-[#234D65] hover:bg-[#1a3b4f]">
+              {recordPayment.isPending ? 'Enregistrement...' : 'Enregistrer le paiement'}
             </Button>
           </DialogFooter>
         </form>

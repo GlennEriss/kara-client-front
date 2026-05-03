@@ -61,6 +61,8 @@ interface PaymentReceiptModalProps {
   dueDate?: Date | null
   /** Titre personnalisé pour le PDF de versement. */
   pdfTitleText?: string
+  /** Pénalité à afficher dans la facture PDF (override). */
+  penaltyAmountOverride?: number
 }
 
 // Nouveaux modes (alignés caisse spéciale) + anciens (rétrocompatibilité)
@@ -86,6 +88,7 @@ export default function PaymentReceiptModal({
   schedule,
   dueDate,
   pdfTitleText,
+  penaltyAmountOverride,
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -134,6 +137,7 @@ export default function PaymentReceiptModal({
       installmentNumber,
       schedule,
       dueDate,
+      penaltyAmountOverride,
     })
   }
 

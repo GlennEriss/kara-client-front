@@ -109,8 +109,10 @@ export function buildCreditSpecialFactureData(params: {
   installmentNumber?: number
   schedule?: CreditFactureDueItemLike[]
   dueDate?: Date | null
+  /** Permet de forcer la pénalité affichée dans la facture (ex: pénalité payée séparément). */
+  penaltyAmountOverride?: number
 }): FactureCreditSpecialPDFData {
-  const { contract, payment, installmentNumber, schedule, dueDate } = params
+  const { contract, payment, installmentNumber, schedule, dueDate, penaltyAmountOverride } = params
   const num =
     installmentNumber && installmentNumber > 0
       ? installmentNumber
@@ -148,6 +150,10 @@ export function buildCreditSpecialFactureData(params: {
       ? payment.withFees
       : false
   const dateEcheance = formatDateYYYYMMDD(dueDate ?? dueItem?.date ?? payment.paymentDate)
+  const resolvedPenaltyAmount =
+    typeof penaltyAmountOverride === 'number' && Number.isFinite(penaltyAmountOverride)
+      ? Math.max(0, Math.round(penaltyAmountOverride))
+      : Math.max(0, Math.round(payment.penaltyAmount ?? 0))
 
   return {
     paymentDate: formatDateYYYYMMDD(payment.paymentDate),
@@ -161,7 +167,7 @@ export function buildCreditSpecialFactureData(params: {
     moyen: moyenLabel,
     frais: fraisValue,
     montantRemis: payment.amount,
-    penalite: payment.penaltyAmount ?? 0,
+    penalite: resolvedPenaltyAmount,
     remarque: payment.comment?.trim() || 'PAS DE VERSEMENT',
     note: payment.note ?? 0,
     nouveauCapital1: nouveauCapital,
