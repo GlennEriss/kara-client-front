@@ -1414,6 +1414,37 @@ export default function CreditContractDetail({
     }
   }
 
+  const getPenaltyTotalForInstallment = (params: {
+    installmentNumber?: number
+    dueDate?: Date | null
+    cycleNumber?: number
+  }): number => {
+    const { installmentNumber, dueDate, cycleNumber } = params
+    const normalizedDueDate = dueDate ? new Date(dueDate) : null
+    if (normalizedDueDate) normalizedDueDate.setHours(0, 0, 0, 0)
+
+    return penalties.reduce((sum, penalty) => {
+      const parsedInstallment = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
+      const penaltyCycle = parsedInstallment.cycleNumber ?? resolvePenaltyCycleNumber(penalty)
+      const penaltyMonth = parsedInstallment.monthNumber
+
+      const sameCycleAndInstallment =
+        typeof installmentNumber === 'number' &&
+        penaltyMonth === installmentNumber &&
+        (typeof cycleNumber === 'number' ? penaltyCycle === cycleNumber : true)
+
+      let sameDueDate = false
+      if (normalizedDueDate) {
+        const penaltyDueDate = new Date(penalty.dueDate)
+        penaltyDueDate.setHours(0, 0, 0, 0)
+        sameDueDate = penaltyDueDate.getTime() === normalizedDueDate.getTime()
+      }
+
+      if (!sameCycleAndInstallment && !sameDueDate) return sum
+      return sum + Math.max(0, Math.round(penalty.amount || 0))
+    }, 0)
+  }
+
   const handleOpenGlobalFacturePDF = async () => {
     const canGenerateGlobalFacture =
       contract.creditType === 'SPECIALE' ||
@@ -1790,6 +1821,23 @@ export default function CreditContractDetail({
   const selectedPaymentReceiptContext = selectedPayment
     ? getPaymentReceiptContext(selectedPayment)
     : null
+  const selectedPaymentForReceipt = selectedPayment ?? getSelectedPaymentForReceipt()
+  const selectedReceiptInstallmentNumber =
+    selectedPaymentReceiptContext?.installmentNumber
+      ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
+  const selectedReceiptDueDate =
+    selectedPaymentReceiptContext?.dueDate
+      ?? (selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
+        ? actualSchedule[selectedDueIndexForReceipt].date
+        : undefined)
+  const selectedReceiptCycleNumber =
+    selectedPaymentReceiptContext?.cycleNumber
+      ?? (selectedPaymentForReceipt ? getCreditPaymentCycleNumber(contract, selectedPaymentForReceipt) : undefined)
+  const selectedReceiptPenaltyAmount = getPenaltyTotalForInstallment({
+    installmentNumber: selectedReceiptInstallmentNumber,
+    dueDate: selectedReceiptDueDate ?? null,
+    cycleNumber: selectedReceiptCycleNumber,
+  })
 
   const renderPenaltiesContent = () => {
     if (penalties.length === 0) {
@@ -3649,7 +3697,7 @@ export default function CreditContractDetail({
           queryClient.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', contract.id] })
         }}
       />
-      {((getSelectedPaymentForReceipt() && selectedDueIndexForReceipt !== null) || selectedPayment) && (
+      {(selectedPaymentForReceipt && (selectedDueIndexForReceipt !== null || !!selectedPayment)) && (
         <PaymentReceiptModal
           isOpen={showReceiptModal}
           onClose={() => {
@@ -3658,34 +3706,24 @@ export default function CreditContractDetail({
             setSelectedPayment(null)
           }}
           contract={selectedPaymentReceiptContext?.receiptContract ?? contract}
-          payment={selectedPayment || getSelectedPaymentForReceipt()!}
-          installmentNumber={
-            selectedPaymentReceiptContext?.installmentNumber
-              ?? (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
-          }
+          payment={selectedPaymentForReceipt}
+          installmentNumber={selectedReceiptInstallmentNumber}
           schedule={selectedPaymentReceiptContext?.receiptSchedule ?? actualSchedule}
           pdfTitleText={
             selectedPaymentReceiptContext
               ? (selectedPaymentReceiptContext.cycleNumber > 1
-                ? `${format(new Date(selectedPaymentReceiptContext.dueDate ?? (selectedPayment || getSelectedPaymentForReceipt()!)!.paymentDate), 'yyyy-MM-dd')} - M${selectedPaymentReceiptContext.installmentNumber} apres augmentation`
+                ? `${format(new Date(selectedPaymentReceiptContext.dueDate ?? selectedPaymentForReceipt.paymentDate), 'yyyy-MM-dd')} - M${selectedPaymentReceiptContext.installmentNumber} apres augmentation`
                 : undefined)
               : undefined
           }
-          dueDate={
-            selectedPaymentReceiptContext?.dueDate
-              ?? (selectedDueIndexForReceipt !== null && actualSchedule[selectedDueIndexForReceipt]
-                ? actualSchedule[selectedDueIndexForReceipt].date
-                : undefined)
-          }
+          dueDate={selectedReceiptDueDate}
+          penaltyAmountOverride={selectedReceiptPenaltyAmount}
           onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
-            const p = selectedPayment || getSelectedPaymentForReceipt()
-            if (p) {
-              setPaymentToEdit(p)
-              setShowReceiptModal(false)
-              setSelectedDueIndexForReceipt(null)
-              setSelectedPayment(null)
-              setShowPaymentModal(true)
-            }
+            setPaymentToEdit(selectedPaymentForReceipt)
+            setShowReceiptModal(false)
+            setSelectedDueIndexForReceipt(null)
+            setSelectedPayment(null)
+            setShowPaymentModal(true)
           } : undefined}
         />
       )}
