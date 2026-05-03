@@ -163,6 +163,32 @@ function formatDate(value: Date): string {
   })
 }
 
+function isValidDateValue(value: unknown): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime())
+}
+
+function toDateInputValue(value: unknown): string {
+  if (!isValidDateValue(value)) return ''
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function parseDateInputValue(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  const parsed = new Date(year, month - 1, day)
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null
+  }
+  return parsed
+}
+
 interface CreditFixeSimulationSectionProps {
   initialAmount?: number
   lockAmount?: boolean
@@ -552,8 +578,16 @@ export function CreditFixeSimulationSection({
                             <Input
                               type="date"
                               className={smoothFieldClass}
-                              value={new Date(field.value).toISOString().split('T')[0]}
-                              onChange={(event) => field.onChange(new Date(event.target.value))}
+                              value={toDateInputValue(field.value)}
+                              onChange={(event) => {
+                                const nextValue = event.target.value
+                                if (!nextValue) {
+                                  field.onChange(new Date(''))
+                                  return
+                                }
+                                const parsedDate = parseDateInputValue(nextValue)
+                                field.onChange(parsedDate ?? new Date(''))
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -664,8 +698,16 @@ export function CreditFixeSimulationSection({
                             <Input
                               type="date"
                               className={smoothFieldClass}
-                              value={new Date(field.value).toISOString().split('T')[0]}
-                              onChange={(event) => field.onChange(new Date(event.target.value))}
+                              value={toDateInputValue(field.value)}
+                              onChange={(event) => {
+                                const nextValue = event.target.value
+                                if (!nextValue) {
+                                  field.onChange(new Date(''))
+                                  return
+                                }
+                                const parsedDate = parseDateInputValue(nextValue)
+                                field.onChange(parsedDate ?? new Date(''))
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
