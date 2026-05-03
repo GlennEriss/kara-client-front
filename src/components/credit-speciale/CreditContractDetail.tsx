@@ -1815,6 +1815,11 @@ export default function CreditContractDetail({
             const paymentUpdatedAt = penalty.paymentUpdatedAt
             const paymentUpdatedBy = penalty.paymentUpdatedBy
             const penaltyAugmentationMeta = getPenaltyAugmentationMeta(penalty)
+            const penaltyReceiptContext = getPenaltyReceiptContext(penalty)
+            const penaltyInstallmentLabel =
+              hasCreditAugmentation && penaltyReceiptContext.cycleNumber > 1
+                ? `Échéance ${penaltyReceiptContext.installmentNumber} (Cycle ${penaltyReceiptContext.cycleNumber})`
+                : `Échéance ${penaltyReceiptContext.installmentNumber}`
             const hasPaymentUpdate =
               !!paymentUpdatedAt &&
               !!paymentUpdatedBy &&
@@ -1843,6 +1848,9 @@ export default function CreditContractDetail({
                       ) : (
                         <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
                       )}
+                      <Badge className="bg-blue-100 text-blue-700 border border-blue-200">
+                        {penaltyInstallmentLabel}
+                      </Badge>
                       {penaltyAugmentationMeta && (
                         <Badge className={penaltyAugmentationMeta.badgeClassName}>
                           {penaltyAugmentationMeta.label}
@@ -1855,7 +1863,10 @@ export default function CreditContractDetail({
                         Retard : <span className="font-medium text-gray-800">{penalty.daysLate} jours</span>
                       </p>
                       <p>
-                        Échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
+                        Échéance concernée : <span className="font-medium text-gray-800">{penaltyInstallmentLabel}</span>
+                      </p>
+                      <p>
+                        Date d'échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
                       </p>
                       <p>
                         Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
