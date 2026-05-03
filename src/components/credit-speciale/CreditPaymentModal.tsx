@@ -85,6 +85,31 @@ const calculateNoteByDelay = (daysLate: number): number => {
 const getDefaultComment = (isPaid: boolean): string =>
   isPaid ? 'CONFORME' : 'NON CONFORME'
 
+const isValidDateValue = (value: unknown): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime())
+
+const toDateInputValue = (value: unknown): string => {
+  if (!isValidDateValue(value)) return ''
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const parseDateInputValue = (value: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  const parsed = new Date(year, month - 1, day)
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null
+  }
+  return parsed
+}
+
 export default function CreditPaymentModal({
   isOpen,
   onClose,
@@ -104,6 +129,7 @@ export default function CreditPaymentModal({
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
   const [withFees, setWithFees] = useState<boolean | undefined>(undefined) // Airtel Money / Mobicash : true = avec frais, false = sans frais
   const [modificationReason, setModificationReason] = useState<string>('')
+  const [paymentDateInput, setPaymentDateInput] = useState<string>(toDateInputValue(defaultPaymentDate || new Date()))
 
   const { user } = useAuth()
   const { create: createPayment, update: updatePayment } = useCreditPaymentMutations()
@@ -133,7 +159,8 @@ export default function CreditPaymentModal({
   // Calculer le retard réel à partir de la date de versement choisie dans le formulaire.
   const calculatedDaysLate = useMemo(() => {
     if (!defaultPaymentDate || !watchedPaymentDate) return 0
-    const payDate = new Date(watchedPaymentDate)
+    const payDate = watchedPaymentDate instanceof Date ? watchedPaymentDate : new Date(watchedPaymentDate)
+    if (!isValidDateValue(payDate)) return 0
     payDate.setHours(0, 0, 0, 0)
     const dueDate = new Date(defaultPaymentDate)
     dueDate.setHours(0, 0, 0, 0)
@@ -168,7 +195,8 @@ export default function CreditPaymentModal({
     if (!v) return new Date()
     if (v instanceof Date) return v
     const t = v as { toDate?: () => Date }
-    return typeof t.toDate === 'function' ? t.toDate() : new Date(v as string | number)
+    const resolved = typeof t.toDate === 'function' ? t.toDate() : new Date(v as string | number)
+    return isValidDateValue(resolved) ? resolved : new Date()
   }
 
   // Normaliser le mode de paiement (valeurs legacy ou API ex. "banque" -> "bank_transfer")
@@ -188,6 +216,7 @@ export default function CreditPaymentModal({
       if (paymentToEdit) {
         const date = toDate(paymentToEdit.paymentDate)
         form.setValue('paymentDate', date)
+        setPaymentDateInput(toDateInputValue(date))
         form.setValue('paymentTime', paymentToEdit.paymentTime || format(new Date(), 'HH:mm'))
         form.setValue('amount', paymentToEdit.amount ?? 0)
         form.setValue('mode', toCreditPaymentMode(paymentToEdit.mode as string))
@@ -205,8 +234,11 @@ export default function CreditPaymentModal({
       setWithFees(undefined)
       if (defaultPaymentDate) {
         form.setValue('paymentDate', defaultPaymentDate)
+        setPaymentDateInput(toDateInputValue(defaultPaymentDate))
       } else {
-        form.setValue('paymentDate', new Date())
+        const now = new Date()
+        form.setValue('paymentDate', now)
+        setPaymentDateInput(toDateInputValue(now))
       }
       form.setValue('note', 10)
       form.setValue('comment', autoComment)
@@ -454,10 +486,16 @@ export default function CreditPaymentModal({
                     id="payment-date"
                     type="date"
                     required
-                    value={field.value ? format(field.value instanceof Date ? field.value : new Date(field.value), 'yyyy-MM-dd') : ''}
+                    value={paymentDateInput}
                     onChange={(e) => {
                       const v = e.target.value
-                      field.onChange(v ? new Date(v) : new Date())
+                      setPaymentDateInput(v)
+                      if (!v) {
+                        field.onChange(new Date(''))
+                        return
+                      }
+                      const parsedDate = parseDateInputValue(v)
+                      field.onChange(parsedDate ?? new Date(''))
                     }}
                   />
                 )}
