@@ -438,7 +438,7 @@ export default function CreditContractDetail({
 }: CreditContractDetailProps) {
   const router = useRouter()
   const { user: _user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'payments' | 'history' | 'losses' | 'guarantor'>('payments')
+  const [activeTab, setActiveTab] = useState<'payments' | 'penalties' | 'history' | 'losses' | 'guarantor'>('payments')
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
@@ -1046,8 +1046,8 @@ export default function CreditContractDetail({
       ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
       : 'Manque à gagner généré à partir du passage en partie fixe.'
   const tabsGridClassName = isSimpleCredit
-    ? shouldShowLossesTab ? 'grid-cols-3' : 'grid-cols-2'
-    : shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
+    ? shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
+    : shouldShowLossesTab ? 'grid-cols-5' : 'grid-cols-4'
   const guarantorCommissionRows = React.useMemo(() => {
     if (
       contract.creditType !== 'SPECIALE' ||
@@ -1791,6 +1791,224 @@ export default function CreditContractDetail({
     ? getPaymentReceiptContext(selectedPayment)
     : null
 
+  const renderPenaltiesContent = () => {
+    if (penalties.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-500 border rounded-lg">
+          Aucune pénalité enregistrée pour le moment
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-orange-600" />
+            Historique des pénalités
+          </h3>
+        </div>
+        <div className="space-y-3">
+          {penalties.map((penalty) => {
+            const paymentRecordedAt = penalty.paymentRecordedAt ?? (penalty.paid ? penalty.updatedAt : undefined)
+            const paymentRecordedBy = penalty.paymentRecordedBy ?? (penalty.paid ? penalty.updatedBy : undefined)
+            const paymentUpdatedAt = penalty.paymentUpdatedAt
+            const paymentUpdatedBy = penalty.paymentUpdatedBy
+            const penaltyAugmentationMeta = getPenaltyAugmentationMeta(penalty)
+            const hasPaymentUpdate =
+              !!paymentUpdatedAt &&
+              !!paymentUpdatedBy &&
+              (!!paymentRecordedAt || !!paymentRecordedBy) &&
+              (
+                (paymentRecordedAt ? paymentUpdatedAt.getTime() !== paymentRecordedAt.getTime() : true) ||
+                paymentUpdatedBy !== paymentRecordedBy
+              )
+
+            return (
+              <div
+                key={penalty.id}
+                className={cn(
+                  'rounded-lg border p-4',
+                  penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                )}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="font-semibold">
+                        {penalty.amount.toLocaleString('fr-FR')} FCFA
+                      </span>
+                      {penalty.paid ? (
+                        <Badge className="bg-green-100 text-green-700">Payée</Badge>
+                      ) : (
+                        <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
+                      )}
+                      {penaltyAugmentationMeta && (
+                        <Badge className={penaltyAugmentationMeta.badgeClassName}>
+                          {penaltyAugmentationMeta.label}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
+                      <p>
+                        Retard : <span className="font-medium text-gray-800">{penalty.daysLate} jours</span>
+                      </p>
+                      <p>
+                        Échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
+                      </p>
+                      <p>
+                        Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
+                      </p>
+                      <p className="sm:col-span-2 xl:col-span-1">
+                        Enregistrée par :{' '}
+                        <span className="font-medium text-gray-800">
+                          {getPenaltyAdminDisplayName(penalty.createdBy)}
+                        </span>
+                      </p>
+                      {penaltyAugmentationMeta && (
+                        <p className="sm:col-span-2 xl:col-span-1">
+                          Cycle crédit :{' '}
+                          <span className="font-medium text-gray-800">
+                            {penaltyAugmentationMeta.label}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {penalty.paid && (
+                      <div className="mt-3 rounded-md border border-green-200 bg-white/70 p-3 text-sm text-gray-600 space-y-2">
+                        {penalty.paidAt && (
+                          <p>
+                            Payée le :{' '}
+                            <span className="font-medium text-gray-800">
+                              {penalty.paymentTime
+                                ? formatDateTime(penalty.paidAt, penalty.paymentTime)
+                                : formatDate(penalty.paidAt)}
+                            </span>
+                          </p>
+                        )}
+                        {penalty.paymentMode && (
+                          <p>
+                            Mode :{' '}
+                            <span className="font-medium text-gray-800">
+                              {CREDIT_PAYMENT_MODE_LABELS[penalty.paymentMode] ?? penalty.paymentMode}
+                              {(penalty.paymentMode === 'airtel_money' || penalty.paymentMode === 'mobicash') &&
+                              penalty.withFees !== undefined
+                                ? ` (${penalty.withFees ? 'Avec frais' : 'Sans frais'})`
+                                : ''}
+                            </span>
+                          </p>
+                        )}
+                        {paymentRecordedAt && (
+                          <p>
+                            Paiement saisi le :{' '}
+                            <span className="font-medium text-gray-800">
+                              {formatDateTime(
+                                paymentRecordedAt,
+                                format(new Date(paymentRecordedAt), 'HH:mm')
+                              )}
+                            </span>
+                          </p>
+                        )}
+                        {paymentRecordedBy && (
+                          <p>
+                            Paiement saisi par :{' '}
+                            <span className="font-medium text-gray-800">
+                              {getPenaltyAdminDisplayName(paymentRecordedBy)}
+                            </span>
+                          </p>
+                        )}
+                        {hasPaymentUpdate && paymentUpdatedAt && (
+                          <p>
+                            Dernière modification :{' '}
+                            <span className="font-medium text-gray-800">
+                              {formatDateTime(
+                                paymentUpdatedAt,
+                                format(new Date(paymentUpdatedAt), 'HH:mm')
+                              )}
+                              {' • '}
+                              {getPenaltyAdminDisplayName(paymentUpdatedBy)}
+                            </span>
+                          </p>
+                        )}
+                        {penalty.paymentComment && (
+                          <p>
+                            Commentaire : <span className="font-medium text-gray-800">{penalty.paymentComment}</span>
+                          </p>
+                        )}
+                        {penalty.proofUrl && (
+                          <a
+                            href={penalty.proofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex text-[#234D65] hover:underline"
+                          >
+                            Voir la preuve de paiement
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2 lg:w-52">
+                    {penalty.paid ? (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                          onClick={() => {
+                            setSelectedPenaltyForReceipt(penalty)
+                            setShowPenaltyReceiptModal(true)
+                          }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Voir la facture
+                        </Button>
+                        {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                            onClick={() => {
+                              setPenaltyPaymentModalMode('edit')
+                              setSelectedPenaltyToPay(penalty)
+                              setShowPenaltyPaymentModal(true)
+                            }}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-[#234D65] hover:bg-[#1b3c4f]"
+                        onClick={() => {
+                          setPenaltyPaymentModalMode('pay')
+                          setSelectedPenaltyToPay(penalty)
+                          setShowPenaltyPaymentModal(true)
+                        }}
+                      >
+                        <HandCoins className="mr-2 h-4 w-4" />
+                        Payer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -2041,7 +2259,7 @@ export default function CreditContractDetail({
         {/* Onglets */}
         <Card className="border-0 shadow-xl">
           <CardContent className="p-0">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'history' | 'losses' | 'guarantor')} className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'penalties' | 'history' | 'losses' | 'guarantor')} className="w-full">
               <TabsList className={cn(
                 'grid w-full rounded-none border-b',
                 tabsGridClassName
@@ -2049,6 +2267,10 @@ export default function CreditContractDetail({
                 <TabsTrigger value="payments" className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
                   Versements
+                </TabsTrigger>
+                <TabsTrigger value="penalties" className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Pénalité
                 </TabsTrigger>
                 <TabsTrigger value="history" className="flex items-center gap-2">
                   <History className="h-4 w-4" />
@@ -2415,214 +2637,11 @@ export default function CreditContractDetail({
                     </p>
                   </div>
                 </div>
-                {/* Pénalités */}
-                {penalties.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <AlertCircle className="h-5 w-5 text-orange-600" />
-                        Historique des pénalités
-                      </h3>
-                    </div>
-                    <div className="space-y-3">
-                      {penalties.map((penalty) => {
-                        const paymentRecordedAt = penalty.paymentRecordedAt ?? (penalty.paid ? penalty.updatedAt : undefined)
-                        const paymentRecordedBy = penalty.paymentRecordedBy ?? (penalty.paid ? penalty.updatedBy : undefined)
-                        const paymentUpdatedAt = penalty.paymentUpdatedAt
-                        const paymentUpdatedBy = penalty.paymentUpdatedBy
-                        const penaltyAugmentationMeta = getPenaltyAugmentationMeta(penalty)
-                        const hasPaymentUpdate =
-                          !!paymentUpdatedAt &&
-                          !!paymentUpdatedBy &&
-                          (!!paymentRecordedAt || !!paymentRecordedBy) &&
-                          (
-                            (paymentRecordedAt ? paymentUpdatedAt.getTime() !== paymentRecordedAt.getTime() : true) ||
-                            paymentUpdatedBy !== paymentRecordedBy
-                          )
+              </TabsContent>
 
-                        return (
-                          <div
-                            key={penalty.id}
-                            className={cn(
-                              'rounded-lg border p-4',
-                              penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
-                            )}
-                          >
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                              <div className="flex-1">
-                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                  <span className="font-semibold">
-                                    {penalty.amount.toLocaleString('fr-FR')} FCFA
-                                  </span>
-                                  {penalty.paid ? (
-                                    <Badge className="bg-green-100 text-green-700">Payée</Badge>
-                                  ) : (
-                                    <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
-                                  )}
-                                  {penaltyAugmentationMeta && (
-                                    <Badge className={penaltyAugmentationMeta.badgeClassName}>
-                                      {penaltyAugmentationMeta.label}
-                                    </Badge>
-                                  )}
-                                </div>
-
-                                <div className="grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
-                                  <p>
-                                    Retard : <span className="font-medium text-gray-800">{penalty.daysLate} jours</span>
-                                  </p>
-                                  <p>
-                                    Échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
-                                  </p>
-                                  <p>
-                                    Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
-                                  </p>
-                                  <p className="sm:col-span-2 xl:col-span-1">
-                                    Enregistrée par :{' '}
-                                    <span className="font-medium text-gray-800">
-                                      {getPenaltyAdminDisplayName(penalty.createdBy)}
-                                    </span>
-                                  </p>
-                                  {penaltyAugmentationMeta && (
-                                    <p className="sm:col-span-2 xl:col-span-1">
-                                      Cycle crédit :{' '}
-                                      <span className="font-medium text-gray-800">
-                                        {penaltyAugmentationMeta.label}
-                                      </span>
-                                    </p>
-                                  )}
-                                </div>
-
-                                {penalty.paid && (
-                                  <div className="mt-3 rounded-md border border-green-200 bg-white/70 p-3 text-sm text-gray-600 space-y-2">
-                                    {penalty.paidAt && (
-                                      <p>
-                                        Payée le :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {penalty.paymentTime
-                                            ? formatDateTime(penalty.paidAt, penalty.paymentTime)
-                                            : formatDate(penalty.paidAt)}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {penalty.paymentMode && (
-                                      <p>
-                                        Mode :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {CREDIT_PAYMENT_MODE_LABELS[penalty.paymentMode] ?? penalty.paymentMode}
-                                          {(penalty.paymentMode === 'airtel_money' || penalty.paymentMode === 'mobicash') &&
-                                          penalty.withFees !== undefined
-                                            ? ` (${penalty.withFees ? 'Avec frais' : 'Sans frais'})`
-                                            : ''}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {paymentRecordedAt && (
-                                      <p>
-                                        Paiement saisi le :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {formatDateTime(
-                                            paymentRecordedAt,
-                                            format(new Date(paymentRecordedAt), 'HH:mm')
-                                          )}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {paymentRecordedBy && (
-                                      <p>
-                                        Paiement saisi par :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {getPenaltyAdminDisplayName(paymentRecordedBy)}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {hasPaymentUpdate && paymentUpdatedAt && (
-                                      <p>
-                                        Dernière modification :{' '}
-                                        <span className="font-medium text-gray-800">
-                                          {formatDateTime(
-                                            paymentUpdatedAt,
-                                            format(new Date(paymentUpdatedAt), 'HH:mm')
-                                          )}
-                                          {' • '}
-                                          {getPenaltyAdminDisplayName(paymentUpdatedBy)}
-                                        </span>
-                                      </p>
-                                    )}
-                                    {penalty.paymentComment && (
-                                      <p>
-                                        Commentaire : <span className="font-medium text-gray-800">{penalty.paymentComment}</span>
-                                      </p>
-                                    )}
-                                    {penalty.proofUrl && (
-                                      <a
-                                        href={penalty.proofUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex text-[#234D65] hover:underline"
-                                      >
-                                        Voir la preuve de paiement
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex flex-col gap-2 lg:w-52">
-                                {penalty.paid ? (
-                                  <>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-                                      onClick={() => {
-                                        setSelectedPenaltyForReceipt(penalty)
-                                        setShowPenaltyReceiptModal(true)
-                                      }}
-                                    >
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      Voir la facture
-                                    </Button>
-                                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                                        onClick={() => {
-                                          setPenaltyPaymentModalMode('edit')
-                                          setSelectedPenaltyToPay(penalty)
-                                          setShowPenaltyPaymentModal(true)
-                                        }}
-                                      >
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Modifier
-                                      </Button>
-                                    )}
-                                  </>
-                                ) : (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="bg-[#234D65] hover:bg-[#1b3c4f]"
-                                    onClick={() => {
-                                      setPenaltyPaymentModalMode('pay')
-                                      setSelectedPenaltyToPay(penalty)
-                                      setShowPenaltyPaymentModal(true)
-                                    }}
-                                  >
-                                    <HandCoins className="mr-2 h-4 w-4" />
-                                    Payer
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+              {/* Onglet Pénalité */}
+              <TabsContent value="penalties" className="p-6 space-y-6 m-0">
+                {renderPenaltiesContent()}
               </TabsContent>
 
               {/* Onglet Historique */}
