@@ -157,6 +157,11 @@ function canUploadSignedContract(contract: CreditContract): boolean {
   return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
 }
 
+/** Contrat de remboursement disponible quand la quittance signée a été téléversée */
+function canViewRepaymentContract(contract: CreditContract): boolean {
+  return Boolean(contract.signedQuittanceUrl)
+}
+
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
@@ -1752,6 +1757,16 @@ const ListContrats = ({
                               Télécharger contrat
                             </Button>
                           )}
+                          {canViewRepaymentContract(contract) && (
+                            <Button
+                              onClick={() => window.open(contract.signedQuittanceUrl, '_blank')}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Contrat de remboursement
+                            </Button>
+                          )}
                           {canDeleteContract(contract) && (
                             <Button
                               onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
@@ -1871,6 +1886,12 @@ const ListContrats = ({
                                 <DropdownMenuItem onClick={() => window.open(contract.signedContractUrl, '_blank')} className="cursor-pointer">
                                   <Eye className="h-4 w-4 mr-2" />
                                   Voir contrat
+                                </DropdownMenuItem>
+                              )}
+                              {canViewRepaymentContract(contract) && (
+                                <DropdownMenuItem onClick={() => window.open(contract.signedQuittanceUrl, '_blank')} className="cursor-pointer">
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Contrat de remboursement
                                 </DropdownMenuItem>
                               )}
                               {canUploadSignedContract(contract) && (
