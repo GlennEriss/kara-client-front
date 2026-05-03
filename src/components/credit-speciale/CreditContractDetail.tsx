@@ -618,9 +618,14 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
       : new Map<number, (typeof specialHistory)[number]>()
-  const currentCycle = React.useMemo(
-    () => getCreditContractCycles(contract).at(-1),
+  const contractCycles = React.useMemo(
+    () => getCreditContractCycles(contract),
     [contract]
+  )
+  const hasCreditAugmentation = contractCycles.length > 1
+  const currentCycle = React.useMemo(
+    () => contractCycles.at(-1),
+    [contractCycles]
   )
   const fixedTransitionMeta = React.useMemo(() => ({
     mode: currentCycle?.fixedTransitionMode ?? contract.fixedTransitionMode,
@@ -630,11 +635,10 @@ export default function CreditContractDetail({
     startMonth: currentCycle?.fixedTransitionStartMonth ?? contract.fixedTransitionStartMonth,
   }), [currentCycle, contract.fixedTransitionAt, contract.fixedTransitionBy, contract.fixedTransitionMode, contract.fixedTransitionReason, contract.fixedTransitionStartMonth])
   const contractDocumentsByCycle = React.useMemo(() => {
-    const cycles = getCreditContractCycles(contract)
-    const hasAugmentation = cycles.length > 1
-    const currentCycleNumber = cycles.at(-1)?.cycleNumber ?? 1
+    const hasAugmentation = contractCycles.length > 1
+    const currentCycleNumber = contractCycles.at(-1)?.cycleNumber ?? 1
 
-    return [...cycles]
+    return [...contractCycles]
       .sort((left, right) => right.cycleNumber - left.cycleNumber)
       .map((cycle) => {
         const isCurrentCycle = cycle.cycleNumber === currentCycleNumber
@@ -658,7 +662,7 @@ export default function CreditContractDetail({
           signedContractUrl,
         }
       })
-  }, [contract])
+  }, [contract, contractCycles])
   const currentCycleDocuments = contractDocumentsByCycle.find((entry) => entry.isCurrentCycle)
   const hasEnteredFixedPhase =
     contract.creditType === 'SPECIALE' &&
@@ -1330,13 +1334,43 @@ export default function CreditContractDetail({
     return {}
   }
 
+  const resolvePenaltyCycleNumber = (penalty: CreditPenalty): number => {
+    const cycleHints = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
+    if (cycleHints.cycleNumber) return cycleHints.cycleNumber
+
+    const dueDate = new Date(penalty.dueDate)
+    let detected = 1
+    for (const cycle of contractCycles) {
+      if (dueDate.getTime() >= new Date(cycle.startedAt).getTime()) {
+        detected = cycle.cycleNumber
+      }
+    }
+    return detected
+  }
+
+  const getPenaltyAugmentationMeta = (
+    penalty: CreditPenalty
+  ): { label: string; badgeClassName: string } | null => {
+    if (!hasCreditAugmentation) return null
+    const cycleNumber = resolvePenaltyCycleNumber(penalty)
+    if (cycleNumber <= 1) {
+      return {
+        label: 'Avant augmentation',
+        badgeClassName: 'bg-slate-100 text-slate-700 border border-slate-200',
+      }
+    }
+    return {
+      label: `Après augmentation · Cycle ${cycleNumber}`,
+      badgeClassName: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+    }
+  }
+
   const getPenaltyReceiptContext = (penalty: CreditPenalty) => {
     const dueDate = new Date(penalty.dueDate)
     const cycleHints = parseCycleAndMonthFromInstallmentRef(penalty.installmentId)
-    const cycles = getCreditContractCycles(contract)
     const cycleNumberFromDate = (() => {
       let detected = 1
-      for (const cycle of cycles) {
+      for (const cycle of contractCycles) {
         if (dueDate.getTime() >= new Date(cycle.startedAt).getTime()) {
           detected = cycle.cycleNumber
         }
@@ -2396,6 +2430,7 @@ export default function CreditContractDetail({
                         const paymentRecordedBy = penalty.paymentRecordedBy ?? (penalty.paid ? penalty.updatedBy : undefined)
                         const paymentUpdatedAt = penalty.paymentUpdatedAt
                         const paymentUpdatedBy = penalty.paymentUpdatedBy
+                        const penaltyAugmentationMeta = getPenaltyAugmentationMeta(penalty)
                         const hasPaymentUpdate =
                           !!paymentUpdatedAt &&
                           !!paymentUpdatedBy &&
@@ -2424,6 +2459,11 @@ export default function CreditContractDetail({
                                   ) : (
                                     <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
                                   )}
+                                  {penaltyAugmentationMeta && (
+                                    <Badge className={penaltyAugmentationMeta.badgeClassName}>
+                                      {penaltyAugmentationMeta.label}
+                                    </Badge>
+                                  )}
                                 </div>
 
                                 <div className="grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
@@ -2442,6 +2482,14 @@ export default function CreditContractDetail({
                                       {getPenaltyAdminDisplayName(penalty.createdBy)}
                                     </span>
                                   </p>
+                                  {penaltyAugmentationMeta && (
+                                    <p className="sm:col-span-2 xl:col-span-1">
+                                      Cycle crédit :{' '}
+                                      <span className="font-medium text-gray-800">
+                                        {penaltyAugmentationMeta.label}
+                                      </span>
+                                    </p>
+                                  )}
                                 </div>
 
                                 {penalty.paid && (
