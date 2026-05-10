@@ -459,7 +459,7 @@ export default function CreateCreditDemandModal({
             </div>
 
             {/* Actions */}
-            <div className="border-t border-slate-200/80 bg-white/95 px-5 py-4 md:px-7">
+            <div className="border-t border-slate-200/80 bg-white/95 px-5 py-8 md:px-7">
               <div className="flex flex-col-reverse justify-end gap-2 sm:flex-row sm:gap-3">
                 <Button
                   type="button"
