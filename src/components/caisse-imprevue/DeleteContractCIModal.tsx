@@ -10,9 +10,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useContractCIMutations } from '@/domains/financial/caisse-imprevue/hooks/useContractCIMutations'
 import type { ContractCI } from '@/types/types'
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface DeleteContractCIModalProps {
   isOpen: boolean
@@ -27,10 +31,22 @@ export default function DeleteContractCIModal({
   contract,
   onSuccess,
 }: DeleteContractCIModalProps) {
+  const [confirmContractId, setConfirmContractId] = useState('')
   const { deleteContract } = useContractCIMutations()
+
+  useEffect(() => {
+    if (isOpen) {
+      setConfirmContractId('')
+    }
+  }, [isOpen, contract])
 
   const handleSubmit = async () => {
     if (!contract) return
+    if (confirmContractId.trim() !== contract.id) {
+      toast.error("L'ID du contrat ne correspond pas")
+      return
+    }
+
     try {
       await deleteContract.mutateAsync(contract.id)
       onSuccess?.()
@@ -41,10 +57,11 @@ export default function DeleteContractCIModal({
   }
 
   if (!contract) return null
+  const canConfirm = confirmContractId.trim() === contract.id
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-red-600 flex items-center gap-2">
             <Trash2 className="h-5 w-5" />
@@ -66,6 +83,20 @@ export default function DeleteContractCIModal({
               </p>
             </AlertDescription>
           </Alert>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm-contract-id" className="text-sm font-semibold text-gray-900">
+              ID du contrat à supprimer
+            </Label>
+            <p className="text-xs text-gray-500 font-mono bg-gray-100 p-2 rounded break-all">{contract.id}</p>
+            <Input
+              id="confirm-contract-id"
+              value={confirmContractId}
+              onChange={(e) => setConfirmContractId(e.target.value)}
+              placeholder="Collez l'ID du contrat"
+              className="font-mono"
+            />
+          </div>
         </div>
 
         <DialogFooter>
@@ -76,7 +107,7 @@ export default function DeleteContractCIModal({
             type="button"
             variant="destructive"
             onClick={handleSubmit}
-            disabled={deleteContract.isPending}
+            disabled={deleteContract.isPending || !canConfirm}
             className="bg-red-600 hover:bg-red-700"
           >
             {deleteContract.isPending ? (

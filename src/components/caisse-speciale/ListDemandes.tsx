@@ -410,15 +410,13 @@ const DemandTableRow = ({
                   Réouvrir
                 </DropdownMenuItem>
               )}
-              {demande.status !== 'CONVERTED' && (
-                <DropdownMenuItem
-                  onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
-                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

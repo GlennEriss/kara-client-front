@@ -136,11 +136,6 @@ interface ListContratsProps {
   contractDetailsBasePath?: string
 }
 
-/** Contrat supprimable uniquement si PENDING/DRAFT et aucun versement (doc § 2.1) */
-function canDeleteContract(contract: CreditContract): boolean {
-  return (contract.status === 'DRAFT' || contract.status === 'PENDING') && contract.amountPaid === 0
-}
-
 /** Afficher « Modifier contrat signé » : contrat déjà signé et pas DISCHARGED/CLOSED (doc § 2.1–2.2) */
 function canReplaceSignedContract(contract: CreditContract): boolean {
   return Boolean(contract.signedContractUrl) && !['DISCHARGED', 'CLOSED'].includes(contract.status)
@@ -1767,16 +1762,14 @@ const ListContrats = ({
                               Contrat de remboursement
                             </Button>
                           )}
-                          {canDeleteContract(contract) && (
-                            <Button
-                              onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                              variant="destructive"
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Supprimer
-                            </Button>
-                          )}
+                          <Button
+                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
+                            variant="destructive"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Supprimer
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -1906,15 +1899,13 @@ const ListContrats = ({
                                   Modifier contrat signé
                                 </DropdownMenuItem>
                               )}
-                              {canDeleteContract(contract) && (
-                                <DropdownMenuItem
-                                  onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                                  className="cursor-pointer text-red-700 focus:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Supprimer
-                                </DropdownMenuItem>
-                              )}
+                              <DropdownMenuItem
+                                onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
+                                className="cursor-pointer text-red-700 focus:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

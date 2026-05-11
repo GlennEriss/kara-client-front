@@ -15,7 +15,7 @@ import {
   PiggyBank,
   Wallet,
 } from 'lucide-react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -196,6 +196,9 @@ export function MemberOverviewPanel({ memberId, open, onOpenChange }: MemberOver
         showCloseButton
         className="w-[94vw] max-w-[1240px] sm:max-w-[1240px] h-[88vh] max-h-[88vh] p-0 gap-0 overflow-y-auto border-0 shadow-2xl"
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Vue consolidée du membre</DialogTitle>
+        </DialogHeader>
         <div className="flex min-h-full flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50">
           <div className="border-b border-slate-200 bg-white px-6 py-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

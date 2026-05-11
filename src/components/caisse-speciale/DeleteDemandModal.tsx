@@ -30,17 +30,14 @@ export default function DeleteDemandModal({
   isOpen,
   onClose,
   demand,
-  memberMatricule,
   onSuccess,
 }: DeleteDemandModalProps) {
   const [confirmDemandId, setConfirmDemandId] = useState('')
-  const [confirmMatricule, setConfirmMatricule] = useState('')
   const { deleteDemand } = useCaisseSpecialeDemandMutations()
 
   React.useEffect(() => {
     if (isOpen) {
       setConfirmDemandId('')
-      setConfirmMatricule('')
     }
   }, [isOpen, demand])
 
@@ -48,14 +45,9 @@ export default function DeleteDemandModal({
     if (!demand) return
 
     const expectedDemandId = demand.id
-    const expectedMatricule = memberMatricule || demand.memberId || ''
 
     if (confirmDemandId.trim() !== expectedDemandId) {
       toast.error('L\'ID de la demande ne correspond pas')
-      return
-    }
-    if (confirmMatricule.trim() !== expectedMatricule) {
-      toast.error('Le matricule du demandeur ne correspond pas')
       return
     }
 
@@ -71,10 +63,8 @@ export default function DeleteDemandModal({
   if (!demand) return null
 
   const expectedDemandId = demand.id
-  const expectedMatricule = memberMatricule || demand.memberId || ''
   const isDemandIdMatch = confirmDemandId.trim() === expectedDemandId
-  const isMatriculeMatch = confirmMatricule.trim() === expectedMatricule
-  const canConfirm = isDemandIdMatch && isMatriculeMatch
+  const canConfirm = isDemandIdMatch
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -102,7 +92,7 @@ export default function DeleteDemandModal({
 
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
-              Pour confirmer la suppression, recopiez exactement les informations suivantes :
+              Pour confirmer la suppression, collez exactement l&apos;ID suivant :
             </p>
 
             <div className="space-y-2">
@@ -117,22 +107,6 @@ export default function DeleteDemandModal({
                 value={confirmDemandId}
                 onChange={(e) => setConfirmDemandId(e.target.value)}
                 placeholder="Recopiez l'ID de la demande"
-                className="font-mono"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirm-matricule" className="text-sm font-semibold text-gray-900">
-                Matricule du demandeur
-              </Label>
-              <p className="text-xs text-gray-500 font-mono bg-gray-100 p-2 rounded">
-                {expectedMatricule}
-              </p>
-              <Input
-                id="confirm-matricule"
-                value={confirmMatricule}
-                onChange={(e) => setConfirmMatricule(e.target.value)}
-                placeholder="Recopiez le matricule du demandeur"
                 className="font-mono"
               />
             </div>

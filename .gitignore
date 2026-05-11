@@ -17,6 +17,7 @@
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/.playwright-mcp/
 /tests/results/*.json
 /tests/results/test-report.md
 /tests/coverage-reports/
