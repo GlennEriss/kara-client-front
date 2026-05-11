@@ -23,12 +23,10 @@ import routes from '@/constantes/routes'
 import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
 import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
-import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
 import { cn } from '@/lib/utils'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
-import { useQueries } from '@tanstack/react-query'
 import {
     AlertCircle,
     Calendar,
@@ -85,19 +83,6 @@ type ContractTabItem = {
 const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue']
 const isContractTabValue = (value: string): value is ContractTabValue =>
   CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
-
-/** Contrat CI supprimable : ACTIVE, aucun versement, aucun support (doc § 2.1). Utilise les stats de paiement réelles si fournies. */
-function canDeleteContractCI(
-  contract: ContractCI,
-  paymentStats?: { paymentCount: number; totalAmountPaid: number }
-): boolean {
-  if (contract.status !== 'ACTIVE') return false
-  if ((contract.totalMonthsPaid ?? 0) > 0) return false
-  if (paymentStats && (paymentStats.paymentCount > 0 || paymentStats.totalAmountPaid > 0)) return false
-  if (contract.currentSupportId) return false
-  if ((contract.supportHistory?.length ?? 0) > 0) return false
-  return true
-}
 
 /** Afficher « Modifier contrat » : contractStartId existant et statut ACTIVE (doc § 2.1–2.2). */
 function canReplaceContractCI(contract: ContractCI): boolean {
@@ -613,7 +598,6 @@ export default function ListContractsCISection() {
     () => filteredContracts.slice(startIndex, endIndex),
     [filteredContracts, startIndex, endIndex]
   )
-  const contractIds = useMemo(() => currentContracts.map((c) => c.id), [currentContracts])
   const currentMemberIds = useMemo(
     () => Array.from(new Set(currentContracts.map((c) => c.memberId).filter(Boolean))),
     [currentContracts]
@@ -652,23 +636,6 @@ export default function ListContractsCISection() {
     return end.toLocaleDateString('fr-FR')
   }
 
-  // Stats de paiement pour la page courante (pour masquer "Supprimer" si versements réels)
-  const paymentStatsQueries = useQueries({
-    queries: contractIds.map((contractId) => ({
-      queryKey: ['contract-payment-stats', contractId],
-      queryFn: () => ServiceFactory.getCaisseImprevueService().getContractPaymentStats(contractId),
-      enabled: !!contractId,
-      staleTime: 60_000,
-    })),
-  })
-  const paymentStatsByContractId = useMemo(() => {
-    const map: Record<string, { paymentCount: number; totalAmountPaid: number }> = {}
-    contractIds.forEach((id, i) => {
-      const res = paymentStatsQueries[i]?.data
-      if (res) map[id] = { paymentCount: res.paymentCount, totalAmountPaid: res.totalAmountPaid }
-    })
-    return map
-  }, [contractIds, paymentStatsQueries])
   const hasAnyActiveFilter = hasActiveContractFilters(filters) || activeTab !== 'all'
 
   const renderPagination = () => {
@@ -1137,16 +1104,14 @@ export default function ListContractsCISection() {
                                 </Button>
                               )}
 
-                              {canDeleteContractCI(contract, paymentStatsByContractId[contract.id]) && (
-                                <Button
-                                  variant="destructive"
-                                  onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Supprimer
-                                </Button>
-                              )}
+                              <Button
+                                variant="destructive"
+                                onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Supprimer
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
@@ -1328,15 +1293,13 @@ export default function ListContractsCISection() {
                                     Contrat de résiliation
                                   </DropdownMenuItem>
                                 )}
-                                {canDeleteContractCI(contract, paymentStatsByContractId[contract.id]) && (
-                                  <DropdownMenuItem
-                                    onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
-                                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Supprimer
-                                  </DropdownMenuItem>
-                                )}
+                                <DropdownMenuItem
+                                  onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Supprimer
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

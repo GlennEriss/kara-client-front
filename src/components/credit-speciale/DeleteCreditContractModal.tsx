@@ -32,13 +32,11 @@ export default function DeleteCreditContractModal({
   onSuccess,
 }: DeleteCreditContractModalProps) {
   const [confirmContractId, setConfirmContractId] = useState('')
-  const [confirmClientName, setConfirmClientName] = useState('')
   const { deleteContract } = useCreditContractMutations()
 
   useEffect(() => {
     if (isOpen) {
       setConfirmContractId('')
-      setConfirmClientName('')
     }
   }, [isOpen, contract])
 
@@ -46,14 +44,9 @@ export default function DeleteCreditContractModal({
     if (!contract) return
 
     const expectedContractId = contract.id
-    const expectedClientName = (contract.clientLastName || '').trim()
 
     if (confirmContractId.trim() !== expectedContractId) {
       toast.error("L'ID du contrat ne correspond pas")
-      return
-    }
-    if (confirmClientName.trim() !== expectedClientName) {
-      toast.error('Le nom du client ne correspond pas')
       return
     }
 
@@ -69,10 +62,8 @@ export default function DeleteCreditContractModal({
   if (!contract) return null
 
   const expectedContractId = contract.id
-  const expectedClientName = (contract.clientLastName || '').trim()
   const isContractIdMatch = confirmContractId.trim() === expectedContractId
-  const isClientNameMatch = confirmClientName.trim() === expectedClientName
-  const canConfirm = isContractIdMatch && isClientNameMatch
+  const canConfirm = isContractIdMatch
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -101,7 +92,7 @@ export default function DeleteCreditContractModal({
 
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
-              Pour confirmer la suppression, recopiez exactement les informations suivantes :
+              Pour confirmer la suppression, collez exactement l&apos;ID suivant :
             </p>
 
             <div className="space-y-2">
@@ -115,19 +106,6 @@ export default function DeleteCreditContractModal({
                 onChange={(e) => setConfirmContractId(e.target.value)}
                 placeholder="Recopiez l'ID du contrat"
                 className="font-mono"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirm-client-name" className="text-sm font-semibold text-gray-900">
-                Nom du client
-              </Label>
-              <p className="text-xs text-gray-500 font-mono bg-gray-100 p-2 rounded">{expectedClientName || '—'}</p>
-              <Input
-                id="confirm-client-name"
-                value={confirmClientName}
-                onChange={(e) => setConfirmClientName(e.target.value)}
-                placeholder="Recopiez le nom du client"
               />
             </div>
           </div>
