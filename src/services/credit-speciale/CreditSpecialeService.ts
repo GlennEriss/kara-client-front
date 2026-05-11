@@ -1357,11 +1357,21 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             newStatus = 'TRANSFORMED';
         }
 
+        const isAutoDischargeTransition =
+            newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED';
+
         await this.creditContractRepository.updateContract(contract.id, {
             amountPaid: totalPaid,
             amountRemaining: Math.round(totalRemaining),
             status: newStatus,
             nextDueAt: shouldTransformAideToSpeciale ? undefined : nextDueAt,
+            ...(isAutoDischargeTransition
+                ? {
+                    dischargeMotif: 'Contrat soldé automatiquement après remboursement complet',
+                    dischargedBy: data.createdBy,
+                    dischargedAt: new Date(),
+                }
+                : {}),
             ...(shouldTransformAideToSpeciale ? {
                 transformedAt: new Date(),
                 blockedReason: `Crédit aide arrivé au terme de 3 mois. Solde restant à transformer en crédit spéciale : ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA.`,
