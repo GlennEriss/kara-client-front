@@ -1894,10 +1894,15 @@ export default function CreditContractDetail({
     if (!dueItem) return null
 
     // Même logique que pour le reçu, mais sans dépendre d'un state externe
-    const paymentsForThisMonth = payments.filter((payment) => getCreditPaymentMonthNumber(contract, payment) === dueItem.month)
+    const activeCycleNumber = currentCycle?.cycleNumber ?? 1
+    const paymentsForThisMonth = paymentsForSchedule.filter(
+      (payment) =>
+        getCreditPaymentMonthNumber(contract, payment) === dueItem.month &&
+        getCreditPaymentCycleNumber(contract, payment) === activeCycleNumber
+    )
 
     if (paymentsForThisMonth.length > 0) {
-      const sortedPayments = paymentsForThisMonth.sort((a, b) => {
+      const sortedPayments = [...paymentsForThisMonth].sort((a, b) => {
         const dateA = new Date(a.paymentDate).getTime()
         const dateB = new Date(b.paymentDate).getTime()
         if (dateA === dateB) {
