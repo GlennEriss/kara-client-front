@@ -314,7 +314,7 @@ export class CaisseImprevueService {
   }
 
   /**
-   * Supprime définitivement un contrat CI (ACTIVE, sans activité).
+   * Supprime définitivement un contrat CI.
    * Réactive la demande si demandId, nettoie les documents liés, puis supprime le contrat.
    */
   async deleteContractCI(contractId: string, adminId: string): Promise<void> {
@@ -322,30 +322,7 @@ export class CaisseImprevueService {
     if (!contract) {
       throw new Error('Contrat introuvable')
     }
-
-    if (contract.status !== 'ACTIVE') {
-      throw new Error('Seuls les contrats actifs sans activité peuvent être supprimés')
-    }
-
-    const paymentRepository = RepositoryFactory.getPaymentCIRepository()
-    const supportRepository = RepositoryFactory.getSupportCIRepository()
-    const earlyRefundRepository = RepositoryFactory.getEarlyRefundCIRepository()
     const documentRepository = RepositoryFactory.getDocumentRepository()
-
-    const payments = await paymentRepository.getPaymentsByContractId(contractId)
-    if (payments.length > 0 || (contract.totalMonthsPaid ?? 0) > 0) {
-      throw new Error('Impossible de supprimer un contrat avec des versements')
-    }
-
-    const supports = await supportRepository.getSupportHistory(contractId)
-    if (supports.length > 0 || contract.currentSupportId || (contract.supportHistory?.length ?? 0) > 0) {
-      throw new Error('Impossible de supprimer un contrat avec un support')
-    }
-
-    const refunds = await earlyRefundRepository.getEarlyRefundsByContractId(contractId)
-    if (refunds.length > 0) {
-      throw new Error('Impossible de supprimer un contrat avec un remboursement')
-    }
 
     if (contract.demandId) {
       const demand = await this.demandRepository.getById(contract.demandId)

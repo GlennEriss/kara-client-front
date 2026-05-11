@@ -16,7 +16,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Trash2, Loader2, AlertTriangle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface DeleteDemandModalV2Props {
   isOpen: boolean
@@ -35,7 +38,16 @@ export function DeleteDemandModalV2({
   memberName,
   isLoading = false,
 }: DeleteDemandModalV2Props) {
+  const [confirmDemandId, setConfirmDemandId] = useState('')
+
+  useEffect(() => {
+    if (isOpen) {
+      setConfirmDemandId('')
+    }
+  }, [isOpen, demandId])
+
   const handleConfirm = async () => {
+    if (confirmDemandId.trim() !== demandId) return
     await onConfirm()
   }
 
@@ -44,6 +56,8 @@ export function DeleteDemandModalV2({
       onClose()
     }
   }
+
+  const canConfirm = confirmDemandId.trim() === demandId
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -80,6 +94,19 @@ export function DeleteDemandModalV2({
               de supprimer définitivement la demande de la base de données.
             </p>
           </div>
+          <div className="mt-4 space-y-2">
+            <Label htmlFor="confirm-demand-id-v2" className="text-sm font-semibold text-gray-900">
+              ID de la demande à supprimer
+            </Label>
+            <p className="text-xs text-gray-500 font-mono bg-gray-100 p-2 rounded break-all">{demandId}</p>
+            <Input
+              id="confirm-demand-id-v2"
+              value={confirmDemandId}
+              onChange={(event) => setConfirmDemandId(event.target.value)}
+              placeholder="Collez l'ID de la demande"
+              className="font-mono"
+            />
+          </div>
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
@@ -94,7 +121,7 @@ export function DeleteDemandModalV2({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isLoading}
+            disabled={isLoading || !canConfirm}
             variant="destructive"
             className="w-full sm:w-auto"
             data-testid="delete-demand-modal-confirm"

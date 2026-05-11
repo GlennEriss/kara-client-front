@@ -32,13 +32,11 @@ export default function DeleteCreditDemandModal({
   onSuccess,
 }: DeleteCreditDemandModalProps) {
   const [confirmDemandId, setConfirmDemandId] = useState('')
-  const [confirmClientName, setConfirmClientName] = useState('')
   const { deleteDemand } = useCreditDemandMutations()
 
   useEffect(() => {
     if (isOpen) {
       setConfirmDemandId('')
-      setConfirmClientName('')
     }
   }, [isOpen, demand])
 
@@ -46,14 +44,9 @@ export default function DeleteCreditDemandModal({
     if (!demand) return
 
     const expectedDemandId = demand.id
-    const expectedClientName = (demand.clientLastName || '').trim()
 
     if (confirmDemandId.trim() !== expectedDemandId) {
       toast.error("L'ID de la demande ne correspond pas")
-      return
-    }
-    if (confirmClientName.trim() !== expectedClientName) {
-      toast.error('Le nom du client ne correspond pas')
       return
     }
 
@@ -69,10 +62,8 @@ export default function DeleteCreditDemandModal({
   if (!demand) return null
 
   const expectedDemandId = demand.id
-  const expectedClientName = (demand.clientLastName || '').trim()
   const isDemandIdMatch = confirmDemandId.trim() === expectedDemandId
-  const isClientNameMatch = confirmClientName.trim() === expectedClientName
-  const canConfirm = isDemandIdMatch && isClientNameMatch
+  const canConfirm = isDemandIdMatch
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -101,7 +92,7 @@ export default function DeleteCreditDemandModal({
 
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
-              Pour confirmer la suppression, recopiez exactement les informations suivantes :
+              Pour confirmer la suppression, collez exactement l&apos;ID suivant :
             </p>
 
             <div className="space-y-2">
@@ -115,19 +106,6 @@ export default function DeleteCreditDemandModal({
                 onChange={(e) => setConfirmDemandId(e.target.value)}
                 placeholder="Recopiez l'ID de la demande"
                 className="font-mono"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirm-client-name" className="text-sm font-semibold text-gray-900">
-                Nom du client (demandeur)
-              </Label>
-              <p className="text-xs text-gray-500 font-mono bg-gray-100 p-2 rounded">{expectedClientName || '—'}</p>
-              <Input
-                id="confirm-client-name"
-                value={confirmClientName}
-                onChange={(e) => setConfirmClientName(e.target.value)}
-                placeholder="Recopiez le nom du client"
               />
             </div>
           </div>

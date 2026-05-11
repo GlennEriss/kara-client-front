@@ -1647,18 +1647,6 @@ const ListContracts = () => {
     return labels[status as keyof typeof labels] || status
   }
 
-  /** Contrat éligible à la suppression : DRAFT/ACTIVE, sans aucun versement (pas de 1er versement) ni pénalités. */
-  const canDeleteCaisseContract = (contract: any) => {
-    if (!contract?.id) return false
-    const status = contract.status
-    if (status !== 'DRAFT' && status !== 'ACTIVE') return false
-    // Masquer Supprimer dès qu'il y a un 1er versement (nominalPaid > 0) ou des pénalités
-    const hasFirstPayment = (contract.nominalPaid ?? 0) > 0
-    const hasPenalties = (contract.penaltiesTotal ?? 0) > 0
-    if (hasFirstPayment || hasPenalties) return false
-    return true
-  }
-
   /** Contrat éligible au remplacement du PDF (téléversé + statut DRAFT/ACTIVE/LATE_*). */
   const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY']
   const canReplaceContractPdf = (contract: any) => {
@@ -2359,16 +2347,14 @@ const ListContracts = () => {
                                   Contrat de résiliation
                                 </Button>
                               )}
-                              {canDeleteCaisseContract(contract) && (
-                                <Button
-                                  onClick={() => setContractToDelete(contract)}
-                                  variant="destructive"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Supprimer
-                                </Button>
-                              )}
+                              <Button
+                                onClick={() => setContractToDelete(contract)}
+                                variant="destructive"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Supprimer
+                              </Button>
                             </div>
                           </div>
                         </>
@@ -2533,15 +2519,13 @@ const ListContracts = () => {
                                     Contrat de résiliation
                                   </DropdownMenuItem>
                                 )}
-                                {canDeleteCaisseContract(contract) && (
-                                  <DropdownMenuItem
-                                    onClick={() => setContractToDelete(contract)}
-                                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Supprimer
-                                  </DropdownMenuItem>
-                                )}
+                                <DropdownMenuItem
+                                  onClick={() => setContractToDelete(contract)}
+                                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Supprimer
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

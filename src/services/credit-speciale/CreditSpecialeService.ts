@@ -244,12 +244,15 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!demand) {
             throw new Error('Demande introuvable');
         }
-        if (demand.status !== 'PENDING') {
-            throw new Error('Seules les demandes en attente peuvent être supprimées');
-        }
+
+        // Si la demande est liée à un contrat, on détache la référence avant suppression.
         if (demand.contractId) {
-            throw new Error('Impossible de supprimer une demande déjà liée à un contrat');
+            await this.creditContractRepository.updateContract(demand.contractId, {
+                demandId: null as unknown as string,
+                updatedAt: new Date(),
+            } as unknown as Partial<Omit<CreditContract, 'id' | 'createdAt'>>);
         }
+
         await this.creditDemandRepository.deleteDemand(demandId);
     }
 
@@ -515,13 +518,6 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const contract = await this.creditContractRepository.getContractById(id);
         if (!contract) {
             throw new Error('Contrat introuvable');
-        }
-        const allowedStatuses: CreditContractStatus[] = ['DRAFT', 'PENDING'];
-        if (!allowedStatuses.includes(contract.status)) {
-            throw new Error('Seuls les contrats en brouillon ou en attente peuvent être supprimés');
-        }
-        if (contract.amountPaid > 0) {
-            throw new Error('Impossible de supprimer un contrat pour lequel des versements ont été enregistrés');
         }
 
         // 1) Mise à jour de la demande liée (si demandId) — contractId à null pour permettre de recréer un contrat
@@ -1357,11 +1353,21 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             newStatus = 'TRANSFORMED';
         }
 
+        const isAutoDischargeTransition =
+            newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED';
+
         await this.creditContractRepository.updateContract(contract.id, {
             amountPaid: totalPaid,
             amountRemaining: Math.round(totalRemaining),
             status: newStatus,
             nextDueAt: shouldTransformAideToSpeciale ? undefined : nextDueAt,
+            ...(isAutoDischargeTransition
+                ? {
+                    dischargeMotif: 'Contrat soldé automatiquement après remboursement complet',
+                    dischargedBy: data.createdBy,
+                    dischargedAt: new Date(),
+                }
+                : {}),
             ...(shouldTransformAideToSpeciale ? {
                 transformedAt: new Date(),
                 blockedReason: `Crédit aide arrivé au terme de 3 mois. Solde restant à transformer en crédit spéciale : ${Math.round(totalRemaining).toLocaleString('fr-FR')} FCFA.`,

@@ -10,8 +10,6 @@ import { updatePayment } from '@/db/caisse/payments.db'
 import { computeNextDueAt } from '@/services/caisse/engine'
 import { recomputeNow } from '@/services/caisse/readers'
 
-const ALLOWED_DELETE_STATUSES = ['DRAFT', 'ACTIVE'] as const
-
 const ALLOWED_REPLACE_PDF_STATUSES = ['DRAFT', 'ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY'] as const
 
 /** Statuts pour lesquels on peut supprimer un versement (pas terminé, pas en remboursement final/anticipé). */
@@ -217,39 +215,13 @@ export class CaisseContractsService {
   }
 
   /**
-   * Supprime définitivement un contrat Caisse Spéciale (éligible : DRAFT/ACTIVE, sans versements ni remboursements).
+   * Supprime définitivement un contrat Caisse Spéciale.
    * Réactive la demande liée si présente, supprime le PDF en Storage, les sous-collections et le document contrat.
    */
   async deleteCaisseContract(contractId: string, adminId: string): Promise<void> {
     const contract = await this.repo.getContractById(contractId)
     if (!contract) {
       throw new Error('Contrat introuvable')
-    }
-
-    if (!ALLOWED_DELETE_STATUSES.includes(contract.status as any)) {
-      throw new Error('Seuls les contrats DRAFT ou ACTIVE sans activité peuvent être supprimés')
-    }
-
-    if ((contract.nominalPaid ?? 0) > 0 || (contract.penaltiesTotal ?? 0) > 0) {
-      throw new Error('Impossible de supprimer un contrat avec versements ou pénalités')
-    }
-
-    const payments = await this.repo.getContractPayments(contractId)
-    const hasContribs = payments.some(
-      (p: any) =>
-        (p.status && p.status !== 'DUE') ||
-        (Array.isArray(p.contribs) && p.contribs.length > 0) ||
-        (Array.isArray(p.groupContributions) && p.groupContributions.length > 0) ||
-        p.paidAt
-    )
-    if (hasContribs) {
-      throw new Error('Impossible de supprimer un contrat avec contributions')
-    }
-
-    const { listRefunds } = await import('@/db/caisse/refunds.db')
-    const refunds = await listRefunds(contractId)
-    if (refunds.length > 0) {
-      throw new Error('Impossible de supprimer un contrat avec remboursements')
     }
 
     const demandRepo = RepositoryFactory.getCaisseSpecialeDemandRepository()

@@ -1452,7 +1452,6 @@ const ListDemandes = ({
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
-                            disabled={demande.status !== 'PENDING'}
                             className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
@@ -1712,15 +1711,6 @@ const ListDemandes = ({
                                     <XCircle className="h-3.5 w-3.5 mr-1" />
                                     Rejeter
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
-                                    className="h-8 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                    Supprimer
-                                  </Button>
                                 </>
                               )}
                               {demande.status === 'APPROVED' && !demande.contractId && (
@@ -1753,6 +1743,15 @@ const ListDemandes = ({
                                   Réouvrir
                                 </Button>
                               )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
+                                className="h-8 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Supprimer
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"

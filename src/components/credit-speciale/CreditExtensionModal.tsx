@@ -207,6 +207,9 @@ interface CreditExtensionModalProps {
 type Step = 'eligibility' | 'amount' | 'simulation' | 'emergency' | 'confirm'
 
 // Note: customRound est importé depuis '@/utils/credit-speciale-calculations'
+const getMaxDurationByCreditType = (creditType: CreditType): number => (
+  creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : 14
+)
 
 export default function CreditExtensionModal({
   isOpen,
@@ -225,6 +228,7 @@ export default function CreditExtensionModal({
   const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed'>('standard')
   const [simulation, setSimulation] = useState<StandardSimulation | null>(null)
   const [customSimulation, setCustomSimulation] = useState<any>(null)
+  const [fixedTargetDuration, setFixedTargetDuration] = useState<number>(14)
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>(contract.emergencyContact || {})
   const [desiredDate, setDesiredDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
   
@@ -234,7 +238,7 @@ export default function CreditExtensionModal({
     defaultValues: {
       amount: 0,
       interestRate: contract.interestRate,
-      monthlyPayment: 0,
+      monthlyPayment: contract.creditType === 'FIXE' ? 100 : 0,
       firstPaymentDate: new Date(),
       creditType: contract.creditType,
     },
@@ -257,7 +261,7 @@ export default function CreditExtensionModal({
     resolver: zodResolver(proposedSimulationSchema),
     defaultValues: {
       totalAmount: 0,
-      duration: contract.creditType === 'SPECIALE' ? 7 : contract.creditType === 'AIDE' ? 3 : 12,
+      duration: getMaxDurationByCreditType(contract.creditType),
       interestRate: contract.interestRate,
       firstPaymentDate: new Date(),
       creditType: contract.creditType,
@@ -274,8 +278,8 @@ export default function CreditExtensionModal({
   // Calcul de la mensualité suggérée pour 7 mois
   const suggestedMonthlyPayment = useMemo(() => {
     if (!newCapital || newCapital <= 0) return 0
-    // Calcul simplifié : on estime le total avec intérêts et on divise par 7
-    const maxDuration = contract.creditType === 'SPECIALE' ? 7 : contract.creditType === 'AIDE' ? 3 : 12
+    // Calcul simplifié : on estime le total avec intérêts et on divise par la durée max du type de crédit
+    const maxDuration = getMaxDurationByCreditType(contract.creditType)
     const currentInterestRate = standardForm.watch('interestRate') || contract.interestRate
     const estimatedTotalInterest = newCapital * (currentInterestRate / 100) * maxDuration
     const estimatedTotal = newCapital + estimatedTotalInterest
@@ -297,6 +301,7 @@ export default function CreditExtensionModal({
       setSimulationType('standard')
       setSimulation(null)
       setCustomSimulation(null)
+      setFixedTargetDuration(getMaxDurationByCreditType(contract.creditType))
       setEmergencyContact(contract.emergencyContact || {})
       setDesiredDate(format(new Date(), 'yyyy-MM-dd'))
       refetchEligibility()
@@ -309,17 +314,34 @@ export default function CreditExtensionModal({
     if (newCapital > 0 && currentStep === 'simulation') {
       standardForm.setValue('amount', newCapital)
       standardForm.setValue('interestRate', contract.interestRate)
+      if (contract.creditType === 'FIXE') {
+        standardForm.setValue('monthlyPayment', 100)
+      }
       customForm.setValue('amount', newCapital)
       customForm.setValue('interestRate', contract.interestRate)
       proposedForm.setValue('totalAmount', newCapital)
       proposedForm.setValue('interestRate', contract.interestRate)
-      proposedForm.setValue('duration', contract.creditType === 'SPECIALE' ? 7 : contract.creditType === 'AIDE' ? 3 : 12)
+      proposedForm.setValue('duration', getMaxDurationByCreditType(contract.creditType))
     }
   }, [newCapital, currentStep, contract.interestRate, contract.creditType])
 
   // Handlers pour les simulations (comme dans CreditSimulationModal)
   const onStandardSubmit = async (data: StandardSimulationFormData) => {
     try {
+      if (contract.creditType === 'FIXE') {
+        const duration = Math.max(1, Math.min(14, Math.round(fixedTargetDuration || 14)))
+        const result = await calculateProposed.mutateAsync({
+          amount: data.amount,
+          duration,
+          interestRate: data.interestRate,
+          firstPaymentDate: data.firstPaymentDate,
+          creditType: data.creditType,
+        })
+        setSimulation(result)
+        setSimulationType('standard')
+        return
+      }
+
       const result = await calculateStandard.mutateAsync({
         amount: data.amount,
         interestRate: data.interestRate,
@@ -380,14 +402,46 @@ export default function CreditExtensionModal({
   // Calculer l'échéancier depuis la simulation
   const schedule = useMemo(() => {
     if (!simulation) return []
-    
-    const maxDuration = contract.creditType === 'SPECIALE' ? 7 : contract.creditType === 'AIDE' ? 3 : Infinity
+
+    if (contract.creditType === 'FIXE') {
+      const duration = Math.max(1, simulation.duration || getMaxDurationByCreditType(contract.creditType))
+      const totalAmount = Math.max(0, Math.round(simulation.totalAmount))
+      const totalInterest = Math.max(0, totalAmount - Math.round(simulation.amount))
+      const paymentFloor = Math.floor(totalAmount / duration)
+      const interestFloor = Math.floor(totalInterest / duration)
+      let cumulativePaid = 0
+      let cumulativeInterest = 0
+
+      return Array.from({ length: duration }, (_, index) => {
+        const month = index + 1
+        const isLastMonth = month === duration
+        const date = new Date(simulation.firstPaymentDate)
+        date.setMonth(date.getMonth() + index)
+
+        const payment = isLastMonth ? totalAmount - cumulativePaid : paymentFloor
+        const interest = isLastMonth ? totalInterest - cumulativeInterest : interestFloor
+        cumulativePaid += payment
+        cumulativeInterest += interest
+
+        return {
+          month,
+          date,
+          payment: customRound(payment),
+          interest: customRound(interest),
+          principal: customRound(cumulativePaid),
+          remaining: customRound(Math.max(0, totalAmount - cumulativePaid)),
+        }
+      })
+    }
+
     return calculateScheduleUtil({
       amount: simulation.amount,
       interestRate: simulation.interestRate,
       monthlyPayment: simulation.monthlyPayment,
       firstPaymentDate: new Date(simulation.firstPaymentDate),
-      maxDuration: simulationType === 'proposed' ? simulation.duration : maxDuration,
+      maxDuration: simulationType === 'proposed'
+        ? simulation.duration
+        : getMaxDurationByCreditType(contract.creditType),
     })
   }, [simulation, contract.creditType, simulationType])
   
@@ -395,8 +449,11 @@ export default function CreditExtensionModal({
   const actualDuration = schedule.length
   
   // Vérifier si la simulation est valide (respecte les limites)
-  const maxDuration = contract.creditType === 'SPECIALE' ? 7 : contract.creditType === 'AIDE' ? 3 : 120
+  const maxDuration = getMaxDurationByCreditType(contract.creditType)
   const isSimulationValid = actualDuration <= maxDuration && simulation?.isValid !== false
+  const isStandardSimulationPending = contract.creditType === 'FIXE'
+    ? calculateProposed.isPending
+    : calculateStandard.isPending
 
   // Navigation entre les étapes
   const goToNextStep = () => {
@@ -753,24 +810,40 @@ export default function CreditExtensionModal({
                             )}
                           />
 
-                          <FormField
-                            control={standardForm.control}
-                            name="monthlyPayment"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    placeholder="Ex: 100000"
-                                    {...field}
-                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          {contract.creditType === 'FIXE' ? (
+                            <FormItem>
+                              <FormLabel>Nombre de mois souhaité</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={14}
+                                  value={fixedTargetDuration}
+                                  onChange={(e) => setFixedTargetDuration(Math.max(1, Math.min(14, parseInt(e.target.value, 10) || 1)))}
+                                />
+                              </FormControl>
+                              <FormDescription>Maximum 14 mois pour un crédit fixe</FormDescription>
+                            </FormItem>
+                          ) : (
+                            <FormField
+                              control={standardForm.control}
+                              name="monthlyPayment"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      placeholder="Ex: 100000"
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
 
                           <FormField
                             control={standardForm.control}
@@ -803,10 +876,10 @@ export default function CreditExtensionModal({
 
                         <Button
                           type="submit"
-                          disabled={calculateStandard.isPending}
+                          disabled={isStandardSimulationPending}
                           className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
                         >
-                          {calculateStandard.isPending ? (
+                          {isStandardSimulationPending ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                               Calcul en cours...
