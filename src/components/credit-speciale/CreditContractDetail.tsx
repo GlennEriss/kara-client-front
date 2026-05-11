@@ -29,6 +29,7 @@ import {
   getCreditContractCycles,
   buildCreditSpecialeHistory,
   buildCreditSpecialeTimelineHistory,
+  type CreditSpecialeTimelineMonth,
   getCreditPaymentDisplayMonthLabel,
   getCreditPaymentCycleNumber,
   getCreditPaymentMonthNumber,
@@ -591,11 +592,18 @@ export default function CreditContractDetail({
     return `${format(dateObj, 'dd MMMM yyyy', { locale: fr })} à ${time}`
   }
 
+  const contractCycles = React.useMemo(
+    () => getCreditContractCycles(contract),
+    [contract]
+  )
+  const hasCreditAugmentation = contractCycles.length > 1
+  const currentCycle = React.useMemo(
+    () => contractCycles.at(-1),
+    [contractCycles]
+  )
+
   // Le détail du contrat travaille sur le cycle actif ; l’historique complet reste visible plus bas.
-  const paymentsForSchedule =
-    contract.creditType === 'SPECIALE'
-      ? getCreditPaymentsForCurrentCycle(contract, payments)
-      : payments
+  const paymentsForSchedule = getCreditPaymentsForCurrentCycle(contract, payments)
   const specialHistory =
     contract.creditType === 'SPECIALE'
       ? buildCreditSpecialeHistory(contract, paymentsForSchedule, { projectUntilZero: true })
@@ -604,10 +612,132 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? getCreditSpecialeLastRecordedMonth(contract, paymentsForSchedule)
       : 0
-  const timelineHistoryRows =
-    contract.creditType === 'SPECIALE'
-      ? buildCreditSpecialeTimelineHistory(contract, payments)
-      : []
+  const timelineHistoryRows = React.useMemo<CreditSpecialeTimelineMonth[]>(() => {
+    if (contract.creditType === 'SPECIALE') {
+      return buildCreditSpecialeTimelineHistory(contract, payments)
+    }
+
+    if (contract.creditType !== 'FIXE') {
+      return []
+    }
+
+    const recordedPayments = payments.filter(
+      (payment) =>
+        payment.amount > 0 ||
+        payment.comment?.includes('Paiement de 0 FCFA') ||
+        (!payment.comment?.includes('Paiement de pénalités uniquement') && payment.amount === 0)
+    )
+
+    const currentCycleNumber = contractCycles.at(-1)?.cycleNumber ?? 1
+
+    return contractCycles.flatMap((cycle) => {
+      const cyclePayments = recordedPayments.filter(
+        (payment) => getCreditPaymentCycleNumber(contract, payment) === cycle.cycleNumber
+      )
+      const lastRecordedMonthRaw = cyclePayments.length > 0
+        ? Math.max(...cyclePayments.map((payment) => getCreditPaymentMonthNumber(contract, payment)))
+        : 0
+      const lastRecordedMonth = lastRecordedMonthRaw > 0
+        ? lastRecordedMonthRaw
+        : cycle.cycleNumber === currentCycleNumber
+          ? 1
+          : 0
+
+      if (lastRecordedMonth <= 0) {
+        return []
+      }
+
+      const hasCustomSchedule = !!cycle.customSchedule?.length
+      const cycleTotal = customRound(cycle.totalAmount)
+      const plannedPaymentByMonth = new Map<number, number>()
+      const plannedDuration = hasCustomSchedule
+        ? Math.max(cycle.duration, ...cycle.customSchedule!.map((entry, index) => entry.month || index + 1))
+        : Math.max(1, cycle.duration)
+
+      if (hasCustomSchedule) {
+        cycle.customSchedule!.forEach((entry, index) => {
+          const month = entry.month || index + 1
+          plannedPaymentByMonth.set(month, Math.max(0, customRound(entry.amount)))
+        })
+      } else {
+        const basePayment = Math.floor(cycleTotal / plannedDuration)
+        let cumulativePlanned = 0
+        for (let month = 1; month <= plannedDuration; month++) {
+          const payment = month === plannedDuration ? Math.max(0, cycleTotal - cumulativePlanned) : basePayment
+          plannedPaymentByMonth.set(month, payment)
+          cumulativePlanned += payment
+        }
+      }
+
+      const cyclePaymentTotalsByMonth = new Map<number, number>()
+      for (const payment of cyclePayments) {
+        const month = getCreditPaymentMonthNumber(contract, payment)
+        cyclePaymentTotalsByMonth.set(month, (cyclePaymentTotalsByMonth.get(month) ?? 0) + payment.amount)
+      }
+
+      const cycleTitle =
+        cycle.cycleNumber === 1
+          ? 'Cycle initial'
+          : 'Apres augmentation de credit - reprise a M1'
+
+      const rows: CreditSpecialeTimelineMonth[] = []
+      let capital = cycleTotal
+      let nextDueAssigned = false
+
+      for (let month = 1; month <= lastRecordedMonth; month++) {
+        const date = new Date(cycle.firstPaymentDate)
+        date.setMonth(date.getMonth() + month - 1)
+
+        const amountDue = Math.max(0, customRound(capital))
+        const expectedPayment = Math.min(
+          amountDue,
+          Math.max(0, plannedPaymentByMonth.get(month) ?? customRound(cycle.monthlyPaymentAmount))
+        )
+        const actualPayment = Math.max(0, cyclePaymentTotalsByMonth.get(month) ?? 0)
+        const hasPaymentRecord = cyclePaymentTotalsByMonth.has(month)
+
+        const nextCapitalActual = Math.max(0, customRound(amountDue - actualPayment))
+        const nextCapitalProjected = Math.max(0, customRound(amountDue - expectedPayment))
+
+        let status: CreditSpecialeTimelineMonth['status'] = 'FUTURE'
+        if (hasPaymentRecord) {
+          status = 'PAID'
+        } else if (!nextDueAssigned) {
+          status = 'DUE'
+          nextDueAssigned = true
+        }
+
+        rows.push({
+          month,
+          logicalMonth: month,
+          date,
+          phase: 'FIXE',
+          isRest: false,
+          capitalStart: amountDue,
+          commission: 0,
+          interest: 0,
+          amountDue,
+          expectedPayment,
+          actualPayment,
+          hasPaymentRecord,
+          nextCapitalActual,
+          nextCapitalProjected,
+          status,
+          cycleNumber: cycle.cycleNumber,
+          cycleMonth: month,
+          cycleType: cycle.type,
+          cycleTitle,
+          cycleStartedAt: cycle.startedAt,
+          key: `cycle-${cycle.cycleNumber}-month-${month}`,
+        })
+
+        capital = hasPaymentRecord ? nextCapitalActual : amountDue
+      }
+
+      return rows
+    })
+  }, [contract, contract.creditType, contractCycles, payments])
+
   const timelineHistoryByCycle = timelineHistoryRows.reduce((acc, row) => {
     const existing = acc.get(row.cycleNumber) ?? []
     existing.push(row)
@@ -618,15 +748,6 @@ export default function CreditContractDetail({
     contract.creditType === 'SPECIALE'
       ? new Map(specialHistory.map((row) => [row.month, row]))
       : new Map<number, (typeof specialHistory)[number]>()
-  const contractCycles = React.useMemo(
-    () => getCreditContractCycles(contract),
-    [contract]
-  )
-  const hasCreditAugmentation = contractCycles.length > 1
-  const currentCycle = React.useMemo(
-    () => contractCycles.at(-1),
-    [contractCycles]
-  )
   const fixedTransitionMeta = React.useMemo(() => ({
     mode: currentCycle?.fixedTransitionMode ?? contract.fixedTransitionMode,
     at: currentCycle?.fixedTransitionAt ?? contract.fixedTransitionAt,
@@ -679,7 +800,7 @@ export default function CreditContractDetail({
       ? guarantorPaymentsError.message
       : 'Impossible de charger l’historique des paiements au garant.'
   const penaltiesByTimelineKey = new Map<string, number>()
-  if (contract.creditType === 'SPECIALE') {
+  if (timelineHistoryRows.length > 0) {
     timelineHistoryRows.forEach((row) => {
       const rowDay = new Date(row.date)
       rowDay.setHours(0, 0, 0, 0)
@@ -987,7 +1108,7 @@ export default function CreditContractDetail({
 
   // Calculer le montant total payé
   const totalPaidFromSchedule = isSimpleCredit
-    ? payments
+    ? paymentsForSchedule
         .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
         .reduce((sum, p) => sum + p.amount, 0)
     : actualSchedule
@@ -1113,9 +1234,9 @@ export default function CreditContractDetail({
         date: formatDate(item.date)
       })))
       console.log('Next due index:', nextDueIndex)
-      console.log('Total payé:', payments.filter(p => p.amount > 0 || !p.comment?.includes('Pénalités')).reduce((sum, p) => sum + p.amount, 0))
+      console.log('Total payé:', paymentsForSchedule.filter(p => p.amount > 0 || !p.comment?.includes('Pénalités')).reduce((sum, p) => sum + p.amount, 0))
     }
-  }, [dueItems, nextDueIndex, payments])
+  }, [dueItems, nextDueIndex, paymentsForSchedule])
 
   // Fonction pour récupérer le paiement sélectionné pour le reçu
   const getSelectedPaymentForReceipt = (): CreditPayment | null => {
@@ -2706,7 +2827,7 @@ export default function CreditContractDetail({
               {/* Onglet Historique */}
               <TabsContent value="history" className="p-6 space-y-6 m-0">
                 <div className="space-y-6">
-                  {contract.creditType === 'SPECIALE' && (
+                  {timelineHistoryRows.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <div>
@@ -2840,7 +2961,7 @@ export default function CreditContractDetail({
                                     <span className="font-semibold">
                                       {formatDateTime(payment.paymentDate, payment.paymentTime)}
                                     </span>
-                                    {contract.creditType === 'SPECIALE' && (
+                                    {hasCreditAugmentation && (
                                       <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
                                         {paymentLabel}
                                       </Badge>
