@@ -187,7 +187,7 @@ export default function UploadContractCIModal({
                     <FormLabel>Fichier PDF du contrat *</FormLabel>
                     <FormControl>
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="space-y-2">
                           <Button
                             type="button"
                             variant="outline"
@@ -212,13 +212,13 @@ export default function UploadContractCIModal({
                             </label>
                           </Button>
                           {selectedFile && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-gray-600 truncate">
+                            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                              <span className="text-sm text-gray-600 truncate min-w-0 flex-1">
                                 {selectedFile.name}
                               </span>
-                              <span className={`text-xs font-medium px-2 py-1 rounded ${
-                                selectedFile.size > 2 * 1024 * 1024 
-                                  ? 'bg-orange-100 text-orange-700' 
+                              <span className={`text-xs font-medium px-2 py-1 rounded shrink-0 ${
+                                selectedFile.size > 2 * 1024 * 1024
+                                  ? 'bg-orange-100 text-orange-700'
                                   : 'bg-green-100 text-green-700'
                               }`}>
                                 {(selectedFile.size / 1024).toFixed(2)} KB

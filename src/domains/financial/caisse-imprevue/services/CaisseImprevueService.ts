@@ -417,6 +417,69 @@ export class CaisseImprevueService {
   }
 
   /**
+   * Valide le contrat signé par le membre : l'admin uploade la version
+   * doublement signée qui devient le document officiel (contractStartId).
+   */
+  async validateMemberSignedContract(
+    contractId: string,
+    adminId: string,
+    file: File
+  ): Promise<ContractCI> {
+    const contract = await this.contractRepository.getContractById(contractId)
+    if (!contract) throw new Error('Contrat introuvable')
+    if (!contract.memberSignedDocumentId) throw new Error('Aucun document membre à valider')
+
+    const documentRepository = RepositoryFactory.getDocumentRepository()
+
+    const { url, path, size } = await documentRepository.uploadDocumentFile(
+      file,
+      contract.memberId,
+      'ADHESION_CI'
+    )
+
+    const doc = await documentRepository.createDocument({
+      type: 'ADHESION_CI',
+      format: 'pdf',
+      libelle: `Contrat CI signé - ${contract.memberId}`,
+      path,
+      url,
+      size,
+      memberId: contract.memberId,
+      contractId: contract.id,
+      createdBy: adminId,
+      updatedBy: adminId,
+    })
+    if (!doc?.id) throw new Error('Erreur lors de la création du document')
+
+    const updated = await this.contractRepository.updateContract(contractId, {
+      contractStartId: doc.id,
+      memberSignedStatus: 'VALIDATED',
+      updatedBy: adminId,
+    })
+    if (!updated) throw new Error('Erreur lors de la mise à jour du contrat')
+    return updated
+  }
+
+  /**
+   * Rejette le document signé par le membre (document illisible, incomplet, etc.).
+   * Le membre pourra re-téléverser un nouveau document.
+   */
+  async rejectMemberSignedContract(
+    contractId: string,
+    adminId: string
+  ): Promise<ContractCI> {
+    const contract = await this.contractRepository.getContractById(contractId)
+    if (!contract) throw new Error('Contrat introuvable')
+
+    const updated = await this.contractRepository.updateContract(contractId, {
+      memberSignedStatus: 'REJECTED',
+      updatedBy: adminId,
+    })
+    if (!updated) throw new Error('Erreur lors de la mise à jour du contrat')
+    return updated
+  }
+
+  /**
    * Met à jour la catégorie (forfait) d'un contrat CI.
    * Remplace toutes les données du forfait sur le contrat par celles du forfait cible.
    */

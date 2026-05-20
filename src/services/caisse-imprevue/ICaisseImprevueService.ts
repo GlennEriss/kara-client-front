@@ -30,6 +30,8 @@ export interface ICaisseImprevueService extends IService{
     getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]>
     getContractsCIStats(filters?: ContractsCIFilters): Promise<ContractsCIStats>
     uploadContractDocument(file: File, contractId: string, memberId: string, userId: string): Promise<{ documentId: string; contract: ContractCI }>
+    validateMemberSignedContract(contractId: string, adminId: string, file: File): Promise<ContractCI>
+    rejectMemberSignedContract(contractId: string, adminId: string): Promise<ContractCI>
     uploadEmergencyContactImage(imageUrl: string, memberId: string, contractId: string): Promise<{ url: string; path: string }>
     getDocumentById(documentId: string): Promise<Document | null>
     

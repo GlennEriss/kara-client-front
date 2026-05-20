@@ -215,6 +215,61 @@ export class CaisseContractsService {
   }
 
   /**
+   * Valide le contrat signé par le membre : upload du contrat doublement signé,
+   * mise à jour de contractPdf et passage à VALIDATED.
+   */
+  async validateMemberSignedCSContract(
+    contractId: string,
+    adminId: string,
+    file: File
+  ): Promise<void> {
+    const contract = await this.repo.getContractById(contractId)
+    if (!contract) throw new Error('Contrat introuvable')
+
+    const upload = await createFile(file, contractId, `contracts/${contractId}`)
+    const payload = {
+      fileSize: file.size,
+      path: upload.path,
+      originalFileName: file.name,
+      uploadedAt: new Date(),
+      url: upload.url,
+    }
+
+    const documentRepo = RepositoryFactory.getDocumentRepository()
+    const memberIdForDoc = contract.memberId || contractId
+    await documentRepo.createDocument({
+      type: 'ADHESION_CS',
+      format: 'pdf',
+      libelle: `Contrat Caisse Spéciale #${contractId.slice(-6)}`,
+      path: upload.path,
+      url: upload.url,
+      size: file.size,
+      memberId: memberIdForDoc,
+      contractId,
+      createdBy: adminId,
+      updatedBy: adminId,
+    })
+
+    await updateContractPdf(contractId, payload, adminId)
+    await updateContract(contractId, {
+      memberSignedStatus: 'VALIDATED',
+      memberSignedDocumentId: null,
+      updatedBy: adminId,
+    })
+  }
+
+  /**
+   * Refuse le contrat signé par le membre.
+   */
+  async rejectMemberSignedCSContract(contractId: string, adminId: string): Promise<void> {
+    await updateContract(contractId, {
+      memberSignedStatus: 'REJECTED',
+      memberSignedDocumentId: null,
+      updatedBy: adminId,
+    })
+  }
+
+  /**
    * Supprime définitivement un contrat Caisse Spéciale.
    * Réactive la demande liée si présente, supprime le PDF en Storage, les sous-collections et le document contrat.
    */

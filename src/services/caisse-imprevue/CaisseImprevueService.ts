@@ -163,6 +163,46 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         }
     }
 
+    async validateMemberSignedContract(contractId: string, adminId: string, file: File): Promise<ContractCI> {
+        const contract = await this.contractCIRepository.getContractById(contractId)
+        if (!contract) throw new Error('Contrat introuvable')
+        if (!contract.memberSignedDocumentId) throw new Error('Aucun document membre à valider')
+
+        const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, contract.memberId, 'ADHESION_CI')
+
+        const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
+            type: 'ADHESION_CI' as const,
+            format: 'pdf',
+            libelle: `Contrat CI signé - ${contract.memberId}`,
+            path,
+            url,
+            size,
+            memberId: contract.memberId,
+            contractId: contract.id,
+            createdBy: adminId,
+            updatedBy: adminId,
+        }
+        const document = await this.documentRepository.createDocument(documentData)
+        if (!document?.id) throw new Error('Erreur lors de la création du document')
+
+        const updated = await this.contractCIRepository.updateContract(contractId, {
+            contractStartId: document.id,
+            memberSignedStatus: 'VALIDATED',
+            updatedBy: adminId,
+        })
+        if (!updated) throw new Error('Erreur mise à jour contrat')
+        return updated
+    }
+
+    async rejectMemberSignedContract(contractId: string, adminId: string): Promise<ContractCI> {
+        const updated = await this.contractCIRepository.updateContract(contractId, {
+            memberSignedStatus: 'REJECTED',
+            updatedBy: adminId,
+        })
+        if (!updated) throw new Error('Contrat introuvable')
+        return updated
+    }
+
     async uploadEmergencyContactImage(imageUrl: string, memberId: string, contractId: string): Promise<{ url: string; path: string }> {
         return await this.documentRepository.uploadImage(imageUrl, memberId, contractId, 'emergency-contact-document')
     }
