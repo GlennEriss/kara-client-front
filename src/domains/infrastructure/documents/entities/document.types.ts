@@ -59,6 +59,8 @@ export interface Document {
   type: DocumentType
   format: DocumentFormat
   libelle: string
+  /** Nom original du fichier uploadé (optionnel pour anciens documents) */
+  originalFileName?: string
   path: string
   url: string
   size: number
