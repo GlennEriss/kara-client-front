@@ -37,6 +37,12 @@ function formatDateFr(d: Date): string {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+function getWithdrawalDate(dueAt: Date): Date {
+  const withdrawalDate = new Date(dueAt)
+  withdrawalDate.setMonth(withdrawalDate.getMonth() + 1)
+  return withdrawalDate
+}
+
 function formatAmount(n: number): string {
   return n.toLocaleString('fr-FR')
 }
@@ -299,14 +305,10 @@ function CaisseSpecialeSimulationPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="rounded-2xl border border-[#234D65]/20 bg-gradient-to-br from-[#234D65]/10 to-[#2c5a73]/5 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#234D65]">Total versements</p>
                   <p className="mt-2 text-2xl font-black text-[#234D65]">{formatAmount(result.totalAmount)}</p>
-                </div>
-                <div className="rounded-2xl border border-[#cbb171]/40 bg-gradient-to-br from-[#cbb171]/20 to-[#f0e5c7]/20 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8b6f2b]">Total bonus</p>
-                  <p className="mt-2 text-2xl font-black text-[#7b6125]">{formatAmount(result.totalBonus)}</p>
                 </div>
                 <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Montant final</p>
@@ -412,7 +414,8 @@ function CaisseSpecialeSimulationPage() {
                     <TableRow className="bg-[#234D65] hover:bg-[#234D65] text-white">
                       <TableHead className="text-white font-semibold">N° Échéance</TableHead>
                       <TableHead className="text-white font-semibold">Date d&apos;échéance</TableHead>
-                      <TableHead className="text-white font-semibold hidden sm:table-cell">Date prise d&apos;effet bonus</TableHead>
+                      <TableHead className="text-white font-semibold">Date de remise</TableHead>
+                      <TableHead className="hidden md:table-cell whitespace-nowrap w-[120px] text-white font-semibold">Effet bonus</TableHead>
                       <TableHead className="text-white font-semibold text-right">Montant (FCFA)</TableHead>
                       <TableHead className="text-white font-semibold text-right">Taux %</TableHead>
                       <TableHead className="text-white font-semibold text-right">Bonus (FCFA)</TableHead>
@@ -423,7 +426,8 @@ function CaisseSpecialeSimulationPage() {
                       <TableRow key={row.monthLabel} className="even:bg-muted/50">
                         <TableCell className="font-medium">{row.monthLabel}</TableCell>
                         <TableCell>{formatDateFr(row.dueAt)}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{row.bonusEffectiveLabel}</TableCell>
+                        <TableCell>{formatDateFr(getWithdrawalDate(row.dueAt))}</TableCell>
+                        <TableCell className="hidden md:table-cell whitespace-nowrap">{row.bonusEffectiveLabel}</TableCell>
                         <TableCell className="text-right">{formatAmount(row.amount)}</TableCell>
                         <TableCell className="text-right">{row.bonusRatePercent}</TableCell>
                         <TableCell className="text-right">{formatAmount(row.bonusAmount)}</TableCell>
@@ -432,12 +436,12 @@ function CaisseSpecialeSimulationPage() {
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-semibold border-t-2 bg-muted/50">
-                      <TableCell colSpan={3} className="font-semibold">
+                      <TableCell colSpan={4} className="font-semibold">
                         Total
                       </TableCell>
                       <TableCell className="text-right">{formatAmount(result.totalAmount)}</TableCell>
                       <TableCell />
-                      <TableCell className="text-right">{formatAmount(result.totalBonus)}</TableCell>
+                      <TableCell />
                     </TableRow>
                   </TableFooter>
                 </Table>
@@ -478,12 +482,13 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
     const body = result.rows.map((r) => [
       r.monthLabel,
       formatDateFr(r.dueAt),
+      formatDateFr(getWithdrawalDate(r.dueAt)),
       r.bonusEffectiveLabel,
       formatAmountForPDF(r.amount),
       formatAmountForPDF(r.bonusAmount),
     ])
     autoTable(doc, {
-      head: [['N° Échéance', 'Date échéance', 'Date taxi', 'Montant (FCFA)', 'Taxi (FCFA)']],
+      head: [['N° Échéance', 'Date échéance', 'Date remise', 'Date taxi', 'Montant (FCFA)', 'Taxi (FCFA)']],
       body,
       startY: 24,
       headStyles: { fillColor: [35, 77, 101] },
@@ -518,6 +523,7 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
     const data = result.rows.map((r) => ({
       'N° Échéance': r.monthLabel,
       'Date d\'échéance': formatDateFr(r.dueAt),
+      'Date de remise': formatDateFr(getWithdrawalDate(r.dueAt)),
       'Date prise d\'effet taxi': r.bonusEffectiveLabel,
       'Montant (FCFA)': r.amount,
       'Taxi (FCFA)': r.bonusAmount,
@@ -559,12 +565,12 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
       `▪️ Montant final : *${formatAmount(result.totalAmount + result.totalBonus)} FCFA*`,
       '',
       separator,
-      '📅 *ÉCHÉANCIER*',
+      '📆 *ÉCHÉANCIER*',
       separator,
       '',
       ...result.rows.map((r) => {
         const taxiIcon = r.bonusAmount > 0 ? '✅' : '⏳'
-        return `${taxiIcon} *${r.monthLabel}* — ${formatDateFr(r.dueAt)}\n    💵 ${formatAmount(r.amount)} FCFA | Taxi = ${formatAmount(r.bonusAmount)} FCFA`
+        return `${taxiIcon} *${r.monthLabel}* — Échéance: ${formatDateFr(r.dueAt)} | Remise: ${formatDateFr(getWithdrawalDate(r.dueAt))}\n    💵 ${formatAmount(r.amount)} FCFA | Taxi = ${formatAmount(r.bonusAmount)} FCFA`
       }),
       '',
       separator,
