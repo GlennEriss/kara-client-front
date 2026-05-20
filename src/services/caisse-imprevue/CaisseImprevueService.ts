@@ -170,7 +170,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
         const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, contract.memberId, 'ADHESION_CI')
 
-        const documentData = {
+        const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
             type: 'ADHESION_CI' as const,
             format: 'pdf',
             libelle: `Contrat CI signé - ${contract.memberId}`,
