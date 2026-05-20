@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
 import { ContractCI } from '@/types/types'
-import { AlertCircle, Eye, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
+import { AlertCircle, Download, FileText, Loader2, Monitor, Smartphone } from 'lucide-react'
 import React, { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -38,35 +38,36 @@ interface ViewUploadedContractCIModalProps {
   isOpen: boolean
   onClose: () => void
   contract: ContractCI | null
+  documentId?: string
 }
 
 export default function ViewUploadedContractCIModal({
   isOpen,
   onClose,
-  contract
+  contract,
+  documentId,
 }: ViewUploadedContractCIModalProps) {
   const _isMobile = useIsMobile()
-  
-  // Récupérer le document via le hook
-  const { data: document, isLoading, error } = useDocumentCI(contract?.contractStartId)
+
+  const resolvedDocumentId = documentId ?? contract?.contractStartId
+  const { data: document, isLoading, error } = useDocumentCI(resolvedDocumentId)
 
   const handleDownloadPDF = () => {
     if (!document?.url) {
       toast.error('URL du document non disponible')
       return
     }
-
-    try {
-      // Ouvrir le PDF dans un nouvel onglet
-      window.open(document.url, '_blank')
-      
-      toast.success('PDF ouvert', {
-        description: 'Le document s\'ouvre dans un nouvel onglet'
-      })
-    } catch (error) {
-      console.error('Erreur lors de l\'ouverture du PDF:', error)
-      toast.error('Erreur lors de l\'ouverture du document')
-    }
+    const last = String(contract?.memberLastName ?? '').toUpperCase().replace(/\s+/g, '_')
+    const first = String(contract?.memberFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
+    const year = new Date().getFullYear()
+    const filename = document.originalFileName ?? `${last}_${first}_CAISSE_IMPREVUE_${year}.pdf`
+    const proxyUrl = `/api/download?url=${encodeURIComponent(document.url)}&filename=${encodeURIComponent(filename)}`
+    const link = window.document.createElement('a')
+    link.href = proxyUrl
+    link.download = filename
+    window.document.body.appendChild(link)
+    link.click()
+    window.document.body.removeChild(link)
   }
 
   if (!contract) return null
@@ -82,11 +83,11 @@ export default function ViewUploadedContractCIModal({
                 <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                  📋 Contrat Téléversé
+                <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent truncate">
+                  Contrat Téléversé
                 </DialogTitle>
                 <DialogDescription className="text-sm lg:text-base text-gray-600 truncate">
-                  {contract.memberFirstName} {contract.memberLastName} - Contrat #{contract.id.slice(-6)}
+                  {contract.memberFirstName} {contract.memberLastName} · #{contract.id.slice(-6)}
                 </DialogDescription>
               </div>
             </div>
@@ -97,8 +98,8 @@ export default function ViewUploadedContractCIModal({
             className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
           >
             <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              <span className="hidden lg:inline">Ouvrir le PDF</span>
+              <Download className="w-4 h-4" />
+              <span className="hidden lg:inline">Télécharger</span>
             </div>
           </Button>
         </DialogHeader>
@@ -148,21 +149,21 @@ export default function ViewUploadedContractCIModal({
 
                     {/* Informations du document */}
                     <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Document:</span>
-                        <span className="font-medium text-gray-900">{document.libelle}</span>
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-gray-600 shrink-0">Document:</span>
+                        <span className="font-medium text-gray-900 truncate text-right">{document.libelle}</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Type:</span>
-                        <span className="font-medium text-gray-900">{document.type}</span>
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-gray-600 shrink-0">Type:</span>
+                        <span className="font-medium text-gray-900 truncate text-right">{document.type}</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Taille:</span>
-                        <span className="font-medium text-gray-900">{(document.size / 1024).toFixed(2)} KB</span>
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-gray-600 shrink-0">Taille:</span>
+                        <span className="font-medium text-gray-900 shrink-0">{(document.size / 1024).toFixed(2)} KB</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Format:</span>
-                        <span className="font-medium text-gray-900 uppercase">{document.format}</span>
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-gray-600 shrink-0">Format:</span>
+                        <span className="font-medium text-gray-900 uppercase shrink-0">{document.format}</span>
                       </div>
                     </div>
 
@@ -172,8 +173,8 @@ export default function ViewUploadedContractCIModal({
                         onClick={handleDownloadPDF}
                         className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                       >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Ouvrir le PDF
+                        <Download className="w-4 h-4 mr-2" />
+                        Télécharger
                       </Button>
                     </div>
 

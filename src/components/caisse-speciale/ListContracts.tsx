@@ -69,6 +69,7 @@ import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
 import ContractPdfUploadModal from './ContractPdfUploadModal'
 import DeleteCaisseSpecialeContractModal from './DeleteCaisseSpecialeContractModal'
 import ReplaceCaisseSpecialeContractPdfModal from './ReplaceCaisseSpecialeContractPdfModal'
+import ValidateMemberSignedCSModal from './ValidateMemberSignedCSModal'
 import ViewUploadedContractModal from './ViewUploadedContractModal'
 
 type ViewMode = 'grid' | 'list'
@@ -1072,7 +1073,10 @@ const ListContracts = () => {
   const [selectedContractForUpload, setSelectedContractForUpload] = useState<any>(null)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
+  const [selectedViewDocumentId, setSelectedViewDocumentId] = useState<string | undefined>(undefined)
   const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
+  const [selectedContractForValidation, setSelectedContractForValidation] = useState<any>(null)
+  const [isValidationModalOpen, setIsValidationModalOpen] = useState(false)
   const [selectedContractForOverview, setSelectedContractForOverview] = useState<{
     contract: any
     member?: any
@@ -1304,9 +1308,15 @@ const ListContracts = () => {
     refetch()
   }
 
-  const handleViewUploadedContractPDF = (contract: any) => {
+  const handleViewUploadedContractPDF = (contract: any, documentId?: string) => {
     setSelectedContractForViewUploaded(contract)
+    setSelectedViewDocumentId(documentId)
     setIsViewUploadedModalOpen(true)
+  }
+
+  const handleValidateContract = (contract: any) => {
+    setSelectedContractForValidation(contract)
+    setIsValidationModalOpen(true)
   }
 
   const handleViewRefundPDF = (contractId: string, type: 'FINAL' | 'EARLY') => {
@@ -1321,6 +1331,7 @@ const ListContracts = () => {
   const handleCloseViewUploadedModal = () => {
     setIsViewUploadedModalOpen(false)
     setSelectedContractForViewUploaded(null)
+    setSelectedViewDocumentId(undefined)
   }
 
   const formatAmountWithSpaces = (value: number | string | undefined | null): string => {
@@ -2215,6 +2226,12 @@ const ListContracts = () => {
                                 Retard
                               </Badge>
                             )}
+                            {contract.memberSignedStatus === 'PENDING_ADMIN' && (
+                              <Badge className="bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                À valider
+                              </Badge>
+                            )}
                           </div>
 
                           <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
@@ -2345,6 +2362,16 @@ const ListContracts = () => {
                                 >
                                   <Eye className="h-4 w-4" />
                                   Contrat de résiliation
+                                </Button>
+                              )}
+                              {contract.memberSignedStatus === 'PENDING_ADMIN' && (
+                                <Button
+                                  onClick={() => handleValidateContract(contract)}
+                                  variant="outline"
+                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                  Valider contrat signé
                                 </Button>
                               )}
                               <Button
@@ -2519,6 +2546,15 @@ const ListContracts = () => {
                                     Contrat de résiliation
                                   </DropdownMenuItem>
                                 )}
+                                {contract.memberSignedStatus === 'PENDING_ADMIN' && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleValidateContract(contract)}
+                                    className="cursor-pointer text-amber-700 focus:text-amber-700 focus:bg-amber-50"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Valider contrat signé
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => setContractToDelete(contract)}
                                   className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -2610,6 +2646,19 @@ const ListContracts = () => {
           isOpen={isViewUploadedModalOpen}
           onClose={handleCloseViewUploadedModal}
           contract={selectedContractForViewUploaded}
+          documentId={selectedViewDocumentId}
+        />
+      )}
+
+      {/* Modal Validation contrat signé membre */}
+      {selectedContractForValidation && (
+        <ValidateMemberSignedCSModal
+          open={isValidationModalOpen}
+          onOpenChange={(open) => {
+            setIsValidationModalOpen(open)
+            if (!open) setSelectedContractForValidation(null)
+          }}
+          contract={selectedContractForValidation}
         />
       )}
 
