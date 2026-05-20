@@ -490,19 +490,17 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
       formatDateFr(getWithdrawalDate(r.dueAt)),
       r.bonusEffectiveLabel,
       formatAmountForPDF(r.amount),
-      `${r.bonusRatePercent}%`,
       formatAmountForPDF(r.bonusAmount),
     ])
 
     autoTable(doc, {
       head: [[
         'N\u00b0 \u00c9ch\u00e9ance',
-        'Date d\'\u00e9ch\u00e9ance',
-        'Date de remise',
-        'Effet bonus',
+        'Date \u00e9ch\u00e9ance',
+        'Date remise',
+        'Date taxi',
         'Montant (FCFA)',
-        'Taux %',
-        'Bonus (FCFA)',
+        'Taxi (FCFA)',
       ]],
       body,
       startY: 24,
@@ -513,7 +511,7 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text(`Total montants: ${formatAmountForPDF(result.totalAmount)} FCFA`, 14, finalY + 8)
-    doc.text(`Bonus final: ${formatAmountForPDF(lastBonusInTable)} FCFA`, 14, finalY + 14)
+    doc.text(`Total taxi: ${formatAmountForPDF(lastBonusInTable)} FCFA`, 14, finalY + 14)
 
     const fileName = `simulation_caisse_speciale_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
@@ -543,10 +541,9 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
       'N\u00b0 \u00c9ch\u00e9ance': r.monthLabel,
       'Date d\'\u00e9ch\u00e9ance': formatDateFr(r.dueAt),
       'Date de remise': formatDateFr(getWithdrawalDate(r.dueAt)),
-      'Effet bonus': r.bonusEffectiveLabel,
+      'Date prise d\'effet taxi': r.bonusEffectiveLabel,
       'Montant (FCFA)': r.amount,
-      'Taux %': r.bonusRatePercent,
-      'Bonus (FCFA)': r.bonusAmount,
+      'Taxi (FCFA)': r.bonusAmount,
     }))
 
     const ws = XLSX.utils.json_to_sheet(data)
