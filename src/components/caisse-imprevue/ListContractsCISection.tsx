@@ -55,6 +55,7 @@ import DeleteContractCIModal from './DeleteContractCIModal'
 import ReplaceContractCIModal from './ReplaceContractCIModal'
 import StatisticsCI from './StatisticsCI'
 import UploadContractCIModal from './UploadContractCIModal'
+import ValidateMemberSignedModal from './ValidateMemberSignedModal'
 import ViewContractCIModal from './ViewContractCIModal'
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
@@ -63,6 +64,12 @@ const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
   FINISHED: 'bg-blue-100 text-blue-700 border-blue-200',
   CANCELED: 'bg-red-100 text-red-700 border-red-200'
+}
+
+const STATUS_META_GRID: Record<ContractCIStatus, { label: string; dot: string; text: string }> = {
+  ACTIVE:   { label: 'Actif',    dot: 'bg-emerald-500', text: 'text-emerald-700' },
+  FINISHED: { label: 'Terminé',  dot: 'bg-blue-400',    text: 'text-blue-700'   },
+  CANCELED: { label: 'Résilié',  dot: 'bg-gray-400',    text: 'text-gray-500'   },
 }
 
 const FREQUENCY_LABELS = {
@@ -208,6 +215,7 @@ export default function ListContractsCISection() {
   const [selectedContractForUpload, setSelectedContractForUpload] = useState<ContractCI | null>(null)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [selectedContractForView, setSelectedContractForView] = useState<ContractCI | null>(null)
+  const [selectedViewDocumentId, setSelectedViewDocumentId] = useState<string | undefined>(undefined)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [selectedContractForRefund, setSelectedContractForRefund] = useState<ContractCI | null>(null)
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
@@ -216,6 +224,8 @@ export default function ListContractsCISection() {
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<ContractCI | null>(null)
   const [showReplaceContractCIModal, setShowReplaceContractCIModal] = useState(false)
   const [selectedContractForReplace, setSelectedContractForReplace] = useState<ContractCI | null>(null)
+  const [showValidateMemberSignedModal, setShowValidateMemberSignedModal] = useState(false)
+  const [selectedContractForValidation, setSelectedContractForValidation] = useState<ContractCI | null>(null)
   const [selectedContractForOverview, setSelectedContractForOverview] = useState<{ contract: ContractCI; member?: any } | null>(null)
   const { data: subscriptions } = useSubscriptionsCICache()
 
@@ -323,8 +333,15 @@ export default function ListContractsCISection() {
   }
 
   const handleDownloadContract = (contract: ContractCI) => {
-    setSelectedContractForPDF(contract)
-    setIsPDFModalOpen(true)
+    const bestDocumentId = contract.contractStartId || contract.memberSignedDocumentId || undefined
+    if (bestDocumentId) {
+      setSelectedContractForView(contract)
+      setSelectedViewDocumentId(bestDocumentId)
+      setIsViewModalOpen(true)
+    } else {
+      setSelectedContractForPDF(contract)
+      setIsPDFModalOpen(true)
+    }
   }
 
   const handleUploadContract = (contract: ContractCI) => {
@@ -350,6 +367,7 @@ export default function ListContractsCISection() {
   const handleCloseViewModal = () => {
     setIsViewModalOpen(false)
     setSelectedContractForView(null)
+    setSelectedViewDocumentId(undefined)
   }
 
   const handleViewRefundDocument = (contract: ContractCI, type: 'FINAL' | 'EARLY') => {
@@ -905,7 +923,7 @@ export default function ListContractsCISection() {
 
       {/* Liste des contrats */}
       {isLoading ? (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-2'}>
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-2'}>
           {[...Array(itemsPerPage)].map((_, i) => (
             <ModernSkeleton key={i} />
           ))}
@@ -913,11 +931,10 @@ export default function ListContractsCISection() {
       ) : currentContracts.length > 0 ? (
         <>
           {viewMode === 'grid' && (
-            <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
+            <div className="rounded-b-2xl border-x border-b border-gray-200 bg-gray-50/30 p-4 md:p-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
                 {currentContracts.map((contract: ContractCI, index: number) => {
                   const member = memberById[contract.memberId]
-                  const hasPdf = hasValidContractPdf(contract)
                   const fullName = `${contract.memberFirstName || member?.firstName || ''} ${contract.memberLastName || member?.lastName || ''}`.trim()
                   const displayName = fullName || 'Membre non renseigné'
                   const contacts = contract.memberContacts?.length
@@ -928,194 +945,252 @@ export default function ListContractsCISection() {
                   const primaryContact = contract.memberEmail || member?.email || contacts
                   const initials = `${(contract.memberFirstName || member?.firstName || '')[0] || ''}${(contract.memberLastName || member?.lastName || '')[0] || ''}`.toUpperCase() || 'CI'
                   const paidAmount = (contract.totalMonthsPaid || 0) * (contract.subscriptionCIAmountPerMonth || 0)
+                  const total = contract.subscriptionCIDuration || 0
+                  const paid = contract.totalMonthsPaid || 0
+                  const progress = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
+                  const isSigned = !!contract.contractStartId
+                  const isPendingValidation = !isSigned && contract.memberSignedStatus === 'PENDING_ADMIN'
+                  const isRejected = !isSigned && contract.memberSignedStatus === 'REJECTED'
+                  const statusMeta = STATUS_META_GRID[contract.status]
 
                   return (
                     <div
                       key={contract.id}
-                      className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
-                      style={{ animationDelay: `${index * 0.05}s` }}
+                      className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
+                      style={{ animationDelay: `${index * 40}ms` }}
                     >
-                      <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
-                        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
-                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                      <div className="h-full flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm hover:border-gray-200 hover:shadow-md transition-all duration-200">
 
-                        {activeTab === 'overdue' && (
-                          <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            En retard
-                          </Badge>
-                        )}
-
-                        <CardContent className="relative z-10 flex-1 flex flex-col p-6">
-                          <div className="flex items-start gap-3">
-                            <div className="shrink-0">
-                              <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
-                                {(contract.memberPhotoUrl || memberPhotoById[contract.memberId]) ? (
-                                  <AvatarImage
-                                    src={contract.memberPhotoUrl || memberPhotoById[contract.memberId]}
-                                    alt={`Photo de ${displayName}`}
-                                    className="h-full w-full object-cover object-center"
-                                  />
-                                ) : (
-                                  <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
-                                    {initials}
-                                  </AvatarFallback>
-                                )}
-                              </Avatar>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs text-gray-500">Matricule contrat</div>
-                              <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
-                              <div className="mt-1 truncate text-sm font-bold text-slate-900">{displayName}</div>
-                              <div className="truncate text-xs text-slate-500">{primaryContact || '—'}</div>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <Badge className="bg-purple-100 text-purple-700 border border-purple-200">
-                              {contract.subscriptionCICode}
-                            </Badge>
-                            <Badge className={`border ${getStatusColor(contract.status)}`}>
-                              {CONTRACT_CI_STATUS_LABELS[contract.status]}
-                            </Badge>
-                          </div>
-
-                          <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Fréquence</p>
-                                <p className="font-semibold text-slate-900">
-                                  {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
-                                <p className="font-extrabold text-[#234D65]">{(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} FCFA</p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
-                                <p className="font-semibold text-slate-900">{contract.subscriptionCIDuration} mois</p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Date de fin</p>
-                                <p className="font-medium text-slate-900">{getContractEndDate(contract)}</p>
-                              </div>
-                            </div>
-
-                            <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
-                              <div className="flex items-center gap-1.5">
-                                {hasPdf ? (
-                                  <>
-                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span className="text-xs font-medium text-emerald-700">PDF disponible</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
-                                    <span className="text-xs font-medium text-orange-600">PDF à téléverser</span>
-                                  </>
-                                )}
-                              </div>
-                              <span className="text-xs font-semibold text-slate-700">
-                                Versé: {paidAmount.toLocaleString('fr-FR')} FCFA
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="pt-3 border-t border-slate-200 mt-auto">
-                            <div className="space-y-2">
-                              <Button
-                                onClick={() => handleViewContract(contract.id)}
-                                disabled={!contract.contractStartId}
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#224D62]"
-                              >
-                                <Eye className="h-4 w-4" />
-                                Ouvrir
-                              </Button>
-
-                              <Button
-                                onClick={() => setSelectedContractForOverview({ contract, member })}
-                                variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                              >
-                                <User className="h-4 w-4" />
-                                Détails complets du contrat
-                              </Button>
-
-                              {contract.contractStartId ? (
-                                <>
-                                  <Button
-                                    onClick={() => handleViewUploadedContract(contract)}
-                                    variant="outline"
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all cursor-pointer hover:bg-[#234D65] hover:text-white"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    Voir contrat
-                                  </Button>
-                                  {canReplaceContractCI(contract) && (
-                                    <Button
-                                      onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
-                                      variant="outline"
-                                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 hover:border-amber-400"
-                                    >
-                                      <FileEdit className="h-4 w-4" />
-                                      Modifier contrat
-                                    </Button>
-                                  )}
-                                </>
+                        {/* Header */}
+                        <div className="flex items-start justify-between p-5 pb-4 gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <Avatar className="size-10 rounded-xl ring-1 ring-[#234D65]/15 shrink-0 mt-0.5">
+                              {(contract.memberPhotoUrl || memberPhotoById[contract.memberId]) ? (
+                                <AvatarImage
+                                  src={contract.memberPhotoUrl || memberPhotoById[contract.memberId]}
+                                  alt={displayName}
+                                  className="h-full w-full object-cover object-center"
+                                />
                               ) : (
-                                <Button
-                                  onClick={() => handleUploadContract(contract)}
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 hover:text-orange-800"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  Téléverser le document PDF
-                                </Button>
+                                <AvatarFallback className="rounded-xl bg-[#234D65] text-white font-semibold text-xs">
+                                  {initials}
+                                </AvatarFallback>
                               )}
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-[#234D65] truncate">
+                                Forfait {contract.subscriptionCICode}
+                              </p>
+                              <p className="font-mono text-[11px] text-gray-400 truncate mt-0.5">{contract.id}</p>
+                              <p className="text-sm font-bold text-gray-900 truncate mt-0.5">{displayName}</p>
+                              {primaryContact && primaryContact !== '—' && (
+                                <p className="text-xs text-gray-400 truncate">{primaryContact}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusMeta.text)}>
+                              <span className={cn('w-2 h-2 rounded-full shrink-0', statusMeta.dot)} />
+                              {statusMeta.label}
+                            </span>
+                            {isPendingValidation && (
+                              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                                À valider
+                              </span>
+                            )}
+                            {isRejected && (
+                              <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                                Refusé
+                              </span>
+                            )}
+                            {activeTab === 'overdue' && (
+                              <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                                En retard
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
+                        {/* Stats */}
+                        <div className="px-5 space-y-3">
+                          <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
+                              <p className="font-bold text-[#234D65] tabular-nums text-sm">
+                                {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')}{' '}
+                                <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mois payés</p>
+                              <p className="font-bold text-gray-900 tabular-nums text-sm">
+                                {paid} <span className="font-normal text-gray-400">/ {total}</span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Type</p>
+                              <p className="text-sm font-medium text-gray-700">
+                                {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date de fin</p>
+                              <p className="text-sm font-medium text-gray-700">{getContractEndDate(contract)}</p>
+                            </div>
+                          </div>
+
+                          {/* Progress */}
+                          {total > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[11px] text-gray-400">
+                                <span>Progression</span>
+                                <span className="font-semibold text-[#234D65] tabular-nums">{progress}%</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                                <div className="h-full rounded-full bg-[#234D65] transition-all" style={{ width: `${progress}%` }} />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Signature + versé */}
+                          <div className="flex items-center justify-between text-xs pb-1">
+                            {isSigned ? (
+                              <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                <CheckCircle className="h-3.5 w-3.5" />Contrat signé
+                              </span>
+                            ) : isPendingValidation ? (
+                              <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                <CheckCircle className="h-3.5 w-3.5" />En validation
+                              </span>
+                            ) : isRejected ? (
+                              <span className="flex items-center gap-1 text-red-600 font-medium">
+                                <AlertCircle className="h-3.5 w-3.5" />Doc refusé
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-amber-600 font-medium">
+                                <AlertCircle className="h-3.5 w-3.5" />PDF manquant
+                              </span>
+                            )}
+                            <span className="text-gray-500 tabular-nums">
+                              Versé : <strong className="text-gray-800">{paidAmount.toLocaleString('fr-FR')} FCFA</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="mt-auto px-5 pb-5 pt-4 border-t border-gray-100 space-y-2">
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleViewContract(contract.id)}
+                              disabled={!contract.contractStartId}
+                              className="flex-1 h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold disabled:opacity-40"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1.5" />
+                              Ouvrir
+                              <ChevronRight className="h-3.5 w-3.5 ml-auto" />
+                            </Button>
+                            <Button
+                              onClick={() => setSelectedContractForOverview({ contract, member })}
+                              variant="outline"
+                              title="Détails complets"
+                              className="h-9 px-3 border-gray-200 text-gray-500 hover:border-[#234D65] hover:text-[#234D65]"
+                            >
+                              <User className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+
+                          {isSigned ? (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleViewUploadedContract(contract)}
+                                variant="outline"
+                                className="flex-1 h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-1" />
+                                Voir
+                              </Button>
                               <Button
                                 onClick={() => handleDownloadContract(contract)}
                                 variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+                                className="flex-1 h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                               >
-                                <Download className="h-4 w-4" />
-                                Télécharger contrat
-                              </Button>
-
-                              {contract.status === 'FINISHED' && contract.finalRefundDocumentId && (
-                                <Button
-                                  onClick={() => handleViewRefundDocument(contract, 'FINAL')}
-                                  variant="outline"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Contrat de remboursement
-                                </Button>
-                              )}
-
-                              {contract.status === 'CANCELED' && contract.earlyRefundDocumentId && (
-                                <Button
-                                  onClick={() => handleViewRefundDocument(contract, 'EARLY')}
-                                  variant="outline"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Contrat de résiliation
-                                </Button>
-                              )}
-
-                              <Button
-                                variant="destructive"
-                                onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Supprimer
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Télécharger
                               </Button>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                          ) : isPendingValidation ? (
+                            <Button
+                              onClick={() => { setSelectedContractForValidation(contract); setShowValidateMemberSignedModal(true) }}
+                              variant="outline"
+                              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                              Valider la signature
+                            </Button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleUploadContract(contract)}
+                                variant="outline"
+                                className="flex-1 h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                              >
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                Téléverser
+                              </Button>
+                              <Button
+                                onClick={() => handleDownloadContract(contract)}
+                                variant="outline"
+                                className="flex-1 h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Modèle
+                              </Button>
+                            </div>
+                          )}
+
+                          {canReplaceContractCI(contract) && (
+                            <Button
+                              onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
+                              variant="outline"
+                              className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                            >
+                              <FileEdit className="h-3.5 w-3.5 mr-1.5" />
+                              Modifier contrat
+                            </Button>
+                          )}
+
+                          {contract.status === 'FINISHED' && contract.finalRefundDocumentId && (
+                            <Button
+                              onClick={() => handleViewRefundDocument(contract, 'FINAL')}
+                              variant="outline"
+                              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1.5" />
+                              Contrat de remboursement
+                            </Button>
+                          )}
+
+                          {contract.status === 'CANCELED' && contract.earlyRefundDocumentId && (
+                            <Button
+                              onClick={() => handleViewRefundDocument(contract, 'EARLY')}
+                              variant="outline"
+                              className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1.5" />
+                              Contrat de résiliation
+                            </Button>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                            className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )
                 })}
@@ -1204,6 +1279,14 @@ export default function ListContractsCISection() {
                             <span className="inline-flex items-center gap-1 text-green-600 text-xs">
                               <CheckCircle className="h-3 w-3" /> Disponible
                             </span>
+                          ) : contract.memberSignedStatus === 'PENDING_ADMIN' ? (
+                            <span className="inline-flex items-center gap-1 text-blue-600 text-xs">
+                              <CheckCircle className="h-3 w-3" /> À valider
+                            </span>
+                          ) : contract.memberSignedStatus === 'REJECTED' ? (
+                            <span className="inline-flex items-center gap-1 text-red-500 text-xs">
+                              <AlertCircle className="h-3 w-3" /> Refusé
+                            </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-orange-500 text-xs">
                               <AlertCircle className="h-3 w-3" /> À téléverser
@@ -1259,6 +1342,14 @@ export default function ListContractsCISection() {
                                       </DropdownMenuItem>
                                     )}
                                   </>
+                                ) : contract.memberSignedStatus === 'PENDING_ADMIN' ? (
+                                  <DropdownMenuItem
+                                    onClick={() => { setSelectedContractForValidation(contract); setShowValidateMemberSignedModal(true) }}
+                                    className="cursor-pointer text-blue-700 focus:text-blue-700"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Valider la signature
+                                  </DropdownMenuItem>
                                 ) : (
                                   <DropdownMenuItem
                                     onClick={() => handleUploadContract(contract)}
@@ -1584,6 +1675,7 @@ export default function ListContractsCISection() {
           isOpen={isViewModalOpen}
           onClose={handleCloseViewModal}
           contract={selectedContractForView}
+          documentId={selectedViewDocumentId}
         />
       )}
 
@@ -1621,6 +1713,16 @@ export default function ListContractsCISection() {
           setSelectedContractForReplace(null)
         }}
       />
+      {selectedContractForValidation && (
+        <ValidateMemberSignedModal
+          open={showValidateMemberSignedModal}
+          onOpenChange={(open) => {
+            setShowValidateMemberSignedModal(open)
+            if (!open) setSelectedContractForValidation(null)
+          }}
+          contract={selectedContractForValidation}
+        />
+      )}
     </div>
   )
 }

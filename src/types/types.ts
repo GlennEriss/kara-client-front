@@ -774,6 +774,10 @@ export interface ContractCI {
 
   // Documents du contrat
   contractStartId?: string
+  /** Document téléversé par le membre (PDF signé, en attente de validation admin). */
+  memberSignedDocumentId?: string
+  memberSignedStatus?: "PENDING_ADMIN" | "VALIDATED" | "REJECTED"
+  memberSignedAt?: Date
   contractCanceledId?: string
   contractFinishedId?: string
 
@@ -1297,6 +1301,9 @@ export interface CaisseContract {
     originalFileName: string
     fileSize: number
   }
+  memberSignedDocumentId?: string
+  memberSignedStatus?: 'PENDING_ADMIN' | 'VALIDATED' | 'REJECTED'
+  memberSignedAt?: Date
   searchableText?: string
   searchableTextFirstNameFirst?: string
   searchableTextMatriculeFirst?: string
