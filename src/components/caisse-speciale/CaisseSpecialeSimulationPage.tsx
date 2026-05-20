@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -105,12 +105,13 @@ function CaisseSpecialeSimulationPage() {
 
     const totalWithBonus = result.totalAmount + result.totalBonus
     const bonusYield = result.totalAmount > 0 ? (result.totalBonus / result.totalAmount) * 100 : 0
+    const lastBonusInTable = result.rows[result.rows.length - 1]?.bonusAmount ?? 0
     const monthsWithBonus = result.rows.filter((row) => row.bonusAmount > 0).length
     const monthsWithoutBonus = Math.max(result.rows.length - monthsWithBonus, 0)
 
     const financialBreakdown = [
       { name: 'Versements', value: result.totalAmount, fill: '#234D65' },
-      { name: 'Bonus', value: result.totalBonus, fill: '#CBB171' },
+      { name: 'Bonus', value: lastBonusInTable, fill: '#CBB171' },
     ]
 
     const activationBreakdown = [
@@ -472,36 +473,53 @@ export default CaisseSpecialeSimulationPage
 function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulationResult }) {
   const handleExport = async () => {
     if (!result?.rows.length) return
+
+    const lastBonusInTable = result.rows[result.rows.length - 1]?.bonusAmount ?? 0
     const { default: jsPDF } = await import('jspdf')
     const autoTable = (await import('jspdf-autotable')).default
     const doc = new jsPDF('l', 'mm', 'a4')
+
     doc.setFontSize(14)
-    doc.text('Tableau récapitulatif des versements', 14, 12)
+    doc.text('Tableau r\u00e9capitulatif des versements', 14, 12)
     doc.setFontSize(10)
-    doc.text(`Exporté le ${formatDateFr(new Date())}`, 14, 18)
+    doc.text(`Export\u00e9 le ${formatDateFr(new Date())}`, 14, 18)
+
     const body = result.rows.map((r) => [
       r.monthLabel,
       formatDateFr(r.dueAt),
       formatDateFr(getWithdrawalDate(r.dueAt)),
       r.bonusEffectiveLabel,
       formatAmountForPDF(r.amount),
+      `${r.bonusRatePercent}%`,
       formatAmountForPDF(r.bonusAmount),
     ])
+
     autoTable(doc, {
-      head: [['N° Échéance', 'Date échéance', 'Date remise', 'Date taxi', 'Montant (FCFA)', 'Taxi (FCFA)']],
+      head: [[
+        'N\u00b0 \u00c9ch\u00e9ance',
+        'Date d\'\u00e9ch\u00e9ance',
+        'Date de remise',
+        'Effet bonus',
+        'Montant (FCFA)',
+        'Taux %',
+        'Bonus (FCFA)',
+      ]],
       body,
       startY: 24,
       headStyles: { fillColor: [35, 77, 101] },
     })
+
     const finalY = (doc as any).lastAutoTable?.finalY ?? 24
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text(`Total montants: ${formatAmountForPDF(result.totalAmount)} FCFA`, 14, finalY + 8)
-    doc.text(`Total taxi: ${formatAmountForPDF(result.totalBonus)} FCFA`, 14, finalY + 14)
+    doc.text(`Bonus final: ${formatAmountForPDF(lastBonusInTable)} FCFA`, 14, finalY + 14)
+
     const fileName = `simulation_caisse_speciale_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
-    toast.success('PDF exporté')
+    toast.success('PDF export\u00e9')
   }
+
   return (
     <Button
       type="button"
@@ -519,22 +537,27 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
 function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulationResult }) {
   const handleExport = async () => {
     if (!result?.rows.length) return
+
     const XLSX = await import('xlsx')
     const data = result.rows.map((r) => ({
-      'N° Échéance': r.monthLabel,
-      'Date d\'échéance': formatDateFr(r.dueAt),
+      'N\u00b0 \u00c9ch\u00e9ance': r.monthLabel,
+      'Date d\'\u00e9ch\u00e9ance': formatDateFr(r.dueAt),
       'Date de remise': formatDateFr(getWithdrawalDate(r.dueAt)),
-      'Date prise d\'effet taxi': r.bonusEffectiveLabel,
+      'Effet bonus': r.bonusEffectiveLabel,
       'Montant (FCFA)': r.amount,
-      'Taxi (FCFA)': r.bonusAmount,
+      'Taux %': r.bonusRatePercent,
+      'Bonus (FCFA)': r.bonusAmount,
     }))
+
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Simulation')
+
     const fileName = `simulation_caisse_speciale_${new Date().toISOString().split('T')[0]}.xlsx`
     XLSX.writeFile(wb, fileName)
-    toast.success('Excel exporté')
+    toast.success('Excel export\u00e9')
   }
+
   return (
     <Button
       type="button"
@@ -552,36 +575,39 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
 function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimulationResult }) {
   const handleShare = () => {
     if (!result?.rows.length) return
-    
-    const separator = '━━━━━━━━━━━━━━━━━━━━━━'
+
+    const lastBonusInTable = result.rows[result.rows.length - 1]?.bonusAmount ?? 0
+    const separator = '----------------------'
     const lines = [
-      '📊 *TABLEAU RÉCAPITULATIF*',
-      '🏦 Caisse Spéciale KARA',
+      '*TABLEAU R\u00c9CAPITULATIF*',
+      'Caisse Sp\u00e9ciale KARA',
       separator,
       '',
-      '💰 *RÉSUMÉ*',
-      `▪️ Total versements : *${formatAmount(result.totalAmount)} FCFA*`,
-      `▪️ Total taxi : *${formatAmount(result.totalBonus)} FCFA*`,
-      `▪️ Montant final : *${formatAmount(result.totalAmount + result.totalBonus)} FCFA*`,
+      '*R\u00c9SUM\u00c9*',
+      `- Total versements : *${formatAmount(result.totalAmount)} FCFA*`,
+      `- Bonus final : *${formatAmount(lastBonusInTable)} FCFA*`,
+      `- Montant final : *${formatAmount(result.totalAmount + lastBonusInTable)} FCFA*`,
       '',
       separator,
-      '📆 *ÉCHÉANCIER*',
+      '*\u00c9CH\u00c9ANCIER*',
       separator,
       '',
       ...result.rows.map((r) => {
-        const taxiIcon = r.bonusAmount > 0 ? '✅' : '⏳'
-        return `${taxiIcon} *${r.monthLabel}* — Échéance: ${formatDateFr(r.dueAt)} | Remise: ${formatDateFr(getWithdrawalDate(r.dueAt))}\n    💵 ${formatAmount(r.amount)} FCFA | Taxi = ${formatAmount(r.bonusAmount)} FCFA`
+        const bonusIcon = r.bonusAmount > 0 ? '[OK]' : '[EN ATTENTE]'
+        return `${bonusIcon} *${r.monthLabel}* - Echeance: ${formatDateFr(r.dueAt)} | Remise: ${formatDateFr(getWithdrawalDate(r.dueAt))}\n    Montant: ${formatAmount(r.amount)} FCFA | Bonus = ${formatAmount(r.bonusAmount)} FCFA`
       }),
       '',
       separator,
-      '📌 _Fait le ' + formatDateFr(new Date()) + '_',
-      '🔗 _KARA - Mutuelle de solidarité_',
+      'Fait le ' + formatDateFr(new Date()),
+      'KARA - Mutuelle de solidarite',
     ]
+
     const text = lines.join('\n')
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(url, '_blank', 'noopener,noreferrer')
     toast.success('Ouverture de WhatsApp')
   }
+
   return (
     <Button
       type="button"
