@@ -26,7 +26,9 @@ export async function runCaisseSpecialeSimulation(
     dueAt.setMonth(start.getMonth() + i)
 
     const bonusRatePercent = computeBonus(i, settings ?? undefined)
-    const bonusAmount = Math.round((monthlyAmount * bonusRatePercent) / 100)
+    // Règle métier: bonus = total cotisé à l'échéance × taux bonus
+    const totalContributedAtMonth = monthlyAmount * (i + 1)
+    const bonusAmount = Math.round((totalContributedAtMonth * bonusRatePercent) / 100)
     const bonusEffectiveLabel = i < 3 ? '—' : `M${i + 1}`
 
     rows.push({
