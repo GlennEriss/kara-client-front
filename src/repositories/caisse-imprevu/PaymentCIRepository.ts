@@ -239,7 +239,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
         paymentMeta: { modificationReason: string; updatedBy: string }
     ): Promise<PaymentCI | null> {
         try {
-            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp } = await getFirestore() as any;
+            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp, increment } = await getFirestore() as any;
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
                 db,

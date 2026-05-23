@@ -50,7 +50,12 @@ export interface ICaisseImprevueService extends IService{
     checkEligibilityForSupport(contractId: string): Promise<boolean>
     
     // Méthodes de statistiques de paiement
-    getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; supportCount: number }>
+    getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; paidMonthsCount: number; supportCount: number }>
+
+    // Méthodes de validation de document d'aide membre
+    getActiveSupportOrPending(contractId: string): Promise<SupportCI | null>
+    validateMemberSupport(contractId: string, supportId: string, adminId: string, file: File): Promise<void>
+    rejectMemberSupport(contractId: string, supportId: string, adminId: string, rejectionReason: string): Promise<void>
     
     // Méthodes de retrait anticipé
     requestEarlyRefundCI(

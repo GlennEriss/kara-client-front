@@ -91,17 +91,17 @@ export default function ContractCSRefundsPage() {
   const [validateVersement, setValidateVersement] = useState<any | null>(null)
 
   const refundStats = useMemo(() => ({
-    total:   refunds.reduce((sum, r) => sum + (Number(r.withdrawalAmount) || 0), 0),
-    pending: refunds.filter((r) => r.status === 'PENDING').length,
-    paid:    refunds.filter((r) => r.status === 'PAID').length,
-    archived: refunds.filter((r) => r.status === 'ARCHIVED').length,
+    total:   (refunds as any[]).reduce((sum: number, r: any) => sum + (Number(r.withdrawalAmount) || 0), 0),
+    pending: (refunds as any[]).filter((r: any) => r.status === 'PENDING').length,
+    paid:    (refunds as any[]).filter((r: any) => r.status === 'PAID').length,
+    archived: (refunds as any[]).filter((r: any) => r.status === 'ARCHIVED').length,
     count:   refunds.length,
   }), [refunds])
 
   const declaredStats = useMemo(() => ({
-    pending:   declared.filter((v) => v.status === 'PENDING_MEMBER').length,
-    validated: declared.filter((v) => v.status === 'VALIDATED').length,
-    rejected:  declared.filter((v) => v.status === 'REJECTED').length,
+    pending:   (declared as any[]).filter((v: any) => v.status === 'PENDING_MEMBER').length,
+    validated: (declared as any[]).filter((v: any) => v.status === 'VALIDATED').length,
+    rejected:  (declared as any[]).filter((v: any) => v.status === 'REJECTED').length,
     count:     declared.length,
   }), [declared])
 
@@ -211,7 +211,7 @@ export default function ContractCSRefundsPage() {
             <CardContent>
               {refunds.length > 0 ? (
                 <div className="space-y-4">
-                  {refunds.map((refund, index) => {
+                  {(refunds as any[]).map((refund: any, index: number) => {
                     const statusCfg = REFUND_STATUS_CONFIG[refund.status] ?? REFUND_STATUS_CONFIG.ARCHIVED
                     const isPending  = refund.status === 'PENDING'
                     const isApproved = refund.status === 'APPROVED'
@@ -399,7 +399,7 @@ export default function ContractCSRefundsPage() {
             <CardContent>
               {declared.length > 0 ? (
                 <div className="space-y-4">
-                  {declared.map((v) => {
+                  {(declared as any[]).map((v: any) => {
                     const statusCfg = DECLARED_STATUS_CONFIG[v.status] ?? DECLARED_STATUS_CONFIG.PENDING_MEMBER
                     const isPendingMember = v.status === 'PENDING_MEMBER'
 

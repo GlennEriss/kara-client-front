@@ -241,7 +241,7 @@ function SupportCard({
           <span className="text-sm font-bold text-gray-900 tabular-nums">
             {formatAmount(support.amount)}
           </span>
-          <Badge variant={config.badgeVariant} className="text-[10px]">
+          <Badge variant={config.badgeVariant as any} className="text-[10px]">
             {config.label}
           </Badge>
         </div>

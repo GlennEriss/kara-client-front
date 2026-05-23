@@ -70,11 +70,11 @@ export default function ContractCIRefundsPage() {
   const [markPaidRefund, setMarkPaidRefund] = useState<any | null>(null)
 
   const stats = useMemo(() => {
-    const total = refunds.reduce((sum: number, r) => sum + (Number(r.withdrawalAmount) || 0), 0)
-    const pending = refunds.filter((r) => r.status === 'PENDING').length
-    const approved = refunds.filter((r) => r.status === 'APPROVED').length
-    const paid = refunds.filter((r) => r.status === 'PAID').length
-    const rejected = refunds.filter((r) => r.status === 'REJECTED').length
+    const total = (refunds as any[]).reduce((sum: number, r: any) => sum + (Number(r.withdrawalAmount) || 0), 0)
+    const pending = (refunds as any[]).filter((r: any) => r.status === 'PENDING').length
+    const approved = (refunds as any[]).filter((r: any) => r.status === 'APPROVED').length
+    const paid = (refunds as any[]).filter((r: any) => r.status === 'PAID').length
+    const rejected = (refunds as any[]).filter((r: any) => r.status === 'REJECTED').length
     return { total, pending, approved, paid, rejected, count: refunds.length }
   }, [refunds])
 
@@ -227,7 +227,7 @@ export default function ContractCIRefundsPage() {
           <CardContent>
             {refunds.length > 0 ? (
               <div className="space-y-4">
-                {refunds.map((refund, index) => {
+                {(refunds as any[]).map((refund: any, index: number) => {
                   const statusCfg = STATUS_CONFIG[refund.status] ?? STATUS_CONFIG.ARCHIVED
                   const isPending = refund.status === 'PENDING'
                   const isApproved = refund.status === 'APPROVED'

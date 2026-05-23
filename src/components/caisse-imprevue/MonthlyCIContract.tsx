@@ -1429,7 +1429,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           nextDueDate={nextDueDate}
           support={
             activeSupport || supportHistory[0]
-              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt }
+              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt ?? new Date() }
               : null
           }
         />

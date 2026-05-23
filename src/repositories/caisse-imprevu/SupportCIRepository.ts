@@ -55,7 +55,7 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     const supportData = {
       ...support,
       requestedAt: Timestamp.fromDate(support.requestedAt),
-      approvedAt: Timestamp.fromDate(support.approvedAt),
+      approvedAt: support.approvedAt ? Timestamp.fromDate(support.approvedAt) : null,
       repaidAt: support.repaidAt ? Timestamp.fromDate(support.repaidAt) : null,
       repayments: support.repayments.map((r) => ({
         ...r,

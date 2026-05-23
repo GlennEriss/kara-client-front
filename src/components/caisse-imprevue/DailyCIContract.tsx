@@ -1965,7 +1965,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           nextDueDate={nextDueDate}
           support={
             activeSupport || supportHistory[0]
-              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt }
+              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt ?? new Date() }
               : null
           }
         />
