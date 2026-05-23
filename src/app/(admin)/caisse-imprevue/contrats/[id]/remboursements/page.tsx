@@ -70,7 +70,7 @@ export default function ContractCIRefundsPage() {
   const [markPaidRefund, setMarkPaidRefund] = useState<any | null>(null)
 
   const stats = useMemo(() => {
-    const total = refunds.reduce((sum, r) => sum + (Number(r.withdrawalAmount) || 0), 0)
+    const total = refunds.reduce((sum: number, r) => sum + (Number(r.withdrawalAmount) || 0), 0)
     const pending = refunds.filter((r) => r.status === 'PENDING').length
     const approved = refunds.filter((r) => r.status === 'APPROVED').length
     const paid = refunds.filter((r) => r.status === 'PAID').length
