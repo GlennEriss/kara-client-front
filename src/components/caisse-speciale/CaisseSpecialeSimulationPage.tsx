@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -596,7 +596,7 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
       '',
       separator,
       'Fait le ' + formatDateFr(new Date()),
-      'KARA - Mutuelle de solidarite',
+      'KARA - Association de solidarite',
     ]
 
     const text = lines.join('\n')

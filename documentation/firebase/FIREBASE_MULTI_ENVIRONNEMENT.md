@@ -1,4 +1,4 @@
-# Configuration Multi-Environnement Firebase — KARA Mutuelle
+# Configuration Multi-Environnement Firebase — KARA Association
 
 > Guide complet pour configurer les 3 environnements Firebase (dev, preprod, prod)
 

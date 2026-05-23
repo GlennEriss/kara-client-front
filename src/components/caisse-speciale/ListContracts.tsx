@@ -1006,6 +1006,247 @@ const ContractFilters = ({
   )
 }
 
+// ─── STATUS META (grid card) ─────────────────────────────────────────────────
+const STATUS_META_CS: Record<string, { label: string; dot: string; text: string }> = {
+  ACTIVE:                   { label: 'Actif',             dot: 'bg-emerald-500', text: 'text-emerald-700' },
+  LATE_NO_PENALTY:          { label: 'En retard',         dot: 'bg-amber-500',   text: 'text-amber-700'   },
+  LATE_WITH_PENALTY:        { label: 'En retard',         dot: 'bg-orange-500',  text: 'text-orange-700'  },
+  DEFAULTED_AFTER_J12:      { label: 'Défaillant',        dot: 'bg-red-500',     text: 'text-red-700'     },
+  DRAFT:                    { label: 'Brouillon',         dot: 'bg-gray-400',    text: 'text-gray-500'    },
+  CLOSED:                   { label: 'Clos',              dot: 'bg-gray-400',    text: 'text-gray-500'    },
+  RESCINDED:                { label: 'Résilié',           dot: 'bg-red-400',     text: 'text-red-600'     },
+  EARLY_WITHDRAW_REQUESTED: { label: 'Retrait anticipé',  dot: 'bg-blue-500',    text: 'text-blue-700'    },
+  FINAL_REFUND_PENDING:     { label: 'Remb. final',       dot: 'bg-indigo-500',  text: 'text-indigo-700'  },
+  EARLY_REFUND_PENDING:     { label: 'Remb. anticipé',    dot: 'bg-blue-400',    text: 'text-blue-600'    },
+}
+
+const CAISSE_TYPE_SHORT: Record<string, string> = {
+  STANDARD:               'Standard',
+  JOURNALIERE:            'Journalière',
+  LIBRE:                  'Libre',
+  STANDARD_CHARITABLE:    'Standard Chari.',
+  JOURNALIERE_CHARITABLE: 'Journ. Chari.',
+  LIBRE_CHARITABLE:       'Libre Chari.',
+}
+
+interface ContractCSGridCardProps {
+  contract:        any
+  member:          any | undefined
+  hasPdf:          boolean
+  canReplace:      boolean
+  hasRefundFinal:  boolean
+  hasRefundEarly:  boolean
+  isGroup:         boolean
+  onView:             () => void
+  onViewPdf:          () => void
+  onUpload:           () => void
+  onDownload:         () => void
+  onValidate:         () => void
+  onReplace:          () => void
+  onDelete:           () => void
+  onViewRefundFinal:  () => void
+  onViewRefundEarly:  () => void
+}
+
+function ContractCSGridCard({
+  contract, member, hasPdf, canReplace, hasRefundFinal, hasRefundEarly, isGroup,
+  onView, onViewPdf, onUpload, onDownload, onValidate, onReplace, onDelete,
+  onViewRefundFinal, onViewRefundEarly,
+}: ContractCSGridCardProps) {
+  const isOverdue        = contract.status === 'LATE_NO_PENALTY' || contract.status === 'LATE_WITH_PENALTY'
+  const firstName        = contract.memberFirstName || member?.firstName || ''
+  const lastName         = contract.memberLastName  || member?.lastName  || ''
+  const displayName      = `${firstName} ${lastName}`.trim() || (isGroup ? 'Contrat groupe' : 'Membre')
+  const initials         = isGroup ? '' : `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase() || 'CS'
+  const primaryContact   = member?.contacts?.[0] || member?.email || contract.memberEmail || '—'
+
+  const isSigned            = contract.memberSignedStatus === 'VALIDATED'
+  const isPendingValidation = contract.memberSignedStatus === 'PENDING_ADMIN'
+  const isRejected          = contract.memberSignedStatus === 'REJECTED'
+
+  const paid     = contract.currentMonthIndex ?? 0
+  const total    = contract.monthsPlanned     ?? 0
+  const paidAmt  = contract.nominalPaid       ?? 0
+  const progress = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
+
+  const statusMeta = STATUS_META_CS[contract.status] ?? { label: contract.status, dot: 'bg-gray-400', text: 'text-gray-500' }
+  const typeLabel  = CAISSE_TYPE_SHORT[contract.caisseType] ?? contract.caisseType ?? 'CS'
+
+  const nextDue = contract.nextDueAt
+    ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR')
+    : '—'
+
+  return (
+    <Card className={cn(
+      'group relative flex flex-col overflow-hidden border-0 bg-white shadow-md transition-all duration-200 hover:shadow-lg',
+      isOverdue && 'ring-1 ring-red-300'
+    )}>
+      {/* Top accent bar */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+
+      <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-5">
+        {/* Header : avatar + nom + statut */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-10 shrink-0 rounded-xl ring-1 ring-[#234D65]/15">
+              {member?.photoURL ? (
+                <AvatarImage src={member.photoURL} alt={displayName} className="h-full w-full object-cover object-center" />
+              ) : (
+                <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-sm font-semibold text-white">
+                  {isGroup ? <GroupIcon className="h-4 w-4" /> : initials}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
+              <p className="truncate text-xs text-slate-500">{primaryContact}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className={cn('flex items-center gap-1 text-xs font-semibold', statusMeta.text)}>
+              <span className={cn('h-1.5 w-1.5 rounded-full', statusMeta.dot)} />
+              {statusMeta.label}
+            </span>
+            <Badge className="border border-[#234D65]/20 bg-[#234D65]/[0.08] text-[10px] font-medium text-[#234D65]">
+              {typeLabel}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Stats 2×2 */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mensualité</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              {(contract.monthlyAmount || 0).toLocaleString('fr-FR')}{' '}
+              <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mois payés</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              {paid} <span className="text-[10px] font-normal text-slate-500">/ {total}</span>
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Prochaine échéance</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">{nextDue}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Total versé</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              {paidAmt.toLocaleString('fr-FR')}{' '}
+              <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Barre de progression */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-slate-500">
+            <span>Progression</span>
+            <span className="font-semibold text-[#234D65]">{progress}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#cbb171] transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Statut de signature */}
+        <div>
+          {isSigned ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+              <CheckCircle className="h-3 w-3" /> Contrat signé
+            </span>
+          ) : isPendingValidation ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+              <CheckCircle className="h-3 w-3" /> En attente de validation
+            </span>
+          ) : isRejected ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600">
+              <AlertCircle className="h-3 w-3" /> Document refusé
+            </span>
+          ) : hasPdf ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+              <AlertCircle className="h-3 w-3" /> En attente signature membre
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-600">
+              <AlertCircle className="h-3 w-3" /> Document à téléverser
+            </span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="mt-auto flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
+          <Button variant="outline" size="sm" onClick={onView}
+            className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
+            <Eye className="mr-1.5 h-3.5 w-3.5" />Ouvrir
+          </Button>
+
+          {(isSigned || hasPdf) ? (
+            <Button variant="outline" size="sm" onClick={onViewPdf}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
+              <FileText className="mr-1.5 h-3.5 w-3.5" />Voir
+            </Button>
+          ) : isPendingValidation ? (
+            <Button variant="outline" size="sm" onClick={onValidate}
+              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white">
+              <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Valider
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={onUpload}
+              className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />Téléverser
+            </Button>
+          )}
+
+          {isPendingValidation && (hasPdf || isSigned) && (
+            <Button variant="outline" size="sm" onClick={onValidate}
+              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white">
+              <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Valider sig.
+            </Button>
+          )}
+
+          <Button variant="outline" size="sm" onClick={onDownload}
+            className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
+            <Download className="mr-1.5 h-3.5 w-3.5" />Télécharger
+          </Button>
+
+          {canReplace && (
+            <Button variant="outline" size="sm" onClick={onReplace}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
+              <FileEdit className="mr-1.5 h-3.5 w-3.5" />Modifier
+            </Button>
+          )}
+
+          {hasRefundFinal && (
+            <Button variant="outline" size="sm" onClick={onViewRefundFinal}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
+              <Eye className="mr-1.5 h-3.5 w-3.5" />Remboursement
+            </Button>
+          )}
+
+          {hasRefundEarly && (
+            <Button variant="outline" size="sm" onClick={onViewRefundEarly}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
+              <Eye className="mr-1.5 h-3.5 w-3.5" />Résiliation
+            </Button>
+          )}
+
+          <Button variant="outline" size="sm" onClick={onDelete}
+            className="h-8 cursor-pointer rounded-lg border-red-200 px-3 text-xs text-red-600 hover:bg-red-600 hover:text-white">
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />Supprimer
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // Composant principal
 const ListContracts = () => {
   // Synchronisation temps réel multi-admin (contrats + demandes liées)
@@ -2161,238 +2402,35 @@ const ListContracts = () => {
       ) : currentContracts.length > 0 ? (
         <>
           {viewMode === 'grid' && (
-          <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-            {currentContracts.map((contract: any, _index: number) => (
-              <div
-                key={contract.id}
-                className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
-                style={{ animationDelay: `${_index * 0.05}s` }}
-              >
-                <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  {/* Badge "En retard" */}
-                  {isContractOverdue(contract) && (
-                    <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      En retard
-                    </Badge>
-                  )}
-
-                  <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                    {(() => {
-                      const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
-                      const fullName = member ? `${member.firstName} ${member.lastName}` : ''
-                      const displayName = fullName || getContractDisplayName(contract)
-                      const primaryContact = member?.contacts?.[0] || member?.email || '—'
-                      const initials = member
-                        ? `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()
-                        : 'CS'
-
-                      return (
-                        <>
-                          <div className="flex items-start gap-3">
-                            <div className="shrink-0">
-                              <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
-                                {member?.photoURL ? (
-                                  <AvatarImage src={member.photoURL} alt={`Photo de ${fullName}`} className="h-full w-full object-cover object-center" />
-                                ) : (
-                                  <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
-                                    {isGroupContract(contract) ? <GroupIcon className="h-5 w-5" /> : initials}
-                                  </AvatarFallback>
-                                )}
-                              </Avatar>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs text-gray-500">Matricule contrat</div>
-                              <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
-                              <div className="mt-1 text-sm font-bold text-slate-900 truncate">{displayName}</div>
-                              <div className="text-xs text-slate-500 truncate">{primaryContact}</div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            <Badge className={isGroupContract(contract) ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}>
-                              {getContractType(contract)}
-                            </Badge>
-                            <Badge className={`border ${getStatusColor(contract.status)}`}>
-                              {getStatusLabel(contract.status)}
-                            </Badge>
-                            {isContractOverdue(contract) && (
-                              <Badge variant="destructive" className="flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3" />
-                                Retard
-                              </Badge>
-                            )}
-                            {contract.memberSignedStatus === 'PENDING_ADMIN' && (
-                              <Badge className="bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3" />
-                                À valider
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                              <div className="min-w-0">
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Type de contrat</p>
-                                <p className="font-semibold leading-tight text-slate-900 break-words">
-                                  {getContractTypeLabel(contract)}
-                                </p>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
-                                <p className="font-extrabold text-[#234D65] whitespace-nowrap">{(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</p>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
-                                <p className="font-semibold text-slate-900">{contract.monthsPlanned} mois</p>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
-                                <p className="font-medium text-slate-900">
-                                  {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
-                              <div className="flex items-center gap-1.5">
-                                {hasValidContractPdf(contract) ? (
-                                  <>
-                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span className="text-xs font-medium text-emerald-700">PDF disponible</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
-                                    <span className="text-xs font-medium text-orange-600">PDF à téléverser</span>
-                                  </>
-                                )}
-                              </div>
-                              <span className="text-xs font-semibold text-slate-700">
-                                Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="pt-3 border-t border-slate-200 mt-auto">
-                            <div className="space-y-2">
-                              {hasValidContractPdf(contract) ? (
-                                <>
-                                  <Button
-                                    onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                    Ouvrir
-                                  </Button>
-                                  <Button
-                                    onClick={() => setSelectedContractForOverview({ contract, member })}
-                                    variant="outline"
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                                  >
-                                    <User className="h-4 w-4" />
-                                    Voir toutes les infos
-                                  </Button>
-                                  <Button
-                                    onClick={() => handleViewUploadedContractPDF(contract)}
-                                    variant="outline"
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all cursor-pointer hover:bg-[#234D65] hover:text-white"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    Voir contrat
-                                  </Button>
-                                  {canReplaceContractPdf(contract) && (
-                                    <Button
-                                      onClick={() => setContractToReplacePdf(contract)}
-                                      variant="outline"
-                                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 hover:border-amber-400"
-                                    >
-                                      <FileEdit className="h-4 w-4" />
-                                      Modifier contrat
-                                    </Button>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <Button
-                                    onClick={() => handleUploadPDF(contract)}
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 hover:text-orange-800"
-                                  >
-                                    <Upload className="h-4 w-4" />
-                                    Téléverser le document PDF
-                                  </Button>
-                                  <Button
-                                    onClick={() => setSelectedContractForOverview({ contract, member })}
-                                    variant="outline"
-                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                                  >
-                                    <User className="h-4 w-4" />
-                                    Voir toutes les infos
-                                  </Button>
-                                </>
-                              )}
-
-                              <Button
-                                onClick={() => handleViewContractPDF(contract)}
-                                variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-                              >
-                                <Download className="h-4 w-4" />
-                                Télécharger contrat
-                              </Button>
-                              {contractRefunds[contract.id]?.FINAL?.document?.url && (
-                                <Button
-                                  onClick={() => handleViewRefundPDF(contract.id, 'FINAL')}
-                                  variant="outline"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Contrat de remboursement
-                                </Button>
-                              )}
-                              {contractRefunds[contract.id]?.EARLY?.document?.url && (
-                                <Button
-                                  onClick={() => handleViewRefundPDF(contract.id, 'EARLY')}
-                                  variant="outline"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Contrat de résiliation
-                                </Button>
-                              )}
-                              {contract.memberSignedStatus === 'PENDING_ADMIN' && (
-                                <Button
-                                  onClick={() => handleValidateContract(contract)}
-                                  variant="outline"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                  Valider contrat signé
-                                </Button>
-                              )}
-                              <Button
-                                onClick={() => setContractToDelete(contract)}
-                                variant="destructive"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Supprimer
-                              </Button>
-                            </div>
-                          </div>
-                        </>
-                      )
-                    })()}
-                  </CardContent>
-                </Card>
+            <div className="rounded-b-2xl border-x border-b border-[#234D65]/20 bg-gradient-to-b from-[#234D65]/[0.04] to-slate-50/30 p-4 md:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+                {currentContracts.map((contract: any, _index: number) => {
+                  const member = contract.memberId ? membersMap.get(normalizeMemberId(contract.memberId)) : undefined
+                  return (
+                    <div key={contract.id} className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${_index * 0.05}s` }}>
+                      <ContractCSGridCard
+                        contract={contract}
+                        member={member}
+                        hasPdf={hasValidContractPdf(contract)}
+                        canReplace={canReplaceContractPdf(contract)}
+                        hasRefundFinal={!!contractRefunds[contract.id]?.FINAL?.document?.url}
+                        hasRefundEarly={!!contractRefunds[contract.id]?.EARLY?.document?.url}
+                        isGroup={isGroupContract(contract)}
+                        onView={() => router.push(routes.admin.caisseSpecialeContractDetails(contract.id))}
+                        onViewPdf={() => handleViewUploadedContractPDF(contract)}
+                        onUpload={() => handleUploadPDF(contract)}
+                        onDownload={() => handleViewContractPDF(contract)}
+                        onValidate={() => handleValidateContract(contract)}
+                        onReplace={() => setContractToReplacePdf(contract)}
+                        onDelete={() => setContractToDelete(contract)}
+                        onViewRefundFinal={() => handleViewRefundPDF(contract.id, 'FINAL')}
+                        onViewRefundEarly={() => handleViewRefundPDF(contract.id, 'EARLY')}
+                      />
+                    </div>
+                  )
+                })}
               </div>
-            ))}
-          </div>
-          </div>
+            </div>
           )}
 
           {viewMode === 'list' && (
@@ -2670,6 +2708,7 @@ const ListContracts = () => {
               const contract = selectedContractForOverview.contract
               const member = selectedContractForOverview.member
               const emergency = contract?.emergencyContact
+              const emergencyMember = emergency?.memberId ? membersMap.get(normalizeMemberId(emergency.memberId)) : undefined
               const hasPdf = hasValidContractPdf(contract)
               const contractStatus = getStatusLabel(contract?.status || 'DRAFT')
               const memberFullName = `${member?.firstName || ''} ${member?.lastName || ''}`.trim() || 'Membre non renseigné'
@@ -2768,6 +2807,32 @@ const ListContracts = () => {
                               <p className="mt-1 font-medium text-slate-900">{emergency?.phone1 || (emergency as any)?.phone || '—'}</p>
                             </div>
                           </div>
+                          {emergency?.memberId && (
+                            emergencyMember ? (
+                              <div className="mt-3 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                                <Avatar className="size-8 shrink-0 rounded-lg">
+                                  {emergencyMember.photoURL ? (
+                                    <AvatarImage src={emergencyMember.photoURL} className="object-cover" alt="" />
+                                  ) : (
+                                    <AvatarFallback className="rounded-lg bg-emerald-600 text-white text-xs font-semibold">
+                                      {`${emergencyMember.firstName?.[0] || ''}${emergencyMember.lastName?.[0] || ''}`.toUpperCase() || 'M'}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Membre KARA</p>
+                                  <p className="text-sm font-semibold text-emerald-900">{emergencyMember.firstName} {emergencyMember.lastName}</p>
+                                  <p className="font-mono text-[11px] text-emerald-700">{emergencyMember.matricule}</p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">Membre</span>
+                              </div>
+                            ) : (
+                              <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
+                                <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                                <p className="text-xs text-red-700">Ce membre n'existe pas ou le matricule est incorrect.</p>
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
 

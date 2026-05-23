@@ -100,7 +100,7 @@ ${motifReject}
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Mutuelle`
+KARA Association`
 
   // Utiliser la fonction existante pour générer l'URL
   return generateWhatsAppUrl(phoneNumber, message)

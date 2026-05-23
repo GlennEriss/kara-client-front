@@ -67,7 +67,7 @@ export function IdentifiantsMembrePDF({ data }: IdentifiantsMembrePDFProps) {
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>Identifiants de connexion</Text>
         <Text style={styles.subtitle}>
-          Mutuelle KARA – Document à remettre au membre
+          Association KARA – Document à remettre au membre
         </Text>
 
         <View style={styles.section}>

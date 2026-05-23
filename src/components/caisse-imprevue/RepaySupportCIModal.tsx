@@ -246,12 +246,12 @@ export default function RepaySupportCIModal({
             </Label>
             <Input
               id="repay-amount"
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder={`Minimum: ${activeSupport.amountRemaining.toLocaleString('fr-FR')}`}
               value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              min={activeSupport.amountRemaining}
-              step="100"
+              onChange={(e) => setPaymentAmount(e.target.value.replace(/[^0-9]/g, ''))}
               required
             />
             <p className="text-xs text-muted-foreground mt-1">

@@ -97,7 +97,7 @@ export interface CaisseImprevueDemand {
     idNumber: string
     typeId: string
     documentPhotoUrl: string
-    memberId?: string // Si le contact est un membre de la mutuelle
+    memberId?: string // Si le contact est un membre de l'association
   }
   
   // Motif de la demande (obligatoire)
@@ -195,7 +195,7 @@ export interface CaisseImprevueDemandStats {
      - Date souhaitée pour le début du contrat (obligatoire)
      - Date du premier paiement (optionnel, calculée par défaut)
    - **Étape 3 - Contact d'urgence** :
-     - Sélection d'un membre de la mutuelle comme contact d'urgence OU saisie manuelle (obligatoire)
+     - Sélection d'un membre de l'association comme contact d'urgence OU saisie manuelle (obligatoire)
      - Si membre sélectionné, les informations sont préremplies depuis son dossier
 4. L'admin valide le formulaire
 5. La demande est créée avec le statut `PENDING`

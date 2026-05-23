@@ -505,7 +505,7 @@ export default function ContractCISupportsPage() {
                             </Badge>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             {!isRepaid && support.amountRemaining > 0 && (
                               <Button
                                 onClick={() => handleOpenRepaySupportModal(support)}
@@ -517,6 +517,18 @@ export default function ContractCISupportsPage() {
                                 <RefreshCw className={`h-3 w-3 ${createVersementMutation.isPending && supportToRepay?.id === support.id ? 'animate-spin' : ''}`} />
                                 {createVersementMutation.isPending && supportToRepay?.id === support.id ? 'Traitement...' : 'Rembourser'}
                               </Button>
+                            )}
+                            {support.adminDocumentUrl && (
+                              <a href={support.adminDocumentUrl} target="_blank" rel="noopener noreferrer">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex items-center gap-1 border-[#234D65]/30 text-[#234D65] hover:bg-[#234D65]/5"
+                                >
+                                  <FileText className="h-3 w-3" />
+                                  Doc. doublement signé
+                                </Button>
+                              </a>
                             )}
                             <Button
                               onClick={() => exportSingleSupportToPDF(support)}
@@ -578,7 +590,7 @@ export default function ContractCISupportsPage() {
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <User className="h-4 w-4" />
                             <span>Approuvé par:</span>
-                            <span className={`font-medium ${loadingAdmins.has(support.approvedBy) ? 'animate-pulse' : ''}`}>
+                            <span className={`font-medium ${support.approvedBy && loadingAdmins.has(support.approvedBy) ? 'animate-pulse' : ''}`}>
                               {getAdminDisplayName(support.approvedBy)}
                             </span>
                           </div>

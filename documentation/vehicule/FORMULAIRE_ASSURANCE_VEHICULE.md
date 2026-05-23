@@ -13,7 +13,7 @@ Le formulaire actuel d'ajout d'assurance véhicule présente les limitations sui
 ### 2.1 Choix du type de titulaire
 
 Ajouter un **sélecteur de type** au début du formulaire avec deux options :
-- **"Membre KARA"** : Pour les membres de la mutuelle
+- **"Membre KARA"** : Pour les membres de l'association
 - **"Personne externe"** : Pour les non-membres
 
 **Implémentation suggérée :**

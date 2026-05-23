@@ -13,7 +13,7 @@
 ## 📊 Vue d'ensemble du système KARA
 
 ### Contexte métier
-KARA est une **mutuelle au Gabon** qui gère :
+KARA est une **association au Gabon** qui gère :
 - L'adhésion de membres (adhérents, bienfaiteurs, sympathisants)
 - Des services financiers (caisses, crédits, placements)
 - Des services complémentaires (assurances véhicules, événements caritatifs)
@@ -24,7 +24,7 @@ KARA est une **mutuelle au Gabon** qui gère :
 ## 🏗️ Architecture par Domaines Métier (DDD)
 
 ### Domaine 1 : Gestion des Membres (Membership)
-**Responsabilité** : Gérer le cycle de vie des membres de la mutuelle
+**Responsabilité** : Gérer le cycle de vie des membres de l'association
 
 **Entités principales** :
 - `Member` (Membre)

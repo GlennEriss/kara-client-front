@@ -22,7 +22,7 @@ export const InsuranceTypeEnum = z.enum([
   'Assurance habitation',
   'Assurance voyage',
   'Assurance professionnelle',
-  'Mutuelle santé',
+  'association santé',
   'Assurance responsabilité civile',
   'Autre'
 ])

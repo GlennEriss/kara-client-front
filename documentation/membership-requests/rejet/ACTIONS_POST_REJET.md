@@ -455,7 +455,7 @@ Permettre à un administrateur d'informer manuellement le demandeur du rejet de 
      Pour toute question, veuillez contacter notre service client.
 
      Cordialement,
-     KARA Mutuelle
+     KARA Association
      ```
    - **Modifiable** : L'admin peut modifier le message avant envoi
 

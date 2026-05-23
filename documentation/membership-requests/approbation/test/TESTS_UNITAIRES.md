@@ -153,7 +153,7 @@ describe('generateCredentialsPDF', () => {
     expect(pdfText).toContain('1234.MK.567890')
     expect(pdfText).toContain('jeandupont1234@kara.ga')
     expect(pdfText).toContain('TempPass123!')
-    expect(pdfText).toContain('KARA Mutuelle')
+    expect(pdfText).toContain('KARA Association')
   })
 
   it('UNIT-APPROV-16: should format filename correctly', () => {
@@ -581,7 +581,7 @@ describe('ApprovalModal', () => {
       ...mockMembershipRequest,
       company: {
         isEmployed: true,
-        companyName: 'KARA Mutuelle',
+        companyName: 'KARA Association',
       },
     }
     
@@ -594,7 +594,7 @@ describe('ApprovalModal', () => {
     )
     
     expect(getByTestId('approval-modal-company-section')).toBeInTheDocument()
-    expect(getByTestId('approval-modal-company-name')).toHaveTextContent('KARA Mutuelle')
+    expect(getByTestId('approval-modal-company-name')).toHaveTextContent('KARA Association')
   })
 
   it('UNIT-APPROV-33: should not display company section if isEmployed is false', () => {

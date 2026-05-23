@@ -400,20 +400,20 @@ export const MEMBERSHIP_REQUEST_WHATSAPP = {
     `Corrections à apporter:\n${corrections}\n\n` +
     `Lien de correction: ${link}\n` +
     `Code de sécurité: ${code}\n\n` +
-    `Cordialement,\nKARA Mutuelle`,
+    `Cordialement,\nKARA Association`,
   
   /** Format du message pour l'approbation */
   APPROVAL_MESSAGE: (name: string, matricule: string) =>
     `Bonjour ${name},\n\n` +
     `Votre demande d'adhésion a été approuvée !\n\n` +
     `Votre matricule: ${matricule}\n\n` +
-    `Cordialement,\nKARA Mutuelle`,
+    `Cordialement,\nKARA Association`,
   
   /** Format du message pour le rejet */
   REJECTION_MESSAGE: (name: string, reason?: string) =>
     `Bonjour ${name},\n\n` +
     `Votre demande d'adhésion a été rejetée.\n${reason ? `\nMotif: ${reason}\n` : ''}\n` +
-    `Cordialement,\nKARA Mutuelle`,
+    `Cordialement,\nKARA Association`,
 } as const
 
 // ============================================

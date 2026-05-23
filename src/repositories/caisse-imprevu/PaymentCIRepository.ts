@@ -178,10 +178,17 @@ export class PaymentCIRepository implements IPaymentCIRepository {
 
             // Calculer et mettre à jour le statut
             const newStatus = updatedPayment.accumulatedAmount >= updatedPayment.targetAmount ? 'PAID' : 'PARTIAL';
-            
-            if (newStatus !== updatedPayment.status) {
+            const oldStatus = updatedPayment.status;
+
+            if (newStatus !== oldStatus) {
                 await this.updatePaymentStatus(contractId, monthIndex, updatedPayment.accumulatedAmount, newStatus, userId);
                 updatedPayment.status = newStatus;
+
+                // Sync totalMonthsPaid sur le contrat
+                if (newStatus === 'PAID') {
+                    const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId);
+                    await updateDoc(contractRef, { totalMonthsPaid: increment(1), updatedAt: serverTimestamp() });
+                }
             }
 
             return updatedPayment;
@@ -232,7 +239,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
         paymentMeta: { modificationReason: string; updatedBy: string }
     ): Promise<PaymentCI | null> {
         try {
-            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp } = await getFirestore() as any;
+            const { doc, getDoc, updateDoc, db, serverTimestamp, Timestamp, increment } = await getFirestore() as any;
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
                 db,
@@ -257,6 +264,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
             versements[index] = toStore;
             const accumulatedAmount = versements.reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0);
             const targetAmount = data.targetAmount ?? 0;
+            const oldStatus = data.status as string;
             const newStatus = accumulatedAmount >= targetAmount ? 'PAID' : versements.length > 0 ? 'PARTIAL' : 'DUE';
 
             await updateDoc(paymentRef, {
@@ -267,6 +275,17 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                 updatedBy: paymentMeta.updatedBy,
                 modificationReason: paymentMeta.modificationReason,
             });
+
+            // Sync totalMonthsPaid sur le contrat
+            if (newStatus !== oldStatus) {
+                const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId);
+                if (newStatus === 'PAID' && oldStatus !== 'PAID') {
+                    await updateDoc(contractRef, { totalMonthsPaid: increment(1), updatedAt: serverTimestamp() });
+                } else if (newStatus !== 'PAID' && oldStatus === 'PAID') {
+                    await updateDoc(contractRef, { totalMonthsPaid: increment(-1), updatedAt: serverTimestamp() });
+                }
+            }
+
             return await this.getPaymentByMonth(contractId, monthIndex);
         } catch (error) {
             console.error("Erreur lors de la mise à jour du versement:", error);
@@ -279,7 +298,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
      */
     async deleteVersement(contractId: string, monthIndex: number, versementId: string, userId: string): Promise<PaymentCI | null> {
         try {
-            const { doc, getDoc, updateDoc, db, serverTimestamp } = await getFirestore() as any;
+            const { doc, getDoc, updateDoc, db, serverTimestamp, increment } = await getFirestore() as any;
             const paymentId = `month-${monthIndex}`;
             const paymentRef = doc(
                 db,
@@ -298,6 +317,7 @@ export class PaymentCIRepository implements IPaymentCIRepository {
             versements.splice(index, 1);
             const accumulatedAmount = versements.reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0);
             const targetAmount = data.targetAmount ?? 0;
+            const oldStatus = data.status as string;
             const newStatus = accumulatedAmount >= targetAmount ? 'PAID' : versements.length > 0 ? 'PARTIAL' : 'DUE';
 
             await updateDoc(paymentRef, {
@@ -307,6 +327,13 @@ export class PaymentCIRepository implements IPaymentCIRepository {
                 updatedAt: serverTimestamp(),
                 updatedBy: userId,
             });
+
+            // Sync totalMonthsPaid sur le contrat
+            if (newStatus !== oldStatus && oldStatus === 'PAID') {
+                const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", contractId);
+                await updateDoc(contractRef, { totalMonthsPaid: increment(-1), updatedAt: serverTimestamp() });
+            }
+
             return await this.getPaymentByMonth(contractId, monthIndex);
         } catch (error) {
             console.error("Erreur lors de la suppression du versement:", error);

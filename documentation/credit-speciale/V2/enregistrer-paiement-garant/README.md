@@ -24,7 +24,7 @@
 Permettre à l’administrateur d’**enregistrer la preuve du paiement effectué au garant** (commission) pour un contrat crédit spéciale. À la fin de l’onglet **Commission du garant**, l’équipe doit pouvoir :
 
 - Voir le **total des commissions** dues au garant (déjà affiché).
-- **Enregistrer un paiement** qui prouve que la mutuelle a payé le garant : **date**, **montant**, **moyen de paiement** (Airtel Money, Mobicash, Espèce, Virement bancaire), **preuve** (fichier image/PDF), éventuellement **référence** ou **commentaire**.
+- **Enregistrer un paiement** qui prouve que l'association a payé le garant : **date**, **montant**, **moyen de paiement** (Airtel Money, Mobicash, Espèce, Virement bancaire), **preuve** (fichier image/PDF), éventuellement **référence** ou **commentaire**.
 
 Cela répond au besoin de **traçabilité** : « J’ai payé le garant, voici la preuve. »
 
@@ -44,7 +44,7 @@ Cela répond au besoin de **traçabilité** : « J’ai payé le garant, voici l
   - Les infos du garant et le taux de commission.
   - Un **tableau** des commissions par mois (M1, M2, …) : reste dû, %, somme due.
   - Le **total des commissions** en bas.
-- **Manque :** Aucun moyen actuel d’enregistrer **le fait que la mutuelle a payé le garant** (date, montant, preuve, mode de paiement). Il n’existe ni champ « payé au garant » ni entité dédiée.
+- **Manque :** Aucun moyen actuel d’enregistrer **le fait que l'association a payé le garant** (date, montant, preuve, mode de paiement). Il n’existe ni champ « payé au garant » ni entité dédiée.
 
 ### 2.3 Type `GuarantorRemuneration` actuel
 
@@ -83,7 +83,7 @@ Aucun champ `paidAt`, `paymentProofUrl`, `paidBy`, etc.
 
 | Champ              | Obligatoire | Description |
 |--------------------|-------------|-------------|
-| **Date du paiement** | Oui         | Date à laquelle la mutuelle a payé le garant. |
+| **Date du paiement** | Oui         | Date à laquelle l'association a payé le garant. |
 | **Heure**            | Oui         | Heure du paiement (HH:mm). |
 | **Montant (FCFA)**   | Oui         | Montant versé au garant (peut être le total des commissions ou un acompte). |
 | **Moyen de paiement** | Oui         | Airtel Money, Mobicash, Espèce, Virement bancaire (aligné caisse spéciale / crédit spéciale). |

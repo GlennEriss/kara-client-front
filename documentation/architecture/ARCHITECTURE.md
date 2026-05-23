@@ -2,7 +2,7 @@
 
 ## Vue d’ensemble
 
-- Le projet s’opère pour la mutuelle KARA au **Gabon**. Les données (adresses, numéros de téléphone, documents) doivent toujours respecter les formats et références locales.
+- Le projet s’opère pour l'Association KARA au **Gabon**. Les données (adresses, numéros de téléphone, documents) doivent toujours respecter les formats et références locales.
 - `src/firebase` contient toute l’intégration Firebase (Firestore, Storage, Auth, Messaging). Ces helpers de base de données sont le point d’entrée unique pour l’accès aux données et aux services Firebase.
 - Les données persistent dans Firestore/Storage via `src/repositories/**`. Chaque module possède ses repositories dédiés qui encapsulent les requêtes vers Firebase. Pas de logique métier dans cette couche.
 - Les services métier se trouvent dans `src/services/**`. Ils orchestrent les repositories, appliquent les règles métier et exposent des méthodes de haut niveau.

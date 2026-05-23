@@ -42,7 +42,7 @@ Lien de correction: {baseUrl}/register?requestId={requestId}
 Code de sécurité: {securityCode}
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Avantages :**
@@ -64,7 +64,7 @@ Votre demande d'adhésion a été approuvée !
 Votre matricule: {matricule}
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Avantages :**
@@ -85,7 +85,7 @@ Votre demande d'adhésion a été rejetée.
 {motif: Motif: {motif}}
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Avantages :**
@@ -312,7 +312,7 @@ export const MEMBERSHIP_REQUEST_WHATSAPP = {
     `Corrections à apporter:\n${corrections}\n\n` +
     `Lien de correction: ${link}\n` +
     `Code de sécurité: ${code}\n\n` +
-    `Cordialement,\nKARA Mutuelle`,
+    `Cordialement,\nKARA Association`,
   // ...
 }
 ```

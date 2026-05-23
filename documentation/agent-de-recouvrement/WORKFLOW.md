@@ -1,6 +1,6 @@
 # WORKFLOW.md — Workflow d'implémentation — Module Agents de Recouvrement
 
-> Objectif : un workflow **solide**, reproductible, adapté au module **Agents de Recouvrement** (KARA Mutuelle).
+> Objectif : un workflow **solide**, reproductible, adapté au module **Agents de Recouvrement** (KARA Association).
 
 > **Référence** : Ce workflow s'appuie sur le workflow général `documentation/general/WORKFLOW.md`. Les règles globales (branching, CI/CD, tests) s'appliquent. Ce document détaille les spécificités du module.
 

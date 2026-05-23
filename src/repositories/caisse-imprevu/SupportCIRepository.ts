@@ -21,6 +21,7 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
       documentId: data.documentId,
       documentUrl: data.documentUrl,
       documentPath: data.documentPath,
+      adminDocumentUrl: data.adminDocumentUrl,
       amountRepaid: data.amountRepaid,
       amountRemaining: data.amountRemaining,
       deductions: data.deductions || [],
@@ -54,7 +55,7 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     const supportData = {
       ...support,
       requestedAt: Timestamp.fromDate(support.requestedAt),
-      approvedAt: Timestamp.fromDate(support.approvedAt),
+      approvedAt: support.approvedAt ? Timestamp.fromDate(support.approvedAt) : null,
       repaidAt: support.repaidAt ? Timestamp.fromDate(support.repaidAt) : null,
       repayments: support.repayments.map((r) => ({
         ...r,
@@ -179,6 +180,54 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
     }
 
     await updateDoc(supportRef, updateData)
+  }
+
+  /**
+   * Valide le document signé soumis par le membre → status ACTIVE
+   */
+  async validateMemberSupport(
+    contractId: string,
+    supportId: string,
+    adminId: string,
+    adminDocumentUrl?: string
+  ): Promise<void> {
+    const { doc, updateDoc, Timestamp, db } = await getFirestore()
+    const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
+    await updateDoc(supportRef, {
+      status: 'ACTIVE',
+      approvedBy: adminId,
+      approvedAt: Timestamp.now(),
+      ...(adminDocumentUrl ? { adminDocumentUrl } : {}),
+      updatedBy: adminId,
+      updatedAt: Timestamp.now(),
+    })
+  }
+
+  /**
+   * Rejette le document signé soumis par le membre → status REJECTED
+   */
+  async rejectMemberSupport(
+    contractId: string,
+    supportId: string,
+    adminId: string,
+    rejectionReason: string
+  ): Promise<void> {
+    const { doc, updateDoc, Timestamp, db } = await getFirestore()
+    const supportRef = doc(db, this.contractsCollection, contractId, 'supports', supportId)
+    const contractRef = doc(db, this.contractsCollection, contractId)
+    await updateDoc(supportRef, {
+      status: 'REJECTED',
+      rejectedBy: adminId,
+      rejectedAt: Timestamp.now(),
+      rejectionReason,
+      updatedBy: adminId,
+      updatedAt: Timestamp.now(),
+    })
+    // Libère le currentSupportId pour permettre une re-soumission
+    await updateDoc(contractRef, {
+      currentSupportId: null,
+      updatedAt: Timestamp.now(),
+    })
   }
 
   /**

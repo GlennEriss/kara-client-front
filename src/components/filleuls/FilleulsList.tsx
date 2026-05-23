@@ -242,7 +242,7 @@ export default function FilleulsList() {
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       doc.text(`Parrain: ${parrainName} (${memberData.matricule})`, marginX, 20)
-      doc.text('Mutuelle KARA', marginX, 25)
+      doc.text('Association KARA', marginX, 25)
 
       // Badge date (droite)
       const badgeWidth = 92

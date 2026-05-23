@@ -54,7 +54,7 @@ export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
-  doc.text('KARA Mutuelle', margin, 30)
+  doc.text('KARA Association', margin, 30)
   
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')

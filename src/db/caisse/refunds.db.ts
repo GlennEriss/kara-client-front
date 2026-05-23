@@ -87,6 +87,9 @@ export async function updateRefundCI(contractId: string, refundId: string, updat
   if (updates.status === 'PAID') {
     payload.paidAt = payload.paidAt || new Date()
   }
+  if (updates.status === 'REJECTED') {
+    payload.rejectedAt = payload.rejectedAt || new Date()
+  }
   Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
   await updateDoc(ref, payload)
   return true
@@ -107,4 +110,36 @@ export async function deleteAllRefunds(contractId: string): Promise<void> {
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`)
   const snap = await getDocs(colRef)
   await Promise.all(snap.docs.map((d: any) => deleteDoc(doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, d.id))))
+}
+
+export async function listDeclaredVersementsCS(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+  const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/declaredVersements`)
+  const q = query(colRef, orderBy('declaredAt', 'desc'))
+  const snap = await getDocs(q)
+  const toDate = (value: any) => {
+    if (!value) return undefined
+    if (typeof value?.toDate === 'function') return value.toDate()
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+  }
+  return snap.docs.map((d: any) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      ...data,
+      declaredAt: toDate(data.declaredAt),
+      validatedAt: toDate(data.validatedAt),
+      rejectedAt: toDate(data.rejectedAt),
+    }
+  })
+}
+
+export async function updateDeclaredVersementCS(contractId: string, versementId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+  const ref = doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/declaredVersements`, versementId)
+  const payload: any = { ...updates, updatedAt: serverTimestamp() }
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+  await updateDoc(ref, payload)
+  return true
 }

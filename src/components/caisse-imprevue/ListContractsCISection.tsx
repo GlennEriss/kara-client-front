@@ -22,6 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import ContractsFiltersV2 from '@/domains/financial/caisse-imprevue/components/contracts/filters/ContractsFiltersV2'
 import { useContractsCI, type ContractCIFilters } from '@/domains/financial/caisse-imprevue/hooks/useContractsCI'
+import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
 import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
@@ -160,6 +161,272 @@ const ModernSkeleton = () => (
     </CardContent>
   </Card>
 )
+
+type ContractCIGridCardProps = {
+  contract: ContractCI
+  member?: any
+  memberPhotoUrl?: string
+  index: number
+  isOverdue: boolean
+  onView: () => void
+  onOverview: () => void
+  onViewUploaded: () => void
+  onDownload: () => void
+  onUpload: () => void
+  onValidate: () => void
+  onReplace: () => void
+  onViewRefund: (type: 'FINAL' | 'EARLY') => void
+  onDelete: () => void
+  getContractEndDate: (contract: ContractCI) => string
+}
+
+function ContractCIGridCard({
+  contract,
+  member,
+  memberPhotoUrl,
+  isOverdue,
+  onView,
+  onOverview,
+  onViewUploaded,
+  onDownload,
+  onUpload,
+  onValidate,
+  onReplace,
+  onViewRefund,
+  onDelete,
+  getContractEndDate,
+}: ContractCIGridCardProps) {
+  const { data: paymentStats } = useContractPaymentStats(contract.id)
+
+  const firstName = contract.memberFirstName || member?.firstName || ''
+  const lastName = contract.memberLastName || member?.lastName || ''
+  const displayName = `${firstName} ${lastName}`.trim() || 'Membre'
+  const initials = `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase() || 'CI'
+  const contacts = contract.memberContacts?.length
+    ? contract.memberContacts
+    : member?.contacts?.length
+      ? member.contacts
+      : []
+  const primaryContact = contacts[0] || '—'
+
+  const isSigned = Boolean(contract.contractStartId)
+  const isPendingValidation = contract.memberSignedStatus === 'PENDING_ADMIN'
+  const isRejected = contract.memberSignedStatus === 'REJECTED'
+  const statusMeta = STATUS_META_GRID[contract.status] ?? STATUS_META_GRID.ACTIVE
+
+  const paid = paymentStats?.paidMonthsCount ?? 0
+  const paidAmount = paymentStats?.totalAmountPaid ?? 0
+  const total = contract.subscriptionCIDuration || 0
+  const progress = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
+
+  return (
+    <Card
+      className={cn(
+        'group relative flex flex-col overflow-hidden border-0 bg-white shadow-md transition-all duration-200 hover:shadow-lg',
+        isOverdue && 'ring-1 ring-red-300'
+      )}
+    >
+      {/* Top accent bar */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+
+      <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-5">
+        {/* Header: avatar + name + status */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-10 shrink-0 rounded-xl ring-1 ring-[#234D65]/15">
+              {memberPhotoUrl || contract.memberPhotoUrl ? (
+                <AvatarImage
+                  src={memberPhotoUrl || contract.memberPhotoUrl}
+                  alt={displayName}
+                  className="h-full w-full object-cover object-center"
+                />
+              ) : (
+                <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-sm font-semibold text-white">
+                  {initials}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
+              <p className="truncate text-xs text-slate-500">{primaryContact}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className={cn('flex items-center gap-1 text-xs font-semibold', statusMeta.text)}>
+              <span className={cn('h-1.5 w-1.5 rounded-full', statusMeta.dot)} />
+              {statusMeta.label}
+            </span>
+            <Badge className="border border-[#234D65]/20 bg-[#234D65]/8 text-[10px] font-medium text-[#234D65]">
+              {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mensualité</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mois payés</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              {paid} <span className="text-[10px] font-normal text-slate-500">/ {total}</span>
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Date fin</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">{getContractEndDate(contract)}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Total versé</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              {paidAmount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-slate-500">
+            <span>Progression</span>
+            <span className="font-semibold text-[#234D65]">{progress}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#cbb171] transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Signature status */}
+        <div>
+          {isSigned ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+              <CheckCircle className="h-3 w-3" /> Contrat signé
+            </span>
+          ) : isPendingValidation ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+              <CheckCircle className="h-3 w-3" /> En attente de validation
+            </span>
+          ) : isRejected ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600">
+              <AlertCircle className="h-3 w-3" /> Document refusé
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-600">
+              <AlertCircle className="h-3 w-3" /> Document à téléverser
+            </span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="mt-auto flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onView}
+            className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+          >
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Ouvrir
+          </Button>
+
+          {isSigned ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewUploaded}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+            >
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              Voir
+            </Button>
+          ) : isPendingValidation ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onValidate}
+              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white"
+            >
+              <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+              Valider
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onUpload}
+              className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Téléverser
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDownload}
+            className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+          >
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Télécharger
+          </Button>
+
+          {canReplaceContractCI(contract) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReplace}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+            >
+              <FileEdit className="mr-1.5 h-3.5 w-3.5" />
+              Modifier contrat
+            </Button>
+          )}
+
+          {contract.status === 'FINISHED' && contract.finalRefundDocumentId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewRefund('FINAL')}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+            >
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+              Remboursement
+            </Button>
+          )}
+
+          {contract.status === 'CANCELED' && contract.earlyRefundDocumentId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewRefund('EARLY')}
+              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+            >
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+              Résiliation
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDelete}
+            className="h-8 cursor-pointer rounded-lg border-red-200 px-3 text-xs text-red-600 hover:bg-red-600 hover:text-white"
+          >
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Supprimer
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function ListContractsCISection() {
   const router = useRouter()
@@ -935,263 +1202,25 @@ export default function ListContractsCISection() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
                 {currentContracts.map((contract: ContractCI, index: number) => {
                   const member = memberById[contract.memberId]
-                  const fullName = `${contract.memberFirstName || member?.firstName || ''} ${contract.memberLastName || member?.lastName || ''}`.trim()
-                  const displayName = fullName || 'Membre non renseigné'
-                  const contacts = contract.memberContacts?.length
-                    ? contract.memberContacts.join(' / ')
-                    : member?.contacts?.length
-                      ? member.contacts.join(' / ')
-                      : '—'
-                  const primaryContact = contract.memberEmail || member?.email || contacts
-                  const initials = `${(contract.memberFirstName || member?.firstName || '')[0] || ''}${(contract.memberLastName || member?.lastName || '')[0] || ''}`.toUpperCase() || 'CI'
-                  const paidAmount = (contract.totalMonthsPaid || 0) * (contract.subscriptionCIAmountPerMonth || 0)
-                  const total = contract.subscriptionCIDuration || 0
-                  const paid = contract.totalMonthsPaid || 0
-                  const progress = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
-                  const isSigned = !!contract.contractStartId
-                  const isPendingValidation = !isSigned && contract.memberSignedStatus === 'PENDING_ADMIN'
-                  const isRejected = !isSigned && contract.memberSignedStatus === 'REJECTED'
-                  const statusMeta = STATUS_META_GRID[contract.status]
-
                   return (
-                    <div
+                    <ContractCIGridCard
                       key={contract.id}
-                      className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
-                      style={{ animationDelay: `${index * 40}ms` }}
-                    >
-                      <div className="h-full flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm hover:border-gray-200 hover:shadow-md transition-all duration-200">
-
-                        {/* Header */}
-                        <div className="flex items-start justify-between p-5 pb-4 gap-3">
-                          <div className="flex items-start gap-3 min-w-0">
-                            <Avatar className="size-10 rounded-xl ring-1 ring-[#234D65]/15 shrink-0 mt-0.5">
-                              {(contract.memberPhotoUrl || memberPhotoById[contract.memberId]) ? (
-                                <AvatarImage
-                                  src={contract.memberPhotoUrl || memberPhotoById[contract.memberId]}
-                                  alt={displayName}
-                                  className="h-full w-full object-cover object-center"
-                                />
-                              ) : (
-                                <AvatarFallback className="rounded-xl bg-[#234D65] text-white font-semibold text-xs">
-                                  {initials}
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold text-[#234D65] truncate">
-                                Forfait {contract.subscriptionCICode}
-                              </p>
-                              <p className="font-mono text-[11px] text-gray-400 truncate mt-0.5">{contract.id}</p>
-                              <p className="text-sm font-bold text-gray-900 truncate mt-0.5">{displayName}</p>
-                              {primaryContact && primaryContact !== '—' && (
-                                <p className="text-xs text-gray-400 truncate">{primaryContact}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusMeta.text)}>
-                              <span className={cn('w-2 h-2 rounded-full shrink-0', statusMeta.dot)} />
-                              {statusMeta.label}
-                            </span>
-                            {isPendingValidation && (
-                              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 whitespace-nowrap">
-                                À valider
-                              </span>
-                            )}
-                            {isRejected && (
-                              <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
-                                Refusé
-                              </span>
-                            )}
-                            {activeTab === 'overdue' && (
-                              <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 whitespace-nowrap">
-                                En retard
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="px-5 space-y-3">
-                          <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
-                              <p className="font-bold text-[#234D65] tabular-nums text-sm">
-                                {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')}{' '}
-                                <span className="text-[10px] font-normal text-gray-400">FCFA</span>
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mois payés</p>
-                              <p className="font-bold text-gray-900 tabular-nums text-sm">
-                                {paid} <span className="font-normal text-gray-400">/ {total}</span>
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Type</p>
-                              <p className="text-sm font-medium text-gray-700">
-                                {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date de fin</p>
-                              <p className="text-sm font-medium text-gray-700">{getContractEndDate(contract)}</p>
-                            </div>
-                          </div>
-
-                          {/* Progress */}
-                          {total > 0 && (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[11px] text-gray-400">
-                                <span>Progression</span>
-                                <span className="font-semibold text-[#234D65] tabular-nums">{progress}%</span>
-                              </div>
-                              <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                                <div className="h-full rounded-full bg-[#234D65] transition-all" style={{ width: `${progress}%` }} />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Signature + versé */}
-                          <div className="flex items-center justify-between text-xs pb-1">
-                            {isSigned ? (
-                              <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                <CheckCircle className="h-3.5 w-3.5" />Contrat signé
-                              </span>
-                            ) : isPendingValidation ? (
-                              <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                <CheckCircle className="h-3.5 w-3.5" />En validation
-                              </span>
-                            ) : isRejected ? (
-                              <span className="flex items-center gap-1 text-red-600 font-medium">
-                                <AlertCircle className="h-3.5 w-3.5" />Doc refusé
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-amber-600 font-medium">
-                                <AlertCircle className="h-3.5 w-3.5" />PDF manquant
-                              </span>
-                            )}
-                            <span className="text-gray-500 tabular-nums">
-                              Versé : <strong className="text-gray-800">{paidAmount.toLocaleString('fr-FR')} FCFA</strong>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="mt-auto px-5 pb-5 pt-4 border-t border-gray-100 space-y-2">
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleViewContract(contract.id)}
-                              disabled={!contract.contractStartId}
-                              className="flex-1 h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold disabled:opacity-40"
-                            >
-                              <Eye className="h-3.5 w-3.5 mr-1.5" />
-                              Ouvrir
-                              <ChevronRight className="h-3.5 w-3.5 ml-auto" />
-                            </Button>
-                            <Button
-                              onClick={() => setSelectedContractForOverview({ contract, member })}
-                              variant="outline"
-                              title="Détails complets"
-                              className="h-9 px-3 border-gray-200 text-gray-500 hover:border-[#234D65] hover:text-[#234D65]"
-                            >
-                              <User className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-
-                          {isSigned ? (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleViewUploadedContract(contract)}
-                                variant="outline"
-                                className="flex-1 h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                              >
-                                <FileText className="h-3.5 w-3.5 mr-1" />
-                                Voir
-                              </Button>
-                              <Button
-                                onClick={() => handleDownloadContract(contract)}
-                                variant="outline"
-                                className="flex-1 h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                              >
-                                <Download className="h-3.5 w-3.5 mr-1" />
-                                Télécharger
-                              </Button>
-                            </div>
-                          ) : isPendingValidation ? (
-                            <Button
-                              onClick={() => { setSelectedContractForValidation(contract); setShowValidateMemberSignedModal(true) }}
-                              variant="outline"
-                              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
-                            >
-                              <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                              Valider la signature
-                            </Button>
-                          ) : (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleUploadContract(contract)}
-                                variant="outline"
-                                className="flex-1 h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                              >
-                                <Plus className="h-3.5 w-3.5 mr-1" />
-                                Téléverser
-                              </Button>
-                              <Button
-                                onClick={() => handleDownloadContract(contract)}
-                                variant="outline"
-                                className="flex-1 h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                              >
-                                <Download className="h-3.5 w-3.5 mr-1" />
-                                Modèle
-                              </Button>
-                            </div>
-                          )}
-
-                          {canReplaceContractCI(contract) && (
-                            <Button
-                              onClick={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
-                              variant="outline"
-                              className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                            >
-                              <FileEdit className="h-3.5 w-3.5 mr-1.5" />
-                              Modifier contrat
-                            </Button>
-                          )}
-
-                          {contract.status === 'FINISHED' && contract.finalRefundDocumentId && (
-                            <Button
-                              onClick={() => handleViewRefundDocument(contract, 'FINAL')}
-                              variant="outline"
-                              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
-                            >
-                              <FileText className="h-3.5 w-3.5 mr-1.5" />
-                              Contrat de remboursement
-                            </Button>
-                          )}
-
-                          {contract.status === 'CANCELED' && contract.earlyRefundDocumentId && (
-                            <Button
-                              onClick={() => handleViewRefundDocument(contract, 'EARLY')}
-                              variant="outline"
-                              className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                            >
-                              <FileText className="h-3.5 w-3.5 mr-1.5" />
-                              Contrat de résiliation
-                            </Button>
-                          )}
-
-                          <Button
-                            variant="outline"
-                            onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
-                            className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                            Supprimer
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                      contract={contract}
+                      member={member}
+                      memberPhotoUrl={memberPhotoById[contract.memberId]}
+                      index={index}
+                      isOverdue={activeTab === 'overdue'}
+                      onView={() => handleViewContract(contract.id)}
+                      onOverview={() => setSelectedContractForOverview({ contract, member })}
+                      onViewUploaded={() => handleViewUploadedContract(contract)}
+                      onDownload={() => handleDownloadContract(contract)}
+                      onUpload={() => handleUploadContract(contract)}
+                      onValidate={() => { setSelectedContractForValidation(contract); setShowValidateMemberSignedModal(true) }}
+                      onReplace={() => { setSelectedContractForReplace(contract); setShowReplaceContractCIModal(true) }}
+                      onViewRefund={(type) => handleViewRefundDocument(contract, type)}
+                      onDelete={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
+                      getContractEndDate={getContractEndDate}
+                    />
                   )
                 })}
               </div>
@@ -1448,6 +1477,7 @@ export default function ListContractsCISection() {
               const contract = selectedContractForOverview.contract
               const member = selectedContractForOverview.member
               const emergency = contract?.emergencyContact
+              const emergencyMember = emergency?.memberId ? memberById[emergency.memberId] : undefined
               const hasPdf = hasValidContractPdf(contract)
               const contractStatus = CONTRACT_CI_STATUS_LABELS[contract?.status] || '—'
               const memberFirstName = contract?.memberFirstName || member?.firstName || ''
@@ -1559,6 +1589,32 @@ export default function ListContractsCISection() {
                               <p className="mt-1 font-medium text-slate-900">{emergency?.phone1 || '—'}</p>
                             </div>
                           </div>
+                          {emergency?.memberId && (
+                            emergencyMember ? (
+                              <div className="mt-3 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                                <Avatar className="size-8 shrink-0 rounded-lg">
+                                  {(emergencyMember.photoURL || memberPhotoById[emergencyMember.id]) ? (
+                                    <AvatarImage src={emergencyMember.photoURL || memberPhotoById[emergencyMember.id]} className="object-cover" alt="" />
+                                  ) : (
+                                    <AvatarFallback className="rounded-lg bg-emerald-600 text-white text-xs font-semibold">
+                                      {`${emergencyMember.firstName?.[0] || ''}${emergencyMember.lastName?.[0] || ''}`.toUpperCase() || 'M'}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Membre KARA</p>
+                                  <p className="text-sm font-semibold text-emerald-900">{emergencyMember.firstName} {emergencyMember.lastName}</p>
+                                  <p className="font-mono text-[11px] text-emerald-700">{emergencyMember.matricule}</p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">Membre</span>
+                              </div>
+                            ) : (
+                              <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
+                                <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                                <p className="text-xs text-red-700">Ce membre n'existe pas ou le matricule est incorrect.</p>
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
 

@@ -1,6 +1,6 @@
 # Documentation KARA
 
-Ce dossier contient toute la documentation du projet KARA Mutuelle.
+Ce dossier contient toute la documentation du projet KARA Association.
 
 ## 📁 Structure
 

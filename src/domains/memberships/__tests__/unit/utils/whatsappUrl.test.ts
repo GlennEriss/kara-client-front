@@ -158,7 +158,7 @@ describe('WhatsApp URL Utils', () => {
       expect(decodedUrl).toContain('Motif de rejet:')
       expect(decodedUrl).toContain('Documents incomplets')
       expect(decodedUrl).toContain('Pour toute question, veuillez contacter notre service client')
-      expect(decodedUrl).toContain('KARA Mutuelle')
+      expect(decodedUrl).toContain('KARA Association')
     })
   })
 })

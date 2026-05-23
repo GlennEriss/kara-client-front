@@ -26,7 +26,7 @@ const LogoSVG: React.FC<LogoSVGProps> = ({
       preserveAspectRatio="xMidYMid meet"
     >
       <metadata>
-        KARA Logo - Mutuelle KARA
+        KARA Logo - Association KARA
       </metadata>
       <g transform="translate(0,1080) scale(0.1,-0.1)" fill={color} stroke="none">
         {/* Éléments graphiques du logo */}

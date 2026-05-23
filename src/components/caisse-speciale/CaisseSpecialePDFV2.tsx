@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
 
 /**
  * PDF Caisse Spéciale V2 - Basé sur CAISSE_SPECIALE_MUTUELLE_N.docx
- * Nouveau document conforme au modèle officiel de la mutuelle
+ * Nouveau document conforme au modèle officiel de l'association
  */
 const CaisseSpecialePDFV2 = ({ contract }: { contract?: any }) => {
   const formatDate = (date: any) => {
@@ -425,12 +425,12 @@ const CaisseSpecialePDFV2 = ({ contract }: { contract?: any }) => {
           <Text>Je soussigné(e),</Text>
           <Text>
             <Text style={styles.bold}>{contract?.member?.lastName || '—'} {contract?.member?.firstName || '—'} </Text>
-            membre de l'association KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}
+            membre de l'Association KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}
           </Text>
 
           <Text style={styles.articleTitle}>Article 1 : Objet du contrat</Text>
           <Text style={styles.articleText}>
-            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'association Kara.
+            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association Kara.
           </Text>
 
           <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>

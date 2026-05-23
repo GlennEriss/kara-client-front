@@ -34,7 +34,7 @@
 - **`<nav aria-label="Navigation principale">`** : label pour la navigation principale.
 
 ### Hiérarchie des titres
-- **h1** : « KARA Mutuelle de Solidarité »
+- **h1** : « KARA Association de Solidarité »
 - **h2** : sections (Qui sommes-nous, Objectifs, Services, etc.)
 - **h3** : sous-sections
 - **h4** : Liens rapides, Suivez-nous dans le footer  

@@ -54,7 +54,7 @@ Ce document détaille le modal de sélection du numéro WhatsApp et d'envoi du m
 │ ║ │ service client.                                    │ ║ │
 │ ║ │                                                     │ ║ │
 │ ║ │ Cordialement,                                      │ ║ │
-│ ║ │ KARA Mutuelle                                       │ ║ │
+│ ║ │ KARA Association                                       │ ║ │
 │ ║ │                                                     │ ║ │
 │ ║ └─────────────────────────────────────────────────────┘ ║ │
 │ ║                                                           ║ │
@@ -108,7 +108,7 @@ Ce document détaille le modal de sélection du numéro WhatsApp et d'envoi du m
 │ ║ │ service client.                                    │ ║ │
 │ ║ │                                                     │ ║ │
 │ ║ │ Cordialement,                                      │ ║ │
-│ ║ │ KARA Mutuelle                                       │ ║ │
+│ ║ │ KARA Association                                       │ ║ │
 │ ║ │                                                     │ ║ │
 │ ║ └─────────────────────────────────────────────────────┘ ║ │
 │ ║                                                           ║ │
@@ -164,7 +164,7 @@ ${motifReject}
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Mutuelle`
+KARA Association`
 }
 ```
 
@@ -209,7 +209,7 @@ Motif de rejet:
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Caractéristiques** :
@@ -328,7 +328,7 @@ Documents incomplets. Veuillez fournir tous les documents requis (carte d'identi
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 ---

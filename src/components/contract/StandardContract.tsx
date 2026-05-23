@@ -37,6 +37,7 @@ import {
     FileText,
     History,
     RefreshCw,
+    RotateCcw,
     Trash2,
     TrendingUp,
     X,
@@ -416,6 +417,15 @@ export default function StandardContract({ id }: Props) {
             >
               <History className="h-4 w-4" />
               Historique des versements
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpecialeContractRefunds(id))}
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Remboursements
             </Button>
 
             <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />

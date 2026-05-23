@@ -2,157 +2,97 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
+
     // ==========================================
     // FONCTIONS UTILITAIRES
     // ==========================================
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Important : Storage ne peut pas lire Firestore (pas de get/exists).
-    // Seuls les custom claims (token.role) sont utilisés. Si un admin est reconnu
-    // côté Firestore via la collection admins mais n'a pas token.role, il doit
-    // faire définir son rôle (API update-admin ou script) puis se déconnecter/reconnecter.
+
     function isAdmin() {
       return isAuthenticated() && (
         (request.auth.token.role != null &&
          request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur'])
       );
     }
-    
-    // Vérifie si le fichier est une image
+
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
-    
-    // Vérifie si le fichier est un PDF
+
     function isPDF() {
       return request.resource.contentType == 'application/pdf';
     }
-    
-    // Limite de taille : 5 MB pour les images
+
     function isImageSizeValid() {
       return request.resource.size < 5 * 1024 * 1024;
     }
-    
-    // Limite de taille : 10 MB pour les PDFs
+
     function isPDFSizeValid() {
       return request.resource.size < 10 * 1024 * 1024;
     }
-    
-    // Limite de taille : 5 MB pour les contrats CI (conforme à l'UI)
+
     function isContractPDFSizeValid() {
       return request.resource.size < 5 * 1024 * 1024;
     }
-    
+
     // ==========================================
     // PHOTOS DE PROFIL (MEMBERSHIP-PHOTOS)
     // ==========================================
-    // Photos uploadées lors de l'inscription
-    
+
     match /membership-photos/{fileName} {
-      // Lecture : Publique (affichage dans le formulaire et admin)
       allow read: if true;
-      
-      // Écriture : Publique avec validation (image, max 5MB)
       allow write: if isImage() && isImageSizeValid();
-      
-      // Suppression : Admin uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // DOCUMENTS D'IDENTITÉ (MEMBERSHIP-DOCUMENTS)
     // ==========================================
-    // Pièces d'identité recto/verso - DONNÉES SENSIBLES
-    // Lecture publique pour permettre les corrections (sécurité gérée via code de sécurité)
-    
+
     match /membership-documents/{requestId}/{fileName} {
-      // Lecture : Publique (nécessaire pour les corrections via code de sécurité)
-      // La sécurité est gérée côté application via le code de sécurité
       allow read: if true;
-      
-      // Écriture : Publique avec validation (image, max 5MB)
-      // Permet l'upload lors de l'inscription et les corrections
       allow write: if isImage() && isImageSizeValid();
-      
-      // Suppression : Publique (pour permettre le remplacement lors des corrections)
-      // Sécurité gérée côté application via code de sécurité
       allow delete: if true;
     }
-    
+
     // ==========================================
     // PDFs D'ADHÉSION (MEMBERSHIP-ADHESION-PDFS)
     // ==========================================
-    // PDFs générés lors de l'approbation ou du remplacement - CONFIDENTIELS
-    // Chemins : membership-adhesion-pdfs/{requestId}/{timestamp}_{fileName}
-    // - Approbation : upload initial du PDF validé
-    // - Remplacement : re-upload par un admin (fonctionnalité "Remplacer le PDF")
-    //
+
     match /membership-adhesion-pdfs/{allPaths=**} {
-      // Lecture : Admins uniquement
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation (PDF, max 10MB)
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
-      
-      // Suppression : Admin uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // DOCUMENTS GÉNÉRIQUES PAR MODULE
     // ==========================================
-    // Chemin pour les documents archivés de chaque module (cleanup suppression contrat crédit spéciale si path utilisé)
-    
+
     match /documents/{module}/{memberId}/{fileName} {
-      // Lecture : Admin ou propriétaire
       allow read: if isAdmin() || request.auth.uid == memberId;
-      
-      // Écriture : Admin uniquement
       allow write: if isAdmin();
-      
-      // Suppression : Admin uniquement (cleanup lors de la suppression d'un contrat crédit spéciale)
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
     // ==========================================
-    // Preuves de paiement uploadées par les admins (demandes d'adhésion)
-    // Lecture : publique via URL (getDownloadURL renvoie une URL avec token ; affichage dans modal détail
-    // sans re-envoi du token Auth → allow read: true pour éviter storage/unauthorized)
-    // Écriture : utilisateur authentifié avec validation (image, max 5MB)
-    // Suppression : admin uniquement
-    
+
     match /payment-proofs/{fileName} {
-      // Lecture : autorisée (URL utilisée dans <img> / lien ; la diffusion est limitée par l'accès app)
       allow read: if true;
-      
-      // Écriture : utilisateur authentifié avec validation (image, max 5MB)
       allow write: if isAuthenticated() && isImage() && isImageSizeValid();
-      
-      // Suppression : Admin uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // DOCUMENTS CONTRATS (CONTRACTS-CI) + CRÉDIT SPÉCIALE
     // ==========================================
-    // Contrats signés PDF + preuves de paiement (images) uploadés par les admins
-    // Chemin : contracts-ci/{memberId}/{fileName}
-    // - Caisse Imprévue : contrats (ADHESION_CI), supports, remboursements
-    // - Crédit Spéciale : contrats (CREDIT_SPECIALE_CONTRACT), signés (CREDIT_SPECIALE_CONTRACT_SIGNED),
-    //   reçus (CREDIT_SPECIALE_RECEIPT), quittances (CREDIT_SPECIALE_QUITTANCE, CREDIT_SPECIALE_QUITTANCE_SIGNED)
-    // - Page /credit-speciale/demandes/[id] : affichage documentPhotoUrl du contact d'urgence (contracts-ci ou emergency-contacts)
-    // - Suppression contrat crédit spéciale V2 : cleanup des fichiers référencés par le contrat
-    // - PDF max 5MB, Images max 5MB
-    
+
     match /contracts-ci/{memberId}/{fileName} {
-      // Lecture : Admin ou propriétaire (membre)
-      // Note: memberId est l'UID Firebase côté apps membres.
       allow read: if isAdmin() || (
         isAuthenticated() && (
           request.auth.uid == memberId ||
@@ -160,38 +100,29 @@ service firebase.storage {
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
         )
       );
-      
-      // Écriture : Admins uniquement - PDF (max 5MB) OU image (max 5MB)
       allow write: if isAdmin() && (
         (isPDF() && isContractPDFSizeValid()) ||
         (isImage() && isImageSizeValid())
       );
-      
-      // Suppression : Admins uniquement (cleanup lors de la suppression d'un contrat crédit spéciale)
       allow delete: if isAdmin();
     }
-    
-    // Preuves de paiement des remboursements CI (Marquer comme payé)
-    // Chemin : contracts-ci/refunds/{contractId}/{refundId}/{fileName}
-    // Utilisé par : MarkAsPaidRefundCIModal (preuve de paiement, max 20MB)
-    
+
     match /contracts-ci/refunds/{contractId}/{refundId}/{fileName} {
-      // Lecture : Admins uniquement (preuves sensibles)
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation (image, max 20MB)
       allow write: if isAdmin() && isImage() && request.resource.size < 20 * 1024 * 1024;
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
-    // Photos de pièces d'identité des contacts d'urgence (chemin avec contractId)
-    // Chemin : contracts-ci/{memberId}/{contractId}/{fileName}
-    // Suppression : inclut cleanup lors de la suppression d'un contrat crédit spéciale si des docs sont sous ce chemin
-    
+
+    match /contracts-cs/refunds/{contractId}/{refundId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && request.resource.size < 20 * 1024 * 1024)
+      );
+      allow delete: if isAdmin();
+    }
+
     match /contracts-ci/{memberId}/{contractId}/{fileName} {
-      // Lecture : Admin ou propriétaire (membre)
       allow read: if isAdmin() || (
         isAuthenticated() && (
           request.auth.uid == memberId ||
@@ -199,164 +130,102 @@ service firebase.storage {
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
         )
       );
-      
-      // Écriture : Admins uniquement avec validation (image, max 5MB)
       allow write: if isAdmin() && isImage() && isImageSizeValid();
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // CAISSE SPÉCIALE - PREUVES DE PAIEMENT ET REMBOURSEMENTS
     // ==========================================
-    // Preuves de paiement (images) et documents de remboursement
-    // Utilisé par : pay(), payGroup(), updatePaymentContribution(), markRefundPaid()
-    // Chemins :
-    //   - caisse/{contractId}/payments/{paymentId}/{fileName}
-    //   - caisse/{contractId}/payments/{paymentId}/contributions/{fileName}
-    //   - caisse/{contractId}/refunds/{refundId}/{fileName}
-    
+
     match /caisse/{contractId}/payments/{paymentId}/{fileName} {
-      // Lecture : Admins uniquement (preuves sensibles)
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation (image, max 5MB)
       allow write: if isAdmin() && isImage() && isImageSizeValid();
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     match /caisse/{contractId}/payments/{paymentId}/contributions/{fileName} {
-      // Lecture : Admins uniquement
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation (image, max 5MB)
       allow write: if isAdmin() && isImage() && isImageSizeValid();
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     match /caisse/{contractId}/refunds/{refundId}/{fileName} {
-      // Lecture : Admins uniquement
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement - PDF ou image (max 5MB)
       allow write: if isAdmin() && (
         (isPDF() && isContractPDFSizeValid()) ||
         (isImage() && isImageSizeValid())
       );
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // DOCUMENTS DE REMBOURSEMENT (CONTRACT-DOCUMENTS)
     // ==========================================
-    // PDFs de remboursement final/anticipé uploadés via PdfDocumentModal
-    // Utilisé par : StandardContract, DailyContract, FreeContract (remboursements CS)
-    // Chemin : contract-documents/{contractId}/{refundId}/{fileName}
-    
+
     match /contract-documents/{contractId}/{refundId}/{fileName} {
-      // Lecture : Admins uniquement (documents sensibles)
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation (PDF, max 10MB)
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
-    // CAISSE SPÉCIALE - CONTRATS PDF (PAGE /caisse-speciale)
+    // CAISSE SPÉCIALE - CONTRATS PDF
     // ==========================================
-    // PDFs de contrats signés uploadés via ContractPdfUploadModal
-    // Chemin : contracts/{contractId}/{fileName}
-    
+
     match /contracts/{contractId}/{fileName} {
-      // Lecture : Admins uniquement (documents sensibles)
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation (PDF, max 10MB)
-      allow write: if isAdmin() && isPDF() && isPDFSizeValid();
-      
-      // Suppression : Admins uniquement
+      allow write: if isAdmin() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && isImageSizeValid())
+      );
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // CRÉDIT SPÉCIALE - CONTRATS PDF (FALLBACK)
     // ==========================================
-    // Chemin alternatif : credit-contracts/{contractId}/{fileName}
-    // Utilisé si génération PDF directe (placeholder ou futur). Cleanup lors de la suppression d'un contrat (V2).
-    
+
     match /credit-contracts/{contractId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
       allow delete: if isAdmin();
     }
-    
+
     // ============================================
-    // CAISSE SPÉCIALE - CONTACTS D'URGENCE (DEMANDES)
+    // CAISSE SPÉCIALE - CONTACTS D'URGENCE (ADMIN)
     // ============================================
-    // Photos de pièces d'identité des contacts d'urgence
-    // Utilisé par : EmergencyContactForm, EmergencyContactMemberSelector (création contrat CS)
-    // Chemin : emergency-contacts/{fileName}
-    
+
     match /emergency-contacts/{fileName} {
-      // Lecture : Admins uniquement (documents sensibles)
       allow read: if isAdmin();
-      
-      // Écriture : Admins uniquement avec validation
-      // - Type : image (jpeg, jpg, png, webp)
-      // - Taille max : 5 MB
-      allow write: if isAdmin() && 
+      allow write: if isAdmin() &&
         request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
         request.resource.size < 5 * 1024 * 1024;
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ============================================
-    // CAISSE IMPRÉVUE - DOCUMENTS CONTACTS D'URGENCE (V2)
+    // CAISSE IMPRÉVUE - CONTACTS D'URGENCE (ADMIN)
     // ============================================
-    // Photos de pièces d'identité des contacts d'urgence
-    // Chemin : emergency-contacts-ci/{fileName}
-    
+
     match /emergency-contacts-ci/{fileName} {
-      // Lecture : Publique (nécessaire pour afficher dans les formulaires et détails)
-      // La sécurité est gérée côté application (seuls les admins accèdent)
       allow read: if true;
-      
-      // Écriture : Admins uniquement avec validation
-      // - Type : image (jpeg, jpg, png, webp)
-      // - Taille max : 5 MB
-      allow write: if isAdmin() && 
+      allow write: if isAdmin() &&
         request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
         request.resource.size < 5 * 1024 * 1024;
-      
-      // Suppression : Admins uniquement
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // BIENFAITEUR / CHARITÉS (CHARITY EVENTS)
     // ==========================================
-    // Covers : charity-events/covers/{fileName}
-    // Preuves de contribution : charity-events/{eventId}/contributions/{fileName}
-    // Médias évènement (photos/vidéos) : charity-events/{eventId}/media/{fileName}
-    
+
     match /charity-events/covers/{fileName} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-    
+
     match /charity-events/{eventId}/contributions/{fileName} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin() && (
@@ -365,7 +234,7 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-    
+
     match /charity-events/{eventId}/media/{fileName} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin() && (
@@ -374,27 +243,172 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-    
+
     // ==========================================
     // PHOTOS AGENTS DE RECOUVREMENT
     // ==========================================
-    // Photos des agents (champ optionnel)
-    // Utilisé par : CreateAgentModal, EditAgentModal
-    // Chemin : agents-recouvrement/{agentId}/{fileName}
-    
+
     match /agents-recouvrement/{agentId}/{fileName} {
       allow read: if isAdmin();
-      allow write: if isAdmin() && 
+      allow write: if isAdmin() &&
         request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if isAdmin();
     }
-    
+
+    // ==========================================
+    // PORTAIL MEMBRE — INSCRIPTION (ADHÉSION)
+    // ==========================================
+    // Photos et documents uploadés lors de la demande d'adhésion
+    // Chemins générés par uploadDataUrlToStorage :
+    //   membership-request-profile-photo/{userId}/{matricule}/{filename}
+    //   membership-request-document-front/{userId}/{matricule}/{filename}
+    //   membership-request-document-back/{userId}/{matricule}/{filename}
+
+    match /membership-request-profile-photo/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /membership-request-document-front/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /membership-request-document-back/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // PORTAIL MEMBRE — CAISSE IMPRÉVUE (CI)
+    // ==========================================
+    // Uploads effectués par les membres depuis kara-members-front
+    // Chemins générés par uploadDataUrlToStorage :
+    //   {category}/{userId}/{contractId}/{filename}
+
+    // Photo pièce d'identité du contact d'urgence (demande CI)
+    match /emergency-contact-ci/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // Preuve de versement déclaré
+    match /declared-versement-proof/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // Preuve retrait anticipé CI
+    match /early-refund-proof/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // Preuve remboursement final CI
+    match /final-refund-proof/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // Document signé retrait anticipé CI (image ou PDF)
+    match /early-refund-signed/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Document signé remboursement final CI (image ou PDF)
+    match /final-refund-signed/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Contrat signé par le membre CI (en attente de validation admin)
+    match /contrat-signe-ci/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isPDF() && isPDFSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // Document signé demande d'aide CI (image ou PDF)
+    match /support-ci-signed/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // PORTAIL MEMBRE — CAISSE SPÉCIALE (CS)
+    // ==========================================
+
+    match /cs-declared-versement-proof/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /cs-early-refund-proof/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /cs-final-refund-proof/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /cs-early-refund-signed/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /cs-final-refund-signed/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Contrat signé par le membre CS (en attente de validation admin)
+    match /contrat-signe-cs/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && isImageSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
     // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
-    // Refuser tout accès non explicitement autorisé
-    
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

@@ -551,10 +551,33 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     }
 
     /**
+     * Valide le document signé soumis par le membre → status ACTIVE
+     */
+    async validateMemberSupport(contractId: string, supportId: string, adminId: string, file: File): Promise<void> {
+        const { url } = await this.documentRepository.uploadDocumentFile(file, contractId, 'SUPPORT_CI_ADMIN')
+        await this.supportCIRepository.validateMemberSupport(contractId, supportId, adminId, url)
+    }
+
+    /**
+     * Rejette le document signé soumis par le membre → status REJECTED
+     */
+    async rejectMemberSupport(contractId: string, supportId: string, adminId: string, rejectionReason: string): Promise<void> {
+        await this.supportCIRepository.rejectMemberSupport(contractId, supportId, adminId, rejectionReason)
+    }
+
+    /**
      * Récupère le support actif d'un contrat
      */
     async getActiveSupport(contractId: string): Promise<SupportCI | null> {
         return await this.supportCIRepository.getActiveSupportByContractId(contractId)
+    }
+
+    /**
+     * Récupère le support actif OU en attente de validation admin
+     */
+    async getActiveSupportOrPending(contractId: string): Promise<SupportCI | null> {
+        const supports = await this.supportCIRepository.getSupportHistory(contractId)
+        return supports.find(s => s.status === 'ACTIVE' || s.status === 'PENDING_ADMIN') ?? null
     }
 
     /**
@@ -691,33 +714,19 @@ export class CaisseImprevueService implements ICaisseImprevueService {
      * - paymentCount: nombre de documents dans la collection payments
      * - supportCount: nombre total d'aides reçues
      */
-    async getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; supportCount: number }> {
+    async getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; paidMonthsCount: number; supportCount: number }> {
         try {
-            // 1. Récupérer tous les paiements
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
-            
-            // 2. Calculer le montant total versé (somme des accumulatedAmount = montant réellement payé)
             const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
-            
-            // 3. Nombre de versements (nombre de documents dans la collection payments)
             const paymentCount = payments.length
-            
-            // 4. Nombre total d'aides reçues
+            const paidMonthsCount = payments.filter(p => p.status === 'PAID').length
             const supports = await this.getSupportHistory(contractId)
             const supportCount = supports.length
 
-            return {
-                totalAmountPaid,
-                paymentCount,
-                supportCount
-            }
+            return { totalAmountPaid, paymentCount, paidMonthsCount, supportCount }
         } catch (error) {
             console.error('Erreur lors du calcul des statistiques de paiement:', error)
-            return {
-                totalAmountPaid: 0,
-                paymentCount: 0,
-                supportCount: 0
-            }
+            return { totalAmountPaid: 0, paymentCount: 0, paidMonthsCount: 0, supportCount: 0 }
         }
     }
 

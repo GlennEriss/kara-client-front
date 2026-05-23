@@ -295,7 +295,7 @@ end note
 
 note right of GuarantorPayment
   Preuve du versement effectué
-  par la mutuelle au garant
+  par l'association au garant
   (commission).
   
   Collection: guarantorPayments

@@ -2,19 +2,19 @@
 
 ## 📋 Vue d'ensemble
 
-Ce document décrit le concept d'**agent de recouvrement** dans le contexte de KARA Mutuelle, ses objectifs, son utilisation et les modalités de création. Cette documentation sert de base pour l'analyse et l'implémentation de cette fonctionnalité.
+Ce document décrit le concept d'**agent de recouvrement** dans le contexte de KARA Association, ses objectifs, son utilisation et les modalités de création. Cette documentation sert de base pour l'analyse et l'implémentation de cette fonctionnalité.
 
 ---
 
 ## 🤔 Qu'est-ce qu'un agent de recouvrement ?
 
-Un **agent de recouvrement** est une personne chargée d'aller récupérer l'argent auprès des membres lors de l'enregistrement d'un versement. Il s'agit d'un acteur terrain qui collecte physiquement les paiements (espèces, mobile money, etc.) auprès des adhérents et rapporte ces fonds à la mutuelle.
+Un **agent de recouvrement** est une personne chargée d'aller récupérer l'argent auprès des membres lors de l'enregistrement d'un versement. Il s'agit d'un acteur terrain qui collecte physiquement les paiements (espèces, mobile money, etc.) auprès des adhérents et rapporte ces fonds à l'association.
 
 ### Caractéristiques principales
 
 - **Rôle opérationnel** : L'agent se déplace pour collecter les paiements auprès des membres
 - **Traçabilité** : Chaque versement enregistré doit pouvoir être associé à l'agent qui a effectué la collecte
-- **Responsabilité** : L'agent est responsable des fonds collectés jusqu'à leur remise à la mutuelle
+- **Responsabilité** : L'agent est responsable des fonds collectés jusqu'à leur remise à l'association
 
 ---
 
@@ -74,7 +74,7 @@ L'agent de recouvrement doit être **sélectionné au moment de l'enregistrement
 
 ### Prérequis
 
-- Un agent de recouvrement est typiquement un **employé** ou **collaborateur** de la mutuelle
+- Un agent de recouvrement est typiquement un **employé** ou **collaborateur** de l'association
 - Il peut s'agir d'un admin existant ou d'une entité dédiée
 
 ### Options de modélisation

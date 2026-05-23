@@ -416,7 +416,7 @@ export default function LoginMembershipWithEmailAndPassword() {
           <div className="absolute inset-0">
             <img
               src="/imgkara.webp"
-              alt="KARA - Mutuelle de Solidarité"
+              alt="KARA - association de Solidarité"
               className="w-full h-full object-cover opacity-30 animate-fade-in-right"
             />
             <div className="absolute inset-0 bg-gradient-to-br from-[#234E64]/80 via-[#234E64]/60 to-[#1a3b4d]/80"></div>

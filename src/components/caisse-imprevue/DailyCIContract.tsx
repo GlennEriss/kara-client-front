@@ -26,6 +26,7 @@ import {
     Clock,
     DollarSign,
     Download,
+    Eye,
     FileSignature,
     HandCoins,
     History,
@@ -41,12 +42,14 @@ import EarlyRefundCIModal from './EarlyRefundCIModal'
 import EditContractCategoryCIModal from './EditContractCategoryCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
+import ValidateRefundCIModal from './ValidateRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
 import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
+import SupportHistorySection from './SupportHistorySection'
 import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 
 // Helper pour formater les montants correctement
@@ -351,6 +354,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
   const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
+  const [refundToValidate, setRefundToValidate] = useState<any | null>(null)
   const [editVersement, setEditVersement] = useState<{ payment: PaymentCI; versement: VersementCI } | null>(null)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
@@ -866,16 +870,6 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 Demander une aide
               </Button>
             )}
-
-            {/* Bouton Historique des aides */}
-            <Button
-              variant="outline"
-              onClick={() => router.push(routes.admin.caisseImprevueContractSupports(contract.id))}
-              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-            >
-              <History className="h-4 w-4" />
-              Historique des aides
-            </Button>
 
             {/* Bouton Contact d'urgence */}
             <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
@@ -1636,13 +1630,6 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                   const isInstantRefund = r.type === 'EARLY' || r.type === 'FINAL'
 
                   const getRefundStatusConfig = (status: string) => {
-                    if (isInstantRefund) {
-                      if (status === 'ARCHIVED') {
-                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
-                      }
-                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Enregistré' }
-                    }
-
                     switch (status) {
                       case 'PENDING':
                         return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' }
@@ -1650,6 +1637,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                         return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle, label: 'Approuvé' }
                       case 'PAID':
                         return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
+                      case 'REJECTED':
+                        return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: XCircle, label: 'Refusé' }
                       default:
                         return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Archivé' }
                     }
@@ -1657,13 +1646,13 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
 
                   const statusConfig = getRefundStatusConfig(r.status)
                   const StatusIcon = statusConfig.icon
-                  const handledBy = r.paidByName || r.createdByName || r.updatedByName || r.paidBy || r.createdBy
-                  const handledDate = r.withdrawalDate ? new Date(r.withdrawalDate) : r.paidAt ? new Date(r.paidAt) : r.createdAt ? new Date(r.createdAt) : null
-                  const handledTime = r.withdrawalTime || r.paidAtTime || (r as { time?: string }).time
-                  const canShowPendingMessage = !isInstantRefund && r.status === 'PENDING'
-                  const canShowApprovedMessage = !isInstantRefund && r.status === 'APPROVED'
-                  const canShowActions = !isInstantRefund && (r.status === 'PENDING' || r.status === 'APPROVED')
-                  const canShowPaidInfo = !isInstantRefund && r.status === 'PAID' && (r.paidByName || r.paidAt)
+                  const handledBy = r.paidByName || r.approvedByName || r.createdByName || r.updatedByName
+                  const handledDate = r.paidAt ? new Date(r.paidAt) : r.withdrawalDate ? new Date(r.withdrawalDate) : r.createdAt ? new Date(r.createdAt) : null
+                  const handledTime = r.paidAtTime || r.withdrawalTime || (r as { time?: string }).time
+                  const canShowPendingMessage = r.status === 'PENDING'
+                  const canShowApprovedMessage = r.status === 'APPROVED'
+                  const canShowActions = r.status === 'PENDING' || r.status === 'APPROVED'
+                  const canShowPaidInfo = r.status === 'PAID' && (r.paidByName || r.paidAt)
 
                   return (
                     <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
@@ -1773,36 +1762,45 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                         <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                           {r.status === 'PENDING' && (
                             <>
+                              {r.documentUrl && (
+                                <a href={r.documentUrl} target="_blank" rel="noopener noreferrer">
+                                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-600 hover:bg-gray-50">
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Voir le document
+                                  </Button>
+                                </a>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="border-green-300 text-green-600 hover:bg-green-50"
-                                onClick={() => setConfirmApproveRefundId(r.id)}
+                                className="border-[#234D65]/30 text-[#234D65] hover:bg-[#234D65]/5"
+                                onClick={() => setRefundToValidate(r)}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
-                                Approuver
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
-                                onClick={() => setShowRemboursementPdf(true)}
-                              >
-                                <Download className="h-4 w-4 mr-1" />
-                                Document de remboursement
+                                Traiter la demande
                               </Button>
                             </>
                           )}
                           {r.status === 'APPROVED' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-green-300 text-green-600 hover:bg-green-50"
-                              onClick={() => setRefundToMarkAsPaid({ id: r.id, label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé' })}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Marquer comme payé
-                            </Button>
+                            <>
+                              {r.adminDocumentUrl && (
+                                <a href={r.adminDocumentUrl} target="_blank" rel="noopener noreferrer">
+                                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-600 hover:bg-gray-50">
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Doc. doublement signé
+                                  </Button>
+                                </a>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-green-300 text-green-600 hover:bg-green-50"
+                                onClick={() => setRefundToMarkAsPaid({ id: r.id, label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé' })}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Marquer comme payé
+                              </Button>
+                            </>
                           )}
                         </div>
                       )}
@@ -1813,6 +1811,17 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal de validation remboursement membre */}
+        {refundToValidate && (
+          <ValidateRefundCIModal
+            open={!!refundToValidate}
+            onClose={() => setRefundToValidate(null)}
+            contractId={contract.id}
+            refund={refundToValidate}
+            onSuccess={async () => { setRefundToValidate(null); await reloadRefunds() }}
+          />
+        )}
 
         {/* Modal de confirmation d'approbation du remboursement */}
         {confirmApproveRefundId && (
@@ -1927,6 +1936,9 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           </div>
         )}
 
+        {/* Historique des aides financières */}
+        <SupportHistorySection contractId={contract.id} />
+
         {/* Modal PDF Remboursement */}
         <RemboursementCIPDFModal
           isOpen={showRemboursementPdf}
@@ -1953,7 +1965,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           nextDueDate={nextDueDate}
           support={
             activeSupport || supportHistory[0]
-              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt }
+              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt ?? new Date() }
               : null
           }
         />

@@ -4,27 +4,35 @@ import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
 import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
 import ContractCIDetailsSkeleton from '@/components/caisse-imprevue/ContractCIDetailsSkeleton'
 import ValidateMemberSignedModal from '@/components/caisse-imprevue/ValidateMemberSignedModal'
+import ValidateSupportDocumentModal from '@/components/caisse-imprevue/ValidateSupportDocumentModal'
+import ValidateRefundCIModal from '@/components/caisse-imprevue/ValidateRefundCIModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import routes from '@/constantes/routes'
 import { useCaisseImprevueContractRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractRealtimeSync'
 import { useContractCI } from '@/hooks/caisse-imprevue/useContractCI'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
+import { useActiveSupport } from '@/hooks/caisse-imprevue/useActiveSupport'
+import { useRefundsCI } from '@/hooks/caisse-imprevue/useRefundsCI'
 import {
     AlertTriangle,
     ArrowLeft,
     CheckCircle2,
     FileText,
+    HandHeart,
+    RotateCcw,
     Upload,
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 export default function ContractCIDetailsPage() {
   const params = useParams() as { id: string }
   const id = params.id
   const router = useRouter()
   const [validateModalOpen, setValidateModalOpen] = useState(false)
+  const [validateSupportModalOpen, setValidateSupportModalOpen] = useState(false)
+  const [validateRefundModalOpen, setValidateRefundModalOpen] = useState(false)
   useCaisseImprevueContractRealtimeSync(id, true)
 
   // Fetch du contrat
@@ -32,6 +40,13 @@ export default function ContractCIDetailsPage() {
 
   // Fetch du document si contractStartId existe
   const { data: document, isLoading: isLoadingDocument } = useDocumentCI(contract?.contractStartId)
+
+  // Fetch du support actif (pour détection PENDING_ADMIN)
+  const { data: activeSupport } = useActiveSupport(id)
+
+  // Fetch des remboursements pour détecter une demande PENDING
+  const { data: refunds = [] } = useRefundsCI(id)
+  const pendingRefund = useMemo(() => refunds.find((r: any) => r.status === 'PENDING') ?? null, [refunds])
 
   // États de chargement
   if (isLoadingContract) {
@@ -164,6 +179,10 @@ export default function ContractCIDetailsPage() {
     )
   }
 
+  // Support membre en attente de validation
+  const hasPendingSupport = activeSupport?.status === 'PENDING_ADMIN'
+  const hasPendingRefund = !!pendingRefund
+
   // Afficher le bon composant selon la fréquence de paiement
   const renderContractComponent = () => {
     if (contract.paymentFrequency === 'MONTHLY') {
@@ -173,5 +192,93 @@ export default function ContractCIDetailsPage() {
     }
   }
 
-  return renderContractComponent()
+  return (
+    <>
+      {/* Bannière d'alerte si un support membre est en attente de validation */}
+      {hasPendingSupport && activeSupport && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-amber-100 p-2 shrink-0">
+                <HandHeart className="h-4 w-4 text-amber-700" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Demande d'aide en attente de validation
+                </p>
+                <p className="text-xs text-amber-700">
+                  Le membre a soumis un document signé pour une aide de{' '}
+                  <strong>{new Intl.NumberFormat('fr-FR').format(activeSupport.amount)} FCFA</strong>.
+                  Veuillez vérifier et valider ou refuser.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setValidateSupportModalOpen(true)}
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Traiter la demande
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bannière d'alerte si une demande de remboursement est en attente de validation */}
+      {hasPendingRefund && pendingRefund && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-100 p-2 shrink-0">
+                <RotateCcw className="h-4 w-4 text-blue-700" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-900">
+                  Demande de remboursement en attente de validation
+                </p>
+                <p className="text-xs text-blue-700">
+                  Le membre a soumis une demande de{' '}
+                  <strong>{pendingRefund.type === 'FINAL' ? 'remboursement final' : 'retrait anticipé'}</strong>
+                  {pendingRefund.withdrawalAmount
+                    ? <> pour <strong>{new Intl.NumberFormat('fr-FR').format(pendingRefund.withdrawalAmount)} FCFA</strong></>
+                    : null
+                  }. Veuillez vérifier et valider ou refuser.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setValidateRefundModalOpen(true)}
+              className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Traiter la demande
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {renderContractComponent()}
+
+      {hasPendingSupport && activeSupport && (
+        <ValidateSupportDocumentModal
+          open={validateSupportModalOpen}
+          onClose={() => setValidateSupportModalOpen(false)}
+          support={activeSupport}
+          contractId={id}
+        />
+      )}
+
+      {/* Bannière remboursement en attente */}
+      {hasPendingRefund && pendingRefund && (
+        <ValidateRefundCIModal
+          open={validateRefundModalOpen}
+          onClose={() => setValidateRefundModalOpen(false)}
+          contractId={id}
+          refund={pendingRefund}
+        />
+      )}
+    </>
+  )
 }

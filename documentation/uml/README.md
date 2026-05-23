@@ -1,4 +1,4 @@
-# Documentation UML — KARA Mutuelle
+# Documentation UML — KARA Association
 
 > Index centralisé de tous les diagrammes UML du projet KARA
 
@@ -145,7 +145,7 @@ Les diagrammes de classes doivent refléter ces relations :
 Format : `UC-<MODULE>-<NUMERO>: <Description>`
 
 Exemples :
-- `UC-MEM-001: S'inscrire à la mutuelle`
+- `UC-MEM-001: S'inscrire à l'association`
 - `UC-CS-001: Créer un contrat de caisse spéciale`
 - `UC-CREDIT-001: Créer une demande de crédit`
 

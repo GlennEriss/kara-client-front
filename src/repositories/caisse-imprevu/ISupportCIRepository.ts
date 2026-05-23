@@ -55,5 +55,25 @@ export interface ISupportCIRepository {
     amountRepaid: number,
     amountRemaining: number
   ): Promise<void>
+
+  /**
+   * Valide le document signé soumis par le membre → status ACTIVE
+   */
+  validateMemberSupport(
+    contractId: string,
+    supportId: string,
+    adminId: string,
+    adminDocumentUrl?: string
+  ): Promise<void>
+
+  /**
+   * Rejette le document signé soumis par le membre → status REJECTED
+   */
+  rejectMemberSupport(
+    contractId: string,
+    supportId: string,
+    adminId: string,
+    rejectionReason: string
+  ): Promise<void>
 }
 

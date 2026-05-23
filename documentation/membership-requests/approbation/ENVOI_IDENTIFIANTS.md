@@ -28,7 +28,7 @@ Après l'approbation d'une demande d'adhésion :
 - ✅ Pas de dépendance : Pas besoin de services externes (email/SMS) pour l'envoi automatique
 
 **Contenu du PDF** :
-- Logo KARA Mutuelle
+- Logo KARA Association
 - Informations du membre (nom, prénom, matricule)
 - Identifiants de connexion (email, mot de passe)
 - Instructions de connexion
@@ -65,7 +65,7 @@ Email : jeandupont1234@kara.ga
 
 ```
 ┌─────────────────────────────────────────────────┐
-│           KARA MUTUELLE                         │
+│           KARA Association                         │
 │           [Logo]                                │
 ├─────────────────────────────────────────────────┤
 │                                                  │
@@ -106,7 +106,7 @@ Email : jeandupont1234@kara.ga
 │  Date de génération : 20/01/2024 14:30          │
 │                                                  │
 │  Cordialement,                                   │
-│  L'équipe KARA Mutuelle                         │
+│  L'équipe KARA Association                         │
 │                                                  │
 └─────────────────────────────────────────────────┘
 ```
@@ -175,7 +175,7 @@ export function generateCredentialsPDF(data: CredentialsData): void {
   
   // Titre
   doc.setFontSize(20)
-  doc.text('KARA MUTUELLE', 105, 30, { align: 'center' })
+  doc.text('KARA Association', 105, 30, { align: 'center' })
   
   doc.setFontSize(16)
   doc.text('IDENTIFIANTS DE CONNEXION', 105, 40, { align: 'center' })
@@ -239,7 +239,7 @@ export function generateCredentialsPDF(data: CredentialsData): void {
   doc.setTextColor(0, 0, 0) // Noir
   doc.setFontSize(11)
   doc.text('Cordialement,', 20, 210)
-  doc.text('L\'équipe KARA Mutuelle', 20, 217)
+  doc.text('L\'équipe KARA Association', 20, 217)
   
   // Nom du fichier
   const fileName = `Identifiants_Connexion_${data.matricule}_${now.toISOString().split('T')[0]}.pdf`
