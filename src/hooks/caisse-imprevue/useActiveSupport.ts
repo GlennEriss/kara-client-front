@@ -10,7 +10,7 @@ export function useActiveSupport(contractId: string) {
 
   return useQuery<SupportCI | null>({
     queryKey: ['support-ci-active', contractId],
-    queryFn: () => service.getActiveSupport(contractId),
+    queryFn: () => service.getActiveSupportOrPending(contractId),
     enabled: !!contractId,
     staleTime: 30000, // 30 secondes
   })

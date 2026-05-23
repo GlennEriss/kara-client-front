@@ -551,10 +551,33 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     }
 
     /**
+     * Valide le document signé soumis par le membre → status ACTIVE
+     */
+    async validateMemberSupport(contractId: string, supportId: string, adminId: string, file: File): Promise<void> {
+        const { url } = await this.documentRepository.uploadDocumentFile(file, contractId, 'SUPPORT_CI_ADMIN')
+        await this.supportCIRepository.validateMemberSupport(contractId, supportId, adminId, url)
+    }
+
+    /**
+     * Rejette le document signé soumis par le membre → status REJECTED
+     */
+    async rejectMemberSupport(contractId: string, supportId: string, adminId: string, rejectionReason: string): Promise<void> {
+        await this.supportCIRepository.rejectMemberSupport(contractId, supportId, adminId, rejectionReason)
+    }
+
+    /**
      * Récupère le support actif d'un contrat
      */
     async getActiveSupport(contractId: string): Promise<SupportCI | null> {
         return await this.supportCIRepository.getActiveSupportByContractId(contractId)
+    }
+
+    /**
+     * Récupère le support actif OU en attente de validation admin
+     */
+    async getActiveSupportOrPending(contractId: string): Promise<SupportCI | null> {
+        const supports = await this.supportCIRepository.getSupportHistory(contractId)
+        return supports.find(s => s.status === 'ACTIVE' || s.status === 'PENDING_ADMIN') ?? null
     }
 
     /**

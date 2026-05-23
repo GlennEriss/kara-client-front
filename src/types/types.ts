@@ -672,7 +672,7 @@ export interface PaymentCI {
 /**
  * Statut d'un support
  */
-export type SupportCIStatus = 'ACTIVE' | 'REPAID'
+export type SupportCIStatus = 'PENDING_ADMIN' | 'ACTIVE' | 'REPAID' | 'REJECTED'
 
 /**
  * Type pour un remboursement de support
@@ -698,36 +698,43 @@ export interface SupportCI {
   
   // Montant et statut
   amount: number // Montant du support accordé
+  motif?: string // Motif de la demande (soumis par le membre)
   status: SupportCIStatus // Statut du remboursement
-  
-  // Document de demande signé
+
+  // Document de demande signé (soumis par le membre)
   documentId?: string // ID du document dans la collection 'documents'
   documentUrl?: string // URL du document dans Firebase Storage
   documentPath?: string // Chemin du document dans Firebase Storage
-  
+
+  // Document doublement signé (uploadé par l'admin lors de la validation)
+  adminDocumentUrl?: string
+
   // Remboursement
   amountRepaid: number // Montant déjà remboursé
   amountRemaining: number // Montant restant à rembourser
-  
+
   // Déduction des 3 derniers mois
   deductions: {
     monthIndex: number
     amount: number
   }[] // Déductions appliquées aux 3 derniers mois
-  
+
   // Historique des remboursements
   repayments: SupportRepaymentCI[]
-  
+
   // Métadonnées
   requestedAt: Date // Date de la demande
-  approvedAt: Date // Date d'approbation
-  approvedBy: string // ID de l'admin qui a approuvé
+  approvedAt?: Date // Date d'approbation
+  approvedBy?: string // ID de l'admin qui a approuvé
+  rejectedAt?: Date
+  rejectedBy?: string
+  rejectionReason?: string
   repaidAt?: Date // Date de remboursement complet
-  
+
   createdAt: Date
   createdBy: string
-  updatedAt: Date
-  updatedBy: string
+  updatedAt?: Date
+  updatedBy?: string
 }
 
 /**

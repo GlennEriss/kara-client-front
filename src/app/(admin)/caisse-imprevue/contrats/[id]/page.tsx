@@ -4,17 +4,20 @@ import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
 import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
 import ContractCIDetailsSkeleton from '@/components/caisse-imprevue/ContractCIDetailsSkeleton'
 import ValidateMemberSignedModal from '@/components/caisse-imprevue/ValidateMemberSignedModal'
+import ValidateSupportDocumentModal from '@/components/caisse-imprevue/ValidateSupportDocumentModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import routes from '@/constantes/routes'
 import { useCaisseImprevueContractRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractRealtimeSync'
 import { useContractCI } from '@/hooks/caisse-imprevue/useContractCI'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
+import { useActiveSupport } from '@/hooks/caisse-imprevue/useActiveSupport'
 import {
     AlertTriangle,
     ArrowLeft,
     CheckCircle2,
     FileText,
+    HandHeart,
     Upload,
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
@@ -25,6 +28,7 @@ export default function ContractCIDetailsPage() {
   const id = params.id
   const router = useRouter()
   const [validateModalOpen, setValidateModalOpen] = useState(false)
+  const [validateSupportModalOpen, setValidateSupportModalOpen] = useState(false)
   useCaisseImprevueContractRealtimeSync(id, true)
 
   // Fetch du contrat
@@ -32,6 +36,9 @@ export default function ContractCIDetailsPage() {
 
   // Fetch du document si contractStartId existe
   const { data: document, isLoading: isLoadingDocument } = useDocumentCI(contract?.contractStartId)
+
+  // Fetch du support actif (pour détection PENDING_ADMIN)
+  const { data: activeSupport } = useActiveSupport(id)
 
   // États de chargement
   if (isLoadingContract) {
@@ -164,6 +171,9 @@ export default function ContractCIDetailsPage() {
     )
   }
 
+  // Support membre en attente de validation
+  const hasPendingSupport = activeSupport?.status === 'PENDING_ADMIN'
+
   // Afficher le bon composant selon la fréquence de paiement
   const renderContractComponent = () => {
     if (contract.paymentFrequency === 'MONTHLY') {
@@ -173,5 +183,49 @@ export default function ContractCIDetailsPage() {
     }
   }
 
-  return renderContractComponent()
+  return (
+    <>
+      {/* Bannière d'alerte si un support membre est en attente de validation */}
+      {hasPendingSupport && activeSupport && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-amber-100 p-2 shrink-0">
+                <HandHeart className="h-4 w-4 text-amber-700" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Demande d'aide en attente de validation
+                </p>
+                <p className="text-xs text-amber-700">
+                  Le membre a soumis un document signé pour une aide de{' '}
+                  <strong>{new Intl.NumberFormat('fr-FR').format(activeSupport.amount)} FCFA</strong>.
+                  Veuillez vérifier et valider ou refuser.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setValidateSupportModalOpen(true)}
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Traiter la demande
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {renderContractComponent()}
+
+      {hasPendingSupport && activeSupport && (
+        <ValidateSupportDocumentModal
+          open={validateSupportModalOpen}
+          onClose={() => setValidateSupportModalOpen(false)}
+          support={activeSupport}
+          contractId={id}
+        />
+      )}
+    </>
+  )
 }

@@ -45,6 +45,7 @@ import RemboursementCIPDFModal from './RemboursementCIPDFModal'
 import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
+import SupportHistorySection from './SupportHistorySection'
 import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 
 interface MonthlyCIContractProps {
@@ -611,16 +612,6 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                 Demander une aide
               </Button>
             )}
-
-            {/* Bouton Historique des aides */}
-            <Button
-              variant="outline"
-              onClick={() => router.push(routes.admin.caisseImprevueContractSupports(contract.id))}
-              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-            >
-              <History className="h-4 w-4" />
-              Historique des aides
-            </Button>
 
             {/* Bouton Contact d'urgence */}
             <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
@@ -1277,6 +1268,9 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
             </div>
           </CardContent>
         </Card>
+
+        {/* Historique des aides financières */}
+        <SupportHistorySection contractId={contract.id} />
 
         {/* Modal de confirmation d'approbation du remboursement */}
         {confirmApproveRefundId && (

@@ -4,12 +4,7 @@ import { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAdmin, useSupportHistory } from '@/hooks/caisse-imprevue'
 import { SupportCI } from '@/types/types'
@@ -22,7 +17,6 @@ import {
   Eye,
   FileSpreadsheet,
   HandHeart,
-  History,
   Hourglass,
   User,
   XCircle,
@@ -30,6 +24,7 @@ import {
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 import ValidateSupportDocumentModal from './ValidateSupportDocumentModal'
+import { DocumentPreviewModal } from '@/components/member/DocumentPreviewModal'
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value) + ' FCFA'
@@ -76,14 +71,13 @@ const STATUS_CONFIG = {
 }
 
 interface Props {
-  isOpen: boolean
-  onClose: () => void
   contractId: string
 }
 
-export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: Props) {
+export default function SupportHistorySection({ contractId }: Props) {
   const { data: supports = [], isLoading, isError } = useSupportHistory(contractId)
   const [validateSupport, setValidateSupport] = useState<SupportCI | null>(null)
+  const [previewSupport, setPreviewSupport] = useState<SupportCI | null>(null)
 
   const handleExportExcel = () => {
     if (supports.length === 0) { toast.error('Aucun support à exporter'); return }
@@ -119,74 +113,66 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
       XLSX.writeFile(wb, `Historique_Aides_${contractId}_${format(new Date(), 'ddMMyyyy')}.xlsx`)
       toast.success('Export Excel réussi')
     } catch {
-      toast.error('Erreur lors de l\'export Excel')
+      toast.error("Erreur lors de l'export Excel")
     }
   }
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
-          {/* Header */}
-          <DialogHeader className="shrink-0 px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="rounded-lg bg-[#234D65] p-2 shrink-0">
-                  <History className="h-4 w-4 text-white" />
-                </div>
-                <DialogTitle className="text-base">Historique des aides financières</DialogTitle>
-              </div>
+      <Card className="border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-amber-50 to-amber-100/50 border-b">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 text-amber-700">
+              <HandHeart className="h-5 w-5" />
+              Historique des aides financières
               {supports.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportExcel}
-                  className="shrink-0 gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  Excel
-                </Button>
+                <span className="ml-1 text-sm font-normal text-amber-600">({supports.length})</span>
               )}
-            </div>
-          </DialogHeader>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
-              </div>
-            ) : isError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>Erreur lors du chargement de l'historique</AlertDescription>
-              </Alert>
-            ) : supports.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div className="rounded-xl bg-gray-100 p-4">
-                  <HandHeart className="h-8 w-8 text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-500">Aucune aide enregistrée pour ce contrat</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {supports.map((support) => (
-                  <SupportCard
-                    key={support.id}
-                    support={support}
-                    onValidate={() => setValidateSupport(support)}
-                  />
-                ))}
-              </div>
+            </CardTitle>
+            {supports.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                className="shrink-0 gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Excel
+              </Button>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="shrink-0 border-t border-gray-100 px-6 py-4 flex justify-end">
-            <Button variant="outline" onClick={onClose}>Fermer</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        </CardHeader>
+        <CardContent className="p-6">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+            </div>
+          ) : isError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>Erreur lors du chargement de l'historique</AlertDescription>
+            </Alert>
+          ) : supports.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <div className="rounded-xl bg-gray-100 p-4">
+                <HandHeart className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-500">Aucune aide enregistrée pour ce contrat</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {supports.map((support) => (
+                <SupportCard
+                  key={support.id}
+                  support={support}
+                  onValidate={() => setValidateSupport(support)}
+                  onPreviewDocument={support.documentUrl ? () => setPreviewSupport(support) : undefined}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {validateSupport && (
         <ValidateSupportDocumentModal
@@ -196,6 +182,27 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
           contractId={contractId}
         />
       )}
+
+      {previewSupport?.documentUrl && (
+        <DocumentPreviewModal
+          isOpen={!!previewSupport}
+          onClose={() => setPreviewSupport(null)}
+          documentUrl={previewSupport.documentUrl}
+          documentName={`Document_Aide_${previewSupport.id}.pdf`}
+          documentLabel="Document signé — Demande d'aide"
+          onDownload={() => {
+            const url = previewSupport.documentUrl!
+            const filename = `Document_Aide_${previewSupport.id}.pdf`
+            const proxyUrl = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`
+            const link = window.document.createElement('a')
+            link.href = proxyUrl
+            link.download = filename
+            window.document.body.appendChild(link)
+            link.click()
+            window.document.body.removeChild(link)
+          }}
+        />
+      )}
     </>
   )
 }
@@ -203,9 +210,11 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
 function SupportCard({
   support,
   onValidate,
+  onPreviewDocument,
 }: {
   support: SupportCI
   onValidate: () => void
+  onPreviewDocument?: () => void
 }) {
   const { data: admin, isLoading: loadingAdmin } = useAdmin(support.approvedBy)
   const config = STATUS_CONFIG[support.status] ?? STATUS_CONFIG.ACTIVE
@@ -238,15 +247,14 @@ function SupportCard({
         </div>
         <div className="flex items-center gap-2">
           {support.documentUrl && (
-            <a
-              href={support.documentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={onPreviewDocument}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#234D65]/20 bg-white px-2.5 py-1 text-xs font-medium text-[#234D65] hover:bg-[#234D65]/5 transition-colors"
             >
               <Eye className="h-3.5 w-3.5" />
               Document
-            </a>
+            </button>
           )}
           {isPending && (
             <Button

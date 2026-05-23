@@ -359,12 +359,12 @@ export default function PaymentCIModal({
             </Label>
             <Input
               id="payment-amount"
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="Ex: 10000"
               value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              min="100"
-              step="100"
+              onChange={(e) => setPaymentAmount(e.target.value.replace(/[^0-9]/g, ''))}
               required
               disabled={isMonthly && !editMode}
               className={isMonthly && !editMode ? 'bg-gray-100 cursor-not-allowed' : ''}

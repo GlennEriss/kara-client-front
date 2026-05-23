@@ -143,13 +143,12 @@ export default function RequestSupportCIModal({
             </Label>
             <Input
               id="support-amount"
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder={`Entre ${contract.subscriptionCISupportMin.toLocaleString('fr-FR')} et ${contract.subscriptionCISupportMax.toLocaleString('fr-FR')}`}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min={contract.subscriptionCISupportMin}
-              max={contract.subscriptionCISupportMax}
-              step="1000"
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
               required
               disabled={isLoading}
             />

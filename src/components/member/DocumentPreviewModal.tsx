@@ -12,6 +12,7 @@ type DocumentPreviewModalProps = {
   documentUrl: string | null
   documentName: string
   documentLabel: string
+  onDownload?: () => void
 }
 
 const useIsMobile = () => {
@@ -33,6 +34,7 @@ export function DocumentPreviewModal({
   documentUrl,
   documentName,
   documentLabel,
+  onDownload,
 }: DocumentPreviewModalProps) {
   const isMobile = useIsMobile()
   const [iframeError, setIframeError] = useState(false)
@@ -75,9 +77,9 @@ export function DocumentPreviewModal({
               <div className="text-xs text-gray-500">
                 {isMobile ? 'Aperçu mobile' : 'Aperçu intégré (PDF)'}
               </div>
-              <Button onClick={handleOpenInNewTab} variant="outline" className="gap-2">
+              <Button onClick={onDownload ?? handleOpenInNewTab} variant="outline" className="gap-2">
                 <Download className="h-4 w-4" />
-                Ouvrir dans un nouvel onglet
+                {onDownload ? 'Télécharger' : 'Ouvrir dans un nouvel onglet'}
               </Button>
             </div>
 
