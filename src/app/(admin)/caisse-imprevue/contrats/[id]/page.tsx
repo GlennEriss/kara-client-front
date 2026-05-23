@@ -46,7 +46,7 @@ export default function ContractCIDetailsPage() {
 
   // Fetch des remboursements pour détecter une demande PENDING
   const { data: refunds = [] } = useRefundsCI(id)
-  const pendingRefund = useMemo(() => refunds.find((r) => r.status === 'PENDING') ?? null, [refunds])
+  const pendingRefund = useMemo(() => refunds.find((r: any) => r.status === 'PENDING') ?? null, [refunds])
 
   // États de chargement
   if (isLoadingContract) {
