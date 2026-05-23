@@ -487,7 +487,7 @@ export default function RegistrationFormV2() {
         <header className="text-center mb-8 sm:mb-12 animate-in fade-in-0 slide-in-from-top-4 duration-500">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200/50 mb-4">
             <Sparkles className="w-4 h-4 text-kara-primary-light" />
-            <span className="text-sm font-medium text-slate-600">Mutuelle Kara</span>
+            <span className="text-sm font-medium text-slate-600">Association Kara</span>
           </div>
           
           <h1 className="text-3xl sm:text-4xl font-bold bg-linear-to-r from-kara-primary-dark to-kara-primary-light bg-clip-text text-transparent">

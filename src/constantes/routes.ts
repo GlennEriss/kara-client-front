@@ -38,6 +38,7 @@ const routes = {
         caisseSpecialeDemandEdit: (id: string) => `/caisse-speciale/demandes/${id}/edit`,
         caisseSpecialeContractDetails: (id: string) => `/caisse-speciale/contrats/${id}`,
         caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
+        caisseSpecialeContractRefunds: (id: string) => `/caisse-speciale/contrats/${id}/remboursements`,
         caisseSpecialeCreateContract: '/caisse-speciale/contrats/nouveau',
         caisseSpecialeSimulation: '/caisse-speciale/simulation',
         caisseSpecialeSettings: '/caisse-speciale/settings',
@@ -68,6 +69,7 @@ const routes = {
         caisseImprevueContractDetails: (id: string) => `/caisse-imprevue/contrats/${id}`,
         caisseImprevueContractPayments: (id: string) => `/caisse-imprevue/contrats/${id}/versements`,
         caisseImprevueContractSupports: (id: string) => `/caisse-imprevue/contrats/${id}/aides`,
+        caisseImprevueContractRefunds: (id: string) => `/caisse-imprevue/contrats/${id}/remboursements`,
         caisseImprevueSettings: '/caisse-imprevue/settings',
         // Véhicules
         vehicules: '/vehicules',

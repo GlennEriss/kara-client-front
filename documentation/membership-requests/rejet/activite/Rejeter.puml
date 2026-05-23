@@ -224,7 +224,7 @@ elseif (Action = "Envoyer WhatsApp") then (oui)
   - Bonjour {firstName}
   - Matricule: {matricule}
   - Motif de rejet: {motifReject}
-  - Template KARA Mutuelle;
+  - Template KARA Association;
   
   :Admin peut modifier le message
   (textarea modifiable);

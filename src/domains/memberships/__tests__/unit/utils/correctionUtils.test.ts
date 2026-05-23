@@ -142,7 +142,7 @@ describe('Correction Utils', () => {
       expect(message).toContain('Date de naissance incorrecte')
       expect(message).toContain('12-34-56') // Code formaté
       expect(message).toContain('/register?requestId=test-request-id')
-      expect(message).toContain('KARA Mutuelle')
+      expect(message).toContain('KARA Association')
     })
 
     it('devrait inclure le code formaté dans le message', () => {

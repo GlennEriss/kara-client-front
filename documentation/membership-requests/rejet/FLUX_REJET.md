@@ -187,14 +187,14 @@ if (!request) {
 **Template Email** :
 - Sujet : "Votre demande d'adhésion KARA a été rejetée"
 - Corps : Contenu du motif de rejet
-- Signature : KARA Mutuelle
+- Signature : KARA Association
 
 **Template SMS/WhatsApp** :
 ```typescript
 `Bonjour ${firstName},\n\n` +
 `Votre demande d'adhésion a été rejetée.\n\n` +
 `Motif: ${reason}\n\n` +
-`Cordialement,\nKARA Mutuelle`
+`Cordialement,\nKARA Association`
 ```
 
 ### 9. Invalidation du Cache React Query

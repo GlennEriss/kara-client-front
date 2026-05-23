@@ -1,4 +1,4 @@
-# Tests E2E - KARA Mutuelle
+# Tests E2E - KARA Association
 
 Ce dossier contient les tests End-to-End (E2E) utilisant Playwright.
 

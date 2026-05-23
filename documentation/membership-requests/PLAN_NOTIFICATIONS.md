@@ -100,7 +100,7 @@ Votre demande d'adhésion a été approuvée !
 Votre matricule: {matricule}
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Quand :** Après création réussie de l'utilisateur Firebase et mise à jour du statut
@@ -152,7 +152,7 @@ Votre demande d'adhésion a été rejetée.
 {motif: Motif: {reason}}
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Quand :** Après mise à jour du statut vers `rejected`
@@ -211,7 +211,7 @@ Lien de correction: {link}
 Code de sécurité: {code}
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Quand :** Après génération du code de sécurité et mise à jour du statut vers `under_review`

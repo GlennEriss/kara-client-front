@@ -272,10 +272,10 @@ service cloud.firestore {
       // Lecture : Admin ou propriétaire (via memberId)
       allow read: if isAdmin() ||
                      (isAuthenticated() && resource.data.memberId == request.auth.uid);
-      // Création : Admin ou membre déposant son contrat signé CI
+      // Création : Admin ou membre déposant son contrat signé CI ou CS
       allow create: if isAdmin() || (
         isAuthenticated() &&
-        request.resource.data.type == 'MEMBER_SIGNED_CI' &&
+        request.resource.data.type in ['MEMBER_SIGNED_CI', 'MEMBER_SIGNED_CS'] &&
         (request.resource.data.memberId == request.auth.uid ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == request.resource.data.memberId))
@@ -479,8 +479,14 @@ service cloud.firestore {
         !('convertedAt' in request.resource.data)
       );
 
-      // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, conversion)
-      allow update: if isAdmin();
+      // MISE À JOUR : Admin (approbation, refus, réouverture, conversion) ou membre annulant sa propre demande PENDING
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        isCaisseImprevueMember(resource.data.memberId) &&
+        resource.data.status == 'PENDING' &&
+        request.resource.data.status == 'CANCELED' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
 
       // SUPPRESSION : Admin uniquement (PENDING, APPROVED, REJECTED — pas CONVERTED)
       allow delete: if isAdmin() && resource.data.status in ['PENDING', 'APPROVED', 'REJECTED'];
@@ -502,8 +508,15 @@ service cloud.firestore {
       allow create: if isAdmin() &&
         request.resource.data.settingsVersion is string &&
         request.resource.data.settingsVersion.size() > 0;
-      // Mises à jour/Suppression : Admin uniquement
-      allow update, delete: if isAdmin();
+      // Mise à jour : Admin ou membre déposant son contrat signé
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        isCaisseImprevueMember(resource.data.memberId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberSignedStatus', 'memberSignedAt', 'memberSignedDocumentId']) &&
+        request.resource.data.memberSignedStatus == 'PENDING_ADMIN'
+      );
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
 
       // Sous-collection : versements (échéances mensuelles)
       // Lecture : Admin ou membre propriétaire du contrat parent

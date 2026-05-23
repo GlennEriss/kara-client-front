@@ -404,7 +404,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
 
         {/* Texte de reconnaissance */}
         <Text style={styles.paragraph}>
-          Je soussigné M/Mme/Mlle <Text style={styles.bold}>{member.lastName.toUpperCase()} {member.firstName}</Text> de nationalité <Text style={styles.bold}>{getNationalityName(member.nationality)}</Text> membre de l'Association <Text style={styles.bold}>LE KARA</Text> par la présente, je reconnais avoir reçu de la mutuelle un accompagnement financier, conformément aux dispositions du règlement intérieur, d'un montant de
+          Je soussigné M/Mme/Mlle <Text style={styles.bold}>{member.lastName.toUpperCase()} {member.firstName}</Text> de nationalité <Text style={styles.bold}>{getNationalityName(member.nationality)}</Text> membre de l'Association <Text style={styles.bold}>LE KARA</Text> par la présente, je reconnais avoir reçu de l'association un accompagnement financier, conformément aux dispositions du règlement intérieur, d'un montant de
         </Text>
 
         <Text style={styles.amountLine}>

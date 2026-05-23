@@ -769,13 +769,19 @@ export default function ContractPaymentsPage() {
     <div className="p-4 sm:p-6 space-y-6 overflow-x-hidden">
       {/* En-tête avec bouton retour */}
       <div className="space-y-2">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <Link
             href={routes.admin.caisseSpecialeContractDetails(contractId)}
             className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
             Retour au contrat
+          </Link>
+          <Link
+            href={routes.admin.caisseSpecialeContractRefunds(contractId)}
+            className="flex items-center gap-2 text-orange-600 hover:text-orange-800 transition-colors"
+          >
+            Remboursements &amp; Déclarations →
           </Link>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Historique des Versements</h1>

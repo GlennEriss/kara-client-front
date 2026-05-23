@@ -32,7 +32,7 @@ export interface SubscriptionCI {
  * Interface pour le contact d'urgence
  */
 export interface EmergencyContactCI {
-  memberId?: string // Si le contact est un membre de la mutuelle
+  memberId?: string // Si le contact est un membre de l'association
   lastName: string
   firstName?: string
   phone1: string

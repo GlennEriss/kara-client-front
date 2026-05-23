@@ -59,7 +59,7 @@ ${motifReject}
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Mutuelle`
+KARA Association`
 }
 
 export function RejectWhatsAppModalV2({

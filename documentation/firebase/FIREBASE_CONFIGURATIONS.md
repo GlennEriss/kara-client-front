@@ -1,4 +1,4 @@
-# Configurations Firebase — KARA Mutuelle
+# Configurations Firebase — KARA Association
 
 > Récapitulatif des configurations Firebase pour les 3 environnements
 

@@ -105,7 +105,7 @@ const {
 // Pour toute question, veuillez contacter notre service client.
 //
 // Cordialement,
-// L'équipe KARA Mutuelle
+// L'équipe KARA Association
 // `
 
 // try {
@@ -132,7 +132,7 @@ const {
 // ⚠️ OPTIONNEL - À implémenter dans une phase ultérieure
 // import { sendSMS } from '@/utils/sms' // À créer/utiliser
 
-// const smsMessage = `Bonjour ${firstName},\n\nVotre demande d'adhésion KARA (${matricule}) a été rejetée.\n\nMotif: ${motifReject}\n\nCordialement, KARA Mutuelle`
+// const smsMessage = `Bonjour ${firstName},\n\nVotre demande d'adhésion KARA (${matricule}) a été rejetée.\n\nMotif: ${motifReject}\n\nCordialement, KARA Association`
 
 // try {
 //   // Récupérer le premier numéro de téléphone disponible
@@ -198,7 +198,7 @@ Motif de rejet:
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-L'équipe KARA Mutuelle
+L'équipe KARA Association
 ```
 
 ### Version HTML
@@ -225,7 +225,7 @@ L'équipe KARA Mutuelle
     
     <p>Pour toute question, veuillez contacter notre service client.</p>
     
-    <p>Cordialement,<br>L'équipe KARA Mutuelle</p>
+    <p>Cordialement,<br>L'équipe KARA Association</p>
   </div>
 </body>
 </html>
@@ -242,7 +242,7 @@ Votre demande d'adhésion KARA ({matricule}) a été rejetée.
 
 Motif: {motifReject}
 
-Cordialement, KARA Mutuelle
+Cordialement, KARA Association
 ```
 
 **Limite** : 160 caractères (SMS standard) ou 1600 caractères (SMS long)

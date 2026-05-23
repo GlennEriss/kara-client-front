@@ -47,7 +47,7 @@ Motif de rejet:
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 **Priorité** : Optionnel (non prioritaire pour l'instant)

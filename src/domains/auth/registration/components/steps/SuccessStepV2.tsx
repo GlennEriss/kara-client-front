@@ -54,7 +54,7 @@ export default function SuccessStepV2({ userData }: SuccessStepV2Props) {
 
   const handleWhatsAppClick = () => {
     const message = encodeURIComponent(
-      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via ${currentProvider} pour finaliser mon inscription.`
+      `Bonjour, je viens de soumettre ma demande d'inscription à l'Association Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via ${currentProvider} pour finaliser mon inscription.`
     )
     window.open(`https://wa.me/${whatsappNumber.replace(/\s/g, '')}?text=${message}`, '_blank')
   }
@@ -111,7 +111,7 @@ export default function SuccessStepV2({ userData }: SuccessStepV2Props) {
           <div className="flex items-center justify-center gap-3 mb-4">
             <Shield className="w-5 h-5 text-green-500" />
             <p className="text-green-700 font-medium">
-              Votre demande à la <strong>Mutuelle Kara</strong> a été enregistrée
+              Votre demande à l'<strong>Association Kara</strong> a été enregistrée
             </p>
             <Heart className="w-5 h-5 text-red-400 animate-pulse" />
           </div>
@@ -123,7 +123,7 @@ export default function SuccessStepV2({ userData }: SuccessStepV2Props) {
               <span className="font-semibold">Finalisation requise</span>
             </div>
             <p className="text-slate-600 text-sm mb-4">
-              Pour activer votre mutuelle, veuillez effectuer le paiement :
+              Pour activer votre association, veuillez effectuer le paiement :
             </p>
 
             {/* Sélecteur de provider */}
@@ -234,7 +234,7 @@ export default function SuccessStepV2({ userData }: SuccessStepV2Props) {
         <div className="mt-8 text-center animate-in fade-in-0 duration-500 delay-700">
           <div className="inline-flex items-center gap-2 text-slate-500">
             <Heart className="w-4 h-4 text-red-400" />
-            <span className="text-sm">Bienvenue dans la famille <strong>Mutuelle Kara</strong></span>
+            <span className="text-sm">Bienvenue dans la famille <strong>Association Kara</strong></span>
             <Heart className="w-4 h-4 text-red-400" />
           </div>
         </div>

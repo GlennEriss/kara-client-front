@@ -1,4 +1,4 @@
-# Prochaines Étapes — KARA Mutuelle
+# Prochaines Étapes — KARA Association
 
 > Guide des prochaines étapes selon le WORKFLOW.md
 

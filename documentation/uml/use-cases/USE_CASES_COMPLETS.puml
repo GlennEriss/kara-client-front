@@ -6,7 +6,7 @@ skinparam usecase {
   BorderColor DarkBlue
 }
 
-title Use Cases Complets - KARA Mutuelle\n(Niveau Architecte Senior)
+title Use Cases Complets - KARA Association\n(Niveau Architecte Senior)
 
 ' ============================================
 ' ACTEURS PRINCIPAUX
@@ -85,7 +85,7 @@ package "Domaine Infrastructure" {
 package "Domaine Membership" {
   
   package "Gestion des Inscriptions" {
-    usecase "UC-MEM-001: S'inscrire à la mutuelle\n(formulaire public)" as UC_REGISTER
+    usecase "UC-MEM-001: S'inscrire à l'association\n(formulaire public)" as UC_REGISTER
     usecase "UC-MEM-002: Valider une demande d'inscription" as UC_VALIDATE
     usecase "UC-MEM-003: Refuser une demande d'inscription" as UC_REJECT
     usecase "UC-MEM-004: Consulter les demandes\n(en attente)" as UC_LIST_REQUESTS

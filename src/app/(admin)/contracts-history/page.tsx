@@ -42,7 +42,7 @@ import * as XLSX from 'xlsx'
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   ADHESION_CS: 'Adhésion Caisse Spéciale',
   ADHESION_CI: 'Adhésion Caisse Imprévue',
-  ADHESION: 'Adhésion Mutuelle',
+  ADHESION: 'Adhésion association',
   CANCELED_CS: 'Annulation Caisse Spéciale',
   CANCELED_CI: 'Annulation Caisse Imprévue',
   FINISHED_CS: 'Fin Caisse Spéciale',

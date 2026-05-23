@@ -128,7 +128,7 @@ export interface ICreditSpecialeService {
     getRemunerationsByGuarantorId(guarantorId: string): Promise<GuarantorRemuneration[]>;
     getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]>;
 
-    // Paiement au garant (preuve du versement effectué par la mutuelle)
+    // Paiement au garant (preuve du versement effectué par l'association)
     recordGuarantorPayment(
         creditId: string,
         data: { paymentDate: Date; paymentTime: string; amount: number; mode: GuarantorPayment['mode']; reference?: string; comment?: string },

@@ -402,7 +402,7 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
           </Text>
 
           <Text style={{ marginTop: 15 }}>
-            Cette quittance est libératoire de tout engagement de l'association Kara vis-à-vis de l'épargnant.
+            Cette quittance est libératoire de tout engagement de l'Association Kara vis-à-vis de l'épargnant.
             Elle est établie pour faire valoir ce que de droit.
           </Text>
 

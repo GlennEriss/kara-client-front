@@ -203,7 +203,7 @@ async function migrate() {
           console.log(`   🔄 [DRY-RUN] Contrat ${contractId} ← ${JSON.stringify(Object.keys(update))}: "${previewStr}..."`)
           updated++
         } else {
-          batch.update(contractRef, update)
+          batch.update(contractRef, update as any)
           batchCount++
           updated++
           console.log(`   ✅ Contrat ${contractId} ← ${JSON.stringify(Object.keys(update))}: "${previewStr}..."`)

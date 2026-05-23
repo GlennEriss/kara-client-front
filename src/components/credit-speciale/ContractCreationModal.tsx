@@ -698,7 +698,7 @@ export default function ContractCreationModal({
             <Alert className="border-purple-200 bg-purple-50">
               <Users className="h-4 w-4 text-purple-600" />
               <AlertDescription className="text-purple-800">
-                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de la mutuelle et recevra une rémunération sur chaque échéance (calculée sur le reste dû, maximum 7 mois).
+                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de l'association et recevra une rémunération sur chaque échéance (calculée sur le reste dû, maximum 7 mois).
               </AlertDescription>
             </Alert>
 

@@ -25,7 +25,7 @@ export default function AuthLayout({
   headerIcon,
   headerTitle,
   showBackButton = true,
-  footerText = "© 2025 KARA - Mutuelle de Solidarité"
+  footerText = "© 2025 KARA - association de Solidarité"
 }: AuthLayoutProps) {
   const router = useRouter()
 

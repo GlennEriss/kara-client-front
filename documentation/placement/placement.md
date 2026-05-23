@@ -1,6 +1,6 @@
 # Placement — Contexte
 
-## Processus étudié : Gestion des placements (Mutuelle Kara)
+## Processus étudié : Gestion des placements (Association Kara)
 1- Appeler une personne pour demander un prêt de fonds (Équipe Kara).  
 2- Répondre à une personne qui souhaite placer son argent, accepter ou refuser selon le besoin (Équipe Kara).  
 3- Recevoir les fonds (virement ou récupération physique) (Bienfaiteur, Équipe Kara).  

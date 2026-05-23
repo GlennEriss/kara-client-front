@@ -35,7 +35,7 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
           />
         </div>
         <h2 style={{ color: '#234D65', marginBottom: '4px', fontSize: '20px', fontWeight: 'bold' }}>
-          MUTUELLE KARA
+          Association KARA
         </h2>
         <h3 style={{ color: '#2c5a73', textDecoration: 'underline', fontSize: '16px', fontWeight: 'bold' }}>
           VOLET ENTRAIDE
@@ -133,7 +133,7 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
           destinées à octroyer des fonds monétaires à l&apos;adhérent au cours de l&apos;année.
         </p>
         <p>
-          Au titre de la présente garantie, l&apos;association KARA s&apos;engage, en contrepartie d&apos;une prime
+          Au titre de la présente garantie, l&apos;Association KARA s&apos;engage, en contrepartie d&apos;une prime
           mensuelle (<b>{contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA</b>),
           à octroyer à l&apos;adhérent un montant compris entre 30 000 et 150 000 FCFA à taux nul (0%)
           remboursable dans une durée définie. Ce prêt est dit : <b>accompagnement régulier</b>.
@@ -145,7 +145,7 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
         Les clauses du contrat :
       </h4>
       <ul style={{ marginLeft: '20px' }}>
-        <li><b>L&apos;adhérent :</b> Est un membre de la mutuelle qui souscrit au Volet Entraide.</li>
+        <li><b>L&apos;adhérent :</b> Est un membre de l'association qui souscrit au Volet Entraide.</li>
         <li><b>Le nominal :</b> Correspond au versement mensuel sous 12 mois.</li>
         <li><b>L&apos;accompagnement régulier :</b> Montant maximum empruntable selon le forfait.</li>
       </ul>

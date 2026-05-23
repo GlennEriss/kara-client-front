@@ -2,7 +2,7 @@
 
 ## 1. Contexte et périmètre
 
-### Processus étudié : Gestion des crédits exceptionnels (Mutuelle Kara)
+### Processus étudié : Gestion des crédits exceptionnels (Association Kara)
 
 1- Solliciter un accompagnement exceptionnel (demande de prêt d'un montant) (Client).  
 2- Demander au client comment il souhaite rembourser le prêt (Équipe Kara).  
@@ -12,7 +12,7 @@
 6- Proposer un montant minimum qui ne dépasse pas 7 mois, sinon amener le client à revoir son montant d'emprunt à la baisse (Équipe Kara, Client).  
 7- Faire une simulation personnalisée en indiquant le montant que le client est capable de donner chaque mois (ex: 1er versement 30 000 FCFA, 2ème 0 FCFA, 3ème 100 000 FCFA...) jusqu'à remboursement total (Client).  
 8- Générer 2 tableaux récapitulatifs : un sur 7 mois et un qui suit les tarifs d'accord du client sur ses versements (Équipe Kara).  
-9- Enregistrer les infos du client (nom, prénom), le garant (membre de la mutuelle ou admin), le lien de parenté avec le garant, le numéro de téléphone, la cause du crédit (Équipe Kara, Garant).  
+9- Enregistrer les infos du client (nom, prénom), le garant (membre de l'association ou admin), le lien de parenté avec le garant, le numéro de téléphone, la cause du crédit (Équipe Kara, Garant).  
 10- Vérifier l'éligibilité : enregistrer l'emprunt uniquement si le client est à jour à la caisse imprévue et/ou si son garant est à jour à la caisse imprévue (l'un des 2 doit être à jour). Pour quelqu'un qui n'a jamais fait de module, refuser automatiquement sauf cas particulier accepté par l'admin (Équipe Kara, Garant).  
 11- Générer un contrat (Équipe Kara).  
 12- Signer le contrat (Client).  
@@ -23,7 +23,7 @@
 17- Notifier le client des pénalités et lui laisser le choix de les rembourser ou non à chaque versement (Équipe Kara, Client).  
 18- Bloquer une nouvelle demande si, en fin de contrat, aucune pénalité n'a été remboursée (Équipe Kara).  
 19- Générer une décharge en fin de remboursement de l'emprunt (Équipe Kara).  
-20- Rémunérer le garant membre de la mutuelle (parrain) à un pourcentage variable (0% à 5%) du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois (Équipe Kara, Garant).  
+20- Rémunérer le garant membre de l'association (parrain) à un pourcentage variable (0% à 5%) du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois (Équipe Kara, Garant).  
 21- Permettre au garant de consulter l'historique de ses rémunérations (Garant, Équipe Kara).  
 22- Augmenter le montant d'un crédit en cours : si un client a déjà un contrat actif (même sans échéance payée), permettre d'ajouter un montant supplémentaire au crédit et recalculer le contrat comme un nouveau contrat (Équipe Kara, Client).
 
@@ -67,7 +67,7 @@
 18- Notifier automatiquement le client des pénalités à chaque versement et enregistrer son choix de les rembourser ou non (Système, Client).  
 19- Bloquer automatiquement les nouveaux emprunts si des pénalités impayées existent sur le dernier crédit terminé (Système).  
 20- Générer automatiquement la décharge en fin de remboursement complet (Système, Équipe Kara).  
-21- Calculer et attribuer automatiquement un pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance au garant membre (parrain) si c'est un membre de la mutuelle, calculé sur maximum 7 mois (Système, Garant).  
+21- Calculer et attribuer automatiquement un pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance au garant membre (parrain) si c'est un membre de l'association, calculé sur maximum 7 mois (Système, Garant).  
 22- Permettre au garant de consulter l'historique de ses rémunérations (Système, Garant, Équipe Kara).  
 23- Planifier automatiquement les rappels d'échéance et notifier le client (Système).  
 24- Suivre automatiquement l'état de chaque crédit (en cours, transformé, terminé) et afficher les statistiques (Système).  
@@ -132,7 +132,7 @@ Offrir un module Crédit spéciale qui automatise la gestion des demandes de pr�
   - Refus si la simulation dépasse 7 mois (avec proposition de montant minimum)
   - Transformation en crédit fixe après 7 mois si non remboursé
   - Pénalités en cas de retard de paiement
-  - Garant requis (membre ou admin de la mutuelle)
+  - Garant requis (membre ou admin de l'association)
   - Contrat signé obligatoire
   - Décharge à la fin du remboursement
 
@@ -457,7 +457,7 @@ Cette règle s'applique à :
 3. L'admin vérifie les informations et clique sur "Suivant"
 
 **Étape 2 - Rémunération du parrain** (si le garant est un parrain membre) :
-1. Le système vérifie si le garant est un membre de la mutuelle qui a parrainé le client
+1. Le système vérifie si le garant est un membre de l'association qui a parrainé le client
 2. Si oui, affiche :
    - Un tableau de rémunération montrant pour chaque mensualité :
      - Le mois et la date
@@ -797,12 +797,12 @@ Cette règle s'applique à :
 
 **Acteur** : Système (automatique)
 
-**Objectif** : Calculer et attribuer un pourcentage variable (0% à 5%) du montant global (capital + intérêts) au garant si c'est un membre de la mutuelle, limité à 7 mois maximum
+**Objectif** : Calculer et attribuer un pourcentage variable (0% à 5%) du montant global (capital + intérêts) au garant si c'est un membre de l'association, limité à 7 mois maximum
 
 **Préconditions** :
 - Le crédit a un garant de type `MEMBER`
 - Un versement mensuel a été effectué
-- Le garant est un membre de la mutuelle (pas un admin)
+- Le garant est un membre de l'association (pas un admin)
 - Le mois du paiement est inférieur ou égal à 7
 
 **Scénario principal** :
@@ -1071,7 +1071,7 @@ Un membre peut obtenir un crédit si :
 ### 5.6. Rémunération du garant
 
 - Les bonus ne s'appliquent qu'aux garants qui ont apporté l'emprunteur (parrainage).  
-- Si le garant est un membre de la mutuelle (parrain), il peut recevoir une rémunération sur chaque mensualité versée.  
+- Si le garant est un membre de l'association (parrain), il peut recevoir une rémunération sur chaque mensualité versée.  
 - **Pourcentage par défaut** : 2% du montant global (capital + intérêts) de chaque échéance.  
 - **Personnalisation** : L'admin peut modifier le pourcentage lors de la création du contrat, entre 0% et 5% maximum.  
 - **Base de calcul** : La rémunération est calculée sur le montant global (capital + intérêts) de chaque échéance, et non sur le montant versé.  

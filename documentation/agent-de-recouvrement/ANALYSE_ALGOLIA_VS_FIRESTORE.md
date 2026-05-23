@@ -68,7 +68,7 @@ Le module agent de recouvrement nécessite :
 ### Pourquoi ne pas utiliser Algolia pour les agents ?
 
 1. **Volume trop faible**  
-   Les agents sont des employés de la mutuelle (typiquement 10-100). Algolia est conçu pour des volumes plus importants (milliers+). Firestore gère facilement ce volume.
+   Les agents sont des employés de l'association (typiquement 10-100). Algolia est conçu pour des volumes plus importants (milliers+). Firestore gère facilement ce volume.
 
 2. **Coût et complexité inutiles**  
    - Nouvel index Algolia = coût API supplémentaire  

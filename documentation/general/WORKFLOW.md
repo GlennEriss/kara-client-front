@@ -1,4 +1,4 @@
-# WORKFLOW.md — Workflow d'implémentation (Next.js + Firebase) — KARA Mutuelle (V1)
+# WORKFLOW.md — Workflow d'implémentation (Next.js + Firebase) — KARA Association (V1)
 
 > Objectif : un workflow **solide**, reproductible, avec **gating tests** et **déploiements contrôlés** (préprod puis prod).
 
@@ -8,11 +8,11 @@
 
 ## Contexte Métier
 
-**KARA** est une **mutuelle d'aide** pour les Gabonais dans le besoin et pour les associations.
+**KARA** est une **association d'aide** pour les Gabonais dans le besoin et pour les associations.
 
 ### Objectifs de l'application
 
-- **Dashboard admin** pour gérer les membres de la mutuelle
+- **Dashboard admin** pour gérer les membres de l'association
 - **Inscription des membres** : Les membres peuvent s'inscrire via un formulaire public
 - **Gestion des demandes** : Les admins KARA acceptent ou refusent les demandes d'inscription
 - **Modules de services** : Une fois inscrits, les membres participent à différents modules gérés par les admins KARA :
@@ -365,13 +365,13 @@ Voir section "Étape B — Analyse & conception" ci-dessous.
 **Exemple de structure dans le fichier .puml** :
 ```plantuml
 @startuml
-title Use Cases - KARA Mutuelle
+title Use Cases - KARA Association
 
 ' ============================================
 ' MODULE : MEMBERSHIP (Gestion des Membres)
 ' ============================================
 package "Membership" {
-  usecase "UC-MEM-001: S'inscrire à la mutuelle" as UC_REGISTER
+  usecase "UC-MEM-001: S'inscrire à l'association" as UC_REGISTER
   usecase "UC-MEM-002: Valider une demande d'inscription" as UC_VALIDATE
   usecase "UC-MEM-003: Refuser une demande d'inscription" as UC_REJECT
   usecase "UC-MEM-004: Consulter la liste des membres" as UC_LIST_MEMBERS

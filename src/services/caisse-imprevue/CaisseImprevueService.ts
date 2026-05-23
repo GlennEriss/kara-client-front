@@ -714,33 +714,19 @@ export class CaisseImprevueService implements ICaisseImprevueService {
      * - paymentCount: nombre de documents dans la collection payments
      * - supportCount: nombre total d'aides reçues
      */
-    async getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; supportCount: number }> {
+    async getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; paidMonthsCount: number; supportCount: number }> {
         try {
-            // 1. Récupérer tous les paiements
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
-            
-            // 2. Calculer le montant total versé (somme des accumulatedAmount = montant réellement payé)
             const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
-            
-            // 3. Nombre de versements (nombre de documents dans la collection payments)
             const paymentCount = payments.length
-            
-            // 4. Nombre total d'aides reçues
+            const paidMonthsCount = payments.filter(p => p.status === 'PAID').length
             const supports = await this.getSupportHistory(contractId)
             const supportCount = supports.length
 
-            return {
-                totalAmountPaid,
-                paymentCount,
-                supportCount
-            }
+            return { totalAmountPaid, paymentCount, paidMonthsCount, supportCount }
         } catch (error) {
             console.error('Erreur lors du calcul des statistiques de paiement:', error)
-            return {
-                totalAmountPaid: 0,
-                paymentCount: 0,
-                supportCount: 0
-            }
+            return { totalAmountPaid: 0, paymentCount: 0, paidMonthsCount: 0, supportCount: 0 }
         }
     }
 

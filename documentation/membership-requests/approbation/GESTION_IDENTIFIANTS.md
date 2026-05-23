@@ -89,7 +89,7 @@ export const cleanExpiredApprovalCredentials = onSchedule(
 ```
 Bonjour {firstName},
 
-Votre demande d'adhésion a été approuvée ! Vous êtes maintenant membre de KARA Mutuelle.
+Votre demande d'adhésion a été approuvée ! Vous êtes maintenant membre de KARA Association.
 
 Vos identifiants de connexion :
 - Email : {email}
@@ -100,7 +100,7 @@ Vous pouvez vous connecter sur : https://kara.ga/login
 ⚠️ Pour des raisons de sécurité, veuillez changer votre mot de passe après votre première connexion.
 
 Cordialement,
-KARA Mutuelle
+KARA Association
 ```
 
 #### 1.4. API d'Envoi

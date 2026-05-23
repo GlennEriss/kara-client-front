@@ -113,6 +113,15 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    match /contracts-cs/refunds/{contractId}/{refundId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && request.resource.size < 20 * 1024 * 1024)
+      );
+      allow delete: if isAdmin();
+    }
+
     match /contracts-ci/{memberId}/{contractId}/{fileName} {
       allow read: if isAdmin() || (
         isAuthenticated() && (
@@ -166,7 +175,10 @@ service firebase.storage {
 
     match /contracts/{contractId}/{fileName} {
       allow read: if isAdmin();
-      allow write: if isAdmin() && isPDF() && isPDFSizeValid();
+      allow write: if isAdmin() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && isImageSizeValid())
+      );
       allow delete: if isAdmin();
     }
 
@@ -379,6 +391,16 @@ service firebase.storage {
       allow write: if isAuthenticated() && (
         (isImage() && isImageSizeValid()) ||
         (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Contrat signé par le membre CS (en attente de validation admin)
+    match /contrat-signe-cs/{allPaths=**} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAuthenticated() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && isImageSizeValid())
       );
       allow delete: if isAdmin();
     }

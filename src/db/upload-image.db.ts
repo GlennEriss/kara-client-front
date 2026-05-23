@@ -184,6 +184,7 @@ export async function createFile(file: File, ownerId: string, location: string):
     
     // File metadata including owner information
     const metadata = {
+      contentType: file.type || undefined,
       customMetadata: {
         owner: ownerId,
         status: 'InProgress'

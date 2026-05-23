@@ -291,7 +291,7 @@ Le PDF de la fiche d'adhésion est obligatoire et doit être archivé :
 - Nom du fichier : `Identifiants_Connexion_{matricule}_{date}.pdf`
 
 **Contenu du PDF** :
-- Logo KARA Mutuelle
+- Logo KARA Association
 - Informations du membre (nom, prénom, matricule)
 - Identifiants de connexion (email, mot de passe)
 - Instructions de connexion

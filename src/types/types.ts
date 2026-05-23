@@ -810,12 +810,12 @@ export interface ContractCI {
 /**
  * Statut d'un retrait anticipé CI
  */
-export type EarlyRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED'
+export type EarlyRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED' | 'REJECTED'
 
 /**
  * Statut d'un remboursement final CI (même structure que EarlyRefundCIStatus)
  */
-export type FinalRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED'
+export type FinalRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED' | 'REJECTED'
 
 /**
  * Type pour une demande de retrait anticipé CI
@@ -877,6 +877,17 @@ export interface EarlyRefundCI {
   paidAtTime?: string // Heure de paiement (HH:mm)
   paymentProofUrl?: string // URL de la preuve de paiement
   paymentProofPath?: string // Chemin storage de la preuve de paiement
+
+  // Document membre (soumis par le membre via portail)
+  documentUrl?: string
+  adminDocumentUrl?: string
+
+  // Rejet (optionnel)
+  rejectedBy?: string
+  rejectedAt?: Date
+  rejectionReason?: string
+
+  _submittedByMember?: boolean
 }
 
 /**
@@ -940,6 +951,17 @@ export interface FinalRefundCI {
   paidAtTime?: string // Heure de paiement (HH:mm)
   paymentProofUrl?: string // URL de la preuve de paiement
   paymentProofPath?: string // Chemin storage de la preuve de paiement
+
+  // Document membre (soumis par le membre via portail)
+  documentUrl?: string
+  adminDocumentUrl?: string
+
+  // Rejet (optionnel)
+  rejectedBy?: string
+  rejectedAt?: Date
+  rejectionReason?: string
+
+  _submittedByMember?: boolean
 }
 
 /**
@@ -1827,7 +1849,7 @@ export interface GuarantorRemuneration {
 export type GuarantorPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
 
 /**
- * Enregistrement du paiement effectué par la mutuelle au garant (preuve de versement de la commission)
+ * Enregistrement du paiement effectué par l'association au garant (preuve de versement de la commission)
  */
 export interface GuarantorPayment {
   id: string

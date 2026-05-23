@@ -720,7 +720,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           Je soussigné M/Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text> 
           </Text>
           <Text style={styles.paragraph12}>
-          de nationalité <Text style={{ fontWeight: 'bold' }}>{member.nationality} </Text>Membre de l’Association LE KARA par la présente, je reconnais avoir reçu de la mutuelle un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de : 
+          de nationalité <Text style={{ fontWeight: 'bold' }}>{member.nationality} </Text>Membre de l’Association LE KARA par la présente, je reconnais avoir reçu de l'association un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de : 
           </Text>
           <Text style={styles.paragraph12}>
          <Text style={{ fontWeight: 'bold',textAlign: 'center' }}> {formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres)</Text>,

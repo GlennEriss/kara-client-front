@@ -137,7 +137,7 @@ Pour effectuer les corrections, veuillez :
 ⚠️ Le code expire le ${expiryDateStr} (dans ${timeRemaining})
 
 Cordialement,
-KARA Mutuelle`
+KARA Association`
 
   return message
 }

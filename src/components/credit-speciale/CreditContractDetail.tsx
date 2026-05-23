@@ -3339,7 +3339,7 @@ export default function CreditContractDetail({
                             <strong>ℹ️ Pourquoi aucune commission ?</strong>
                           </p>
                           <p className="text-sm text-blue-700 text-left">
-                            Le garant n'est pas un membre de la mutuelle. Seuls les garants qui sont des membres de la mutuelle peuvent recevoir une commission.
+                            Le garant n'est pas un membre de l'association. Seuls les garants qui sont des membres de l'association peuvent recevoir une commission.
                           </p>
                         </div>
                       </div>
