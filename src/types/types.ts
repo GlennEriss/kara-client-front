@@ -300,6 +300,9 @@ export type NotificationType =
   | 'membership_rejected' // Demande d'adhésion rejetée (Membership Requests)
   | 'membership_reopened' // Dossier rejeté réouvert (Membership Requests)
   | 'membership_deleted' // Dossier rejeté supprimé définitivement (Membership Requests)
+  | 'credit_demand_created' // Nouvelle demande de crédit créée (depuis kara-members-front)
+  | 'charity_contribution_created' // Nouvelle contribution charité (bienfaiteur, depuis kara-members-front)
+  | 'vehicle_declared' // Nouvelle déclaration de véhicule (depuis kara-members-front)
 
 /**
  * Filtres pour les requêtes de notifications
@@ -338,6 +341,7 @@ export interface Notification {
   title: string
   message: string
   isRead: boolean
+  recipientId?: string // matricule ou uid du membre destinataire (absent = notification admin uniquement)
   createdAt: Date
   scheduledAt?: Date
   sentAt?: Date
@@ -1578,7 +1582,7 @@ export interface CreditDemand {
   clientLastName: string
   clientContacts: string[]
   creditType: CreditType
-  amount: number
+  amount?: number
   monthlyPaymentAmount?: number
   desiredDate: string // Date souhaitée pour le crédit
   cause: string

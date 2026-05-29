@@ -292,6 +292,7 @@ export default function CommissionReceiptModal({
       {selectedImage && (
         <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
           <DialogContent className="max-w-5xl max-h-[95vh] p-0">
+            <DialogTitle className="sr-only">Aperçu de l&apos;image</DialogTitle>
             <div className="relative w-full h-[90vh] bg-black">
               <Button
                 variant="ghost"

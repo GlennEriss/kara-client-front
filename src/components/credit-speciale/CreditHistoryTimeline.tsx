@@ -133,7 +133,7 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
         type: 'demand',
         date: demandCreatedDate,
         title: 'Demande créée',
-        description: `Demande de crédit ${history.demand.creditType} de ${history.demand.amount.toLocaleString('fr-FR')} FCFA`,
+        description: `Demande de crédit ${history.demand.creditType}${history.demand.amount != null ? ` de ${history.demand.amount.toLocaleString('fr-FR')} FCFA` : ''}`,
         icon: FileText,
         color: '#3b82f6',
         badge: history.demand.status,

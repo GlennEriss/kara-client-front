@@ -10,6 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
@@ -39,28 +40,38 @@ export default function ValidateDemandModal({
   onSuccess,
 }: ValidateDemandModalProps) {
   const [comments, setComments] = useState('')
+  const [amount, setAmount] = useState('')
+  const [monthlyPaymentAmount, setMonthlyPaymentAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { updateStatus } = useCreditDemandMutations()
 
   React.useEffect(() => {
     if (isOpen) {
       setComments('')
+      setAmount(demand?.amount != null ? String(demand.amount) : '')
+      setMonthlyPaymentAmount(demand?.monthlyPaymentAmount != null ? String(demand.monthlyPaymentAmount) : '')
     }
-  }, [isOpen])
+  }, [isOpen, demand])
 
   const handleSubmit = async () => {
     if (!demand) return
 
     const newStatus: CreditDemandStatus = action === 'approve' ? 'APPROVED' : 'REJECTED'
 
-    // Validation : motif requis pour l'approbation et le rejet
     if (!comments.trim()) {
-      toast.error(
-        action === 'approve' 
-          ? 'Veuillez indiquer le motif d\'approbation' 
-          : 'Veuillez indiquer le motif du rejet'
-      )
+      toast.error(action === 'approve' ? 'Veuillez indiquer le motif d\'approbation' : 'Veuillez indiquer le motif du rejet')
       return
+    }
+
+    if (action === 'approve') {
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        toast.error('Veuillez saisir un montant valide')
+        return
+      }
+      if (monthlyPaymentAmount && (isNaN(Number(monthlyPaymentAmount)) || Number(monthlyPaymentAmount) <= 0)) {
+        toast.error('Veuillez saisir une mensualité valide')
+        return
+      }
     }
 
     try {
@@ -69,6 +80,10 @@ export default function ValidateDemandModal({
         id: demand.id,
         status: newStatus,
         comments: comments.trim(),
+        ...(action === 'approve' && {
+          amount: Number(amount),
+          ...(monthlyPaymentAmount && { monthlyPaymentAmount: Number(monthlyPaymentAmount) }),
+        }),
       })
       
       toast.success(
@@ -120,13 +135,47 @@ export default function ValidateDemandModal({
               <div className="space-y-2">
                 <p><strong>Client:</strong> {demand.clientFirstName} {demand.clientLastName}</p>
                 <p><strong>Type:</strong> {demand.creditType}</p>
-                <p><strong>Montant:</strong> {demand.amount.toLocaleString('fr-FR')} FCFA</p>
+                <p><strong>Montant:</strong> {demand.amount != null ? `${demand.amount.toLocaleString('fr-FR')} FCFA` : 'À définir'}</p>
                 {demand.guarantorId && (
                   <p><strong>Garant:</strong> {demand.guarantorFirstName} {demand.guarantorLastName}</p>
                 )}
               </div>
             </AlertDescription>
           </Alert>
+
+          {/* Montant et mensualité — uniquement à l'approbation */}
+          {action === 'approve' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount" className="text-sm font-semibold text-gray-900">
+                  Montant accordé (FCFA) *
+                </Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  min={0}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Ex : 500000"
+                  className="border-gray-300 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="monthlyPaymentAmount" className="text-sm font-semibold text-gray-900">
+                  Mensualité (FCFA)
+                </Label>
+                <Input
+                  id="monthlyPaymentAmount"
+                  type="number"
+                  min={0}
+                  value={monthlyPaymentAmount}
+                  onChange={(e) => setMonthlyPaymentAmount(e.target.value)}
+                  placeholder="Ex : 50000"
+                  className="border-gray-300 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65]"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Motif d'approbation ou de rejet */}
           <div className="space-y-2">
@@ -187,7 +236,11 @@ export default function ValidateDemandModal({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || !comments.trim()}
+            disabled={
+              isSubmitting ||
+              !comments.trim() ||
+              (action === 'approve' && !amount)
+            }
             className={
               action === 'approve'
                 ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700'

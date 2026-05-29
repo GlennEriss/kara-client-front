@@ -4,7 +4,7 @@
  * @param timestamp - Date, Firestore Timestamp, string ou null/undefined
  * @returns Date formatée en français (ex: "15 janvier 2024, 14:30") ou "Non définie" si invalide
  */
-export function formatDateDetailed(timestamp: any): string {
+export function formatDateDetailed(timestamp: any, showTime = true): string {
   // Gestion NaN explicitement (avant le check null/undefined car NaN est falsy)
   if (typeof timestamp === 'number' && isNaN(timestamp)) {
     return 'Date invalide'
@@ -22,6 +22,7 @@ export function formatDateDetailed(timestamp: any): string {
     // Gestion Date native
     else if (timestamp instanceof Date) {
       date = timestamp
+      if (isNaN(date.getTime())) return 'Date invalide'
     }
     // Gestion string
     else if (typeof timestamp === 'string') {
@@ -42,8 +43,7 @@ export function formatDateDetailed(timestamp: any): string {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      ...(showTime && { hour: '2-digit', minute: '2-digit' }),
     })
   } catch (error) {
     return 'Date invalide'

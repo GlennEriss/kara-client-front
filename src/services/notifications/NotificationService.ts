@@ -13,7 +13,7 @@ export class NotificationService {
   ) {}
 
   /**
-   * Crée une notification générique
+   * Crée une notification générique (ciblée admin)
    */
   async createNotification(params: {
     module: NotificationModule
@@ -34,6 +34,36 @@ export class NotificationService {
       metadata: params.metadata,
       scheduledAt: params.scheduledAt,
     })
+  }
+
+  /**
+   * Crée une notification destinée à un membre (avec recipientId).
+   * Le portail membre filtre par `recipientId == matricule || recipientId == uid`.
+   * Silencieux : une erreur ne doit jamais bloquer le flux principal.
+   */
+  async notifyMember(params: {
+    recipientId: string     // matricule ou uid du membre
+    module: NotificationModule
+    entityId: string
+    type: NotificationType
+    title: string
+    message: string
+    metadata?: Record<string, any>
+  }): Promise<void> {
+    try {
+      await this.repository.create({
+        module: params.module,
+        entityId: params.entityId,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        isRead: false,
+        recipientId: params.recipientId,
+        metadata: params.metadata,
+      })
+    } catch (error) {
+      console.error('[NotificationService.notifyMember] échec silencieux:', error)
+    }
   }
 
   /**

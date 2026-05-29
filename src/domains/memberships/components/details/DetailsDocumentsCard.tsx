@@ -4,13 +4,14 @@
 
 'use client'
 
-import { IdCard, Calendar, MapPin, FileText, ExternalLink, Download, AlertCircle, Upload } from 'lucide-react'
+import { IdCard, Calendar, MapPin, FileText, ExternalLink, Download, AlertCircle, Upload, ScanLine, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ModernCard } from './shared/ModernCard'
 import { InfoField } from './shared/InfoField'
 import { formatDateDetailed, isDateExpired } from '../../utils/details'
+import { useMembershipDocumentPhotos } from '../../hooks/useMembershipDocumentPhotos'
 import { toast } from 'sonner'
 import type { MembershipRequest } from '../../entities'
 
@@ -20,14 +21,19 @@ interface DetailsDocumentsCardProps {
   onViewAdhesionPdf?: () => void
   /** Affiche le bouton "Remplacer le PDF" (demande approuvée et payée) */
   onReplaceAdhesionPdf?: () => void
+  /** Ouvre la visionneuse complète recto/verso */
+  onViewDocumentPhotos?: () => void
 }
 
-export function DetailsDocumentsCard({ 
-  request, 
+export function DetailsDocumentsCard({
+  request,
   adhesionPdfUrlResolved,
   onViewAdhesionPdf,
   onReplaceAdhesionPdf,
+  onViewDocumentPhotos,
 }: DetailsDocumentsCardProps) {
+  const { frontURL: resolvedFrontURL, backURL: resolvedBackURL, isLoading: isLoadingPhotos } = useMembershipDocumentPhotos(request)
+
   const handleViewAdhesionPdf = () => {
     if (adhesionPdfUrlResolved) {
       window.open(adhesionPdfUrlResolved, '_blank', 'noopener,noreferrer')
@@ -118,9 +124,30 @@ export function DetailsDocumentsCard({
         </div>
         <InfoField label="Lieu d'émission" value={request.documents.issuingPlace} icon={MapPin} color="text-purple-600" />
 
+        {/* Bouton visionneuse complète */}
+        {(resolvedFrontURL || resolvedBackURL) && onViewDocumentPhotos && (
+          <div>
+            <Button
+              variant="outline"
+              onClick={onViewDocumentPhotos}
+              className="w-full border-indigo-300 text-indigo-700 hover:bg-indigo-50 gap-2"
+            >
+              <ScanLine className="w-4 h-4" />
+              Voir les photos de la pièce d&apos;identité
+            </Button>
+          </div>
+        )}
+
         {/* Images des documents */}
         <div className="space-y-4">
-          {request.documents.documentPhotoFrontURL && (
+          {isLoadingPhotos && !resolvedFrontURL && !resolvedBackURL && (
+            <div className="flex items-center justify-center gap-2 p-6 text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Recherche des photos d&apos;identité...</span>
+            </div>
+          )}
+
+          {resolvedFrontURL && (
             <div className="space-y-3">
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <IdCard className="w-4 h-4 text-blue-600" />
@@ -129,18 +156,19 @@ export function DetailsDocumentsCard({
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl z-10"></div>
                 <Image
-                  src={request.documents.documentPhotoFrontURL}
+                  src={resolvedFrontURL}
                   alt="Document recto"
                   width={400}
                   height={250}
                   className="w-full h-36 lg:h-48 object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-xl transition-all duration-300"
                   data-testid="details-identity-document-front"
+                  unoptimized
                 />
                 <div className="absolute top-2 right-2 lg:top-3 lg:right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 flex gap-1 lg:gap-2">
                   <Button
                     size="sm"
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3 text-xs"
-                    onClick={() => window.open(request.documents.documentPhotoFrontURL!, '_blank')}
+                    onClick={() => window.open(resolvedFrontURL, '_blank')}
                   >
                     <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 lg:mr-1" />
                     <span className="hidden lg:inline">Voir</span>
@@ -150,7 +178,7 @@ export function DetailsDocumentsCard({
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3"
                     onClick={() => {
                       const link = document.createElement('a')
-                      link.href = request.documents.documentPhotoFrontURL!
+                      link.href = resolvedFrontURL
                       link.download = 'document-recto.jpg'
                       link.click()
                     }}
@@ -162,7 +190,7 @@ export function DetailsDocumentsCard({
             </div>
           )}
 
-          {request.documents.documentPhotoBackURL && (
+          {resolvedBackURL && (
             <div className="space-y-3">
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <IdCard className="w-4 h-4 text-amber-600" />
@@ -171,18 +199,19 @@ export function DetailsDocumentsCard({
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl z-10"></div>
                 <Image
-                  src={request.documents.documentPhotoBackURL}
+                  src={resolvedBackURL}
                   alt="Document verso"
                   width={400}
                   height={250}
                   className="w-full h-36 lg:h-48 object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-xl transition-all duration-300"
                   data-testid="details-identity-document-back"
+                  unoptimized
                 />
                 <div className="absolute top-2 right-2 lg:top-3 lg:right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 flex gap-1 lg:gap-2">
                   <Button
                     size="sm"
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3 text-xs"
-                    onClick={() => window.open(request.documents.documentPhotoBackURL!, '_blank')}
+                    onClick={() => window.open(resolvedBackURL, '_blank')}
                   >
                     <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 lg:mr-1" />
                     <span className="hidden lg:inline">Voir</span>
@@ -192,7 +221,7 @@ export function DetailsDocumentsCard({
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3"
                     onClick={() => {
                       const link = document.createElement('a')
-                      link.href = request.documents.documentPhotoBackURL!
+                      link.href = resolvedBackURL
                       link.download = 'document-verso.jpg'
                       link.click()
                     }}
@@ -201,6 +230,15 @@ export function DetailsDocumentsCard({
                   </Button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {!isLoadingPhotos && !resolvedFrontURL && !resolvedBackURL && (
+            <div className="flex items-start gap-2 p-4 text-amber-700 bg-amber-50 rounded-xl border border-amber-200">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <p className="text-sm">
+                Aucune photo de pièce d&apos;identité trouvée pour cette demande.
+              </p>
             </div>
           )}
         </div>

@@ -1337,8 +1337,8 @@ export class PlacementService {
           module: 'placement',
           entityId: demand.id,
           type: 'placement_demand_approved' as any,
-          title: 'Demande acceptée',
-          message: `Votre demande de placement a été acceptée. Raison : ${reason}`,
+          title: 'Demande de placement acceptée',
+          message: `La demande ${demand.id} de ${benefactorName} a été acceptée par ${adminName}.`,
           metadata: {
             demandId: demand.id,
             decisionMadeBy: adminId,
@@ -1348,6 +1348,19 @@ export class PlacementService {
             benefactorId: demand.benefactorId,
           },
         });
+
+        // Notification membre
+        if (demand.benefactorId) {
+          void this.notificationService.notifyMember({
+            recipientId: demand.benefactorId,
+            module: 'placement',
+            entityId: demand.id,
+            type: 'placement_demand_approved' as any,
+            title: 'Demande de placement acceptée',
+            message: `Votre demande de placement a été acceptée. Raison : ${reason}`,
+            metadata: { demandId: demand.id, decisionReason: reason },
+          });
+        }
 
         // Notification à l'admin créateur si différent
         if (demand.createdBy !== adminId) {
@@ -1403,8 +1416,8 @@ export class PlacementService {
           module: 'placement',
           entityId: demand.id,
           type: 'placement_demand_rejected' as any,
-          title: 'Demande refusée',
-          message: `Votre demande de placement a été refusée. Raison : ${reason}`,
+          title: 'Demande de placement refusée',
+          message: `La demande ${demand.id} de ${benefactorName} a été refusée par ${adminName}. Raison : ${reason}`,
           metadata: {
             demandId: demand.id,
             decisionMadeBy: adminId,
@@ -1414,6 +1427,19 @@ export class PlacementService {
             benefactorId: demand.benefactorId,
           },
         });
+
+        // Notification membre
+        if (demand.benefactorId) {
+          void this.notificationService.notifyMember({
+            recipientId: demand.benefactorId,
+            module: 'placement',
+            entityId: demand.id,
+            type: 'placement_demand_rejected' as any,
+            title: 'Demande de placement refusée',
+            message: `Votre demande de placement a été refusée. Raison : ${reason}`,
+            metadata: { demandId: demand.id, decisionReason: reason },
+          });
+        }
 
         // Notification à l'admin créateur si différent
         if (demand.createdBy !== adminId) {

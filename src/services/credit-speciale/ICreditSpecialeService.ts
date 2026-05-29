@@ -26,7 +26,7 @@ export interface ICreditSpecialeService {
     getDemandById(id: string): Promise<CreditDemand | null>;
     getDemandsWithFilters(filters?: CreditDemandFilters): Promise<CreditDemand[]>;
     getDemandsStats(filters?: CreditDemandFilters): Promise<CreditDemandStats>;
-    updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string): Promise<CreditDemand | null>;
+    updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string, amount?: number, monthlyPaymentAmount?: number): Promise<CreditDemand | null>;
     /** Modifie les champs métier d'une demande (uniquement si status === PENDING). */
     updateDemandDetails(demandId: string, data: UpdateCreditDemandInput, adminId: string): Promise<CreditDemand | null>;
     /** Supprime une demande (uniquement si PENDING et sans contrat). */

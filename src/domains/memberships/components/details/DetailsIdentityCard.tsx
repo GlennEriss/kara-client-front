@@ -43,7 +43,7 @@ export function DetailsIdentityCard({
         <InfoField label="Nom" value={request.identity.lastName} icon={User} color="text-blue-600" />
         <InfoField 
           label="Date de naissance" 
-          value={formatDateDetailed(request.identity.birthDate)} 
+          value={formatDateDetailed(request.identity.birthDate, false)}
           icon={Calendar} 
           color="text-purple-600"
           data-testid="details-identity-birthdate"

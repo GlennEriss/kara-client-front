@@ -1179,8 +1179,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                     module: 'caisse_imprevue',
                     entityId: demand.id,
                     type: 'caisse_imprevue_demand_approved',
-                    title: 'Demande acceptée',
-                    message: `Votre demande de contrat Caisse Imprévue a été acceptée. Raison : ${reason}`,
+                    title: 'Demande Caisse Imprévue acceptée',
+                    message: `La demande ${demand.id} de ${memberName} a été acceptée par ${adminName}.`,
                     metadata: {
                         demandId: demand.id,
                         decisionMadeBy: adminId,
@@ -1190,6 +1190,19 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                         memberId: demand.memberId,
                     },
                 });
+
+                // Notification membre
+                if (demand.memberId) {
+                    void this.notificationService.notifyMember({
+                        recipientId: demand.memberId,
+                        module: 'caisse_imprevue',
+                        entityId: demand.id,
+                        type: 'caisse_imprevue_demand_approved',
+                        title: 'Demande de Caisse Imprévue acceptée',
+                        message: `Votre demande de contrat Caisse Imprévue a été acceptée. Raison : ${reason}`,
+                        metadata: { demandId: demand.id, decisionReason: reason },
+                    });
+                }
             } catch (error) {
                 console.error('Erreur lors de la création de la notification:', error);
             }
@@ -1226,8 +1239,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                     module: 'caisse_imprevue',
                     entityId: demand.id,
                     type: 'caisse_imprevue_demand_rejected',
-                    title: 'Demande refusée',
-                    message: `Votre demande de contrat Caisse Imprévue a été refusée. Raison : ${reason}`,
+                    title: 'Demande Caisse Imprévue refusée',
+                    message: `La demande ${demand.id} de ${memberName} a été refusée par ${adminName}. Raison : ${reason}`,
                     metadata: {
                         demandId: demand.id,
                         decisionMadeBy: adminId,
@@ -1237,6 +1250,19 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                         memberId: demand.memberId,
                     },
                 });
+
+                // Notification membre
+                if (demand.memberId) {
+                    void this.notificationService.notifyMember({
+                        recipientId: demand.memberId,
+                        module: 'caisse_imprevue',
+                        entityId: demand.id,
+                        type: 'caisse_imprevue_demand_rejected',
+                        title: 'Demande de Caisse Imprévue refusée',
+                        message: `Votre demande de contrat Caisse Imprévue a été refusée. Raison : ${reason}`,
+                        metadata: { demandId: demand.id, decisionReason: reason },
+                    });
+                }
             } catch (error) {
                 console.error('Erreur lors de la création de la notification:', error);
             }

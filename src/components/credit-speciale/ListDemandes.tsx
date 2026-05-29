@@ -1471,7 +1471,7 @@ const ListDemandes = ({
                     <div className="text-sm">
                       <span className="text-gray-500">Montant: </span>
                       <span className="font-semibold text-green-600">
-                        {demande.amount.toLocaleString('fr-FR')} FCFA
+                        {demande.amount != null ? demande.amount.toLocaleString('fr-FR') + ' FCFA' : 'À définir'}
                       </span>
                     </div>
 
@@ -1645,7 +1645,7 @@ const ListDemandes = ({
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              <p className="font-semibold text-green-600">{demande.amount.toLocaleString('fr-FR')} FCFA</p>
+                              <p className="font-semibold text-green-600">{demande.amount != null ? `${demande.amount.toLocaleString('fr-FR')} FCFA` : 'À définir'}</p>
                               <p className="text-xs text-gray-500">
                                 {demande.desiredDate
                                   ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', {

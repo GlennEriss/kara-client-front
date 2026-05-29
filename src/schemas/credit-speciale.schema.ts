@@ -19,7 +19,8 @@ export const creditDemandSchema = z.object({
   creditType: creditTypeEnum,
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
+    .optional(),
   monthlyPaymentAmount: z.number()
     .min(100, 'La mensualité minimum est de 100 FCFA')
     .optional(),
@@ -93,7 +94,8 @@ export const creditDemandFormSchema = z.object({
   creditType: creditTypeEnum,
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
+    .optional(),
   monthlyPaymentAmount: z.number()
     .min(100, 'La mensualité minimum est de 100 FCFA')
     .optional(),
@@ -190,7 +192,8 @@ export type CreditPaymentFormInput = z.infer<typeof creditPaymentFormSchema>
 export const standardSimulationSchema = z.object({
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
+    .optional(),
   interestRate: z.number()
     .min(0, 'Le taux d\'intérêt ne peut pas être négatif')
     .max(100, 'Le taux d\'intérêt ne peut pas dépasser 100%'),
@@ -241,7 +244,8 @@ export type StandardSimulationFormData = z.infer<typeof standardSimulationSchema
 export const customSimulationSchema = z.object({
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
+    .optional(),
   interestRate: z.number()
     .min(0, 'Le taux d\'intérêt ne peut pas être négatif')
     .max(100, 'Le taux d\'intérêt ne peut pas dépasser 100%'),
