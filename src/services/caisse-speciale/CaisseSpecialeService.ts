@@ -180,7 +180,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
                 entityId: demand.id,
                 type: 'status_update' as any,
                 title: 'Demande acceptée - Contrat créé',
-                message: `Votre demande a été acceptée. Le contrat ${contractId} a été créé.`,
+                message: `La demande ${demand.id} de ${memberName} a été acceptée par ${adminName}. Contrat ${contractId} créé.`,
                 metadata: {
                     demandId: demand.id,
                     contractId,
@@ -190,6 +190,19 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
                     memberId: demand.memberId,
                 },
             });
+
+            // Notification membre
+            if (demand.memberId) {
+                void this.notificationService.notifyMember({
+                    recipientId: demand.memberId,
+                    module: 'caisse_speciale',
+                    entityId: demand.id,
+                    type: 'demand_approved' as any,
+                    title: 'Demande de Caisse Spéciale acceptée',
+                    message: `Votre demande a été acceptée. Le contrat ${contractId} a été créé. Vous pouvez le consulter dans votre espace membre.`,
+                    metadata: { demandId: demand.id, contractId },
+                });
+            }
 
             if (demand.createdBy !== adminId) {
                 await this.notificationService.createNotification({
@@ -242,9 +255,9 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
                 await this.notificationService.createNotification({
                     module: 'caisse_speciale',
                     entityId: demand.id,
-                    type: 'status_update' as any, // Utiliser 'status_update' comme type générique
+                    type: 'status_update' as any,
                     title: 'Demande refusée',
-                    message: `Votre demande de contrat Caisse Spéciale a été refusée. Raison : ${reason}`,
+                    message: `La demande ${demand.id} de ${memberName} a été refusée par ${adminName}. Raison : ${reason}`,
                     metadata: {
                         demandId: demand.id,
                         decisionMadeBy: adminId,
@@ -254,6 +267,19 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
                         memberId: demand.memberId,
                     },
                 });
+
+                // Notification membre
+                if (demand.memberId) {
+                    void this.notificationService.notifyMember({
+                        recipientId: demand.memberId,
+                        module: 'caisse_speciale',
+                        entityId: demand.id,
+                        type: 'demand_rejected' as any,
+                        title: 'Demande de Caisse Spéciale refusée',
+                        message: `Votre demande de contrat Caisse Spéciale a été refusée. Raison : ${reason}`,
+                        metadata: { demandId: demand.id, decisionReason: reason },
+                    });
+                }
 
                 // Notification à l'admin créateur si différent
                 if (demand.createdBy !== adminId) {

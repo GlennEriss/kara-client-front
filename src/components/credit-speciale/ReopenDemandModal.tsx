@@ -96,7 +96,7 @@ export default function ReopenDemandModal({
               <div className="space-y-2">
                 <p><strong>Client:</strong> {demand.clientFirstName} {demand.clientLastName}</p>
                 <p><strong>Type:</strong> {demand.creditType}</p>
-                <p><strong>Montant:</strong> {demand.amount.toLocaleString('fr-FR')} FCFA</p>
+                <p><strong>Montant:</strong> {demand.amount != null ? `${demand.amount.toLocaleString('fr-FR')} FCFA` : 'À définir'}</p>
                 {demand.guarantorId && (
                   <p><strong>Garant:</strong> {demand.guarantorFirstName} {demand.guarantorLastName}</p>
                 )}

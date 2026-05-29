@@ -116,6 +116,17 @@ export class MembershipServiceV2 implements IMembershipService {
       throw new Error('Erreur lors de l\'approbation de la demande d\'adhésion')
     }
 
+    // Notification membre : demande approuvée
+    void this.notificationService.notifyMember({
+      recipientId: result.data.matricule || requestId,
+      module: 'memberships',
+      entityId: requestId,
+      type: 'membership_approved',
+      title: 'Demande d\'adhésion approuvée 🎉',
+      message: 'Félicitations ! Votre demande d\'adhésion a été approuvée. Vos identifiants de connexion vous ont été remis.',
+      metadata: { requestId, matricule: result.data.matricule },
+    })
+
     // Générer/télécharger le PDF en arrière-plan pour ne pas ralentir l'approbation UX.
     const firstName = request.identity?.firstName || ''
     const lastName = request.identity?.lastName || ''
@@ -196,9 +207,19 @@ export class MembershipServiceV2 implements IMembershipService {
         processedAt
       )
     } catch (error) {
-      // Ne pas bloquer le processus de rejet si la notification échoue
       console.error('[MembershipServiceV2] Erreur lors de la création de la notification de rejet:', error)
     }
+
+    // Notification membre : demande rejetée
+    void this.notificationService.notifyMember({
+      recipientId: requestId,
+      module: 'memberships',
+      entityId: requestId,
+      type: 'membership_rejected',
+      title: 'Demande d\'adhésion non retenue',
+      message: `Votre demande d'adhésion n'a pas pu être approuvée. Motif : ${reason.trim()}`,
+      metadata: { requestId, motifReject: reason.trim() },
+    })
 
     // Note: Les documents uploadés ne sont PAS supprimés (conforme aux règles métier)
   }
@@ -328,12 +349,22 @@ export class MembershipServiceV2 implements IMembershipService {
         adminId,
         reason.trim(),
         reopenedAt,
-        request.motifReject // Conserver le motif de rejet initial pour référence
+        request.motifReject
       )
     } catch (error) {
-      // Ne pas bloquer le processus de réouverture si la notification échoue
       console.error('[MembershipServiceV2] Erreur lors de la création de la notification de réouverture:', error)
     }
+
+    // Notification membre : dossier réouvert / nouvelles corrections à apporter
+    void this.notificationService.notifyMember({
+      recipientId: requestId,
+      module: 'memberships',
+      entityId: requestId,
+      type: 'membership_reopened',
+      title: 'Votre dossier a été réouvert',
+      message: `Votre dossier d'adhésion a été réexaminé et réouvert. Motif : ${reason.trim()}`,
+      metadata: { requestId, reopenReason: reason.trim() },
+    })
   }
 
   async requestCorrections(params: RequestCorrectionsParams): Promise<{
@@ -411,9 +442,19 @@ export class MembershipServiceV2 implements IMembershipService {
         },
       })
     } catch (error) {
-      // Erreur lors de la création de la notification - continue sans bloquer
       console.error('[MembershipServiceV2] Erreur lors de la création de la notification:', error)
     }
+
+    // Notification membre : corrections à apporter
+    void this.notificationService.notifyMember({
+      recipientId: requestId,
+      module: 'memberships',
+      entityId: requestId,
+      type: 'corrections_requested',
+      title: 'Des corrections sont requises sur votre dossier',
+      message: `Votre dossier d'adhésion nécessite des corrections :\n${corrections.join('\n')}`,
+      metadata: { requestId, corrections },
+    })
 
     return {
       securityCode,

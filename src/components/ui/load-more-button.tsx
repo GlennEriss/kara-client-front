@@ -1,51 +1,51 @@
-"use client"
+"use client";
 
-import { Button } from '@/components/ui/button';
-import { ChevronDown, Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { ChevronDown, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Hook pour détecter si un élément est visible dans le viewport
  */
 function useInView(options?: { threshold?: number; rootMargin?: string }) {
-  const [inView, setInView] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const element = ref.current
-    if (!element) return
+    const element = ref.current;
+    if (!element) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => setInView(entry.isIntersecting),
       {
         threshold: options?.threshold ?? 0,
-        rootMargin: options?.rootMargin ?? '0px',
-      }
-    )
+        rootMargin: options?.rootMargin ?? "0px",
+      },
+    );
 
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [options?.threshold, options?.rootMargin])
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [options?.threshold, options?.rootMargin]);
 
-  return { ref, inView }
+  return { ref, inView };
 }
 
 interface LoadMoreButtonProps {
   /** Y a-t-il plus de données à charger */
-  hasMore: boolean
+  hasMore: boolean;
   /** Est-ce en train de charger */
-  isLoading: boolean
+  isLoading: boolean;
   /** Fonction pour charger plus */
-  onLoadMore: () => void
+  onLoadMore: () => void;
   /** Mode scroll infini (charge automatiquement quand visible) */
-  autoLoad?: boolean
+  autoLoad?: boolean;
   /** Texte du bouton */
-  label?: string
+  label?: string;
 }
 
 /**
  * Bouton "Charger plus" avec support du scroll infini
- * 
+ *
  * Usage:
  * ```tsx
  * <LoadMoreButton
@@ -61,28 +61,30 @@ export function LoadMoreButton({
   isLoading,
   onLoadMore,
   autoLoad = false,
-  label = 'Charger plus',
+  label = "Charger plus",
 }: LoadMoreButtonProps) {
   const { ref, inView } = useInView({
     threshold: 0,
-    rootMargin: '100px',
-  })
+    rootMargin: "100px",
+  });
 
   // Auto-load quand visible
   useEffect(() => {
     if (autoLoad && inView && hasMore && !isLoading) {
-      onLoadMore()
+      onLoadMore();
     }
-  }, [autoLoad, inView, hasMore, isLoading, onLoadMore])
+  }, [autoLoad, inView, hasMore, isLoading, onLoadMore]);
 
   // Toujours afficher le bouton s'il y a des données, même si hasMore est false
   // Cela permet de voir qu'on a atteint la fin
   if (!hasMore && !isLoading) {
     return (
       <div className="flex justify-center py-4">
-        <p className="text-sm text-muted-foreground">Tous les éléments sont chargés</p>
+        <p className="rounded-full bg-gray-50 px-3 py-1 text-sm text-gray-500">
+          Tous les éléments sont chargés
+        </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -92,36 +94,36 @@ export function LoadMoreButton({
         size="sm"
         onClick={onLoadMore}
         disabled={isLoading || !hasMore}
-        className="min-w-[140px]"
+        className="min-w-[140px] border-[#234D65]/30 text-[#234D65] hover:bg-[#234D65] hover:text-white"
       >
         {isLoading ? (
           <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Chargement...
           </>
         ) : (
           <>
-            <ChevronDown className="h-4 w-4 mr-2" />
+            <ChevronDown className="mr-2 h-4 w-4" />
             {label}
           </>
         )}
       </Button>
     </div>
-  )
+  );
 }
 
 /**
  * Indicateur de chargement plus subtil pour le scroll infini
  */
 export function LoadingIndicator({ isLoading }: { isLoading: boolean }) {
-  if (!isLoading) return null
+  if (!isLoading) return null;
 
   return (
     <div className="flex justify-center py-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1 text-sm text-gray-500">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Chargement...</span>
       </div>
     </div>
-  )
+  );
 }

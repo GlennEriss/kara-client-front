@@ -200,7 +200,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 entityId: demand.id,
                 type: 'new_request',
                 title: 'Nouvelle demande de crédit',
-                message: `Nouvelle demande de ${data.creditType} de ${data.amount.toLocaleString('fr-FR')} FCFA par ${data.clientFirstName} ${data.clientLastName}`,
+                message: `Nouvelle demande de ${data.creditType} ${data.amount != null ? `de ${data.amount.toLocaleString('fr-FR')} FCFA ` : ''}par ${data.clientFirstName} ${data.clientLastName}`,
                 metadata: {
                     demandId: demand.id,
                     creditType: data.creditType,
@@ -256,11 +256,13 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         await this.creditDemandRepository.deleteDemand(demandId);
     }
 
-    async updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string): Promise<CreditDemand | null> {
+    async updateDemandStatus(id: string, status: CreditDemandStatus, adminId: string, comments?: string, amount?: number, monthlyPaymentAmount?: number): Promise<CreditDemand | null> {
         const demand = await this.creditDemandRepository.updateDemand(id, {
             status,
             updatedBy: adminId,
             ...(comments && { adminComments: comments }),
+            ...(amount != null && { amount }),
+            ...(monthlyPaymentAmount != null && { monthlyPaymentAmount }),
         });
 
         if (demand) {
@@ -293,6 +295,19 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         clientId: demand.clientId,
                     },
                 });
+
+                // Notification membre
+                if (demand.clientId) {
+                    void this.notificationService.notifyMember({
+                        recipientId: demand.clientId,
+                        module: 'credit_speciale',
+                        entityId: demand.id,
+                        type: 'status_update',
+                        title,
+                        message,
+                        metadata: { demandId: demand.id, status },
+                    });
+                }
             } catch {
                 // Erreur lors de la création de la notification - continue sans
             }

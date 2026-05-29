@@ -7,12 +7,12 @@
   display: none;
 }
 @theme inline {
-  /* Couleurs KARA - Logo (#224D62 et #CBB171) */
-  --color-kara-primary-dark: #224D62;
-  --color-kara-primary-light: #CBB171;
+  /* Couleurs KARA - Logo (#234D65 et #CBB171) */
+  --color-kara-primary-dark: #234d65;
+  --color-kara-primary-light: #cbb171;
   --color-kara-secondary-dark: #1a3d4f;
   --color-kara-secondary-light: #d4c085;
-  
+
   /* Couleurs KARA - Neutres */
   --color-kara-neutral-50: #f8f9fa;
   --color-kara-neutral-100: #e9ecef;
@@ -24,7 +24,7 @@
   --color-kara-neutral-700: #343a40;
   --color-kara-neutral-800: #212529;
   --color-kara-neutral-900: #0d1117;
-  
+
   /* Couleurs KARA - États */
   --color-kara-success: #10b981;
   --color-kara-success-light: #d1fae5;
@@ -34,7 +34,7 @@
   --color-kara-warning-light: #fef3c7;
   --color-kara-info: #3b82f6;
   --color-kara-info-light: #dbeafe;
-  
+
   /* Shadcn colors (utilisant les couleurs KARA pour primary) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -77,11 +77,11 @@
 
 :root {
   /* Variables KARA (basées sur le logo) */
-  --kara-blue: #224D62;
-  --kara-gold: #CBB171;
-  --kara-blue-rgb: 34, 77, 98;
+  --kara-blue: #234d65;
+  --kara-gold: #cbb171;
+  --kara-blue-rgb: 35, 77, 101;
   --kara-gold-rgb: 203, 177, 113;
-  
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
@@ -89,11 +89,11 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  /* Primary utilise la couleur KARA Blue (#224D62) */
-  --primary: 201 60% 25%; /* Conversion de #224D62 en HSL pour compatibilité oklch */
+  /* Primary utilise la couleur KARA Blue (#234D65) */
+  --primary: #234d65;
   --primary-foreground: oklch(0.984 0.003 247.858);
   /* Secondary utilise la couleur KARA Gold (#CBB171) */
-  --secondary: 45 50% 70%; /* Conversion de #CBB171 en HSL pour compatibilité oklch */
+  --secondary: #cbb171;
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
   --muted-foreground: oklch(0.554 0.046 257.417);
@@ -102,7 +102,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: 201 60% 25%; /* KARA Blue pour le ring */
+  --ring: #234d65; /* KARA Blue pour le ring */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -110,12 +110,12 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: 201 60% 25%; /* KARA Blue */
+  --sidebar-primary: #234d65; /* KARA Blue */
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: 201 60% 25%; /* KARA Blue */
+  --sidebar-ring: #234d65; /* KARA Blue */
 }
 
 .dark {
@@ -234,8 +234,13 @@ html {
 
 /* Animation gradient pour les titres KARA */
 @keyframes gradient {
-  0%, 100% { background-position: 0% center; }
-  50% { background-position: 100% center; }
+  0%,
+  100% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
 }
 
 .animate-gradient {
@@ -244,8 +249,13 @@ html {
 
 /* Animation pulse subtile pour les éléments actifs */
 @keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 .animate-pulse-subtle {
@@ -254,8 +264,12 @@ html {
 
 /* Animation shimmer pour les skeletons */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-shimmer {
@@ -298,12 +312,13 @@ html {
 
 /* Styles personnalisés pour les toasts */
 @layer base {
-
   /* Animations pour les toasts */
   .toaster [data-sonner-toast] {
     backdrop-filter: blur(4px);
     border-radius: 12px !important;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
     animation: toast-slide-in 0.3s ease-out forwards;
   }
 
@@ -441,12 +456,12 @@ html {
 
 /* Classe utilitaire pour masquer la barre de défilement tout en gardant le scroll */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE et Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE et Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari et Opera */
+  display: none; /* Chrome, Safari et Opera */
 }
 
 /* Variante mobile uniquement : masquer la scrollbar uniquement < md */
@@ -480,41 +495,46 @@ html {
 
 /* Préchargement des polices pour améliorer les performances */
 @font-face {
-  font-family: 'Montserrat';
+  font-family: "Montserrat";
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2') format('woff2');
+  src: url("https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2")
+    format("woff2");
 }
 
 @font-face {
-  font-family: 'Montserrat';
+  font-family: "Montserrat";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2') format('woff2');
+  src: url("https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2")
+    format("woff2");
 }
 
 @font-face {
-  font-family: 'Montserrat';
+  font-family: "Montserrat";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2') format('woff2');
+  src: url("https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2")
+    format("woff2");
 }
 
 @font-face {
-  font-family: 'Montserrat';
+  font-family: "Montserrat";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2') format('woff2');
+  src: url("https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2")
+    format("woff2");
 }
 
 @font-face {
-  font-family: 'Montserrat';
+  font-family: "Montserrat";
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2') format('woff2');
+  src: url("https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.woff2")
+    format("woff2");
 }

@@ -2,96 +2,96 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-
+    
     // ==========================================
     // FONCTIONS UTILITAIRES
     // ==========================================
-
+    
     function isAuthenticated() {
       return request.auth != null;
     }
-
+    
     function isAdmin() {
       return isAuthenticated() && (
         (request.auth.token.role != null &&
          request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur'])
       );
     }
-
+    
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
-
+    
     function isPDF() {
       return request.resource.contentType == 'application/pdf';
     }
-
+    
     function isImageSizeValid() {
       return request.resource.size < 5 * 1024 * 1024;
     }
-
+    
     function isPDFSizeValid() {
       return request.resource.size < 10 * 1024 * 1024;
     }
-
+    
     function isContractPDFSizeValid() {
       return request.resource.size < 5 * 1024 * 1024;
     }
-
+    
     // ==========================================
     // PHOTOS DE PROFIL (MEMBERSHIP-PHOTOS)
     // ==========================================
-
+    
     match /membership-photos/{fileName} {
       allow read: if true;
       allow write: if isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // DOCUMENTS D'IDENTITÉ (MEMBERSHIP-DOCUMENTS)
     // ==========================================
-
+    
     match /membership-documents/{requestId}/{fileName} {
       allow read: if true;
       allow write: if isImage() && isImageSizeValid();
       allow delete: if true;
     }
-
+    
     // ==========================================
     // PDFs D'ADHÉSION (MEMBERSHIP-ADHESION-PDFS)
     // ==========================================
-
+    
     match /membership-adhesion-pdfs/{allPaths=**} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // DOCUMENTS GÉNÉRIQUES PAR MODULE
     // ==========================================
-
+    
     match /documents/{module}/{memberId}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == memberId;
       allow write: if isAdmin();
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
     // ==========================================
-
+    
     match /payment-proofs/{fileName} {
       allow read: if true;
       allow write: if isAuthenticated() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // DOCUMENTS CONTRATS (CONTRACTS-CI) + CRÉDIT SPÉCIALE
     // ==========================================
-
+    
     match /contracts-ci/{memberId}/{fileName} {
       allow read: if isAdmin() || (
         isAuthenticated() && (
@@ -106,7 +106,7 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-
+    
     match /contracts-ci/refunds/{contractId}/{refundId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isImage() && request.resource.size < 20 * 1024 * 1024;
@@ -133,23 +133,23 @@ service firebase.storage {
       allow write: if isAdmin() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // CAISSE SPÉCIALE - PREUVES DE PAIEMENT ET REMBOURSEMENTS
     // ==========================================
-
+    
     match /caisse/{contractId}/payments/{paymentId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     match /caisse/{contractId}/payments/{paymentId}/contributions/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     match /caisse/{contractId}/refunds/{refundId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && (
@@ -158,21 +158,21 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // DOCUMENTS DE REMBOURSEMENT (CONTRACT-DOCUMENTS)
     // ==========================================
-
+    
     match /contract-documents/{contractId}/{refundId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // CAISSE SPÉCIALE - CONTRATS PDF
     // ==========================================
-
+    
     match /contracts/{contractId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && (
@@ -181,51 +181,61 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // CRÉDIT SPÉCIALE - CONTRATS PDF (FALLBACK)
     // ==========================================
-
+    
     match /credit-contracts/{contractId}/{fileName} {
       allow read: if isAdmin();
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     // ============================================
     // CAISSE SPÉCIALE - CONTACTS D'URGENCE (ADMIN)
     // ============================================
-
+    
     match /emergency-contacts/{fileName} {
       allow read: if isAdmin();
-      allow write: if isAdmin() &&
+      allow write: if isAdmin() && 
         request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if isAdmin();
     }
-
+    
     // ============================================
     // CAISSE IMPRÉVUE - CONTACTS D'URGENCE (ADMIN)
     // ============================================
-
+    
     match /emergency-contacts-ci/{fileName} {
       allow read: if true;
-      allow write: if isAdmin() &&
+      allow write: if isAdmin() && 
         request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
         request.resource.size < 5 * 1024 * 1024;
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // ÉVÉNEMENTS — IMAGES D'AFFICHE
+    // ==========================================
+
+    match /events/images/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
 
     // ==========================================
     // BIENFAITEUR / CHARITÉS (CHARITY EVENTS)
     // ==========================================
-
+    
     match /charity-events/covers/{fileName} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin() && isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
-
+    
     match /charity-events/{eventId}/contributions/{fileName} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin() && (
@@ -234,7 +244,7 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-
+    
     match /charity-events/{eventId}/media/{fileName} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin() && (
@@ -243,14 +253,14 @@ service firebase.storage {
       );
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // PHOTOS AGENTS DE RECOUVREMENT
     // ==========================================
-
+    
     match /agents-recouvrement/{agentId}/{fileName} {
       allow read: if isAdmin();
-      allow write: if isAdmin() &&
+      allow write: if isAdmin() && 
         request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if isAdmin();
@@ -259,27 +269,30 @@ service firebase.storage {
     // ==========================================
     // PORTAIL MEMBRE — INSCRIPTION (ADHÉSION)
     // ==========================================
-    // Photos et documents uploadés lors de la demande d'adhésion
+    // Photos et documents uploadés lors de la demande d'adhésion (flux public — sans authentification).
     // Chemins générés par uploadDataUrlToStorage :
     //   membership-request-profile-photo/{userId}/{matricule}/{filename}
     //   membership-request-document-front/{userId}/{matricule}/{filename}
     //   membership-request-document-back/{userId}/{matricule}/{filename}
 
-    match /membership-request-profile-photo/{allPaths=**} {
+    // Photo de profil : écriture publique (adhésion sans compte), lecture publique (affichée en review)
+    match /membership-request-profile-photo/{userIdentifier}/{matricule}/{fileName} {
       allow read: if true;
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
 
-    match /membership-request-document-front/{allPaths=**} {
-      allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+    // Recto pièce d'identité : écriture publique, lecture réservée aux admins (document sensible)
+    match /membership-request-document-front/{userIdentifier}/{matricule}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
 
-    match /membership-request-document-back/{allPaths=**} {
-      allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+    // Verso pièce d'identité : écriture publique, lecture réservée aux admins (document sensible)
+    match /membership-request-document-back/{userIdentifier}/{matricule}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isImage() && isImageSizeValid();
       allow delete: if isAdmin();
     }
 
@@ -408,7 +421,7 @@ service firebase.storage {
     // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
-
+    
     match /{allPaths=**} {
       allow read, write: if false;
     }

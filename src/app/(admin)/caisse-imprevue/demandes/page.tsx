@@ -8,6 +8,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { PageHero } from '@/components/ui/page-hero'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import {
@@ -134,42 +135,37 @@ export default function DemandesPage() {
   }
 
   return (
-    <div className="container mx-auto p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6 lg:space-y-8">
-      {/* Header */}
-      <div className="bg-[#234D65] rounded-lg p-4 md:p-6 lg:p-8 text-white">
-        <div className="flex items-center gap-3 mb-2">
-          <ClipboardList className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" />
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black">
-            Demandes Caisse Imprévue
-          </h1>
-        </div>
-        <p className="text-sm md:text-base lg:text-lg text-kara-primary-light/80 mb-4">
-          Gérez les demandes de contrats Caisse Imprévue
-        </p>
-        <div className="flex flex-col sm:flex-row gap-2 md:gap-3 lg:gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setIsExportModalOpen(true)}
-            className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
-            data-testid="export-demands-button"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Exporter
-          </Button>
-          <Button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              router.push('/caisse-imprevue/demandes/add')
-            }}
-            className="bg-kara-primary-light hover:bg-[#B8A05F] text-white shadow-md hover:shadow-lg transition-all"
-            data-testid="create-demand-button"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle demande
-          </Button>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6 lg:space-y-8">
+      <PageHero
+        icon={ClipboardList}
+        title="Demandes Caisse Imprévue"
+        subtitle="Gérez les demandes de contrats Caisse Imprévue"
+        action={
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsExportModalOpen(true)}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
+              data-testid="export-demands-button"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Exporter
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                router.push('/caisse-imprevue/demandes/add')
+              }}
+              className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
+              data-testid="create-demand-button"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nouvelle demande
+            </Button>
+          </div>
+        }
+      />
 
       {/* Liste des demandes */}
       <ListDemandesV2

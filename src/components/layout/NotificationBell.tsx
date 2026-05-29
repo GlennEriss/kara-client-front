@@ -17,9 +17,15 @@ import {
     useUnreadNotifications,
 } from '@/hooks/notifications'
 import { cn } from '@/lib/utils'
+import {
+    isNotificationSoundMuted,
+    playNotificationSound,
+    setNotificationSoundMuted,
+} from '@/lib/notificationSound'
 import { Notification } from '@/types/types'
-import { Bell, Cake, CheckCheck } from 'lucide-react'
+import { Bell, Cake, CheckCheck, Volume2, VolumeX } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Formate une date pour l'affichage
@@ -165,6 +171,32 @@ export default function NotificationBell() {
   const markAsReadMutation = useMarkNotificationAsRead()
   const markAllAsReadMutation = useMarkAllNotificationsAsRead()
 
+  const previousCountRef = useRef<number | null>(null)
+  const [isMuted, setIsMuted] = useState<boolean>(false)
+
+  // Initial muted state from localStorage (client only)
+  useEffect(() => {
+    setIsMuted(isNotificationSoundMuted())
+  }, [])
+
+  // Play sound when the unread count increases (new notification arrived).
+  // Skips the very first poll so we don't ring on initial page load.
+  useEffect(() => {
+    if (isLoadingCount) return
+    const previous = previousCountRef.current
+    if (previous !== null && unreadCount > previous) {
+      playNotificationSound()
+    }
+    previousCountRef.current = unreadCount
+  }, [unreadCount, isLoadingCount])
+
+  const handleToggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const next = !isMuted
+    setIsMuted(next)
+    setNotificationSoundMuted(next)
+  }
+
   const handleMarkAsRead = (id: string) => {
     markAsReadMutation.mutate(id)
   }
@@ -195,23 +227,39 @@ export default function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[400px] max-h-[600px] overflow-y-auto">
-        <DropdownMenuLabel className="flex items-center justify-between">
+        <DropdownMenuLabel className="flex items-center justify-between gap-2">
           <span>Notifications</span>
-          {hasUnreadNotifications && (
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               className="h-auto p-1 text-xs"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleMarkAllAsRead()
-              }}
-              disabled={markAllAsReadMutation.isPending}
+              onClick={handleToggleMute}
+              title={isMuted ? 'Activer le son' : 'Couper le son'}
+              aria-label={isMuted ? 'Activer le son des notifications' : 'Couper le son des notifications'}
             >
-              <CheckCheck className="h-3 w-3 mr-1" />
-              Tout marquer comme lu
+              {isMuted ? (
+                <VolumeX className="h-3.5 w-3.5 text-gray-500" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 text-gray-700" />
+              )}
             </Button>
-          )}
+            {hasUnreadNotifications && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-1 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleMarkAllAsRead()
+                }}
+                disabled={markAllAsReadMutation.isPending}
+              >
+                <CheckCheck className="h-3 w-3 mr-1" />
+                Tout marquer comme lu
+              </Button>
+            )}
+          </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {isLoadingNotifications ? (

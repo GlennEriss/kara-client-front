@@ -46,6 +46,17 @@ import { buildMembershipPaymentId } from '../utils/membershipPaymentId'
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 import { MembershipErrorHandler } from '../services/MembershipErrorHandler'
 
+/** Converts a Firestore Timestamp, Date, string, or number to a valid Date — returns null if unresolvable. */
+function toValidDate(value: any): Date | null {
+  if (!value) return null
+  try {
+    const d = typeof value.toDate === 'function' ? value.toDate() : new Date(value)
+    return isNaN(d.getTime()) ? null : d
+  } catch {
+    return null
+  }
+}
+
 export class MembershipRepositoryV2 implements IMembershipRepository {
   private static instance: MembershipRepositoryV2
   private readonly collectionName = MEMBERSHIP_REQUEST_COLLECTIONS.REQUESTS
@@ -867,11 +878,11 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       ...data,
       // Normaliser isPaid : si undefined/null, considérer comme false (non payé par défaut)
       isPaid: data.isPaid === true ? true : false,
-      createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt || Date.now()),
-      updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt || Date.now()),
-      processedAt: data.processedAt?.toDate?.() || (data.processedAt ? new Date(data.processedAt) : undefined),
-      approvedAt: data.approvedAt?.toDate?.() || (data.approvedAt ? new Date(data.approvedAt) : undefined),
-      securityCodeExpiry: data.securityCodeExpiry?.toDate?.() || (data.securityCodeExpiry ? new Date(data.securityCodeExpiry) : undefined),
+      createdAt: toValidDate(data.createdAt) ?? new Date(),
+      updatedAt: toValidDate(data.updatedAt) ?? new Date(),
+      processedAt: toValidDate(data.processedAt) ?? undefined,
+      approvedAt: toValidDate(data.approvedAt) ?? undefined,
+      securityCodeExpiry: toValidDate(data.securityCodeExpiry) ?? undefined,
     } as MembershipRequest
   }
 }

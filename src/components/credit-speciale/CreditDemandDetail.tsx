@@ -363,7 +363,7 @@ export default function CreditDemandDetail({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
               <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
                 <p className="text-[11px] uppercase tracking-wide text-white/70">Montant</p>
-                <p className="mt-1 text-sm font-bold md:text-base">{formatAmount(demand.amount)}</p>
+                <p className="mt-1 text-sm font-bold md:text-base">{demand.amount ? formatAmount(demand.amount) : 'À définir'}</p>
               </div>
               <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
                 <p className="text-[11px] uppercase tracking-wide text-white/70">Type</p>
@@ -395,7 +395,7 @@ export default function CreditDemandDetail({
                 </div>
                 <div className={infoBoxClass}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Montant demandé</p>
-                  <p className="mt-1 text-sm font-semibold text-emerald-700">{formatAmount(demand.amount)}</p>
+                  <p className="mt-1 text-sm font-semibold text-emerald-700">{demand.amount ? formatAmount(demand.amount) : <span className="text-amber-600 italic">À définir par l&apos;admin</span>}</p>
                 </div>
                 {demand.creditType === 'SPECIALE' && demand.monthlyPaymentAmount && (
                   <div className={infoBoxClass}>

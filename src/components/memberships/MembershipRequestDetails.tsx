@@ -19,7 +19,7 @@ import {
     DetailsPhotoCard,
     DetailsSkeleton,
 } from '@/domains/memberships/components/details'
-import { ReplaceAdhesionPdfModal } from '@/domains/memberships/components/modals'
+import { IdentityDocumentModalV2, ReplaceAdhesionPdfModal } from '@/domains/memberships/components/modals'
 import { useMembershipRequestDetails } from '@/domains/memberships/hooks/useMembershipRequestDetails'
 import { resolveAdhesionPdfUrl } from '@/domains/memberships/utils/details'
 import { useAuth } from '@/hooks/useAuth'
@@ -32,6 +32,7 @@ export default function MembershipRequestDetails() {
   const requestId = params.id as string
   const { user } = useAuth()
   const [replacePdfModalOpen, setReplacePdfModalOpen] = useState(false)
+  const [docPhotosModalOpen, setDocPhotosModalOpen] = useState(false)
 
   const {
     request,
@@ -142,6 +143,12 @@ export default function MembershipRequestDetails() {
                 ? () => setReplacePdfModalOpen(true)
                 : undefined
             }
+            onViewDocumentPhotos={() => setDocPhotosModalOpen(true)}
+          />
+          <IdentityDocumentModalV2
+            isOpen={docPhotosModalOpen}
+            onClose={() => setDocPhotosModalOpen(false)}
+            request={request}
           />
           {user?.uid && (
             <ReplaceAdhesionPdfModal

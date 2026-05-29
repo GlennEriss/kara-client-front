@@ -2,28 +2,28 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
     // ==========================================
     // FONCTIONS UTILITAIRES
     // ==========================================
-
+    
     // Vérifie si l'utilisateur est authentifié
     function isAuthenticated() {
       return request.auth != null;
     }
-
+    
     // Vérifie si l'utilisateur est admin (Admin, SuperAdmin ou Secretary)
     // Vérifie d'abord via custom claims (token.role), puis via collection admins
     function isAdmin() {
       return isAuthenticated() && (
         // Méthode 1 : Vérifier via custom claims (token.role)
-        (request.auth.token.role != null &&
+        (request.auth.token.role != null && 
          request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur']) ||
         // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
-
+    
     // Vérifie si le code de sécurité est valide pour modification par le demandeur
     function hasValidSecurityCode(requestData) {
       return requestData.securityCode != null &&
@@ -32,67 +32,77 @@ service cloud.firestore {
              request.time < requestData.securityCodeExpiry;
     }
 
+    // Vérifie qu'un identifiant membre (matricule OU uid) appartient à l'utilisateur connecté.
+    // Réutilisable pour toutes les collections où un document est rattaché à un membre.
+    function isMemberOwner(memberId) {
+      return isAuthenticated() && (
+        memberId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+      );
+    }
+    
     // Note: Chaque environnement (dev, preprod, prod) utilise sa propre base de données Firebase,
     // donc les noms de collections sont identiques dans tous les environnements.
-
+    
     // ==========================================
     // COLLECTIONS GÉOGRAPHIQUES
     // ==========================================
     // Lecture publique pour permettre le remplissage du formulaire d'inscription
     // Écriture réservée aux admins
-
+    
     match /provinces/{provinceId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     match /departments/{departmentId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     match /communes/{communeId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     match /districts/{districtId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     match /quarters/{quarterId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // STRUCTURE D'ADRESSES (ADDRESSES)
     // ==========================================
     // Structure hiérarchique des adresses (province -> ville -> arrondissement -> district)
     // Lecture publique pour permettre le remplissage du formulaire d'inscription
     // Écriture réservée aux admins
-
+    
     match /addresses/{addressId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // UTILISATEURS (USERS)
     // ==========================================
-
+    
     match /users/{userId} {
       // Lecture : Publique (nécessaire pour la connexion)
       allow read: if true;
       // Écriture : Admin uniquement (création lors de l'approbation)
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // MEMBRES (MEMBERS)
     // ==========================================
-
+    
     match /members/{memberId} {
       // Lecture : Authentifié (pour afficher les informations des membres)
       allow read: if isAuthenticated();
@@ -109,11 +119,11 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false;
     }
-
+    
     // ==========================================
     // DEMANDES D'ADHÉSION (MEMBERSHIP REQUESTS)
     // ==========================================
-
+    
     match /membership-requests/{requestId} {
 
       // LECTURE : Publique (nécessaire pour les corrections via code de sécurité)
@@ -131,19 +141,13 @@ service cloud.firestore {
           'documents',
           'createdAt'
         ]) &&
-        // Statut initial doit être 'pending'
+        // Statut initial imposé
         request.resource.data.status == 'pending' &&
-        // Identity doit avoir les champs requis
-        request.resource.data.identity.keys().hasAll([
-          'firstName',
-          'lastName',
-          'birthDate',
-          'nationality'
-        ]) &&
         // Pas de tentative de se définir comme payé ou approuvé
         request.resource.data.get('isPaid', false) == false &&
-        request.resource.data.get('processedBy', null) == null;
-
+        request.resource.data.get('processedBy', null) == null &&
+        request.resource.data.get('approvedBy', null) == null;
+      
       // MISE À JOUR : Admin ou demandeur avec code de sécurité valide
       allow update: if (
         // Cas 1: Admin - avec validation pour l'approbation, le rejet ET la réouverture
@@ -186,7 +190,7 @@ service cloud.firestore {
            // Conserver le motifReject (ne pas le supprimer)
            request.resource.data.motifReject == resource.data.motifReject) ||
           // Sinon, mise à jour normale par admin
-          (request.resource.data.status != 'approved' &&
+          (request.resource.data.status != 'approved' && 
            request.resource.data.status != 'rejected' &&
            !(resource.data.status == 'rejected' && request.resource.data.status == 'pending'))
         ))
@@ -217,12 +221,34 @@ service cloud.firestore {
          // Ne peut pas modifier ces champs protégés
          request.resource.data.matricule == resource.data.matricule &&
          request.resource.data.get('isPaid', false) == resource.data.get('isPaid', false))
+        ||
+        // Cas 4 : Ajout des URLs de photos après soumission initiale (upload Storage en arrière-plan)
+        // Pas d'authentification requise — sécurité assurée par la connaissance du matricule (ID doc)
+        // Seuls les champs photo dans identity et documents peuvent être ajoutés
+        (resource.data.status == 'pending' &&
+         resource.data.state == 'IN_PROGRESS' &&
+         // Champs immuables inchangés
+         request.resource.data.matricule == resource.data.matricule &&
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.state == resource.data.state &&
+         request.resource.data.get('isPaid', false) == resource.data.get('isPaid', false) &&
+         // Seuls identity, documents et updatedAt peuvent changer au niveau racine
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['identity', 'documents', 'updatedAt']) &&
+         // Dans identity : seulement photoURL et photoPath
+         (!(request.resource.data.diff(resource.data).affectedKeys().hasAny(['identity'])) ||
+          request.resource.data.identity.diff(resource.data.identity).affectedKeys().hasOnly(['photoURL', 'photoPath'])) &&
+         // Dans documents : seulement les champs photo
+         (!(request.resource.data.diff(resource.data).affectedKeys().hasAny(['documents'])) ||
+          request.resource.data.documents.diff(resource.data.documents).affectedKeys().hasOnly([
+            'documentPhotoFrontURL', 'documentPhotoFrontPath',
+            'documentPhotoBackURL', 'documentPhotoBackPath'
+          ])))
       );
-
+      
       // SUPPRESSION : Admin uniquement
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // GROUPES DE DOUBLONS (DUPLICATE-GROUPS)
     // ==========================================
@@ -240,18 +266,18 @@ service cloud.firestore {
     // ==========================================
     // Lecture publique pour permettre la vérification d'unicité du matricule
     // Écriture réservée aux SuperAdmins
-
+    
     match /admins/{adminId} {
       // Lecture publique (nécessaire pour vérifier l'unicité du matricule)
       allow read: if true;
       // Écriture réservée aux SuperAdmins
       allow write: if isAuthenticated() && request.auth.token.role == 'SuperAdmin';
     }
-
+    
     // ==========================================
     // ABONNEMENTS (SUBSCRIPTIONS)
     // ==========================================
-
+    
     match /subscriptions/{subscriptionId} {
       // Lecture : Admin ou propriétaire (userId = uid ou matricule ; portail membre utilise users/(uid).matricule)
       allow read: if isAdmin() ||
@@ -263,11 +289,11 @@ service cloud.firestore {
       // Écriture : Admin uniquement
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // DOCUMENTS ARCHIVÉS
     // ==========================================
-
+    
     match /documents/{documentId} {
       // Lecture : Admin ou propriétaire (via memberId)
       allow read: if isAdmin() ||
@@ -283,16 +309,34 @@ service cloud.firestore {
       // Mise à jour et suppression : Admin uniquement
       allow update, delete: if isAdmin();
     }
-
+    
     // ==========================================
     // NOTIFICATIONS
     // ==========================================
-
+    
     match /notifications/{notificationId} {
-      // Lecture : Admin uniquement
-      allow read: if isAdmin();
-      // Création : Admin ou Cloud Function (pas d'auth)
-      allow create: if isAdmin() || request.auth == null;
+      // Lecture : Admin OU le membre destinataire (notifications avec recipientId).
+      // Pour les LIST queries, le `where("recipientId", "==", X)` du client filtre déjà
+      // les docs sans recipientId. On évite donc le .get('recipientId', '') qui perturbe
+      // l'évaluation statique de la règle par Firestore.
+      allow read: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.recipientId is string &&
+        isMemberOwner(resource.data.recipientId)
+      );
+      // Création : Admin, Cloud Function (pas d'auth, ex. adhésion publique),
+      // ou membre authentifié pour signaler ses propres demandes (isRead=false imposé)
+      allow create: if
+        isAdmin() ||
+        request.auth == null ||
+        (
+          isAuthenticated() &&
+          request.resource.data.isRead == false &&
+          request.resource.data.module is string &&
+          request.resource.data.type is string &&
+          request.resource.data.title is string &&
+          request.resource.data.message is string
+        );
       // Mise à jour : Admin ou propriétaire (pour marquer comme lu uniquement)
       allow update: if isAdmin() || (
         isAuthenticated() &&
@@ -301,12 +345,12 @@ service cloud.firestore {
       // Suppression : Admin uniquement
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // LOGS D'AUDIT (AUDIT-LOGS)
     // ==========================================
     // Logs d'audit créés par les Cloud Functions
-
+    
     match /audit-logs/{logId} {
       // Lecture : Admin uniquement
       allow read: if isAdmin();
@@ -317,31 +361,38 @@ service cloud.firestore {
       // Suppression : SuperAdmin uniquement
       allow delete: if isAuthenticated() && request.auth.token.role == 'SuperAdmin';
     }
-
+    
     // ==========================================
     // ENTREPRISES & PROFESSIONS (RÉFÉRENTIELS)
     // ==========================================
-
+    
     match /companies/{companyId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     match /professions/{professionId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // COLLECTION CENTRALISÉE DES PAIEMENTS (PAYMENTS)
     // ==========================================
     // Historique centralisé de tous les versements
     // DONNÉES SENSIBLES - Accès restreint
-
+    
     match /payments/{paymentId} {
-      // LECTURE : Admins uniquement
-      allow read: if isAdmin();
-
+      // LECTURE : Admins OU le membre concerné, identifié par l'un des champs
+      // qui peuvent porter son matricule/uid selon le type de paiement.
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          (resource.data.get('memberId', '') != '' && isMemberOwner(resource.data.memberId)) ||
+          (resource.data.get('beneficiaryId', '') != '' && isMemberOwner(resource.data.beneficiaryId)) ||
+          (resource.data.get('sourceId', '') != '' && isMemberOwner(resource.data.sourceId))
+        )
+      );
+      
       // CRÉATION : Admins uniquement avec validation des champs requis
       allow create: if isAdmin() &&
         // Champs obligatoires présents
@@ -371,7 +422,7 @@ service cloud.firestore {
         request.resource.data.date is timestamp &&
         // Date d'enregistrement doit être valide
         request.resource.data.recordedAt is timestamp;
-
+      
       // MISE À JOUR : Admins uniquement (pour corrections mineures)
       allow update: if isAdmin() &&
         // Ne peut pas modifier les champs critiques
@@ -381,11 +432,11 @@ service cloud.firestore {
         request.resource.data.sourceType == resource.data.sourceType &&
         request.resource.data.sourceId == resource.data.sourceId &&
         request.resource.data.recordedBy == resource.data.recordedBy;
-
+      
       // SUPPRESSION : Admins uniquement
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // PARAMÈTRES CAISSE SPÉCIALE (CAISSE SETTINGS)
     // ==========================================
@@ -394,7 +445,7 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // DEMANDES CAISSE SPÉCIALE (CAISSE SPECIALE DEMANDS) - V2
     // ==========================================
@@ -402,7 +453,7 @@ service cloud.firestore {
     // Workflows : ListerDemandes, FiltrerDemandes, RechercherDemandes, CreerDemande,
     //            AccepterDemande, RefuserDemande, ReouvrirDemande, ConvertirContrat,
     //            VoirDetails, ExporterDetailsDemande
-
+    
     match /caisseSpecialeDemands/{demandId} {
       // LECTURE : Admin ou membre propriétaire (uid ou matricule)
       allow read: if isAdmin() ||
@@ -491,11 +542,11 @@ service cloud.firestore {
       // SUPPRESSION : Admin uniquement (PENDING, APPROVED, REJECTED — pas CONVERTED)
       allow delete: if isAdmin() && resource.data.status in ['PENDING', 'APPROVED', 'REJECTED'];
     }
-
+    
     // ==========================================
     // CONTRATS CAISSE SPÉCIALE (CAISSE CONTRACTS)
     // ==========================================
-
+    
     match /caisseContracts/{contractId} {
       // Lecture : Admin ou membre propriétaire (memberId = uid ou matricule du user)
       allow read: if isAdmin() ||
@@ -517,7 +568,7 @@ service cloud.firestore {
       );
       // Suppression : Admin uniquement
       allow delete: if isAdmin();
-
+      
       // Sous-collection : versements (échéances mensuelles)
       // Lecture : Admin ou membre propriétaire du contrat parent
       match /payments/{paymentId} {
@@ -530,7 +581,7 @@ service cloud.firestore {
           ));
         allow write: if isAdmin();
       }
-
+      
       // Sous-collection : versements déclarés par le membre (en attente de validation admin)
       match /declaredVersements/{versementId} {
         // Lecture : Admin ou membre propriétaire du contrat parent
@@ -576,19 +627,19 @@ service cloud.firestore {
         allow update, delete: if isAdmin();
       }
     }
-
+    
     // ==========================================
     // CAISSE IMPRÉVUE - CONTRATS & DEMANDES (portail membre)
     // ==========================================
     // Collections caisseImprevueContracts / caisseImprevueRequests : lecture membre (uid ou matricule).
     // La fonction isCaisseImprevueMember est réutilisée plus bas pour contractsCI et caisseImprevueDemands.
-
+    
     function isCaisseImprevueMember(contractMemberId) {
       return contractMemberId == request.auth.uid ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == contractMemberId);
     }
-
+    
     match /caisseImprevueContracts/{contractId} {
       allow read: if isAdmin() || (isAuthenticated() && isCaisseImprevueMember(resource.data.memberId));
       allow write: if isAdmin();
@@ -598,7 +649,7 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
     }
-
+    
     match /caisseImprevueRequests/{requestId} {
       allow read: if isAdmin() || (isAuthenticated() && isCaisseImprevueMember(resource.data.memberId));
       allow write: if isAdmin();
@@ -608,15 +659,15 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
     }
-
+    
     // ==========================================
     // FORFAITS CAISSE IMPRÉVUE (SUBSCRIPTIONS CI)
     // ==========================================
-
+    
     match /subscriptionsCI/{subscriptionId} {
       // LECTURE : Admin ou utilisateur authentifié (pour le formulaire de demande)
       allow read: if isAdmin() || isAuthenticated();
-
+      
       // CRÉATION : Admin uniquement avec validation
       allow create: if isAdmin() &&
         // Champs obligatoires présents
@@ -662,7 +713,7 @@ service cloud.firestore {
         // Timestamps serveur
         request.resource.data.createdAt is timestamp &&
         request.resource.data.updatedAt is timestamp;
-
+      
       // MISE À JOUR : Admin uniquement avec validation
       allow update: if isAdmin() &&
         // Ne peut pas modifier l'ID
@@ -694,14 +745,14 @@ service cloud.firestore {
         request.resource.data.supportMax >= request.resource.data.supportMin &&
         request.resource.data.status is string &&
         request.resource.data.status in ['ACTIVE', 'INACTIVE'];
-
+      
       // SUPPRESSION : Admin uniquement
       // Note: La suppression doit être effectuée avec précaution car les contrats existants
       // peuvent référencer ce forfait. Il est recommandé de désactiver (status='INACTIVE')
       // plutôt que de supprimer.
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // ============================================
     // CAISSE IMPRÉVUE - DEMANDES (V2)
@@ -819,7 +870,7 @@ service cloud.firestore {
       // SUPPRESSION : Admin uniquement — seulement les demandes REJECTED
       allow delete: if isAdmin() && resource.data.status == 'REJECTED';
     }
-
+    
     // ============================================
     // CAISSE IMPRÉVUE - FORFAITS (SUBSCRIPTIONS CI)
     // ============================================
@@ -827,11 +878,11 @@ service cloud.firestore {
       // ✅ Admins et utilisateurs authentifiés peuvent lire les forfaits
       // (nécessaire pour afficher les forfaits dans le formulaire Step 2)
       allow read: if isAdmin() || isAuthenticated();
-
+      
       // Seulement admins peuvent créer/modifier/supprimer les forfaits
       allow write: if isAdmin();
     }
-
+    
     // ============================================
     // CAISSE IMPRÉVUE - CONTRATS (contractsCI)
     // ============================================
@@ -914,18 +965,21 @@ service cloud.firestore {
         allow update, delete: if isAdmin();
       }
     }
-
+    
     // ==========================================
     // CRÉDIT SPÉCIALE - DEMANDES (CREDIT DEMANDS)
     // ==========================================
     // Page /credit-speciale/demandes - Gestion des demandes de crédit (spéciale, fixe, aide)
 
     match /creditDemands/{demandId} {
-      // LECTURE : Admin uniquement
-      allow read: if isAdmin();
+      // LECTURE : Admin ou propriétaire de la demande (uid ou matricule)
+      allow read: if isAdmin() ||
+        (isAuthenticated() && isCaisseImprevueMember(resource.data.clientId));
 
-      // CRÉATION : Admin uniquement avec validation des champs requis
-      allow create: if isAdmin() &&
+      // CRÉATION : Admin OU membre authentifié créant sa propre demande
+      allow create: if (
+        // Cas 1 : Admin avec validation stricte
+        isAdmin() &&
         request.resource.data.clientId is string &&
         request.resource.data.clientId.size() > 0 &&
         request.resource.data.clientFirstName is string &&
@@ -933,39 +987,63 @@ service cloud.firestore {
         request.resource.data.creditType in ['SPECIALE', 'FIXE', 'AIDE'] &&
         request.resource.data.amount is number &&
         request.resource.data.amount >= 1000 &&
-        request.resource.data.amount <= 10000000 &&
         request.resource.data.desiredDate is string &&
         request.resource.data.desiredDate.size() > 0 &&
         request.resource.data.cause is string &&
         request.resource.data.cause.size() >= 10 &&
         request.resource.data.cause.size() <= 500 &&
-        request.resource.data.guarantorId is string &&
-        request.resource.data.guarantorId.size() > 0 &&
-        request.resource.data.guarantorFirstName is string &&
-        request.resource.data.guarantorLastName is string &&
-        request.resource.data.guarantorRelation is string &&
         request.resource.data.status == 'PENDING' &&
         request.resource.data.createdBy is string &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.createdAt is timestamp &&
-        request.resource.data.updatedAt is timestamp;
+        request.resource.data.updatedAt is timestamp
+      ) || (
+        // Cas 2 : Membre authentifié créant sa propre demande (portail membre)
+        isAuthenticated() &&
+        isCaisseImprevueMember(request.resource.data.clientId) &&
+        request.resource.data.createdBy == request.resource.data.clientId &&
+        // Champs obligatoires
+        request.resource.data.creditType in ['SPECIALE', 'FIXE', 'AIDE'] &&
+        request.resource.data.desiredDate is string &&
+        request.resource.data.desiredDate.size() > 0 &&
+        request.resource.data.cause is string &&
+        request.resource.data.cause.size() >= 10 &&
+        request.resource.data.cause.size() <= 500 &&
+        // Statut initial obligatoirement PENDING
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.updatedAt is timestamp &&
+        // Pas de champs de décision à la création
+        !('approvedBy' in request.resource.data) &&
+        !('approvedAt' in request.resource.data) &&
+        !('rejectedBy' in request.resource.data) &&
+        !('rejectedAt' in request.resource.data) &&
+        !('contractId' in request.resource.data)
+      );
 
-      // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, et suppression de contrat : contractId=null, updatedBy, updatedAt)
-      allow update: if isAdmin();
+      // MISE À JOUR : Admin, ou membre annulant sa propre demande PENDING
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        isCaisseImprevueMember(resource.data.clientId) &&
+        resource.data.status == 'PENDING' &&
+        request.resource.data.status == 'CANCELED' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
 
       // SUPPRESSION : Admin uniquement, seulement demandes PENDING sans contrat lié
       allow delete: if isAdmin() &&
         resource.data.status == 'PENDING' &&
         (!('contractId' in resource.data) || resource.data.get('contractId', null) == null);
     }
-
+    
     // ==========================================
     // CRÉDIT SPÉCIALE - CONTRATS (CREDIT CONTRACTS)
     // Validation des transitions DISCHARGED et CLOSED (clôture de contrat)
     // Suppression de contrat (V2) : admin uniquement, contrats PENDING/DRAFT sans versement (vérifié côté service)
     // ==========================================
     match /creditContracts/{contractId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() ||
+        (isAuthenticated() && isCaisseImprevueMember(resource.data.clientId));
       allow create: if isAdmin();
       allow update: if isAdmin() && (
         // Transition vers DISCHARGED : motif obligatoire (10-500 car.), dischargedBy = admin, dischargedAt timestamp
@@ -996,11 +1074,11 @@ service cloud.firestore {
       // Suppression : admin uniquement (supprimer contrat crédit spéciale V2 — éligibilité PENDING/DRAFT + amountPaid=0 côté service)
       allow delete: if isAdmin();
     }
-
+    
     // ==========================================
     // CRÉDIT SPÉCIALE - ÉCHÉANCES (CREDIT INSTALLMENTS)
     // ==========================================
-
+    
     match /creditInstallments/{installmentId} {
       allow read, write: if isAdmin();
     }
@@ -1012,19 +1090,19 @@ service cloud.firestore {
     match /creditPayments/{paymentId} {
       allow read, write: if isAdmin();
     }
-
+    
     // ==========================================
     // CRÉDIT SPÉCIALE - PÉNALITÉS (CREDIT PENALTIES)
     // ==========================================
-
+    
     match /creditPenalties/{penaltyId} {
       allow read, write: if isAdmin();
     }
-
+    
     // ==========================================
     // CRÉDIT SPÉCIALE - RÉMUNÉRATIONS GARANTS (GUARANTOR REMUNERATIONS)
     // ==========================================
-
+    
     match /guarantorRemunerations/{remunerationId} {
       allow read, write: if isAdmin();
     }
@@ -1032,67 +1110,67 @@ service cloud.firestore {
     // ==========================================
     // CRÉDIT SPÉCIALE - PAIEMENTS AUX GARANTS (GUARANTOR PAYMENTS)
     // ==========================================
-
+    
     match /guarantorPayments/{paymentId} {
       allow read, write: if isAdmin();
     }
-
+    
     // ==========================================
     // CHARITÉS / BIENFAITEUR (CHARITY EVENTS)
     // ==========================================
     // Page /bienfaiteur, /bienfaiteur/[id] : évènements, participants, contributions, médias
     // Utilisé aussi par MemberActivitySummary sur /credit-speciale/demandes/[id]
-
+    
     match /charity-events/{eventId} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin();
-
+      
       match /contributions/{contributionId} {
         allow read: if isAdmin() || isAuthenticated();
         allow write: if isAdmin();
       }
-
+      
       match /participants/{participantId} {
         allow read: if isAdmin() || isAuthenticated();
         allow write: if isAdmin();
       }
-
+      
       // Médias d'un évènement (photos / vidéos) - onglet Médias sur /bienfaiteur/[id]
       match /media/{mediaId} {
         allow read: if isAdmin() || isAuthenticated();
         allow write: if isAdmin();
       }
     }
-
+    
     // ==========================================
     // PLACEMENTS (MEMBER ACTIVITY SUMMARY)
     // ==========================================
     // Utilisé par MemberActivitySummary sur /credit-speciale/demandes/[id]
-
+    
     match /placements/{placementId} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin();
-
+      
       match /commissions/{commissionId} {
         allow read, write: if isAdmin();
       }
     }
-
+    
     match /placementDemands/{demandId} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // GROUPES (CHARITY CONTRIBUTION SERVICE)
     // ==========================================
     // Utilisé par CharityContributionService pour enrichir les contributions
-
+    
     match /groups/{groupId} {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin();
     }
-
+    
     // ==========================================
     // AGENTS DE RECOUVREMENT (AGENTS RECOUVREMENT)
     // ==========================================
@@ -1100,7 +1178,7 @@ service cloud.firestore {
     // Utilisé par : Page /admin/agents-recouvrement, modals Créer/Modifier/Désactiver
     // Sélection dans : CreditPaymentModal, Caisse spéciale pay(), Caisse imprévue createVersement()
     // Cloud Function : agentRecouvrementNotifications (lecture Admin SDK)
-
+    
     match /agentsRecouvrement/{agentId} {
       allow read: if isAdmin();
       allow create: if isAdmin();
@@ -1114,14 +1192,62 @@ service cloud.firestore {
     // Page /vehicules, /vehicules/[id], /vehicules/[id]/edit
     // Gestion complète des assurances véhicules (CRUD, renouvellement, stats)
     match /vehicle-insurances/{insuranceId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
+      // Lecture : admin OU le membre propriétaire du véhicule
+      allow read: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.memberId is string &&
+        isMemberOwner(resource.data.memberId)
+      );
+      // Création : admin OU le membre qui déclare son propre véhicule
+      // (memberId doit pointer vers lui-même + holderType doit être 'member')
+      allow create: if isAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.holderType == 'member' &&
+        request.resource.data.memberId is string &&
+        isMemberOwner(request.resource.data.memberId)
+      );
       allow update: if isAdmin();
       allow delete: if isAdmin();
 
       // Sous-collections éventuelles (journal/audit/annexes)
       match /{subCollection=**} {
         allow read, write: if isAdmin();
+      }
+    }
+    
+    // ==========================================
+    // ÉVÉNEMENTS (EVENTS)
+    // ==========================================
+    // Collection events : admin CRUD complet
+    // Membres : lecture des événements publiés/ouverts/confirmés/terminés/annulés
+    // Sous-collection votes/{memberId} : lecture admin + votant lui-même
+    //   Écriture : le membre pour son propre vote si sondage ouvert
+
+    match /events/{eventId} {
+      // Lecture : admin toujours ; membre si l'événement n'est pas en brouillon
+      allow read: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.status in ['published', 'poll_open', 'location_confirmed', 'completed', 'cancelled']
+      );
+      // Création, suppression : admin uniquement
+      allow create, delete: if isAdmin();
+      // Mise à jour : admin toujours ; membre uniquement pour les compteurs de vote
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.status == 'poll_open' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votesByOptionId', 'totalVotes'])
+      );
+
+      // Votes : sous-collection events/{eventId}/votes/{memberId}
+      match /votes/{memberId} {
+        // Lecture : admin (tous les votes) ou le votant lui-même
+        allow read: if isAdmin() || (
+          isAuthenticated() && isMemberOwner(memberId)
+        );
+        // Écriture : le membre pour son propre vote, seulement si le sondage est ouvert
+        allow write: if isAuthenticated() &&
+          isMemberOwner(memberId) &&
+          get(/databases/$(database)/documents/events/$(eventId)).data.status == 'poll_open';
       }
     }
 

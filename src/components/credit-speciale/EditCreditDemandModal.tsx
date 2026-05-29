@@ -41,7 +41,7 @@ function demandToFormValues(demand: CreditDemand): CreditDemandFormInput {
     clientLastName: demand.clientLastName ?? '',
     clientContacts: hasValidContacts ? demand.clientContacts! : [' '],
     creditType: demand.creditType,
-    amount: demand.amount,
+    amount: demand.amount ?? undefined,
     monthlyPaymentAmount: demand.monthlyPaymentAmount,
     desiredDate,
     cause: demand.cause ?? '',

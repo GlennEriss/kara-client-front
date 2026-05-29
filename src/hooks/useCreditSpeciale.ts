@@ -83,9 +83,9 @@ export function useCreditDemandMutations() {
     })
 
     const updateStatus = useMutation({
-        mutationFn: ({ id, status, comments }: { id: string; status: CreditDemandStatus; comments?: string }) => {
+        mutationFn: ({ id, status, comments, amount, monthlyPaymentAmount }: { id: string; status: CreditDemandStatus; comments?: string; amount?: number; monthlyPaymentAmount?: number }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
-            return service.updateDemandStatus(id, status, user.uid, comments)
+            return service.updateDemandStatus(id, status, user.uid, comments, amount, monthlyPaymentAmount)
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['creditDemands'] })

@@ -1,17 +1,18 @@
 'use client'
 import ListSubscriptionCISection from '@/components/caisse-imprevue/ListSubscriptionCISection'
 import { SubscriptionCIProvider } from '@/components/caisse-imprevue/SubscriptionCIContext'
+import { PageHero } from '@/components/ui/page-hero'
+import { Settings } from 'lucide-react'
 
 export default function CaisseImprevueSettingsPage() {
     return (
         <SubscriptionCIProvider>
-            <div className="p-5">
-                <section>
-                    <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                        Paramètres Caisse Imprévue
-                    </h1>
-                    <p className="text-gray-600 text-lg">Créer des forfaits et configurer les paramètres de la caisse imprévue</p>
-                </section>
+            <div className="max-w-7xl mx-auto space-y-6 p-5">
+                <PageHero
+                    icon={Settings}
+                    title="Paramètres Caisse Imprévue"
+                    subtitle="Créer des forfaits et configurer les paramètres de la caisse imprévue"
+                />
                 <ListSubscriptionCISection />
             </div>
         </SubscriptionCIProvider>

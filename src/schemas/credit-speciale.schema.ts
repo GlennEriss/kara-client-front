@@ -19,7 +19,8 @@ export const creditDemandSchema = z.object({
   creditType: creditTypeEnum,
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
+    .optional(),
   monthlyPaymentAmount: z.number()
     .min(100, 'La mensualité minimum est de 100 FCFA')
     .optional(),
@@ -64,7 +65,7 @@ export const creditDemandSchema = z.object({
   }
   
   // Validation : limites selon le type de crédit
-  if (data.creditType === 'SPECIALE' && data.monthlyPaymentAmount) {
+  if (data.creditType === 'SPECIALE' && data.amount != null && data.monthlyPaymentAmount) {
     const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
     if (maxDuration > 7) {
       ctx.addIssue({
@@ -93,7 +94,8 @@ export const creditDemandFormSchema = z.object({
   creditType: creditTypeEnum,
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
+    .optional(),
   monthlyPaymentAmount: z.number()
     .min(100, 'La mensualité minimum est de 100 FCFA')
     .optional(),
@@ -135,7 +137,7 @@ export const creditDemandFormSchema = z.object({
   }
   
   // Validation : limites selon le type de crédit
-  if (data.creditType === 'SPECIALE' && data.monthlyPaymentAmount) {
+  if (data.creditType === 'SPECIALE' && data.amount != null && data.monthlyPaymentAmount) {
     const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
     if (maxDuration > 7) {
       ctx.addIssue({

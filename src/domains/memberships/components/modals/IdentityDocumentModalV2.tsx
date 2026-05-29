@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useMembershipDocumentPhotos } from '../../hooks/useMembershipDocumentPhotos'
 import type { MembershipRequest } from '../../entities'
 
 interface IdentityDocumentModalV2Props {
@@ -36,8 +37,9 @@ export function IdentityDocumentModalV2({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  const hasFrontPhoto = !!request.documents?.documentPhotoFrontURL
-  const hasBackPhoto = !!request.documents?.documentPhotoBackURL
+  const { frontURL: resolvedFrontURL, backURL: resolvedBackURL } = useMembershipDocumentPhotos(request)
+  const hasFrontPhoto = !!resolvedFrontURL
+  const hasBackPhoto = !!resolvedBackURL
   const hasBothPhotos = hasFrontPhoto && hasBackPhoto
 
   // Réinitialiser l'état quand le modal s'ouvre
@@ -141,9 +143,9 @@ export function IdentityDocumentModalV2({
 
   const getImageUrl = (view: ImageView): string | null => {
     if (view === 'front') {
-      return request.documents?.documentPhotoFrontURL || null
+      return resolvedFrontURL || null
     }
-    return request.documents?.documentPhotoBackURL || null
+    return resolvedBackURL || null
   }
 
   const getImageFilename = (view: ImageView): string => {
@@ -395,7 +397,7 @@ export function IdentityDocumentModalV2({
               <div>
                 {hasFrontPhoto ? (
                   <ImageViewer
-                    url={request.documents.documentPhotoFrontURL!}
+                    url={resolvedFrontURL!}
                     alt="Recto du document d'identité"
                     label="Recto"
                     badgeColor="bg-gradient-to-r from-blue-500 to-indigo-600"
@@ -408,7 +410,7 @@ export function IdentityDocumentModalV2({
               <div>
                 {hasBackPhoto ? (
                   <ImageViewer
-                    url={request.documents.documentPhotoBackURL!}
+                    url={resolvedBackURL!}
                     alt="Verso du document d'identité"
                     label="Verso"
                     badgeColor="bg-gradient-to-r from-emerald-500 to-teal-600"
@@ -425,7 +427,7 @@ export function IdentityDocumentModalV2({
               {currentView === 'front' ? (
                 hasFrontPhoto ? (
                   <ImageViewer
-                    url={request.documents.documentPhotoFrontURL!}
+                    url={resolvedFrontURL!}
                     alt="Recto du document d'identité"
                     label="Recto"
                     badgeColor="bg-gradient-to-r from-blue-500 to-indigo-600"
@@ -437,7 +439,7 @@ export function IdentityDocumentModalV2({
               ) : (
                 hasBackPhoto ? (
                   <ImageViewer
-                    url={request.documents.documentPhotoBackURL!}
+                    url={resolvedBackURL!}
                     alt="Verso du document d'identité"
                     label="Verso"
                     badgeColor="bg-gradient-to-r from-emerald-500 to-teal-600"
