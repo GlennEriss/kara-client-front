@@ -200,7 +200,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 entityId: demand.id,
                 type: 'new_request',
                 title: 'Nouvelle demande de crédit',
-                message: `Nouvelle demande de ${data.creditType} de ${data.amount.toLocaleString('fr-FR')} FCFA par ${data.clientFirstName} ${data.clientLastName}`,
+                message: `Nouvelle demande de ${data.creditType} ${data.amount != null ? `de ${data.amount.toLocaleString('fr-FR')} FCFA ` : ''}par ${data.clientFirstName} ${data.clientLastName}`,
                 metadata: {
                     demandId: demand.id,
                     creditType: data.creditType,

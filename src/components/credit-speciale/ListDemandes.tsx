@@ -820,7 +820,8 @@ const ListDemandes = ({
     return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate())
   }
 
-  const formatAmount = (amount: number): string => {
+  const formatAmount = (amount?: number): string => {
+    if (amount == null) return ''
     return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import MemberVehicleList from '@/components/memberships/MemberVehicleList'
+import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BirthdaysPage } from '@/domains/memberships/components/birthdays/BirthdaysPage'
 import { MembershipsListPage } from '@/domains/memberships/components/page/MembershipsListPage'
@@ -11,17 +12,12 @@ export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('list')
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight bg-linear-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-            Gestion des Membres
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Gérez les membres adhérents, bienfaiteurs et sympathisants de KARA
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto p-6">
+      <PageHero
+        icon={Users}
+        title="Gestion des Membres"
+        subtitle="Gérez les membres adhérents, bienfaiteurs et sympathisants de KARA"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="relative -mx-4 px-4">

@@ -65,7 +65,7 @@ export const creditDemandSchema = z.object({
   }
   
   // Validation : limites selon le type de crédit
-  if (data.creditType === 'SPECIALE' && data.monthlyPaymentAmount) {
+  if (data.creditType === 'SPECIALE' && data.amount != null && data.monthlyPaymentAmount) {
     const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
     if (maxDuration > 7) {
       ctx.addIssue({
@@ -137,7 +137,7 @@ export const creditDemandFormSchema = z.object({
   }
   
   // Validation : limites selon le type de crédit
-  if (data.creditType === 'SPECIALE' && data.monthlyPaymentAmount) {
+  if (data.creditType === 'SPECIALE' && data.amount != null && data.monthlyPaymentAmount) {
     const maxDuration = Math.ceil(data.amount / data.monthlyPaymentAmount)
     if (maxDuration > 7) {
       ctx.addIssue({
@@ -192,8 +192,7 @@ export type CreditPaymentFormInput = z.infer<typeof creditPaymentFormSchema>
 export const standardSimulationSchema = z.object({
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
-    .optional(),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
   interestRate: z.number()
     .min(0, 'Le taux d\'intérêt ne peut pas être négatif')
     .max(100, 'Le taux d\'intérêt ne peut pas dépasser 100%'),
@@ -244,8 +243,7 @@ export type StandardSimulationFormData = z.infer<typeof standardSimulationSchema
 export const customSimulationSchema = z.object({
   amount: z.number()
     .min(1000, 'Le montant minimum est de 1 000 FCFA')
-    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA')
-    .optional(),
+    .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
   interestRate: z.number()
     .min(0, 'Le taux d\'intérêt ne peut pas être négatif')
     .max(100, 'Le taux d\'intérêt ne peut pas dépasser 100%'),

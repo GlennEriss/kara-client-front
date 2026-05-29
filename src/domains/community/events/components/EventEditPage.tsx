@@ -68,7 +68,7 @@ export function EventEditPage({ eventId }: Props) {
         proposedLocations: values.pollEnabled
           ? (values.proposedLocations ?? []).map((o) => ({
               id: o.id,
-              name: o.name.trim(),
+              name: o.name?.trim() ?? '',
               address: o.address?.trim() || undefined,
               description: o.description?.trim() || undefined,
             }))
@@ -77,7 +77,7 @@ export function EventEditPage({ eventId }: Props) {
         finalLocation:
           !values.pollEnabled && values.finalLocation
             ? {
-                name: values.finalLocation.name.trim(),
+                name: values.finalLocation.name?.trim() ?? '',
                 address: values.finalLocation.address?.trim() || undefined,
                 description: values.finalLocation.description?.trim() || undefined,
               }

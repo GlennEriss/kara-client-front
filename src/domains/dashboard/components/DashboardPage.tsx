@@ -1,12 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, LayoutDashboard, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHero } from "@/components/ui/page-hero";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type { DashboardFilters } from "../entities/dashboard.types";
@@ -131,42 +132,37 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#234D65] sm:text-4xl">
-            Tableau de bord
-          </h1>
-          <p className="mt-2 text-sm text-gray-500 sm:text-base">
-            Pilotage multi-modules en temps reel, avec lecture par onglet
-            metier.
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-            {generatedAtLabel ? (
-              <span>Genere le {generatedAtLabel}</span>
-            ) : (
-              <span>En attente de donnees</span>
-            )}
-            {hasActiveMemberScope && (
-              <span className="rounded-full bg-[#234D65]/10 px-2 py-1 font-medium text-[#234D65]">
-                Scope membre actif
-              </span>
-            )}
-          </div>
-        </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <PageHero
+        icon={LayoutDashboard}
+        title="Tableau de bord"
+        subtitle="Pilotage multi-modules en temps réel, avec lecture par onglet métier."
+        rightSlot={
+          <Button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
+            Actualiser
+          </Button>
+        }
+      />
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleRefresh}
-          disabled={isFetching}
-          className="w-full lg:w-auto"
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-          />
-          Actualiser
-        </Button>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        {generatedAtLabel ? (
+          <span>Généré le {generatedAtLabel}</span>
+        ) : (
+          <span>En attente de données</span>
+        )}
+        {hasActiveMemberScope && (
+          <span className="rounded-full bg-[#234D65]/10 px-2 py-1 font-medium text-[#234D65]">
+            Scope membre actif
+          </span>
+        )}
       </div>
 
       <DashboardFiltersBar
