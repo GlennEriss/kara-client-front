@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import React from 'react'
-import { AppSidebar } from "./AppSidebar"
-import { DashboardBreadcrumb } from "./DashboardBreadcrumb"
-import NotificationBell from "./NotificationBell"
-import { MemberNavbarSearch } from "@/domains/dashboard/member-overview/components/MemberNavbarSearch"
+import { MemberNavbarSearch } from "@/domains/dashboard/member-overview/components/MemberNavbarSearch";
+import React from "react";
+import { Separator } from "@/components/ui/separator";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "./AppSidebar";
+import { DashboardBreadcrumb } from "./DashboardBreadcrumb";
+import NotificationBell from "./NotificationBell";
 
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white h-screen overflow-hidden">
+    <div className="h-screen min-h-screen overflow-hidden bg-gray-50">
       <SidebarProvider defaultOpen>
         <AppSidebar />
-        <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <main className="flex h-screen flex-1 flex-col overflow-hidden">
           <header className="sticky top-0 z-20 shrink-0 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
             <div className="flex items-center gap-2 sm:gap-3">
-              <SidebarTrigger className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors" />
+              <SidebarTrigger className="shrink-0 rounded-lg p-2 transition-colors hover:bg-gray-100" />
               <div className="min-w-0 flex-1">
                 <MemberNavbarSearch />
               </div>
@@ -31,13 +31,11 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
               <DashboardBreadcrumb />
             </div>
           </header>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 no-scrollbar-mobile">
-            <div className="p-2 xl:p-6">
-              {children}
-            </div>
+          <div className="no-scrollbar-mobile min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="p-2 xl:p-6">{children}</div>
           </div>
         </main>
       </SidebarProvider>
     </div>
-  )
+  );
 }

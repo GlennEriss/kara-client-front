@@ -217,6 +217,16 @@ service firebase.storage {
     }
     
     // ==========================================
+    // ÉVÉNEMENTS — IMAGES D'AFFICHE
+    // ==========================================
+
+    match /events/images/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
     // BIENFAITEUR / CHARITÉS (CHARITY EVENTS)
     // ==========================================
     

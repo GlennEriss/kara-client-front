@@ -1,27 +1,37 @@
-'use client'
+"use client";
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { cn } from '@/lib/utils'
-import { CalendarDays, Filter, Layers3, MapPinned, RotateCcw, Users } from 'lucide-react'
-import type { DashboardTabKey } from '../entities/dashboard-tabs.types'
-import type { DashboardFilterOptions, DashboardFilters } from '../entities/dashboard.types'
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import {
+  CalendarDays,
+  Filter,
+  Layers3,
+  MapPinned,
+  RotateCcw,
+  Users,
+} from "lucide-react";
+import type { DashboardTabKey } from "../entities/dashboard-tabs.types";
+import type {
+  DashboardFilterOptions,
+  DashboardFilters,
+} from "../entities/dashboard.types";
 
 interface DashboardFiltersBarProps {
-  activeTab: DashboardTabKey
-  filters: DashboardFilters
-  filterOptions?: DashboardFilterOptions
-  onChange: (next: DashboardFilters) => void
-  onReset: () => void
+  activeTab: DashboardTabKey;
+  filters: DashboardFilters;
+  filterOptions?: DashboardFilterOptions;
+  onChange: (next: DashboardFilters) => void;
+  onReset: () => void;
 }
 
 export function DashboardFiltersBar({
@@ -31,89 +41,100 @@ export function DashboardFiltersBar({
   onChange,
   onReset,
 }: DashboardFiltersBarProps) {
-  const provinces = filterOptions?.provinces || []
+  const provinces = filterOptions?.provinces || [];
 
   const availableCities =
-    filters.zoneProvince !== 'all'
+    filters.zoneProvince !== "all"
       ? filterOptions?.citiesByProvince?.[filters.zoneProvince] || []
       : Array.from(
-        new Set(
-          Object.values(filterOptions?.citiesByProvince || {})
-            .flat()
-            .filter((city) => city && city.trim())
-        )
-      ).sort((a, b) => a.localeCompare(b, 'fr'))
+          new Set(
+            Object.values(filterOptions?.citiesByProvince || {})
+              .flat()
+              .filter((city) => city && city.trim()),
+          ),
+        ).sort((a, b) => a.localeCompare(b, "fr"));
 
   const update = (partial: Partial<DashboardFilters>) => {
-    onChange({ ...filters, ...partial })
-  }
+    onChange({ ...filters, ...partial });
+  };
 
-  const periodLabels: Record<DashboardFilters['period'], string> = {
-    all: 'Depuis le debut',
+  const periodLabels: Record<DashboardFilters["period"], string> = {
+    all: "Depuis le debut",
     today: "Aujourd'hui",
-    '7d': '7 derniers jours',
-    '30d': '30 derniers jours',
-    month: 'Mois en cours',
-    custom: 'Personnalisee',
-  }
+    "7d": "7 derniers jours",
+    "30d": "30 derniers jours",
+    month: "Mois en cours",
+    custom: "Personnalisee",
+  };
 
-  const memberTypeLabels: Record<DashboardFilters['memberType'], string> = {
-    all: 'Tous',
-    adherant: 'Adherant',
-    bienfaiteur: 'Bienfaiteur',
-    sympathisant: 'Sympathisant',
-  }
+  const memberTypeLabels: Record<DashboardFilters["memberType"], string> = {
+    all: "Tous",
+    adherant: "Adherant",
+    bienfaiteur: "Bienfaiteur",
+    sympathisant: "Sympathisant",
+  };
 
-  const moduleCompareLabels: Record<DashboardFilters['moduleCompare'], string> = {
-    all: 'Tous modules',
-    caisse: 'Caisse',
-    credit: 'Credit',
-    placement: 'Placement',
-  }
+  const moduleCompareLabels: Record<DashboardFilters["moduleCompare"], string> =
+    {
+      all: "Tous modules",
+      caisse: "Caisse",
+      credit: "Credit",
+      placement: "Placement",
+    };
 
   const activeFilters = [
-    filters.period !== 'all' ? `Periode: ${periodLabels[filters.period]}` : null,
-    filters.memberType !== 'all' ? `Type: ${memberTypeLabels[filters.memberType]}` : null,
-    filters.zoneProvince !== 'all' ? `Province: ${filters.zoneProvince}` : null,
-    filters.zoneCity !== 'all' ? `Ville: ${filters.zoneCity}` : null,
-    activeTab === 'executive' && filters.moduleCompare !== 'all'
+    filters.period !== "all"
+      ? `Periode: ${periodLabels[filters.period]}`
+      : null,
+    filters.memberType !== "all"
+      ? `Type: ${memberTypeLabels[filters.memberType]}`
+      : null,
+    filters.zoneProvince !== "all" ? `Province: ${filters.zoneProvince}` : null,
+    filters.zoneCity !== "all" ? `Ville: ${filters.zoneCity}` : null,
+    activeTab === "executive" && filters.moduleCompare !== "all"
       ? `Module: ${moduleCompareLabels[filters.moduleCompare]}`
       : null,
-  ].filter(Boolean) as string[]
+  ].filter(Boolean) as string[];
 
-  const hasActiveFilters = activeFilters.length > 0
+  const hasActiveFilters = activeFilters.length > 0;
 
   const fieldWrapperClass = cn(
-    'space-y-2 rounded-xl border border-kara-primary-dark/10 bg-white/85 p-3',
-    'transition-all duration-200 hover:border-kara-primary-dark/25 hover:shadow-sm'
-  )
+    "space-y-2 rounded-xl border border-gray-100 bg-white p-3",
+    "transition-colors duration-200 hover:border-[#234D65]/25",
+  );
 
   const selectTriggerClass = cn(
-    'h-11 w-full rounded-xl border-kara-primary-dark/15 bg-white text-kara-primary-dark',
-    'shadow-none transition-all duration-200 hover:border-kara-primary-dark/30',
-    'focus-visible:border-kara-primary-dark focus-visible:ring-kara-primary-dark/20'
-  )
+    "h-11 w-full rounded-lg border-gray-300 bg-white text-gray-900",
+    "shadow-none transition-colors duration-200 hover:border-gray-400",
+    "focus-visible:border-[#234D65] focus-visible:ring-[#234D65]/20",
+  );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-kara-primary-dark/15 bg-gradient-to-br from-white via-kara-primary-dark/[0.02] to-kara-primary-light/[0.08] shadow-[0_14px_32px_-24px_rgba(34,77,98,0.5)]">
-      <div className="border-b border-kara-primary-dark/10 px-4 py-3 sm:px-5">
+    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+      <div className="border-b border-gray-100 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-kara-primary-dark text-white shadow-sm">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#234D65] text-white shadow-sm">
               <Filter className="h-4 w-4" />
             </span>
             <div>
-              <p className="text-sm font-black text-kara-primary-dark">Filtres dashboard</p>
-              <p className="text-xs text-muted-foreground">Affinez la lecture des indicateurs.</p>
+              <p className="text-sm font-bold text-[#234D65]">
+                Filtres dashboard
+              </p>
+              <p className="text-xs text-gray-500">
+                Affinez la lecture des indicateurs.
+              </p>
             </div>
           </div>
 
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <Badge
               variant="outline"
-              className="hidden border-kara-primary-dark/20 bg-white/85 text-kara-primary-dark sm:inline-flex"
+              className="hidden border-[#234D65]/20 bg-[#234D65]/5 text-[#234D65] sm:inline-flex"
             >
-              {hasActiveFilters ? `${activeFilters.length} filtre(s) actif(s)` : 'Aucun filtre actif'}
+              {hasActiveFilters
+                ? `${activeFilters.length} filtre(s) actif(s)`
+                : "Aucun filtre actif"}
             </Badge>
 
             <Button
@@ -121,8 +142,8 @@ export function DashboardFiltersBar({
               type="button"
               variant="outline"
               className={cn(
-                'h-10 w-full border-kara-primary-dark/20 text-kara-primary-dark sm:w-auto',
-                'hover:border-kara-primary-dark hover:bg-kara-primary-dark hover:text-white'
+                "h-10 w-full border-[#234D65]/30 text-[#234D65] sm:w-auto",
+                "hover:border-[#234D65] hover:bg-[#234D65] hover:text-white",
               )}
               onClick={onReset}
             >
@@ -138,22 +159,29 @@ export function DashboardFiltersBar({
           <div className={fieldWrapperClass}>
             <Label
               htmlFor="dashboard-period"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/80"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
             >
               <CalendarDays className="h-3.5 w-3.5" />
               Periode
             </Label>
             <Select
               value={filters.period}
-              onValueChange={(value: DashboardFilters['period']) => {
-                if (value === 'custom') {
-                  update({ period: value })
+              onValueChange={(value: DashboardFilters["period"]) => {
+                if (value === "custom") {
+                  update({ period: value });
                 } else {
-                  update({ period: value, customFrom: undefined, customTo: undefined })
+                  update({
+                    period: value,
+                    customFrom: undefined,
+                    customTo: undefined,
+                  });
                 }
               }}
             >
-              <SelectTrigger id="dashboard-period" className={selectTriggerClass}>
+              <SelectTrigger
+                id="dashboard-period"
+                className={selectTriggerClass}
+              >
                 <SelectValue placeholder="Periode" />
               </SelectTrigger>
               <SelectContent>
@@ -170,16 +198,21 @@ export function DashboardFiltersBar({
           <div className={fieldWrapperClass}>
             <Label
               htmlFor="dashboard-member-type"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/80"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
             >
               <Users className="h-3.5 w-3.5" />
               Type membre
             </Label>
             <Select
               value={filters.memberType}
-              onValueChange={(value: DashboardFilters['memberType']) => update({ memberType: value })}
+              onValueChange={(value: DashboardFilters["memberType"]) =>
+                update({ memberType: value })
+              }
             >
-              <SelectTrigger id="dashboard-member-type" className={selectTriggerClass}>
+              <SelectTrigger
+                id="dashboard-member-type"
+                className={selectTriggerClass}
+              >
                 <SelectValue placeholder="Type membre" />
               </SelectTrigger>
               <SelectContent>
@@ -194,7 +227,7 @@ export function DashboardFiltersBar({
           <div className={fieldWrapperClass}>
             <Label
               htmlFor="dashboard-province"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/80"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
             >
               <MapPinned className="h-3.5 w-3.5" />
               Province
@@ -202,14 +235,17 @@ export function DashboardFiltersBar({
             <Select
               value={filters.zoneProvince}
               onValueChange={(value) => {
-                if (value === 'all') {
-                  update({ zoneProvince: 'all', zoneCity: 'all' })
-                  return
+                if (value === "all") {
+                  update({ zoneProvince: "all", zoneCity: "all" });
+                  return;
                 }
-                update({ zoneProvince: value, zoneCity: 'all' })
+                update({ zoneProvince: value, zoneCity: "all" });
               }}
             >
-              <SelectTrigger id="dashboard-province" className={selectTriggerClass}>
+              <SelectTrigger
+                id="dashboard-province"
+                className={selectTriggerClass}
+              >
                 <SelectValue placeholder="Province" />
               </SelectTrigger>
               <SelectContent>
@@ -226,7 +262,7 @@ export function DashboardFiltersBar({
           <div className={fieldWrapperClass}>
             <Label
               htmlFor="dashboard-city"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/80"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
             >
               <MapPinned className="h-3.5 w-3.5" />
               Ville
@@ -250,21 +286,26 @@ export function DashboardFiltersBar({
           </div>
         </div>
 
-        {activeTab === 'executive' && (
-          <div className="rounded-xl border border-kara-primary-dark/15 bg-white/85 p-4">
+        {activeTab === "executive" && (
+          <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
             <div className="space-y-2 sm:max-w-sm">
               <Label
                 htmlFor="dashboard-module-compare"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/80"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
               >
                 <Layers3 className="h-3.5 w-3.5" />
                 Comparaison des modules (Executif)
               </Label>
               <Select
                 value={filters.moduleCompare}
-                onValueChange={(value: DashboardFilters['moduleCompare']) => update({ moduleCompare: value })}
+                onValueChange={(value: DashboardFilters["moduleCompare"]) =>
+                  update({ moduleCompare: value })
+                }
               >
-                <SelectTrigger id="dashboard-module-compare" className={selectTriggerClass}>
+                <SelectTrigger
+                  id="dashboard-module-compare"
+                  className={selectTriggerClass}
+                >
                   <SelectValue placeholder="Module" />
                 </SelectTrigger>
                 <SelectContent>
@@ -278,35 +319,43 @@ export function DashboardFiltersBar({
           </div>
         )}
 
-        {filters.period === 'custom' && (
-          <div className="rounded-xl border border-kara-primary-dark/15 bg-white/85 p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/80">
+        {filters.period === "custom" && (
+          <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase text-gray-600">
               Periode personnalisee
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="dashboard-custom-from" className="text-sm font-medium text-kara-primary-dark">
+                <Label
+                  htmlFor="dashboard-custom-from"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Date debut
                 </Label>
                 <Input
                   id="dashboard-custom-from"
                   type="date"
-                  value={filters.customFrom || ''}
-                  onChange={(event) => update({ customFrom: event.target.value })}
-                  className="h-11 rounded-xl border-kara-primary-dark/15 bg-white focus-visible:border-kara-primary-dark focus-visible:ring-kara-primary-dark/20"
+                  value={filters.customFrom || ""}
+                  onChange={(event) =>
+                    update({ customFrom: event.target.value })
+                  }
+                  className="h-11 rounded-lg border-gray-300 bg-white focus-visible:border-[#234D65] focus-visible:ring-[#234D65]/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dashboard-custom-to" className="text-sm font-medium text-kara-primary-dark">
+                <Label
+                  htmlFor="dashboard-custom-to"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Date fin
                 </Label>
                 <Input
                   id="dashboard-custom-to"
                   type="date"
-                  value={filters.customTo || ''}
+                  value={filters.customTo || ""}
                   onChange={(event) => update({ customTo: event.target.value })}
-                  className="h-11 rounded-xl border-kara-primary-dark/15 bg-white focus-visible:border-kara-primary-dark focus-visible:ring-kara-primary-dark/20"
+                  className="h-11 rounded-lg border-gray-300 bg-white focus-visible:border-[#234D65] focus-visible:ring-[#234D65]/20"
                 />
               </div>
             </div>
@@ -315,13 +364,13 @@ export function DashboardFiltersBar({
 
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-kara-primary-dark/70">
+            <span className="text-xs font-semibold uppercase text-gray-500">
               Filtres actifs
             </span>
             {activeFilters.map((filterLabel) => (
               <span
                 key={filterLabel}
-                className="rounded-full border border-kara-primary-dark/20 bg-white/90 px-3 py-1 text-xs font-medium text-kara-primary-dark"
+                className="rounded-full border border-[#234D65]/20 bg-[#234D65]/5 px-3 py-1 text-xs font-medium text-[#234D65]"
               >
                 {filterLabel}
               </span>
@@ -330,5 +379,5 @@ export function DashboardFiltersBar({
         )}
       </div>
     </div>
-  )
+  );
 }

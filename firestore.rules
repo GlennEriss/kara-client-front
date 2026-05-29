@@ -1082,11 +1082,11 @@ service cloud.firestore {
     match /creditInstallments/{installmentId} {
       allow read, write: if isAdmin();
     }
-    
+
     // ==========================================
     // CRÉDIT SPÉCIALE - PAIEMENTS (CREDIT PAYMENTS)
     // ==========================================
-    
+
     match /creditPayments/{paymentId} {
       allow read, write: if isAdmin();
     }
@@ -1216,10 +1216,46 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // ÉVÉNEMENTS (EVENTS)
+    // ==========================================
+    // Collection events : admin CRUD complet
+    // Membres : lecture des événements publiés/ouverts/confirmés/terminés/annulés
+    // Sous-collection votes/{memberId} : lecture admin + votant lui-même
+    //   Écriture : le membre pour son propre vote si sondage ouvert
+
+    match /events/{eventId} {
+      // Lecture : admin toujours ; membre si l'événement n'est pas en brouillon
+      allow read: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.status in ['published', 'poll_open', 'location_confirmed', 'completed', 'cancelled']
+      );
+      // Création, suppression : admin uniquement
+      allow create, delete: if isAdmin();
+      // Mise à jour : admin toujours ; membre uniquement pour les compteurs de vote
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.status == 'poll_open' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votesByOptionId', 'totalVotes'])
+      );
+
+      // Votes : sous-collection events/{eventId}/votes/{memberId}
+      match /votes/{memberId} {
+        // Lecture : admin (tous les votes) ou le votant lui-même
+        allow read: if isAdmin() || (
+          isAuthenticated() && isMemberOwner(memberId)
+        );
+        // Écriture : le membre pour son propre vote, seulement si le sondage est ouvert
+        allow write: if isAuthenticated() &&
+          isMemberOwner(memberId) &&
+          get(/databases/$(database)/documents/events/$(eventId)).data.status == 'poll_open';
+      }
+    }
+
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé
-    
+
     match /{document=**} {
       allow read, write: if false;
     }
