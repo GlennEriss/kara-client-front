@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PageHero } from '@/components/ui/page-hero'
 import {
     Select,
     SelectContent,
@@ -355,39 +356,34 @@ export default function ContractsHistoryPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <FileArchive className="h-8 w-8 text-[#234D65]" />
-            Historique des Contrats
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Centralisation de tous les contrats PDF des différents modules
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExportExcel}
-            disabled={filteredDocuments.length === 0}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Excel
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleExportPDF}
-            disabled={filteredDocuments.length === 0}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            PDF
-          </Button>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto py-8 px-4 space-y-6">
+      <PageHero
+        icon={FileArchive}
+        title="Historique des Contrats"
+        subtitle="Centralisation de tous les contrats PDF des différents modules"
+        action={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={filteredDocuments.length === 0}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              disabled={filteredDocuments.length === 0}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white gap-2"
+            >
+              <Download className="h-4 w-4" />
+              PDF
+            </Button>
+          </div>
+        }
+      />
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

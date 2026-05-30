@@ -7,6 +7,7 @@ import { CalendarViewCreditSpeciale } from "@/components/calendrier/CalendarView
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
 import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
+import { PageHero } from "@/components/ui/page-hero"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCalendarCaisseImprevue } from "@/hooks/useCalendarCaisseImprevue"
 import { useCalendarCaisseSpeciale } from "@/hooks/useCalendarCaisseSpeciale"
@@ -14,7 +15,7 @@ import { useCalendarCreditSpeciale } from "@/hooks/useCalendarCreditSpeciale"
 import { useCalendarPlacement } from "@/hooks/useCalendarPlacement"
 import type { CaisseType } from "@/services/caisse/types"
 import type { CaisseImprevuePaymentFrequency, PayoutMode } from "@/types/types"
-import { Banknote, Calendar, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react"
+import { Banknote, Calendar, PiggyBank, TrendingUp, Wallet } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function CalendrierPage() {
@@ -137,56 +138,39 @@ export default function CalendrierPage() {
     useCalendarCreditSpeciale(currentMonth, "AIDE")
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* En-tête moderne */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#1a3a4d] p-8 shadow-xl">
-          <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,white)]" />
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-          
-          <div className="relative flex items-center gap-4">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-lg">
-              <Calendar className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                Calendrier des versements
-                <Sparkles className="h-6 w-6 text-yellow-300 animate-pulse" />
-              </h1>
-              <p className="text-white/70 mt-1">
-                Gérez et suivez tous vos versements en un coup d'œil
-              </p>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <PageHero
+        icon={Calendar}
+        title="Calendrier des versements"
+        subtitle="Gérez et suivez tous vos versements en un coup d'œil"
+      />
 
-          {/* Légende des couleurs */}
-          <div className="relative mt-6 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50" />
-              <span className="text-sm text-white/80">Payé</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-400 shadow-lg shadow-yellow-400/50" />
-              <span className="text-sm text-white/80">À venir</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-400 shadow-lg shadow-orange-400/50" />
-              <span className="text-sm text-white/80">Imminent</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-400 shadow-lg shadow-red-400/50" />
-              <span className="text-sm text-white/80">En retard</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-gray-400 shadow-lg shadow-gray-400/50" />
-              <span className="text-sm text-white/80">Sans versement</span>
-            </div>
-          </div>
+      {/* Légende des couleurs */}
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-emerald-400" />
+          <span className="text-sm text-gray-700">Payé</span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-yellow-400" />
+          <span className="text-sm text-gray-700">À venir</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-orange-400" />
+          <span className="text-sm text-gray-700">Imminent</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-red-400" />
+          <span className="text-sm text-gray-700">En retard</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-gray-400" />
+          <span className="text-sm text-gray-700">Sans versement</span>
+        </div>
+      </div>
 
-        {/* Contenu principal */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      {/* Contenu principal */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <Tabs
             value={activeTab}
             onValueChange={(value) =>
@@ -316,8 +300,7 @@ export default function CalendrierPage() {
                 />
               </TabsContent>
             </div>
-          </Tabs>
-        </div>
+        </Tabs>
       </div>
     </div>
   )

@@ -1,4 +1,6 @@
 import GroupList from '@/components/groups/GroupList'
+import { PageHero } from '@/components/ui/page-hero'
+import { Users } from 'lucide-react'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -8,18 +10,14 @@ export const metadata: Metadata = {
 
 export default function GroupsPage() {
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-            Gestion des Groupes
-          </h1>
-          <p className="text-gray-600 text-lg">Créez des groupes et rattachez des membres</p>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-6 p-6">
+      <PageHero
+        icon={Users}
+        title="Gestion des Groupes"
+        subtitle="Créez des groupes et rattachez des membres"
+      />
 
       <GroupList />
     </div>
   )
 }
-

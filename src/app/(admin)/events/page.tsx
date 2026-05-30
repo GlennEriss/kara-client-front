@@ -1,21 +1,16 @@
+import { PageHero } from '@/components/ui/page-hero'
 import { EventsListPage } from '@/domains/community/events/components/EventsListPage'
+import { CalendarDays } from 'lucide-react'
 
 export default function EventsRoute() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-              Événements
-            </h1>
-            <p className="text-gray-600 text-base md:text-lg">
-              Organisez les événements de l&apos;association et leurs sondages de lieu
-            </p>
-          </div>
-        </div>
-        <EventsListPage />
-      </div>
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 p-4 md:p-6">
+      <PageHero
+        icon={CalendarDays}
+        title="Événements"
+        subtitle="Organisez les événements de l'association et leurs sondages de lieu"
+      />
+      <EventsListPage />
     </div>
   )
 }

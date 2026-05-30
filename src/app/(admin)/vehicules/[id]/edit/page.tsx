@@ -12,9 +12,8 @@ interface Props {
 export default async function EditVehiculePage({ params }: Props) {
   const { id } = await params
   return (
-    <div className="p-6">
+    <div className="max-w-7xl mx-auto p-4 md:p-6">
       <VehicleInsuranceEditView insuranceId={id} />
     </div>
   )
 }
-
