@@ -2,10 +2,11 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useMember } from '@/hooks/useMembers'
-import { AlertCircle, Package, Users } from 'lucide-react'
+import { AlertCircle, FileArchive, Package, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { lazy, Suspense } from 'react'
 
@@ -43,13 +44,12 @@ export default function ContractsHistoryDetailsPage() {
 
   if (!member) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Historique des Contrats</h1>
-          <p className="text-muted-foreground">
-            Membre introuvable
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <PageHero
+          icon={FileArchive}
+          title="Historique des Contrats"
+          subtitle="Membre introuvable"
+        />
         <Alert className="border-0 bg-gradient-to-r from-yellow-50 to-amber-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-yellow-600" />
           <AlertDescription className="text-yellow-700 font-medium">
@@ -61,14 +61,12 @@ export default function ContractsHistoryDetailsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* En-tête */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Historique des Contrats</h1>
-        <p className="text-muted-foreground">
-          Contrats de {member.firstName} {member.lastName} ({member.matricule})
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <PageHero
+        icon={FileArchive}
+        title="Historique des Contrats"
+        subtitle={`Contrats de ${member.firstName} ${member.lastName} (${member.matricule})`}
+      />
 
       {/* Informations du membre */}
       <Card>

@@ -1,9 +1,11 @@
 'use client'
 
 import EditCharityEventForm from '@/components/bienfaiteur/EditCharityEventForm'
+import { PageHero } from '@/components/ui/page-hero'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
+import { Edit } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 
 export default function ModifyCharityEventPage() {
@@ -39,11 +41,12 @@ export default function ModifyCharityEventPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Modifier l'évènement</h1>
-        <p className="text-gray-600 mt-2">{event.title}</p>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-6 p-6">
+      <PageHero
+        icon={Edit}
+        title="Modifier l'évènement"
+        subtitle={event.title}
+      />
       <EditCharityEventForm event={event} />
     </div>
   )

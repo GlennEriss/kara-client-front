@@ -813,15 +813,15 @@ export function MembershipRequestsPageV2() {
     const readyToPay = (stats.byStatus.pending || 0) // Complètes (en attente = prêtes à payer après validation)
 
     return [
-      { key: 'total', title: 'Total', value: stats.total || 0, icon: Users, bgClass: 'bg-white/10', borderClass: 'border-white/10', hoverClass: 'hover:bg-white/15', textClass: 'text-white', iconBgClass: 'bg-white/20', tab: null },
-      { key: 'to_process', title: 'À traiter', value: toProcess, icon: Inbox, bgClass: 'bg-purple-500/20', borderClass: 'border-purple-500/30', hoverClass: 'hover:bg-purple-500/30', textClass: 'text-purple-600', iconBgClass: 'bg-purple-500', tab: null, customFilter: { status: ['pending', 'under_review'] } },
-      { key: 'pending', title: 'En attente', value: stats.byStatus.pending || 0, icon: Clock, bgClass: 'bg-kara-warning/20', borderClass: 'border-kara-warning/30', hoverClass: 'hover:bg-kara-warning/30', textClass: 'text-kara-warning', iconBgClass: 'bg-kara-warning', tab: 'pending' },
-      { key: 'under_review', title: 'En cours', value: stats.byStatus.under_review || 0, icon: Eye, bgClass: 'bg-kara-info/20', borderClass: 'border-kara-info/30', hoverClass: 'hover:bg-kara-info/30', textClass: 'text-kara-info', iconBgClass: 'bg-kara-info', tab: 'under_review' },
-      { key: 'ready_to_pay', title: 'Complètes', value: readyToPay, icon: CheckCircle2, bgClass: 'bg-emerald-500/20', borderClass: 'border-emerald-500/30', hoverClass: 'hover:bg-emerald-500/30', textClass: 'text-emerald-600', iconBgClass: 'bg-emerald-500', tab: 'pending', tooltip: 'Demandes en attente (prêtes à payer)' },
-      { key: 'approved', title: 'Approuvées', value: stats.byStatus.approved || 0, icon: CheckCircle, bgClass: 'bg-kara-success/20', borderClass: 'border-kara-success/30', hoverClass: 'hover:bg-kara-success/30', textClass: 'text-kara-success', iconBgClass: 'bg-kara-success', tab: 'approved' },
-      { key: 'rejected', title: 'Rejetées', value: stats.byStatus.rejected || 0, icon: XCircle, bgClass: 'bg-kara-error/20', borderClass: 'border-kara-error/30', hoverClass: 'hover:bg-kara-error/30', textClass: 'text-kara-error', iconBgClass: 'bg-kara-error', tab: 'rejected' },
-      { key: 'paid', title: 'Payées', value: stats.byPayment.paid || 0, icon: CreditCard, bgClass: 'bg-kara-primary-light/20', borderClass: 'border-kara-primary-light/40', hoverClass: 'hover:bg-kara-primary-light/30', textClass: 'text-kara-primary-light', iconBgClass: 'bg-kara-primary-light', tab: 'paid' },
-      { key: 'unpaid', title: 'Non payées', value: stats.byPayment.unpaid || 0, icon: AlertCircle, bgClass: 'bg-orange-500/20', borderClass: 'border-orange-500/30', hoverClass: 'hover:bg-orange-500/30', textClass: 'text-orange-500', iconBgClass: 'bg-orange-500', tab: 'unpaid' },
+      { key: 'total', title: 'Total', value: stats.total || 0, icon: Users, bgClass: 'bg-white/5', borderClass: 'border-white/15', hoverClass: 'hover:bg-white/10', iconBgClass: 'bg-white/15', iconColor: 'text-white', tab: null },
+      { key: 'to_process', title: 'À traiter', value: toProcess, icon: Inbox, bgClass: 'bg-purple-400/10', borderClass: 'border-purple-300/40', hoverClass: 'hover:bg-purple-400/20', iconBgClass: 'bg-purple-400/30', iconColor: 'text-purple-100', tab: null, customFilter: { status: ['pending', 'under_review'] } },
+      { key: 'pending', title: 'En attente', value: stats.byStatus.pending || 0, icon: Clock, bgClass: 'bg-amber-400/10', borderClass: 'border-amber-300/40', hoverClass: 'hover:bg-amber-400/20', iconBgClass: 'bg-amber-400/30', iconColor: 'text-amber-100', tab: 'pending' },
+      { key: 'under_review', title: 'En cours', value: stats.byStatus.under_review || 0, icon: Eye, bgClass: 'bg-sky-400/10', borderClass: 'border-sky-300/40', hoverClass: 'hover:bg-sky-400/20', iconBgClass: 'bg-sky-400/30', iconColor: 'text-sky-100', tab: 'under_review' },
+      { key: 'ready_to_pay', title: 'Complètes', value: readyToPay, icon: CheckCircle2, bgClass: 'bg-emerald-400/10', borderClass: 'border-emerald-300/40', hoverClass: 'hover:bg-emerald-400/20', iconBgClass: 'bg-emerald-400/30', iconColor: 'text-emerald-100', tab: 'pending', tooltip: 'Demandes en attente (prêtes à payer)' },
+      { key: 'approved', title: 'Approuvées', value: stats.byStatus.approved || 0, icon: CheckCircle, bgClass: 'bg-green-400/10', borderClass: 'border-green-300/40', hoverClass: 'hover:bg-green-400/20', iconBgClass: 'bg-green-400/30', iconColor: 'text-green-100', tab: 'approved' },
+      { key: 'rejected', title: 'Rejetées', value: stats.byStatus.rejected || 0, icon: XCircle, bgClass: 'bg-red-400/10', borderClass: 'border-red-300/40', hoverClass: 'hover:bg-red-400/20', iconBgClass: 'bg-red-400/30', iconColor: 'text-red-100', tab: 'rejected' },
+      { key: 'paid', title: 'Payées', value: stats.byPayment.paid || 0, icon: CreditCard, bgClass: 'bg-[#CBB171]/10', borderClass: 'border-[#CBB171]/40', hoverClass: 'hover:bg-[#CBB171]/20', iconBgClass: 'bg-[#CBB171]/30', iconColor: 'text-[#E8D9B4]', tab: 'paid' },
+      { key: 'unpaid', title: 'Non payées', value: stats.byPayment.unpaid || 0, icon: AlertCircle, bgClass: 'bg-orange-400/10', borderClass: 'border-orange-300/40', hoverClass: 'hover:bg-orange-400/20', iconBgClass: 'bg-orange-400/30', iconColor: 'text-orange-100', tab: 'unpaid' },
     ]
   }, [stats])
 
@@ -986,8 +986,8 @@ export function MembershipRequestsPageV2() {
                             }
                           }}
                           className={cn(
-                            'backdrop-blur-sm rounded-xl p-4 border transition-all group h-full',
-                            isMobile && itemsPerView === 1 && 'w-[50%] mx-auto',
+                            'backdrop-blur-sm rounded-xl p-3 md:p-4 border transition-all group h-full',
+                            isMobile && itemsPerView === 1 && 'w-[60%] mx-auto',
                             stat.bgClass,
                             stat.borderClass,
                             stat.hoverClass,
@@ -995,16 +995,16 @@ export function MembershipRequestsPageV2() {
                           )}
                           title={stat.tooltip || (stat.tab ? `Voir les ${stat.title.toLowerCase()}` : undefined)}
                         >
-                          <div className="flex items-center gap-2 md:gap-3">
+                          <div className="flex items-center gap-2.5 md:gap-3">
                             <div className={cn(
-                              'p-1.5 md:p-2.5 rounded-lg md:rounded-xl group-hover:scale-110 transition-transform duration-300 shrink-0',
+                              'p-2 md:p-2.5 rounded-lg group-hover:scale-110 transition-transform duration-300 shrink-0',
                               stat.iconBgClass
                             )}>
-                              <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                              <Icon className={cn('w-4 h-4 md:w-5 md:h-5', stat.iconColor)} />
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className={cn('text-xl md:text-2xl lg:text-3xl font-black truncate', stat.textClass)}>{stat.value}</p>
-                              <p className="text-[10px] md:text-xs text-white/70 font-medium truncate">{stat.title}</p>
+                            <div className="min-w-0 flex-1 leading-tight">
+                              <p className="text-2xl md:text-3xl font-black text-white tabular-nums">{stat.value}</p>
+                              <p className="text-[11px] md:text-xs text-white/80 font-semibold whitespace-nowrap">{stat.title}</p>
                             </div>
                           </div>
                         </div>

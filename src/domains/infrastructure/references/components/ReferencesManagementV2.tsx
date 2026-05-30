@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from 'react'
+import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CompanyListV2 from './CompanyListV2'
 import ProfessionListV2 from './ProfessionListV2'
@@ -35,22 +36,11 @@ export default function ReferencesManagementV2({ defaultTab = 'companies' }: Ref
 
   return (
     <div className="space-y-4 sm:space-y-6" data-testid="references-management-v2">
-      {/* Header avec couleurs KARA */}
-      <header className="space-y-2" data-testid="references-header">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-kara-primary-dark flex items-center justify-center shrink-0 shadow-sm">
-            <Briefcase className="h-5 w-5 sm:h-6 sm:w-6 text-white" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-kara-primary-dark" data-testid="references-title">
-              Gestion des Métiers
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="references-description">
-              Gérez les entreprises et les professions/métiers de vos membres
-            </p>
-          </div>
-        </div>
-      </header>
+      <PageHero
+        icon={Briefcase}
+        title="Gestion des Métiers"
+        subtitle="Gérez les entreprises et les professions/métiers de vos membres"
+      />
 
       {/* Statistiques avec couleurs KARA */}
       <section data-testid="references-stats-section">

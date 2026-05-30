@@ -1,16 +1,10 @@
 /**
- * StatsCard - Composant réutilisable pour les statistiques modernes
+ * StatsCard - Carte stat horizontale compacte (icône + label/valeur)
  *
  * Utilise les couleurs KARA (bleu institutionnel et accent or)
- * Voir documentation/DESIGN_SYSTEM_COULEURS_KARA.md
- *
- * Utilisé dans :
- * - Caisse spéciale
- * - Géographie V2
- * - Autres modules futurs
+ * Layout horizontal compact pour un design uniforme à travers l'admin.
  */
 
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import React from "react";
 
@@ -32,43 +26,18 @@ interface StatsCardProps {
   className?: string;
 }
 
-const variantStyles = {
-  default: {
-    bg: "bg-gray-100",
-    text: "text-gray-600",
-    icon: "text-gray-600",
-  },
-  "kara-blue": {
-    bg: "bg-kara-primary-dark/10",
-    text: "text-kara-primary-dark",
-    icon: "text-kara-primary-dark",
-  },
-  "kara-gold": {
-    bg: "bg-[#CBB171]/20",
-    text: "text-kara-primary-dark",
-    icon: "text-[#CBB171]",
-  },
-  success: {
-    bg: "bg-kara-success/10",
-    text: "text-kara-success",
-    icon: "text-kara-success",
-  },
-  warning: {
-    bg: "bg-kara-warning/10",
-    text: "text-kara-warning",
-    icon: "text-kara-warning",
-  },
-  error: {
-    bg: "bg-kara-error/10",
-    text: "text-kara-error",
-    icon: "text-kara-error",
-  },
+const variantColors: Record<NonNullable<StatsCardProps["variant"]>, string> = {
+  default: "#6b7280",
+  "kara-blue": "#234D65",
+  "kara-gold": "#CBB171",
+  success: "#10b981",
+  warning: "#f59e0b",
+  error: "#ef4444",
 };
 
 export function StatsCard({
   title,
   value,
-  subtitle,
   color,
   variant = "kara-blue",
   icon: Icon,
@@ -76,56 +45,36 @@ export function StatsCard({
   testId,
   className,
 }: StatsCardProps) {
-  const styles = variantStyles[variant];
+  const resolvedColor = color ?? variantColors[variant];
 
   return (
-    <Card
+    <div
       className={cn(
-        "group border border-gray-100 bg-white shadow-sm transition-colors duration-200 hover:border-gray-200",
+        "group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200",
         onClick && "cursor-pointer",
         className,
       )}
       onClick={onClick}
       data-testid={testId}
     >
-      <CardContent className="p-3 sm:p-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={cn("rounded-xl p-2 sm:p-2.5", color ? "" : styles.bg)}
-            style={
-              color
-                ? { backgroundColor: `${color}15`, color: color }
-                : undefined
-            }
-            aria-hidden="true"
-          >
-            <Icon
-              className={cn("h-4 w-4 sm:h-5 sm:w-5", !color && styles.icon)}
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p
-              className={cn(
-                "truncate text-[10px] font-semibold uppercase sm:text-xs",
-                styles.text,
-              )}
-            >
-              {title}
-            </p>
-            <p
-              className="mt-0.5 text-xl font-bold text-[#234D65] sm:text-2xl"
-              data-testid={testId ? `${testId}-value` : undefined}
-            >
-              {value}
-            </p>
-            {subtitle && (
-              <p className="mt-0.5 text-[10px] text-gray-500 sm:text-xs">
-                {subtitle}
-              </p>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <div
+        className="p-1.5 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110"
+        style={{ backgroundColor: `${resolvedColor}15`, color: resolvedColor }}
+        aria-hidden="true"
+      >
+        <Icon className="w-3.5 h-3.5" />
+      </div>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 truncate">
+          {title}
+        </p>
+        <p
+          className="text-sm font-black text-gray-900 tabular-nums whitespace-nowrap"
+          data-testid={testId ? `${testId}-value` : undefined}
+        >
+          {value}
+        </p>
+      </div>
+    </div>
   );
 }

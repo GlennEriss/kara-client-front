@@ -3,6 +3,7 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { PageHero } from '@/components/ui/page-hero'
 import { useAllMembers } from '@/hooks/useMembers'
 import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
 import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRenewVehicleInsurance, useUpdateVehicleInsurance, useVehicleInsuranceList, useVehicleInsuranceStats } from '@/hooks/vehicule/useVehicleInsurances'
@@ -269,59 +270,54 @@ export function VehicleInsuranceList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase text-gray-500 tracking-wide">Module Véhicule</p>
-          <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3">
-            <ShieldCheck className="h-7 w-7 text-[#234D65]" />
-            Assurances des véhicules
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Suivi complet des membres possédant un véhicule et de leurs assurances.
-            {!membersLoading && membersWithCar.length > 0 && (
-              <span className="ml-2 font-medium text-[#234D65]">
-                ({membersWithCar.length} {membersWithCar.length === 1 ? 'membre' : 'membres'} avec véhicule)
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleExportExcel}
-            disabled={!allItems.length}
-            className="flex items-center gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Exporter Excel
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleExportPdf}
-            disabled={!allItems.length}
-            className="flex items-center gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            Exporter PDF
-          </Button>
-          <Button variant="outline" onClick={() => {
-            refetch()
-            refetchMembers()
-          }}>
-            Actualiser
-          </Button>
-          <Button
-            onClick={openCreateModal}
-            disabled={membersLoading}
-            className="bg-[#234D65] hover:bg-[#1b3b4d] text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvelle assurance
-          </Button>
-        </div>
-      </div>
+      <PageHero
+        icon={ShieldCheck}
+        title="Assurances des véhicules"
+        subtitle={
+          !membersLoading && membersWithCar.length > 0
+            ? `Suivi complet des membres possédant un véhicule et de leurs assurances. (${membersWithCar.length} ${membersWithCar.length === 1 ? 'membre' : 'membres'} avec véhicule)`
+            : 'Suivi complet des membres possédant un véhicule et de leurs assurances.'
+        }
+        action={
+          <div className="flex flex-wrap gap-2 md:gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={!allItems.length}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Exporter Excel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={!allItems.length}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Exporter PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { refetch(); refetchMembers() }}
+              className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
+            >
+              Actualiser
+            </Button>
+            <Button
+              onClick={openCreateModal}
+              disabled={membersLoading}
+              className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nouvelle assurance
+            </Button>
+          </div>
+        }
+      />
 
       <VehicleInsuranceStats stats={stats} isLoading={statsLoading} />
 

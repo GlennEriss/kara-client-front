@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from 'react'
+import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ProvinceList from './ProvinceList'
@@ -54,22 +55,11 @@ export default function GeographieManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-br from-[#234D65] to-[#2c5a73] flex items-center justify-center flex-shrink-0">
-            <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
-              Gestion Géographique
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              Gérez les provinces, départements, communes, arrondissements et quartiers
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHero
+        icon={MapPin}
+        title="Gestion Géographique"
+        subtitle="Gérez les provinces, départements, communes, arrondissements et quartiers"
+      />
 
       {/* Statistiques - Responsive grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">

@@ -1,4 +1,6 @@
 import CreateCharityEventForm from '@/components/bienfaiteur/CreateCharityEventForm'
+import { PageHero } from '@/components/ui/page-hero'
+import { HandHeart } from 'lucide-react'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -8,18 +10,14 @@ export const metadata: Metadata = {
 
 export default function CreateBienfaiteurPage() {
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-          Créer un Évènement Bienfaiteur
-        </h1>
-        <p className="text-gray-600 text-lg">
-          Lancez une nouvelle action de solidarité
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-6 p-6">
+      <PageHero
+        icon={HandHeart}
+        title="Créer un Évènement Bienfaiteur"
+        subtitle="Lancez une nouvelle action de solidarité"
+      />
 
       <CreateCharityEventForm />
     </div>
   )
 }
-

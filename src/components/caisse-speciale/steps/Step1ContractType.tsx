@@ -246,26 +246,6 @@ export function Step1ContractType() {
         <p className="text-gray-600">
           Choisissez le type de contrat et sélectionnez le membre ou le groupe concerné
         </p>
-        
-        {/* Boutons temporaires pour le débogage */}
-        <div className="mt-4 flex gap-2 justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCreateTestData}
-            className="text-xs"
-          >
-            🧪 Créer données de test
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDebugUsers}
-            className="text-xs"
-          >
-            🔍 Déboguer utilisateurs
-          </Button>
-        </div>
       </div>
 
       {/* Sélection du type de contrat */}
