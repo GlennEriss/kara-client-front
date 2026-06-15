@@ -182,11 +182,11 @@ export default function MemberVehicleList() {
       ) : membersWithSubscriptions.length > 0 ? (
         <div className="space-y-3">
           {membersWithSubscriptions.map((member) => (
-            <Card 
-              key={member.id} 
-              className="hover:shadow-md transition-shadow duration-200 border border-gray-200"
+            <Card
+              key={member.id}
+              className="rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md"
             >
-              <CardContent className="p-4">
+              <CardContent className="p-4 md:p-5">
                 <div className="flex items-center justify-between gap-4">
                   {/* Informations du membre */}
                   <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -204,9 +204,10 @@ export default function MemberVehicleList() {
 
                   {/* Switch */}
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className={`text-sm font-medium ${
-                      member.hasCar ? 'text-green-700' : 'text-gray-500'
+                    <span className={`flex items-center gap-1.5 text-sm font-medium ${
+                      member.hasCar ? 'text-emerald-700' : 'text-gray-500'
                     }`}>
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${member.hasCar ? 'bg-emerald-500' : 'bg-gray-400'}`} />
                       {member.hasCar ? 'Avec véhicule' : 'Sans véhicule'}
                     </span>
                     <Switch

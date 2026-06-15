@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
@@ -77,18 +71,14 @@ export default function ReopenDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <RotateCcw className="h-6 w-6 text-blue-600" />
-            Réouvrir la demande
-          </DialogTitle>
-          <DialogDescription>
-            Vous êtes sur le point de réouvrir cette demande rejetée. Veuillez indiquer le motif de réouverture.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={RotateCcw}
+          title="Réouvrir la demande"
+          description="Vous êtes sur le point de réouvrir cette demande rejetée. Veuillez indiquer le motif de réouverture."
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations de la demande */}
           <Alert>
             <AlertTriangle className="h-4 w-4" />
@@ -133,9 +123,9 @@ export default function ReopenDemandModal({
               Expliquez clairement pourquoi cette demande doit être réouverte et réexaminée (ex: nouvelles informations fournies, garant supplémentaire ajouté, correction d'erreur dans les documents...)
             </p>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button
             type="button"
             variant="outline"
@@ -162,8 +152,8 @@ export default function ReopenDemandModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

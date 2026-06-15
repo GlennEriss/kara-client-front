@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -23,7 +24,6 @@ import {
   Clock,
   Loader2,
   Eye,
-  Calendar,
   RotateCcw,
   CreditCard,
   MoreVertical,
@@ -87,6 +87,13 @@ const getPayoutModeLabel = (mode: string) =>
   mode === 'MonthlyCommission_CapitalEnd'
     ? 'Commission mensuelle + Capital en fin'
     : 'Capital + Commission en fin'
+
+const STATUS_DOT: Record<string, { dot: string; text: string }> = {
+  PENDING:   { dot: 'bg-amber-400', text: 'text-amber-700' },
+  APPROVED:  { dot: 'bg-green-500', text: 'text-green-700' },
+  REJECTED:  { dot: 'bg-red-400',   text: 'text-red-700'   },
+  CONVERTED: { dot: 'bg-blue-400',  text: 'text-blue-700'  },
+}
 
 // Ligne du tableau : une colonne par champ (nom, prénom, matricule, contacts, contact urgent, motif, etc.)
 function PlacementDemandTableRow({
@@ -204,7 +211,6 @@ function PlacementDemandTableRow({
 // Carte grille : bloc détaillé (nom, prénom, matricule, contacts, contact urgent, motif) + reste
 function PlacementDemandCard({
   demande,
-  getStatusColor,
   getStatusLabel,
   getPayoutModeLabel,
   setAcceptModalState,
@@ -214,7 +220,6 @@ function PlacementDemandCard({
   convertPending,
 }: {
   demande: PlacementDemand
-  getStatusColor: (s: PlacementDemandStatus) => string
   getStatusLabel: (s: PlacementDemandStatus) => string
   getPayoutModeLabel: (mode: string) => string
   setAcceptModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
@@ -234,71 +239,85 @@ function PlacementDemandCard({
   const urgentPhones = [uc?.phone, uc?.phone2].filter(Boolean).join(' / ') || '—'
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
+    <Card className="group flex h-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
       <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
-        <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">#{demande.id}</h3>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-            {getPayoutModeLabel(demande.payoutMode)}
-          </span>
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-            {getStatusLabel(demande.status)}
-          </span>
+        {/* Header : avatar + nom à gauche, statut dot + type à droite */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-9 shrink-0 rounded-xl">
+              {member?.photoURL ? (
+                <AvatarImage src={member.photoURL} alt={`${member?.firstName || ''} ${member?.lastName || ''}`} className="h-full w-full object-cover object-center" />
+              ) : null}
+              <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
+                {`${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase() || 'BF'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              {memberLoading ? (
+                <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
+              ) : (
+                <>
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {`${member?.lastName ?? ''} ${member?.firstName ?? ''}`.trim() || '—'}
+                  </p>
+                  <p className="truncate text-xs text-gray-400">Mat. {member?.matricule ?? '—'}</p>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className={`flex items-center gap-1.5 text-xs font-semibold ${(STATUS_DOT[demande.status] || STATUS_DOT.PENDING).text}`}>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${(STATUS_DOT[demande.status] || STATUS_DOT.PENDING).dot}`} />
+              {getStatusLabel(demande.status)}
+            </span>
+          </div>
         </div>
-        {/* Bloc détaillé bienfaiteur + contact urgent + motif */}
-        <div className="flex flex-col gap-0.5 text-sm border-b border-gray-100 pb-3">
-          {memberLoading ? (
-            <span className="text-gray-400 animate-pulse">Chargement bienfaiteur...</span>
-          ) : (
-            <>
-              <div className="font-medium text-gray-900">{member?.lastName ?? '—'}</div>
-              <div className="text-gray-700">{member?.firstName ?? '—'}</div>
-              <div className="text-gray-600">Matricule: {member?.matricule ?? '—'}</div>
-              <div className="text-gray-600">Contacts: {contactsStr}</div>
-            </>
-          )}
-          <div className="mt-1.5 font-medium text-gray-800">Contact urgent</div>
-          <div className="text-gray-600">Nom: {uc?.name ?? '—'}</div>
-          <div className="text-gray-600">Prénom: {uc?.firstName ?? '—'}</div>
-          <div className="text-gray-600">Contact: {urgentPhones}</div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
+            <p className="font-bold text-[#234D65] tabular-nums text-sm">{demande.amount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span></p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Taux</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">{demande.rate}<span className="text-[10px] font-normal text-gray-400">%</span></p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Durée</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">{demande.periodMonths} <span className="text-[10px] font-normal text-gray-400">mois</span></p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date souhaitée</p>
+            <p className="text-sm font-medium text-gray-700">{demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</p>
+          </div>
+        </div>
+
+        {/* Détails : type, contacts, contact urgent, motif */}
+        <div className="space-y-1 text-xs text-gray-500">
+          <p className="truncate">Règlement : <span className="text-gray-700">{getPayoutModeLabel(demande.payoutMode)}</span></p>
+          <p className="truncate">Contacts : <span className="text-gray-700">{contactsStr}</span></p>
+          <p className="truncate">Contact urgent : <span className="text-gray-700">{[uc?.name, uc?.firstName].filter(Boolean).join(' ') || '—'}{urgentPhones !== '—' ? ` · ${urgentPhones}` : ''}</span></p>
           {demande.cause != null && demande.cause !== '' && (
-            <div className="mt-1.5 text-gray-700">Motif: {demande.cause}</div>
+            <p className="italic line-clamp-2">« {demande.cause} »</p>
+          )}
+          {demande.decisionMadeByName && (
+            <p className="truncate">Décision par : <span className="text-gray-700">{demande.decisionMadeByName}</span></p>
           )}
         </div>
-        <div className="text-sm">
-          <span className="text-gray-500">Montant: </span>
-          <span className="font-semibold text-green-600">{demande.amount.toLocaleString('fr-FR')} FCFA</span>
-        </div>
-        <div className="text-sm">
-          <span className="text-gray-500">Taux: </span>
-          <span className="font-medium text-gray-900">{demande.rate}% — {demande.periodMonths} mois</span>
-        </div>
-        {demande.desiredDate && (
-          <div className="text-sm flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-            <span className="text-gray-500">Date souhaitée:</span>
-            <span className="font-medium text-gray-900">{new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-          </div>
-        )}
-        {demande.decisionMadeByName && (
-          <div className="text-sm">
-            <span className="text-gray-500">Décision par: </span>
-            <span className="font-medium text-gray-900">{demande.decisionMadeByName}</span>
-          </div>
-        )}
         <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
           {demande.status === 'PENDING' && (
             <>
-              <Button size="sm" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
+              <Button size="sm" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })} className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
                 <CheckCircle className="h-4 w-4 mr-1" /> Accepter
               </Button>
-              <Button size="sm" onClick={() => setRejectModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
+              <Button size="sm" variant="outline" onClick={() => setRejectModalState({ isOpen: true, demand: demande })} className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50">
                 <XCircle className="h-4 w-4 mr-1" /> Refuser
               </Button>
             </>
           )}
           {demande.status === 'REJECTED' && (
-            <Button size="sm" onClick={() => setReopenModalState({ isOpen: true, demand: demande })} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300">
+            <Button size="sm" variant="outline" onClick={() => setReopenModalState({ isOpen: true, demand: demande })} className="w-full h-9 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
               <RotateCcw className="h-4 w-4 mr-1" /> Réouvrir
             </Button>
           )}
@@ -307,7 +326,7 @@ function PlacementDemandCard({
               size="sm"
               onClick={() => setConvertModalState({ isOpen: true, demand: demande })}
               disabled={convertPending}
-              className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+              className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
             >
               {convertPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Création...</> : <><CreditCard className="h-4 w-4 mr-1" /> Créer le placement</>}
             </Button>
@@ -317,7 +336,7 @@ function PlacementDemandCard({
               <CheckCircle className="h-4 w-4 mr-1" /> Placement créé
             </Badge>
           )}
-          <Button onClick={() => router.push(routes.admin.placementDemandDetails(demande.id))} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white">
+          <Button onClick={() => router.push(routes.admin.placementDemandDetails(demande.id))} className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold">
             <Eye className="h-4 w-4" /> Voir détails
           </Button>
         </div>
@@ -548,7 +567,7 @@ export function PlacementDemandesSection() {
       </Card>
 
       {isLoading ? (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-6'}>
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
           {[...Array(itemsPerPage)].map((_, i) => (
             <ModernSkeleton key={i} viewMode={viewMode} />
           ))}
@@ -596,12 +615,11 @@ export function PlacementDemandesSection() {
               </div>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
               {currentDemandes.map((demande) => (
                 <PlacementDemandCard
                   key={demande.id}
                   demande={demande}
-                  getStatusColor={getStatusColor}
                   getStatusLabel={getStatusLabel}
                   getPayoutModeLabel={getPayoutModeLabel}
                   setAcceptModalState={setAcceptModalState}

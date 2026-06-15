@@ -111,7 +111,7 @@ export default function CommissionReceiptModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
             <Receipt className="h-6 w-6" />
@@ -291,7 +291,7 @@ export default function CommissionReceiptModal({
       {/* Modal d'image en plein écran */}
       {selectedImage && (
         <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-          <DialogContent className="max-w-5xl max-h-[95vh] p-0">
+          <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[95dvh] p-0">
             <DialogTitle className="sr-only">Aperçu de l&apos;image</DialogTitle>
             <div className="relative w-full h-[90vh] bg-black">
               <Button

@@ -255,7 +255,7 @@ export default function PaymentSummaryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[95vw] !max-w-[1100px] max-h-[95vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
+      <DialogContent className="!w-[95vw] !max-w-[1100px] max-h-[95vh] overflow-y-auto bg-white border-0 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
             VERSEMENT DU: {formatDate(payment.paymentDate)}

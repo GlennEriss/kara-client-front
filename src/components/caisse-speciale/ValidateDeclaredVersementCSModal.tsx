@@ -6,13 +6,8 @@ import { fr } from 'date-fns/locale'
 import { CheckCircle2, FileText, Loader2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
 import { updateDeclaredVersementCS } from '@/db/caisse/refunds.db'
 import { getAdminById } from '@/db/admin.db'
@@ -114,26 +109,16 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
-        {/* Header */}
-        <DialogHeader className="shrink-0 px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-amber-500 p-2 shrink-0">
-              <FileText className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <DialogTitle className="text-base">
-                Versement déclaré — Mois {versement?.monthIndex != null ? versement.monthIndex + 1 : '?'}
-              </DialogTitle>
-              <DialogDescription className="mt-0.5">
-                Déclaration soumise par le membre — en attente de validation
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+      <ModalContent size="md">
+        <ModalHeader
+          icon={FileText}
+          tone="warning"
+          title={`Versement déclaré — Mois ${versement?.monthIndex != null ? versement.monthIndex + 1 : '?'}`}
+          description="Déclaration soumise par le membre — en attente de validation"
+        />
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 min-h-0">
+        <ModalBody>
           {/* Résumé */}
           <div className="rounded-xl border border-gray-100 overflow-hidden">
             <div className="border-b border-gray-100 px-4 py-3 bg-gray-50/60">
@@ -232,10 +217,10 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
               </div>
             </div>
           )}
-        </div>
+        </ModalBody>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-gray-100 px-6 py-4 flex gap-2 justify-end">
+        <ModalFooter>
           <Button variant="outline" onClick={handleClose} disabled={isPending}>
             Fermer
           </Button>
@@ -265,8 +250,8 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
               </Button>
             </>
           )}
-        </div>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

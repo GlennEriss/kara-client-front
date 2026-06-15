@@ -356,7 +356,7 @@ export function VehicleInsuranceList() {
           setCurrentInsurance(null)
         }
       }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90dvh] flex flex-col">
           <DialogHeader className="flex-shrink-0 pb-4 border-b">
             <DialogTitle className="text-2xl font-bold">{formMode === 'create' ? 'Ajouter une assurance véhicule' : "Modifier l'assurance"}</DialogTitle>
             {formMode === 'create' && (
@@ -418,7 +418,7 @@ export function VehicleInsuranceList() {
         setIsRenewDialogOpen(open)
         if (!open) setCurrentInsurance(null)
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Renouveler l’assurance</DialogTitle>
           </DialogHeader>

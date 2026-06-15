@@ -1,10 +1,10 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Modal } from '@/components/ui/modal'
 import type { AgentRecouvrement } from '@/types/types'
 import type { UseMutationResult } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 
 interface SupprimerAgentModalProps {
   agent: AgentRecouvrement
@@ -21,25 +21,15 @@ export function SupprimerAgentModal({ agent, open, onOpenChange, onSuccess, muta
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Supprimer l'agent</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p className="text-destructive font-semibold">⚠️ ATTENTION : Suppression irréversible</p>
-          <p>
-            Vous êtes sur le point de <strong>supprimer définitivement</strong> l'agent : <strong>{agent.nom} {agent.prenom}</strong>
-          </p>
-          <p className="text-sm">
-            La suppression est <strong>irréversible</strong>. L'agent et toutes ses données seront supprimés de la base.
-          </p>
-          <p className="text-sm">
-            Les versements déjà enregistrés avec cet agent garderont la référence mais l'agent n'existera plus.
-          </p>
-          <p>Cette action ne peut pas être annulée. Êtes-vous absolument sûr ?</p>
-        </div>
-        <div className="flex justify-end gap-2 pt-4">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      icon={Trash2}
+      tone="destructive"
+      title="Supprimer l'agent"
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
@@ -47,8 +37,20 @@ export function SupprimerAgentModal({ agent, open, onOpenChange, onSuccess, muta
             {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Confirmer la suppression
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <p className="text-destructive font-semibold">⚠️ ATTENTION : Suppression irréversible</p>
+      <p>
+        Vous êtes sur le point de <strong>supprimer définitivement</strong> l'agent : <strong>{agent.nom} {agent.prenom}</strong>
+      </p>
+      <p className="text-sm">
+        La suppression est <strong>irréversible</strong>. L'agent et toutes ses données seront supprimés de la base.
+      </p>
+      <p className="text-sm">
+        Les versements déjà enregistrés avec cet agent garderont la référence mais l'agent n'existera plus.
+      </p>
+      <p>Cette action ne peut pas être annulée. Êtes-vous absolument sûr ?</p>
+    </Modal>
   )
 }

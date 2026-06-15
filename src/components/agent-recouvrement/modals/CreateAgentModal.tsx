@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -102,12 +103,11 @@ export function CreateAgentModal({ open, onOpenChange, onSuccess, mutation }: Cr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nouvel agent</DialogTitle>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader title="Nouvel agent" />
+        <ModalBody>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form id="create-agent-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <FormLabel className="mb-2 block">Photo (optionnel)</FormLabel>
               <AgentPhotoUpload value={photoFile} onChange={setPhotoFile} disabled={mutation.isPending} />
@@ -297,18 +297,19 @@ export function CreateAgentModal({ open, onOpenChange, onSuccess, mutation }: Cr
                 )}
               />
             </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={mutation.isPending || updateMutation.isPending} className="bg-[#234D65] hover:bg-[#2c5a73]">
-                {(mutation.isPending || updateMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Créer
-              </Button>
-            </div>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button type="submit" form="create-agent-form" disabled={mutation.isPending || updateMutation.isPending} className="bg-[#234D65] hover:bg-[#2c5a73]">
+            {(mutation.isPending || updateMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Créer
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

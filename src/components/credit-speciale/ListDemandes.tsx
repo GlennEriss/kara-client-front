@@ -1,6 +1,7 @@
 'use client'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -27,7 +28,6 @@ import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import routes from '@/constantes/routes'
 import CreditFixeSimulationModal from '@/domains/financial/credit-speciale/fixe/simulation/components/CreditFixeSimulationModal'
 import { useCreditDemandesRealtimeSync } from '@/hooks/credit-speciale/useCreditDemandesRealtimeSync'
-import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { useCreditContractMutations, useCreditDemands, useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
@@ -37,9 +37,7 @@ import { CreditDemand, CreditDemandStatus, CreditType } from '@/types/types'
 import {
     AlertCircle,
     Calculator,
-    Calendar,
     CheckCircle,
-    CheckCircle2,
     ChevronDown,
     Clock,
     Download,
@@ -55,7 +53,6 @@ import {
     RefreshCw,
     RotateCcw,
     Search,
-    Shield,
     Trash2,
     XCircle,
 } from 'lucide-react'
@@ -161,65 +158,6 @@ interface DemandFiltersState {
 interface ListDemandesProps {
   forcedCreditType?: CreditType
   demandDetailsBasePath?: string
-}
-
-// Composant pour afficher les infos garant (Garant: nom, prénom, statut CI sur lignes séparées)
-const GuarantorInfo = ({ 
-  guarantorId, 
-  guarantorFirstName, 
-  guarantorLastName, 
-  guarantorIsMember 
-}: { 
-  guarantorId: string
-  guarantorFirstName?: string
-  guarantorLastName?: string
-  guarantorIsMember?: boolean
-}) => {
-  const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
-
-  const getStatutCILabel = () => {
-    if (!guarantorIsMember || isLoading) return null
-    if (!hasActiveContract) return 'Pas de contrat CI'
-    return isUpToDate ? 'À jour' : 'En retard'
-  }
-
-  const statutCI = getStatutCILabel()
-
-  return (
-    <>
-      <div className="text-sm">
-        <span className="text-gray-500 flex items-center gap-1">
-          <Shield className="h-3.5 w-3.5" />
-          Garant:
-        </span>
-        <span className="font-medium text-gray-900 block">{guarantorLastName || '—'}</span>
-        <span className="font-medium text-gray-900 block">{guarantorFirstName || '—'}</span>
-        {guarantorIsMember && (
-          <Badge className="mt-1 bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
-        )}
-      </div>
-      {statutCI !== null && (
-        <div className="text-sm">
-          <span className="text-gray-500">Statut CI:</span>
-          <span className="ml-1">
-            {statutCI === 'À jour' ? (
-              <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs">
-                <CheckCircle2 className="h-3 w-3 inline mr-1" />
-                À jour
-              </Badge>
-            ) : statutCI === 'En retard' ? (
-              <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs">
-                <AlertCircle className="h-3 w-3 inline mr-1" />
-                En retard
-              </Badge>
-            ) : (
-              <span className="text-gray-600">{statutCI}</span>
-            )}
-          </span>
-        </div>
-      )}
-    </>
-  )
 }
 
 // Composant skeleton moderne
@@ -983,6 +921,15 @@ const ListDemandes = ({
     return colors[status] || colors.PENDING
   }
 
+  const getStatusDot = (status: CreditDemandStatus) => {
+    const dots: Record<string, { dot: string; text: string }> = {
+      PENDING:  { dot: 'bg-amber-400',  text: 'text-amber-700'  },
+      APPROVED: { dot: 'bg-green-500',  text: 'text-green-700'  },
+      REJECTED: { dot: 'bg-red-400',    text: 'text-red-700'    },
+    }
+    return dots[status] || dots.PENDING
+  }
+
   const getStatusLabel = (status: CreditDemandStatus) => {
     const labels = {
       PENDING: 'En attente',
@@ -1406,132 +1353,112 @@ const ListDemandes = ({
                   style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}
                 >
                 <Card
-                  className="group relative flex h-full flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl"
+                  className="group relative flex h-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md"
                 >
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
-                    {/* Ligne 1: Matricule complet (sans troncature) */}
-                    <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">
-                      #{demande.id}
-                    </h3>
-
-                    {/* Ligne 2: Badges alignés horizontalement avec flex-wrap */}
+                    {/* Header : avatar + nom à gauche, statut dot + menu + type à droite */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="size-9 shrink-0 rounded-xl">
+                          <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
+                            {`${(demande.clientFirstName || '')[0] || ''}${(demande.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-900">
+                            {`${demande.clientLastName || ''} ${demande.clientFirstName || ''}`.trim() || '—'}
+                          </p>
+                          <p className="truncate font-mono text-[11px] text-gray-400">#{demande.id}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <div className="flex items-center gap-1">
+                          <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(demande.status).text}`}>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(demande.status).dot}`} />
+                            {getStatusLabel(demande.status)}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0 opacity-80 transition-all group-hover:opacity-100"
+                                title="Actions"
+                              >
+                                <MoreVertical className="h-4 w-4 text-[#234D65]" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[190px]">
+                              <DropdownMenuItem
+                                onClick={() => router.push(`${normalizedDetailsBasePath}/${demande.id}`)}
+                                className="cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Voir détails
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setEditModalState({ isOpen: true, demand: demande })}
+                                disabled={demande.status !== 'PENDING'}
+                                className="cursor-pointer"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
+                                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <span className="text-[10px] font-medium text-gray-400">
                           {getCreditTypeLabel(demande.creditType)}
                         </span>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
-                          {getStatusLabel(demande.status)}
-                        </span>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 rounded-full border border-transparent bg-white/80 opacity-80 transition-all group-hover:opacity-100 hover:border-[#234D65]/25 hover:bg-[#234D65]/10"
-                            title="Actions"
-                          >
-                            <MoreVertical className="h-4 w-4 text-[#234D65]" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-[190px]">
-                          <DropdownMenuItem
-                            onClick={() => router.push(`${normalizedDetailsBasePath}/${demande.id}`)}
-                            className="cursor-pointer"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Voir détails
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setEditModalState({ isOpen: true, demand: demande })}
-                            disabled={demande.status !== 'PENDING'}
-                            className="cursor-pointer"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
-                            className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
 
-                    {/* Nom et prénom du client (espacement réduit) */}
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium text-gray-900">{demande.clientLastName}</span>
-                      <span className="text-sm font-medium text-gray-900">{demande.clientFirstName}</span>
-                    </div>
-
-                    {/* Ligne 5: Montant */}
-                    <div className="text-sm">
-                      <span className="text-gray-500">Montant: </span>
-                      <span className="font-semibold text-green-600">
-                        {demande.amount != null ? demande.amount.toLocaleString('fr-FR') + ' FCFA' : 'À définir'}
-                      </span>
-                    </div>
-
-                    {/* Ligne 6: Date souhaitée */}
-                    <div className="text-sm flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                      <span className="text-gray-500">Date souhaitée:</span>
-                      <span className="font-medium text-gray-900">
-                        {demande.desiredDate
-                          ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })
-                          : '—'}
-                      </span>
-                    </div>
-
-                    {/* Lignes 7-9: Garant (nom, prénom) + Statut CI */}
-                    {demande.guarantorId ? (
-                      <>
-                        <GuarantorInfo
-                          guarantorId={demande.guarantorId}
-                          guarantorFirstName={demande.guarantorFirstName}
-                          guarantorLastName={demande.guarantorLastName}
-                          guarantorIsMember={demande.guarantorIsMember}
-                        />
-                        {!demande.guarantorIsMember && (
-                          <div className="text-sm">
-                            <span className="text-gray-500">Statut CI: </span>
-                            <span className="text-gray-600">—</span>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm">
-                          <span className="text-gray-500">Garant: </span>
-                          <span className="text-gray-600">—</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="text-gray-500">Statut CI: </span>
-                          <span className="text-gray-600">—</span>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Ligne 10: Score */}
-                    <div className="text-sm">
-                      <span className="text-gray-500">Score: </span>
-                      <Badge className={cn(
-                        "font-bold text-sm px-2.5 py-1 ml-1",
-                        demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
-                        demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
-                        demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
-                        "bg-gray-100 text-gray-500 border border-gray-300"
-                      )}>
-                        {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
-                      </Badge>
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
+                        <p className="font-bold text-[#234D65] tabular-nums text-sm">
+                          {demande.amount != null ? (
+                            <>{demande.amount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span></>
+                          ) : (
+                            <span className="text-gray-400 font-normal text-xs">À définir</span>
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date souhaitée</p>
+                        <p className="text-sm font-medium text-gray-700">
+                          {demande.desiredDate
+                            ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Garant</p>
+                        <p className="text-sm font-medium text-gray-700 truncate">
+                          {demande.guarantorId
+                            ? `${demande.guarantorFirstName || ''} ${demande.guarantorLastName || ''}`.trim() || '—'
+                            : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Score</p>
+                        <p className={cn("font-bold tabular-nums text-sm",
+                          demande.score !== undefined && demande.score >= 8 ? "text-green-700" :
+                          demande.score !== undefined && demande.score >= 5 ? "text-amber-700" :
+                          demande.score !== undefined ? "text-red-700" :
+                          "text-gray-400"
+                        )}>
+                          {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Actions alignées verticalement */}
@@ -1541,15 +1468,16 @@ const ListDemandes = ({
                           <Button
                             size="sm"
                             onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
-                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                            className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold"
                           >
                             <CheckCircle className="h-4 w-4 mr-1" />
                             Approuver
                           </Button>
                           <Button
                             size="sm"
+                            variant="outline"
                             onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'reject' })}
-                            className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                            className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
                           >
                             <XCircle className="h-4 w-4 mr-1" />
                             Rejeter
@@ -1567,7 +1495,7 @@ const ListDemandes = ({
                             size="sm"
                             onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
                             disabled={createFromDemand.isPending}
-                            className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                            className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
                           >
                             {createFromDemand.isPending ? (
                               <>
@@ -1586,8 +1514,9 @@ const ListDemandes = ({
                       {demande.status === 'REJECTED' && (
                         <Button
                           size="sm"
+                          variant="outline"
                           onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-                          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          className="w-full h-9 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
                         >
                           <RotateCcw className="h-4 w-4 mr-1" />
                           Réouvrir
@@ -1595,7 +1524,7 @@ const ListDemandes = ({
                       )}
                       <Button
                         onClick={() => router.push(`${normalizedDetailsBasePath}/${demande.id}`)}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                        className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
                       >
                         <Eye className="h-4 w-4" />
                         Voir détails

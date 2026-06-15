@@ -1,12 +1,12 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { useMember } from '@/hooks/useMembers'
 import type { Placement } from '@/types/types'
-import { AlertCircle, Calendar, CheckCircle, Clock, DollarSign, Edit, ExternalLink, Eye, FileText, Phone, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, Calendar, CheckCircle, Clock, DollarSign, Edit, ExternalLink, Eye, FileText, Trash2, Upload } from 'lucide-react'
 
 interface PlacementCardProps {
   placement: Placement
@@ -49,42 +49,40 @@ export default function PlacementCard({
   }
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white border-0 shadow-md overflow-hidden">
-      <div className="h-1.5 bg-gradient-to-r from-[#234D65] to-[#2c5a73]" />
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between text-lg">
-          <span className="text-gray-800 font-bold">Placement #{placement.id.slice(0, 8)}</span>
-          <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-            placement.status === 'Active' ? 'bg-green-100 text-green-700' :
-            placement.status === 'Draft' ? 'bg-yellow-100 text-yellow-700' :
-            'bg-gray-100 text-gray-700'
+    <Card className="group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
+      <CardContent className="space-y-3 text-sm pt-5">
+        {/* Header : avatar + bienfaiteur à gauche, statut dot à droite */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-9 shrink-0 rounded-xl">
+              {member?.photoURL ? (
+                <AvatarImage src={member.photoURL} alt={`Photo de ${placement.benefactorName || 'membre'}`} className="h-full w-full object-cover object-center" />
+              ) : null}
+              <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
+                {`${member?.firstName?.[0] || ''}${member?.lastName?.[0] || ''}`.toUpperCase() || 'MB'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {placement.benefactorName || (member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : placement.benefactorId.slice(0, 12))}
+              </p>
+              <p className="truncate text-xs text-gray-400">
+                {placement.benefactorPhone || `#${placement.id.slice(0, 8)}`}
+              </p>
+            </div>
+          </div>
+          <span className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${
+            placement.status === 'Active' ? 'text-emerald-700' :
+            placement.status === 'Draft' ? 'text-amber-700' :
+            'text-gray-600'
           }`}>
+            <span className={`h-2 w-2 rounded-full shrink-0 ${
+              placement.status === 'Active' ? 'bg-emerald-500' :
+              placement.status === 'Draft' ? 'bg-amber-400' :
+              'bg-gray-400'
+            }`} />
             {statusLabel[placement.status] || placement.status}
           </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <div className="flex items-center gap-3 text-gray-600">
-          <Avatar className="h-10 w-10 border border-gray-200 shadow-sm">
-            {member?.photoURL ? (
-              <AvatarImage src={member.photoURL} alt={`Photo de ${placement.benefactorName || 'membre'}`} />
-            ) : null}
-            <AvatarFallback className="bg-[#234D65] text-white text-xs font-semibold">
-              {`${member?.firstName?.[0] || ''}${member?.lastName?.[0] || ''}`.toUpperCase() || 'MB'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-0.5">
-            <div className="text-xs text-gray-500">Bienfaiteur</div>
-            <div className="font-semibold text-gray-800">
-              {placement.benefactorName || (member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : placement.benefactorId.slice(0, 12))}
-            </div>
-            {placement.benefactorPhone && (
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Phone className="h-3 w-3" />
-                <span>{placement.benefactorPhone}</span>
-              </div>
-            )}
-          </div>
         </div>
         {placement.urgentContact && (
           <div className="flex items-center gap-3 text-gray-600 rounded-lg bg-slate-50 px-3 py-2">
@@ -112,24 +110,23 @@ export default function PlacementCard({
           </div>
         )}
         
-        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg">
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
           <div>
-            <p className="text-xs text-gray-500 font-medium">Montant</p>
-            <p className="text-xl font-black text-[#234D65]">{placement.amount.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">FCFA</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
+            <p className="font-bold text-[#234D65] tabular-nums text-sm">{placement.amount.toLocaleString()} <span className="text-[10px] font-normal text-gray-400">FCFA</span></p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500 font-medium">Taux</p>
-            <p className="text-2xl font-black text-green-600">{placement.rate}%</p>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Taux</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">{placement.rate}<span className="text-[10px] font-normal text-gray-400">%</span></p>
           </div>
         </div>
 
         {/* Affichage des commissions - Uniquement si le placement est Active */}
         {placement.status === 'Active' && commissions.length > 0 && (
           <div className={`p-3 rounded-lg border ${
-            nextDueCommission 
-              ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200' 
-              : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+            nextDueCommission
+              ? 'bg-orange-50 border-orange-200'
+              : 'bg-green-50 border-green-200'
           }`}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -158,7 +155,7 @@ export default function PlacementCard({
                 </div>
                 <Button
                   size="sm"
-                  className="w-full mt-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-xs font-semibold shadow-md"
+                  className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
                   onClick={() => onPayCommissionClick(nextDueCommission.id)}
                 >
                   <DollarSign className="h-3 w-3 mr-1" />
@@ -233,7 +230,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               onClick={onOpenClick}
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+              className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
             >
               <ExternalLink className="w-4 h-4 mr-1" />
               Ouvrir
@@ -244,7 +241,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
               onClick={onEditClick}
             >
               <Edit className="w-4 h-4 mr-1" />
@@ -256,7 +253,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+              className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
               onClick={onDeleteClick}
             >
               <Trash2 className="w-4 h-4 mr-1" />
@@ -269,7 +266,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
               onClick={onDownloadContractClick}
             >
               <FileText className="w-4 h-4 mr-1" />
@@ -282,7 +279,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
+              className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
               onClick={onUploadContractClick}
             >
               <Upload className="w-4 h-4 mr-1" />
@@ -295,7 +292,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
               onClick={onViewContractClick}
             >
               <Eye className="w-4 h-4 mr-1" />
@@ -308,7 +305,7 @@ export default function PlacementCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+              className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
               onClick={onDetailsClick}
             >
               Détails

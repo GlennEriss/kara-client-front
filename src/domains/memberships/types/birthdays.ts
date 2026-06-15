@@ -8,6 +8,7 @@ export interface BirthdayMember {
   firstName: string
   lastName: string
   photoURL?: string
+  phone?: string
   birthDate: string
   birthMonth: number // 1-12
   birthDay: number // 1-31

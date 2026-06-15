@@ -1145,7 +1145,7 @@ const handleGenerateGlobalFacture = async () => {
 
       {/* Clôture placement */}
       <Dialog open={showCloseModal} onOpenChange={setShowCloseModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Clôturer le placement</DialogTitle>
             <DialogDescription>

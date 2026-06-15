@@ -5,7 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SelectApp from '@/components/forms/SelectApp'
@@ -1018,31 +1019,23 @@ export default function ContractCreationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        ref={dialogContentRef}
-        className="!max-w-[90vw] !w-[90vw] max-h-[95vh] overflow-y-auto"
-      >
-        <DialogHeader>
-          <DialogTitle
-            id="credit-contract-creation-title"
-            className="text-xl font-bold text-[#234D65] flex items-center gap-2"
-          >
-            <FileText className="h-5 w-5" />
-            Création du contrat de crédit {creditTypeLabel}
-          </DialogTitle>
-          <DialogDescription>
-            {getStepTitle()}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="!max-w-[90vw] !w-[90vw]">
+        <ModalHeader
+          icon={FileText}
+          title={`Création du contrat de crédit ${creditTypeLabel}`}
+          description={getStepTitle()}
+        />
 
+        <ModalBody ref={dialogContentRef}>
         {renderStepIndicator()}
 
         <div className="py-4">
           {renderStepContent()}
         </div>
+        </ModalBody>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between pt-4 border-t">
+        <ModalFooter className="justify-between">
           <Button
             variant="outline"
             onClick={isFirstStep ? onClose : goToPreviousStep}
@@ -1086,8 +1079,8 @@ export default function ContractCreationModal({
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           )}
-        </div>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

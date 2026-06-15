@@ -420,15 +420,15 @@ export function MembershipRequestsGridView({
         return (
           <Card
             key={request.id}
-            className="hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-[#CBB171]/50 h-full flex flex-col"
+            className="group flex h-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md"
           >
             <CardHeader className="pb-3">
               <div className="space-y-3">
                 {/* Première ligne : Avatar + Menu dropdown */}
                 <div className="flex items-center justify-between">
-                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-[#224D62]/20 flex-shrink-0">
+                  <Avatar className="size-9 shrink-0 rounded-xl">
                     <AvatarImage src={request.identity?.photoURL ?? undefined} alt={fullName} />
-                    <AvatarFallback className="bg-[#224D62] text-white font-semibold text-sm">
+                    <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
                       {initials}
                     </AvatarFallback>
                   </Avatar>

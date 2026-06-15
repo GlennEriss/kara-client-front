@@ -1,14 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { fixedTransitionSchema } from '@/schemas/credit-speciale.schema'
@@ -60,18 +54,15 @@ export default function SwitchToFixedPhaseModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[#234D65]">
-            <AlertTriangle className="h-5 w-5 text-amber-600" />
-            Basculer en partie fixe
-          </DialogTitle>
-          <DialogDescription>
-            Ce basculement est irréversible. À partir de cette action, le contrat ne générera plus
-            d’intérêts sur la partie spéciale et le garant ne percevra plus de commissions.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="md">
+        <ModalHeader
+          icon={AlertTriangle}
+          tone="warning"
+          title="Basculer en partie fixe"
+          description="Ce basculement est irréversible. À partir de cette action, le contrat ne générera plus d’intérêts sur la partie spéciale et le garant ne percevra plus de commissions."
+        />
 
+        <ModalBody>
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Vous êtes sur le point de basculer le contrat de
           {' '}
@@ -83,7 +74,7 @@ export default function SwitchToFixedPhaseModal({
           la date du basculement et le motif saisi.
         </div>
 
-        <form onSubmit={handleConfirm} className="space-y-4">
+        <form id="switch-fixed-form" onSubmit={handleConfirm} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="fixed-transition-reason">
               Raison du basculement (obligatoire, 10 à 500 caractères)
@@ -101,27 +92,29 @@ export default function SwitchToFixedPhaseModal({
             <p className="text-xs text-gray-500">{reason.trim().length}/500 caractères</p>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending || reason.trim().length < 10}
-              className="bg-[#234D65] hover:bg-[#1b3b4d] text-white"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Basculement...
-                </>
-              ) : (
-                'Confirmer le basculement'
-              )}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="switch-fixed-form"
+            disabled={isPending || reason.trim().length < 10}
+            className="bg-[#234D65] hover:bg-[#1b3b4d] text-white"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Basculement...
+              </>
+            ) : (
+              'Confirmer le basculement'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

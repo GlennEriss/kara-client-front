@@ -4,12 +4,8 @@ import { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAdmin, useSupportHistory } from '@/hooks/caisse-imprevue'
 import { SupportCI } from '@/types/types'
@@ -126,10 +122,10 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
+        <ModalContent size="lg">
           {/* Header */}
-          <DialogHeader className="shrink-0 px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center justify-between gap-3">
+          <ModalHeader>
+            <div className="flex items-center justify-between gap-3 pr-8">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="rounded-lg bg-[#234D65] p-2 shrink-0">
                   <History className="h-4 w-4 text-white" />
@@ -148,10 +144,10 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
                 </Button>
               )}
             </div>
-          </DialogHeader>
+          </ModalHeader>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+          <ModalBody className="space-y-0">
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
@@ -179,13 +175,13 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
                 ))}
               </div>
             )}
-          </div>
+          </ModalBody>
 
           {/* Footer */}
-          <div className="shrink-0 border-t border-gray-100 px-6 py-4 flex justify-end">
+          <ModalFooter>
             <Button variant="outline" onClick={onClose}>Fermer</Button>
-          </div>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {validateSupport && (

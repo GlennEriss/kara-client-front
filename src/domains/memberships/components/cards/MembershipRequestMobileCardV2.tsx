@@ -128,7 +128,7 @@ export function MembershipRequestMobileCardV2({
   return (
     <Card
       className={cn(
-        'border-gray-200 hover:shadow-lg transition-all duration-200',
+        'rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md',
         reviewNote && 'border-amber-200 bg-amber-50/30',
         className
       )}
@@ -138,14 +138,13 @@ export function MembershipRequestMobileCardV2({
       <CardContent className="p-4 space-y-4">
         {/* Header : Photo + Nom */}
         <div className="flex items-start gap-3">
-          <Avatar className="w-16 h-16 border-2 border-gray-200 shrink-0">
+          <Avatar className="size-9 shrink-0 rounded-xl">
             <AvatarImage
               src={identity.photoURL || undefined}
               alt={fullName}
-              className="object-cover"
             />
-            <AvatarFallback className="bg-kara-primary-dark/10 text-kara-primary-dark text-sm font-semibold">
-              {initials || <User className="w-8 h-8" />}
+            <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
+              {initials || <User className="w-4 h-4" />}
             </AvatarFallback>
           </Avatar>
 

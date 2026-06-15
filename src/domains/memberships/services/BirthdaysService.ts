@@ -125,12 +125,20 @@ export class BirthdaysService {
       birthDayOfYear = this.calculateDayOfYear(birth) // 1-366
     }
 
+    // Extraire le premier contact téléphonique (contacts peut être un tableau ou une chaîne)
+    const phone = Array.isArray(user.contacts)
+      ? (user.contacts.find(Boolean) ? String(user.contacts.find(Boolean)) : undefined)
+      : user.contacts
+        ? String(user.contacts)
+        : undefined
+
     return {
       id: user.id,
       matricule: user.matricule,
       firstName: user.firstName,
       lastName: user.lastName,
       photoURL: user.photoURL || undefined, // Convertir null en undefined
+      phone,
       birthDate: user.birthDate,
       birthMonth,
       birthDay,

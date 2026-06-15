@@ -73,8 +73,9 @@ export function useMembershipStats(
       const repository = MembersRepositoryV2.getInstance()
       
       // Récupérer tous les membres (sans pagination pour les stats globales)
-      // On peut utiliser une limite élevée ou récupérer par batch
-      const result = await repository.getAll({}, 1, 10000) // Limite élevée pour récupérer tous les membres
+      // Note : getMembers ajoute +1 à la limite (limit + 1), et Firestore plafonne à 10000.
+      // On passe donc 9999 pour rester dans la limite (limit(10000) max autorisé).
+      const result = await repository.getAll({}, 1, 9999)
       
       return MembershipStatsService.calculateStats(result)
     },

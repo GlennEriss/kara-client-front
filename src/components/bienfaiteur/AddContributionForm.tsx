@@ -244,7 +244,7 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Ajouter une contribution</DialogTitle>
           <DialogDescription>

@@ -1,14 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { finalRepaymentSchema } from '@/schemas/credit-speciale.schema'
@@ -63,14 +57,13 @@ export default function FinalRepaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Remboursement final</DialogTitle>
-          <DialogDescription>
-            Acceptez-vous de valider le remboursement final de l&apos;emprunt du membre {clientName} ?
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <ModalContent size="sm">
+        <ModalHeader
+          title="Remboursement final"
+          description={`Acceptez-vous de valider le remboursement final de l'emprunt du membre ${clientName} ?`}
+        />
+        <ModalBody>
+        <form id="final-repayment-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="motif">Motif (obligatoire, 10-500 caractères)</Label>
             <Textarea
@@ -88,27 +81,29 @@ export default function FinalRepaymentModal({
             {error && <p className="text-sm text-red-500">{error}</p>}
             <p className="text-xs text-gray-500">{motif.length}/500 caractères</p>
           </div>
-          <DialogFooter className="flex-shrink-0 pt-2 !flex-row justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
-              Annuler
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isPending || motif.trim().length < 10}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Validation...
-                </>
-              ) : (
-                'Valider le remboursement final'
-              )}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="final-repayment-form"
+            disabled={isPending || motif.trim().length < 10}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Validation...
+              </>
+            ) : (
+              'Valider le remboursement final'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

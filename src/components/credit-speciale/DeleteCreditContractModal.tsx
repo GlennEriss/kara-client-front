@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
@@ -67,18 +61,15 @@ export default function DeleteCreditContractModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
-            <Trash2 className="h-6 w-6" />
-            Supprimer définitivement le contrat
-          </DialogTitle>
-          <DialogDescription>
-            Cette action est irréversible. Le contrat ne pourra pas être récupéré.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={Trash2}
+          tone="destructive"
+          title="Supprimer définitivement le contrat"
+          description="Cette action est irréversible. Le contrat ne pourra pas être récupéré."
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
@@ -109,9 +100,9 @@ export default function DeleteCreditContractModal({
               />
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={deleteContract.isPending}>
             Annuler
           </Button>
@@ -134,8 +125,8 @@ export default function DeleteCreditContractModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

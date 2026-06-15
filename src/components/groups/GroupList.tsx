@@ -1,6 +1,5 @@
 "use client"
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -512,21 +511,19 @@ export default function GroupList() {
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filtered.map((g) => (
-                                <Card key={g.id} className="group bg-white/70 backdrop-blur-sm rounded-xl shadow-xl border border-white/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#234D65] to-blue-600" />
-
+                                <Card key={g.id} className="group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
                                     <CardHeader className="pb-4">
                                         <CardTitle className="flex items-start justify-between gap-3">
                                             <div className="min-w-0 flex-1">
-                                                <h3 className="font-bold text-lg text-gray-900 truncate group-hover:text-[#234D65] transition-colors duration-300">
+                                                <h3 className="font-semibold text-sm text-gray-900 truncate">
                                                     {g.name}
                                                 </h3>
                                                 {g.label && (
-                                                    <Badge className="mt-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">
+                                                    <span className="mt-1 block text-[10px] font-medium text-gray-400">
                                                         {g.label}
-                                                    </Badge>
+                                                    </span>
                                                 )}
                                             </div>
 

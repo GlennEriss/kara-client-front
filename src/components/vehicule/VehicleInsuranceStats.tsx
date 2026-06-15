@@ -89,9 +89,12 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-0 shadow-md">
+        <Card className="rounded-2xl border border-gray-100 bg-white shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-gray-800">Répartition par assurance</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
+              <Shield className="h-4 w-4 text-[#234D65]" />
+              Répartition par assurance
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="h-60 flex-1">
@@ -107,7 +110,7 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
             </div>
             <div className="space-y-2 flex-1">
               {stats.byCompany.map((entry, index) => (
-                <div key={entry.company} className="flex items-center justify-between rounded-lg border p-3">
+                <div key={entry.company} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 p-3">
                   <div className="flex items-center gap-3">
                     <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                     <span className="font-medium text-gray-700">{entry.company}</span>
@@ -119,9 +122,12 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-md">
+        <Card className="rounded-2xl border border-gray-100 bg-white shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-gray-800">Expirations à venir</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Expirations à venir
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {stats.expiringSoonList.length === 0 && <p className="text-sm text-gray-500">Aucune assurance sur le point d’expirer.</p>}
@@ -129,7 +135,7 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
               const holderFirstName = item.holderType === 'member' ? item.memberFirstName : item.nonMemberFirstName
               const holderLastName = item.holderType === 'member' ? item.memberLastName : item.nonMemberLastName
               return (
-                <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div key={item.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 p-3">
                   <div>
                     <p className="font-semibold text-gray-900 flex items-center gap-2">
                       <Car className="h-4 w-4 text-gray-400" />

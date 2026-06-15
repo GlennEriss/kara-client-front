@@ -89,7 +89,7 @@ const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[95vw] !max-w-[1200px] lg:max-w-[1200px] max-h-[95vh] lg:max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+      <DialogContent className="!w-[95vw] !max-w-[1200px] lg:max-w-[1200px] max-h-[95vh] lg:max-h-[95vh] overflow-hidden bg-white/50 border-0 shadow-2xl">
         {/* Header - responsive pour mobile uniquement */}
         <DialogHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0 pb-3 lg:pb-4 border-b border-gray-200">
           <div className="flex items-center space-x-2 lg:space-x-3">

@@ -3,14 +3,8 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { useAgentRecouvrement } from '@/hooks/agent-recouvrement'
 import { useAdmin } from '@/hooks/useAdmins'
 import { useMember } from '@/hooks/useMembers'
@@ -183,18 +177,14 @@ export default function PaymentReceiptModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <Receipt className="h-6 w-6" />
-            Reçu de Paiement
-          </DialogTitle>
-          <DialogDescription>
-            Reçu de paiement pour le crédit {contract.creditType}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="xl">
+        <ModalHeader
+          icon={Receipt}
+          title="Reçu de Paiement"
+          description={`Reçu de paiement pour le crédit ${contract.creditType}`}
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations du contrat */}
           <Card className="border-0 shadow-md bg-gradient-to-r from-[#234D65]/5 to-[#2c5a73]/5">
             <CardContent className="p-6">
@@ -371,9 +361,9 @@ export default function PaymentReceiptModal({
               </CardContent>
             </Card>
           )}
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={onClose}>
             Fermer
           </Button>
@@ -406,8 +396,8 @@ export default function PaymentReceiptModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
 
       {/* Modal plein écran pour l'image */}
       {selectedImage && (

@@ -1,13 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import {
     Form,
     FormControl,
@@ -137,18 +132,14 @@ export default function UploadContractCIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5 text-[#234D65]" />
-            Téléverser le contrat
-          </DialogTitle>
-          <DialogDescription>
-            Téléverser le contrat signé pour le contrat #{contract.id.slice(-6)}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="md">
+        <ModalHeader
+          icon={Upload}
+          title="Téléverser le contrat"
+          description={`Téléverser le contrat signé pour le contrat #${contract.id.slice(-6)}`}
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           {/* Informations du contrat */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
@@ -178,7 +169,7 @@ export default function UploadContractCIModal({
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form id="upload-contract-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="file"
@@ -242,42 +233,44 @@ export default function UploadContractCIModal({
                 )}
               />
 
-              <div className="flex gap-3 justify-end pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={isUploading}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isUploading || !form.formState.isValid || !selectedFile}
-                  className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-                >
-                  {isCompressing ? (
-                    <>
-                      <Zap className="h-4 w-4 mr-2 animate-pulse" />
-                      Compression...
-                    </>
-                  ) : isUploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Téléversement...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Téléverser
-                    </>
-                  )}
-                </Button>
-              </div>
             </form>
           </Form>
-        </div>
-      </DialogContent>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={isUploading}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="upload-contract-form"
+            disabled={isUploading || !form.formState.isValid || !selectedFile}
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+          >
+            {isCompressing ? (
+              <>
+                <Zap className="h-4 w-4 mr-2 animate-pulse" />
+                Compression...
+              </>
+            ) : isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Téléversement...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Téléverser
+              </>
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

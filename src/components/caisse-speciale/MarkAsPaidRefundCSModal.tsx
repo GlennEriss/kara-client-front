@@ -3,14 +3,8 @@
 import { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getAdminById } from '@/db/admin.db'
@@ -115,18 +109,15 @@ export default function MarkAsPaidRefundCSModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            Marquer comme payé
-          </DialogTitle>
-          <DialogDescription>
-            {refundLabel} — Téléversez la preuve de paiement et confirmez l&apos;opération.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="md">
+        <ModalHeader
+          icon={CheckCircle}
+          tone="success"
+          title="Marquer comme payé"
+          description={`${refundLabel} — Téléversez la preuve de paiement et confirmez l'opération.`}
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           <div>
             <Label htmlFor="paymentProofCS" className="flex items-center gap-2 mb-2">
               <Upload className="h-4 w-4" />
@@ -155,9 +146,9 @@ export default function MarkAsPaidRefundCSModal({
               Voulez-vous marquer ce remboursement comme payé ? Cette action confirme que le versement a bien été effectué au membre.
             </AlertDescription>
           </Alert>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Annuler
           </Button>
@@ -178,8 +169,8 @@ export default function MarkAsPaidRefundCSModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

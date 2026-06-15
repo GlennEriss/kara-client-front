@@ -1,15 +1,8 @@
 'use client'
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
 import { SubscriptionCI } from '@/types/types'
+import { Trash2 } from 'lucide-react'
 import { useSubscriptionCI } from './SubscriptionCIContext'
 
 interface DeleteSubscriptionCIDialogProps {
@@ -41,44 +34,47 @@ export default function DeleteSubscriptionCIDialog({
   if (!subscription) return null
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
-            <p>
-              Êtes-vous sûr de vouloir supprimer ce forfait ?
-            </p>
-            <div className="p-3 bg-gray-50 rounded-md text-sm">
-              <p className="font-semibold text-gray-900">
-                {subscription.label || `Forfait ${subscription.code}`}
-              </p>
-              <p className="text-gray-600 mt-1">
-                Montant mensuel: {new Intl.NumberFormat('fr-FR').format(subscription.amountPerMonth)} FCFA
-              </p>
-              <p className="text-gray-600">
-                Nominal: {new Intl.NumberFormat('fr-FR').format(subscription.nominal)} FCFA
-              </p>
-            </div>
-            <p className="text-red-600 font-medium">
-              Cette action est irréversible.
-            </p>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleteSubscription.isPending}>
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      icon={Trash2}
+      tone="destructive"
+      title="Confirmer la suppression"
+      footer={
+        <>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={deleteSubscription.isPending}
+          >
             Annuler
-          </AlertDialogCancel>
-          <AlertDialogAction
+          </Button>
+          <Button
             onClick={handleDelete}
-            className="bg-red-600 hover:bg-red-700"
+            className="bg-red-600 hover:bg-red-700 text-white"
             disabled={deleteSubscription.isPending}
           >
             {deleteSubscription.isPending ? 'Suppression...' : 'Supprimer'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-gray-700">
+        Êtes-vous sûr de vouloir supprimer ce forfait ?
+      </p>
+      <div className="p-3 bg-gray-50 rounded-md text-sm">
+        <p className="font-semibold text-gray-900">
+          {subscription.label || `Forfait ${subscription.code}`}
+        </p>
+        <p className="text-gray-600 mt-1">
+          Montant mensuel: {new Intl.NumberFormat('fr-FR').format(subscription.amountPerMonth)} FCFA
+        </p>
+        <p className="text-gray-600">
+          Nominal: {new Intl.NumberFormat('fr-FR').format(subscription.nominal)} FCFA
+        </p>
+      </div>
+      <p className="text-red-600 font-medium">Cette action est irréversible.</p>
+    </Modal>
   )
 }
-

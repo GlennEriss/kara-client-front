@@ -101,7 +101,7 @@ const MemberSubscriptionModal = ({ isOpen, onClose, memberId }: MemberSubscripti
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+        <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90dvh] overflow-auto">
           <DialogHeader className="pb-6">
             <DialogTitle>Abonnements du membre</DialogTitle>
           </DialogHeader>
@@ -145,7 +145,7 @@ const MemberSubscriptionModal = ({ isOpen, onClose, memberId }: MemberSubscripti
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+      <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90dvh] overflow-auto">
         <DialogHeader className="pb-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">

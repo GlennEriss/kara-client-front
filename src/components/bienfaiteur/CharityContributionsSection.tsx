@@ -770,7 +770,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
       {/* Modal de visualisation de preuve */}
       {proofToView && (
         <Dialog open={!!proofToView} onOpenChange={() => setProofToView(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Preuve de contribution</DialogTitle>
             </DialogHeader>

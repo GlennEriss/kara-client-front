@@ -1,9 +1,8 @@
 'use client'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
     DropdownMenu,
@@ -24,7 +23,6 @@ import {
     Cake,
     Calendar,
     Car,
-    CheckCircle,
     ExternalLink,
     Eye,
     FileText,
@@ -34,9 +32,7 @@ import {
     MoreVertical,
     Phone,
     Plus,
-    User,
     Users,
-    XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -85,46 +81,23 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
 
   const getSubscriptionStatus = () => {
     if (!member.lastSubscription) {
-      return {
-        label: 'Aucun abonnement',
-        color: 'bg-gray-100 text-gray-700',
-        icon: XCircle
-      }
+      return { label: 'Aucun abonnement', dot: 'bg-gray-400', text: 'text-gray-500' }
     }
-
     if (member.isSubscriptionValid) {
-      return {
-        label: 'Abonnement valide',
-        color: 'bg-green-100 text-green-700',
-        icon: CheckCircle
-      }
+      return { label: 'Abonnement valide', dot: 'bg-emerald-500', text: 'text-emerald-700' }
     }
-
-    return {
-      label: 'Abonnement expiré',
-      color: 'bg-red-100 text-red-700',
-      icon: XCircle
-    }
-  }
-
-  const getMembershipTypeColor = (type: string) => {
-    const colors = {
-      adherant: 'bg-[#224D62] text-white',
-      bienfaiteur: 'bg-[#CBB171] text-white',
-      sympathisant: 'bg-green-600 text-white'
-    }
-    return colors[type as keyof typeof colors] || 'bg-gray-500 text-white'
+    return { label: 'Abonnement expiré', dot: 'bg-red-400', text: 'text-red-700' }
   }
 
   const subscriptionStatus = getSubscriptionStatus()
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-[#CBB171]/50 h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="space-y-3">
-          {/* Première ligne : Avatar + Menu (espace réservé et protégé) */}
-          <div className="flex items-center justify-between">
-            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-[#224D62]/20 flex-shrink-0">
+    <Card className="group flex h-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
+      <CardContent className="flex flex-1 flex-col gap-4 p-4 md:p-5">
+        {/* Header : avatar + nom à gauche, statut dot + menu à droite */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-9 shrink-0 rounded-xl">
               {member.photoURL && !imageError ? (
                 <AvatarImage
                   src={member.photoURL}
@@ -132,33 +105,31 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <AvatarFallback className="bg-[#224D62] text-white font-semibold text-sm">
+                <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
                   {getInitials(member.firstName, member.lastName)}
                 </AvatarFallback>
               )}
             </Avatar>
-
-            {/* Indicateur d'anniversaire */}
-            {isBirthdayToday(member.birthDate) && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-pink-100 to-purple-100 rounded-full border border-pink-200">
-                <Cake className="h-3 w-3 text-pink-600" />
-                <span className="text-xs font-medium text-pink-700">Anniversaire </span>
-              </div>
-            )}
-
-            {/* Menu actions - toujours à droite, jamais poussé */}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {`${member.firstName || ''} ${member.lastName || ''}`.trim() || '—'}
+              </p>
+              <p className="truncate text-xs text-gray-400">{member.matricule}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className={`flex items-center gap-1.5 text-xs font-semibold ${subscriptionStatus.text}`}>
+              <span className={`h-2 w-2 rounded-full shrink-0 ${subscriptionStatus.dot}`} />
+              {subscriptionStatus.label}
+            </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 flex-shrink-0"
-                >
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-80 transition-opacity group-hover:opacity-100">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 sm:w-48">
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => onViewDetails(member.id!)}
                   data-testid={`view-details-dropdown-${member.id}`}
                 >
@@ -198,152 +169,112 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
-          {/* Deuxième ligne : Nom et prénom sur deux lignes séparées */}
-          <div className="space-y-2">
-            <div className="space-y-0.5">
-              <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
-                <span className="block truncate" title={member.firstName || ''}>
-                  {member.firstName || ''}
-                </span>
-              </h3>
-              <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
-                <span className="block truncate" title={member.lastName || ''}>
-                  {member.lastName || ''}
-                </span>
-              </h3>
-            </div>
-
-            {/* Matricule */}
-            <p className="text-xs sm:text-sm text-gray-600 truncate">
-              {member.matricule}
-            </p>
-
-            {/* Badges - layout horizontal */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <Badge
-                variant="secondary"
-                className={`text-xs ${getMembershipTypeColor(member.membershipType)}`}
-              >
-                {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
-              </Badge>
-
-              {/* Badge abonnement - toujours visible */}
-              <Badge className={`text-xs ${subscriptionStatus.color}`}>
-                {subscriptionStatus.label}
-              </Badge>
-            </div>
-          </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="pt-0 space-y-3 flex-1 flex flex-col">
-        {/* Informations d'abonnement - conditionnelles et compactes */}
+        {/* Type d'adhésion + anniversaire */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-medium text-gray-400">
+            {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
+          </span>
+          {isBirthdayToday(member.birthDate) && (
+            <span className="flex items-center gap-1 text-[10px] font-medium text-pink-600">
+              <Cake className="h-3 w-3" /> Anniversaire
+            </span>
+          )}
+        </div>
+
+        {/* Stats : abonnement */}
         {member.lastSubscription && (
-          <div className="space-y-1 text-xs sm:text-sm bg-blue-50 p-2 rounded-lg">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Expire le:</span>
-              <span className="font-medium">
-                {formatDate(member.lastSubscription.dateEnd)}
-              </span>
+          <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Expire le</p>
+              <p className="text-sm font-medium text-gray-700">{formatDate(member.lastSubscription.dateEnd)}</p>
             </div>
-            {/* Afficher le montant seulement s'il existe */}
             {member.lastSubscription.montant != null && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Montant:</span>
-                <span className="font-medium">
-                  {member.lastSubscription.montant} {member.lastSubscription.currency || 'XOF'}
-                </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
+                <p className="font-bold text-[#234D65] tabular-nums text-sm">
+                  {member.lastSubscription.montant} <span className="text-[10px] font-normal text-gray-400">{member.lastSubscription.currency || 'XOF'}</span>
+                </p>
               </div>
             )}
           </div>
         )}
 
-        {/* Informations de contact - layout responsive */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2">
+        {/* Contact */}
+        <div className="space-y-1.5 text-xs text-gray-500">
           {member.contacts && member.contacts.length > 0 && (
-            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
-              <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2">
+              <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400" />
               <span className="truncate">{member.contacts[0]}</span>
             </div>
           )}
-
           {member.email && (
-            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
-              <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2">
+              <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
               <span className="truncate">{member.email}</span>
             </div>
           )}
-
-          <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
-            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate">{getNationalityName(member.nationality)}</span>
           </div>
-
           {member.hasCar && (
-            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
-              <Car className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2">
+              <Car className="h-3.5 w-3.5 shrink-0 text-gray-400" />
               <span className="truncate">Véhicule</span>
             </div>
           )}
-        </div>
-
-        {/* Date d'adhésion */}
-        <div className="pt-2 border-t border-gray-100">
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Membre depuis</span>
-            <span>{formatDate(member.createdAt)}</span>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate">Membre depuis {formatDate(member.createdAt)}</span>
           </div>
         </div>
 
-        {/* Actions rapides - layout adaptatif */}
-        <div className="pt-2 space-y-2 sm:space-y-0 mt-auto">
-          {/* Mobile : stack vertical */}
-          <div className="flex flex-col space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewDetails(member.id!)}
-              data-testid={`view-details-mobile-${member.id}`}
-              className="w-full text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white"
-            >
-              <User className="h-4 w-4 mr-2" />
-              Voir détails
-            </Button>
+        {/* Actions */}
+        <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
+          <Button
+            onClick={() => onViewDetails(member.id!)}
+            data-testid={`view-details-mobile-${member.id}`}
+            className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
+          >
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            Voir détails
+          </Button>
+          <div className="flex flex-wrap gap-1.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onViewSubscriptions(member.id)}
-              className="w-full text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white"
+              className="h-9 flex-1 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
             >
-              <Calendar className="h-4 w-4 mr-2" />
-              Voir abonnements
+              <Calendar className="h-3.5 w-3.5 mr-1" />
+              Abonnements
             </Button>
             <Button
               variant="outline"
               size="sm"
               asChild
-              className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65] hover:text-white"
+              className="h-9 flex-1 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
             >
               <Link href={routes.admin.membershipDocuments(member.id!)}>
-                <FileText className="h-4 w-4 mr-2" />
-                Voir documents
+                <FileText className="h-3.5 w-3.5 mr-1" />
+                Documents
               </Link>
             </Button>
-            {onGenererIdentifiant && (
-              <Button
-                size="sm"
-                onClick={() => onGenererIdentifiant(member.id!, member.matricule)}
-                className="w-full bg-kara-primary-dark text-white hover:bg-kara-primary-dark/90"
-                data-testid={`generer-identifiant-button-${member.id}`}
-              >
-                <KeyRound className="h-4 w-4 mr-2" />
-                Générer identifiant
-              </Button>
-            )}
           </div>
-
-          
+          {onGenererIdentifiant && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onGenererIdentifiant(member.id!, member.matricule)}
+              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+              data-testid={`generer-identifiant-button-${member.id}`}
+            >
+              <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+              Générer identifiant
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

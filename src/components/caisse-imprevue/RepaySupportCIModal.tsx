@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ImageCompressionService } from '@/services/imageCompressionService'
@@ -161,19 +155,20 @@ export default function RepaySupportCIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-orange-700 flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6" />
-            Remboursement du Support
-          </DialogTitle>
-          <DialogDescription>
-            {monthOrDayLabel && `${monthOrDayLabel} - `}
-            Remboursement obligatoire avant tout nouveau versement
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={AlertTriangle}
+          tone="warning"
+          title="Remboursement du Support"
+          description={
+            <>
+              {monthOrDayLabel && `${monthOrDayLabel} - `}
+              Remboursement obligatoire avant tout nouveau versement
+            </>
+          }
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Alerte Support */}
           <Alert className="border-orange-300 bg-orange-50">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
@@ -352,9 +347,9 @@ export default function RepaySupportCIModal({
               📸 Capture d'écran ou photo du reçu de paiement
             </p>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button
             type="button"
             variant="outline"
@@ -389,8 +384,8 @@ export default function RepaySupportCIModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

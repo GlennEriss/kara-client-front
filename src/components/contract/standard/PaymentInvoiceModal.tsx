@@ -81,7 +81,7 @@ export default function PaymentInvoiceModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[95dvh] overflow-hidden flex flex-col">
         {/* Header fixe */}
         <DialogHeader className="flex-shrink-0 pb-4 border-b">
           <div className="flex items-center justify-between">

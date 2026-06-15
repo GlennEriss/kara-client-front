@@ -1,14 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -100,51 +94,48 @@ export default function CloseContractModal({
 
   if (showConfirm) {
     return (
-      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirmer la clôture</DialogTitle>
-            <DialogDescription>
-              Êtes-vous d&apos;accord pour clôturer ce contrat ?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowConfirm(false)} disabled={isPending}>
-                Annuler
-              </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={isPending}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Clôture...
-                  </>
-                ) : (
-                  'Confirmer la clôture'
-                )}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        open={isOpen}
+        onOpenChange={(open) => !open && handleClose()}
+        size="sm"
+        title="Confirmer la clôture"
+        description="Êtes-vous d'accord pour clôturer ce contrat ?"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setShowConfirm(false)} disabled={isPending}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Clôture...
+                </>
+              ) : (
+                'Confirmer la clôture'
+              )}
+            </Button>
+          </>
+        }
+      >
+        {error && <p className="text-sm text-red-500">{error}</p>}
+      </Modal>
     )
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Clôturer le contrat</DialogTitle>
-          <DialogDescription>
-            Remplissez les informations pour clôturer le contrat de {contract.clientFirstName} {contract.clientLastName}.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <ModalContent size="sm">
+        <ModalHeader
+          title="Clôturer le contrat"
+          description={`Remplissez les informations pour clôturer le contrat de ${contract.clientFirstName} ${contract.clientLastName}.`}
+        />
+        <ModalBody>
+        <form id="close-contract-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="closedAtDate">Date de clôture</Label>
@@ -186,20 +177,22 @@ export default function CloseContractModal({
             {error && <p className="text-sm text-red-500">{error}</p>}
             <p className="text-xs text-gray-500">{motifCloture.length}/500 caractères</p>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending || motifCloture.trim().length < 10}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Clôturer le contrat
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="close-contract-form"
+            disabled={isPending || motifCloture.trim().length < 10}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            Clôturer le contrat
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

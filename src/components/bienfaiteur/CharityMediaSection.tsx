@@ -313,7 +313,7 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
 
       {/* Modal d'ajout */}
       <Dialog open={isAddOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Ajouter un média</DialogTitle>
             <DialogDescription>
