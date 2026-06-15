@@ -2,14 +2,7 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Modal } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useCaisseImprevueDemandMutations } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
@@ -63,7 +56,7 @@ export default function AcceptDemandModal({
         demandId: demand.id,
         reason: reason.trim(),
       })
-      
+
       toast.success('Demande acceptée avec succès')
       onSuccess?.()
       onClose()
@@ -76,59 +69,16 @@ export default function AcceptDemandModal({
   if (!demand) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-            Accepter la demande
-          </DialogTitle>
-          <DialogDescription>
-            Vous êtes sur le point d'accepter cette demande de contrat Caisse Imprévue. Veuillez indiquer le motif d'acceptation.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-2">
-                <p><strong>Forfait:</strong> {demand.subscriptionCICode} {demand.subscriptionCILabel && `- ${demand.subscriptionCILabel}`}</p>
-                <p><strong>Fréquence:</strong> {demand.paymentFrequency === 'DAILY' ? 'Journalière' : 'Mensuelle'}</p>
-                <p><strong>Montant mensuel:</strong> {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA</p>
-                <p><strong>Durée:</strong> {demand.subscriptionCIDuration} mois</p>
-                {demand.desiredDate && (
-                  <p><strong>Date souhaitée:</strong> {new Date(demand.desiredDate).toLocaleDateString('fr-FR')}</p>
-                )}
-              </div>
-            </AlertDescription>
-          </Alert>
-
-          <div className="space-y-2">
-            <Label htmlFor="reason" className="text-sm font-semibold text-gray-900">
-              Raison d'acceptation *
-            </Label>
-            <Textarea
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Indiquez le motif d'acceptation de cette demande..."
-              rows={4}
-              required
-              className="resize-none border-gray-300 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65]"
-            />
-            {!reason.trim() && (
-              <p className="text-sm text-red-600 mt-1">
-                La raison d'acceptation est obligatoire (minimum 10 caractères)
-              </p>
-            )}
-            <p className="text-xs text-gray-500">
-              Expliquez pourquoi cette demande est acceptée
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Modal
+      open={isOpen}
+      onOpenChange={onClose}
+      size="lg"
+      icon={CheckCircle}
+      tone="success"
+      title="Accepter la demande"
+      description="Vous êtes sur le point d'accepter cette demande de contrat Caisse Imprévue. Veuillez indiquer le motif d'acceptation."
+      footer={
+        <>
           <Button
             type="button"
             variant="outline"
@@ -155,9 +105,46 @@ export default function AcceptDemandModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          <div className="space-y-2">
+            <p><strong>Forfait:</strong> {demand.subscriptionCICode} {demand.subscriptionCILabel && `- ${demand.subscriptionCILabel}`}</p>
+            <p><strong>Fréquence:</strong> {demand.paymentFrequency === 'DAILY' ? 'Journalière' : 'Mensuelle'}</p>
+            <p><strong>Montant mensuel:</strong> {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA</p>
+            <p><strong>Durée:</strong> {demand.subscriptionCIDuration} mois</p>
+            {demand.desiredDate && (
+              <p><strong>Date souhaitée:</strong> {new Date(demand.desiredDate).toLocaleDateString('fr-FR')}</p>
+            )}
+          </div>
+        </AlertDescription>
+      </Alert>
+
+      <div className="space-y-2">
+        <Label htmlFor="reason" className="text-sm font-semibold text-gray-900">
+          Raison d'acceptation *
+        </Label>
+        <Textarea
+          id="reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Indiquez le motif d'acceptation de cette demande..."
+          rows={4}
+          required
+          className="resize-none border-gray-300 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65]"
+        />
+        {!reason.trim() && (
+          <p className="text-sm text-red-600 mt-1">
+            La raison d'acceptation est obligatoire (minimum 10 caractères)
+          </p>
+        )}
+        <p className="text-xs text-gray-500">
+          Expliquez pourquoi cette demande est acceptée
+        </p>
+      </div>
+    </Modal>
   )
 }
-

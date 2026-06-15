@@ -74,7 +74,7 @@ export function DayPaymentsModalCreditSpeciale({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] p-0 overflow-hidden rounded-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[85dvh] p-0 overflow-hidden rounded-2xl">
         <div className="bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#1a3a4d] p-6 text-white">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-3">

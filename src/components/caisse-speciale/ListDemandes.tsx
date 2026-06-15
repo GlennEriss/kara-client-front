@@ -74,11 +74,13 @@ type DemandSortOption =
 const statusUiConfig: Record<CaisseSpecialeDemandStatus, {
   label: string
   color: string
+  dot: string
+  text: string
 }> = {
-  PENDING: { label: 'En attente', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  APPROVED: { label: 'Acceptée', color: 'bg-green-100 text-green-800 border-green-200' },
-  REJECTED: { label: 'Refusée', color: 'bg-red-100 text-red-800 border-red-200' },
-  CONVERTED: { label: 'Convertie', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  PENDING:   { label: 'En attente', color: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-400',  text: 'text-amber-700'  },
+  APPROVED:  { label: 'Acceptée',   color: 'bg-green-100 text-green-800 border-green-200', dot: 'bg-green-500',  text: 'text-green-700'  },
+  REJECTED:  { label: 'Refusée',    color: 'bg-red-100 text-red-800 border-red-200',       dot: 'bg-red-400',    text: 'text-red-700'    },
+  CONVERTED: { label: 'Convertie',  color: 'bg-blue-100 text-blue-800 border-blue-200',    dot: 'bg-blue-400',   text: 'text-blue-700'   },
 }
 
 // Composant skeleton moderne
@@ -137,115 +139,108 @@ const DemandCard = ({
   const requestedTotalAmount = Number(demande.monthlyAmount || 0) * Number(demande.monthsPlanned || 0)
 
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
+    <Card className="group flex h-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
       <CardContent className="p-4 md:p-5 flex-1 flex flex-col gap-4">
-        <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">
-          #{demande.id}
-        </div>
-
-        <div className="flex items-start justify-between">
-          <Badge className={cn('text-xs font-medium border', statusInfo.color)}>
-            {statusInfo.label}
-          </Badge>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full border border-transparent bg-white/80 opacity-80 transition-all group-hover:opacity-100 hover:border-[#234D65]/25 hover:bg-[#234D65]/10"
-                title="Actions"
-              >
-                <MoreVertical className="h-4 w-4 text-[#234D65]" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[190px]">
-              <DropdownMenuItem
-                onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-                className="cursor-pointer"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Voir détails
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
-                className="cursor-pointer"
-              >
-                <FileEdit className="h-4 w-4 mr-2" />
-                Modifier
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
-                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <Avatar className="h-14 w-14 shrink-0 rounded-xl ring-2 ring-[#234D65]/12">
-            {memberPhotoUrl ? (
-              <AvatarImage
-                src={memberPhotoUrl}
-                alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`}
-                className="h-full w-full object-cover object-center"
-              />
-            ) : null}
-            <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-[11px] font-semibold text-white">
-              {memberInitials || '--'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            {isLoadingMember ? (
-              <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
-            ) : (
-              <>
-                <div className="text-base font-bold leading-tight text-slate-900">{member?.firstName ?? '—'}</div>
-                <div className="text-base font-bold leading-tight text-slate-900">{member?.lastName ?? '—'}</div>
-              </>
-            )}
+        {/* Header : avatar + nom à gauche, statut dot + menu à droite */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-9 shrink-0 rounded-xl">
+              {memberPhotoUrl ? (
+                <AvatarImage
+                  src={memberPhotoUrl}
+                  alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`}
+                  className="h-full w-full object-cover object-center"
+                />
+              ) : null}
+              <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
+                {memberInitials || '--'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              {isLoadingMember ? (
+                <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
+              ) : (
+                <>
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {`${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() || '—'}
+                  </p>
+                  <p className="truncate text-xs text-gray-400">
+                    {memberPhone || member?.email || '—'}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusInfo.text)}>
+              <span className={cn('w-2 h-2 rounded-full shrink-0', statusInfo.dot)} />
+              {statusInfo.label}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 opacity-80 transition-all group-hover:opacity-100"
+                  title="Actions"
+                >
+                  <MoreVertical className="h-4 w-4 text-[#234D65]" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[190px]">
+                <DropdownMenuItem
+                  onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
+                  className="cursor-pointer"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Voir détails
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
+                  className="cursor-pointer"
+                >
+                  <FileEdit className="h-4 w-4 mr-2" />
+                  Modifier
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
+                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
+        {/* Matricule */}
         <div className="rounded-lg bg-[#234D65]/[0.06] px-2.5 py-1.5 text-xs font-mono font-semibold text-[#234D65]">
           {member?.matricule || demande.memberId || '—'}
         </div>
 
-        <div className="text-sm text-slate-600">
-          {isLoadingMember ? (
-            <span className="text-gray-400 animate-pulse">—</span>
-          ) : memberPhone || member?.email ? (
-            <span>{memberPhone}{memberPhone && member?.email ? ' • ' : ''}{member?.email ?? ''}</span>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </div>
-
-        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Montant total demandé</span>
-            <span className="font-extrabold text-[#234D65]">
-              {requestedTotalAmount.toLocaleString('fr-FR')} FCFA
-            </span>
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total demandé</p>
+            <p className="font-bold text-[#234D65] tabular-nums text-sm">
+              {requestedTotalAmount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+            </p>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Mensualité</span>
-            <span className="font-semibold text-slate-900">
-              {demande.monthlyAmount.toLocaleString('fr-FR')} FCFA
-            </span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">
+              {demande.monthlyAmount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+            </p>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Nombre de mois</span>
-            <span className="font-semibold text-slate-900">{demande.monthsPlanned} mois</span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Nb de mois</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">{demande.monthsPlanned} <span className="text-[10px] font-normal text-gray-400">mois</span></p>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Date souhaitée</span>
-            <span className="font-semibold text-slate-900">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date souhaitée</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">
               {demande.desiredDate ? new Date(demande.desiredDate).toLocaleDateString('fr-FR') : '—'}
-            </span>
+            </p>
           </div>
         </div>
 
@@ -259,7 +254,7 @@ const DemandCard = ({
             <>
               <Button
                 onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
-                className="h-10 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm transition-all hover:from-emerald-700 hover:to-emerald-600 hover:shadow-md"
+                className="h-9 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Accepter
@@ -267,7 +262,7 @@ const DemandCard = ({
               <Button
                 variant="outline"
                 onClick={() => setRejectModalState({ isOpen: true, demand: demande })}
-                className="h-10 w-full border-red-300/80 bg-red-50/70 text-red-700 transition-all hover:border-red-400 hover:bg-red-100/70"
+                className="h-9 w-full border-red-200 text-red-600 hover:bg-red-50"
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Refuser
@@ -279,7 +274,7 @@ const DemandCard = ({
             <Button
               variant="outline"
               onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
-              className="h-10 w-full border-blue-300/80 bg-blue-50/70 text-blue-700 transition-all hover:border-blue-400 hover:bg-blue-100/70"
+              className="h-9 w-full border-blue-200 text-blue-600 hover:bg-blue-50"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Réouvrir
@@ -287,9 +282,8 @@ const DemandCard = ({
           )}
 
           <Button
-            variant="outline"
             onClick={() => router.push(`/caisse-speciale/demandes/${demande.id}`)}
-            className="h-10 w-full border-[#234D65]/30 bg-white text-[#234D65] transition-all hover:bg-[#234D65] hover:text-white"
+            className="h-9 w-full bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
           >
             <Eye className="h-4 w-4 mr-2" />
             Voir détails
@@ -308,7 +302,7 @@ const MemberTableCell = ({ demande }: { demande: CaisseSpecialeDemand }) => {
     <div className="flex items-center gap-2">
       <Avatar className="h-10 w-10 shrink-0">
         {memberPhotoUrl ? (
-          <AvatarImage src={memberPhotoUrl} alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`} />
+          <AvatarImage src={memberPhotoUrl} alt={`Photo de ${member?.firstName || ''} ${member?.lastName || ''}`} className="h-full w-full object-cover object-center" />
         ) : null}
         <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
           {memberInitials || '--'}

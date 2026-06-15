@@ -1,14 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useContractCIMutations } from '@/domains/financial/caisse-imprevue/hooks/useContractCIMutations'
 import { useSubscriptionsCICache } from '@/domains/financial/caisse-imprevue/hooks/useSubscriptionsCICache'
@@ -58,18 +52,19 @@ export default function EditContractCategoryCIModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Modifier la catégorie du contrat
-          </DialogTitle>
-          <DialogDescription>
-            Contrat <span className="font-mono text-xs">{contract.id}</span>. Catégorie actuelle :{' '}
-            <strong>{contract.subscriptionCICode}</strong>. Choisissez la nouvelle catégorie.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader
+          icon={Package}
+          title="Modifier la catégorie du contrat"
+          description={
+            <>
+              Contrat <span className="font-mono text-xs">{contract.id}</span>. Catégorie actuelle :{' '}
+              <strong>{contract.subscriptionCICode}</strong>. Choisissez la nouvelle catégorie.
+            </>
+          }
+        />
 
+        <ModalBody>
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : (
@@ -108,8 +103,9 @@ export default function EditContractCategoryCIModal({
             })}
           </div>
         )}
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
@@ -124,8 +120,8 @@ export default function EditContractCategoryCIModal({
           >
             {mutation.isPending ? 'Enregistrement…' : 'Enregistrer la catégorie'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

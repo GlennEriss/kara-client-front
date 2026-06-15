@@ -37,7 +37,7 @@ export function BirthdaysList({
   if (isLoading) {
     return (
       <div
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         data-testid="birthdays-grid"
       >
         {Array.from({ length: 20 }).map((_, i) => (
@@ -71,7 +71,7 @@ export function BirthdaysList({
     <div className="space-y-6">
       {/* Grille de cards : 5 par ligne */}
       <div
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         data-testid="birthdays-grid"
       >
         {members.map((member) => (

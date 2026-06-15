@@ -2,14 +2,8 @@
 import SelectApp from '@/components/forms/SelectApp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -99,18 +93,15 @@ export default function EditSubscriptionCIModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62]">
-            Modifier le forfait {subscription.code}
-          </DialogTitle>
-          <DialogDescription>
-            Modifiez les paramètres du forfait
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="3xl">
+        <ModalHeader
+          title={`Modifier le forfait ${subscription.code}`}
+          description="Modifiez les paramètres du forfait"
+        />
 
+        <ModalBody>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form id="edit-subscription-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Section 1: Identification */}
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -330,27 +321,30 @@ export default function EditSubscriptionCIModal({
               </CardContent>
             </Card>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={updateSubscription.isPending}
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                className="bg-[#224D62] hover:bg-[#2c5a73]"
-                disabled={updateSubscription.isPending}
-              >
-                {updateSubscription.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Enregistrer les modifications
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={updateSubscription.isPending}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="edit-subscription-form"
+            className="bg-[#224D62] hover:bg-[#2c5a73]"
+            disabled={updateSubscription.isPending}
+          >
+            {updateSubscription.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Enregistrer les modifications
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

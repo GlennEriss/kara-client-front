@@ -17,7 +17,6 @@ import {
     FileText,
     RefreshCw,
     TrendingUp,
-    UserCheck,
     User as UserIcon,
     Users
 } from 'lucide-react'
@@ -362,9 +361,9 @@ export default function FilleulsList() {
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
             {/* Ligne 2 : Photo et Parrain */}
             <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10 shrink-0">
+              <Avatar className="w-10 h-10 shrink-0 rounded-xl">
                 <AvatarImage src={memberData.photoURL || undefined} alt={`Photo de ${memberData.firstName} ${memberData.lastName}`} />
-                <AvatarFallback className="bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white">
+                <AvatarFallback className="rounded-xl bg-[#234D65] text-white">
                   <UserIcon className="w-5 h-5" />
                 </AvatarFallback>
               </Avatar>
@@ -483,45 +482,37 @@ export default function FilleulsList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filleulsData.map((filleul: Filleul, index: number) => (
-            <Card 
-              key={`${filleul.matricule}-${index}`} 
-              className="border-[#234D65]/20 hover:shadow-lg transition-all duration-300 hover:border-[#234D65]/40 group"
+            <Card
+              key={`${filleul.matricule}-${index}`}
+              className="group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md"
             >
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  <Avatar className="w-14 h-14">
-                    <AvatarImage src={filleul.photoURL || undefined} alt={`Photo de ${filleul.firstName} ${filleul.lastName}`} />
-                    <AvatarFallback className="bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white">
-                      <UserIcon className="w-7 h-7" />
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-lg font-semibold text-[#234D65] truncate group-hover:text-[#2c5a73] transition-colors">
-                          {filleul.firstName} {filleul.lastName}
-                        </h3>
-                        <Badge 
-                          variant="secondary" 
-                          className="mt-1 bg-[#234D65]/10 text-[#234D65] border-[#234D65]/20 text-xs"
-                        >
-                          {filleul.matricule}
-                        </Badge>
-                      </div>
+              <CardContent className="flex flex-col gap-4 p-4 md:p-5">
+                {/* Header : avatar + nom à gauche, statut dot à droite */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="size-9 shrink-0 rounded-xl">
+                      <AvatarImage src={filleul.photoURL || undefined} alt={`Photo de ${filleul.firstName} ${filleul.lastName}`} />
+                      <AvatarFallback className="rounded-xl bg-[#234D65] text-white">
+                        <UserIcon className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-semibold text-gray-900">
+                        {filleul.firstName} {filleul.lastName}
+                      </h3>
+                      <p className="truncate text-xs text-gray-400">{filleul.matricule}</p>
                     </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        <span>Membre depuis le {filleul.createdAt.toLocaleDateString('fr-FR')}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <UserCheck className="w-4 h-4" />
-                        <span>Statut: Actif</span>
-                      </div>
-                    </div>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                    <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
+                    Actif
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                    <span className="truncate">Membre depuis le {filleul.createdAt.toLocaleDateString('fr-FR')}</span>
                   </div>
                 </div>
               </CardContent>

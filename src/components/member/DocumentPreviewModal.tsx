@@ -53,7 +53,7 @@ export function DocumentPreviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[95vw] !max-w-5xl max-h-[95vh] overflow-hidden border-0 bg-gradient-to-br from-white to-gray-50 shadow-2xl">
+      <DialogContent className="!w-[95vw] !max-w-5xl max-h-[95vh] overflow-hidden border-0 bg-white shadow-2xl">
         <DialogHeader className="space-y-2">
           <DialogTitle className="text-2xl font-bold text-[#234D65] flex items-center gap-2">
             <FileText className="h-5 w-5" />

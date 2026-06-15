@@ -101,7 +101,7 @@ export default function ConvertDemandToPlacementModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
             <CreditCard className="h-6 w-6 text-[#224D62]" />

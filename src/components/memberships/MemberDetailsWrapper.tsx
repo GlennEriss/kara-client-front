@@ -31,7 +31,7 @@ const MemberDetailsWrapper = ({
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+        <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90dvh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-[#224D62]">
               Chargement des détails{memberName ? ` de ${memberName}` : ''}...
@@ -72,7 +72,7 @@ const MemberDetailsWrapper = ({
   if (error || !membershipRequest) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-red-600">
               Erreur

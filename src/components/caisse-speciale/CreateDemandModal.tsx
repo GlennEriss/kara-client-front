@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -78,18 +79,15 @@ export default function CreateDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62]">
-            Nouvelle demande de contrat Caisse Spéciale
-          </DialogTitle>
-          <DialogDescription>
-            Créez une nouvelle demande de contrat pour un membre
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="2xl">
+        <ModalHeader
+          title="Nouvelle demande de contrat Caisse Spéciale"
+          description="Créez une nouvelle demande de contrat pour un membre"
+        />
 
+        <ModalBody>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form id="create-demand-cs-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Section 1: Sélection du membre */}
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -272,28 +270,31 @@ export default function CreateDemandModal({
             </Card>
 
 
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Annuler
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={create.isPending || !selectedEntity}
-                className="bg-[#234D65] hover:bg-[#2c5a73]"
-              >
-                {create.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Création...
-                  </>
-                ) : (
-                  'Créer la demande'
-                )}
-              </Button>
-            </div>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="create-demand-cs-form"
+            disabled={create.isPending || !selectedEntity}
+            className="bg-[#234D65] hover:bg-[#2c5a73]"
+          >
+            {create.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Création...
+              </>
+            ) : (
+              'Créer la demande'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

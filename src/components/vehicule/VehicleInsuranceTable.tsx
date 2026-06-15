@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { VehicleInsurance, VehicleInsuranceListResult } from '@/types/types'
-import { Eye, MapPin, Pencil, Phone, RefreshCw, Trash2 } from 'lucide-react'
+import { Building2, Calendar, Car, Eye, MapPin, Pencil, Phone, RefreshCw, Trash2 } from 'lucide-react'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 
 interface Props {
@@ -51,7 +51,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
     : undefined
 
   return (
-    <Card className="border-0 shadow-lg">
+    <Card className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
@@ -118,7 +118,8 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="flex items-center gap-1.5 font-medium text-gray-900">
+                          <Car className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                           {item.vehicleBrand} {item.vehicleModel}
                         </p>
                         <p className="text-sm text-gray-500">
@@ -135,7 +136,10 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-gray-900">{item.insuranceCompany}</p>
+                        <p className="flex items-center gap-1.5 font-medium text-gray-900">
+                          <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                          {item.insuranceCompany}
+                        </p>
                         <p className="text-sm text-gray-500">{item.policyNumber}</p>
                       </div>
                     </TableCell>
@@ -148,9 +152,12 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                       </p>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-gray-700">
-                        <p>Du {item.startDate.toLocaleDateString('fr-FR')}</p>
-                        <p>Au {item.endDate.toLocaleDateString('fr-FR')}</p>
+                      <div className="flex items-start gap-1.5 text-sm text-gray-700">
+                        <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p>Du {item.startDate.toLocaleDateString('fr-FR')}</p>
+                          <p>Au {item.endDate.toLocaleDateString('fr-FR')}</p>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>

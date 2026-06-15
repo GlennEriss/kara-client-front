@@ -1,7 +1,8 @@
 "use client"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -266,11 +267,10 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{mode === 'edit' ? 'Modifier un administrateur' : 'Ajouter un administrateur'}</DialogTitle>
-        </DialogHeader>
+      <ModalContent size="md">
+        <ModalHeader title={mode === 'edit' ? 'Modifier un administrateur' : 'Ajouter un administrateur'} />
 
+        <ModalBody>
         {/* Upload Photo - Cercle cliquable */}
         <div className="w-full flex items-center justify-center mb-4">
           <div
@@ -313,7 +313,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         )}
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form id="admin-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}
@@ -475,19 +475,20 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
               )}
             />
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>Annuler</Button>
-              <Button type="submit" disabled={isUploading || isSubmitting}>
-                {isSubmitting ? (
-                  <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {mode === 'edit' ? 'Mise à jour...' : 'Enregistrement...'}</span>
-                ) : (
-                  mode === 'edit' ? 'Mettre à jour' : 'Enregistrer'
-                )}
-              </Button>
-            </div>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>Annuler</Button>
+          <Button type="submit" form="admin-form" disabled={isUploading || isSubmitting}>
+            {isSubmitting ? (
+              <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {mode === 'edit' ? 'Mise à jour...' : 'Enregistrement...'}</span>
+            ) : (
+              mode === 'edit' ? 'Mettre à jour' : 'Enregistrer'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

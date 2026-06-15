@@ -84,7 +84,7 @@ export default function AddParticipantModal({ eventId, isOpen, onClose, allowedT
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {allowedTypes.length === 1 

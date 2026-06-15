@@ -1,14 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useReplaceContractPdf } from '@/domains/financial/caisse-speciale/contrats/hooks'
@@ -63,18 +57,14 @@ export default function ReplaceCaisseSpecialeContractPdfModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Modifier le contrat
-          </DialogTitle>
-          <DialogDescription>
-            Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader
+          icon={FileText}
+          title="Modifier le contrat"
+          description="Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas."
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-800">
               <strong>Contrat :</strong> #{contractShortId}
@@ -101,9 +91,9 @@ export default function ReplaceCaisseSpecialeContractPdfModal({
               </div>
             )}
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button
             variant="outline"
             onClick={() => {
@@ -128,8 +118,8 @@ export default function ReplaceCaisseSpecialeContractPdfModal({
               'Remplacer'
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

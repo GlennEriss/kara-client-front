@@ -3,7 +3,8 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -3874,20 +3875,18 @@ export default function CreditContractDetail({
 
       {/* Modal upload contrat signé */}
       <Dialog open={showUploadContractModal} onOpenChange={setShowUploadContractModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Uploader le contrat signé
-            </DialogTitle>
-            <DialogDescription>
-              {isUploadActivationFlow
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Upload}
+            title="Uploader le contrat signé"
+            description={
+              isUploadActivationFlow
                 ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
-                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'}
-            </DialogDescription>
-          </DialogHeader>
+                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'
+            }
+          />
 
-          <div className="space-y-4 py-4">
+          <ModalBody>
             <div>
               <Label htmlFor="contractFile" className="flex items-center gap-2 mb-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
@@ -3920,9 +3919,9 @@ export default function CreditContractDetail({
                 </p>
               </div>
             )}
-          </div>
+          </ModalBody>
 
-          <DialogFooter>
+          <ModalFooter>
             <Button
               variant="outline"
               onClick={() => {
@@ -3971,24 +3970,20 @@ export default function CreditContractDetail({
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {/* Modal de remplacement du contrat signé */}
       <Dialog open={showReplaceContractModal} onOpenChange={setShowReplaceContractModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Modifier le contrat signé
-            </DialogTitle>
-            <DialogDescription>
-              Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas.
-            </DialogDescription>
-          </DialogHeader>
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={FileText}
+            title="Modifier le contrat signé"
+            description="Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas."
+          />
 
-          <div className="space-y-4 py-4">
+          <ModalBody>
             <div>
               <Label htmlFor="replaceContractFile" className="flex items-center gap-2 mb-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
@@ -4010,9 +4005,9 @@ export default function CreditContractDetail({
                 </div>
               )}
             </div>
-          </div>
+          </ModalBody>
 
-          <DialogFooter>
+          <ModalFooter>
             <Button
               variant="outline"
               onClick={() => {
@@ -4052,8 +4047,8 @@ export default function CreditContractDetail({
                 'Remplacer'
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {/* Modal d'augmentation de crédit */}

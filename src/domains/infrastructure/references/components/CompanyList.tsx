@@ -453,11 +453,11 @@ export default function CompanyList() {
           </Alert>
         ) })()
       ) : isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: limit }).map((_, i) => (<CompanySkeleton key={i} />))}
         </div>
       ) : (data && data.data.length > 0) ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.data.map((c) => (
             <Card key={c.id} className="h-full hover:shadow-md transition-shadow">
               <CardContent className="p-4">

@@ -2,14 +2,8 @@
 import SelectApp from '@/components/forms/SelectApp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -84,18 +78,15 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62]">
-            Ajouter un nouveau forfait
-          </DialogTitle>
-          <DialogDescription>
-            Créez une nouvelle souscription de Caisse Imprévue pour un membre
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="3xl">
+        <ModalHeader
+          title="Ajouter un nouveau forfait"
+          description="Créez une nouvelle souscription de Caisse Imprévue pour un membre"
+        />
 
+        <ModalBody>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form id="create-subscription-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Section 1: Identification du forfait */}
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -358,27 +349,30 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
               </CardContent>
             </Card>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={createSubscription.isPending}
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                className="bg-[#224D62] hover:bg-[#2c5a73]"
-                disabled={createSubscription.isPending || availableCodeOptions.length === 0}
-              >
-                {createSubscription.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Créer le forfait
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={createSubscription.isPending}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="create-subscription-form"
+            className="bg-[#224D62] hover:bg-[#2c5a73]"
+            disabled={createSubscription.isPending || availableCodeOptions.length === 0}
+          >
+            {createSubscription.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Créer le forfait
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

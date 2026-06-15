@@ -13,6 +13,7 @@ import {
   Cake,
 } from 'lucide-react'
 import { useMembershipsListV2 } from '@/domains/memberships/hooks/useMembershipsListV2'
+import { useMembershipStats } from '@/domains/memberships/hooks/useMembershipStats'
 import {
   MembershipsListStats,
   MembershipsListHeader,
@@ -94,12 +95,11 @@ export function MembershipsListPage() {
   } | null>(null)
 
   // React Query V2
-  const { 
-    data: membersData, 
-    stats,
-    isLoading, 
+  const {
+    data: membersData,
+    isLoading,
     isError,
-    error, 
+    error,
     refetch,
     goToNextPage,
     goToPrevPage,
@@ -111,6 +111,9 @@ export function MembershipsListPage() {
     limit: itemsPerPage,
     tab: activeTab,
   })
+
+  // Stats globales (sur l'ensemble des membres, pas seulement la page courante)
+  const { stats } = useMembershipStats({ fetchGlobal: true })
 
   // Référence pour comparer les filtres précédents
   const prevFiltersRef = useRef<string>(JSON.stringify(filters))

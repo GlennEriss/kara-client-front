@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -200,16 +194,11 @@ export default function EarlyWithdrawalRequestModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:w-[95vw] sm:max-w-5xl lg:max-w-6xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <TrendingUp className="h-6 w-6" />
-            {title}
-          </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+      <ModalContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:w-[95vw] sm:max-w-5xl lg:max-w-6xl">
+        <ModalHeader icon={TrendingUp} title={title} description={description} />
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 py-4">
+        <ModalBody>
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <InfoIcon className="h-5 w-5 text-blue-600 mt-0.5" />
@@ -483,8 +472,9 @@ export default function EarlyWithdrawalRequestModal({
             </AlertDescription>
           </Alert>
         </form>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Annuler
           </Button>
@@ -518,8 +508,8 @@ export default function EarlyWithdrawalRequestModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

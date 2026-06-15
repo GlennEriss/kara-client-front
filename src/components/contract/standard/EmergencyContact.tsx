@@ -60,7 +60,7 @@ export default function EmergencyContact({ emergencyContact }: Props) {
         </button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-md max-h-[90dvh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />

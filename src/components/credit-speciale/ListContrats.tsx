@@ -1129,6 +1129,24 @@ const ListContrats = ({
     return labels[status] || status
   }
 
+  const getStatusDot = (status: CreditContractStatus) => {
+    const dots: Record<string, { dot: string; text: string }> = {
+      DRAFT:       { dot: 'bg-slate-300',  text: 'text-slate-600'  },
+      PENDING:     { dot: 'bg-amber-400',  text: 'text-amber-700'  },
+      APPROVED:    { dot: 'bg-blue-400',   text: 'text-blue-700'   },
+      SIMULATED:   { dot: 'bg-indigo-400', text: 'text-indigo-700' },
+      ACTIVE:      { dot: 'bg-emerald-500',text: 'text-emerald-700'},
+      OVERDUE:     { dot: 'bg-orange-500', text: 'text-orange-700' },
+      PARTIAL:     { dot: 'bg-amber-400',  text: 'text-amber-700'  },
+      TRANSFORMED: { dot: 'bg-purple-400', text: 'text-purple-700' },
+      BLOCKED:     { dot: 'bg-red-400',    text: 'text-red-700'    },
+      DISCHARGED:  { dot: 'bg-gray-400',   text: 'text-gray-500'   },
+      CLOSED:      { dot: 'bg-gray-400',   text: 'text-gray-500'   },
+      EXTENDED:    { dot: 'bg-cyan-400',   text: 'text-cyan-700'   },
+    }
+    return dots[status] || dots.DRAFT
+  }
+
   /**
    * Vérifie si un contrat est en retard
    */
@@ -1561,7 +1579,7 @@ const ListContrats = ({
       {isLoading ? (
         <div className={
           viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
             : 'space-y-6'
         }>
           {[...Array(itemsPerPage)].map((_, i) => (
@@ -1587,50 +1605,40 @@ const ListContrats = ({
                   className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
                   style={{ animationDelay: `${_index * 0.05}s` }}
                 >
-                  <Card className="group relative h-full flex flex-col overflow-hidden border border-[#234D65]/20 bg-gradient-to-br from-white via-white to-[#234D65]/[0.04] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#234D65]/45 hover:shadow-xl">
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#CBB171]" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-
-                    {isContractOverdue(contract) && (
-                      <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        En retard
-                      </Badge>
-                    )}
-
+                  <Card className={cn(
+                    'group relative h-full flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md',
+                    isContractOverdue(contract) && 'border-red-200'
+                  )}>
                     <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                      <div className="flex items-start gap-3">
-                        <div className="shrink-0">
-                          <Avatar className="size-14 rounded-xl ring-2 ring-[#234D65]/12">
-                            <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white font-semibold">
+                      {/* Header : avatar + nom à gauche, statut dot + type à droite */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar className="size-9 shrink-0 rounded-xl">
+                            <AvatarFallback className="rounded-xl bg-[#234D65] text-white font-semibold text-xs">
                               {initials}
                             </AvatarFallback>
                           </Avatar>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
+                            <p className="truncate text-xs text-gray-400">{primaryContact}</p>
+                            <p className="truncate font-mono text-[10px] text-gray-400">{contract.id}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-xs text-gray-500">Matricule contrat</div>
-                          <div className="font-mono text-xs font-semibold tracking-wide text-[#234D65] break-all">{contract.id}</div>
-                          <div className="mt-1 text-sm font-bold text-slate-900 truncate">{displayName}</div>
-                          <div className="text-xs text-slate-500 truncate">{primaryContact}</div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(contract.status).text}`}>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(contract.status).dot}`} />
+                            {getStatusLabel(contract.status)}
+                          </span>
+                          <span className="text-[10px] font-medium text-gray-400">{getCreditTypeLabel(contract.creditType)}</span>
+                          {isContractOverdue(contract) && (
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-red-600">
+                              <AlertCircle className="h-3 w-3" /> Retard
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        <Badge className="bg-blue-100 text-blue-700 border border-blue-200">
-                          {getCreditTypeLabel(contract.creditType)}
-                        </Badge>
-                        <Badge className={`border ${getStatusColor(contract.status)}`}>
-                          {getStatusLabel(contract.status)}
-                        </Badge>
-                        {isContractOverdue(contract) && (
-                          <Badge variant="destructive" className="flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            Retard
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="mt-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white p-3 text-sm">
+                      <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                           <div className="min-w-0">
                             <p className="text-[11px] uppercase tracking-wide text-slate-500">Montant emprunté</p>
@@ -1686,7 +1694,7 @@ const ListContrats = ({
                                   router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
                                 }}
                                 disabled={!canOpenContractDetail(contract)}
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
                               >
                                 <Eye className="h-4 w-4" />
                                 Ouvrir
@@ -1694,7 +1702,7 @@ const ListContrats = ({
                               <Button
                                 onClick={() => setSelectedContractForOverview(contract)}
                                 variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                               >
                                 <User className="h-4 w-4" />
                                 Voir toutes les infos
@@ -1702,7 +1710,7 @@ const ListContrats = ({
                               <Button
                                 onClick={() => window.open(contract.signedContractUrl, '_blank')}
                                 variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-[#234D65]/30 bg-white text-[#234D65] transition-all cursor-pointer hover:bg-[#234D65] hover:text-white"
+                                className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                               >
                                 <FileText className="h-4 w-4" />
                                 Voir contrat
@@ -1711,7 +1719,7 @@ const ListContrats = ({
                                 <Button
                                   onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
                                   variant="outline"
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border-2 border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 hover:border-amber-400"
+                                  className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
                                 >
                                   <FileText className="h-4 w-4" />
                                   Modifier contrat signé
@@ -1723,7 +1731,8 @@ const ListContrats = ({
                               {canUploadSignedContract(contract) && (
                                 <Button
                                   onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
-                                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 hover:text-orange-800"
+                                  variant="outline"
+                                  className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
                                 >
                                   <Upload className="h-4 w-4" />
                                   {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
@@ -1732,7 +1741,7 @@ const ListContrats = ({
                               <Button
                                 onClick={() => setSelectedContractForOverview(contract)}
                                 variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                                className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                               >
                                 <User className="h-4 w-4" />
                                 Voir toutes les infos
@@ -1746,7 +1755,7 @@ const ListContrats = ({
                                 ? () => window.open(contract.contractUrl, '_blank')
                                 : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                               variant="outline"
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
+                              className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                             >
                               <Download className="h-4 w-4" />
                               Télécharger contrat
@@ -1756,7 +1765,7 @@ const ListContrats = ({
                             <Button
                               onClick={() => window.open(contract.signedQuittanceUrl, '_blank')}
                               variant="outline"
-                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
                             >
                               <Eye className="h-4 w-4" />
                               Contrat de remboursement
@@ -1764,8 +1773,8 @@ const ListContrats = ({
                           )}
                           <Button
                             onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
-                            variant="destructive"
-                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-red-600 cursor-pointer hover:bg-red-700 text-white"
+                            variant="outline"
+                            className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4" />
                             Supprimer
@@ -2165,7 +2174,7 @@ const ListContrats = ({
 
       {/* Modal de téléversement de contrat */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
@@ -2278,7 +2287,7 @@ const ListContrats = ({
 
       {/* Modal de remplacement du contrat signé */}
       <Dialog open={showReplaceModal} onOpenChange={setShowReplaceModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />

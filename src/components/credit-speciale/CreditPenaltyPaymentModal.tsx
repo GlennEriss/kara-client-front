@@ -3,14 +3,8 @@
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -162,20 +156,19 @@ export default function CreditPenaltyPaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <DollarSign className="h-6 w-6" />
-            {isEditMode ? 'Modifier le paiement de la pénalité' : 'Payer une pénalité'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditMode
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={DollarSign}
+          title={isEditMode ? 'Modifier le paiement de la pénalité' : 'Payer une pénalité'}
+          description={
+            isEditMode
               ? 'Mettez à jour les informations d’encaissement de cette pénalité payée.'
-              : 'Enregistrez le paiement de cette pénalité avec sa preuve et ses informations d’encaissement.'}
-          </DialogDescription>
-        </DialogHeader>
+              : 'Enregistrez le paiement de cette pénalité avec sa preuve et ses informations d’encaissement.'
+          }
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-6 py-2">
+        <ModalBody>
+        <form id="credit-penalty-payment-form" onSubmit={handleSubmit} className="space-y-6 py-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="penalty-payment-date" className="flex items-center gap-2 mb-2">
@@ -397,27 +390,29 @@ export default function CreditPenaltyPaymentModal({
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={activeMutation.isPending || isCompressing}>
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-              disabled={activeMutation.isPending || isCompressing || !penalty}
-            >
-              {activeMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditMode ? 'Modification...' : 'Paiement...'}
-                </>
-              ) : (
-                isEditMode ? 'Modifier la pénalité' : 'Payer la pénalité'
-              )}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={activeMutation.isPending || isCompressing}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="credit-penalty-payment-form"
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+            disabled={activeMutation.isPending || isCompressing || !penalty}
+          >
+            {activeMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditMode ? 'Modification...' : 'Paiement...'}
+              </>
+            ) : (
+              isEditMode ? 'Modifier la pénalité' : 'Payer la pénalité'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

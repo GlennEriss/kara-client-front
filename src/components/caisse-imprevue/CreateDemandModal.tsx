@@ -4,7 +4,8 @@ import EmergencyContactMemberSelector from '@/components/shared/EmergencyContact
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form } from '@/components/ui/form'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -399,16 +400,13 @@ function CreateDemandModalContent({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62]">
-            Nouvelle demande de contrat Caisse Imprévue
-          </DialogTitle>
-          <DialogDescription>
-            Créez une nouvelle demande de contrat en 3 étapes
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="2xl">
+        <ModalHeader
+          title="Nouvelle demande de contrat Caisse Imprévue"
+          description="Créez une nouvelle demande de contrat en 3 étapes"
+        />
 
+        <ModalBody>
         {/* Indicateur d'étapes */}
         <div className="flex items-center justify-between mb-6">
           {steps.map((step, index) => (
@@ -449,13 +447,14 @@ function CreateDemandModalContent({
         </div>
 
         <Form {...form}>
-          <form 
+          <form
+            id="create-demand-form"
             onSubmit={(e) => {
               e.preventDefault()
               if (currentStep === 3) {
                 form.handleSubmit(onSubmit)(e)
               }
-            }} 
+            }}
             className="space-y-6"
           >
             {/* Étape 1: Membre */}
@@ -610,47 +609,50 @@ function CreateDemandModalContent({
               </div>
             )}
 
-            <div className="flex justify-between gap-3">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={currentStep === 1 ? onClose : handlePrev}
-                disabled={create.isPending}
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                {currentStep === 1 ? 'Annuler' : 'Précédent'}
-              </Button>
-              
-              {currentStep < 3 ? (
-                <Button 
-                  type="button" 
-                  onClick={handleNext}
-                  disabled={!canGoNext()}
-                  className="bg-[#234D65] hover:bg-[#2c5a73]"
-                >
-                  Suivant
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button 
-                  type="submit" 
-                  disabled={create.isPending || !canGoNext()}
-                  className="bg-[#234D65] hover:bg-[#2c5a73]"
-                >
-                  {create.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Création...
-                    </>
-                  ) : (
-                    'Créer la demande'
-                  )}
-                </Button>
-              )}
-            </div>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+
+        <ModalFooter className="justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={currentStep === 1 ? onClose : handlePrev}
+            disabled={create.isPending}
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            {currentStep === 1 ? 'Annuler' : 'Précédent'}
+          </Button>
+
+          {currentStep < 3 ? (
+            <Button
+              type="button"
+              onClick={handleNext}
+              disabled={!canGoNext()}
+              className="bg-[#234D65] hover:bg-[#2c5a73]"
+            >
+              Suivant
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              form="create-demand-form"
+              disabled={create.isPending || !canGoNext()}
+              className="bg-[#234D65] hover:bg-[#2c5a73]"
+            >
+              {create.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Création...
+                </>
+              ) : (
+                'Créer la demande'
+              )}
+            </Button>
+          )}
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

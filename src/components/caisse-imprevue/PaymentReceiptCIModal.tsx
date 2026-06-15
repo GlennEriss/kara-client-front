@@ -1,17 +1,10 @@
 'use client'
 
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { useAdmin } from '@/hooks/admin/useAdmin'
 import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 import { useAuth } from '@/hooks/useAuth'
@@ -155,21 +148,18 @@ export default function PaymentReceiptCIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <Receipt className="h-6 w-6" />
-            Reçu de Paiement
-          </DialogTitle>
-          <DialogDescription>
-            {isMonthly 
+      <ModalContent size="xl">
+        <ModalHeader
+          icon={Receipt}
+          title="Reçu de Paiement"
+          description={
+            isMonthly
               ? `Récapitulatif des versements pour le mois M${payment.monthIndex + 1}`
               : `Récapitulatif du versement quotidien`
-            }
-          </DialogDescription>
-        </DialogHeader>
+          }
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations du contrat */}
           <Card className="border-0 shadow-md bg-gradient-to-r from-[#234D65]/5 to-[#2c5a73]/5">
             <CardContent className="p-6">
@@ -413,9 +403,9 @@ export default function PaymentReceiptCIModal({
               </div>
             </CardContent>
           </Card>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2 flex-wrap">
+        <ModalFooter>
           {onEditClick && (
             <Button
               type="button"
@@ -465,25 +455,24 @@ export default function PaymentReceiptCIModal({
           >
             Fermer
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
 
       {/* Confirmation suppression versement (Quotidien) */}
-      <AlertDialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-              <Trash2 className="h-5 w-5" />
-              Supprimer ce versement
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Vous avez enregistré ce versement à une mauvaise date. La suppression retire le versement et recalcule les totaux du mois. Cette action est irréversible.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+      <Modal
+        open={showConfirmDelete}
+        onOpenChange={setShowConfirmDelete}
+        size="sm"
+        icon={Trash2}
+        tone="destructive"
+        title="Supprimer ce versement"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowConfirmDelete(false)}>
+              Annuler
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
               onClick={async () => {
                 await onDeleteClick?.()
                 setShowConfirmDelete(false)
@@ -491,15 +480,19 @@ export default function PaymentReceiptCIModal({
               }}
             >
               Supprimer le versement
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700">
+          Vous avez enregistré ce versement à une mauvaise date. La suppression retire le versement et recalcule les totaux du mois. Cette action est irréversible.
+        </p>
+      </Modal>
 
       {/* Modal d'image en plein écran */}
       {selectedImage && (
         <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-          <DialogContent className="max-w-5xl max-h-[95vh] p-0">
+          <DialogContent showCloseButton={false} className="w-[95vw] sm:max-w-5xl max-h-[95dvh] p-0">
             <div className="relative w-full h-[90vh] bg-black">
               <Button
                 variant="ghost"

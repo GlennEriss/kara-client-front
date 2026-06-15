@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Modal } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
 import type { AgentRecouvrement } from '@/types/types'
 import type { UseMutationResult } from '@tanstack/react-query'
@@ -25,21 +25,13 @@ export function ReactiverAgentModal({ agent, open, onOpenChange, onSuccess, muta
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Réactiver l'agent</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p>
-            Vous êtes sur le point de réactiver l'agent : <strong>{agent.nom} {agent.prenom}</strong>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            L'agent sera de nouveau disponible dans les selects de versement.
-          </p>
-          <p>Confirmer ?</p>
-        </div>
-        <div className="flex justify-end gap-2 pt-4">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      title="Réactiver l'agent"
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
@@ -47,8 +39,16 @@ export function ReactiverAgentModal({ agent, open, onOpenChange, onSuccess, muta
             {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Confirmer
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <p>
+        Vous êtes sur le point de réactiver l'agent : <strong>{agent.nom} {agent.prenom}</strong>
+      </p>
+      <p className="text-sm text-muted-foreground">
+        L'agent sera de nouveau disponible dans les selects de versement.
+      </p>
+      <p>Confirmer ?</p>
+    </Modal>
   )
 }

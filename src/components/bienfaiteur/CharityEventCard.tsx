@@ -10,7 +10,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -72,17 +71,18 @@ export default function CharityEventCard({ event, onSetOngoing, updatingEventId 
     ? Math.ceil((safeEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : 0
 
-  const statusColors = {
-    draft: 'border-zinc-200 bg-zinc-100/90 text-zinc-800',
-    upcoming: 'border-amber-200 bg-amber-100/90 text-amber-800',
-    ongoing: 'border-emerald-200 bg-emerald-100/90 text-emerald-800',
-    closed: 'border-blue-200 bg-blue-100/90 text-blue-800',
-    archived: 'border-indigo-200 bg-indigo-100/90 text-indigo-800'
+  const statusDot: Record<string, { dot: string; text: string }> = {
+    draft: { dot: 'bg-gray-400', text: 'text-gray-500' },
+    upcoming: { dot: 'bg-amber-400', text: 'text-amber-700' },
+    ongoing: { dot: 'bg-emerald-500', text: 'text-emerald-700' },
+    closed: { dot: 'bg-blue-400', text: 'text-blue-700' },
+    archived: { dot: 'bg-indigo-400', text: 'text-indigo-700' },
   }
+  const status = statusDot[event.status] || statusDot.draft
 
   return (
     <Card
-      className="group cursor-pointer overflow-hidden border-cyan-100/80 bg-gradient-to-b from-white via-white to-cyan-50/40 shadow-[0_16px_34px_-28px_rgba(18,62,98,0.9)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_45px_-28px_rgba(14,56,92,0.95)]"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md"
       onClick={() => router.push(routes.admin.bienfaiteurDetails(event.id))}
     >
       {/* Image de couverture */}
@@ -106,9 +106,10 @@ export default function CharityEventCard({ event, onSetOngoing, updatingEventId 
 
       <CardHeader className="space-y-3 pb-3">
         <div className="flex items-center justify-between">
-          <Badge className={`border ${statusColors[event.status]}`}>
+          <span className={`flex items-center gap-1.5 text-xs font-semibold ${status.text}`}>
+            <span className={`h-2 w-2 rounded-full shrink-0 ${status.dot}`} />
             {CHARITY_EVENT_STATUS_LABELS[event.status]}
-          </Badge>
+          </span>
           {daysRemaining > 0 && event.status === 'ongoing' && (
             <span className="text-xs font-medium text-slate-600">
               {daysRemaining} jours restants
@@ -145,7 +146,7 @@ export default function CharityEventCard({ event, onSetOngoing, updatingEventId 
               </span>
             )}
           </div>
-          <Progress value={progressPercentage} className="h-2.5 bg-slate-200" />
+          <Progress value={progressPercentage} className="h-2 bg-gray-100" />
         </div>
 
         {/* Participants */}
@@ -162,10 +163,10 @@ export default function CharityEventCard({ event, onSetOngoing, updatingEventId 
         </div>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-2 border-t border-cyan-100/70 bg-cyan-50/35 pt-4 sm:flex-row">
+      <CardFooter className="mt-auto flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row">
         <Button
           variant="outline"
-          className="flex-1 border-cyan-200 bg-white text-slate-700 hover:bg-cyan-50"
+          className="h-9 flex-1 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
           onClick={(e) => {
             e.stopPropagation()
             router.push(routes.admin.bienfaiteurDetails(event.id))
@@ -175,8 +176,7 @@ export default function CharityEventCard({ event, onSetOngoing, updatingEventId 
         </Button>
         {canSetOngoing && (
           <Button
-            variant="default"
-            className="flex-1 bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white shadow-sm hover:opacity-95"
+            className="h-9 flex-1 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
             disabled={isUpdating}
             onClick={(e) => {
               e.stopPropagation()

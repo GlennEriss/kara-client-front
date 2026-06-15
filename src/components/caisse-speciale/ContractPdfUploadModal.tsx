@@ -2,7 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import FileInput from '@/components/ui/file-input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useUploadContractPdf } from '@/domains/financial/caisse-speciale/contrats/hooks'
@@ -143,15 +144,10 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-w-[90vw] w-full">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
-            Téléverser le document PDF
-          </DialogTitle>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader icon={FileText} title="Téléverser le document PDF" />
 
-        <div className="space-y-4">
+        <ModalBody>
           {contractName && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
@@ -168,7 +164,7 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form id="contract-pdf-upload-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="contractPdf.file"
@@ -205,37 +201,39 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={form.formState.isSubmitting || !form.watch('contractPdf.file')}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {form.formState.isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Téléversement...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Téléverser
-                    </>
-                  )}
-                </Button>
-              </div>
             </form>
           </Form>
-        </div>
-      </DialogContent>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={form.formState.isSubmitting}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="contract-pdf-upload-form"
+            disabled={form.formState.isSubmitting || !form.watch('contractPdf.file')}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {form.formState.isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Téléversement...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Téléverser
+              </>
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

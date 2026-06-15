@@ -222,18 +222,15 @@ function ContractCIGridCard({
   return (
     <Card
       className={cn(
-        'group relative flex flex-col overflow-hidden border-0 bg-white shadow-md transition-all duration-200 hover:shadow-lg',
-        isOverdue && 'ring-1 ring-red-300'
+        'group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md',
+        isOverdue && 'border-red-200'
       )}
     >
-      {/* Top accent bar */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
-
       <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-5">
-        {/* Header: avatar + name + status */}
+        {/* Header: avatar + nom + statut */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar className="size-10 shrink-0 rounded-xl ring-1 ring-[#234D65]/15">
+            <Avatar className="size-9 shrink-0 rounded-xl">
               {memberPhotoUrl || contract.memberPhotoUrl ? (
                 <AvatarImage
                   src={memberPhotoUrl || contract.memberPhotoUrl}
@@ -241,62 +238,62 @@ function ContractCIGridCard({
                   className="h-full w-full object-cover object-center"
                 />
               ) : (
-                <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-sm font-semibold text-white">
+                <AvatarFallback className="rounded-xl bg-[#234D65] text-xs font-semibold text-white">
                   {initials}
                 </AvatarFallback>
               )}
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
-              <p className="truncate text-xs text-slate-500">{primaryContact}</p>
+              <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
+              <p className="truncate text-xs text-gray-400">{primaryContact}</p>
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className={cn('flex items-center gap-1 text-xs font-semibold', statusMeta.text)}>
-              <span className={cn('h-1.5 w-1.5 rounded-full', statusMeta.dot)} />
+            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusMeta.text)}>
+              <span className={cn('h-2 w-2 rounded-full shrink-0', statusMeta.dot)} />
               {statusMeta.label}
             </span>
-            <Badge className="border border-[#234D65]/20 bg-[#234D65]/8 text-[10px] font-medium text-[#234D65]">
+            <span className="text-[10px] font-medium text-gray-400">
               {FREQUENCY_LABELS[contract.paymentFrequency] || contract.paymentFrequency}
-            </Badge>
+            </span>
           </div>
         </div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-slate-50 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mensualité</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">
-              {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
+            <p className="font-bold text-[#234D65] tabular-nums text-sm">
+              {(contract.subscriptionCIAmountPerMonth || 0).toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span>
             </p>
           </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mois payés</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">
-              {paid} <span className="text-[10px] font-normal text-slate-500">/ {total}</span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mois payés</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">
+              {paid} <span className="text-[10px] font-normal text-gray-400">/ {total}</span>
             </p>
           </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Date fin</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">{getContractEndDate(contract)}</p>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date fin</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">{getContractEndDate(contract)}</p>
           </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Total versé</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">
-              {paidAmount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-slate-500">FCFA</span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total versé</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">
+              {paidAmount.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span>
             </p>
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progression */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-[10px] text-slate-500">
+          <div className="flex items-center justify-between text-[11px] text-gray-400">
             <span>Progression</span>
-            <span className="font-semibold text-[#234D65]">{progress}%</span>
+            <span className="font-semibold text-[#234D65] tabular-nums">{progress}%</span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+          <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#cbb171] transition-all duration-500"
+              className="h-full rounded-full bg-[#234D65] transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -324,16 +321,16 @@ function ContractCIGridCard({
         </div>
 
         {/* Actions */}
-        <div className="mt-auto flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
+        <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
           <Button
-            variant="outline"
             size="sm"
             onClick={onView}
-            className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+            className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold"
           >
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Ouvrir
           </Button>
+          <div className="flex flex-wrap gap-1.5">
 
           {isSigned ? (
             <Button
@@ -422,6 +419,7 @@ function ContractCIGridCard({
             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
             Supprimer
           </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

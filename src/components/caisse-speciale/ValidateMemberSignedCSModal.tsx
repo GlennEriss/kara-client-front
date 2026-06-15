@@ -6,12 +6,8 @@ import { AlertCircle, CheckCircle2, Eye, FileText, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
 import type { CaisseContract } from '@/types/types'
@@ -90,15 +86,10 @@ export default function ValidateMemberSignedCSModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#234D65]">
-              <FileText className="h-5 w-5" />
-              Validation du contrat signé
-            </DialogTitle>
-          </DialogHeader>
+        <ModalContent size="sm">
+          <ModalHeader icon={FileText} title="Validation du contrat signé" />
 
-          <div className="space-y-4 pt-1">
+          <ModalBody>
             <p className="text-sm text-gray-600">
               Vérifiez le contrat signé par le membre, puis téléversez la version
               doublement signée pour finaliser.
@@ -161,28 +152,28 @@ export default function ValidateMemberSignedCSModal({
               )}
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 pt-1">
-              <Button
-                variant="outline"
-                onClick={() => rejectMutation.mutate()}
-                disabled={isPending}
-                className="flex-1 border-red-200 text-red-700 hover:bg-red-50 gap-2"
-              >
-                <AlertCircle className="h-4 w-4" />
-                {rejectMutation.isPending ? 'Refus…' : 'Refuser'}
-              </Button>
-              <Button
-                onClick={() => validateMutation.mutate()}
-                disabled={isPending || !selectedFile}
-                className="flex-1 bg-[#234D65] hover:bg-[#2c5a73] text-white gap-2 disabled:opacity-50"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                {validateMutation.isPending ? 'Envoi…' : 'Valider et publier'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button
+              variant="outline"
+              onClick={() => rejectMutation.mutate()}
+              disabled={isPending}
+              className="flex-1 border-red-200 text-red-700 hover:bg-red-50 gap-2"
+            >
+              <AlertCircle className="h-4 w-4" />
+              {rejectMutation.isPending ? 'Refus…' : 'Refuser'}
+            </Button>
+            <Button
+              onClick={() => validateMutation.mutate()}
+              disabled={isPending || !selectedFile}
+              className="flex-1 bg-[#234D65] hover:bg-[#2c5a73] text-white gap-2 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {validateMutation.isPending ? 'Envoi…' : 'Valider et publier'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {hasMemberDoc && (

@@ -2,14 +2,8 @@
 
 import { PAYMENT_MODES, PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -226,15 +220,14 @@ export default function SignedQuittanceUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {isReplace ? <Pencil className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
-            {title}
-          </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <ModalContent size="md">
+        <ModalHeader
+          icon={isReplace ? Pencil : Upload}
+          title={title}
+          description={description}
+        />
+        <ModalBody>
+        <form id="signed-quittance-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Moyen de paiement du remboursement</Label>
             <Select
@@ -386,30 +379,32 @@ export default function SignedQuittanceUploadModal({
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending || !canSubmit}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isReplace ? 'Modification...' : 'Téléversement...'}
-                </>
-              ) : (
-                <>
-                  {isReplace ? <Pencil className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
-                  {isReplace ? 'Enregistrer la modification' : 'Enregistrer le remboursement et téléverser'}
-                </>
-              )}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="signed-quittance-form"
+            disabled={isPending || !canSubmit}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isReplace ? 'Modification...' : 'Téléversement...'}
+              </>
+            ) : (
+              <>
+                {isReplace ? <Pencil className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
+                {isReplace ? 'Enregistrer la modification' : 'Enregistrer le remboursement et téléverser'}
+              </>
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

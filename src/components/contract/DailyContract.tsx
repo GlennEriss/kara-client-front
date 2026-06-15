@@ -1308,7 +1308,7 @@ export default function DailyContract({ id }: Props) {
 
       {/* Modal de versement */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
               <DollarSign className="h-6 w-6" />
@@ -2101,7 +2101,7 @@ export default function DailyContract({ id }: Props) {
 
       {/* Modal de modification du versement — même design que Nouveau versement + motif */}
       <Dialog open={showEditPaymentModal} onOpenChange={handleEditPaymentModalOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
               <DollarSign className="h-6 w-6" />
@@ -2860,7 +2860,7 @@ export default function DailyContract({ id }: Props) {
       {/* Modale de saisie de la cause du retrait */}
       {showReasonModal && (
         <Dialog open={showReasonModal} onOpenChange={setShowReasonModal}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 Demande de remboursement final

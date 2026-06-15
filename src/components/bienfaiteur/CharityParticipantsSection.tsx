@@ -1,7 +1,6 @@
 'use client'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -137,48 +136,48 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
               const memberInfo = getMemberInfo(participant.memberId)
               
               return (
-                <Card key={participant.id} className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/45 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)] transition-all hover:-translate-y-0.5">
-                  <CardContent className="p-6">
+                <Card key={participant.id} className="group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
+                  <CardContent className="p-4 md:p-5">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="ring-1 ring-cyan-100">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="size-9 shrink-0 rounded-xl">
                           <AvatarImage
                             src={memberInfo?.photoURL || ''}
                             alt={participant.participantType === 'member' && memberInfo
                               ? `Photo de ${memberInfo.firstName} ${memberInfo.lastName}`
                               : `Photo du groupe #${participant.groupId?.slice(0, 8) ?? '?'}`}
                           />
-                          <AvatarFallback>
+                          <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
                             {participant.participantType === 'member' && memberInfo
                               ? `${memberInfo.firstName?.[0] || ''}${memberInfo.lastName?.[0] || ''}`
                               : 'G'}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="font-medium">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-gray-900">
                             {participant.participantType === 'member' && memberInfo
                               ? `${memberInfo.firstName} ${memberInfo.lastName}`
                               : `Groupe #${participant.groupId?.slice(0, 8)}`}
                           </div>
-                          <Badge variant={participant.participantType === 'member' ? 'default' : 'secondary'} className="mt-1">
+                          <div className="text-[10px] font-medium text-gray-400">
                             {participant.participantType === 'member' ? 'Membre' : 'Groupe'}
-                          </Badge>
+                          </div>
                         </div>
                       </div>
 
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => setParticipantToRemove(participant.id)}
                         disabled={participant.contributionsCount > 0}
-                        className={`${participant.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                        className={`h-7 w-7 shrink-0 ${participant.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
                         title={participant.contributionsCount > 0 ? 'Impossible de retirer un participant ayant des contributions' : 'Retirer ce participant'}
                       >
                         <UserMinus className="w-4 h-4" />
                       </Button>
                     </div>
 
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 rounded-xl bg-gray-50 p-3 text-sm">
                       <div className="flex justify-between">
                         <span className="text-slate-600">Contributions:</span>
                         <span className="font-medium">{participant.contributionsCount}</span>

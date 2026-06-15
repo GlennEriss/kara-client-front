@@ -133,11 +133,11 @@ export default function ProfessionList() {
                     )
                 })()
             ) : isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Array.from({ length: limit }).map((_, i) => (<JobSkeleton key={i} />))}
                 </div>
             ) : (data && data.data.length > 0) ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {data.data.map((job) => (
                         <Card key={job.id} className="h-full hover:shadow-md transition-shadow">
                             <CardContent className="p-4">

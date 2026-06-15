@@ -4,14 +4,8 @@ import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRe
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -459,18 +453,15 @@ export default function CreditPaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <DollarSign className="h-6 w-6" />
-            {editMode ? 'Modifier le versement' : 'Enregistrer un versement'}
-          </DialogTitle>
-          <DialogDescription>
-            {editMode ? 'Modifiez les informations du versement et indiquez le motif de la modification.' : 'Enregistrez un nouveau versement pour ce crédit'}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={DollarSign}
+          title={editMode ? 'Modifier le versement' : 'Enregistrer un versement'}
+          description={editMode ? 'Modifiez les informations du versement et indiquez le motif de la modification.' : 'Enregistrez un nouveau versement pour ce crédit'}
+        />
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <ModalBody>
+        <form id="credit-payment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {/* Date et Heure */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -899,27 +890,29 @@ export default function CreditPaymentModal({
             )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isCompressing}
-              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {editMode ? 'Modification...' : 'Enregistrement...'}
-                </>
-              ) : (
-                submitLabel ?? 'Enregistrer le versement'
-              )}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="credit-payment-form"
+            disabled={isSubmitting || isCompressing}
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {editMode ? 'Modification...' : 'Enregistrement...'}
+              </>
+            ) : (
+              submitLabel ?? 'Enregistrer le versement'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

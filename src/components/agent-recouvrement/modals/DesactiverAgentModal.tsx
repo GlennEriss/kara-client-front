@@ -1,11 +1,11 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Modal } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
 import type { AgentRecouvrement } from '@/types/types'
 import type { UseMutationResult } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 interface DesactiverAgentModalProps {
   agent: AgentRecouvrement
@@ -25,21 +25,15 @@ export function DesactiverAgentModal({ agent, open, onOpenChange, onSuccess, mut
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Désactiver l'agent</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p>
-            Vous êtes sur le point de désactiver l'agent : <strong>{agent.nom} {agent.prenom}</strong>
-          </p>
-          <p className="text-sm text-amber-600">
-            ⚠️ L'agent ne sera plus disponible dans les selects de versement. L'historique reste lié (traçabilité).
-          </p>
-          <p>Êtes-vous sûr ?</p>
-        </div>
-        <div className="flex justify-end gap-2 pt-4">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      icon={AlertTriangle}
+      tone="destructive"
+      title="Désactiver l'agent"
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
@@ -47,8 +41,16 @@ export function DesactiverAgentModal({ agent, open, onOpenChange, onSuccess, mut
             {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Confirmer
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <p>
+        Vous êtes sur le point de désactiver l'agent : <strong>{agent.nom} {agent.prenom}</strong>
+      </p>
+      <p className="text-sm text-amber-600">
+        ⚠️ L'agent ne sera plus disponible dans les selects de versement. L'historique reste lié (traçabilité).
+      </p>
+      <p>Êtes-vous sûr ?</p>
+    </Modal>
   )
 }

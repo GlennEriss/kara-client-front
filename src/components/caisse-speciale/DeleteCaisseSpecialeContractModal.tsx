@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useDeleteCaisseContract } from '@/domains/financial/caisse-speciale/contrats/hooks'
@@ -63,18 +57,15 @@ export default function DeleteCaisseSpecialeContractModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-red-600 flex items-center gap-2">
-            <Trash2 className="h-5 w-5" />
-            Supprimer le contrat
-          </DialogTitle>
-          <DialogDescription>
-            Cette action est irréversible. Le contrat et les documents liés seront définitivement supprimés.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={Trash2}
+          tone="destructive"
+          title="Supprimer le contrat"
+          description="Cette action est irréversible. Le contrat et les documents liés seront définitivement supprimés."
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
@@ -99,9 +90,9 @@ export default function DeleteCaisseSpecialeContractModal({
               className="font-mono"
             />
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={deleteContract.isPending}>
             Annuler
           </Button>
@@ -124,8 +115,8 @@ export default function DeleteCaisseSpecialeContractModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

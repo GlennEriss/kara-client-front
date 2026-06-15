@@ -13,7 +13,6 @@
 
 'use client'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -29,9 +28,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useMember } from '@/hooks/useMembers'
 import {
-    Banknote,
     Calendar,
-    CalendarDays,
     CheckCircle2,
     Clock,
     Eye,
@@ -39,8 +36,6 @@ import {
     FileText,
     MoreHorizontal,
     Pencil,
-    Phone,
-    Repeat,
     RotateCcw,
     Trash2,
     XCircle
@@ -60,47 +55,41 @@ interface DemandCardV2Props {
   className?: string
 }
 
-const statusConfig: Record<string, { 
+const statusConfig: Record<string, {
   label: string
   icon: React.ReactNode
-  bgColor: string
+  dot: string
   textColor: string
-  borderColor: string
 }> = {
-  PENDING: { 
-    label: 'En attente', 
+  PENDING: {
+    label: 'En attente',
     icon: <Clock className="w-3.5 h-3.5" />,
-    bgColor: 'bg-amber-50',
+    dot: 'bg-amber-400',
     textColor: 'text-amber-700',
-    borderColor: 'border-amber-200'
   },
-  APPROVED: { 
-    label: 'Acceptée', 
+  APPROVED: {
+    label: 'Acceptée',
     icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-    bgColor: 'bg-green-50',
+    dot: 'bg-green-500',
     textColor: 'text-green-700',
-    borderColor: 'border-green-200'
   },
-  REJECTED: { 
-    label: 'Refusée', 
+  REJECTED: {
+    label: 'Refusée',
     icon: <XCircle className="w-3.5 h-3.5" />,
-    bgColor: 'bg-red-50',
+    dot: 'bg-red-400',
     textColor: 'text-red-700',
-    borderColor: 'border-red-200'
   },
-  CONVERTED: { 
-    label: 'Convertie', 
+  CONVERTED: {
+    label: 'Convertie',
     icon: <FileSignature className="w-3.5 h-3.5" />,
-    bgColor: 'bg-emerald-50',
+    dot: 'bg-emerald-500',
     textColor: 'text-emerald-700',
-    borderColor: 'border-emerald-200'
   },
-  REOPENED: { 
-    label: 'Réouverte', 
+  REOPENED: {
+    label: 'Réouverte',
     icon: <RotateCcw className="w-3.5 h-3.5" />,
-    bgColor: 'bg-blue-50',
+    dot: 'bg-blue-400',
     textColor: 'text-blue-700',
-    borderColor: 'border-blue-200'
   },
 }
 
@@ -136,123 +125,105 @@ export function DemandCardV2({
   return (
     <Card
       className={cn(
-        'group relative overflow-hidden border-2 transition-all duration-200',
-        'hover:shadow-lg hover:border-gray-300',
-        statusInfo.borderColor,
+        'group flex h-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200',
+        'hover:border-gray-200 hover:shadow-md',
         className
       )}
       data-testid={`demand-card-${demand.id}`}
       onMouseEnter={() => prefetchDetail(demand.id)}
     >
       <CardContent className="p-4 md:p-5">
-        {/* Header : Badge Statut + Menu */}
-        <div className="flex items-start justify-between mb-4">
-          <Badge 
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 font-medium',
-              statusInfo.bgColor,
-              statusInfo.textColor,
-              'border',
-              statusInfo.borderColor
-            )}
-          >
-            {statusInfo.icon}
-            {statusInfo.label}
-          </Badge>
-
-          {/* Menu des actions secondaires */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {onViewDetails && (
-                <DropdownMenuItem onClick={() => onViewDetails(demand.id)}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Voir détails
-                </DropdownMenuItem>
-              )}
-              {onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(demand.id)}>
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Modifier
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              {onDelete && (
-                <DropdownMenuItem 
-                  onClick={() => onDelete(demand.id)} 
-                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Supprimer
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Infos Membre - Prénom puis nom sur lignes séparées */}
-        <div className="space-y-2 mb-4">
-          <div className="flex items-start gap-2">
-            <Avatar className="h-16 w-16 shrink-0">
+        {/* Header : avatar + nom à gauche, statut dot + menu à droite */}
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-9 shrink-0 rounded-xl">
               {memberPhotoUrl ? (
-                <AvatarImage src={memberPhotoUrl} alt={`Photo de ${demand.memberFirstName} ${demand.memberLastName}`} />
+                <AvatarImage src={memberPhotoUrl} alt={`Photo de ${demand.memberFirstName} ${demand.memberLastName}`} className="h-full w-full object-cover object-center" />
               ) : null}
-              <AvatarFallback className="bg-[#234D65] text-[11px] font-semibold text-white">
+              <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
                 {memberInitials || '--'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex flex-col gap-0.5">
-              <span className="font-semibold text-gray-900 text-base block">
-                {demand.memberFirstName}
-              </span>
-              <span className="font-semibold text-gray-900 text-base block">
-                {demand.memberLastName}
-              </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {demand.memberFirstName} {demand.memberLastName}
+              </p>
+              {demand.memberPhone && (
+                <p className="truncate text-xs text-gray-400">{demand.memberPhone}</p>
+              )}
             </div>
           </div>
-          {demand.memberPhone && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-gray-400 shrink-0" />
-              <span className="break-all">{demand.memberPhone}</span>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusInfo.textColor)}>
+              <span className={cn('h-2 w-2 rounded-full shrink-0', statusInfo.dot)} />
+              {statusInfo.label}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 opacity-60 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {onViewDetails && (
+                  <DropdownMenuItem onClick={() => onViewDetails(demand.id)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Voir détails
+                  </DropdownMenuItem>
+                )}
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(demand.id)}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Modifier
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={() => onDelete(demand.id)}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {/* Infos Financières - Montant sur une ligne, fréquence et badge sur la ligne d'en dessous */}
-        <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <Banknote className="w-4 h-4 text-green-600 shrink-0" />
-              <span className="font-semibold text-gray-900 text-sm sm:text-base">
-                {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500 text-sm">/{frequencyInfo.shortLabel}</span>
-              <Badge variant="outline" className="text-xs font-medium bg-white w-fit">
-                <Repeat className="w-3 h-3 mr-1" />
-                {frequencyInfo.label}
-              </Badge>
-            </div>
+        {/* Stats financières */}
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 mb-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
+              {frequencyInfo.label === 'Journalier' ? 'Par jour' : 'Mensualité'}
+            </p>
+            <p className="font-bold text-[#234D65] tabular-nums text-sm">
+              {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
-            <span>{demand.subscriptionCIDuration} mois de cotisation</span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Durée</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">
+              {demand.subscriptionCIDuration} <span className="text-[10px] font-normal text-gray-400">mois</span>
+            </p>
           </div>
-          {demand.subscriptionCINominal && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
-              <span>Nominal: {demand.subscriptionCINominal.toLocaleString('fr-FR')} FCFA</span>
+          {demand.subscriptionCINominal ? (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Nominal</p>
+              <p className="font-bold text-gray-900 tabular-nums text-sm">
+                {demand.subscriptionCINominal.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+              </p>
             </div>
-          )}
+          ) : null}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Fréquence</p>
+            <p className="font-bold text-gray-900 text-sm">{frequencyInfo.label}</p>
+          </div>
         </div>
 
         {/* Motif */}
@@ -281,7 +252,7 @@ export function DemandCardV2({
               {onAccept && (
                 <Button
                   onClick={() => onAccept(demand.id)}
-                  className="w-full h-11 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
+                  className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold"
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Accepter
@@ -291,7 +262,7 @@ export function DemandCardV2({
                 <Button
                   variant="outline"
                   onClick={() => onReject(demand.id)}
-                  className="w-full h-11 text-sm font-medium border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Refuser
@@ -304,7 +275,7 @@ export function DemandCardV2({
             <Button
               variant="outline"
               onClick={() => onReopen(demand.id)}
-              className="w-full h-11 text-sm font-medium border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+              className="w-full h-9 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Réouvrir la demande
@@ -314,7 +285,7 @@ export function DemandCardV2({
           {canCreateContract && onCreateContract && (
             <Button
               onClick={() => onCreateContract(demand.id)}
-              className="w-full h-11 text-sm font-medium bg-[#234D65] hover:bg-[#2c5a73] text-white"
+              className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
             >
               <FileSignature className="w-4 h-4 mr-2" />
               Créer le contrat
@@ -324,11 +295,10 @@ export function DemandCardV2({
           {/* Bouton Voir détails toujours présent */}
           {onViewDetails && (
             <Button
-              variant="ghost"
               onClick={() => onViewDetails(demand.id)}
-              className="w-full h-11 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
             >
-              <Eye className="w-4 h-4 mr-2" />
+              <Eye className="w-4 h-4 mr-1.5" />
               Voir les détails
             </Button>
           )}

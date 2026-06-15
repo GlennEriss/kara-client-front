@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -105,29 +99,19 @@ export default function ValidateDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            {action === 'approve' ? (
-              <>
-                <CheckCircle className="h-6 w-6 text-green-600" />
-                Approuver la demande
-              </>
-            ) : (
-              <>
-                <XCircle className="h-6 w-6 text-red-600" />
-                Rejeter la demande
-              </>
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            {action === 'approve' 
-              ? 'Vous êtes sur le point d\'approuver cette demande de crédit. Veuillez indiquer le motif d\'approbation.'
-              : 'Vous êtes sur le point de rejeter cette demande de crédit. Veuillez indiquer le motif du rejet.'}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={action === 'approve' ? CheckCircle : XCircle}
+          tone={action === 'approve' ? 'success' : 'destructive'}
+          title={action === 'approve' ? 'Approuver la demande' : 'Rejeter la demande'}
+          description={
+            action === 'approve'
+              ? "Vous êtes sur le point d'approuver cette demande de crédit. Veuillez indiquer le motif d'approbation."
+              : 'Vous êtes sur le point de rejeter cette demande de crédit. Veuillez indiquer le motif du rejet.'
+          }
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations de la demande */}
           <Alert>
             <AlertTriangle className="h-4 w-4" />
@@ -222,9 +206,9 @@ export default function ValidateDemandModal({
               </AlertDescription>
             </Alert>
           )}
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button
             type="button"
             variant="outline"
@@ -268,8 +252,8 @@ export default function ValidateDemandModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

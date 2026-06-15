@@ -5,7 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -1546,17 +1547,14 @@ export default function CreditExtensionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[#234D65]">
-            <TrendingUp className="h-5 w-5" />
-            Augmentation de crédit
-          </DialogTitle>
-          <DialogDescription>
-            Ajoutez un montant supplémentaire au contrat existant sans perdre l’historique des versements
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="3xl" className="w-[95vw]">
+        <ModalHeader
+          icon={TrendingUp}
+          title="Augmentation de crédit"
+          description="Ajoutez un montant supplémentaire au contrat existant sans perdre l’historique des versements"
+        />
 
+        <ModalBody>
         {/* Progress indicator */}
         <div className="flex items-center justify-between mb-6 px-4">
           {steps.map((step, index) => (
@@ -1590,9 +1588,10 @@ export default function CreditExtensionModal({
         <div className="min-h-[300px]">
           {renderStep()}
         </div>
+        </ModalBody>
 
         {/* Navigation buttons */}
-        <div className="flex justify-between mt-6 pt-4 border-t">
+        <ModalFooter className="justify-between">
           <Button
             variant="outline"
             onClick={isFirstStep ? onClose : goToPrevStep}
@@ -1635,8 +1634,8 @@ export default function CreditExtensionModal({
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}
-        </div>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

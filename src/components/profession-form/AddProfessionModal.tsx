@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { useProfessionMutations } from '@/domains/infrastructure/references/hooks/useProfessions'
@@ -66,15 +67,14 @@ export default function AddProfessionModal({ open, onClose, onSuccess }: AddProf
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Ajouter une nouvelle profession</DialogTitle>
-          <DialogDescription>
-            Créez rapidement une nouvelle profession sans quitter le formulaire
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader
+          title="Ajouter une nouvelle profession"
+          description="Créez rapidement une nouvelle profession sans quitter le formulaire"
+        />
+        <ModalBody>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form id="add-profession-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="name"
@@ -109,17 +109,18 @@ export default function AddProfessionModal({ open, onClose, onSuccess }: AddProf
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Création...' : 'Créer'}
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            Annuler
+          </Button>
+          <Button type="submit" form="add-profession-form" disabled={isSubmitting}>
+            {isSubmitting ? 'Création...' : 'Créer'}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -2,14 +2,7 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getAdminById } from '@/db/admin.db'
@@ -116,20 +109,40 @@ export default function MarkAsPaidRefundCIModal({
   const canProceed = paymentProofFile !== null
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            Marquer comme payé
-          </DialogTitle>
-          <DialogDescription>
-            {refundLabel} — Téléversez la preuve de paiement et confirmez l&apos;opération.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div>
+    <Modal
+      open={isOpen}
+      onOpenChange={(open) => !open && handleClose()}
+      size="md"
+      icon={CheckCircle}
+      tone="success"
+      title="Marquer comme payé"
+      description={`${refundLabel} — Téléversez la preuve de paiement et confirmez l'opération.`}
+      footer={
+        <>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!canProceed || isSubmitting}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Traitement...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirmer et marquer comme payé
+              </>
+            )}
+          </Button>
+        </>
+      }
+    >
+      <div>
             <Label htmlFor="paymentProof" className="flex items-center gap-2 mb-2">
               <Upload className="h-4 w-4" />
               Preuve de paiement * (Image uniquement, max {maxSizeMB} MB)
@@ -159,31 +172,6 @@ export default function MarkAsPaidRefundCIModal({
               Voulez-vous marquer ce remboursement comme payé ? Cette action confirme que le versement a bien été effectué au membre.
             </AlertDescription>
           </Alert>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
-            Annuler
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!canProceed || isSubmitting}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Traitement...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Confirmer et marquer comme payé
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </Modal>
   )
 }

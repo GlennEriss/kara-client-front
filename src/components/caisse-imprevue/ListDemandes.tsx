@@ -372,7 +372,7 @@ const ListDemandes = () => {
       {isLoading ? (
         <div className={
           viewMode === 'grid'
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
             : 'space-y-6'
         }>
           {[...Array(itemsPerPage)].map((_, i) => (
@@ -383,7 +383,7 @@ const ListDemandes = () => {
         <>
           <div className={
             viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch'
               : 'space-y-6'
           }>
             {currentDemandes.map((demande) => (

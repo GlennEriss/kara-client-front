@@ -3,7 +3,8 @@
 import SelectApp from '@/components/forms/SelectApp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -134,19 +135,16 @@ export default function EditCreditDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <Edit className="h-6 w-6" />
-            Modifier la demande de crédit
-          </DialogTitle>
-          <DialogDescription>
-            Modifiez les informations de la demande #{demand.id} (client non modifiable)
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="2xl">
+        <ModalHeader
+          icon={Edit}
+          title="Modifier la demande de crédit"
+          description={`Modifiez les informations de la demande #${demand.id} (client non modifiable)`}
+        />
 
+        <ModalBody>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form id="edit-credit-demand-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Section 1: Type de crédit */}
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -357,28 +355,30 @@ export default function EditCreditDemandModal({
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onClose} disabled={updateDemand.isPending}>
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                disabled={updateDemand.isPending}
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-              >
-                {updateDemand.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Enregistrement...
-                  </>
-                ) : (
-                  'Enregistrer les modifications'
-                )}
-              </Button>
-            </div>
           </form>
         </Form>
-      </DialogContent>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={updateDemand.isPending}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="edit-credit-demand-form"
+            disabled={updateDemand.isPending}
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+          >
+            {updateDemand.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              'Enregistrer les modifications'
+            )}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

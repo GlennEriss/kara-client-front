@@ -1,13 +1,8 @@
 'use client'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAdmin } from '@/hooks/caisse-imprevue/useAdmin'
@@ -70,10 +65,10 @@ export default function ViewSubscriptionCIModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-[#224D62]">
+      <ModalContent size="xl">
+        <ModalHeader>
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="text-base">
               Détails du forfait {subscription.code}
             </DialogTitle>
             {subscription.status && (
@@ -82,12 +77,12 @@ export default function ViewSubscriptionCIModal({
               </Badge>
             )}
           </div>
-          <DialogDescription>
+          <DialogDescription className="mt-0.5">
             Informations complètes de la souscription
           </DialogDescription>
-        </DialogHeader>
+        </ModalHeader>
 
-        <div className="space-y-6">
+        <ModalBody className="space-y-6">
           {/* Informations du forfait */}
           <Card>
             <CardContent className="pt-6 space-y-4">
@@ -206,8 +201,8 @@ export default function ViewSubscriptionCIModal({
               </CardContent>
             </Card>
           )}
-        </div>
-      </DialogContent>
+        </ModalBody>
+      </ModalContent>
     </Dialog>
   )
 }
