@@ -16,7 +16,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { AdminCreateFormData } from '@/schemas/schemas'
 import { CheckCircle2, Edit3, Loader2, Mail, Phone, RefreshCw, Search, Shield, Trash2, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import dynamic from 'next/dynamic'
+// recharts chargé à la demande (hors bundle initial du dashboard)
+const DashboardPieChart = dynamic(() => import('./DashboardPieChart'), { ssr: false })
 import { toast } from 'sonner'
 
 type ViewMode = 'grid' | 'list'
@@ -241,27 +243,15 @@ export default function AdminDashboard() {
     setFilters((prev) => ({ ...prev, searchQuery: search.trim() || undefined }))
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium">{payload[0].name}</p>
-          <p className="text-sm text-gray-600">{payload[0].value} administrateur(s)</p>
-        </div>
-      )
-    }
-    return null
-  }
-
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-        <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
             Gestion des Administrateurs
           </h1>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 text-sm sm:text-base">
             {data?.pagination.totalItems.toLocaleString() || 0} administrateurs au total
           </p>
         </div>
@@ -326,26 +316,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="p-6 pt-0">
             {stats.roleData.length > 0 ? (
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats.roleData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {stats.roleData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <DashboardPieChart data={stats.roleData} />
             ) : (
               <div className="h-48 flex items-center justify-center text-gray-500">
                 Aucune donnée à afficher
@@ -374,26 +345,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="p-6 pt-0">
             {stats.statusData.length > 0 ? (
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats.statusData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {stats.statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <DashboardPieChart data={stats.statusData} />
             ) : (
               <div className="h-48 flex items-center justify-center text-gray-500">
                 Aucune donnée à afficher

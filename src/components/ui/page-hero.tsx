@@ -40,34 +40,38 @@ export function PageHero({
       />
 
       <div className="p-5 sm:p-7">
-        <div className="flex items-start gap-4">
-          {Icon && (
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
-              style={{ background: "rgba(203,177,113,0.18)" }}
-            >
-              <Icon className="h-5 w-5 text-[#CBB171]" />
-            </div>
-          )}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
+            {Icon && (
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: "rgba(203,177,113,0.18)" }}
+              >
+                <Icon className="h-5 w-5 text-[#CBB171]" />
+              </div>
+            )}
 
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold leading-tight break-words tracking-tight">
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="mt-1 text-sm text-white/65 break-words">
-                {subtitle}
-              </p>
-            )}
-            {reference && (
-              <p className="mt-2 text-xs">
-                <span className="text-white/45">Référence : </span>
-                <span className="font-mono text-white/80 break-all">{reference}</span>
-              </p>
-            )}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold leading-tight break-words tracking-tight">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="mt-1 text-sm text-white/65 break-words">
+                  {subtitle}
+                </p>
+              )}
+              {reference && (
+                <p className="mt-2 text-xs">
+                  <span className="text-white/45">Référence : </span>
+                  <span className="font-mono text-white/80 break-all">{reference}</span>
+                </p>
+              )}
+            </div>
           </div>
 
-          {rightSlot && <div className="shrink-0">{rightSlot}</div>}
+          {rightSlot && (
+            <div className="shrink-0 [&>*]:w-full sm:[&>*]:w-auto">{rightSlot}</div>
+          )}
         </div>
 
         {action && <div className="mt-4">{action}</div>}

@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMembershipRequestByDossier } from '@/hooks/useMembershipRequests'
 import { AlertCircle } from 'lucide-react'
-import MemberDetailsModal from './MemberDetailsModal'
+import dynamic from 'next/dynamic'
+const MemberDetailsModal = dynamic(() => import('./MemberDetailsModal'), { ssr: false })
 
 interface MemberDetailsWrapperProps {
   isOpen: boolean

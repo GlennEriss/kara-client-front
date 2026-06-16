@@ -112,14 +112,14 @@ export function EventDetailPage({ eventId }: Props) {
   return (
     <div className="space-y-5">
       {/* Toolbar haut */}
-      <div className="flex items-center justify-between gap-3">
-        <Button asChild variant="ghost" size="sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button asChild variant="ghost" size="sm" className="self-start">
           <Link href={routes.admin.events}>
             <ChevronLeft className="h-4 w-4 mr-1" />
             Retour
           </Link>
         </Button>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
           {canPublish && (
             <Button
               type="button"

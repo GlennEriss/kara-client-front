@@ -42,9 +42,11 @@ import { AlertCircle, Briefcase, Building2, Calendar, CarFront, CheckCircle, Che
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+const MiniPieChart = dynamic(() => import('./MiniPieChart'), { ssr: false })
 import { toast } from 'sonner'
-import MemberDetailsModal from './MemberDetailsModal'
+import dynamic from 'next/dynamic'
+// Chargé à la demande : tire @react-pdf/renderer (lourd) uniquement quand la modale s'ouvre
+const MemberDetailsModal = dynamic(() => import('./MemberDetailsModal'), { ssr: false })
 import MemberIdentityModal from './MemberIdentityModal'
 // Import des composants V2
 import { PaymentBadgeV2, RelativeDateV2, StatusBadgeV2 } from '@/domains/memberships/components/shared'
@@ -193,23 +195,7 @@ const StatsCard = ({
             </div>
           </div>
           <div className="w-12 h-12">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={16}
-                  outerRadius={22}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+            <MiniPieChart data={data} />
           </div>
         </div>
       </CardContent>
