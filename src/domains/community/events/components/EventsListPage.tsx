@@ -266,14 +266,14 @@ export function EventsListPage() {
       {/* Toolbar */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-4 md:p-5 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <StatusFilterTabs active={activeTab} onChange={setActiveTab} stats={stats.data} />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Select
                 value={typeFilter}
                 onValueChange={(v) => setTypeFilter(v as never)}
               >
-                <SelectTrigger className="w-48 h-9">
+                <SelectTrigger className="h-9 w-full sm:w-48">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,10 +292,11 @@ export function EventsListPage() {
                 onClick={() => void refetch()}
                 disabled={isFetching}
                 aria-label="Rafraîchir"
+                className="shrink-0"
               >
                 <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
               </Button>
-              <Button asChild size="sm" className="bg-[#234D65] hover:bg-[#1A3D4F]">
+              <Button asChild size="sm" className="flex-1 bg-[#234D65] hover:bg-[#1A3D4F] sm:flex-none">
                 <Link href={routes.admin.eventNew}>
                   <Plus className="h-4 w-4 mr-1" />
                   Nouvel événement

@@ -381,33 +381,33 @@ export function DashboardTabContent({
                 Aucun membre avec contrat actif sur ce scope.
               </p>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {executiveMembers.map((item) => (
                   <div
                     key={`executive-member-${item.label}`}
-                    className="rounded-xl border border-gray-100 bg-white p-4"
+                    className="flex min-w-0 flex-col rounded-xl border border-gray-100 bg-white p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
-                        <p className="truncate text-sm font-bold text-[#234D65]">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="break-words text-sm font-bold text-[#234D65]">
                           {item.label}
                         </p>
-                        <p className="line-clamp-2 text-xs text-gray-500">
+                        <p className="line-clamp-2 break-words text-xs text-gray-500">
                           {item.subLabel || "Aucun detail disponible."}
                         </p>
                       </div>
                       <Badge
                         variant="outline"
-                        className="shrink-0 border-[#234D65] bg-[#234D65] text-white"
+                        className="shrink-0 whitespace-nowrap border-[#234D65] bg-[#234D65] text-white"
                       >
                         {item.value} module(s)
                       </Badge>
                     </div>
                     {item.href ? (
-                      <div className="mt-3 flex justify-end">
+                      <div className="mt-3">
                         <Link
                           href={item.href}
-                          className="inline-flex items-center rounded-lg border border-[#234D65]/20 bg-white px-3 py-1.5 text-xs font-semibold text-[#234D65] transition-colors hover:bg-[#234D65]/5"
+                          className="inline-flex w-full items-center justify-center rounded-lg border border-[#234D65]/20 bg-white px-3 py-1.5 text-xs font-semibold text-[#234D65] transition-colors hover:bg-[#234D65]/5 sm:w-auto sm:justify-start"
                         >
                           Ouvrir la fiche membre
                         </Link>
@@ -640,9 +640,9 @@ export function DashboardTabContent({
             return (
               <article
                 key={ranking.key}
-                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5"
+                className="min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5"
               >
-                <h3 className="text-base font-bold text-[#234D65]">
+                <h3 className="break-words text-base font-bold text-[#234D65]">
                   {ranking.title}
                 </h3>
 
@@ -658,17 +658,17 @@ export function DashboardTabContent({
                         className="space-y-1"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#234D65]">
+                          <div className="min-w-0 flex-1">
+                            <p className="break-words text-sm font-semibold text-[#234D65]">
                               {item.label}
                             </p>
                             {item.subLabel && (
-                              <p className="truncate text-xs text-gray-500">
+                              <p className="break-words text-xs text-gray-500">
                                 {item.subLabel}
                               </p>
                             )}
                           </div>
-                          <p className="text-sm font-bold text-[#234D65]">
+                          <p className="shrink-0 whitespace-nowrap text-sm font-bold text-[#234D65]">
                             {item.value.toLocaleString("fr-FR")}{" "}
                             {ranking.unit ? (
                               <span className="text-xs font-medium text-gray-500">

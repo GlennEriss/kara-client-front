@@ -1,6 +1,7 @@
 "use client"
 
-import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
+import dynamic from 'next/dynamic'
+const MemberDetailsModal = dynamic(() => import('@/components/memberships/MemberDetailsModal'), { ssr: false })
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'

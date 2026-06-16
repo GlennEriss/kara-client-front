@@ -127,7 +127,7 @@ function NotificationItem({
   return (
     <DropdownMenuItem
       className={cn(
-        'flex flex-col items-start gap-2 p-3 cursor-pointer min-w-[320px] max-w-[400px]',
+        'flex w-full flex-col items-start gap-2 p-3 cursor-pointer',
         isUnread && 'bg-blue-50 border-l-4 border-l-blue-500'
       )}
       onClick={handleClick}
@@ -226,8 +226,8 @@ export default function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[400px] max-h-[600px] overflow-y-auto">
-        <DropdownMenuLabel className="flex items-center justify-between gap-2">
+      <DropdownMenuContent align="end" className="w-[calc(100vw-1.5rem)] max-w-[400px] max-h-[min(600px,80dvh)] overflow-y-auto">
+        <DropdownMenuLabel className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <span>Notifications</span>
           <div className="flex items-center gap-1">
             <Button

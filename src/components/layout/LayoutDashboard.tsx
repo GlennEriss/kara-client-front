@@ -32,7 +32,7 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
             </div>
           </header>
           <div className="no-scrollbar-mobile min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="p-2 xl:p-6">{children}</div>
+            <div className="p-3 sm:p-4 lg:p-6">{children}</div>
           </div>
         </main>
       </SidebarProvider>
