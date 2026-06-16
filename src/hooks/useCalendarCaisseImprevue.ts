@@ -122,7 +122,8 @@ function calculateDayColor(
 
 export function useCalendarCaisseImprevue(
   month: Date,
-  paymentFrequencies: CaisseImprevuePaymentFrequency[]
+  paymentFrequencies: CaisseImprevuePaymentFrequency[],
+  enabled: boolean = true
 ) {
   const filters = useMemo(
     () => ({
@@ -250,6 +251,7 @@ export function useCalendarCaisseImprevue(
         (a, b) => a.date.getTime() - b.date.getTime()
       )
     },
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }

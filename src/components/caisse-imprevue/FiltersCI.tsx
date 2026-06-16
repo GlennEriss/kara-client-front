@@ -99,7 +99,9 @@ export default function FiltersCI({
   const categoryLabel = safeFilters.subscriptionCIID
     ? `Catégorie: ${selectedSubscriptionLabel || safeFilters.subscriptionCIID}`
     : null
-  const statusLabel = statusValue !== 'all' ? `Statut: ${STATUS_LABELS[statusValue] || statusValue}` : null
+  const statusLabel = statusValue !== 'all'
+    ? `Statut: ${(statusValue as string) === 'CLOTURE' ? 'Clôturé' : (STATUS_LABELS[statusValue] || statusValue)}`
+    : null
 
   const activeFilterLabels = [
     searchLabel,
@@ -273,6 +275,7 @@ export default function FiltersCI({
               <SelectContent>
                 <SelectItem value="all">{STATUS_LABELS.all}</SelectItem>
                 <SelectItem value="ACTIVE">{STATUS_LABELS.ACTIVE}</SelectItem>
+                <SelectItem value="CLOTURE">Clôturé</SelectItem>
                 <SelectItem value="FINISHED">{STATUS_LABELS.FINISHED}</SelectItem>
                 <SelectItem value="CANCELED">{STATUS_LABELS.CANCELED}</SelectItem>
               </SelectContent>

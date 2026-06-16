@@ -359,6 +359,7 @@ const ContractFilters = ({
     LATE_WITH_PENALTY: 'Retard (J+4..12)',
     RESCINDED: 'Cloture en urgence',
     CLOSED: 'Cloture finale',
+    CLOTURE: 'Clôturé',
   }
   const contractTypeLabels: Record<string, string> = {
     all: 'Tous les types',
@@ -506,6 +507,7 @@ const ContractFilters = ({
                 {!isOverdueTab && <SelectItem value="ACTIVE">Actif</SelectItem>}
                 <SelectItem value="LATE_NO_PENALTY">Retard (J+0..3)</SelectItem>
                 <SelectItem value="LATE_WITH_PENALTY">Retard (J+4..12)</SelectItem>
+                {!isOverdueTab && <SelectItem value="CLOTURE">Clôturé</SelectItem>}
                 {!isOverdueTab && <SelectItem value="RESCINDED">Cloture en urgence</SelectItem>}
                 {!isOverdueTab && <SelectItem value="CLOSED">Cloture finale</SelectItem>}
               </SelectContent>
@@ -1510,7 +1512,9 @@ const ListContracts = () => {
         'Durée (mois)': contract?.monthsPlanned || 0,
         'Montant total (FCFA)': (contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0),
         'Montant versé (FCFA)': contract?.nominalPaid || 0,
-        'Montant restant (FCFA)': ((contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0)) - (contract?.nominalPaid || 0),
+        'Montant restant (FCFA)': (contract?.caisseType === 'LIBRE' || contract?.caisseType === 'LIBRE_CHARITABLE')
+          ? 0
+          : ((contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0)) - (contract?.nominalPaid || 0),
         'Prochaine échéance': toDate(contract?.nextDueAt),
         'Date de création': toDate(contract?.createdAt),
         'Dernière modification': toDate(contract?.updatedAt),

@@ -162,6 +162,63 @@ export async function removeCaisseContractFromEntity(
 }
 
 /**
+ * Enrichit une liste de membres avec leur dernier abonnement + sa validité.
+ *
+ * Optimisation : au lieu d'une requête abonnement PAR membre (N+1), on récupère
+ * les abonnements en BATCH via `where('userId', 'in', [...])` par paquets de 10
+ * (limite Firestore). Évite aussi le re-getDoc du membre (déjà chargé).
+ */
+async function enrichWithSubscriptionsBatch(members: User[]): Promise<MemberWithSubscription[]> {
+  if (members.length === 0) return []
+  const now = new Date()
+  const ids = members.map((m) => m.id).filter(Boolean) as string[]
+
+  const subsByUser = new Map<string, Subscription[]>()
+
+  // Firestore "in" est limité à 10 valeurs → découper en paquets de 10
+  const chunks: string[][] = []
+  for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10))
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const q = query(collection(db, 'subscriptions'), where('userId', 'in', chunk))
+        const snap = await getDocs(q)
+        snap.docs.forEach((d) => {
+          const subData = d.data() as any
+          const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+          const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+          const sub = {
+            id: d.id,
+            ...subData,
+            dateStart: dateStart || new Date(),
+            dateEnd: dateEnd || new Date(),
+            type: subData.type || subData.membershipType,
+            createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
+            updatedAt: convertFirestoreDate(subData.updatedAt) || new Date(),
+          } as Subscription
+          const uid = String(subData.userId)
+          const list = subsByUser.get(uid) || []
+          list.push(sub)
+          subsByUser.set(uid, list)
+        })
+      } catch (e) {
+        console.warn('[enrichWithSubscriptionsBatch] échec d\'un paquet:', e)
+      }
+    }),
+  )
+
+  return members.map((member) => {
+    const subs = (subsByUser.get(member.id as string) || []).sort(
+      (a, b) => b.dateEnd.getTime() - a.dateEnd.getTime(),
+    )
+    const lastSubscription = subs[0] || null
+    const isSubscriptionValid = lastSubscription ? lastSubscription.dateEnd > now : false
+    return { ...member, lastSubscription, isSubscriptionValid } as MemberWithSubscription
+  })
+}
+
+/**
  * Récupère la liste des membres avec pagination et filtres
  * 
  * Note: Firestore ne supporte pas l'offset natif.
@@ -268,13 +325,18 @@ export async function getMembers(
       hasNextPage = querySnapshot.docs.length > itemsPerPage
     }
 
-    // Paralléliser les appels getMemberWithSubscription pour améliorer les performances
-    const memberPromises = docsToProcess.map(doc => getMemberWithSubscription(doc.id))
-    const memberResults = await Promise.all(memberPromises)
-    
-    const members: MemberWithSubscription[] = memberResults.filter(
-      (member): member is MemberWithSubscription => member !== null
-    )
+    // Construire les membres depuis les docs déjà chargés (pas de getDoc redondant)
+    // puis enrichir les abonnements en BATCH (userId in [...]) au lieu d'1 requête/membre.
+    const baseMembers: User[] = docsToProcess.map((d) => {
+      const data = d.data() as User
+      return {
+        ...data,
+        id: d.id,
+        createdAt: convertFirestoreDate(data.createdAt) || new Date(),
+        updatedAt: convertFirestoreDate(data.updatedAt) || new Date(),
+      }
+    })
+    const members: MemberWithSubscription[] = await enrichWithSubscriptionsBatch(baseMembers)
 
     // Appliquer les filtres côté client
     let filteredMembers = members

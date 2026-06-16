@@ -100,7 +100,8 @@ function calculateDayColor(
 
 export function useCalendarCaisseSpeciale(
   month: Date,
-  caisseTypes: CaisseType[]
+  caisseTypes: CaisseType[],
+  enabled: boolean = true
 ) {
   const filters = useMemo(
     () => ({
@@ -255,6 +256,7 @@ export function useCalendarCaisseSpeciale(
         (a, b) => a.date.getTime() - b.date.getTime()
       )
     },
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
