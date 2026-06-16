@@ -16,8 +16,12 @@ export default function ReactQueryProvider({ children }: Readonly<{ children: Re
                 }),
                 defaultOptions: {
                     queries: {
-                        staleTime: 60 * 1000,
+                        // 5 min : évite de re-fetcher les agrégats lourds trop souvent
+                        staleTime: 5 * 60 * 1000,
+                        gcTime: 10 * 60 * 1000,
                         retry: false,
+                        // Ne pas relancer toutes les requêtes au retour de focus sur l'onglet
+                        refetchOnWindowFocus: false,
                     },
                 },
             })

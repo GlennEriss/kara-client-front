@@ -441,7 +441,12 @@ export class ContractCIRepository implements IContractCIRepository {
             
             // Filtrer par statut si spécifié
             if (normalizedFilters?.status && normalizedFilters.status !== 'all') {
-                constraints.push(where("status", "==", normalizedFilters.status));
+                if ((normalizedFilters.status as string) === 'CLOTURE') {
+                    // Filtre groupé "Clôturé" = contrats terminés (FINISHED) ou résiliés (CANCELED)
+                    constraints.push(where("status", "in", ["FINISHED", "CANCELED"]));
+                } else {
+                    constraints.push(where("status", "==", normalizedFilters.status));
+                }
             }
 
             // Filtrer par paymentFrequency si spécifié
@@ -534,7 +539,12 @@ export class ContractCIRepository implements IContractCIRepository {
 
             // Filtrer par statut si spécifié
             if (normalizedFilters?.status && normalizedFilters.status !== 'all') {
-                constraints.push(where("status", "==", normalizedFilters.status));
+                if ((normalizedFilters.status as string) === 'CLOTURE') {
+                    // Filtre groupé "Clôturé" = contrats terminés (FINISHED) ou résiliés (CANCELED)
+                    constraints.push(where("status", "in", ["FINISHED", "CANCELED"]));
+                } else {
+                    constraints.push(where("status", "==", normalizedFilters.status));
+                }
             }
 
             // Filtrer par paymentFrequency si spécifié

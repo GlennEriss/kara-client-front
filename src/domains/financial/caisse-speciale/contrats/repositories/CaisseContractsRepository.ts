@@ -84,7 +84,12 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     if (!filters) return constraints
 
     if (filters.status && filters.status !== 'all') {
-      constraints.push(where('status', '==', filters.status))
+      if (filters.status === 'CLOTURE') {
+        // Filtre groupé "Clôturé" = contrats clos (CLOSED) ou résiliés (RESCINDED)
+        constraints.push(where('status', 'in', ['CLOSED', 'RESCINDED']))
+      } else {
+        constraints.push(where('status', '==', filters.status))
+      }
     }
     if (filters.contractType && filters.contractType !== 'all') {
       constraints.push(where('contractType', '==', filters.contractType))

@@ -105,7 +105,8 @@ function calculateDayColor(
 
 export function useCalendarPlacement(
   month: Date,
-  payoutModes: PayoutMode[]
+  payoutModes: PayoutMode[],
+  enabled: boolean = true
 ) {
   const filters = useMemo(
     () => ({
@@ -229,6 +230,7 @@ export function useCalendarPlacement(
         (a, b) => a.date.getTime() - b.date.getTime()
       )
     },
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }

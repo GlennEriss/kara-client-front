@@ -93,7 +93,7 @@ function calculateDayColor(
   return "gray"
 }
 
-export function useCalendarCreditSpeciale(month: Date, creditType: CreditType) {
+export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, enabled: boolean = true) {
   return useQuery({
     queryKey: ["calendar-credit-speciale", creditType, format(month, "yyyy-MM")],
     queryFn: async (): Promise<DayPaymentsCredit[]> => {
@@ -173,6 +173,7 @@ export function useCalendarCreditSpeciale(month: Date, creditType: CreditType) {
 
       return Object.values(grouped).sort((a, b) => a.date.getTime() - b.date.getTime())
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
   })
 }

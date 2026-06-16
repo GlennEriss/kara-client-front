@@ -5,6 +5,7 @@ import { CalendarView } from "@/components/calendrier/CalendarView"
 import { CalendarViewCI } from "@/components/calendrier/CalendarViewCI"
 import { CalendarViewCreditSpeciale } from "@/components/calendrier/CalendarViewCreditSpeciale"
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
+import { OverdueCaissePaymentsList } from "@/components/calendrier/OverdueCaissePaymentsList"
 import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
 import { PageHero } from "@/components/ui/page-hero"
@@ -116,26 +117,30 @@ export default function CalendrierPage() {
     localStorage.setItem("calendar-placement-modes", JSON.stringify(selectedPayoutModes))
   }, [selectedPayoutModes])
 
+  // Ne charger que l'onglet actif (évite 6 requêtes lourdes simultanées)
   const { data: daysPaymentsCS = [], isLoading: isLoadingCS } = useCalendarCaisseSpeciale(
     currentMonth,
-    selectedTypes
+    selectedTypes,
+    activeTab === "caisse-speciale"
   )
-  
+
   const { data: daysPaymentsCI = [], isLoading: isLoadingCI } = useCalendarCaisseImprevue(
     currentMonth,
-    selectedFrequencies
+    selectedFrequencies,
+    activeTab === "caisse-imprevue"
   )
-  
+
   const { data: daysCommissionsPlacement = [], isLoading: isLoadingPlacement } = useCalendarPlacement(
     currentMonth,
-    selectedPayoutModes
+    selectedPayoutModes,
+    activeTab === "placement"
   )
   const { data: daysPaymentsCreditSpeciale = [], isLoading: isLoadingCreditSpeciale } =
-    useCalendarCreditSpeciale(currentMonth, "SPECIALE")
+    useCalendarCreditSpeciale(currentMonth, "SPECIALE", activeTab === "credit-speciale")
   const { data: daysPaymentsCreditFixe = [], isLoading: isLoadingCreditFixe } =
-    useCalendarCreditSpeciale(currentMonth, "FIXE")
+    useCalendarCreditSpeciale(currentMonth, "FIXE", activeTab === "credit-fixe")
   const { data: daysPaymentsCreditAide = [], isLoading: isLoadingCreditAide } =
-    useCalendarCreditSpeciale(currentMonth, "AIDE")
+    useCalendarCreditSpeciale(currentMonth, "AIDE", activeTab === "caisse-aide")
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -245,6 +250,7 @@ export default function CalendrierPage() {
                   daysPayments={daysPaymentsCS}
                   isLoading={isLoadingCS}
                 />
+                <OverdueCaissePaymentsList product="Caisse Spéciale" />
               </TabsContent>
               
               <TabsContent value="caisse-imprevue" className="space-y-6 mt-0">
@@ -258,6 +264,7 @@ export default function CalendrierPage() {
                   daysPayments={daysPaymentsCI}
                   isLoading={isLoadingCI}
                 />
+                <OverdueCaissePaymentsList product="Caisse Imprévue" />
               </TabsContent>
               
               <TabsContent value="placement" className="space-y-6 mt-0">
@@ -280,6 +287,7 @@ export default function CalendrierPage() {
                   daysPayments={daysPaymentsCreditSpeciale}
                   isLoading={isLoadingCreditSpeciale}
                 />
+                <OverdueCaissePaymentsList product="Crédit Spéciale" />
               </TabsContent>
 
               <TabsContent value="credit-fixe" className="space-y-6 mt-0">
@@ -289,6 +297,7 @@ export default function CalendrierPage() {
                   daysPayments={daysPaymentsCreditFixe}
                   isLoading={isLoadingCreditFixe}
                 />
+                <OverdueCaissePaymentsList product="Crédit Fixe" />
               </TabsContent>
 
               <TabsContent value="caisse-aide" className="space-y-6 mt-0">
@@ -298,6 +307,7 @@ export default function CalendrierPage() {
                   daysPayments={daysPaymentsCreditAide}
                   isLoading={isLoadingCreditAide}
                 />
+                <OverdueCaissePaymentsList product="Crédit Aide" />
               </TabsContent>
             </div>
         </Tabs>
