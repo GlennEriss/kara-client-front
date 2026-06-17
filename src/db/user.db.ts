@@ -283,6 +283,41 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
+ * Récupère plusieurs utilisateurs à partir de leurs matricules.
+ * Requêtes groupées par paquets de 10 (limite Firestore `in`).
+ * Retourne une Map matricule (normalisé/trim) -> User.
+ */
+export async function getUsersByMatricules(matricules: string[]): Promise<Map<string, User>> {
+  const result = new Map<string, User>()
+  const unique = Array.from(
+    new Set(
+      matricules
+        .map((m) => (m ?? '').replace(/\s+/g, ' ').trim())
+        .filter((m) => m.length > 0),
+    ),
+  )
+  if (unique.length === 0) return result
+
+  const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
+  for (let i = 0; i < unique.length; i += 10) {
+    const chunk = unique.slice(i, i + 10)
+    const q = query(usersRef, where('matricule', 'in', chunk))
+    const snap = await getDocs(q)
+    snap.forEach((d) => {
+      const data = d.data() as any
+      const user = {
+        id: d.id,
+        ...data,
+        createdAt: toDateSafe(data.createdAt),
+        updatedAt: toDateSafe(data.updatedAt),
+      } as User
+      if (user.matricule) result.set(String(user.matricule).trim(), user)
+    })
+  }
+  return result
+}
+
+/**
  * Met à jour un utilisateur
  */
 export async function updateUser(userId: string, updates: Partial<Omit<User, 'id' | 'matricule' | 'createdAt'>>): Promise<boolean> {

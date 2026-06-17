@@ -25,6 +25,7 @@ import {
   Calendar,
   CalendarHeart,
   Car,
+  FileSpreadsheet,
   ChevronDown,
   CreditCard,
   FileText,
@@ -274,6 +275,11 @@ const systemMenuItems: any[] = [
     title: "Paramètres Caisse Imprvue",
     url: routes.admin.caisseImprevueSettings,
     icon: HeartHandshake,
+  },
+  {
+    title: "Import Excel",
+    url: "/import-caisse-imprevue",
+    icon: FileSpreadsheet,
   },
   /* {
         title: "Paramètres",
