@@ -14,19 +14,29 @@ interface DashboardTabsProps {
 
 export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
   const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    if (!mobileScrollRef.current) return;
-    const activeEl = mobileScrollRef.current.querySelector(
+    const container = mobileScrollRef.current;
+    if (!container) return;
+
+    // Ne pas défiler au montage : sinon l'onglet actif "tire" le contenu vers
+    // le bas à l'ouverture et le header (PageHero) sort de l'écran.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    const activeEl = container.querySelector<HTMLElement>(
       `[data-value="${activeTab}"]`,
     );
-    if (activeEl) {
-      activeEl.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
-    }
+    if (!activeEl) return;
+
+    // Défilement horizontal limité au ruban d'onglets (ne touche jamais au
+    // scroll vertical de la page, contrairement à scrollIntoView).
+    const target =
+      activeEl.offsetLeft - container.clientWidth / 2 + activeEl.clientWidth / 2;
+    container.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
   }, [activeTab]);
 
   return (
