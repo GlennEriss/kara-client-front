@@ -60,11 +60,15 @@ async function purgeAuth(dryRun: boolean, keepUid: string) {
     }
     pageToken = res.pageToken
   } while (pageToken)
-  if (!dryRun) {
-    for (let i = 0; i < toDelete.length; i += 1000) {
-      await adminAuth!.deleteUsers(toDelete.slice(i, i + 1000))
-    }
+
+  if (dryRun) return toDelete.length
+
+  let failures = 0
+  for (let i = 0; i < toDelete.length; i += 1000) {
+    const res = await adminAuth!.deleteUsers(toDelete.slice(i, i + 1000))
+    failures += res.failureCount
   }
+  if (failures > 0) throw new Error(`${failures} compte(s) non supprimé(s) sur ${toDelete.length}`)
   return toDelete.length
 }
 
@@ -116,7 +120,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Action réservée au superAdmin' }, { status: 403 })
   }
 
-  const body = (await req.json().catch(() => ({}))) as { mode?: string; confirmText?: string }
+  const body = (await req.json().catch(() => ({}))) as {
+    mode?: string
+    confirmText?: string
+    target?: string
+  }
   const execute = body.mode === 'execute'
   if (execute && body.confirmText !== CONFIRM_PHRASE) {
     return NextResponse.json(
@@ -137,33 +145,39 @@ export async function POST(req: NextRequest) {
   }
 
   const dryRun = !execute
-  try {
-    const firestore = await purgeFirestore(dryRun, keep.uid)
-    const auth = await purgeAuth(dryRun, keep.uid)
-    const storage = await purgeStorage(dryRun)
-    const algolia = await purgeAlgolia(dryRun)
+  const target = body.target || 'all'
+  const want = (t: string) => target === 'all' || target === t
 
-    let stillExists = true
-    if (execute) {
-      try {
-        await adminAuth.getUserByEmail(SUPERADMIN_EMAIL)
-      } catch {
-        stillExists = false
-      }
+  // Chaque domaine est isolé : une erreur/lenteur sur l'un n'empêche pas les autres.
+  async function safe<T>(label: string, fn: () => Promise<T>): Promise<T | { error: string }> {
+    try {
+      return await fn()
+    } catch (e) {
+      return { error: `${label}: ${e instanceof Error ? e.message : 'erreur'}` }
     }
-
-    return NextResponse.json({
-      mode: execute ? 'execute' : 'preview',
-      keptEmail: SUPERADMIN_EMAIL,
-      keptUid: keep.uid,
-      firestore,
-      authUsers: auth,
-      storage,
-      algolia,
-      superAdminStillExists: stillExists,
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur inattendue'
-    return NextResponse.json({ error: 'Erreur purge', details: message }, { status: 500 })
   }
+
+  const out: Record<string, unknown> = {
+    mode: execute ? 'execute' : 'preview',
+    target,
+    keptEmail: SUPERADMIN_EMAIL,
+    keptUid: keep.uid,
+  }
+
+  // Ordre : les domaines rapides d'abord, Firestore (lourd) en dernier.
+  if (want('storage')) out.storage = await safe('storage', () => purgeStorage(dryRun))
+  if (want('algolia')) out.algolia = await safe('algolia', () => purgeAlgolia(dryRun))
+  if (want('auth')) out.authUsers = await safe('auth', () => purgeAuth(dryRun, keep.uid))
+  if (want('firestore')) out.firestore = await safe('firestore', () => purgeFirestore(dryRun, keep.uid))
+
+  if (execute) {
+    try {
+      await adminAuth.getUserByEmail(SUPERADMIN_EMAIL)
+      out.superAdminStillExists = true
+    } catch {
+      out.superAdminStillExists = false
+    }
+  }
+
+  return NextResponse.json(out)
 }
