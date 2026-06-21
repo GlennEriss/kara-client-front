@@ -28,11 +28,13 @@ import {
   type AnalyzedMember,
   type AnalyzedRow,
   type ImportMemberData,
+  type ImportTarget,
 } from './excelImportAnalyzer'
 
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsCI'
 const USERS = firebaseCollectionNames.users || 'users'
+const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
 export async function fetchForfaits(): Promise<SubscriptionCI[]> {
@@ -93,6 +95,8 @@ export interface ImportContext {
   forfaits: SubscriptionCI[]
   /** Données MEMBRES (par matricule) pour enrichir les comptes créés à la volée. */
   memberData: Map<string, ImportMemberData>
+  /** Cible : 'CI' (contractsCI, défaut) ou 'CS' (caisseContracts). */
+  target?: ImportTarget
 }
 
 export interface ImportRowResult {
@@ -212,11 +216,15 @@ export function makeContractId(
  * mensuel + durée + date de fin. Deux lignes ne partagent l'ID (= doublon) que
  * si TOUS ces critères coïncident.
  */
-export function contractIdForRow(row: AnalyzedRow): string {
+export function contractIdForRow(row: AnalyzedRow, target: ImportTarget = 'CI'): string {
   const kind: 'A' | 'C' = row.status === 'ACTIVE' ? 'A' : 'C'
   const cat = sanitizeMatricule(row.category) || 'X'
   const key = `${row.amountPerMonth}|${row.durationMonths}|${row.entraide?.contractEndDate ?? ''}`
-  return makeContractId(kind, row.matricule, row.startDate, `${cat}${shortHash(key)}`)
+  const m = sanitizeMatricule(row.matricule) || 'NA'
+  const d = (row.startDate || '').replace(/-/g, '') || 'NA'
+  const suffix = `${cat}${shortHash(key)}`
+  if (target === 'CS') return `MK_CS_MIG_${kind}_${m}_${d}_${suffix}`
+  return makeContractId(kind, row.matricule, row.startDate, suffix)
 }
 
 function pickForfait(
@@ -655,22 +663,112 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
   }
 }
 
+function addMonths(d: Date, n: number): Date {
+  const x = new Date(d)
+  x.setMonth(x.getMonth() + n)
+  return x
+}
+
+/**
+ * Écrit une ligne en contrat Caisse Spéciale (caisseContracts + payments).
+ * Crée le membre si absent.
+ */
+async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRowResult> {
+  const { member, created: memberCreated } = await ensureMember(row, ctx)
+
+  const contractId = contractIdForRow(row, 'CS')
+  const caisseType = row.category || 'STANDARD' // STANDARD | LIBRE | JOURNALIERE
+  const monthlyAmount = row.amountPerMonth
+  const monthsPlanned = row.durationMonths
+  const paidCount = row.payments.filter((p) => p.status === 'PAID').length
+  const nominalPaid = row.payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0)
+  const startDateObj = row.startDate ? safeDate(row.startDate) : undefined
+
+  const docs: AdminImportDoc[] = []
+
+  docs.push({
+    path: [CAISSE_CONTRACTS, contractId],
+    data: {
+      id: contractId,
+      contractType: 'INDIVIDUAL',
+      memberId: member.id,
+      memberMatricule: row.matricule.trim(),
+      memberLastName: row.lastName,
+      memberFirstName: row.firstName,
+      monthlyAmount,
+      monthsPlanned,
+      caisseType,
+      firstPaymentDate: row.startDate || '',
+      ...(startDateObj ? { contractStartAt: startDateObj, nextDueAt: startDateObj } : {}),
+      status: 'ACTIVE',
+      currentMonthIndex: paidCount,
+      withdrawLockedUntilM: 4,
+      nominalPaid,
+      bonusAccrued: 0,
+      penaltiesTotal: 0,
+      entraide: cleanPlain({ ...row.entraide }),
+      createdAt: adminServerTimestamp(),
+      updatedAt: adminServerTimestamp(),
+      createdBy: ctx.adminId,
+      ...marker(ctx, 'A', row.rowNumber, row.raw),
+    },
+  })
+
+  for (const p of row.payments) {
+    const dueAt = p.dueDate ? safeDate(p.dueDate) : startDateObj ? addMonths(startDateObj, p.monthIndex) : undefined
+    const paid = p.status === 'PAID'
+    const paymentId = `MK_CS_P_MIG_${p.monthIndex}`
+    const data: Record<string, unknown> = {
+      id: paymentId,
+      dueMonthIndex: p.monthIndex,
+      amount: p.versement?.amount ?? p.targetAmount ?? monthlyAmount,
+      status: paid ? 'PAID' : 'DUE',
+      ...(dueAt ? { dueAt } : {}),
+      createdAt: adminServerTimestamp(),
+    }
+    if (paid && p.versement) {
+      data.paidAt = safeDate(p.versement.date)
+      data.time = p.versement.time
+      data.mode = p.versement.mode
+    }
+    docs.push({ path: [CAISSE_CONTRACTS, contractId, 'payments', paymentId], data })
+  }
+
+  await commitAdminImportDocs(docs)
+
+  return {
+    rowNumber: row.rowNumber,
+    matricule: row.matricule,
+    status: 'created',
+    contractId,
+    payments: row.payments.length,
+    supports: 0,
+    earlyRefund: false,
+    memberCreated,
+    placeholders: [],
+  }
+}
+
 /** Importe toutes les lignes (un batch par contrat). */
 export async function writeImport(
   rows: AnalyzedRow[],
   ctx: ImportContext,
   onProgress?: (done: number, total: number) => void,
 ): Promise<ImportReport> {
-  // Crée les forfaits A–E manquants (parmi les catégories utilisées) au préalable.
-  const neededCats = new Set(rows.map((r) => r.category).filter(Boolean))
+  const isCS = ctx.target === 'CS'
+
+  // Forfaits A–E : uniquement pour la Caisse Imprévue.
   let forfaitsCreated: string[] = []
   let forfaits = ctx.forfaits
-  try {
-    const res = await ensureForfaits(neededCats, ctx.forfaits, ctx.adminId)
-    forfaits = res.forfaits
-    forfaitsCreated = res.created
-  } catch {
-    // si échec, on continue avec les forfaits existants (placeholders gérés par ligne)
+  if (!isCS) {
+    const neededCats = new Set(rows.map((r) => r.category).filter(Boolean))
+    try {
+      const res = await ensureForfaits(neededCats, ctx.forfaits, ctx.adminId)
+      forfaits = res.forfaits
+      forfaitsCreated = res.created
+    } catch {
+      // si échec, on continue avec les forfaits existants (placeholders gérés par ligne)
+    }
   }
   const ctx2: ImportContext = { ...ctx, forfaits }
 
@@ -678,7 +776,7 @@ export async function writeImport(
   const seen = new Set<string>()
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const id = contractIdForRow(row)
+    const id = contractIdForRow(row, ctx.target ?? 'CI')
     // Doublon : un contrat avec cet ID a déjà été importé dans ce lot → on saute.
     if (seen.has(id)) {
       results.push({
@@ -693,7 +791,7 @@ export async function writeImport(
     }
     seen.add(id)
     try {
-      results.push(await writeRow(row, ctx2))
+      results.push(await (isCS ? writeCSRow(row, ctx2) : writeRow(row, ctx2)))
     } catch (e) {
       results.push({
         rowNumber: row.rowNumber,

@@ -15,8 +15,10 @@
  *  - "ADHESION VOLET ENTRAIDE" -> contrats CI CLÔTURÉS (INACTIF uniquement)
  */
 
-export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'MEMBERS' | 'UNKNOWN'
+export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'CS_ACTIVE' | 'MEMBERS' | 'UNKNOWN'
 export type MembershipTypeValue = 'adherant' | 'bienfaiteur' | 'sympathisant'
+/** Collection cible d'un import de contrats. */
+export type ImportTarget = 'CI' | 'CS'
 export type MappedContractStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED'
 export type ImportPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
 
@@ -35,6 +37,8 @@ export interface ImportPayment {
   targetAmount: number
   status: 'PAID' | 'DUE'
   versement: ImportVersement | null
+  /** Date d'échéance planifiée (YYYY-MM-DD) — utilisée pour la Caisse Spéciale. */
+  dueDate?: string
 }
 
 export interface ImportSupport {
@@ -109,6 +113,8 @@ export interface AnalyzedRow {
 export interface ImportAnalysis {
   sheetName: string
   sheetType: ImportSheetType
+  /** Cible : Caisse Imprévue (contractsCI) ou Caisse Spéciale (caisseContracts). */
+  target: ImportTarget
   targetCollection: string
   totalDataRows: number
   importableRows: number
@@ -128,6 +134,16 @@ export interface ImportAnalysis {
 const SHEET_ACTIVE = 'GESTION ENTRAIDE ACTIF'
 const SHEET_CLOSED = 'ADHESION VOLET ENTRAIDE'
 const SHEET_MEMBERS = 'ADHESION MEMBRES'
+const SHEET_CS_ACTIVE = 'GESTION TONTINE ACTIF' // contrats Caisse Spéciale
+
+/** Type de caisse spéciale (caisseType) déduit de la colonne CATEGORIE. */
+export type CaisseTypeValue = 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+function mapCaisseType(raw: unknown): CaisseTypeValue {
+  const s = str(raw).toUpperCase()
+  if (s.includes('LIBRE')) return 'LIBRE'
+  if (s.includes('JOURNAL')) return 'JOURNALIERE'
+  return 'STANDARD' // MENSUEL / STANDARD / autres → STANDARD
+}
 
 export const CATEGORY_AMOUNT: Record<string, number> = {
   A: 10000,
@@ -218,6 +234,7 @@ export function detectSheetType(sheetName: string): ImportSheetType {
   const n = sheetName.trim().toUpperCase()
   if (n === SHEET_ACTIVE) return 'CI_ACTIVE'
   if (n === SHEET_CLOSED) return 'CI_CLOSED'
+  if (n === SHEET_CS_ACTIVE) return 'CS_ACTIVE'
   if (n === SHEET_MEMBERS) return 'MEMBERS'
   return 'UNKNOWN'
 }
@@ -367,6 +384,95 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
   }
 }
 
+// ----- GESTION TONTINE ACTIF (contrats Caisse Spéciale) -----
+
+// 12 blocs d'échéance de 7 colonnes : ECHEANCE, DATE REMISE, MONTANT, HEURE, MOYEN, AGENT, REMARQUE.
+const CS_ECHEANCE_STARTS = [16, 23, 30, 37, 44, 51, 58, 65, 72, 79, 86, 93]
+
+function analyzeCaisseActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null {
+  const matricule = str(cell(row, 1))
+  if (!matricule) return null
+
+  const caisseType = mapCaisseType(cell(row, 10)) // K CATEGORIE
+  // Montant mensuel : STANDARD/JOURNALIERE = MONTANT CAT (L) ; LIBRE = 0 (montants variables).
+  const amountPerMonth = caisseType === 'LIBRE' ? 0 : num(cell(row, 11))
+  const startDate = dateStr(cell(row, 7)) // H DEBUT VERSEMENT
+
+  const payments: ImportPayment[] = []
+  CS_ECHEANCE_STARTS.forEach((start, monthIndex) => {
+    const echeance = cell(row, start)
+    const dateRemise = cell(row, start + 1)
+    const montant = num(cell(row, start + 2))
+    const exists = isPresent(echeance) || isPresent(dateRemise) || montant > 0
+    if (!exists) return
+    const paid = montant > 0 && isPresent(dateRemise)
+    payments.push({
+      monthIndex,
+      targetAmount: amountPerMonth || montant,
+      status: paid ? 'PAID' : 'DUE',
+      dueDate: dateStr(echeance) || undefined,
+      versement: paid
+        ? {
+            date: dateStr(dateRemise) || dateStr(echeance) || startDate || '',
+            time: parseHeure(cell(row, start + 3)),
+            amount: montant,
+            mode: mapMode(cell(row, start + 4)),
+            agentName: strOpt(cell(row, start + 5)),
+            note: strOpt(cell(row, start + 6)),
+          }
+        : null,
+    })
+  })
+
+  const paidCount = payments.filter((p) => p.status === 'PAID').length
+  const dueCount = payments.filter((p) => p.status === 'DUE').length
+  const durationMonths = payments.length || num(cell(row, 13)) + num(cell(row, 14)) || 12
+
+  const contacts = contactsOf(cell(row, 5), cell(row, 6))
+
+  const issues: string[] = []
+  if (caisseType !== 'LIBRE' && amountPerMonth <= 0) issues.push('Montant mensuel manquant')
+  if (payments.length === 0) issues.push('Aucune échéance détectée')
+  if (!str(cell(row, 3)) && !str(cell(row, 4))) issues.push('Nom/prénom manquant')
+
+  const entraide: EntraideMeta = {
+    code: strOpt(cell(row, 2)),
+    contractEndDate: dateStr(cell(row, 8)) || undefined,
+    receptionDate: dateStr(cell(row, 9)) || undefined,
+    summary: {
+      versementsCount: num(cell(row, 13)),
+      monthsUnpaid: num(cell(row, 14)),
+      montantTotal: num(cell(row, 15)),
+    },
+  }
+
+  return {
+    rowNumber,
+    matricule,
+    lastName: str(cell(row, 3)),
+    firstName: str(cell(row, 4)),
+    contacts,
+    category: caisseType, // pour la CS, `category` porte le caisseType
+    amountPerMonth,
+    durationMonths,
+    startDate,
+    status: 'ACTIVE',
+    paidCount,
+    dueCount,
+    supportsCount: 0,
+    supportsAmount: 0,
+    hasEarlyRefund: false,
+    earlyRefundAmount: 0,
+    issues,
+    payments,
+    supportsDetail: [],
+    earlyRefundDetail: null,
+    emergency: { lastName: 'INCONNU', firstName: '', phone1: contacts[0] ?? '', relationship: 'INCONNU' },
+    entraide,
+    raw: {},
+  }
+}
+
 // ----- ADHESION VOLET ENTRAIDE (INACTIF uniquement) -----
 
 function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null {
@@ -469,18 +575,21 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
     return {
       sheetName,
       sheetType,
+      target: 'CI',
       targetCollection: '—',
       totalDataRows: nonEmpty,
       importableRows: 0,
       rows: [],
       totals: { active: 0, finished: 0, canceled: 0, paidVersements: 0, supports: 0, earlyRefunds: 0 },
       howItWillBeImported: [
-        "Cette feuille n'est pas reconnue par l'import Caisse Imprévue.",
-        'Feuilles supportées : "GESTION ENTRAIDE ACTIF" et "ADHESION VOLET ENTRAIDE".',
+        "Cette feuille n'est pas reconnue par l'import.",
+        'Feuilles supportées : "GESTION ENTRAIDE ACTIF", "ADHESION VOLET ENTRAIDE", "GESTION TONTINE ACTIF".',
       ],
       detectedColumns: header,
     }
   }
+
+  const target: ImportTarget = sheetType === 'CS_ACTIVE' ? 'CS' : 'CI'
 
   const rows: AnalyzedRow[] = []
   let totalDataRows = 0
@@ -491,7 +600,11 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
     if (!isPresent(cell(r, 1))) continue
     totalDataRows++
     const analyzed =
-      sheetType === 'CI_ACTIVE' ? analyzeActiveRow(r, rowNumber) : analyzeClosedRow(r, rowNumber)
+      sheetType === 'CI_ACTIVE'
+        ? analyzeActiveRow(r, rowNumber)
+        : sheetType === 'CS_ACTIVE'
+          ? analyzeCaisseActiveRow(r, rowNumber)
+          : analyzeClosedRow(r, rowNumber)
     if (analyzed) {
       analyzed.raw = buildRaw(r)
       rows.push(analyzed)
@@ -508,29 +621,38 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
   }
 
   const howItWillBeImported =
-    sheetType === 'CI_ACTIVE'
+    sheetType === 'CS_ACTIVE'
       ? [
-          'Chaque ligne → 1 contrat Caisse Imprévue avec statut ACTIVE (collection contractsCI).',
-          'Échéances payées → versements (date, heure, montant, moyen, AGENT, REMARQUE) ; non payées → DUE.',
-          'Imprévus → supports (montant, date, moyen + clôture : date/heure/agent/remarque).',
-          'Forfait déduit de la catégorie A–E ; durée = PERIODE/MOIS.',
-          'Colonnes sans champ modèle (code entraide, fin/réception, récap N/O/P/Q) → bloc `entraide`.',
-          "Champs obligatoires absents (preuves, pièce du contact d'urgence) → placeholders.",
-          'Ligne brute intégrale conservée (migration.raw) — aucune perte.',
+          'Chaque ligne → 1 contrat Caisse Spéciale ACTIVE (collection caisseContracts).',
+          'CATEGORIE : MENSUEL → STANDARD, LIBRE → LIBRE, JOURNALIER → JOURNALIERE.',
+          'Montant mensuel = MONTANT CAT (0 pour LIBRE) ; durée = nb d’échéances (payées + dues).',
+          'Échéances → paiements (caisseContracts/{id}/payments) : payé → PAID (date, heure, montant, moyen), sinon DUE.',
+          'Membre créé s’il n’existe pas (compte adhérent). Ligne brute conservée (migration.raw).',
         ]
-      : [
-          'Seules les lignes STATUT = INACTIF sont importées (contrats clôturés).',
-          'OBSERVATION contient "RETRAIT ANTICIPE" → CANCELED + retrait anticipé ; sinon → FINISHED.',
-          'Durée = DUREE PERIODE (O) ; cotisations MOIS 1..12 → versements (avec libellé du mois).',
-          'Colonnes sans champ modèle (code, contrat signé, fin, année, docs clôture, garant) → bloc `entraide`.',
-          'Champs obligatoires absents → placeholders.',
-          'Ligne brute intégrale conservée (migration.raw) — aucune perte.',
-        ]
+      : sheetType === 'CI_ACTIVE'
+        ? [
+            'Chaque ligne → 1 contrat Caisse Imprévue avec statut ACTIVE (collection contractsCI).',
+            'Échéances payées → versements (date, heure, montant, moyen, AGENT, REMARQUE) ; non payées → DUE.',
+            'Imprévus → supports (montant, date, moyen + clôture : date/heure/agent/remarque).',
+            'Forfait déduit de la catégorie A–E ; durée = échéancier réel.',
+            'Colonnes sans champ modèle (code entraide, fin/réception, récap N/O/P/Q) → bloc `entraide`.',
+            "Champs obligatoires absents (preuves, pièce du contact d'urgence) → placeholders.",
+            'Ligne brute intégrale conservée (migration.raw) — aucune perte.',
+          ]
+        : [
+            'Seules les lignes STATUT = INACTIF sont importées (contrats clôturés).',
+            'OBSERVATION contient "RETRAIT ANTICIPE" → CANCELED + retrait anticipé ; sinon → FINISHED.',
+            'Durée = DUREE PERIODE (O) ; cotisations MOIS 1..12 → versements (avec libellé du mois).',
+            'Colonnes sans champ modèle (code, contrat signé, fin, année, docs clôture, garant) → bloc `entraide`.',
+            'Champs obligatoires absents → placeholders.',
+            'Ligne brute intégrale conservée (migration.raw) — aucune perte.',
+          ]
 
   return {
     sheetName,
     sheetType,
-    targetCollection: 'contractsCI',
+    target,
+    targetCollection: target === 'CS' ? 'caisseContracts' : 'contractsCI',
     totalDataRows,
     importableRows: rows.length,
     rows,

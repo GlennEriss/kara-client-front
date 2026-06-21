@@ -112,7 +112,7 @@ function StatCard({ label, value, hint }: { label: string; value: number | strin
   )
 }
 
-type ImportScope = 'members' | 'caisse-imprevue'
+type ImportScope = 'members' | 'caisse-imprevue' | 'caisse-speciale'
 
 export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const { user } = useAuth()
@@ -249,6 +249,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           members: membersMap,
           forfaits,
           memberData,
+          target: analysis.target,
         },
         (done, total) => setProgress({ done, total }),
       )
@@ -322,7 +323,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   // Détection des doublons : plusieurs lignes → même ID de contrat (= fusion).
   const idCount = new Map<string, number>()
   rowViews.forEach((r) => {
-    const id = contractIdForRow(r)
+    const id = contractIdForRow(r, analysis?.target)
     idCount.set(id, (idCount.get(id) ?? 0) + 1)
   })
   const distinctContracts = idCount.size
@@ -338,7 +339,9 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const availableSheets = sheetNames.filter((name) => {
     if (!scope) return true
     const t = detectSheetType(name)
-    return scope === 'members' ? t === 'MEMBERS' : t === 'CI_ACTIVE' || t === 'CI_CLOSED'
+    if (scope === 'members') return t === 'MEMBERS'
+    if (scope === 'caisse-speciale') return t === 'CS_ACTIVE'
+    return t === 'CI_ACTIVE' || t === 'CI_CLOSED'
   })
 
   return (
@@ -595,7 +598,11 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                 Feuille « {analysis.sheetName} »{' '}
                 {!isUnknown && (
                   <Badge variant="outline" className="ml-1 border-[#234D65]/20 bg-white text-[#234D65]">
-                    {analysis.sheetType === 'CI_ACTIVE' ? 'Contrats actifs' : 'Contrats clôturés'}
+                    {analysis.sheetType === 'CS_ACTIVE'
+                      ? 'Contrats Caisse Spéciale'
+                      : analysis.sheetType === 'CI_ACTIVE'
+                        ? 'Contrats actifs'
+                        : 'Contrats clôturés'}
                   </Badge>
                 )}
               </p>
@@ -735,8 +742,8 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                           <tr key={r.rowNumber} className="border-b border-gray-50 last:border-0">
                             <td className="px-3 py-2.5 text-gray-400">{r.rowNumber}</td>
                             <td className="px-3 py-2.5 font-mono text-[11px] text-gray-500">
-                              {contractIdForRow(r)}
-                              {(idCount.get(contractIdForRow(r)) ?? 0) > 1 && (
+                              {contractIdForRow(r, analysis?.target)}
+                              {(idCount.get(contractIdForRow(r, analysis?.target)) ?? 0) > 1 && (
                                 <Badge
                                   variant="outline"
                                   className="ml-1 border-amber-300 bg-amber-50 text-[10px] text-amber-700"
