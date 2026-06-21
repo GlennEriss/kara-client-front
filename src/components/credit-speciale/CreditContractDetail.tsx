@@ -46,8 +46,6 @@ import {
     Calendar,
     CalendarDays,
     CheckCircle,
-    ChevronLeft,
-    ChevronRight,
     Clock,
     DollarSign,
     Download,
@@ -136,136 +134,8 @@ interface DueItem {
 }
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
-const StatsCard = ({
-  title,
-  value,
-  subtitle,
-  color,
-  icon: Icon
-}: {
-  title: string
-  value: number | string
-  subtitle?: string
-  color: string
-  icon: React.ComponentType<any>
-}) => {
-  return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
-      <CardContent className="p-4">
-        <div className="flex items-center space-x-3">
-          <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110`} style={{ backgroundColor: `${color}15`, color: color }}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
-            {subtitle && (
-              <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Hook personnalisé pour le carousel avec drag/swipe (même que StatisticsCreditDemandes)
-const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [startPos, setStartPos] = useState(0)
-  const [translateX, setTranslateX] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const maxIndex = Math.max(0, itemCount - itemsPerView)
-
-  const goTo = (index: number) => {
-    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
-    setCurrentIndex(clampedIndex)
-    setTranslateX(-clampedIndex * (100 / itemsPerView))
-  }
-
-  const goNext = () => goTo(currentIndex + 1)
-  const goPrev = () => goTo(currentIndex - 1)
-
-  const handleStart = (clientX: number) => {
-    setIsDragging(true)
-    setStartPos(clientX)
-  }
-  
-  const handleMove = (clientX: number) => {
-    if (!isDragging || !containerRef.current) return
-    const diff = clientX - startPos
-    const containerWidth = containerRef.current.offsetWidth
-    const percentage = (diff / containerWidth) * 100
-    const maxDrag = 30
-    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
-    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
-  }
-  
-  const handleEnd = () => {
-    if (!isDragging || !containerRef.current) return
-    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
-    const threshold = 15
-    if (dragDistance > threshold && currentIndex > 0) {
-      goPrev()
-    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
-      goNext()
-    } else {
-      setTranslateX(-currentIndex * (100 / itemsPerView))
-    }
-    setIsDragging(false)
-  }
-
-  const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
-  const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
-  const handleTouchEnd = () => { handleEnd() }
-
-  useEffect(() => {
-    if (!isDragging) return
-    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
-    const handleGlobalMouseUp = () => handleEnd()
-    document.addEventListener('mousemove', handleGlobalMouseMove)
-    document.addEventListener('mouseup', handleGlobalMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove)
-      document.removeEventListener('mouseup', handleGlobalMouseUp)
-    }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
-
-  return {
-    currentIndex,
-    goTo,
-    goNext,
-    goPrev,
-    canGoPrev: currentIndex > 0,
-    canGoNext: currentIndex < maxIndex,
-    translateX,
-    containerRef,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    isDragging,
-  }
-}
-
-// Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
-  const [itemsPerView, setItemsPerView] = useState(1)
-  
-  useEffect(() => {
-    const update = () => {
-      const w = window.innerWidth
-      if (w >= 1280) setItemsPerView(4)
-      else if (w >= 1024) setItemsPerView(3)
-      else if (w >= 768) setItemsPerView(2)
-      else setItemsPerView(1)
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
-
+// Statistiques du contrat — grille statique (même design que la liste des contrats)
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -337,74 +207,15 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
     }] : []),
   ]
 
-  const { 
-    goNext, 
-    goPrev, 
-    canGoPrev, 
-    canGoNext, 
-    translateX, 
-    containerRef, 
-    handleTouchStart, 
-    handleTouchMove, 
-    handleTouchEnd, 
-    isDragging 
-  } = useCarouselStats(statsData.length, itemsPerView)
-
   return (
-    <div className="relative">
-      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          className={cn(
-            'h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300',
-            canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed'
-          )} 
-          onClick={goPrev} 
-          disabled={!canGoPrev}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
-      </div>
-      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          className={cn(
-            'h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300',
-            canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed'
-          )} 
-          onClick={goNext} 
-          disabled={!canGoNext}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-      </div>
-      <div 
-        ref={containerRef} 
-        className="ml-8 mr-8 overflow-hidden py-2" 
-        onTouchStart={handleTouchStart} 
-        onTouchMove={handleTouchMove} 
-        onTouchEnd={handleTouchEnd}
-      >
-        <div 
-          className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} 
-          style={{ 
-            transform: `translateX(${translateX}%)`, 
-            cursor: isDragging ? 'grabbing' : 'grab' 
-          }}
-        >
-          {statsData.map((stat, index) => (
-            <div 
-              key={index} 
-              className="flex-shrink-0" 
-              style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
-            >
-              <StatsCard {...stat} />
-            </div>
-          ))}
+    <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3 lg:grid-cols-4">
+      {statsData.map((stat) => (
+        <div key={stat.title}>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{stat.title}</p>
+          <p className="text-sm font-bold tabular-nums" style={{ color: stat.color }}>{stat.value}</p>
+          {stat.subtitle && <p className="mt-0.5 text-[10px] text-gray-400">{stat.subtitle}</p>}
         </div>
-      </div>
+      ))}
     </div>
   )
 }
@@ -2403,8 +2214,8 @@ export default function CreditContractDetail({
         {/* Statistiques */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
-          <ContractStatsCarousel 
-            contract={contract} 
+          <ContractStatsGrid
+            contract={contract}
             penalties={penalties} 
             realRemainingAmount={realRemainingAmount}
             totalPaidFromSchedule={totalPaidFromSchedule}

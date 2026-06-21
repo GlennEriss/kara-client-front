@@ -53,7 +53,6 @@ import {
   contractIdForRow,
   fetchForfaits,
   rollbackImport,
-  rollbackMembers,
   writeImport,
   writeMembers,
   type ImportReport,
@@ -262,18 +261,24 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     }
   }
 
+  /**
+   * Supprime tout ce que cet import a créé pour (fichier + feuille sélectionnés).
+   * Autonome : ne nécessite pas d'avoir analysé — il suffit du fichier et de la feuille.
+   */
   const handleRollback = async () => {
-    if (!analysis) return
+    if (!fileName || !selectedSheet) return
     setRollingBack(true)
     try {
-      const { deleted, usersDeleted, subscriptionsDeleted } = await rollbackImport({
-        sheetName: analysis.sheetName,
+      const { contractsDeleted, usersDeleted, subscriptionsDeleted } = await rollbackImport({
+        sheetName: selectedSheet,
         sourceFile: fileName,
       })
       setReport(null)
-      setError(deleted > 0 ? null : 'Aucun contrat migré trouvé pour cette feuille/fichier.')
+      setMembersReport(null)
+      const total = contractsDeleted + usersDeleted + subscriptionsDeleted
+      setError(total > 0 ? null : 'Aucun élément migré trouvé pour ce fichier/feuille.')
       window.alert(
-        `${deleted} contrat(s) migré(s) supprimé(s), ${usersDeleted} membre(s) et ${subscriptionsDeleted} abonnement(s) d'adhésion supprimé(s).`,
+        `Suppression : ${contractsDeleted} contrat(s), ${usersDeleted} membre(s), ${subscriptionsDeleted} adhésion(s).`,
       )
     } catch (err) {
       console.error(err)
@@ -306,24 +311,6 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
       setError("Erreur pendant l'import des membres.")
     } finally {
       setImporting(false)
-    }
-  }
-
-  const handleRollbackMembers = async () => {
-    if (!membersAnalysis) return
-    setRollingBack(true)
-    try {
-      const { deleted } = await rollbackMembers({
-        sheetName: membersAnalysis.sheetName,
-        sourceFile: fileName,
-      })
-      setMembersReport(null)
-      window.alert(`${deleted} membre(s) migré(s) supprimé(s).`)
-    } catch (err) {
-      console.error(err)
-      setError("Erreur pendant l'annulation de l'import des membres.")
-    } finally {
-      setRollingBack(false)
     }
   }
 
@@ -404,6 +391,18 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
             >
               {loading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-1 h-4 w-4" />}
               Analyser
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmAction('rollback')}
+              disabled={!selectedSheet || !fileName || importing || rollingBack}
+              className="h-9 border-red-300 text-red-700 hover:bg-red-50"
+              title="Supprime tout ce que l'import de cette feuille a créé"
+            >
+              {rollingBack ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-1 h-4 w-4" />}
+              Supprimer cet import
             </Button>
           </div>
 
@@ -962,21 +961,12 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           ) : (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Annuler l&apos;import de cette feuille ?</AlertDialogTitle>
+                <AlertDialogTitle>Supprimer cet import ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {membersAnalysis ? (
-                    <>
-                      Tous les <strong>membres</strong> créés depuis « {fileName} » / «{' '}
-                      {membersAnalysis.sheetName} » seront <strong>définitivement supprimés</strong>. Cette
-                      action est irréversible.
-                    </>
-                  ) : (
-                    <>
-                      Tous les contrats migrés depuis « {fileName} » / « {analysis?.sheetName} » (et leurs
-                      versements, aides et retraits) seront <strong>définitivement supprimés</strong>. Cette
-                      action est irréversible.
-                    </>
-                  )}
+                  Tout ce qui a été créé par l&apos;import de « {selectedSheet || analysis?.sheetName || membersAnalysis?.sheetName} »
+                  depuis le fichier « {fileName} » sera <strong>définitivement supprimé</strong> :
+                  contrats (et versements / aides / retraits), membres et adhésions migrés correspondants.
+                  Cette action est irréversible.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -985,8 +975,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                   className="bg-red-600 hover:bg-red-700"
                   onClick={() => {
                     setConfirmAction(null)
-                    if (membersAnalysis) void handleRollbackMembers()
-                    else void handleRollback()
+                    void handleRollback()
                   }}
                 >
                   Supprimer définitivement

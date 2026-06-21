@@ -265,7 +265,6 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
 
   const category = str(cell(row, 10)).toUpperCase()
   const amountPerMonth = num(cell(row, 11)) || CATEGORY_AMOUNT[category] || 0
-  const durationMonths = num(cell(row, 12))
   const startDate = dateStr(cell(row, 7))
 
   const payments: ImportPayment[] = []
@@ -314,10 +313,17 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
   const paidCount = payments.filter((p) => p.status === 'PAID').length
   const dueCount = payments.filter((p) => p.status === 'DUE').length
 
+  // Durée RÉELLE de l'échéancier = nb de mois planifiés (payés + impayés).
+  // ⚠️ Ne PAS utiliser la colonne PERIODE/MOIS (M) : elle ne correspond pas au
+  // nombre de mois (ex. M=13 alors que N°VERSEMENT + MOIS/IMPAYE = 12).
+  // L'affichage des contrats actifs rend `subscriptionCIDuration` mois.
+  const summaryMonths = num(cell(row, 13)) + num(cell(row, 14)) // N° VERSEMENT + MOIS/IMPAYE
+  const durationMonths = payments.length || summaryMonths || 12
+
   const issues: string[] = []
   if (!CATEGORY_AMOUNT[category]) issues.push(`Catégorie inconnue ("${category || '∅'}")`)
   if (amountPerMonth <= 0) issues.push('Montant mensuel manquant')
-  if (durationMonths <= 0) issues.push('Durée (PERIODE/MOIS) manquante')
+  if (payments.length === 0) issues.push('Aucune échéance détectée')
   if (!str(cell(row, 3)) && !str(cell(row, 4))) issues.push('Nom/prénom manquant')
 
   const contacts = contactsOf(cell(row, 5), cell(row, 6))
