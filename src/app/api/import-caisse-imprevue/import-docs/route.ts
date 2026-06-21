@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server'
 const SERVER_TIMESTAMP_TOKEN = '__karaServerTimestamp'
 const DATE_TOKEN = '__karaDate'
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
+const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
+const ALLOWED_COLLECTIONS = new Set([CONTRACTS, CAISSE_CONTRACTS])
 
 type ImportDoc = {
   path: string[]
@@ -43,7 +45,7 @@ function validateDoc(doc: ImportDoc): string | null {
   if (!Array.isArray(doc.path) || doc.path.length < 2 || doc.path.length % 2 !== 0) {
     return 'Chemin document invalide'
   }
-  if (doc.path[0] !== CONTRACTS) return 'Collection import non autorisee'
+  if (!ALLOWED_COLLECTIONS.has(doc.path[0])) return 'Collection import non autorisee'
   if (doc.path.some((part) => typeof part !== 'string' || !part.trim() || part.includes('/'))) {
     return 'Segment de chemin invalide'
   }

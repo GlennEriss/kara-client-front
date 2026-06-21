@@ -36,6 +36,7 @@ import {
   MapPin,
   Settings,
   Shield,
+  Trash2,
   UserCheck,
   UserPlus,
   Users,
@@ -286,6 +287,11 @@ const systemMenuItems: any[] = [
     url: "/import-caisse-imprevue",
     icon: FileSpreadsheet,
   },
+  {
+    title: "Import Caisse Spéciale",
+    url: "/import-caisse-speciale",
+    icon: FileSpreadsheet,
+  },
   /* {
         title: "Paramètres",
         url: routes.admin.settings,
@@ -300,6 +306,12 @@ export function AppSidebar() {
   const { logout, isLoading } = useLogout();
   const { user } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
+
+  // La réinitialisation totale n'est visible que pour le superAdmin.
+  const isSuperAdmin = (user?.email ?? "").toLowerCase() === "phil@gmail.com";
+  const systemItems = isSuperAdmin
+    ? [...systemMenuItems, { title: "Réinitialisation", url: "/reinitialisation", icon: Trash2 }]
+    : systemMenuItems;
 
   // Ferme le tiroir offcanvas après une navigation sur mobile.
   const closeMobile = () => {
@@ -578,14 +590,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {systemMenuItems.length > 0 && (
+        {systemItems.length > 0 && (
           <SidebarGroup className="px-0">
             <SidebarGroupLabel className="px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-white/40">
               Système
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
-                {systemMenuItems.map((item) => {
+                {systemItems.map((item) => {
                   const isActive = isActiveRoute(item.url);
                   return (
                     <SidebarMenuItem key={item.title}>

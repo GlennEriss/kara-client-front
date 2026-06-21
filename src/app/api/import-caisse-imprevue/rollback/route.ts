@@ -10,6 +10,7 @@ type Payload = {
 }
 
 const CONTRACTS = 'contractsCI'
+const CAISSE_CONTRACTS = 'caisseContracts'
 const USERS = 'users'
 const SUBSCRIPTIONS = 'subscriptions'
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
     let usersDeleted = 0
     let subscriptionsDeleted = 0
 
-    // 1) Contrats + sous-collections
+    // 1) Contrats Caisse Imprévue + sous-collections
     const contractsSnap = await adminFirestore
       .collection(CONTRACTS)
       .where('migrationSource', '==', sourceFile)
@@ -51,6 +52,19 @@ export async function POST(req: NextRequest) {
         const subSnap = await contractDoc.ref.collection(sub).get()
         for (const d of subSnap.docs) await d.ref.delete()
       }
+      await contractDoc.ref.delete()
+      contractsDeleted++
+    }
+
+    // 1bis) Contrats Caisse Spéciale + paiements
+    const csSnap = await adminFirestore
+      .collection(CAISSE_CONTRACTS)
+      .where('migrationSource', '==', sourceFile)
+      .get()
+    for (const contractDoc of csSnap.docs) {
+      if ((contractDoc.data() as { migrationSheet?: string }).migrationSheet !== sheetName) continue
+      const paySnap = await contractDoc.ref.collection('payments').get()
+      for (const d of paySnap.docs) await d.ref.delete()
       await contractDoc.ref.delete()
       contractsDeleted++
     }
