@@ -1,12 +1,13 @@
 /**
  * Analyseur d'import Excel — Caisse Imprévue.
  *
- * Lit une feuille du classeur "GESTION MEMBRES KARA" (sous forme de tableau de
- * tableaux) et produit, en UNE seule passe :
- *  - un RÉSUMÉ (pour l'aperçu) ;
- *  - le DÉTAIL prêt à écrire (versements, supports, retrait, contact urgence).
+ * Lit une feuille du classeur "GESTION MEMBRES KARA" (tableau de tableaux) et
+ * produit, en UNE seule passe :
+ *  - un RÉSUMÉ (aperçu) ;
+ *  - le DÉTAIL prêt à écrire (versements, supports, retrait, contact urgence) ;
+ *  - un bloc `entraide` (colonnes sans champ modèle) + la ligne BRUTE intégrale.
  *
- * Le mapping est positionnel (par index de colonne) car les en-têtes Excel sont
+ * Mapping positionnel (par index de colonne) car les en-têtes Excel sont
  * dupliqués ("MONTANT", "AGENT", "REMARQUE"...).
  *
  * Feuilles connues :
@@ -14,7 +15,8 @@
  *  - "ADHESION VOLET ENTRAIDE" -> contrats CI CLÔTURÉS (INACTIF uniquement)
  */
 
-export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'UNKNOWN'
+export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'MEMBERS' | 'UNKNOWN'
+export type MembershipTypeValue = 'adherant' | 'bienfaiteur' | 'sympathisant'
 export type MappedContractStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED'
 export type ImportPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
 
@@ -23,6 +25,9 @@ export interface ImportVersement {
   time: string // HH:mm
   amount: number
   mode: ImportPaymentMode
+  agentName?: string
+  note?: string
+  monthLabel?: string
 }
 
 export interface ImportPayment {
@@ -37,6 +42,10 @@ export interface ImportSupport {
   date: string
   time: string
   mode: ImportPaymentMode
+  closureDate?: string
+  closureTime?: string
+  closureAgent?: string
+  note?: string
 }
 
 export interface ImportEarlyRefund {
@@ -49,6 +58,24 @@ export interface ImportEmergencyContact {
   firstName: string
   phone1: string
   relationship: string
+}
+
+/** Colonnes sans champ direct dans le modèle CI — préservées telles quelles. */
+export interface EntraideMeta {
+  code?: string
+  contractEndDate?: string
+  receptionDate?: string
+  contractSigned?: string
+  yearRegistered?: string
+  closureDocs?: string
+  guarantorMatricule?: string
+  otherRemarks?: string
+  summary?: {
+    versementsCount?: number
+    monthsUnpaid?: number
+    imprevusCount?: number
+    montantTotal?: number
+  }
 }
 
 export interface AnalyzedRow {
@@ -74,6 +101,9 @@ export interface AnalyzedRow {
   supportsDetail: ImportSupport[]
   earlyRefundDetail: ImportEarlyRefund | null
   emergency: ImportEmergencyContact
+  entraide: EntraideMeta
+  /** Ligne brute intégrale (clé = lettre de colonne) — zéro perte. */
+  raw: Record<string, string>
 }
 
 export interface ImportAnalysis {
@@ -97,6 +127,7 @@ export interface ImportAnalysis {
 
 const SHEET_ACTIVE = 'GESTION ENTRAIDE ACTIF'
 const SHEET_CLOSED = 'ADHESION VOLET ENTRAIDE'
+const SHEET_MEMBERS = 'ADHESION MEMBRES'
 
 export const CATEGORY_AMOUNT: Record<string, number> = {
   A: 10000,
@@ -121,6 +152,12 @@ function isPresent(v: unknown): boolean {
 function str(v: unknown): string {
   if (v === null || v === undefined) return ''
   return String(v).replace(/\s+/g, ' ').trim()
+}
+
+/** Variante qui renvoie undefined si vide (pratique pour les champs optionnels). */
+function strOpt(v: unknown): string | undefined {
+  const s = str(v)
+  return s === '' ? undefined : s
 }
 
 function num(v: unknown): number {
@@ -165,11 +202,38 @@ function parseHeure(v: unknown): string {
   return `${hh}:${mm}`
 }
 
+/** Index 0-based -> lettre de colonne Excel (0 -> A, 26 -> AA). */
+function colLetter(idx: number): string {
+  let n = idx + 1
+  let s = ''
+  while (n > 0) {
+    const m = (n - 1) % 26
+    s = String.fromCharCode(65 + m) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
+
 export function detectSheetType(sheetName: string): ImportSheetType {
   const n = sheetName.trim().toUpperCase()
   if (n === SHEET_ACTIVE) return 'CI_ACTIVE'
   if (n === SHEET_CLOSED) return 'CI_CLOSED'
+  if (n === SHEET_MEMBERS) return 'MEMBERS'
   return 'UNKNOWN'
+}
+
+const MEMBERSHIP_TYPE_MAP: Record<string, { type: MembershipTypeValue; role: string }> = {
+  ADHERENT: { type: 'adherant', role: 'Adherant' },
+  ADHERANT: { type: 'adherant', role: 'Adherant' },
+  'ADHÉRENT': { type: 'adherant', role: 'Adherant' },
+  BIENFAITEUR: { type: 'bienfaiteur', role: 'Bienfaiteur' },
+  SYMPATHISANT: { type: 'sympathisant', role: 'Sympathisant' },
+}
+
+function mapMembership(raw: unknown): { type: MembershipTypeValue; role: string; label: string } {
+  const k = str(raw).toUpperCase()
+  const m = MEMBERSHIP_TYPE_MAP[k] ?? { type: 'adherant' as MembershipTypeValue, role: 'Adherant' }
+  return { ...m, label: str(raw) || 'Adhérent' }
 }
 
 function findHeaderRowIndex(aoa: unknown[][]): number {
@@ -178,6 +242,16 @@ function findHeaderRowIndex(aoa: unknown[][]): number {
     if (row.some((c) => str(c).toUpperCase() === 'MATRICULE')) return i
   }
   return 2
+}
+
+function buildRaw(row: unknown[]): Record<string, string> {
+  const raw: Record<string, string> = {}
+  for (let i = 0; i < row.length; i++) {
+    const v = row[i]
+    if (!isPresent(v)) continue
+    raw[colLetter(i)] = v instanceof Date ? dateStr(v) || String(v) : str(v)
+  }
+  return raw
 }
 
 // ----- GESTION ENTRAIDE ACTIF -----
@@ -212,6 +286,8 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
             time: parseHeure(cell(row, start + 3)),
             amount: montant,
             mode: mapMode(cell(row, start + 4)),
+            agentName: strOpt(cell(row, start + 5)),
+            note: strOpt(cell(row, start + 6)),
           }
         : null,
     })
@@ -227,6 +303,10 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
         date: dateStr(dateImp) || startDate || '',
         time: parseHeure(cell(row, start + 1)),
         mode: mapMode(cell(row, start + 3)),
+        closureDate: dateStr(cell(row, start + 4)) || undefined,
+        closureTime: isPresent(cell(row, start + 5)) ? parseHeure(cell(row, start + 5)) : undefined,
+        closureAgent: strOpt(cell(row, start + 6)),
+        note: strOpt(cell(row, start + 7)),
       })
     }
   })
@@ -241,6 +321,18 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
   if (!str(cell(row, 3)) && !str(cell(row, 4))) issues.push('Nom/prénom manquant')
 
   const contacts = contactsOf(cell(row, 5), cell(row, 6))
+
+  const entraide: EntraideMeta = {
+    code: strOpt(cell(row, 2)),
+    contractEndDate: dateStr(cell(row, 8)) || undefined,
+    receptionDate: dateStr(cell(row, 9)) || undefined,
+    summary: {
+      versementsCount: num(cell(row, 13)),
+      monthsUnpaid: num(cell(row, 14)),
+      imprevusCount: num(cell(row, 15)),
+      montantTotal: num(cell(row, 16)),
+    },
+  }
 
   return {
     rowNumber,
@@ -264,6 +356,8 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
     supportsDetail,
     earlyRefundDetail: null,
     emergency: { lastName: 'INCONNU', firstName: '', phone1: contacts[0] ?? '', relationship: 'INCONNU' },
+    entraide,
+    raw: {},
   }
 }
 
@@ -283,7 +377,7 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
   const montantCotisation = num(cell(row, 16))
   const dateRemise = dateStr(cell(row, 15))
 
-  // Cotisations MOIS 1..12 : montant aux index 25, 27, ... (25 + 2k)
+  // Cotisations MOIS 1..12 : libellé mois (24 + 2k) / montant (25 + 2k)
   const payments: ImportPayment[] = []
   for (let k = 0; k < 12; k++) {
     const montant = num(cell(row, 25 + 2 * k))
@@ -292,10 +386,19 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
         monthIndex: k,
         targetAmount: amountPerMonth,
         status: 'PAID',
-        versement: { date: startDate || '', time: '00:00', amount: montant, mode: 'cash' },
+        versement: {
+          date: startDate || '',
+          time: '00:00',
+          amount: montant,
+          mode: 'cash',
+          monthLabel: strOpt(cell(row, 24 + 2 * k)),
+        },
       })
     }
   }
+
+  // Durée réelle = DUREE PERIODE (O), sinon nb de cotisations, sinon 12.
+  const durationMonths = num(cell(row, 14)) || payments.length || 12
 
   const isEarly = observation.includes('RETRAIT ANTICIPE') || observation.includes('RETRAIT ANTICIPÉ')
   const status: MappedContractStatus = isEarly ? 'CANCELED' : 'FINISHED'
@@ -307,6 +410,16 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
 
   const contacts = contactsOf(cell(row, 5), cell(row, 6))
 
+  const entraide: EntraideMeta = {
+    code: strOpt(cell(row, 2)),
+    contractEndDate: dateStr(cell(row, 10)) || undefined,
+    contractSigned: strOpt(cell(row, 8)),
+    yearRegistered: strOpt(cell(row, 13)),
+    otherRemarks: strOpt(cell(row, 18)),
+    closureDocs: strOpt(cell(row, 19)),
+    guarantorMatricule: strOpt(cell(row, 20)),
+  }
+
   return {
     rowNumber,
     matricule,
@@ -315,7 +428,7 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
     contacts,
     category,
     amountPerMonth,
-    durationMonths: 12,
+    durationMonths,
     startDate,
     status,
     paidCount: payments.length,
@@ -334,6 +447,8 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
       phone1: contacts[0] ?? '',
       relationship: str(cell(row, 23)) || 'INCONNU', // X LIENS
     },
+    entraide,
+    raw: {},
   }
 }
 
@@ -371,7 +486,10 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
     totalDataRows++
     const analyzed =
       sheetType === 'CI_ACTIVE' ? analyzeActiveRow(r, rowNumber) : analyzeClosedRow(r, rowNumber)
-    if (analyzed) rows.push(analyzed)
+    if (analyzed) {
+      analyzed.raw = buildRaw(r)
+      rows.push(analyzed)
+    }
   }
 
   const totals = {
@@ -387,17 +505,20 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
     sheetType === 'CI_ACTIVE'
       ? [
           'Chaque ligne → 1 contrat Caisse Imprévue avec statut ACTIVE (collection contractsCI).',
-          'Échéances payées → versements dans la sous-collection payments ; échéances non payées → statut DUE.',
-          'Imprévus versés (ARGENT REMIS) → entrées dans la sous-collection supports.',
-          'Forfait déduit de la catégorie A–E ; durée = colonne PERIODE/MOIS (variable).',
-          "Champs obligatoires absents (preuves, pièce du contact d'urgence) → placeholders + marqueur migration.",
+          'Échéances payées → versements (date, heure, montant, moyen, AGENT, REMARQUE) ; non payées → DUE.',
+          'Imprévus → supports (montant, date, moyen + clôture : date/heure/agent/remarque).',
+          'Forfait déduit de la catégorie A–E ; durée = PERIODE/MOIS.',
+          'Colonnes sans champ modèle (code entraide, fin/réception, récap N/O/P/Q) → bloc `entraide`.',
+          "Champs obligatoires absents (preuves, pièce du contact d'urgence) → placeholders.",
+          'Ligne brute intégrale conservée (migration.raw) — aucune perte.',
         ]
       : [
           'Seules les lignes STATUT = INACTIF sont importées (contrats clôturés).',
-          'OBSERVATION contient "RETRAIT ANTICIPE" → statut CANCELED + 1 retrait anticipé (earlyRefunds).',
-          'Sinon → statut FINISHED.',
-          'Cotisations MOIS 1..12 → versements payés dans la sous-collection payments.',
-          'Champs obligatoires absents → placeholders + marqueur migration.',
+          'OBSERVATION contient "RETRAIT ANTICIPE" → CANCELED + retrait anticipé ; sinon → FINISHED.',
+          'Durée = DUREE PERIODE (O) ; cotisations MOIS 1..12 → versements (avec libellé du mois).',
+          'Colonnes sans champ modèle (code, contrat signé, fin, année, docs clôture, garant) → bloc `entraide`.',
+          'Champs obligatoires absents → placeholders.',
+          'Ligne brute intégrale conservée (migration.raw) — aucune perte.',
         ]
 
   return {
@@ -410,4 +531,150 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
     totals,
     howItWillBeImported,
   }
+}
+
+// ----- Feuille MEMBRES (enrichissement des comptes membres créés) -----
+
+const MEMBER_PLACEHOLDERS = new Set(['NC', 'VIDE', 'N/A', 'NA', '-', 'VIDE@GMAIL.COM'])
+
+function mval(v: unknown): string | undefined {
+  const s = str(v)
+  if (!s) return undefined
+  if (MEMBER_PLACEHOLDERS.has(s.toUpperCase())) return undefined
+  return s
+}
+
+export interface ImportMemberData {
+  matricule: string
+  lastName: string
+  firstName: string
+  contacts: string[]
+  email?: string
+  gender?: string
+  birthDate?: string
+  birthPlace?: string
+  nationality?: string
+  profession?: string
+  companyName?: string
+  identityDocument?: string
+  identityDocumentNumber?: string
+  partnerName?: string
+  partnerPhone?: string
+  address?: {
+    province: string
+    city: string
+    district: string
+    arrondissement: string
+    additionalInfo?: string
+  }
+}
+
+/** Parse la feuille MEMBRES → Map matricule -> données membre (pour créer des comptes). */
+export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberData> {
+  const map = new Map<string, ImportMemberData>()
+  const headerIdx = findHeaderRowIndex(aoa)
+  for (const r of aoa.slice(headerIdx + 1)) {
+    const matricule = str(cell(r, 1))
+    if (!matricule) continue
+    const contacts = [mval(cell(r, 4)), mval(cell(r, 5))].filter((x): x is string => !!x)
+    const province = mval(cell(r, 15))
+    const city = mval(cell(r, 17))
+    const district = mval(cell(r, 19))
+    const arrondissement = mval(cell(r, 18))
+    const additionalInfo = mval(cell(r, 16))
+    const address =
+      province || city || district || arrondissement
+        ? {
+            province: province ?? '',
+            city: city ?? '',
+            district: district ?? '',
+            arrondissement: arrondissement ?? '',
+            additionalInfo,
+          }
+        : undefined
+    map.set(matricule.trim(), {
+      matricule: matricule.trim(),
+      lastName: str(cell(r, 2)),
+      firstName: str(cell(r, 3)),
+      contacts,
+      email: mval(cell(r, 6)),
+      gender: mval(cell(r, 7)),
+      birthDate: dateStr(cell(r, 8)) || undefined,
+      birthPlace: mval(cell(r, 10)),
+      nationality: mval(cell(r, 14)),
+      profession: mval(cell(r, 21)),
+      companyName: mval(cell(r, 22)),
+      identityDocument: mval(cell(r, 12)),
+      identityDocumentNumber: mval(cell(r, 13)),
+      partnerName: mval(cell(r, 25)),
+      partnerPhone: mval(cell(r, 26)),
+      address,
+    })
+  }
+  return map
+}
+
+// ----- Import de MEMBRES (feuille ADHESION MEMBRES) -----
+
+export interface AnalyzedMember {
+  rowNumber: number
+  matricule: string
+  lastName: string
+  firstName: string
+  contacts: string[]
+  membershipType: MembershipTypeValue
+  role: string
+  membershipLabel: string
+  issues: string[]
+}
+
+export interface MembersAnalysis {
+  sheetName: string
+  totalRows: number
+  uniqueMembers: number
+  members: AnalyzedMember[]
+  byType: Record<string, number>
+}
+
+/**
+ * Analyse la feuille ADHESION MEMBRES → liste de membres dédoublonnée par
+ * matricule (plusieurs lignes = plusieurs adhésions du même membre).
+ * Colonne G `T.MEMBRES` → type de compte.
+ */
+export function analyzeMembersSheet(sheetName: string, aoa: unknown[][]): MembersAnalysis {
+  const headerIdx = findHeaderRowIndex(aoa)
+  const seen = new Set<string>()
+  const members: AnalyzedMember[] = []
+  let totalRows = 0
+  let rowNumber = headerIdx + 1
+  for (const r of aoa.slice(headerIdx + 1)) {
+    rowNumber++
+    const matricule = str(cell(r, 1))
+    if (!matricule) continue
+    totalRows++
+    if (seen.has(matricule.trim())) continue // dédoublonnage par matricule
+    seen.add(matricule.trim())
+
+    const mt = mapMembership(cell(r, 6))
+    const contacts = [mval(cell(r, 4)), mval(cell(r, 5))].filter((x): x is string => !!x)
+    const issues: string[] = []
+    if (!str(cell(r, 2)) && !str(cell(r, 3))) issues.push('Nom/prénom manquant')
+
+    members.push({
+      rowNumber,
+      matricule,
+      lastName: str(cell(r, 2)),
+      firstName: str(cell(r, 3)),
+      contacts,
+      membershipType: mt.type,
+      role: mt.role,
+      membershipLabel: mt.label,
+      issues,
+    })
+  }
+
+  const byType: Record<string, number> = {}
+  for (const m of members) byType[m.membershipType] = (byType[m.membershipType] ?? 0) + 1
+
+  return { sheetName, totalRows, uniqueMembers: members.length, members, byType }
 }

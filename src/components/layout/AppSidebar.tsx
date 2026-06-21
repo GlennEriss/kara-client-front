@@ -277,7 +277,12 @@ const systemMenuItems: any[] = [
     icon: HeartHandshake,
   },
   {
-    title: "Import Excel",
+    title: "Import membres",
+    url: "/import-membres",
+    icon: UserPlus,
+  },
+  {
+    title: "Import Caisse Imprévue",
     url: "/import-caisse-imprevue",
     icon: FileSpreadsheet,
   },

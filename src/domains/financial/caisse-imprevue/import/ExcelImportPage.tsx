@@ -11,6 +11,7 @@ import {
   Loader2,
   RotateCcw,
   Upload,
+  UserPlus,
   Users as UsersIcon,
 } from 'lucide-react'
 
@@ -38,20 +39,68 @@ import { getUsersByMatricules } from '@/db/user.db'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import type { SubscriptionCI, User } from '@/types/types'
 import {
+  analyzeMembersSheet,
   analyzeSheet,
+  detectSheetType,
+  parseMembersSheet,
+  type AnalyzedMember,
   type AnalyzedRow,
   type ImportAnalysis,
+  type ImportMemberData,
+  type MembersAnalysis,
 } from './excelImportAnalyzer'
-import { fetchForfaits, rollbackImport, writeImport, type ImportReport } from './excelImportWriter'
+import {
+  contractIdForRow,
+  fetchForfaits,
+  rollbackImport,
+  rollbackMembers,
+  writeImport,
+  writeMembers,
+  type ImportReport,
+  type WriteMembersReport,
+} from './excelImportWriter'
 
 interface RowView extends AnalyzedRow {
   memberFound: boolean
+}
+
+interface MemberView extends AnalyzedMember {
+  exists: boolean
+}
+
+const MEMBERSHIP_LABEL: Record<string, string> = {
+  adherant: 'Adhérent',
+  bienfaiteur: 'Bienfaiteur',
+  sympathisant: 'Sympathisant',
 }
 
 const STATUS_LABEL: Record<string, string> = {
   ACTIVE: 'Actif',
   FINISHED: 'Terminé',
   CANCELED: 'Annulé (retrait)',
+}
+
+const fmtAmount = (n: number) => n.toLocaleString('fr-FR')
+
+function findMembersSheetName(sheetNames: string[]): string | undefined {
+  return sheetNames.find((name) => name.trim().toUpperCase() === 'MEMBRES')
+}
+
+/** "2026-01-28" -> "28/01/2026" */
+function fmtDate(s: string | null | undefined): string {
+  if (!s) return '—'
+  const [y, m, d] = s.split('-')
+  return y && m && d ? `${d}/${m}/${y}` : s
+}
+
+/** Date de fin : FIN du contrat (Excel) si dispo, sinon début + durée. */
+function contractEndDate(r: AnalyzedRow): string {
+  if (r.entraide.contractEndDate) return fmtDate(r.entraide.contractEndDate)
+  if (!r.startDate) return '—'
+  const d = new Date(r.startDate)
+  if (Number.isNaN(d.getTime())) return '—'
+  d.setMonth(d.getMonth() + (r.durationMonths || 0))
+  return fmtDate(d.toISOString().slice(0, 10))
 }
 
 function StatCard({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
@@ -64,7 +113,9 @@ function StatCard({ label, value, hint }: { label: string; value: number | strin
   )
 }
 
-export function ExcelImportPage() {
+type ImportScope = 'members' | 'caisse-imprevue'
+
+export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const { user } = useAuth()
   const [fileName, setFileName] = useState<string>('')
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
@@ -72,7 +123,11 @@ export function ExcelImportPage() {
   const [selectedSheet, setSelectedSheet] = useState<string>('')
   const [analysis, setAnalysis] = useState<ImportAnalysis | null>(null)
   const [rowViews, setRowViews] = useState<RowView[]>([])
+  const [membersAnalysis, setMembersAnalysis] = useState<MembersAnalysis | null>(null)
+  const [memberViews, setMemberViews] = useState<MemberView[]>([])
+  const [membersReport, setMembersReport] = useState<WriteMembersReport | null>(null)
   const [membersMap, setMembersMap] = useState<Map<string, User>>(new Map())
+  const [memberData, setMemberData] = useState<Map<string, ImportMemberData>>(new Map())
   const [forfaits, setForfaits] = useState<SubscriptionCI[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -86,7 +141,11 @@ export function ExcelImportPage() {
   const resetAnalysis = () => {
     setAnalysis(null)
     setRowViews([])
+    setMembersAnalysis(null)
+    setMemberViews([])
+    setMembersReport(null)
     setMembersMap(new Map())
+    setMemberData(new Map())
     setReport(null)
     setProgress(null)
     setError(null)
@@ -119,9 +178,36 @@ export function ExcelImportPage() {
         raw: true,
         blankrows: false,
       })
-      const result = analyzeSheet(selectedSheet, aoa)
 
-      // Résolution des membres par matricule (Firestore) + forfaits A–E
+      // Enrichissement depuis la feuille MEMBRES, utilisé pour créer les comptes liés aux contrats.
+      const membersSheet = findMembersSheetName(workbook.SheetNames)
+      const enrich = membersSheet
+        ? parseMembersSheet(
+            XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[membersSheet], {
+              header: 1,
+              raw: true,
+              blankrows: false,
+            }),
+          )
+        : new Map<string, ImportMemberData>()
+      setMemberData(enrich)
+
+      // ----- Feuille MEMBRES (ADHESION MEMBRES) : import de membres -----
+      if (detectSheetType(selectedSheet) === 'MEMBERS') {
+        const res = analyzeMembersSheet(selectedSheet, aoa)
+        let mviews: MemberView[] = res.members.map((m) => ({ ...m, exists: false }))
+        if (res.members.length > 0) {
+          const existing = await getUsersByMatricules(res.members.map((m) => m.matricule))
+          setMembersMap(existing)
+          mviews = res.members.map((m) => ({ ...m, exists: existing.has(m.matricule.trim()) }))
+        }
+        setMembersAnalysis(res)
+        setMemberViews(mviews)
+        return
+      }
+
+      // ----- Feuilles contrats (CI_ACTIVE / CI_CLOSED / UNKNOWN) -----
+      const result = analyzeSheet(selectedSheet, aoa)
       let views: RowView[] = result.rows.map((r) => ({ ...r, memberFound: false }))
       let map = new Map<string, User>()
       if (result.rows.length > 0) {
@@ -149,20 +235,21 @@ export function ExcelImportPage() {
 
   const handleImport = async () => {
     if (!analysis || !user?.uid) return
-    const importable = rowViews.filter((r) => r.memberFound)
-    if (importable.length === 0) return
+    // Toutes les lignes : les membres absents seront créés à la volée.
+    if (rowViews.length === 0) return
     setImporting(true)
     setReport(null)
-    setProgress({ done: 0, total: importable.length })
+    setProgress({ done: 0, total: rowViews.length })
     try {
       const res = await writeImport(
-        importable,
+        rowViews,
         {
           adminId: user.uid,
           sheetName: analysis.sheetName,
           sourceFile: fileName,
           members: membersMap,
           forfaits,
+          memberData,
         },
         (done, total) => setProgress({ done, total }),
       )
@@ -179,16 +266,62 @@ export function ExcelImportPage() {
     if (!analysis) return
     setRollingBack(true)
     try {
-      const { deleted } = await rollbackImport({
+      const { deleted, usersDeleted, subscriptionsDeleted } = await rollbackImport({
         sheetName: analysis.sheetName,
         sourceFile: fileName,
       })
       setReport(null)
       setError(deleted > 0 ? null : 'Aucun contrat migré trouvé pour cette feuille/fichier.')
-      window.alert(`${deleted} contrat(s) migré(s) supprimé(s).`)
+      window.alert(
+        `${deleted} contrat(s) migré(s) supprimé(s), ${usersDeleted} membre(s) et ${subscriptionsDeleted} abonnement(s) d'adhésion supprimé(s).`,
+      )
     } catch (err) {
       console.error(err)
       setError("Erreur pendant l'annulation de l'import.")
+    } finally {
+      setRollingBack(false)
+    }
+  }
+
+  const handleImportMembers = async () => {
+    if (!membersAnalysis || !user?.uid || memberViews.length === 0) return
+    setImporting(true)
+    setMembersReport(null)
+    setProgress({ done: 0, total: memberViews.length })
+    try {
+      const res = await writeMembers(
+        memberViews,
+        {
+          adminId: user.uid,
+          sheetName: membersAnalysis.sheetName,
+          sourceFile: fileName,
+          existing: membersMap,
+          enrich: memberData,
+        },
+        (done, total) => setProgress({ done, total }),
+      )
+      setMembersReport(res)
+    } catch (err) {
+      console.error(err)
+      setError("Erreur pendant l'import des membres.")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleRollbackMembers = async () => {
+    if (!membersAnalysis) return
+    setRollingBack(true)
+    try {
+      const { deleted } = await rollbackMembers({
+        sheetName: membersAnalysis.sheetName,
+        sourceFile: fileName,
+      })
+      setMembersReport(null)
+      window.alert(`${deleted} membre(s) migré(s) supprimé(s).`)
+    } catch (err) {
+      console.error(err)
+      setError("Erreur pendant l'annulation de l'import des membres.")
     } finally {
       setRollingBack(false)
     }
@@ -198,6 +331,28 @@ export function ExcelImportPage() {
   const membersMissing = rowViews.filter((r) => !r.memberFound)
   const rowsWithIssues = rowViews.filter((r) => r.issues.length > 0)
   const isUnknown = analysis?.sheetType === 'UNKNOWN'
+
+  // Détection des doublons : plusieurs lignes → même ID de contrat (= fusion).
+  const idCount = new Map<string, number>()
+  rowViews.forEach((r) => {
+    const id = contractIdForRow(r)
+    idCount.set(id, (idCount.get(id) ?? 0) + 1)
+  })
+  const distinctContracts = idCount.size
+  const duplicateRows = rowViews.length - distinctContracts
+  // Membres distincts à créer (un membre peut avoir plusieurs contrats).
+  const distinctNewMembers = new Set(membersMissing.map((r) => r.matricule.trim())).size
+
+  // Import de membres (feuille ADHESION MEMBRES)
+  const membersToCreate = memberViews.filter((m) => !m.exists)
+  const membersExisting = memberViews.length - membersToCreate.length
+
+  // Feuilles proposées selon la section (membres / caisse imprévue / toutes).
+  const availableSheets = sheetNames.filter((name) => {
+    if (!scope) return true
+    const t = detectSheetType(name)
+    return scope === 'members' ? t === 'MEMBERS' : t === 'CI_ACTIVE' || t === 'CI_CLOSED'
+  })
 
   return (
     <div className="space-y-5">
@@ -226,13 +381,13 @@ export function ExcelImportPage() {
                   setSelectedSheet(v)
                   resetAnalysis()
                 }}
-                disabled={sheetNames.length === 0}
+                disabled={availableSheets.length === 0}
               >
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Choisir une feuille…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {sheetNames.map((name) => (
+                  {availableSheets.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>
@@ -260,6 +415,172 @@ export function ExcelImportPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ===================== IMPORT DE MEMBRES ===================== */}
+      {membersAnalysis && (
+        <>
+          <div className="flex items-start gap-3 rounded-xl border border-[#234D65]/15 bg-[#234D65]/5 p-4">
+            <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#234D65]" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-gray-900">
+                Feuille « {membersAnalysis.sheetName} »{' '}
+                <Badge variant="outline" className="ml-1 border-[#234D65]/20 bg-white text-[#234D65]">
+                  Import membres
+                </Badge>
+              </p>
+              <p className="mt-0.5 text-xs text-gray-600">
+                Cible : <span className="font-mono">users</span> · {membersAnalysis.totalRows} ligne(s) ·{' '}
+                {membersAnalysis.uniqueMembers} membre(s) unique(s)
+                {memberData.size > 0 && ' · identités enrichies via la feuille MEMBRES'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <StatCard label="Membres uniques" value={membersAnalysis.uniqueMembers} />
+            <StatCard label="À créer" value={membersToCreate.length} />
+            <StatCard label="Déjà présents" value={membersExisting} />
+            {Object.entries(membersAnalysis.byType).map(([t, n]) => (
+              <StatCard key={t} label={MEMBERSHIP_LABEL[t] ?? t} value={n} />
+            ))}
+          </div>
+
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-4 md:p-5">
+              <h3 className="mb-2 text-sm font-bold text-[#234D65]">Comment ça sera importé</h3>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-gray-600">
+                <li>Chaque membre unique (dédoublonné par matricule) → 1 compte dans <span className="font-mono">users</span> (id = matricule, sans compte Auth).</li>
+                <li>Type de compte déduit de la colonne <span className="font-mono">T.MEMBRES</span> (Adhérent / Bienfaiteur / Sympathisant).</li>
+                <li>Identité enrichie depuis la feuille MEMBRES si disponible (naissance, email, pièce, adresse, profession…).</li>
+                <li>Les membres déjà présents (même matricule) sont <strong>ignorés</strong> (non écrasés).</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full whitespace-nowrap text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400">
+                      <th className="px-3 py-3 font-semibold">Ligne</th>
+                      <th className="px-3 py-3 font-semibold">Matricule</th>
+                      <th className="px-3 py-3 font-semibold">Nom</th>
+                      <th className="px-3 py-3 font-semibold">Prénom</th>
+                      <th className="px-3 py-3 font-semibold">Contacts</th>
+                      <th className="px-3 py-3 font-semibold">Type de compte</th>
+                      <th className="px-3 py-3 font-semibold">Compte</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {memberViews.map((m) => (
+                      <tr key={m.matricule} className="border-b border-gray-50 last:border-0">
+                        <td className="px-3 py-2.5 text-gray-400">{m.rowNumber}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-gray-500">{m.matricule}</td>
+                        <td className="px-3 py-2.5 font-medium text-gray-800">{m.lastName || '—'}</td>
+                        <td className="px-3 py-2.5 text-gray-800">{m.firstName || '—'}</td>
+                        <td className="px-3 py-2.5 text-gray-600">{m.contacts.join(' / ') || '—'}</td>
+                        <td className="px-3 py-2.5">
+                          <Badge variant="secondary" className="text-[11px]">
+                            {MEMBERSHIP_LABEL[m.membershipType] ?? m.membershipLabel}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {m.exists ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                              <CheckCircle2 className="h-4 w-4" /> Existant
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-[#234D65]">
+                              <UserPlus className="h-4 w-4" /> À créer
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-[#234D65]/15 bg-[#234D65]/5 shadow-sm">
+            <CardContent className="space-y-3 p-4 md:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-gray-700">
+                  <span className="font-bold text-[#234D65]">{membersToCreate.length}</span> membre(s) seront créés
+                  {membersExisting > 0 && (
+                    <span className="text-gray-500"> · {membersExisting} déjà présent(s) (ignorés)</span>
+                  )}
+                  .
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Button
+                    type="button"
+                    onClick={() => setConfirmAction('import')}
+                    disabled={importing || rollingBack || membersToCreate.length === 0 || !user?.uid}
+                    className="h-9 bg-[#234D65] hover:bg-[#1A3D4F]"
+                  >
+                    {importing ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="mr-1 h-4 w-4" />
+                    )}
+                    Importer {membersToCreate.length} membre(s)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setConfirmAction('rollback')}
+                    disabled={importing || rollingBack}
+                    className="h-9 border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    {rollingBack ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="mr-1 h-4 w-4" />
+                    )}
+                    Annuler l'import de cette feuille
+                  </Button>
+                </div>
+              </div>
+
+              {progress && importing && (
+                <div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[#234D65]/10">
+                    <div
+                      className="h-2 rounded-full bg-[#234D65] transition-all"
+                      style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {progress.done} / {progress.total} membres traités…
+                  </p>
+                </div>
+              )}
+
+              {membersReport && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold">
+                    <CheckCircle2 className="h-4 w-4" /> Import terminé : {membersReport.created} membre(s) créé(s)
+                    {membersReport.skipped > 0 && (
+                      <span className="text-amber-700">· {membersReport.skipped} ignoré(s)</span>
+                    )}
+                  </p>
+                  {Object.keys(membersReport.byType).length > 0 && (
+                    <p className="mt-1 text-xs text-emerald-700">
+                      Par type :{' '}
+                      {Object.entries(membersReport.byType)
+                        .map(([t, n]) => `${MEMBERSHIP_LABEL[t] ?? t} ${n}`)
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {analysis && (
         <>
@@ -326,9 +647,13 @@ export function ExcelImportPage() {
                   <StatCard label="Retraits anticipés" value={analysis.totals.earlyRefunds} />
                 )}
                 <StatCard
-                  label="Membres trouvés"
+                  label="Membres existants"
                   value={`${membersFound}/${rowViews.length}`}
-                  hint={membersMissing.length > 0 ? `${membersMissing.length} introuvable(s)` : 'Tous résolus'}
+                  hint={
+                    membersMissing.length > 0
+                      ? `${membersMissing.length} compte(s) à créer`
+                      : 'Tous déjà présents'
+                  }
                 />
               </div>
 
@@ -355,7 +680,8 @@ export function ExcelImportPage() {
                       <div className="text-sm text-amber-900">
                         <p className="font-semibold">
                           <UsersIcon className="mr-1 inline h-4 w-4" />
-                          {membersMissing.length} membre(s) introuvable(s) par matricule :
+                          {membersMissing.length} membre(s) absent(s) → seront créés (compte adhérent
+                          {memberData.size > 0 ? ', enrichis depuis la feuille MEMBRES' : ', données de la ligne entraide'}) :
                         </p>
                         <p className="mt-1 font-mono text-xs text-amber-800">
                           {membersMissing.map((r) => r.matricule).join(', ')}
@@ -378,57 +704,102 @@ export function ExcelImportPage() {
                 </Card>
               )}
 
-              {/* Aperçu détaillé */}
+              {/* Aperçu détaillé — attributs du contrat Caisse Imprévue */}
               <Card className="border-0 shadow-sm">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full whitespace-nowrap text-sm">
                       <thead>
                         <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400">
-                          <th className="px-4 py-3 font-semibold">Ligne</th>
-                          <th className="px-4 py-3 font-semibold">Membre</th>
-                          <th className="px-4 py-3 font-semibold">Matricule</th>
-                          <th className="px-4 py-3 font-semibold">Cat. / Montant</th>
-                          <th className="px-4 py-3 font-semibold">Statut</th>
-                          <th className="px-4 py-3 font-semibold">Versements</th>
-                          <th className="px-4 py-3 font-semibold">Aides / Retrait</th>
-                          <th className="px-4 py-3 font-semibold">Membre ?</th>
+                          <th className="px-3 py-3 font-semibold">Ligne</th>
+                          <th className="px-3 py-3 font-semibold">Matricule contrat</th>
+                          <th className="px-3 py-3 font-semibold">Statut</th>
+                          <th className="px-3 py-3 font-semibold">Type</th>
+                          <th className="px-3 py-3 font-semibold">Nom</th>
+                          <th className="px-3 py-3 font-semibold">Prénom</th>
+                          <th className="px-3 py-3 font-semibold">Matricule membre</th>
+                          <th className="px-3 py-3 font-semibold">Forfait</th>
+                          <th className="px-3 py-3 text-right font-semibold">Mensualité</th>
+                          <th className="px-3 py-3 text-right font-semibold">Durée</th>
+                          <th className="px-3 py-3 font-semibold">Début</th>
+                          <th className="px-3 py-3 font-semibold">Date de fin</th>
+                          <th className="px-3 py-3 font-semibold">Contacts</th>
+                          <th className="px-3 py-3 font-semibold">Contact urgent</th>
+                          <th className="px-3 py-3 text-right font-semibold">Mois payés</th>
+                          <th className="px-3 py-3 text-right font-semibold">Versé</th>
+                          <th className="px-3 py-3 font-semibold">Aides / Retrait</th>
+                          <th className="px-3 py-3 font-semibold">Compte</th>
                         </tr>
                       </thead>
                       <tbody>
                         {rowViews.map((r) => (
                           <tr key={r.rowNumber} className="border-b border-gray-50 last:border-0">
-                            <td className="px-4 py-2.5 text-gray-400">{r.rowNumber}</td>
-                            <td className="px-4 py-2.5 font-medium text-gray-800">
-                              {r.lastName} {r.firstName}
+                            <td className="px-3 py-2.5 text-gray-400">{r.rowNumber}</td>
+                            <td className="px-3 py-2.5 font-mono text-[11px] text-gray-500">
+                              {contractIdForRow(r)}
+                              {(idCount.get(contractIdForRow(r)) ?? 0) > 1 && (
+                                <Badge
+                                  variant="outline"
+                                  className="ml-1 border-amber-300 bg-amber-50 text-[10px] text-amber-700"
+                                >
+                                  doublon
+                                </Badge>
+                              )}
                             </td>
-                            <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{r.matricule}</td>
-                            <td className="px-4 py-2.5 text-gray-700">
-                              {r.category || '—'} · {r.amountPerMonth.toLocaleString('fr-FR')}
-                            </td>
-                            <td className="px-4 py-2.5">
+                            <td className="px-3 py-2.5">
                               <Badge variant="secondary" className="text-[11px]">
                                 {STATUS_LABEL[r.status] ?? r.status}
                               </Badge>
                             </td>
-                            <td className="px-4 py-2.5 text-gray-700">
-                              {r.paidCount} payé{r.paidCount > 1 ? 's' : ''}
-                              {r.dueCount > 0 && <span className="text-gray-400"> · {r.dueCount} dû</span>}
+                            <td className="px-3 py-2.5 text-gray-600">Mensuel</td>
+                            <td className="px-3 py-2.5 font-medium text-gray-800">{r.lastName || '—'}</td>
+                            <td className="px-3 py-2.5 text-gray-800">{r.firstName || '—'}</td>
+                            <td className="px-3 py-2.5 font-mono text-xs text-gray-500">{r.matricule}</td>
+                            <td className="px-3 py-2.5 text-gray-700">{r.category || '—'}</td>
+                            <td className="px-3 py-2.5 text-right text-gray-700">
+                              {fmtAmount(r.amountPerMonth)}{' '}
+                              <span className="text-[10px] text-gray-400">FCFA</span>
                             </td>
-                            <td className="px-4 py-2.5 text-gray-700">
+                            <td className="px-3 py-2.5 text-right text-gray-700">{r.durationMonths} mois</td>
+                            <td className="px-3 py-2.5 text-gray-700">{fmtDate(r.startDate)}</td>
+                            <td className="px-3 py-2.5 text-gray-700">{contractEndDate(r)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{r.contacts.join(' / ') || '—'}</td>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              {r.emergency.lastName === 'INCONNU' && !r.emergency.firstName
+                                ? '—'
+                                : `${r.emergency.lastName} ${r.emergency.firstName}`.trim()}
+                              {r.emergency.relationship && r.emergency.relationship !== 'INCONNU' && (
+                                <span className="text-gray-400"> ({r.emergency.relationship})</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-gray-700">
+                              {r.paidCount}
+                              <span className="text-gray-400">/{r.durationMonths}</span>
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-gray-700">
+                              {fmtAmount(r.paidCount * r.amountPerMonth)}{' '}
+                              <span className="text-[10px] text-gray-400">FCFA</span>
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-700">
                               {r.supportsCount > 0 && `${r.supportsCount} aide(s)`}
                               {r.hasEarlyRefund && (
                                 <span className="text-amber-700">
-                                  Retrait {r.earlyRefundAmount.toLocaleString('fr-FR')}
+                                  Retrait {fmtAmount(r.earlyRefundAmount)}
                                 </span>
                               )}
-                              {r.supportsCount === 0 && !r.hasEarlyRefund && <span className="text-gray-300">—</span>}
+                              {r.supportsCount === 0 && !r.hasEarlyRefund && (
+                                <span className="text-gray-300">—</span>
+                              )}
                             </td>
-                            <td className="px-4 py-2.5">
+                            <td className="px-3 py-2.5">
                               {r.memberFound ? (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                                  <CheckCircle2 className="h-4 w-4" /> Existant
+                                </span>
                               ) : (
-                                <AlertCircle className="h-4 w-4 text-amber-500" />
+                                <span className="inline-flex items-center gap-1 text-xs text-[#234D65]">
+                                  <UserPlus className="h-4 w-4" /> À créer
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -444,9 +815,15 @@ export function ExcelImportPage() {
                 <CardContent className="space-y-3 p-4 md:p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-gray-700">
-                      <span className="font-bold text-[#234D65]">{membersFound}</span> contrat(s) seront créés
-                      {membersMissing.length > 0 && (
-                        <span className="text-gray-500"> · {membersMissing.length} ignoré(s) (membre introuvable)</span>
+                      <span className="font-bold text-[#234D65]">{distinctContracts}</span> contrat(s) seront créés
+                      {duplicateRows > 0 && (
+                        <span className="text-amber-700"> ({duplicateRows} doublon(s) fusionné(s))</span>
+                      )}
+                      {distinctNewMembers > 0 && (
+                        <span className="text-gray-500">
+                          {' '}
+                          · dont {distinctNewMembers} nouveau(x) membre(s) (compte adhérent)
+                        </span>
                       )}
                       . IDs déterministes — relancer ne crée pas de doublon.
                     </p>
@@ -454,7 +831,7 @@ export function ExcelImportPage() {
                       <Button
                         type="button"
                         onClick={() => setConfirmAction('import')}
-                        disabled={importing || rollingBack || membersFound === 0 || !user?.uid}
+                        disabled={importing || rollingBack || rowViews.length === 0 || !user?.uid}
                         className="h-9 bg-[#234D65] hover:bg-[#1A3D4F]"
                       >
                         {importing ? (
@@ -462,7 +839,7 @@ export function ExcelImportPage() {
                         ) : (
                           <Database className="mr-1 h-4 w-4" />
                         )}
-                        Importer {membersFound} contrat(s)
+                        Importer {distinctContracts} contrat(s)
                       </Button>
                       <Button
                         type="button"
@@ -497,10 +874,24 @@ export function ExcelImportPage() {
 
                   {report && (
                     <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                      <p className="flex items-center gap-2 font-semibold">
-                        <CheckCircle2 className="h-4 w-4" /> Import terminé : {report.created} créé(s)
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">
+                        <CheckCircle2 className="h-4 w-4" /> Import terminé : {report.created} contrat(s) créé(s)
+                        {report.membersCreated > 0 && (
+                          <span className="text-[#234D65]">· {report.membersCreated} membre(s) créé(s)</span>
+                        )}
                         {report.skipped > 0 && <span className="text-amber-700">· {report.skipped} ignoré(s)</span>}
                       </p>
+                      {report.forfaitsCreated.length > 0 && (
+                        <p className="mt-1 text-xs text-emerald-700">
+                          Forfaits créés automatiquement : {report.forfaitsCreated.join(', ')}
+                        </p>
+                      )}
+                      {report.toComplete > 0 && (
+                        <p className="mt-1 text-xs text-amber-700">
+                          {report.toComplete} contrat(s) à compléter (preuves de versement, contact d&apos;urgence ou
+                          forfait) — repérables via le marqueur migration.
+                        </p>
+                      )}
                       {report.skipped > 0 && (
                         <ul className="mt-1 space-y-0.5 text-xs text-amber-800">
                           {report.results
@@ -528,12 +919,28 @@ export function ExcelImportPage() {
           {confirmAction === 'import' ? (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Confirmer l&apos;import ?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {membersAnalysis ? "Confirmer l'import des membres ?" : "Confirmer l'import ?"}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {membersFound} contrat(s) vont être créés dans la base (collection{' '}
-                  <span className="font-mono">contractsCI</span>) à partir de la feuille «{' '}
-                  {analysis?.sheetName} ». L&apos;opération est idempotente : relancer ne crée pas de
-                  doublon.
+                  {membersAnalysis ? (
+                    <>
+                      {membersToCreate.length} membre(s) vont être créés dans{' '}
+                      <span className="font-mono">users</span> (compte sans connexion) depuis la feuille «{' '}
+                      {membersAnalysis.sheetName} ». Les membres déjà présents sont ignorés. Idempotent :
+                      relancer ne crée pas de doublon.
+                    </>
+                  ) : (
+                    <>
+                      {distinctContracts} contrat(s) vont être créés dans{' '}
+                      <span className="font-mono">contractsCI</span>
+                      {distinctNewMembers > 0 && (
+                        <> , et {distinctNewMembers} nouveau(x) membre(s) (compte adhérent) dans <span className="font-mono">users</span></>
+                      )}{' '}
+                      à partir de la feuille « {analysis?.sheetName} ». L&apos;opération est idempotente :
+                      relancer ne crée pas de doublon.
+                    </>
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -542,10 +949,13 @@ export function ExcelImportPage() {
                   className="bg-[#234D65] hover:bg-[#1A3D4F]"
                   onClick={() => {
                     setConfirmAction(null)
-                    void handleImport()
+                    if (membersAnalysis) void handleImportMembers()
+                    else void handleImport()
                   }}
                 >
-                  Importer {membersFound} contrat(s)
+                  {membersAnalysis
+                    ? `Importer ${membersToCreate.length} membre(s)`
+                    : `Importer ${distinctContracts} contrat(s)`}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </>
@@ -554,9 +964,19 @@ export function ExcelImportPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Annuler l&apos;import de cette feuille ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tous les contrats migrés depuis « {fileName} » / « {analysis?.sheetName} » (et leurs
-                  versements, aides et retraits) seront <strong>définitivement supprimés</strong>.
-                  Cette action est irréversible.
+                  {membersAnalysis ? (
+                    <>
+                      Tous les <strong>membres</strong> créés depuis « {fileName} » / «{' '}
+                      {membersAnalysis.sheetName} » seront <strong>définitivement supprimés</strong>. Cette
+                      action est irréversible.
+                    </>
+                  ) : (
+                    <>
+                      Tous les contrats migrés depuis « {fileName} » / « {analysis?.sheetName} » (et leurs
+                      versements, aides et retraits) seront <strong>définitivement supprimés</strong>. Cette
+                      action est irréversible.
+                    </>
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -565,7 +985,8 @@ export function ExcelImportPage() {
                   className="bg-red-600 hover:bg-red-700"
                   onClick={() => {
                     setConfirmAction(null)
-                    void handleRollback()
+                    if (membersAnalysis) void handleRollbackMembers()
+                    else void handleRollback()
                   }}
                 >
                   Supprimer définitivement
