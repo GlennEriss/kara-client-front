@@ -15,14 +15,10 @@
 import {
   collection,
   db,
-  deleteDoc,
   doc,
   getDocs,
-  query,
   serverTimestamp,
   setDoc,
-  where,
-  writeBatch,
 } from '@/firebase/firestore'
 import { auth } from '@/firebase/auth'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
@@ -36,7 +32,6 @@ import {
 
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsCI'
-const MEMBERSHIP_SUBSCRIPTIONS = firebaseCollectionNames.subscriptions || 'subscriptions'
 const USERS = firebaseCollectionNames.users || 'users'
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
@@ -136,7 +131,7 @@ function sanitizeMatricule(m: string): string {
 }
 
 function safeUserDocIdFromMatricule(matricule: string): string {
-  return matricule.trim().replace(/[\/\\#?\[\]]/g, '-')
+  return matricule.trim().replace(/[/\\#?[\]]/g, '-')
 }
 
 function errorMessage(error: unknown): string {
@@ -723,50 +718,32 @@ export async function writeImport(
  * Annule un import : supprime tous les contrats (et leurs sous-collections)
  * portant le marqueur de migration pour cette feuille + ce fichier source.
  */
+export interface RollbackResult {
+  contractsDeleted: number
+  usersDeleted: number
+  subscriptionsDeleted: number
+}
+
+/**
+ * Supprime tout ce qu'un import a créé (contrats + sous-collections + membres +
+ * adhésions migrés) pour `sourceFile` + `sheetName`, via une route serveur
+ * (Admin SDK) pour contourner les règles Firestore côté client.
+ */
 export async function rollbackImport(ctx: {
   sheetName: string
   sourceFile: string
-}): Promise<{ deleted: number; usersDeleted: number; subscriptionsDeleted: number }> {
-  // Un seul filtre d'égalité (pas d'index composite requis) ; on affine en mémoire.
-  const q = query(collection(db, CONTRACTS), where('migrationSource', '==', ctx.sourceFile))
-  const snap = await getDocs(q)
-  let deleted = 0
-  for (const contractDoc of snap.docs) {
-    if ((contractDoc.data() as { migrationSheet?: string }).migrationSheet !== ctx.sheetName) continue
-    const id = contractDoc.id
-    for (const sub of ['payments', 'supports', 'earlyRefunds']) {
-      const subSnap = await getDocs(collection(db, CONTRACTS, id, sub))
-      for (const d of subSnap.docs) {
-        await deleteDoc(doc(db, CONTRACTS, id, sub, d.id))
-      }
-    }
-    await deleteDoc(doc(db, CONTRACTS, id))
-    deleted++
+}): Promise<RollbackResult> {
+  const response = await fetch('/api/import-caisse-imprevue/rollback', {
+    method: 'POST',
+    headers: await adminImportHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ sourceFile: ctx.sourceFile, sheetName: ctx.sheetName }),
+  })
+  if (!response.ok) {
+    const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+    throw new Error(details?.details || details?.error || response.statusText)
   }
-
-  const subQuery = query(collection(db, MEMBERSHIP_SUBSCRIPTIONS), where('migrationSource', '==', ctx.sourceFile))
-  const subSnap = await getDocs(subQuery)
-  let subscriptionsDeleted = 0
-  for (const subDoc of subSnap.docs) {
-    const data = subDoc.data() as { migrationSheet?: string; migrationKind?: string }
-    if (data.migrationSheet !== ctx.sheetName) continue
-    if (data.migrationKind !== 'caisse-imprevue-contract-member-subscription') continue
-    await deleteDoc(doc(db, MEMBERSHIP_SUBSCRIPTIONS, subDoc.id))
-    subscriptionsDeleted++
-  }
-
-  const userQuery = query(collection(db, USERS), where('migrationSource', '==', ctx.sourceFile))
-  const userSnap = await getDocs(userQuery)
-  let usersDeleted = 0
-  for (const userDoc of userSnap.docs) {
-    const data = userDoc.data() as { migrationSheet?: string; migrationKind?: string }
-    if (data.migrationSheet !== ctx.sheetName) continue
-    if (data.migrationKind !== 'caisse-imprevue-contract-member') continue
-    await deleteDoc(doc(db, USERS, userDoc.id))
-    usersDeleted++
-  }
-
-  return { deleted, usersDeleted, subscriptionsDeleted }
+  return (await response.json()) as RollbackResult
 }
 
 // ===================== IMPORT DES MEMBRES (ADHESION MEMBRES) =====================
@@ -882,13 +859,6 @@ export async function writeMembers(
 
 /** Annule l'import de membres : supprime les membres migrés pour ce fichier/feuille. */
 export async function rollbackMembers(ctx: { sheetName: string; sourceFile: string }): Promise<{ deleted: number }> {
-  const q = query(collection(db, USERS), where('migrationSource', '==', ctx.sourceFile))
-  const snap = await getDocs(q)
-  let deleted = 0
-  for (const userDoc of snap.docs) {
-    if ((userDoc.data() as { migrationSheet?: string }).migrationSheet !== ctx.sheetName) continue
-    await deleteDoc(doc(db, USERS, userDoc.id))
-    deleted++
-  }
-  return { deleted }
+  const res = await rollbackImport(ctx)
+  return { deleted: res.usersDeleted }
 }
