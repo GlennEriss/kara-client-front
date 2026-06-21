@@ -20,20 +20,74 @@ import {
   getDocs,
   query,
   serverTimestamp,
+  setDoc,
   where,
   writeBatch,
 } from '@/firebase/firestore'
+import { auth } from '@/firebase/auth'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { SubscriptionCI, User } from '@/types/types'
-import type { AnalyzedRow } from './excelImportAnalyzer'
+import {
+  CATEGORY_AMOUNT,
+  type AnalyzedMember,
+  type AnalyzedRow,
+  type ImportMemberData,
+} from './excelImportAnalyzer'
 
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsCI'
+const MEMBERSHIP_SUBSCRIPTIONS = firebaseCollectionNames.subscriptions || 'subscriptions'
+const USERS = firebaseCollectionNames.users || 'users'
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
 export async function fetchForfaits(): Promise<SubscriptionCI[]> {
   const snap = await getDocs(collection(db, SUBSCRIPTIONS))
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) as SubscriptionCI[]
+}
+
+/**
+ * Crée les forfaits A–E manquants (parmi les catégories réellement utilisées),
+ * pour que chaque contrat pointe vers un vrai forfait. Retourne la liste complète.
+ */
+export async function ensureForfaits(
+  neededCategories: Iterable<string>,
+  existing: SubscriptionCI[],
+  adminId: string,
+): Promise<{ forfaits: SubscriptionCI[]; created: string[] }> {
+  const byCode = new Map(existing.map((f) => [(f.code || '').trim().toUpperCase(), f]))
+  const created: string[] = []
+  const added: SubscriptionCI[] = []
+  for (const raw of neededCategories) {
+    const cat = (raw || '').trim().toUpperCase()
+    if (!CATEGORY_AMOUNT[cat]) continue // catégorie inconnue → gérée en placeholder ailleurs
+    if (byCode.has(cat)) continue // déjà présent
+    const amount = CATEGORY_AMOUNT[cat]
+    const duration = 12
+    const id = `MIG_FORFAIT_${cat}`
+    const data = {
+      id,
+      code: cat,
+      label: `Forfait ${cat}`,
+      amountPerMonth: amount,
+      nominal: amount * duration,
+      durationInMonths: duration,
+      penaltyRate: 0,
+      penaltyDelayDays: 0,
+      supportMin: 0,
+      supportMax: amount * duration,
+      status: 'ACTIVE',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: adminId,
+      isMigrated: true,
+    }
+    await setDoc(doc(db, SUBSCRIPTIONS, id), data)
+    const local = { ...data, createdAt: new Date(), updatedAt: new Date() } as unknown as SubscriptionCI
+    byCode.set(cat, local)
+    added.push(local)
+    created.push(cat)
+  }
+  return { forfaits: [...existing, ...added], created }
 }
 
 export interface ImportContext {
@@ -42,6 +96,8 @@ export interface ImportContext {
   sourceFile: string
   members: Map<string, User>
   forfaits: SubscriptionCI[]
+  /** Données MEMBRES (par matricule) pour enrichir les comptes créés à la volée. */
+  memberData: Map<string, ImportMemberData>
 }
 
 export interface ImportRowResult {
@@ -53,11 +109,19 @@ export interface ImportRowResult {
   payments?: number
   supports?: number
   earlyRefund?: boolean
+  memberCreated?: boolean
+  /** Champs laissés en placeholder (à compléter manuellement). */
+  placeholders?: string[]
 }
 
 export interface ImportReport {
   created: number
   skipped: number
+  membersCreated: number
+  /** Catégories de forfait créées automatiquement (ex. ['A','C']). */
+  forfaitsCreated: string[]
+  /** Nombre de contrats avec au moins un champ à compléter. */
+  toComplete: number
   results: ImportRowResult[]
 }
 
@@ -71,10 +135,93 @@ function sanitizeMatricule(m: string): string {
   return m.replace(/[^a-zA-Z0-9]/g, '')
 }
 
-function makeContractId(kind: 'A' | 'C', matricule: string, startDate: string | null): string {
+function safeUserDocIdFromMatricule(matricule: string): string {
+  return matricule.trim().replace(/[\/\\#?\[\]]/g, '-')
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
+function compactDateStamp(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yy = String(d.getFullYear()).slice(-2)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}${mm}${yy}_${hh}${min}`
+}
+
+function makeMembershipSubscriptionId(matricule: string, now = new Date()): string {
+  return `MK_SUB_MIG_${sanitizeMatricule(matricule) || 'NA'}_${compactDateStamp(now)}`
+}
+
+function calculateBirthdayFields(birthDateStr: string | undefined): {
+  birthMonth: number | null
+  birthDay: number | null
+  birthDayOfYear: number | null
+} {
+  if (!birthDateStr) return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+  const birthDate = new Date(birthDateStr)
+  if (Number.isNaN(birthDate.getTime())) return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+  const start = new Date(birthDate.getFullYear(), 0, 0)
+  const oneDay = 1000 * 60 * 60 * 24
+  return {
+    birthMonth: birthDate.getMonth() + 1,
+    birthDay: birthDate.getDate(),
+    birthDayOfYear: Math.floor((birthDate.getTime() - start.getTime()) / oneDay),
+  }
+}
+
+function missingMemberFields(data: ImportMemberData | undefined): string[] {
+  const missing: string[] = []
+  if (!data) missing.push('feuille MEMBRES')
+  if (!data?.email) missing.push('email')
+  if (!data?.gender) missing.push('genre')
+  if (!data?.birthDate) missing.push('date de naissance')
+  if (!data?.birthPlace) missing.push('lieu de naissance')
+  if (!data?.nationality) missing.push('nationalité')
+  if (!data?.identityDocument) missing.push('type pièce')
+  if (!data?.identityDocumentNumber) missing.push('numéro pièce')
+  if (!data?.address) missing.push('adresse')
+  missing.push('compte Firebase Auth')
+  missing.push('photo membre')
+  missing.push('photos pièce identité')
+  missing.push('PDF adhésion signé')
+  missing.push('dossier membership-request réel')
+  return missing
+}
+
+/** Hash court déterministe (djb2 → base36) pour discriminer les critères. */
+function shortHash(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  return h.toString(36)
+}
+
+export function makeContractId(
+  kind: 'A' | 'C',
+  matricule: string,
+  startDate: string | null,
+  suffix = '',
+): string {
   const m = sanitizeMatricule(matricule) || 'NA'
   const d = (startDate || '').replace(/-/g, '') || 'NA'
-  return `MK_CI_MIG_${kind}_${m}_${d}`
+  return `MK_CI_MIG_${kind}_${m}_${d}${suffix ? `_${suffix}` : ''}`
+}
+
+/**
+ * ID de contrat pour une ligne analysée (même logique que l'écriture).
+ * Critères de doublon : type + matricule + date de début + catégorie + montant
+ * mensuel + durée + date de fin. Deux lignes ne partagent l'ID (= doublon) que
+ * si TOUS ces critères coïncident.
+ */
+export function contractIdForRow(row: AnalyzedRow): string {
+  const kind: 'A' | 'C' = row.status === 'ACTIVE' ? 'A' : 'C'
+  const cat = sanitizeMatricule(row.category) || 'X'
+  const key = `${row.amountPerMonth}|${row.durationMonths}|${row.entraide?.contractEndDate ?? ''}`
+  return makeContractId(kind, row.matricule, row.startDate, `${cat}${shortHash(key)}`)
 }
 
 function pickForfait(
@@ -88,8 +235,82 @@ function pickForfait(
   )
 }
 
-/** Migration marker (plat + objet) ajouté à chaque document. */
-function marker(ctx: ImportContext, kind: 'A' | 'C', rowNumber: number) {
+/** Retire récursivement les clés `undefined` d'un objet de DONNÉES simple
+ *  (sans FieldValue). À n'utiliser que sur des blocs sans serverTimestamp. */
+function cleanPlain<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue
+    if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date)) {
+      out[k] = cleanPlain(v as Record<string, unknown>)
+    } else {
+      out[k] = v
+    }
+  }
+  return out as T
+}
+
+const SERVER_TIMESTAMP_TOKEN = '__karaServerTimestamp'
+const DATE_TOKEN = '__karaDate'
+
+type AdminImportDoc = {
+  path: string[]
+  data: Record<string, unknown>
+}
+
+function adminServerTimestamp(): Record<string, true> {
+  return { [SERVER_TIMESTAMP_TOKEN]: true }
+}
+
+function encodeAdminImportValue(value: unknown): unknown {
+  if (value === undefined) return undefined
+  if (value instanceof Date) return { [DATE_TOKEN]: value.toISOString() }
+  if (Array.isArray(value)) return value.map(encodeAdminImportValue)
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      if (val === undefined) continue
+      out[key] = encodeAdminImportValue(val)
+    }
+    return out
+  }
+  return value
+}
+
+function encodeAdminImportData(data: Record<string, unknown>): Record<string, unknown> {
+  return encodeAdminImportValue(data) as Record<string, unknown>
+}
+
+async function adminImportHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const token = await auth.currentUser?.getIdToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+async function commitAdminImportDocs(docs: AdminImportDoc[]): Promise<void> {
+  const response = await fetch('/api/import-caisse-imprevue/import-docs', {
+    method: 'POST',
+    headers: await adminImportHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({
+      docs: docs.map((d) => ({ path: d.path, data: encodeAdminImportData(d.data) })),
+    }),
+  })
+  if (!response.ok) {
+    const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+    throw new Error(details?.details || details?.error || response.statusText)
+  }
+}
+
+/** Migration marker (plat + objet) ajouté à chaque document.
+ *  `raw` = ligne Excel brute intégrale (uniquement sur le contrat). */
+function marker(
+  ctx: ImportContext,
+  kind: 'A' | 'C',
+  rowNumber: number,
+  raw?: Record<string, string>,
+) {
   return {
     isMigrated: true,
     migrationSource: ctx.sourceFile,
@@ -100,37 +321,193 @@ function marker(ctx: ImportContext, kind: 'A' | 'C', rowNumber: number) {
       kind,
       rowNumber,
       importedBy: ctx.adminId,
-      importedAt: serverTimestamp(),
+      importedAt: adminServerTimestamp(),
+      ...(raw ? { raw } : {}),
     },
   }
 }
 
+type ResolvedMember = { id: string; firstName: string; lastName: string }
+
 /**
- * Écrit une ligne (1 contrat + sous-collections) dans son propre batch.
- * Retourne le résultat (créé / ignoré).
+ * Retourne le membre existant, sinon le crée (compte adhérent, sans Auth).
+ * Enrichit depuis la feuille MEMBRES si dispo, sinon depuis la ligne entraide.
  */
-async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRowResult> {
-  const member = ctx.members.get(row.matricule.trim())
-  if (!member) {
-    return { rowNumber: row.rowNumber, matricule: row.matricule, status: 'skipped', reason: 'Membre introuvable' }
+async function ensureMember(
+  row: AnalyzedRow,
+  ctx: ImportContext,
+): Promise<{ member: ResolvedMember; created: boolean; missingFields: string[] }> {
+  const key = row.matricule.trim()
+  const existing = ctx.members.get(key)
+  if (existing) {
+    return { member: { id: existing.id, firstName: existing.firstName, lastName: existing.lastName }, created: false, missingFields: [] }
   }
 
+  const userId = safeUserDocIdFromMatricule(key)
+  if (!userId) {
+    throw new Error(`Matricule invalide pour la création du membre: "${row.matricule}"`)
+  }
+
+  const data = ctx.memberData.get(key)
+  const lastName = data?.lastName || row.lastName || 'INCONNU'
+  const firstName = data?.firstName || row.firstName || ''
+  const contacts = data?.contacts?.length ? data.contacts : row.contacts
+  const now = new Date()
+  const dateEnd = new Date(now)
+  dateEnd.setFullYear(dateEnd.getFullYear() + 1)
+  const subscriptionId = makeMembershipSubscriptionId(key, now)
+  const missingFields = missingMemberFields(data)
+  const birthdayFields = calculateBirthdayFields(data?.birthDate)
+
+  const userData: Record<string, unknown> = {
+    lastName,
+    firstName,
+    birthDate: data?.birthDate ?? '',
+    birthMonth: birthdayFields.birthMonth,
+    birthDay: birthdayFields.birthDay,
+    birthDayOfYear: birthdayFields.birthDayOfYear,
+    birthPlace: data?.birthPlace,
+    contacts,
+    gender: data?.gender ?? '',
+    email: data?.email,
+    nationality: data?.nationality ?? '',
+    hasCar: false,
+    address: data?.address,
+    companyName: data?.companyName,
+    profession: data?.profession,
+    identityDocument: data?.identityDocument,
+    identityDocumentNumber: data?.identityDocumentNumber,
+    photoURL: null,
+    photoPath: null,
+    companyId: null,
+    professionId: null,
+    subscriptions: [subscriptionId],
+    dossier: `MIGRATION:${ctx.sourceFile}:${ctx.sheetName}`,
+    membershipType: 'adherant',
+    roles: ['Adherant'],
+    isActive: true,
+    // Marqueur migration (identique aux contrats, pour traçabilité).
+    isMigrated: true,
+    migrationSource: ctx.sourceFile,
+    migrationSheet: ctx.sheetName,
+    migrationKind: 'caisse-imprevue-contract-member',
+    migration: {
+      source: ctx.sourceFile,
+      sheet: ctx.sheetName,
+      importedBy: ctx.adminId,
+      importedAt: new Date(),
+      kind: 'caisse-imprevue-contract-member',
+      missingFields,
+    },
+  }
+
+  const subscriptionData = {
+    userId,
+    memberMatricule: key,
+    type: 'adherant',
+    dateStart: now.toISOString(),
+    dateEnd: dateEnd.toISOString(),
+    montant: 10300,
+    currency: 'XOF',
+    createdBy: ctx.adminId,
+    status: 'active',
+    isValid: true,
+    adhesionPdfURL: '',
+    isMigrated: true,
+    migrationSource: ctx.sourceFile,
+    migrationSheet: ctx.sheetName,
+    migrationKind: 'caisse-imprevue-contract-member-subscription',
+    migration: {
+      source: ctx.sourceFile,
+      sheet: ctx.sheetName,
+      importedBy: ctx.adminId,
+      importedAt: new Date(),
+      kind: 'caisse-imprevue-contract-member-subscription',
+      missingFields: ['PDF adhésion signé', 'paiement adhésion réel'],
+    },
+  }
+
+  try {
+    const response = await fetch('/api/import-caisse-imprevue/migrated-member', {
+      method: 'POST',
+      headers: await adminImportHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({
+        matricule: key,
+        userId,
+        userData: cleanPlain(userData),
+        subscriptionId,
+        subscriptionData: cleanPlain(subscriptionData),
+      }),
+    })
+    if (!response.ok) {
+      const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+      throw new Error(details?.details || details?.error || response.statusText)
+    }
+  } catch (error) {
+    throw new Error(`Impossible de creer l'adhesion migree ${key}: ${errorMessage(error)}`)
+  }
+
+  const createdUser = {
+    ...(userData as Omit<User, 'id' | 'matricule' | 'createdAt' | 'updatedAt'>),
+    id: userId,
+    matricule: key,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as User
+  ctx.members.set(key, createdUser)
+
+  return { member: { id: userId, firstName, lastName }, created: true, missingFields }
+}
+
+/**
+ * Écrit une ligne (1 contrat + sous-collections) dans son propre batch.
+ * Crée le membre si absent. Retourne le résultat.
+ */
+async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRowResult> {
+  const { member, created: memberCreated, missingFields: memberMissingFields } = await ensureMember(row, ctx)
+
   const kind: 'A' | 'C' = row.status === 'ACTIVE' ? 'A' : 'C'
-  const contractId = makeContractId(kind, row.matricule, row.startDate)
+  const contractId = contractIdForRow(row)
   const forfait = pickForfait(row.category, row.amountPerMonth, ctx.forfaits)
   const nominal = forfait?.nominal ?? row.amountPerMonth * Math.max(row.durationMonths, 1)
   const supportMin = forfait?.supportMin ?? 0
   const supportMax = forfait?.supportMax ?? nominal
   const totalMonthsPaid = row.payments.filter((p) => p.status === 'PAID').length
 
-  const batch = writeBatch(db)
+  const placeholders: string[] = []
+  if (!forfait) placeholders.push('forfait (catégorie inconnue)')
+  if (memberMissingFields.length > 0) {
+    placeholders.push(...memberMissingFields.map((field) => `membre: ${field}`))
+  }
+
+  // Contact d'urgence : ligne entraide si présent, sinon partenaire du membre,
+  // sinon placeholder marqué « à compléter ».
+  const memberRow = ctx.memberData.get(row.matricule.trim())
+  let emergency = row.emergency
+  const emergencyMissing = !emergency.lastName || emergency.lastName === 'INCONNU'
+  if (emergencyMissing && memberRow?.partnerName) {
+    emergency = {
+      lastName: memberRow.partnerName,
+      firstName: '',
+      phone1: memberRow.partnerPhone ?? '',
+      relationship: 'Conjoint(e)',
+    }
+  } else if (emergencyMissing) {
+    placeholders.push("contact d'urgence")
+  }
+  if (totalMonthsPaid > 0) placeholders.push('preuves de versement')
+
+  const docs: AdminImportDoc[] = []
   const supportIds: string[] = []
 
   // --- Supports (feuille ACTIVE) ---
   row.supportsDetail.forEach((s, i) => {
     const supportId = `support-mig-${i}`
     supportIds.push(supportId)
-    batch.set(doc(db, CONTRACTS, contractId, 'supports', supportId), {
+    docs.push({
+      path: [CONTRACTS, contractId, 'supports', supportId],
+      data: {
       id: supportId,
       contractId,
       amount: s.amount,
@@ -141,9 +518,15 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
       deductions: [],
       repayments: [],
       requestedAt: safeDate(s.date),
-      createdAt: serverTimestamp(),
+      paymentMode: s.mode,
+      ...(s.closureDate ? { closureDate: s.closureDate } : {}),
+      ...(s.closureTime ? { closureTime: s.closureTime } : {}),
+      ...(s.closureAgent ? { closureAgent: s.closureAgent } : {}),
+      ...(s.note ? { closureNote: s.note } : {}),
+      createdAt: adminServerTimestamp(),
       createdBy: ctx.adminId,
       ...marker(ctx, kind, row.rowNumber),
+      },
     })
   })
 
@@ -153,7 +536,9 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     hasEarlyRefund = true
     const refundDate = safeDate(row.earlyRefundDetail.date)
     const deadline = new Date(refundDate.getTime() + 45 * 24 * 60 * 60 * 1000)
-    batch.set(doc(db, CONTRACTS, contractId, 'earlyRefunds', 'refund-mig'), {
+    docs.push({
+      path: [CONTRACTS, contractId, 'earlyRefunds', 'refund-mig'],
+      data: {
       id: 'refund-mig',
       contractId,
       type: 'EARLY',
@@ -169,16 +554,19 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
       amountBonus: 0,
       status: 'PAID',
       deadlineAt: deadline,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: adminServerTimestamp(),
+      updatedAt: adminServerTimestamp(),
       createdBy: ctx.adminId,
       updatedBy: ctx.adminId,
       ...marker(ctx, kind, row.rowNumber),
+      },
     })
   }
 
   // --- Contrat ---
-  batch.set(doc(db, CONTRACTS, contractId), {
+  docs.push({
+    path: [CONTRACTS, contractId],
+    data: {
     id: contractId,
     memberId: member.id,
     memberMatricule: row.matricule.trim(),
@@ -196,11 +584,11 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     paymentFrequency: 'MONTHLY',
     firstPaymentDate: row.startDate || '',
     emergencyContact: {
-      lastName: row.emergency.lastName,
-      firstName: row.emergency.firstName,
-      phone1: row.emergency.phone1,
+      lastName: emergency.lastName,
+      firstName: emergency.firstName,
+      phone1: emergency.phone1,
       phone2: '',
-      relationship: row.emergency.relationship,
+      relationship: emergency.relationship,
       idNumber: 'MIGRATION',
       typeId: 'MIGRATION',
       documentPhotoUrl: '',
@@ -209,11 +597,14 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     supportHistory: supportIds,
     totalMonthsPaid,
     isEligibleForSupport: totalMonthsPaid >= 3,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    // Colonnes Excel sans champ direct dans le modèle (préservées telles quelles).
+    entraide: cleanPlain({ ...row.entraide }),
+    createdAt: adminServerTimestamp(),
+    updatedAt: adminServerTimestamp(),
     createdBy: ctx.adminId,
     updatedBy: ctx.adminId,
-    ...marker(ctx, kind, row.rowNumber),
+    ...marker(ctx, kind, row.rowNumber, row.raw),
+    },
   })
 
   // --- Versements (payments) ---
@@ -230,10 +621,15 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
             proofPath: '',
             createdAt: safeDate(p.versement.date),
             createdBy: ctx.adminId,
+            ...(p.versement.agentName ? { agentName: p.versement.agentName } : {}),
+            ...(p.versement.note ? { note: p.versement.note } : {}),
+            ...(p.versement.monthLabel ? { monthLabel: p.versement.monthLabel } : {}),
           },
         ]
       : []
-    batch.set(doc(db, CONTRACTS, contractId, 'payments', `month-${p.monthIndex}`), {
+    docs.push({
+      path: [CONTRACTS, contractId, 'payments', `month-${p.monthIndex}`],
+      data: {
       id: `month-${p.monthIndex}`,
       contractId,
       monthIndex: p.monthIndex,
@@ -241,14 +637,15 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
       targetAmount: p.targetAmount,
       accumulatedAmount: p.versement?.amount ?? 0,
       versements,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: adminServerTimestamp(),
+      updatedAt: adminServerTimestamp(),
       createdBy: ctx.adminId,
       updatedBy: ctx.adminId,
+      },
     })
   }
 
-  await batch.commit()
+  await commitAdminImportDocs(docs)
 
   return {
     rowNumber: row.rowNumber,
@@ -258,6 +655,8 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     payments: row.payments.length,
     supports: row.supportsDetail.length,
     earlyRefund: hasEarlyRefund,
+    memberCreated,
+    placeholders,
   }
 }
 
@@ -267,14 +666,43 @@ export async function writeImport(
   ctx: ImportContext,
   onProgress?: (done: number, total: number) => void,
 ): Promise<ImportReport> {
+  // Crée les forfaits A–E manquants (parmi les catégories utilisées) au préalable.
+  const neededCats = new Set(rows.map((r) => r.category).filter(Boolean))
+  let forfaitsCreated: string[] = []
+  let forfaits = ctx.forfaits
+  try {
+    const res = await ensureForfaits(neededCats, ctx.forfaits, ctx.adminId)
+    forfaits = res.forfaits
+    forfaitsCreated = res.created
+  } catch {
+    // si échec, on continue avec les forfaits existants (placeholders gérés par ligne)
+  }
+  const ctx2: ImportContext = { ...ctx, forfaits }
+
   const results: ImportRowResult[] = []
+  const seen = new Set<string>()
   for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const id = contractIdForRow(row)
+    // Doublon : un contrat avec cet ID a déjà été importé dans ce lot → on saute.
+    if (seen.has(id)) {
+      results.push({
+        rowNumber: row.rowNumber,
+        matricule: row.matricule,
+        status: 'skipped',
+        reason: 'Doublon (même contrat déjà importé)',
+        contractId: id,
+      })
+      onProgress?.(i + 1, rows.length)
+      continue
+    }
+    seen.add(id)
     try {
-      results.push(await writeRow(rows[i], ctx))
+      results.push(await writeRow(row, ctx2))
     } catch (e) {
       results.push({
-        rowNumber: rows[i].rowNumber,
-        matricule: rows[i].matricule,
+        rowNumber: row.rowNumber,
+        matricule: row.matricule,
         status: 'skipped',
         reason: e instanceof Error ? e.message : 'Erreur écriture',
       })
@@ -284,6 +712,9 @@ export async function writeImport(
   return {
     created: results.filter((r) => r.status === 'created').length,
     skipped: results.filter((r) => r.status === 'skipped').length,
+    membersCreated: results.filter((r) => r.memberCreated).length,
+    forfaitsCreated,
+    toComplete: results.filter((r) => (r.placeholders?.length ?? 0) > 0).length,
     results,
   }
 }
@@ -295,7 +726,7 @@ export async function writeImport(
 export async function rollbackImport(ctx: {
   sheetName: string
   sourceFile: string
-}): Promise<{ deleted: number }> {
+}): Promise<{ deleted: number; usersDeleted: number; subscriptionsDeleted: number }> {
   // Un seul filtre d'égalité (pas d'index composite requis) ; on affine en mémoire.
   const q = query(collection(db, CONTRACTS), where('migrationSource', '==', ctx.sourceFile))
   const snap = await getDocs(q)
@@ -310,6 +741,153 @@ export async function rollbackImport(ctx: {
       }
     }
     await deleteDoc(doc(db, CONTRACTS, id))
+    deleted++
+  }
+
+  const subQuery = query(collection(db, MEMBERSHIP_SUBSCRIPTIONS), where('migrationSource', '==', ctx.sourceFile))
+  const subSnap = await getDocs(subQuery)
+  let subscriptionsDeleted = 0
+  for (const subDoc of subSnap.docs) {
+    const data = subDoc.data() as { migrationSheet?: string; migrationKind?: string }
+    if (data.migrationSheet !== ctx.sheetName) continue
+    if (data.migrationKind !== 'caisse-imprevue-contract-member-subscription') continue
+    await deleteDoc(doc(db, MEMBERSHIP_SUBSCRIPTIONS, subDoc.id))
+    subscriptionsDeleted++
+  }
+
+  const userQuery = query(collection(db, USERS), where('migrationSource', '==', ctx.sourceFile))
+  const userSnap = await getDocs(userQuery)
+  let usersDeleted = 0
+  for (const userDoc of userSnap.docs) {
+    const data = userDoc.data() as { migrationSheet?: string; migrationKind?: string }
+    if (data.migrationSheet !== ctx.sheetName) continue
+    if (data.migrationKind !== 'caisse-imprevue-contract-member') continue
+    await deleteDoc(doc(db, USERS, userDoc.id))
+    usersDeleted++
+  }
+
+  return { deleted, usersDeleted, subscriptionsDeleted }
+}
+
+// ===================== IMPORT DES MEMBRES (ADHESION MEMBRES) =====================
+
+export interface WriteMembersResult {
+  rowNumber: number
+  matricule: string
+  status: 'created' | 'skipped'
+  reason?: string
+  membershipType?: string
+}
+
+export interface WriteMembersReport {
+  created: number
+  skipped: number
+  byType: Record<string, number>
+  results: WriteMembersResult[]
+}
+
+export interface MembersImportContext {
+  adminId: string
+  sheetName: string
+  sourceFile: string
+  /** Membres déjà présents (par matricule). */
+  existing: Map<string, User>
+  /** Données MEMBRES (par matricule) pour enrichir l'identité. */
+  enrich: Map<string, ImportMemberData>
+}
+
+/** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
+export async function writeMembers(
+  members: AnalyzedMember[],
+  ctx: MembersImportContext,
+  onProgress?: (done: number, total: number) => void,
+): Promise<WriteMembersReport> {
+  const results: WriteMembersResult[] = []
+  for (let i = 0; i < members.length; i++) {
+    const m = members[i]
+    const key = m.matricule.trim()
+    if (ctx.existing.has(key)) {
+      results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'skipped', reason: 'Déjà présent' })
+      onProgress?.(i + 1, members.length)
+      continue
+    }
+    try {
+      const data = ctx.enrich.get(key)
+      const userId = safeUserDocIdFromMatricule(key)
+      if (!userId) {
+        throw new Error(`Matricule invalide pour la création du membre: "${m.matricule}"`)
+      }
+      const userData: Record<string, unknown> = {
+        lastName: m.lastName || data?.lastName || 'INCONNU',
+        firstName: m.firstName || data?.firstName || '',
+        birthDate: data?.birthDate ?? '',
+        birthPlace: data?.birthPlace,
+        contacts: m.contacts.length ? m.contacts : (data?.contacts ?? []),
+        gender: data?.gender ?? '',
+        email: data?.email,
+        nationality: data?.nationality ?? '',
+        hasCar: false,
+        address: data?.address,
+        companyName: data?.companyName,
+        profession: data?.profession,
+        identityDocument: data?.identityDocument,
+        identityDocumentNumber: data?.identityDocumentNumber,
+        subscriptions: [],
+        dossier: 'MIGRATION',
+        membershipType: m.membershipType,
+        roles: [m.role],
+        isActive: true,
+        isMigrated: true,
+        migrationSource: ctx.sourceFile,
+        migrationSheet: ctx.sheetName,
+        migration: {
+          source: ctx.sourceFile,
+          sheet: ctx.sheetName,
+          importedBy: ctx.adminId,
+          importedAt: new Date(),
+        },
+      }
+      await setDoc(
+        doc(db, USERS, userId),
+        {
+          ...cleanPlain(userData),
+          id: userId,
+          matricule: key,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+      )
+      results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'created', membershipType: m.membershipType })
+    } catch (e) {
+      results.push({
+        rowNumber: m.rowNumber,
+        matricule: m.matricule,
+        status: 'skipped',
+        reason: e instanceof Error ? e.message : 'Erreur création membre',
+      })
+    }
+    onProgress?.(i + 1, members.length)
+  }
+  const byType: Record<string, number> = {}
+  for (const r of results) {
+    if (r.status === 'created' && r.membershipType) byType[r.membershipType] = (byType[r.membershipType] ?? 0) + 1
+  }
+  return {
+    created: results.filter((r) => r.status === 'created').length,
+    skipped: results.filter((r) => r.status === 'skipped').length,
+    byType,
+    results,
+  }
+}
+
+/** Annule l'import de membres : supprime les membres migrés pour ce fichier/feuille. */
+export async function rollbackMembers(ctx: { sheetName: string; sourceFile: string }): Promise<{ deleted: number }> {
+  const q = query(collection(db, USERS), where('migrationSource', '==', ctx.sourceFile))
+  const snap = await getDocs(q)
+  let deleted = 0
+  for (const userDoc of snap.docs) {
+    if ((userDoc.data() as { migrationSheet?: string }).migrationSheet !== ctx.sheetName) continue
+    await deleteDoc(doc(db, USERS, userDoc.id))
     deleted++
   }
   return { deleted }

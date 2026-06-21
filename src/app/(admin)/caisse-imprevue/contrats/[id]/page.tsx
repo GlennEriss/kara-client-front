@@ -108,6 +108,8 @@ export default function ContractCIDetailsPage() {
   // Vérifier si le contrat a un document uploadé
   const hasDocument = !!contract.contractStartId
   const hasMemberSigned = contract.memberSignedStatus === 'PENDING_ADMIN' && !!contract.memberSignedDocumentId
+  // Contrats issus de la migration Excel : pas de PDF signé → on n'exige pas le document.
+  const isMigrated = (contract as { isMigrated?: boolean }).isMigrated === true
 
   // Si pas de document et signature membre en attente → interface de validation
   if (!hasDocument && hasMemberSigned) {
@@ -154,7 +156,8 @@ export default function ContractCIDetailsPage() {
   }
 
   // Si pas de document et aucune signature membre → message standard
-  if (!hasDocument) {
+  // (sauf contrats migrés : on autorise l'accès aux détails sans PDF)
+  if (!hasDocument && !isMigrated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
         <Card className="max-w-md border-0 shadow-2xl">

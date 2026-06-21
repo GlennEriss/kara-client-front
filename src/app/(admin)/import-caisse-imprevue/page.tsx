@@ -8,9 +8,9 @@ export default function ImportCaisseImprevueRoute() {
       <PageHero
         icon={FileSpreadsheet}
         title="Import Excel — Caisse Imprévue"
-        subtitle="Importe une feuille du classeur, vérifie le résumé de ce qui sera créé, puis lance l'import."
+        subtitle="Importe les contrats (feuilles GESTION ENTRAIDE ACTIF / ADHESION VOLET ENTRAIDE), vérifie le résumé, puis lance l'import."
       />
-      <ExcelImportPage />
+      <ExcelImportPage scope="caisse-imprevue" />
     </div>
   )
 }
