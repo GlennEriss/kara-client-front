@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
 import {
     AlertCircle,
+    Ban,
     Calendar,
     CalendarDays,
     CheckCircle,
@@ -79,7 +80,7 @@ const FREQUENCY_LABELS = {
 }
 
 type ViewMode = 'grid' | 'list'
-type ContractTabValue = 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'
+type ContractTabValue = 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth' | 'rescinded'
 
 type ContractTabItem = {
   value: ContractTabValue
@@ -88,7 +89,7 @@ type ContractTabItem = {
   isDanger?: boolean
 }
 
-const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue']
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue', 'rescinded']
 const isContractTabValue = (value: string): value is ContractTabValue =>
   CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
@@ -436,6 +437,7 @@ export default function ListContractsCISection() {
     { value: 'MONTHLY', label: 'Mensuel', icon: Calendar },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+    { value: 'rescinded', label: 'Résiliés', icon: Ban },
   ]
   
   // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard, Mois en cours)
@@ -526,7 +528,15 @@ export default function ListContractsCISection() {
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
   
-  const filteredContracts = useMemo(() => contracts || [], [contracts])
+  // Onglet « Résiliés » = contrats terminés/résiliés (CANCELED + FINISHED).
+  // Les autres onglets (Tous inclus) ne montrent que les contrats en cours.
+  const filteredContracts = useMemo(() => {
+    const base = contracts || []
+    const isTerminated = (status: string) => status === 'CANCELED' || status === 'FINISHED'
+    return activeTab === 'rescinded'
+      ? base.filter((c) => isTerminated(c.status))
+      : base.filter((c) => !isTerminated(c.status))
+  }, [contracts, activeTab])
 
   const subscriptionOptions = useMemo(
     () =>
@@ -1128,7 +1138,7 @@ export default function ListContractsCISection() {
         {/* Tabs desktop : style onglets classeur */}
         <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
           <div className="flex-1 min-w-0">
-            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+            <TabsList className="relative flex w-full flex-wrap bg-transparent p-0 h-auto gap-0.5">
               {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
                 <TabsTrigger
                   key={value}

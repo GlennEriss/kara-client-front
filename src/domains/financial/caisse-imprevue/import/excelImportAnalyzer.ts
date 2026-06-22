@@ -55,6 +55,8 @@ export interface ImportSupport {
 export interface ImportEarlyRefund {
   amount: number
   date: string
+  /** Motif du retrait (AUTRES REMARQUE, sinon OBSERVATION). */
+  reason?: string
 }
 
 export interface ImportEmergencyContact {
@@ -73,6 +75,7 @@ export interface EntraideMeta {
   yearRegistered?: string
   closureDocs?: string
   guarantorMatricule?: string
+  observation?: string
   otherRemarks?: string
   summary?: {
     versementsCount?: number
@@ -170,10 +173,20 @@ function str(v: unknown): string {
   return String(v).replace(/\s+/g, ' ').trim()
 }
 
-/** Variante qui renvoie undefined si vide (pratique pour les champs optionnels). */
+/** Placeholders « vides » saisis dans l'Excel (à ne PAS stocker). */
+const PLACEHOLDER_VALUES = new Set(['NC', 'VIDE', 'N/A', 'NA', '-', '--', '?', '??', '...', 'NEANT', 'NÉANT'])
+function isPlaceholderText(s: string): boolean {
+  const u = s.trim().toUpperCase()
+  if (PLACEHOLDER_VALUES.has(u)) return true
+  if (/^x+$/i.test(u)) return true // X, XX, XXX, XXXX…
+  if (/^\.+$/.test(u)) return true // . , .. , …
+  return false
+}
+
+/** Variante qui renvoie undefined si vide OU si c'est un placeholder (XXX, NC, …). */
 function strOpt(v: unknown): string | undefined {
   const s = str(v)
-  return s === '' ? undefined : s
+  return s === '' || isPlaceholderText(s) ? undefined : s
 }
 
 function num(v: unknown): number {
@@ -475,6 +488,23 @@ function analyzeCaisseActiveRow(row: unknown[], rowNumber: number): AnalyzedRow 
 
 // ----- ADHESION VOLET ENTRAIDE (INACTIF uniquement) -----
 
+// Feuille ADHESION VOLET ENTRAIDE restructurée comme la feuille ACTIVE :
+// blocs d'échéance (7 col) + blocs imprévu (8 col), à partir de la colonne 24.
+const CLOSED_ECHEANCE_STARTS = [24, 31, 38, 45, 60, 75, 90, 105, 120, 135, 150, 165]
+const CLOSED_IMPREVU_STARTS = [52, 67, 82, 97, 112, 127, 142, 157, 172]
+
+/** Ajoute n mois à une date ISO (YYYY-MM-DD). */
+function addMonthsIso(iso: string | null, n: number): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  d.setMonth(d.getMonth() + n)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null {
   const matricule = str(cell(row, 1))
   if (!matricule) return null
@@ -485,34 +515,59 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
   const category = str(cell(row, 11)).toUpperCase()
   const amountPerMonth = num(cell(row, 12)) || CATEGORY_AMOUNT[category] || 0
   const startDate = dateStr(cell(row, 9))
-  const observation = str(cell(row, 17)).toUpperCase()
+  const observationRaw = strOpt(cell(row, 17)) // R OBSERVATION (texte conservé)
+  const observation = (observationRaw || '').toUpperCase()
+  const otherRemarks = strOpt(cell(row, 18)) // S AUTRES REMARQUE = motif réel
   const montantCotisation = num(cell(row, 16))
   const dateRemise = dateStr(cell(row, 15))
 
-  // Cotisations MOIS 1..12 : libellé mois (24 + 2k) / montant (25 + 2k)
+  // Cotisations payées : un bloc d'échéance par mois (ECHEANCE = libellé mois,
+  // MONTANT à +2). On ne garde que les mois réellement versés (montant > 0).
   const payments: ImportPayment[] = []
-  for (let k = 0; k < 12; k++) {
-    const montant = num(cell(row, 25 + 2 * k))
-    if (montant > 0) {
-      payments.push({
-        monthIndex: k,
-        targetAmount: amountPerMonth,
-        status: 'PAID',
-        versement: {
-          date: startDate || '',
-          time: '00:00',
-          amount: montant,
-          mode: 'cash',
-          monthLabel: strOpt(cell(row, 24 + 2 * k)),
-        },
+  CLOSED_ECHEANCE_STARTS.forEach((start, monthIndex) => {
+    const montant = num(cell(row, start + 2))
+    if (montant <= 0) return
+    const dr = dateStr(cell(row, start + 1))
+    payments.push({
+      monthIndex,
+      targetAmount: amountPerMonth || montant,
+      status: 'PAID',
+      dueDate: addMonthsIso(startDate, monthIndex) || undefined,
+      versement: {
+        date: dr || addMonthsIso(startDate, monthIndex) || startDate || '',
+        time: parseHeure(cell(row, start + 3)),
+        amount: montant,
+        mode: mapMode(cell(row, start + 4)),
+        agentName: strOpt(cell(row, start + 5)),
+        note: strOpt(cell(row, start + 6)),
+        monthLabel: strOpt(cell(row, start)), // nom du mois (OCTOBRE, …)
+      },
+    })
+  })
+
+  // Imprévus éventuels (mêmes blocs que la feuille active).
+  const supportsDetail: ImportSupport[] = []
+  CLOSED_IMPREVU_STARTS.forEach((start) => {
+    const argent = num(cell(row, start + 2))
+    const dateImp = cell(row, start)
+    if (argent > 0 || isPresent(dateImp)) {
+      supportsDetail.push({
+        amount: argent,
+        date: dateStr(dateImp) || startDate || '',
+        time: parseHeure(cell(row, start + 1)),
+        mode: mapMode(cell(row, start + 3)),
+        closureDate: dateStr(cell(row, start + 4)) || undefined,
+        closureTime: isPresent(cell(row, start + 5)) ? parseHeure(cell(row, start + 5)) : undefined,
+        closureAgent: strOpt(cell(row, start + 6)),
+        note: strOpt(cell(row, start + 7)),
       })
     }
-  }
+  })
 
-  // Durée réelle = DUREE PERIODE (O), sinon nb de cotisations, sinon 12.
-  const durationMonths = num(cell(row, 14)) || payments.length || 12
+  // ⚠️ Tous les contrats résiliés ont un contrat sur 12 mois.
+  const durationMonths = 12
 
-  const isEarly = observation.includes('RETRAIT ANTICIPE') || observation.includes('RETRAIT ANTICIPÉ')
+  const isEarly = observation.includes('RETRAIT ANTICIP') // RETRAIT ANTICIPE / ANTICIPÉ
   const status: MappedContractStatus = isEarly ? 'CANCELED' : 'FINISHED'
 
   const issues: string[] = []
@@ -527,9 +582,15 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
     contractEndDate: dateStr(cell(row, 10)) || undefined,
     contractSigned: strOpt(cell(row, 8)),
     yearRegistered: strOpt(cell(row, 13)),
-    otherRemarks: strOpt(cell(row, 18)),
+    observation: observationRaw, // R OBSERVATION
+    otherRemarks, // S AUTRES REMARQUE
     closureDocs: strOpt(cell(row, 19)),
     guarantorMatricule: strOpt(cell(row, 20)),
+    summary: {
+      versementsCount: payments.length,
+      monthsUnpaid: num(cell(row, 14)), // DUREE PERIODE (réf. : nb de mois cotisés)
+      montantTotal: payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0),
+    },
   }
 
   return {
@@ -545,14 +606,20 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
     status,
     paidCount: payments.length,
     dueCount: 0,
-    supportsCount: 0,
-    supportsAmount: 0,
+    supportsCount: supportsDetail.length,
+    supportsAmount: supportsDetail.reduce((s, x) => s + x.amount, 0),
     hasEarlyRefund: isEarly,
     earlyRefundAmount: isEarly ? montantCotisation : 0,
     issues,
     payments,
-    supportsDetail: [],
-    earlyRefundDetail: isEarly ? { amount: montantCotisation, date: dateRemise || startDate || '' } : null,
+    supportsDetail,
+    earlyRefundDetail: isEarly
+      ? {
+          amount: montantCotisation,
+          date: dateRemise || startDate || '',
+          reason: otherRemarks || observationRaw || undefined,
+        }
+      : null,
     emergency: {
       lastName: str(cell(row, 21)) || 'INCONNU', // V NOM URGENT
       firstName: str(cell(row, 22)), // W PRENOM URGENT
