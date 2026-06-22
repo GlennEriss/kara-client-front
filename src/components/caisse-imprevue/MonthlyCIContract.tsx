@@ -88,6 +88,97 @@ const PaymentStatsGrid = ({ contract, paymentStats }: { contract: ContractCI; pa
   )
 }
 
+// Bloc `entraide` posé sur les contrats issus de la migration Excel.
+type EntraideMeta = {
+  code?: string
+  contractEndDate?: string
+  receptionDate?: string
+  contractSigned?: string
+  yearRegistered?: string
+  closureDocs?: string
+  guarantorMatricule?: string
+  observation?: string
+  otherRemarks?: string
+  summary?: {
+    versementsCount?: number
+    monthsUnpaid?: number
+    imprevusCount?: number
+    montantTotal?: number
+  }
+}
+
+/** "2026-01-28" -> "28/01/2026" */
+function fmtIso(s?: string): string | undefined {
+  if (!s) return undefined
+  const [y, m, d] = s.split('-')
+  return y && m && d ? `${d}/${m}/${y}` : s
+}
+
+const fmtNum = (n?: number) => (typeof n === 'number' ? n.toLocaleString('fr-FR') : undefined)
+
+/** Encart « Détails de la résiliation / import » pour les contrats migrés. */
+function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
+  const e = (contract as ContractCI & { entraide?: EntraideMeta }).entraide
+  if (!e) return null
+  const isCanceled = contract.status === 'CANCELED'
+
+  const rows: Array<[string, string | undefined]> = [
+    ['Code entraide', e.code],
+    ['Date de réception', fmtIso(e.receptionDate)],
+    ['Fin des versements', fmtIso(e.contractEndDate)],
+    ['Contrat signé', e.contractSigned],
+    ['Année inscription', e.yearRegistered],
+    ['Garant (matricule)', e.guarantorMatricule?.trim()],
+    ['Documents clôture', e.closureDocs],
+    ['Observation', e.observation],
+    ['Motif', e.otherRemarks],
+  ]
+  const visible = rows.filter(([, v]) => v && v.trim() !== '')
+
+  const s = e.summary
+  const summaryAll: Array<[string, string | undefined]> = s
+    ? [
+        ['Versements (Excel)', fmtNum(s.versementsCount)],
+        [isCanceled ? 'Mois cotisés' : 'Mois impayés', fmtNum(s.monthsUnpaid)],
+        ['Imprévus', fmtNum(s.imprevusCount)],
+        ['Montant total (Excel)', s.montantTotal ? `${fmtNum(s.montantTotal)} FCFA` : undefined],
+      ]
+    : []
+  const summaryRows = summaryAll.filter(([, v]) => v !== undefined && v !== '')
+
+  if (visible.length === 0 && summaryRows.length === 0) return null
+
+  return (
+    <Card className={isCanceled ? 'border border-amber-200 bg-amber-50/40 shadow-sm' : 'border-0 shadow-md'}>
+      <CardContent className="space-y-3 p-4">
+        <h3 className="text-sm font-bold text-[#234D65]">
+          {isCanceled ? 'Détails de la résiliation' : 'Informations complémentaires (import)'}
+        </h3>
+        {visible.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {visible.map(([label, value]) => (
+              <div key={label}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+                <p className="break-words text-sm text-gray-800">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {summaryRows.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3 sm:grid-cols-4">
+            {summaryRows.map(([label, value]) => (
+              <div key={label}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+                <p className="text-sm font-bold tabular-nums text-[#234D65]">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function MonthlyCIContract({ contract, document: _document, isLoadingDocument: _isLoadingDocument }: MonthlyCIContractProps) {
   const router = useRouter()
   const { user } = useAuth()
@@ -475,8 +566,11 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           />
         )}
 
-        {/* Statistiques de paiement - Carrousel */}
+        {/* Statistiques de paiement */}
         <PaymentStatsGrid contract={contract} paymentStats={paymentStats} />
+
+        {/* Détails résiliation / import (contrats migrés) */}
+        <MigrationDetailsCard contract={contract} />
 
         {/* Barre de progression */}
         <Card className="border-0 shadow-md">

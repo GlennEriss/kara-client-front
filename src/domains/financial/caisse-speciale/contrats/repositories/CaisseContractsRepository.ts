@@ -30,6 +30,18 @@ import type {
 } from '../entities/contract-filters.types'
 import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, UploadContractPdfInput } from '../entities/contract.types'
 
+/** Statuts "en cours" — tous SAUF résiliés (RESCINDED) et clos (CLOSED). Onglet "Tous". */
+const ONGOING_STATUSES = [
+  'DRAFT',
+  'ACTIVE',
+  'LATE_NO_PENALTY',
+  'LATE_WITH_PENALTY',
+  'DEFAULTED_AFTER_J12',
+  'EARLY_WITHDRAW_REQUESTED',
+  'FINAL_REFUND_PENDING',
+  'EARLY_REFUND_PENDING',
+] as const
+
 export class CaisseContractsRepository implements ICaisseContractsRepository {
   private static instance: CaisseContractsRepository
   private readonly collectionName = firebaseCollectionNames.caisseContracts
@@ -87,6 +99,9 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       if (filters.status === 'CLOTURE') {
         // Filtre groupé "Clôturé" = contrats clos (CLOSED) ou résiliés (RESCINDED)
         constraints.push(where('status', 'in', ['CLOSED', 'RESCINDED']))
+      } else if ((filters.status as string) === 'EXCLUDE_RESCINDED') {
+        // Onglet "Tous" : on masque les contrats résiliés (RESCINDED) et clos (CLOSED).
+        constraints.push(where('status', 'in', ONGOING_STATUSES as unknown as string[]))
       } else {
         constraints.push(where('status', '==', filters.status))
       }

@@ -545,7 +545,7 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
       id: 'refund-mig',
       contractId,
       type: 'EARLY',
-      reason: 'Import migration Excel — retrait anticipé',
+      reason: row.earlyRefundDetail.reason || 'Retrait anticipé (import migration Excel)',
       withdrawalDate: refundDate,
       withdrawalTime: '00:00',
       withdrawalAmount: row.earlyRefundDetail.amount,

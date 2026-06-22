@@ -36,6 +36,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import {
     AlertCircle,
+    Ban,
     BarChart3,
     Calendar,
     CheckCircle,
@@ -89,6 +90,7 @@ type CaisseTypeTabValue =
   | GroupedCaisseTabValue
   | 'overdue'
   | 'currentMonth'
+  | 'rescinded'
 
 type GroupedCaisseSubFilterValue = 'all' | CaisseSpecificType
 
@@ -109,7 +111,11 @@ const isGroupedCaisseTab = (value: string): value is GroupedCaisseTabValue =>
   GROUPED_CAISSE_TAB_VALUES.includes(value as GroupedCaisseTabValue)
 
 const isCaisseTypeTabValue = (value: string): value is CaisseTypeTabValue =>
-  value === 'all' || value === 'overdue' || value === 'currentMonth' || isGroupedCaisseTab(value)
+  value === 'all' ||
+  value === 'overdue' ||
+  value === 'currentMonth' ||
+  value === 'rescinded' ||
+  isGroupedCaisseTab(value)
 
 const GROUPED_CAISSE_TAB_TO_TYPES: Record<GroupedCaisseTabValue, [CaisseSpecificType, CaisseSpecificType]> = {
   STANDARD_GROUP: ['STANDARD', 'STANDARD_CHARITABLE'],
@@ -1156,8 +1162,9 @@ const ListContracts = () => {
     { value: 'LIBRE_GROUP', label: 'Libre', icon: FileText },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
+    { value: 'rescinded', label: 'Résiliés', icon: Ban },
   ]
-  
+
   // Fonction de navigation vers la création de contrat
   const handleCreateContract = () => {
     router.push(routes.admin.caisseSpecialeCreateContract)
@@ -1263,6 +1270,15 @@ const ListContracts = () => {
       } else {
         nextFilters.caisseType = activeGroupedCaisseSubFilter
       }
+    }
+
+    if (activeTab === 'rescinded') {
+      // Onglet dédié : contrats résiliés (RESCINDED) + clos (CLOSED).
+      nextFilters.status = 'CLOTURE'
+      nextFilters.overdueOnly = false
+    } else if (!nextFilters.status || nextFilters.status === 'all') {
+      // Tous les autres onglets masquent les résiliés (sauf statut choisi explicitement).
+      nextFilters.status = 'EXCLUDE_RESCINDED'
     }
 
     const hasCreatedRange = Boolean(nextFilters.createdAtFrom || nextFilters.createdAtTo)
@@ -2195,7 +2211,7 @@ const ListContracts = () => {
         {/* Tabs desktop : style onglets classeur */}
         <div className="hidden lg:flex items-center gap-2 border-b border-gray-200">
           <div className="flex-1 min-w-0">
-            <TabsList className="relative flex w-full flex-nowrap overflow-x-auto scrollbar-hide bg-transparent p-0 h-auto gap-0.5">
+            <TabsList className="relative flex w-full flex-wrap bg-transparent p-0 h-auto gap-0.5">
               {tabItems.map(({ value, label, icon: Icon, isDanger }) => (
                 <TabsTrigger
                   key={value}
