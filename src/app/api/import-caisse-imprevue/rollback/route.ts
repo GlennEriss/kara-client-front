@@ -63,8 +63,10 @@ export async function POST(req: NextRequest) {
       .get()
     for (const contractDoc of csSnap.docs) {
       if ((contractDoc.data() as { migrationSheet?: string }).migrationSheet !== sheetName) continue
-      const paySnap = await contractDoc.ref.collection('payments').get()
-      for (const d of paySnap.docs) await d.ref.delete()
+      for (const sub of ['payments', 'refunds']) {
+        const subSnap = await contractDoc.ref.collection(sub).get()
+        for (const d of subSnap.docs) await d.ref.delete()
+      }
       await contractDoc.ref.delete()
       contractsDeleted++
     }

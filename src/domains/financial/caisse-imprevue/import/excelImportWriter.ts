@@ -684,6 +684,10 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
   const nominalPaid = row.payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0)
   const startDateObj = row.startDate ? safeDate(row.startDate) : undefined
 
+  // Statut CS : ACTIVE, ou contrat clôturé (RESCINDED = retrait anticipé, CLOSED = clôture normale).
+  const csStatus = row.status === 'RESCINDED' || row.status === 'CLOSED' ? row.status : 'ACTIVE'
+  const isClosed = csStatus !== 'ACTIVE'
+
   const docs: AdminImportDoc[] = []
 
   docs.push({
@@ -700,7 +704,7 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
       caisseType,
       firstPaymentDate: row.startDate || '',
       ...(startDateObj ? { contractStartAt: startDateObj, nextDueAt: startDateObj } : {}),
-      status: 'ACTIVE',
+      status: csStatus,
       currentMonthIndex: paidCount,
       withdrawLockedUntilM: 4,
       nominalPaid,
@@ -710,7 +714,7 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
       createdAt: adminServerTimestamp(),
       updatedAt: adminServerTimestamp(),
       createdBy: ctx.adminId,
-      ...marker(ctx, 'A', row.rowNumber, row.raw),
+      ...marker(ctx, isClosed ? 'C' : 'A', row.rowNumber, row.raw),
     },
   })
 
@@ -734,6 +738,42 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
     docs.push({ path: [CAISSE_CONTRACTS, contractId, 'payments', paymentId], data })
   }
 
+  // Contrat clôturé → remboursement (caisseContracts/{id}/refunds).
+  let hasRefund = false
+  if (isClosed && row.earlyRefundDetail) {
+    hasRefund = true
+    const isRescinded = csStatus === 'RESCINDED'
+    const refundDate = safeDate(row.earlyRefundDetail.date)
+    const deadline = new Date(refundDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const amount = row.earlyRefundDetail.amount || nominalPaid
+    docs.push({
+      path: [CAISSE_CONTRACTS, contractId, 'refunds', 'refund-mig'],
+      data: {
+        id: 'refund-mig',
+        type: isRescinded ? 'EARLY' : 'FINAL',
+        status: 'PAID',
+        amountNominal: amount,
+        amountBonus: 0,
+        reason:
+          row.earlyRefundDetail.reason ||
+          (isRescinded
+            ? 'Retrait anticipé (import migration Excel)'
+            : 'Clôture normale (import migration Excel)'),
+        withdrawalAmount: amount,
+        withdrawalMode: 'cash',
+        withdrawalDate: refundDate,
+        deadlineAt: deadline,
+        processedAt: refundDate,
+        processedBy: ctx.adminId,
+        createdAt: adminServerTimestamp(),
+        // Marqueur migration (pour le rollback ciblé par fichier+feuille).
+        isMigrated: true,
+        migrationSource: ctx.sourceFile,
+        migrationSheet: ctx.sheetName,
+      },
+    })
+  }
+
   await commitAdminImportDocs(docs)
 
   return {
@@ -743,7 +783,7 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
     contractId,
     payments: row.payments.length,
     supports: 0,
-    earlyRefund: false,
+    earlyRefund: hasRefund,
     memberCreated,
     placeholders: [],
   }
