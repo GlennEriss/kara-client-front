@@ -15,11 +15,11 @@
  *  - "ADHESION VOLET ENTRAIDE" -> contrats CI CLÔTURÉS (INACTIF uniquement)
  */
 
-export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'CS_ACTIVE' | 'MEMBERS' | 'UNKNOWN'
+export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'CS_ACTIVE' | 'CS_CLOSED' | 'MEMBERS' | 'UNKNOWN'
 export type MembershipTypeValue = 'adherant' | 'bienfaiteur' | 'sympathisant'
 /** Collection cible d'un import de contrats. */
 export type ImportTarget = 'CI' | 'CS'
-export type MappedContractStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED'
+export type MappedContractStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED' | 'RESCINDED' | 'CLOSED'
 export type ImportPaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
 
 export interface ImportVersement {
@@ -136,8 +136,9 @@ export interface ImportAnalysis {
 
 const SHEET_ACTIVE = 'GESTION ENTRAIDE ACTIF'
 const SHEET_CLOSED = 'ADHESION VOLET ENTRAIDE'
-const SHEET_MEMBERS = 'ADHESION MEMBRES'
-const SHEET_CS_ACTIVE = 'GESTION TONTINE ACTIF' // contrats Caisse Spéciale
+const SHEET_MEMBERS = 'MEMBRES' // feuille source des membres (état civil complet)
+const SHEET_CS_ACTIVE = 'GESTION TONTINE ACTIF' // contrats Caisse Spéciale (actifs)
+const SHEET_CS_CLOSED = 'ADHESION TONTINE' // contrats Caisse Spéciale clôturés (INACTIF)
 
 /** Type de caisse spéciale (caisseType) déduit de la colonne CATEGORIE. */
 export type CaisseTypeValue = 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
@@ -248,6 +249,7 @@ export function detectSheetType(sheetName: string): ImportSheetType {
   if (n === SHEET_ACTIVE) return 'CI_ACTIVE'
   if (n === SHEET_CLOSED) return 'CI_CLOSED'
   if (n === SHEET_CS_ACTIVE) return 'CS_ACTIVE'
+  if (n === SHEET_CS_CLOSED) return 'CS_CLOSED'
   if (n === SHEET_MEMBERS) return 'MEMBERS'
   return 'UNKNOWN'
 }
@@ -402,14 +404,83 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
 // 12 blocs d'échéance de 7 colonnes : ECHEANCE, DATE REMISE, MONTANT, HEURE, MOYEN, AGENT, REMARQUE.
 const CS_ECHEANCE_STARTS = [16, 23, 30, 37, 44, 51, 58, 65, 72, 79, 86, 93]
 
-function analyzeCaisseActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null {
+/** Détail quotidien d'un contrat journalier, issu de la feuille JOURNALIERE. */
+export interface JournaliereDetail {
+  matricule: string
+  startDate: string
+  periodsCount: number
+  payments: ImportPayment[]
+  totalPaid: number
+}
+
+/**
+ * Feuille JOURNALIERE : fiches disposées en 3 colonnes (bases 0, 6, 12).
+ * Chaque fiche = entête (MATRICULE/NOM/PRENOM/DATE DEBUT) + blocs « PERIODE N »
+ * de ~31 lignes [PERIODE, DATE, HEURE, MONTANT, MOYEN]. On retient les jours
+ * réellement versés (MONTANT > 0). Clé de croisement : matricule.
+ */
+export function parseJournaliereSheet(aoa: unknown[][]): Map<string, JournaliereDetail> {
+  const map = new Map<string, JournaliereDetail>()
+  const BASES = [0, 6, 12]
+  for (const base of BASES) {
+    let matricule = ''
+    let startDate = ''
+    let periodsCount = 0
+    const payments: ImportPayment[] = []
+    let index = 0
+    for (const row of aoa) {
+      const label = str(cell(row, base)).toUpperCase()
+      if (label === 'MATRICULE') {
+        matricule = str(cell(row, base + 1))
+      } else if (label === 'DATE DEBUT') {
+        startDate = dateStr(cell(row, base + 1)) || startDate
+      } else if (label.startsWith('PERIODE') && label !== 'PERIODE') {
+        periodsCount++
+      }
+      // Lignes "jour" : col base = numéro de jour, col base+3 = montant versé.
+      const day = cell(row, base)
+      const montant = num(cell(row, base + 3))
+      if (typeof day === 'number' && montant > 0) {
+        const date = dateStr(cell(row, base + 1)) || startDate || ''
+        payments.push({
+          monthIndex: index++,
+          targetAmount: montant,
+          status: 'PAID',
+          dueDate: date || undefined,
+          versement: {
+            date,
+            time: parseHeure(cell(row, base + 2)),
+            amount: montant,
+            mode: mapMode(cell(row, base + 4)),
+          },
+        })
+      }
+    }
+    if (matricule.trim() && payments.length > 0) {
+      map.set(matricule.trim(), {
+        matricule: matricule.trim(),
+        startDate,
+        periodsCount,
+        payments,
+        totalPaid: payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0),
+      })
+    }
+  }
+  return map
+}
+
+function analyzeCaisseActiveRow(
+  row: unknown[],
+  rowNumber: number,
+  journaliere?: Map<string, JournaliereDetail>,
+): AnalyzedRow | null {
   const matricule = str(cell(row, 1))
   if (!matricule) return null
 
   const caisseType = mapCaisseType(cell(row, 10)) // K CATEGORIE
   // Montant mensuel : STANDARD/JOURNALIERE = MONTANT CAT (L) ; LIBRE = 0 (montants variables).
   const amountPerMonth = caisseType === 'LIBRE' ? 0 : num(cell(row, 11))
-  const startDate = dateStr(cell(row, 7)) // H DEBUT VERSEMENT
+  let startDate = dateStr(cell(row, 7)) // H DEBUT VERSEMENT
 
   const payments: ImportPayment[] = []
   CS_ECHEANCE_STARTS.forEach((start, monthIndex) => {
@@ -437,15 +508,30 @@ function analyzeCaisseActiveRow(row: unknown[], rowNumber: number): AnalyzedRow 
     })
   })
 
+  // Croisement JOURNALIERE : pour un contrat journalier, on remplace les
+  // échéances (peu détaillées dans GESTION TONTINE ACTIF) par le suivi
+  // quotidien réel de la feuille JOURNALIERE (dates, heures, montants, moyens).
+  const journaliereDetail =
+    caisseType === 'JOURNALIERE' ? journaliere?.get(matricule.trim()) : undefined
+  if (journaliereDetail && journaliereDetail.payments.length > 0) {
+    payments.length = 0
+    payments.push(...journaliereDetail.payments)
+    if (!startDate && journaliereDetail.startDate) startDate = journaliereDetail.startDate
+  }
+
   const paidCount = payments.filter((p) => p.status === 'PAID').length
   const dueCount = payments.filter((p) => p.status === 'DUE').length
-  const durationMonths = payments.length || num(cell(row, 13)) + num(cell(row, 14)) || 12
+  const durationMonths = journaliereDetail
+    ? journaliereDetail.periodsCount || payments.length || 12
+    : payments.length || num(cell(row, 13)) + num(cell(row, 14)) || 12
 
   const contacts = contactsOf(cell(row, 5), cell(row, 6))
 
   const issues: string[] = []
   if (caisseType !== 'LIBRE' && amountPerMonth <= 0) issues.push('Montant mensuel manquant')
   if (payments.length === 0) issues.push('Aucune échéance détectée')
+  if (caisseType === 'JOURNALIERE' && !journaliereDetail)
+    issues.push('Contrat journalier sans fiche JOURNALIERE (croisement impossible)')
   if (!str(cell(row, 3)) && !str(cell(row, 4))) issues.push('Nom/prénom manquant')
 
   const entraide: EntraideMeta = {
@@ -453,9 +539,9 @@ function analyzeCaisseActiveRow(row: unknown[], rowNumber: number): AnalyzedRow 
     contractEndDate: dateStr(cell(row, 8)) || undefined,
     receptionDate: dateStr(cell(row, 9)) || undefined,
     summary: {
-      versementsCount: num(cell(row, 13)),
+      versementsCount: journaliereDetail ? paidCount : num(cell(row, 13)),
       monthsUnpaid: num(cell(row, 14)),
-      montantTotal: num(cell(row, 15)),
+      montantTotal: journaliereDetail ? journaliereDetail.totalPaid : num(cell(row, 15)),
     },
   }
 
@@ -481,6 +567,130 @@ function analyzeCaisseActiveRow(row: unknown[], rowNumber: number): AnalyzedRow 
     supportsDetail: [],
     earlyRefundDetail: null,
     emergency: { lastName: 'INCONNU', firstName: '', phone1: contacts[0] ?? '', relationship: 'INCONNU' },
+    entraide,
+    raw: {},
+  }
+}
+
+// ----- ADHESION TONTINE (INACTIF uniquement) : contrats Caisse Spéciale clôturés -----
+
+/** Nombre de mois entre deux dates ISO (b - a). */
+function monthsBetweenIso(a: string | null, b: string | null): number {
+  if (!a || !b) return 0
+  const da = new Date(a)
+  const db = new Date(b)
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return 0
+  return (db.getFullYear() - da.getFullYear()) * 12 + (db.getMonth() - da.getMonth())
+}
+
+// Échéancier simplifié : 12 paires MOIS (nom du mois) / MONTANT à partir de la colonne 24.
+const CS_CLOSED_MONTH_STARTS = [24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46]
+
+/**
+ * Une ligne INACTIF d'ADHESION TONTINE → 1 contrat Caisse Spéciale clôturé.
+ * OBSERVATION « RETRAIT ANTICIPE » → RESCINDED (retrait anticipé), sinon CLOSED
+ * (clôture normale). Les lignes ACTIF sont ignorées (importées via GESTION TONTINE ACTIF).
+ */
+function analyzeCaisseClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null {
+  const matricule = str(cell(row, 1))
+  if (!matricule) return null
+  const statut = str(cell(row, 7)).toUpperCase()
+  if (!statut.includes('INACT')) return null // on ne traite que les INACTIF
+
+  const caisseType = mapCaisseType(cell(row, 11)) // TYPE TONTINE
+  const amountPerMonth = caisseType === 'LIBRE' ? 0 : num(cell(row, 12)) // MONTANT/M
+  const startDate = dateStr(cell(row, 9)) // DATE DEBUT
+  const finDate = dateStr(cell(row, 10)) // FIN ENTRAIDE
+
+  const observationRaw = strOpt(cell(row, 17))
+  const observation = (observationRaw || '').toUpperCase()
+  const otherRemarks = strOpt(cell(row, 18))
+  const isEarly = observation.includes('RETRAIT ANTICIP')
+  const status: MappedContractStatus = isEarly ? 'RESCINDED' : 'CLOSED'
+
+  // Échéancier : paires MOIS (nom) / MONTANT. Montant > 0 → versement payé.
+  const payments: ImportPayment[] = []
+  CS_CLOSED_MONTH_STARTS.forEach((start, monthIndex) => {
+    const monthLabel = strOpt(cell(row, start))
+    const montant = num(cell(row, start + 1))
+    if (montant <= 0 && !monthLabel) return
+    if (montant <= 0) return
+    const date = addMonthsIso(startDate, monthIndex) || startDate || ''
+    payments.push({
+      monthIndex,
+      targetAmount: amountPerMonth || montant,
+      status: 'PAID',
+      dueDate: date || undefined,
+      versement: {
+        date,
+        time: '00:00',
+        amount: montant,
+        mode: 'cash',
+        note: monthLabel, // nom du mois (JANVIER, FEVRIER…)
+      },
+    })
+  })
+
+  const paidCount = payments.length
+  const montantCotisation = num(cell(row, 16)) // MONTANT COTISATION (total remis)
+  const dateRemise = dateStr(cell(row, 15)) // DATE REMISE
+  // Durée planifiée du contrat = DEBUT → FIN ENTRAIDE (sinon échéances, sinon 12).
+  const durationMonths = monthsBetweenIso(startDate, finDate) || payments.length || 12
+
+  const contacts = contactsOf(cell(row, 5), cell(row, 6))
+  const totalPaid = payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0)
+
+  const issues: string[] = []
+  if (caisseType !== 'LIBRE' && amountPerMonth <= 0) issues.push('Montant mensuel manquant')
+  if (!str(cell(row, 3)) && !str(cell(row, 4))) issues.push('Nom/prénom manquant')
+
+  const entraide: EntraideMeta = {
+    code: strOpt(cell(row, 2)),
+    contractEndDate: finDate || undefined,
+    contractSigned: strOpt(cell(row, 8)),
+    yearRegistered: strOpt(cell(row, 13)),
+    observation: observationRaw,
+    otherRemarks,
+    closureDocs: strOpt(cell(row, 19)),
+    guarantorMatricule: strOpt(cell(row, 20)),
+    summary: {
+      versementsCount: paidCount,
+      monthsUnpaid: num(cell(row, 14)), // DUREE PERIODE
+      montantTotal: totalPaid,
+    },
+  }
+
+  return {
+    rowNumber,
+    matricule,
+    lastName: str(cell(row, 3)),
+    firstName: str(cell(row, 4)),
+    contacts,
+    category: caisseType,
+    amountPerMonth,
+    durationMonths,
+    startDate,
+    status,
+    paidCount,
+    dueCount: 0,
+    supportsCount: 0,
+    supportsAmount: 0,
+    hasEarlyRefund: true,
+    earlyRefundAmount: montantCotisation,
+    issues,
+    payments,
+    supportsDetail: [],
+    earlyRefundDetail: {
+      amount: montantCotisation,
+      date: dateRemise || startDate || '',
+      reason: otherRemarks || observationRaw || undefined,
+    },
+    emergency: {
+      lastName: str(cell(row, 21)) || 'INCONNU',
+      firstName: str(cell(row, 22)),
+      phone1: contacts[0] ?? '',
+      relationship: str(cell(row, 23)) || 'INCONNU',
+    },
     entraide,
     raw: {},
   }
@@ -631,7 +841,11 @@ function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null
   }
 }
 
-export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysis {
+export function analyzeSheet(
+  sheetName: string,
+  aoa: unknown[][],
+  opts?: { journaliere?: Map<string, JournaliereDetail> },
+): ImportAnalysis {
   const sheetType = detectSheetType(sheetName)
   const headerIdx = findHeaderRowIndex(aoa)
   const dataRows = aoa.slice(headerIdx + 1)
@@ -656,7 +870,8 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
     }
   }
 
-  const target: ImportTarget = sheetType === 'CS_ACTIVE' ? 'CS' : 'CI'
+  const target: ImportTarget =
+    sheetType === 'CS_ACTIVE' || sheetType === 'CS_CLOSED' ? 'CS' : 'CI'
 
   const rows: AnalyzedRow[] = []
   let totalDataRows = 0
@@ -670,8 +885,10 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
       sheetType === 'CI_ACTIVE'
         ? analyzeActiveRow(r, rowNumber)
         : sheetType === 'CS_ACTIVE'
-          ? analyzeCaisseActiveRow(r, rowNumber)
-          : analyzeClosedRow(r, rowNumber)
+          ? analyzeCaisseActiveRow(r, rowNumber, opts?.journaliere)
+          : sheetType === 'CS_CLOSED'
+            ? analyzeCaisseClosedRow(r, rowNumber)
+            : analyzeClosedRow(r, rowNumber)
     if (analyzed) {
       analyzed.raw = buildRaw(r)
       rows.push(analyzed)
@@ -680,20 +897,32 @@ export function analyzeSheet(sheetName: string, aoa: unknown[][]): ImportAnalysi
 
   const totals = {
     active: rows.filter((x) => x.status === 'ACTIVE').length,
-    finished: rows.filter((x) => x.status === 'FINISHED').length,
-    canceled: rows.filter((x) => x.status === 'CANCELED').length,
+    // CLOSED (clôture normale CS) compté avec les "terminés".
+    finished: rows.filter((x) => x.status === 'FINISHED' || x.status === 'CLOSED').length,
+    // RESCINDED (retrait anticipé CS) compté avec les "annulés/résiliés".
+    canceled: rows.filter((x) => x.status === 'CANCELED' || x.status === 'RESCINDED').length,
     paidVersements: rows.reduce((s, x) => s + x.paidCount, 0),
     supports: rows.reduce((s, x) => s + x.supportsCount, 0),
     earlyRefunds: rows.filter((x) => x.hasEarlyRefund).length,
   }
 
   const howItWillBeImported =
-    sheetType === 'CS_ACTIVE'
+    sheetType === 'CS_CLOSED'
+      ? [
+          'Lignes INACTIF uniquement → 1 contrat Caisse Spéciale clôturé (collection caisseContracts). Les ACTIF sont ignorés (voir GESTION TONTINE ACTIF).',
+          'OBSERVATION « RETRAIT ANTICIPE » → statut RESCINDED ; sinon CLOSED (clôture normale).',
+          'TYPE TONTINE : MENSUEL → STANDARD, LIBRE → LIBRE, JOURNALIER → JOURNALIERE.',
+          'MOIS 1..12 / MONTANT → paiements PAID (montant + nom du mois) ; durée = DÉBUT → FIN ENTRAIDE.',
+          'DATE REMISE / MONTANT COTISATION → remboursement (caisseContracts/{id}/refunds) : RESCINDED → EARLY, CLOSED → FINAL ; motif = AUTRES REMARQUE.',
+          'OBSERVATION, garant, contrat signé, fin, docs clôture → bloc `entraide`. Membre créé s’il n’existe pas. Ligne brute conservée (migration.raw).',
+        ]
+      : sheetType === 'CS_ACTIVE'
       ? [
           'Chaque ligne → 1 contrat Caisse Spéciale ACTIVE (collection caisseContracts).',
           'CATEGORIE : MENSUEL → STANDARD, LIBRE → LIBRE, JOURNALIER → JOURNALIERE.',
           'Montant mensuel = MONTANT CAT (0 pour LIBRE) ; durée = nb d’échéances (payées + dues).',
           'Échéances → paiements (caisseContracts/{id}/payments) : payé → PAID (date, heure, montant, moyen), sinon DUE.',
+          'JOURNALIER : croisement par matricule avec la feuille JOURNALIERE → versements quotidiens réels (dates, heures, montants, moyens).',
           'Membre créé s’il n’existe pas (compte adhérent). Ligne brute conservée (migration.raw).',
         ]
       : sheetType === 'CI_ACTIVE'
@@ -809,7 +1038,7 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
   return map
 }
 
-// ----- Import de MEMBRES (feuille ADHESION MEMBRES) -----
+// ----- Import de MEMBRES (feuille MEMBRES) -----
 
 export interface AnalyzedMember {
   rowNumber: number
@@ -832,9 +1061,10 @@ export interface MembersAnalysis {
 }
 
 /**
- * Analyse la feuille ADHESION MEMBRES → liste de membres dédoublonnée par
- * matricule (plusieurs lignes = plusieurs adhésions du même membre).
- * Colonne G `T.MEMBRES` → type de compte.
+ * Analyse la feuille MEMBRES → liste de membres dédoublonnée par matricule.
+ * MEMBRES ne contient pas de colonne « type de compte » → adhérent par défaut.
+ * L'état civil complet (naissance, e-mail, pièce, adresse…) est repris à
+ * l'écriture via parseMembersSheet (même feuille).
  */
 export function analyzeMembersSheet(sheetName: string, aoa: unknown[][]): MembersAnalysis {
   const headerIdx = findHeaderRowIndex(aoa)
@@ -850,7 +1080,8 @@ export function analyzeMembersSheet(sheetName: string, aoa: unknown[][]): Member
     if (seen.has(matricule.trim())) continue // dédoublonnage par matricule
     seen.add(matricule.trim())
 
-    const mt = mapMembership(cell(r, 6))
+    // Feuille MEMBRES : pas de colonne « type de compte » → adhérent par défaut.
+    const mt = mapMembership(undefined)
     const contacts = [mval(cell(r, 4)), mval(cell(r, 5))].filter((x): x is string => !!x)
     const issues: string[] = []
     if (!str(cell(r, 2)) && !str(cell(r, 3))) issues.push('Nom/prénom manquant')

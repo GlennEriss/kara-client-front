@@ -42,6 +42,7 @@ import {
   analyzeMembersSheet,
   analyzeSheet,
   detectSheetType,
+  parseJournaliereSheet,
   parseMembersSheet,
   type AnalyzedMember,
   type AnalyzedRow,
@@ -77,12 +78,18 @@ const STATUS_LABEL: Record<string, string> = {
   ACTIVE: 'Actif',
   FINISHED: 'Terminé',
   CANCELED: 'Annulé (retrait)',
+  RESCINDED: 'Résilié (retrait anticipé)',
+  CLOSED: 'Clôturé (normal)',
 }
 
 const fmtAmount = (n: number) => n.toLocaleString('fr-FR')
 
 function findMembersSheetName(sheetNames: string[]): string | undefined {
   return sheetNames.find((name) => name.trim().toUpperCase() === 'MEMBRES')
+}
+
+function findJournaliereSheetName(sheetNames: string[]): string | undefined {
+  return sheetNames.find((name) => name.trim().toUpperCase() === 'JOURNALIERE')
 }
 
 /** "2026-01-28" -> "28/01/2026" */
@@ -191,7 +198,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
         : new Map<string, ImportMemberData>()
       setMemberData(enrich)
 
-      // ----- Feuille MEMBRES (ADHESION MEMBRES) : import de membres -----
+      // ----- Feuille MEMBRES : import de membres -----
       if (detectSheetType(selectedSheet) === 'MEMBERS') {
         const res = analyzeMembersSheet(selectedSheet, aoa)
         let mviews: MemberView[] = res.members.map((m) => ({ ...m, exists: false }))
@@ -205,8 +212,20 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
         return
       }
 
-      // ----- Feuilles contrats (CI_ACTIVE / CI_CLOSED / UNKNOWN) -----
-      const result = analyzeSheet(selectedSheet, aoa)
+      // ----- Croisement JOURNALIERE (contrats journaliers de la Caisse Spéciale) -----
+      const journaliereSheet = findJournaliereSheetName(workbook.SheetNames)
+      const journaliere = journaliereSheet
+        ? parseJournaliereSheet(
+            XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[journaliereSheet], {
+              header: 1,
+              raw: true,
+              blankrows: false,
+            }),
+          )
+        : undefined
+
+      // ----- Feuilles contrats (CI_ACTIVE / CI_CLOSED / CS_ACTIVE / UNKNOWN) -----
+      const result = analyzeSheet(selectedSheet, aoa, { journaliere })
       let views: RowView[] = result.rows.map((r) => ({ ...r, memberFound: false }))
       let map = new Map<string, User>()
       if (result.rows.length > 0) {
@@ -331,7 +350,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   // Membres distincts à créer (un membre peut avoir plusieurs contrats).
   const distinctNewMembers = new Set(membersMissing.map((r) => r.matricule.trim())).size
 
-  // Import de membres (feuille ADHESION MEMBRES)
+  // Import de membres (feuille MEMBRES)
   const membersToCreate = memberViews.filter((m) => !m.exists)
   const membersExisting = memberViews.length - membersToCreate.length
 
@@ -340,7 +359,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     if (!scope) return true
     const t = detectSheetType(name)
     if (scope === 'members') return t === 'MEMBERS'
-    if (scope === 'caisse-speciale') return t === 'CS_ACTIVE'
+    if (scope === 'caisse-speciale') return t === 'CS_ACTIVE' || t === 'CS_CLOSED'
     return t === 'CI_ACTIVE' || t === 'CI_CLOSED'
   })
 
@@ -451,9 +470,9 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
             <CardContent className="p-4 md:p-5">
               <h3 className="mb-2 text-sm font-bold text-[#234D65]">Comment ça sera importé</h3>
               <ul className="list-disc space-y-1 pl-5 text-sm text-gray-600">
-                <li>Chaque membre unique (dédoublonné par matricule) → 1 compte dans <span className="font-mono">users</span> (id = matricule, sans compte Auth).</li>
-                <li>Type de compte déduit de la colonne <span className="font-mono">T.MEMBRES</span> (Adhérent / Bienfaiteur / Sympathisant).</li>
-                <li>Identité enrichie depuis la feuille MEMBRES si disponible (naissance, email, pièce, adresse, profession…).</li>
+                <li>Source : feuille <span className="font-mono">MEMBRES</span>. Chaque membre unique (dédoublonné par matricule) → 1 compte dans <span className="font-mono">users</span> (id = matricule, sans compte Auth).</li>
+                <li>Type de compte : <strong>Adhérent</strong> par défaut (la feuille MEMBRES n’a pas de colonne « type »).</li>
+                <li>Identité complète reprise de MEMBRES : naissance, e-mail, sexe, pièce, nationalité, adresse, profession, conjoint…</li>
                 <li>Les membres déjà présents (même matricule) sont <strong>ignorés</strong> (non écrasés).</li>
               </ul>
             </CardContent>
@@ -600,9 +619,11 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                   <Badge variant="outline" className="ml-1 border-[#234D65]/20 bg-white text-[#234D65]">
                     {analysis.sheetType === 'CS_ACTIVE'
                       ? 'Contrats Caisse Spéciale'
-                      : analysis.sheetType === 'CI_ACTIVE'
-                        ? 'Contrats actifs'
-                        : 'Contrats clôturés'}
+                      : analysis.sheetType === 'CS_CLOSED'
+                        ? 'Contrats Caisse Spéciale clôturés'
+                        : analysis.sheetType === 'CI_ACTIVE'
+                          ? 'Contrats actifs'
+                          : 'Contrats clôturés'}
                   </Badge>
                 )}
               </p>
