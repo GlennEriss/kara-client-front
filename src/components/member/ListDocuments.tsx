@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -245,26 +246,16 @@ export default function ListDocuments({ memberId }: ListDocumentsProps) {
           )}
 
           {documents.length > 0 && (
-            <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-gray-600">
-                Page {pagination.page} sur {pagination.totalPages} — {pagination.totalItems} documents
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setPage(pagination.page - 1)}
-                  disabled={pagination.page <= 1}
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setPage(pagination.page + 1)}
-                  disabled={pagination.page >= pagination.totalPages}
-                >
-                  Suivant
-                </Button>
-              </div>
+            <div className="border-t border-gray-100 pt-4">
+              <ListPagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                onPrev={() => setPage(pagination.page - 1)}
+                onNext={() => setPage(pagination.page + 1)}
+                prevDisabled={pagination.page <= 1}
+                nextDisabled={pagination.page >= pagination.totalPages}
+                summary={<>{pagination.totalItems} documents</>}
+              />
             </div>
           )}
         </CardContent>

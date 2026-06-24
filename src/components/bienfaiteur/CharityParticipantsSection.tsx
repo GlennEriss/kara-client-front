@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -10,7 +11,7 @@ import { useCharityParticipants, useRemoveCharityParticipant } from '@/hooks/bie
 import { useAllMembers } from '@/hooks/useMembers'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, Search, UserMinus } from 'lucide-react'
+import { Plus, Search, UserMinus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import AddParticipantModal from './AddParticipantModal'
@@ -209,28 +210,14 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
           {/* Pagination */}
           {totalPages > 1 && (
             <Card className="border-cyan-100/70 bg-white/80 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)]">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="text-sm text-slate-600">
-                  Page {currentPage} sur {totalPages} ({filtered.length} participants)
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
+              <CardContent className="p-4">
+                <ListPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  summary={<>{filtered.length} participants</>}
+                />
               </CardContent>
             </Card>
           )}

@@ -1,6 +1,7 @@
 'use client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import {
     Dialog,
@@ -1638,33 +1639,15 @@ export default function MembershipRequestsList() {
       {membershipData && membershipData.pagination.totalPages > 1 && (
         <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-600">
-                Page {membershipData.pagination.currentPage} sur {membershipData.pagination.totalPages}
-                <span className="mx-2">•</span>
-                {membershipData.pagination.totalItems} résultats
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!membershipData.pagination.hasPrevPage}
-                  onClick={() => handleFilterChange('page', membershipData.pagination.currentPage - 1)}
-                  className="h-10 px-4 border-2 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!membershipData.pagination.hasNextPage}
-                  onClick={() => handleFilterChange('page', membershipData.pagination.currentPage + 1)}
-                  className="h-10 px-4 border-2 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
-                >
-                  Suivant
-                </Button>
-              </div>
-            </div>
+            <ListPagination
+              currentPage={membershipData.pagination.currentPage}
+              totalPages={membershipData.pagination.totalPages}
+              onPrev={() => handleFilterChange('page', membershipData.pagination.currentPage - 1)}
+              onNext={() => handleFilterChange('page', membershipData.pagination.currentPage + 1)}
+              prevDisabled={!membershipData.pagination.hasPrevPage}
+              nextDisabled={!membershipData.pagination.hasNextPage}
+              summary={<>{membershipData.pagination.totalItems} résultats</>}
+            />
           </CardContent>
         </Card>
       )}

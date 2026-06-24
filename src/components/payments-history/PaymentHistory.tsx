@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -1134,29 +1135,15 @@ export default function PaymentHistory({ requestId }: Props) {
 
           <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
             <CardContent className="p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-slate-600">
-                  Page {currentPage} sur {totalPages} • {isLoadingCount ? '...' : `${totalCount} resultats`}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handlePrevPage}
-                    disabled={currentPage === 1}
-                    className="h-10 rounded-xl border-[#234D65]/35 px-4 text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                  >
-                    <ChevronLeft className="mr-1 h-4 w-4" /> Precedent
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleNextPage}
-                    disabled={!hasNextPage}
-                    className="h-10 rounded-xl border-[#234D65]/35 px-4 text-[#234D65] hover:bg-[#234D65] hover:text-white"
-                  >
-                    Suivant <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <ListPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPrev={handlePrevPage}
+                onNext={handleNextPage}
+                prevDisabled={currentPage === 1}
+                nextDisabled={!hasNextPage}
+                summary={<>{isLoadingCount ? '...' : `${totalCount} resultats`}</>}
+              />
             </CardContent>
           </Card>
         </>

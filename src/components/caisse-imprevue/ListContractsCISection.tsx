@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ListPagination } from '@/components/ui/list-pagination'
 import {
     Dialog,
     DialogContent,
@@ -35,8 +36,6 @@ import {
     CalendarDays,
     CheckCircle,
     ChevronDown,
-    ChevronLeft,
-    ChevronRight,
     Download,
     DollarSign,
     Eye,
@@ -937,36 +936,18 @@ export default function ListContractsCISection() {
     return (
       <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts?.length || 0)} sur {filteredContracts?.length || 0} contrats
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-              >
-                <ChevronLeft className="mr-1 h-4 w-4" />
-                Précédent
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {currentPage} sur {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-              >
-                Suivant
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <ListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPrev={() => handlePageChange(currentPage - 1)}
+            onNext={() => handlePageChange(currentPage + 1)}
+            summary={
+              <>
+                Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts?.length || 0)} sur{' '}
+                {filteredContracts?.length || 0} contrats
+              </>
+            }
+          />
         </CardContent>
       </Card>
     )

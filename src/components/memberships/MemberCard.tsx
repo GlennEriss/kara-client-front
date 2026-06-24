@@ -118,10 +118,6 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <span className={`flex items-center gap-1.5 text-xs font-semibold ${subscriptionStatus.text}`}>
-              <span className={`h-2 w-2 rounded-full shrink-0 ${subscriptionStatus.dot}`} />
-              {subscriptionStatus.label}
-            </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-80 transition-opacity group-hover:opacity-100">
@@ -171,8 +167,14 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
           </div>
         </div>
 
-        {/* Type d'adhésion + anniversaire */}
+        {/* Statut abonnement + type d'adhésion + anniversaire */}
         <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-semibold ${subscriptionStatus.text}`}
+          >
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${subscriptionStatus.dot}`} />
+            {subscriptionStatus.label}
+          </span>
           <span className="text-[10px] font-medium text-gray-400">
             {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
           </span>

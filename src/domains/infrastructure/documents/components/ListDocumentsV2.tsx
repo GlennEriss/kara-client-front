@@ -3,13 +3,14 @@
 import React, { useMemo, useState } from 'react'
 import { useDocumentList } from '@/domains/infrastructure/documents/hooks/useDocumentList'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Loader2, FileText, Eye, Download, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react'
+import { Loader2, FileText, Eye, Download, MoreVertical } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
@@ -382,34 +383,22 @@ export default function ListDocumentsV2({ memberId }: ListDocumentsV2Props) {
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between" data-testid="documents-pagination">
-                  <div className="text-sm text-muted-foreground" data-testid="pagination-info">
-                    Page {pagination.page} sur {pagination.totalPages} — {pagination.totalItems} document{pagination.totalItems > 1 ? 's' : ''}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(pagination.page - 1)}
-                      disabled={pagination.page <= 1}
-                      className="border-kara-primary-dark/20 hover:bg-kara-primary-light/10 hover:text-kara-primary-dark"
-                      data-testid="btn-pagination-prev"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Précédent
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(pagination.page + 1)}
-                      disabled={pagination.page >= pagination.totalPages}
-                      className="border-kara-primary-dark/20 hover:bg-kara-primary-light/10 hover:text-kara-primary-dark"
-                      data-testid="btn-pagination-next"
-                    >
-                      Suivant
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </div>
+                <div className="border-t border-gray-100 pt-4" data-testid="documents-pagination">
+                  <ListPagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    onPrev={() => setPage(pagination.page - 1)}
+                    onNext={() => setPage(pagination.page + 1)}
+                    prevDisabled={pagination.page <= 1}
+                    nextDisabled={pagination.page >= pagination.totalPages}
+                    prevTestId="btn-pagination-prev"
+                    nextTestId="btn-pagination-next"
+                    summary={
+                      <>
+                        {pagination.totalItems} document{pagination.totalItems > 1 ? 's' : ''}
+                      </>
+                    }
+                  />
                 </div>
               )}
             </>

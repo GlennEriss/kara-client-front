@@ -91,7 +91,9 @@ export function DetailsIdentityCard({
                     </Badge>
                   </div>
                 ) : (
-                  <span className="text-gray-500">Code: {request.identity.intermediaryCode}</span>
+                  <span className="text-amber-600">
+                    Aucun membre avec ce matricule ({request.identity.intermediaryCode})
+                  </span>
                 )
               } 
               icon={Users} 

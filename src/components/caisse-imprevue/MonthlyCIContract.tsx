@@ -1,6 +1,7 @@
 'use client'
 
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
+import { MemberByMatricule } from '@/components/admin/MemberByMatricule'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -122,13 +123,13 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
   if (!e) return null
   const isCanceled = contract.status === 'CANCELED'
 
+  const guarantor = e.guarantorMatricule?.trim()
   const rows: Array<[string, string | undefined]> = [
     ['Code entraide', e.code],
     ['Date de réception', fmtIso(e.receptionDate)],
     ['Fin des versements', fmtIso(e.contractEndDate)],
     ['Contrat signé', e.contractSigned],
     ['Année inscription', e.yearRegistered],
-    ['Garant (matricule)', e.guarantorMatricule?.trim()],
     ['Documents clôture', e.closureDocs],
     ['Observation', e.observation],
     ['Motif', e.otherRemarks],
@@ -146,7 +147,7 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
     : []
   const summaryRows = summaryAll.filter(([, v]) => v !== undefined && v !== '')
 
-  if (visible.length === 0 && summaryRows.length === 0) return null
+  if (visible.length === 0 && summaryRows.length === 0 && !guarantor) return null
 
   return (
     <Card className={isCanceled ? 'border border-amber-200 bg-amber-50/40 shadow-sm' : 'border-0 shadow-md'}>
@@ -154,7 +155,7 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
         <h3 className="text-sm font-bold text-[#234D65]">
           {isCanceled ? 'Détails de la résiliation' : 'Informations complémentaires (import)'}
         </h3>
-        {visible.length > 0 && (
+        {(visible.length > 0 || guarantor) && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {visible.map(([label, value]) => (
               <div key={label}>
@@ -162,6 +163,14 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
                 <p className="break-words text-sm text-gray-800">{value}</p>
               </div>
             ))}
+            {guarantor && (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Garant</p>
+                <p className="break-words text-sm text-gray-800">
+                  <MemberByMatricule matricule={guarantor} roleLabel="Garant" />
+                </p>
+              </div>
+            )}
           </div>
         )}
         {summaryRows.length > 0 && (
@@ -575,13 +584,22 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
         {/* Barre de progression */}
         <Card className="border-0 shadow-md">
           <CardContent className="p-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-[#234D65]" />
                 <span>
                   Mois payés&nbsp;: <b>{paidCount}</b> / {totalMonths || '—'}
                 </span>
               </div>
+              {/* Mois impayés : surtout utile pour les contrats résiliés/terminés (ex. 4/12 → 8). */}
+              {totalMonths > 0 && (isContractCanceled || isContractFinished) && (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                  <span>
+                    Mois impayés&nbsp;: <b className="text-amber-700">{Math.max(0, totalMonths - paidCount)}</b>
+                  </span>
+                </div>
+              )}
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
               <div
