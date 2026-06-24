@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -13,7 +14,7 @@ import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import type { EnrichedCharityContribution } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Download, Eye, FileDown, FileSpreadsheet, FileText, Plus, Search, Trash2 } from 'lucide-react'
+import { Download, Eye, FileDown, FileSpreadsheet, FileText, Plus, Search, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -703,28 +704,13 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-cyan-100/70 p-4">
-                  <div className="text-sm text-slate-600">
-                    Page {currentPage} sur {totalPages}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <div className="border-t border-cyan-100/70 p-4">
+                  <ListPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  />
                 </div>
               )}
             </>

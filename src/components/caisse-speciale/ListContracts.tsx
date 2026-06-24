@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListPagination } from '@/components/ui/list-pagination'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -41,8 +42,6 @@ import {
     Calendar,
     CheckCircle,
     ChevronDown,
-    ChevronLeft,
-    ChevronRight,
     Clock,
     DollarSign,
     Download,
@@ -1965,34 +1964,19 @@ const ListContracts = () => {
     return (
       <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Affichage {totalCount === 0 ? 0 : startIndex + 1}-{endIndex} sur {totalCount} contrats
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrevPage}
-                disabled={currentPage === 1}
-                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-              >
-                Précédent
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {currentPage} sur {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={!contractsPage?.nextCursor}
-                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-              >
-                Suivant
-              </Button>
-            </div>
-          </div>
+          <ListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPrev={handlePrevPage}
+            onNext={handleNextPage}
+            prevDisabled={currentPage === 1}
+            nextDisabled={!contractsPage?.nextCursor}
+            summary={
+              <>
+                Affichage {totalCount === 0 ? 0 : startIndex + 1}-{endIndex} sur {totalCount} contrats
+              </>
+            }
+          />
         </CardContent>
       </Card>
     )

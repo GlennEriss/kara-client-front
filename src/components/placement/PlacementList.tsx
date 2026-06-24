@@ -3,6 +3,7 @@ import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -1296,30 +1297,14 @@ export default function PlacementList() {
                   ))}
                 </div>
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-sm text-gray-500">
-                      Page {page} / {totalPages} — {filteredByTab.length} résultat(s)
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="bg-white"
-                      >
-                        Précédent
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="bg-white"
-                      >
-                        Suivant
-                      </Button>
-                    </div>
+                  <div className="px-1">
+                    <ListPagination
+                      currentPage={page}
+                      totalPages={totalPages}
+                      onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                      onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      summary={<>{filteredByTab.length} résultat(s)</>}
+                    />
                   </div>
                 )}
               </div>

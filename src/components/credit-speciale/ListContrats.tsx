@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
     DropdownMenu,
@@ -1327,34 +1328,18 @@ const ListContrats = ({
     return (
       <Card className="border border-[#234D65]/20 bg-gradient-to-r from-white to-slate-50/60 shadow-sm">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Affichage {startIndex + 1}-{Math.min(endIndex, filteredContrats.length)} sur {filteredContrats.length} contrats
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-              >
-                Précédent
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {currentPage} sur {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="border-[#234D65]/35 px-3 py-1 text-[#234D65] cursor-pointer hover:bg-[#234D65] hover:text-white"
-              >
-                Suivant
-              </Button>
-            </div>
-          </div>
+          <ListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPrev={() => handlePageChange(currentPage - 1)}
+            onNext={() => handlePageChange(currentPage + 1)}
+            summary={
+              <>
+                Affichage {startIndex + 1}-{Math.min(endIndex, filteredContrats.length)} sur{' '}
+                {filteredContrats.length} contrats
+              </>
+            }
+          />
         </CardContent>
       </Card>
     )

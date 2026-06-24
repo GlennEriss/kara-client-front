@@ -286,8 +286,16 @@ function encodeAdminImportData(data: Record<string, unknown>): Record<string, un
 
 async function adminImportHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  const token = await auth.currentUser?.getIdToken()
-  if (token) headers.Authorization = `Bearer ${token}`
+  // Le token ID est un bonus : si son rafraîchissement échoue (réseau,
+  // securetoken.googleapis.com injoignable → auth/network-request-failed),
+  // on NE plante PAS — la requête reste authentifiée par le cookie de
+  // session `__session` (envoyé via credentials: 'include').
+  try {
+    const token = await auth.currentUser?.getIdToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+  } catch {
+    // On s'appuie sur le cookie de session.
+  }
   return headers
 }
 

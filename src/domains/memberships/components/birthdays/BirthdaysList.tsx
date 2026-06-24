@@ -9,7 +9,8 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Cake } from 'lucide-react'
+import { ListPagination } from '@/components/ui/list-pagination'
+import { Cake } from 'lucide-react'
 import { BirthdayCard } from './BirthdayCard'
 import type { BirthdayMember } from '../../types/birthdays'
 
@@ -85,33 +86,17 @@ export function BirthdaysList({
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
-        <div
-          className="flex items-center justify-center gap-2"
-          data-testid="member-birthdays-pagination"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange?.(pagination.currentPage - 1)}
-            disabled={!pagination.hasPrevPage || isLoading}
-            data-testid="pagination-prev"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-
-          <span className="text-sm text-gray-600">
-            Page {pagination.currentPage} sur {pagination.totalPages}
-          </span>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange?.(pagination.currentPage + 1)}
-            disabled={!pagination.hasNextPage || isLoading}
-            data-testid="pagination-next"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <div data-testid="member-birthdays-pagination">
+          <ListPagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            onPrev={() => onPageChange?.(pagination.currentPage - 1)}
+            onNext={() => onPageChange?.(pagination.currentPage + 1)}
+            prevDisabled={!pagination.hasPrevPage || isLoading}
+            nextDisabled={!pagination.hasNextPage || isLoading}
+            prevTestId="pagination-prev"
+            nextTestId="pagination-next"
+          />
         </div>
       )}
 

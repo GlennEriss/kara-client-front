@@ -3,6 +3,7 @@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -439,26 +440,14 @@ export default function MemberBirthdaysList() {
 
           {/* Pagination */}
           {filtered.length > itemsPerPage && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {currentPage} sur {Math.ceil(filtered.length / itemsPerPage)}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(Math.ceil(filtered.length / itemsPerPage), p + 1))}
-                disabled={currentPage >= Math.ceil(filtered.length / itemsPerPage)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="mt-6">
+              <ListPagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(filtered.length / itemsPerPage)}
+                onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                onNext={() => setCurrentPage((p) => Math.min(Math.ceil(filtered.length / itemsPerPage), p + 1))}
+                summary={<>{filtered.length} anniversaire{filtered.length > 1 ? 's' : ''}</>}
+              />
             </div>
           )}
         </>

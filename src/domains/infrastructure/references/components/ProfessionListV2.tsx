@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -17,7 +18,7 @@ import { useProfessionsPaginated, useProfessionMutations } from '../hooks/usePro
 import { toast } from 'sonner'
 import { 
   Plus, Search, Edit3, Trash2, Briefcase, Download, MoreVertical, 
-  ChevronLeft, ChevronRight, Loader2 
+  Loader2
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Profession } from '../entities/profession.types'
@@ -365,34 +366,18 @@ export default function ProfessionListV2() {
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-sm text-muted-foreground">
-                    Page {pagination.currentPage} sur {pagination.totalPages} • {pagination.totalItems} résultat(s)
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={!pagination.hasPrevPage}
-                      className="h-8"
-                      data-testid="btn-prev-page"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">Précédent</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => p + 1)}
-                      disabled={!pagination.hasNextPage}
-                      className="h-8"
-                      data-testid="btn-next-page"
-                    >
-                      <span className="hidden sm:inline">Suivant</span>
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <ListPagination
+                    currentPage={pagination.currentPage}
+                    totalPages={pagination.totalPages}
+                    onPrev={() => setPage(p => Math.max(1, p - 1))}
+                    onNext={() => setPage(p => p + 1)}
+                    prevDisabled={!pagination.hasPrevPage}
+                    nextDisabled={!pagination.hasNextPage}
+                    prevTestId="btn-prev-page"
+                    nextTestId="btn-next-page"
+                    summary={<>{pagination.totalItems} résultat(s)</>}
+                  />
                 </div>
               )}
             </>

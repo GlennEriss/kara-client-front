@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -188,29 +189,20 @@ export function AgentsListPage() {
       ) : (
         <>
           {pagination && (
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>
-                Affichage {(page - 1) * 12 + 1}-{Math.min(page * 12, pagination.totalItems)} sur {pagination.totalItems} agents
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.hasPrevPage}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.hasNextPage}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Suivant
-                </Button>
-              </div>
-            </div>
+            <ListPagination
+              currentPage={page}
+              totalPages={pagination.totalPages}
+              onPrev={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => p + 1)}
+              prevDisabled={!pagination.hasPrevPage}
+              nextDisabled={!pagination.hasNextPage}
+              summary={
+                <>
+                  Affichage {(page - 1) * 12 + 1}-{Math.min(page * 12, pagination.totalItems)} sur{' '}
+                  {pagination.totalItems} agents
+                </>
+              }
+            />
           )}
           {viewMode === 'cards' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -300,28 +292,21 @@ export function AgentsListPage() {
             </div>
           )}
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between text-sm text-gray-600 pt-4">
-              <span>
-                Affichage {(page - 1) * 12 + 1}-{Math.min(page * 12, pagination.totalItems)} sur {pagination.totalItems} agents
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.hasPrevPage}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.hasNextPage}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Suivant
-                </Button>
-              </div>
+            <div className="pt-4">
+              <ListPagination
+                currentPage={page}
+                totalPages={pagination.totalPages}
+                onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPage((p) => p + 1)}
+                prevDisabled={!pagination.hasPrevPage}
+                nextDisabled={!pagination.hasNextPage}
+                summary={
+                  <>
+                    Affichage {(page - 1) * 12 + 1}-{Math.min(page * 12, pagination.totalItems)} sur{' '}
+                    {pagination.totalItems} agents
+                  </>
+                }
+              />
             </div>
           )}
         </>

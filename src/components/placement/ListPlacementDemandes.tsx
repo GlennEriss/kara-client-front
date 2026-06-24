@@ -3,6 +3,7 @@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -541,34 +542,17 @@ const ListPlacementDemandes = () => {
           {totalPages > 1 && (
             <Card className="bg-gradient-to-r from-white via-gray-50/30 to-white border-0 shadow-lg">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Affichage {startIndex}-{endIndex} sur {totalForTab} demande{totalForTab !== 1 ? 's' : ''}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1"
-                    >
-                      Précédent
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} sur {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1"
-                    >
-                      Suivant
-                    </Button>
-                  </div>
-                </div>
+                <ListPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPrev={() => handlePageChange(currentPage - 1)}
+                  onNext={() => handlePageChange(currentPage + 1)}
+                  summary={
+                    <>
+                      Affichage {startIndex}-{endIndex} sur {totalForTab} demande{totalForTab !== 1 ? 's' : ''}
+                    </>
+                  }
+                />
               </CardContent>
             </Card>
           )}
