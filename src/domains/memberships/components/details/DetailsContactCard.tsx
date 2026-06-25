@@ -4,12 +4,13 @@
 
 'use client'
 
-import { Phone, Mail, Copy } from 'lucide-react'
+import { Phone, Mail, Copy, MessageCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ModernCard } from './shared/ModernCard'
 import { InfoField } from './shared/InfoField'
 import { toast } from 'sonner'
+import { resolveWhatsappNumber } from '../../utils/whatsappUrl'
 import type { MembershipRequest } from '../../entities'
 
 interface DetailsContactCardProps {
@@ -32,6 +33,19 @@ export function DetailsContactCard({ request }: DetailsContactCardProps) {
           color="text-blue-600"
           copyable={!!request.identity.email}
           data-testid="details-contact-email"
+        />
+
+        <InfoField
+          label={
+            request.identity.whatsappNumber
+              ? 'Numéro WhatsApp'
+              : 'Numéro WhatsApp (1er numéro par défaut)'
+          }
+          value={resolveWhatsappNumber(request.identity.whatsappNumber, request.identity.contacts) || 'Non renseigné'}
+          icon={MessageCircle}
+          color="text-[#25D366]"
+          copyable={!!resolveWhatsappNumber(request.identity.whatsappNumber, request.identity.contacts)}
+          data-testid="details-contact-whatsapp"
         />
 
         <div>

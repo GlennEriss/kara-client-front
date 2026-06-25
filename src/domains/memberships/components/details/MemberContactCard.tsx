@@ -4,8 +4,9 @@
 
 'use client'
 
-import { Phone, Mail } from 'lucide-react'
+import { Phone, Mail, MessageCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { resolveWhatsappNumber } from '../../utils/whatsappUrl'
 import type { MemberDetails } from '../../hooks/useMembershipDetails'
 
 interface MemberContactCardProps {
@@ -32,6 +33,15 @@ export function MemberContactCard({ member }: MemberContactCardProps) {
         <div className="space-y-1">
           <div className="text-xs text-gray-500">Téléphones</div>
           <div className="font-medium">{member.contacts?.join(', ') || 'Non renseigné'}</div>
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs text-gray-500">
+            {member.whatsappNumber ? 'WhatsApp' : 'WhatsApp (1er numéro par défaut)'}
+          </div>
+          <div className="font-medium flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-[#25D366]" />
+            {resolveWhatsappNumber(member.whatsappNumber, member.contacts) || 'Non renseigné'}
+          </div>
         </div>
       </CardContent>
     </Card>

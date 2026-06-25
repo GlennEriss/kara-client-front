@@ -10,6 +10,7 @@ import {
     Globe,
     Heart,
     Mail,
+    MessageCircle,
     Phone,
     Sparkles,
     User,
@@ -479,6 +480,20 @@ export default function IdentityStepV2() {
           maxContacts={3}
           error={errors.identity?.contacts?.message}
         />
+
+        {/* Numéro WhatsApp (facultatif) */}
+        <div className="mt-4 space-y-2">
+          <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-[#25D366]" />
+            Numéro WhatsApp *
+          </Label>
+          <GabonPhoneInput
+            value={watch('identity.whatsappNumber') || ''}
+            onChange={(value) => setValue('identity.whatsappNumber', value, { shouldValidate: true })}
+            error={errors.identity?.whatsappNumber?.message}
+            placeholder="XX XX XX XX"
+          />
+        </div>
 
         {/* Email */}
         <div className="mt-4 space-y-2">

@@ -239,6 +239,7 @@ export class RegistrationService implements IRegistrationService {
           prayerPlace: request.identity.prayerPlace,
           religion: request.identity.religion,
           contacts: request.identity.contacts,
+          whatsappNumber: request.identity.whatsappNumber,
           email: request.identity.email,
           gender: request.identity.gender,
           nationality: request.identity.nationality,

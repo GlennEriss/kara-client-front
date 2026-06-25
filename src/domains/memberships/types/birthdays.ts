@@ -9,6 +9,8 @@ export interface BirthdayMember {
   lastName: string
   photoURL?: string
   phone?: string
+  /** Numéro WhatsApp saisi (facultatif). Si absent, on retombe sur `phone`. */
+  whatsappNumber?: string
   birthDate: string
   birthMonth: number // 1-12
   birthDay: number // 1-31

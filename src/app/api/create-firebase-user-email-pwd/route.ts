@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
             birthDate: membershipRequest.identity.birthDate || '',
             birthPlace: membershipRequest.identity.birthPlace || '',
             contacts: membershipRequest.identity.contacts || [],
+            whatsappNumber: membershipRequest.identity.whatsappNumber || '',
             gender: membershipRequest.identity.gender || 'male',
             email: membershipRequest.identity.email || '',
             nationality: membershipRequest.identity.nationality || '',

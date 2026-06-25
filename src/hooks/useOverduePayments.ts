@@ -31,6 +31,8 @@ export interface OverduePayment {
   name: string
   isGroup: boolean
   phone?: string
+  /** Numéro WhatsApp saisi (facultatif). Si absent, on retombe sur `phone`. */
+  whatsappNumber?: string
   typeLabel: string
   amount: number
   dueAt: Date
@@ -78,6 +80,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
 
       let name = '—'
       let phone: string | undefined
+      let whatsappNumber: string | undefined
       let matricule: string | undefined
       let isGroup = false
 
@@ -93,6 +96,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
           if (member) {
             name = `${member.firstName || ''} ${member.lastName || ''}`.trim() || '—'
             phone = extractPhone(member.contacts)
+            whatsappNumber = member.whatsappNumber || undefined
             matricule = member.matricule
           }
         } catch { /* ignore */ }
@@ -107,6 +111,7 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
           name,
           isGroup,
           phone,
+          whatsappNumber,
           typeLabel: CAISSE_TYPE_LABELS[contract.caisseType] || contract.caisseType,
           amount: p.amount,
           dueAt: due,
@@ -150,9 +155,11 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
 
       // Matricule : pas présent sur le contrat CI → récupéré via le membre
       let matricule: string | undefined
+      let whatsappNumber: string | undefined
       try {
         const member = await getUserById(contract.memberId)
         matricule = member?.matricule
+        whatsappNumber = member?.whatsappNumber || undefined
       } catch { /* ignore */ }
 
       const name = `${contract.memberFirstName || ''} ${contract.memberLastName || ''}`.trim() || '—'
@@ -169,6 +176,7 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
           name,
           isGroup: false,
           phone,
+          whatsappNumber,
           typeLabel,
           amount: remaining,
           dueAt: due,
@@ -219,9 +227,11 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
 
       // Matricule : member?.matricule sinon clientId (même logique que les factures crédit)
       let matricule: string | undefined = contract.clientId
+      let whatsappNumber: string | undefined
       try {
         const member = await getUserById(contract.clientId)
         matricule = member?.matricule || contract.clientId
+        whatsappNumber = member?.whatsappNumber || undefined
       } catch { /* ignore */ }
 
       const name = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.trim() || '—'
@@ -240,6 +250,7 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
           name,
           isGroup: false,
           phone,
+          whatsappNumber,
           typeLabel: 'Mensualité',
           amount: remaining,
           dueAt: due,

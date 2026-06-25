@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/hooks/useOverduePayments'
-import { generateWhatsAppUrl } from '@/domains/memberships/utils/whatsappUrl'
+import { generateWhatsAppUrl, resolveWhatsappNumber } from '@/domains/memberships/utils/whatsappUrl'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { AlertTriangle, Building2, Calendar, Download, MessageCircle, Phone, RefreshCw, User } from 'lucide-react'
@@ -130,12 +130,13 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   }
 
   const handleSendWhatsApp = (item: OverduePayment) => {
-    if (!item.phone) {
+    const whatsapp = resolveWhatsappNumber(item.whatsappNumber, [item.phone])
+    if (!whatsapp) {
       toast.error('Aucun numéro de téléphone enregistré.')
       return
     }
     try {
-      const url = generateWhatsAppUrl(item.phone, buildReminderMessage(item))
+      const url = generateWhatsAppUrl(whatsapp, buildReminderMessage(item))
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       toast.error('Numéro de téléphone invalide.')
@@ -266,8 +267,8 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                         <Button
                           size="sm"
                           onClick={() => handleSendWhatsApp(i)}
-                          disabled={!i.phone}
-                          title={i.phone ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
+                          disabled={!resolveWhatsappNumber(i.whatsappNumber, [i.phone])}
+                          title={resolveWhatsappNumber(i.whatsappNumber, [i.phone]) ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
                           className="h-8 bg-[#25D366] hover:bg-[#1ebe5b] text-white disabled:opacity-50"
                         >
                           <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
