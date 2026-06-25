@@ -33,6 +33,8 @@ export interface RegisterFormData {
     spouseFirstName?: string;
     spousePhone?: string;
     intermediaryCode?: string;
+    /** Numéro WhatsApp (facultatif). Si vide, on utilise le 1er numéro de `contacts`. */
+    whatsappNumber?: string;
     hasCar: boolean;
     photo?: string | File;
     // Champs ajoutés après upload (pour MembershipRequest)
@@ -547,6 +549,8 @@ export interface User {
   birthDate: string
   birthPlace?: string
   contacts: string[]
+  /** Numéro WhatsApp (facultatif). Si vide, on utilise le 1er numéro de `contacts`. */
+  whatsappNumber?: string
   gender: string
   email?: string
   nationality: string

@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
             firstName: membershipRequest.identity.firstName || '',
             birthDate: membershipRequest.identity.birthDate || '',
             contacts: membershipRequest.identity.contacts || [],
+            whatsappNumber: membershipRequest.identity.whatsappNumber || '',
             gender: membershipRequest.identity.gender || 'male',
             email: membershipRequest.identity.email || '',
             nationality: membershipRequest.identity.nationality || '',

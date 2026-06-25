@@ -186,6 +186,20 @@ export const identitySchema = z.object({
             }
         }),
 
+    // Numéro WhatsApp obligatoire (format gabonais).
+    whatsappNumber: z.preprocess(
+        (val) => (typeof val === 'string' ? val.trim() : val),
+        z.string()
+            .min(1, 'Le numéro WhatsApp est requis')
+            .refine((v) => v.startsWith('+241'), 'Le numéro doit commencer par +241')
+            .refine((v) => v.length === 12, 'Le numéro doit contenir exactement 12 caractères (+241 + 8 chiffres)')
+            .refine((v) => /^\d{8}$/.test(v.substring(4)), 'Seuls les chiffres sont autorisés après +241')
+            .refine(
+                (v) => ['60', '62', '65', '66', '74', '76', '77'].includes(v.substring(4, 6)),
+                'Code opérateur invalide. Libertis (60, 62, 66), Moov (65) ou Airtel (74, 76, 77)',
+            ),
+    ),
+
     email: z.preprocess(
         (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
         z.string()

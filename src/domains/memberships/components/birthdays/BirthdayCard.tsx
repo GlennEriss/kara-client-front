@@ -15,7 +15,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { generateWhatsAppUrl } from '../../utils/whatsappUrl'
+import { generateWhatsAppUrl, resolveWhatsappNumber } from '../../utils/whatsappUrl'
 import type { BirthdayMember } from '../../types/birthdays'
 
 export interface BirthdayCardProps {
@@ -47,13 +47,15 @@ export function BirthdayCard({ member, isHighlighted }: BirthdayCardProps) {
       ? { label: 'Demain', dot: 'bg-amber-400', text: 'text-amber-700' }
       : { label: `J-${member.daysUntil}`, dot: 'bg-gray-400', text: 'text-gray-500' }
 
+  const whatsappNumber = resolveWhatsappNumber(member.whatsappNumber, [member.phone])
+
   const handleSendWhatsApp = () => {
-    if (!member.phone) {
+    if (!whatsappNumber) {
       toast.error('Aucun numéro de téléphone enregistré pour ce membre.')
       return
     }
     try {
-      const url = generateWhatsAppUrl(member.phone, buildBirthdayMessage(member.firstName))
+      const url = generateWhatsAppUrl(whatsappNumber, buildBirthdayMessage(member.firstName))
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       toast.error('Numéro de téléphone invalide pour ce membre.')
@@ -114,8 +116,8 @@ export function BirthdayCard({ member, isHighlighted }: BirthdayCardProps) {
         {/* Action : message d'anniversaire WhatsApp */}
         <Button
           onClick={handleSendWhatsApp}
-          disabled={!member.phone}
-          title={member.phone ? 'Envoyer un message d’anniversaire sur WhatsApp' : 'Aucun numéro de téléphone'}
+          disabled={!whatsappNumber}
+          title={whatsappNumber ? 'Envoyer un message d’anniversaire sur WhatsApp' : 'Aucun numéro de téléphone'}
           className="mt-auto w-full h-9 bg-[#25D366] hover:bg-[#1ebe5b] text-white text-sm font-semibold disabled:opacity-50"
         >
           <MessageCircle className="h-3.5 w-3.5 mr-1.5" />

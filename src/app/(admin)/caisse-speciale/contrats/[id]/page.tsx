@@ -111,8 +111,12 @@ export default function AdminCaisseContractDetailsPage() {
 	// Signature membre en attente de validation admin
 	const hasMemberSigned = (data as any).memberSignedStatus === 'PENDING_ADMIN' && !!(data as any).memberSignedDocumentId
 
+	// Contrat issu d'une migration (import Excel) : pas de PDF à préparer, on
+	// affiche directement le détail comme pour la Caisse Imprévue.
+	const isMigrated = !!(data as any).isMigrated
+
 	// Pas encore de PDF contrat uploadé (et pas de signature membre en attente)
-	if (!hasValidContractPdf(data) && !hasMemberSigned) {
+	if (!hasValidContractPdf(data) && !hasMemberSigned && !isMigrated) {
 		return (
 			<>
 				<div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">

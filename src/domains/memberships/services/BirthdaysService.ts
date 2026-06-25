@@ -139,6 +139,7 @@ export class BirthdaysService {
       lastName: user.lastName,
       photoURL: user.photoURL || undefined, // Convertir null en undefined
       phone,
+      whatsappNumber: user.whatsappNumber || undefined,
       birthDate: user.birthDate,
       birthMonth,
       birthDay,

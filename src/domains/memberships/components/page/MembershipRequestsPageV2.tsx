@@ -83,6 +83,7 @@ import routes from '@/constantes/routes'
 import dynamic from 'next/dynamic'
 const MemberDetailsModal = dynamic(() => import('@/components/memberships/MemberDetailsModal'), { ssr: false })
 import { generateRequestPDF, generateRequestExcel } from '../../utils/exportRequestUtils'
+import { whatsappFirstContacts } from '../../utils/whatsappUrl'
 import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { getUserById } from '@/db/user.db'
 import { formatAdminName } from '@/utils/formatAdminName'
@@ -1525,7 +1526,7 @@ export function MembershipRequestsPageV2() {
                 setRejectWhatsAppModalOpen(false)
                 setSelectedRequest(null)
               }}
-              phoneNumbers={selectedRequest.identity.contacts || []}
+              phoneNumbers={whatsappFirstContacts(selectedRequest.identity.whatsappNumber, selectedRequest.identity.contacts)}
               memberName={selectedMemberName}
               firstName={selectedRequest.identity.firstName || ''}
               matricule={selectedRequest.matricule}
@@ -1556,7 +1557,7 @@ export function MembershipRequestsPageV2() {
                 setWhatsAppModalOpen(false)
                 setSelectedRequest(null)
               }}
-              phoneNumbers={selectedRequest.identity.contacts || []}
+              phoneNumbers={whatsappFirstContacts(selectedRequest.identity.whatsappNumber, selectedRequest.identity.contacts)}
               correctionLink={`/register?requestId=${selectedRequest.id}&code=${selectedRequest.securityCode}`}
               securityCode={selectedRequest.securityCode}
               securityCodeExpiry={selectedRequest.securityCodeExpiry || new Date()}

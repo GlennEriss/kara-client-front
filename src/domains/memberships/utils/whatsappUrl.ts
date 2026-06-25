@@ -57,6 +57,35 @@ export function normalizePhoneNumber(phoneNum: string): string {
  * @param message Message à envoyer (optionnel)
  * @returns URL WhatsApp (ex: "https://wa.me/24165671734?text=Bonjour")
  */
+/**
+ * Numéro WhatsApp effectif d'un membre : le numéro WhatsApp saisi, sinon le 1er
+ * numéro de téléphone (`contacts`). Renvoie `undefined` si aucun numéro.
+ */
+export function resolveWhatsappNumber(
+  whatsappNumber?: string | null,
+  contacts?: Array<string | null | undefined> | null,
+): string | undefined {
+  const wa = whatsappNumber?.trim()
+  if (wa) return wa
+  const first = contacts?.find((c) => c && String(c).trim())
+  return first ? String(first).trim() : undefined
+}
+
+/**
+ * Liste des numéros avec le numéro WhatsApp en tête (pour pré-sélection dans les
+ * sélecteurs). Conserve tous les contacts ; déduplique le numéro WhatsApp.
+ */
+export function whatsappFirstContacts(
+  whatsappNumber?: string | null,
+  contacts?: Array<string | null | undefined> | null,
+): string[] {
+  const list = (contacts ?? [])
+    .filter((c): c is string => !!c && !!String(c).trim())
+    .map((c) => String(c).trim())
+  const wa = whatsappNumber?.trim()
+  return wa && !list.includes(wa) ? [wa, ...list] : list
+}
+
 export function generateWhatsAppUrl(phoneNum: string, message: string = ''): string {
   const normalized = normalizePhoneNumber(phoneNum)
   
