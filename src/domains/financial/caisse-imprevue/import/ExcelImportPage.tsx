@@ -13,6 +13,7 @@ import {
   Upload,
   UserPlus,
   Users as UsersIcon,
+  UserX,
 } from 'lucide-react'
 
 import {
@@ -42,10 +43,12 @@ import {
   analyzeMembersSheet,
   analyzeSheet,
   detectSheetType,
+  parseAdhesionMembersSheet,
   parseJournaliereSheet,
   parseMembersSheet,
   type AnalyzedMember,
   type AnalyzedRow,
+  type ImportAdhesion,
   type ImportAnalysis,
   type ImportMemberData,
   type MembersAnalysis,
@@ -53,6 +56,7 @@ import {
 import {
   contractIdForRow,
   fetchForfaits,
+  linkUnknownMembers,
   rollbackImport,
   writeImport,
   writeMembers,
@@ -90,6 +94,10 @@ function findMembersSheetName(sheetNames: string[]): string | undefined {
 
 function findJournaliereSheetName(sheetNames: string[]): string | undefined {
   return sheetNames.find((name) => name.trim().toUpperCase() === 'JOURNALIERE')
+}
+
+function findAdhesionMembersSheetName(sheetNames: string[]): string | undefined {
+  return sheetNames.find((name) => name.trim().toUpperCase() === 'ADHESION MEMBRES')
 }
 
 /** "2026-01-28" -> "28/01/2026" */
@@ -134,6 +142,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [membersReport, setMembersReport] = useState<WriteMembersReport | null>(null)
   const [membersMap, setMembersMap] = useState<Map<string, User>>(new Map())
   const [memberData, setMemberData] = useState<Map<string, ImportMemberData>>(new Map())
+  const [adhesionData, setAdhesionData] = useState<Map<string, ImportAdhesion[]>>(new Map())
   const [forfaits, setForfaits] = useState<SubscriptionCI[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -143,6 +152,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [report, setReport] = useState<ImportReport | null>(null)
   const [rollingBack, setRollingBack] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'import' | 'rollback' | null>(null)
+  const [linkingUnknown, setLinkingUnknown] = useState(false)
 
   const resetAnalysis = () => {
     setAnalysis(null)
@@ -152,6 +162,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     setMembersReport(null)
     setMembersMap(new Map())
     setMemberData(new Map())
+    setAdhesionData(new Map())
     setReport(null)
     setProgress(null)
     setError(null)
@@ -197,6 +208,19 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           )
         : new Map<string, ImportMemberData>()
       setMemberData(enrich)
+
+      // Croisement ADHESION MEMBRES → abonnements (période + paiement) par matricule.
+      const adhesionSheet = findAdhesionMembersSheetName(workbook.SheetNames)
+      const adhesions = adhesionSheet
+        ? parseAdhesionMembersSheet(
+            XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[adhesionSheet], {
+              header: 1,
+              raw: true,
+              blankrows: false,
+            }),
+          )
+        : new Map<string, ImportAdhesion[]>()
+      setAdhesionData(adhesions)
 
       // ----- Feuille MEMBRES : import de membres -----
       if (detectSheetType(selectedSheet) === 'MEMBERS') {
@@ -308,6 +332,23 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     }
   }
 
+  const handleLinkUnknown = async () => {
+    setLinkingUnknown(true)
+    try {
+      const { membersLinked, contractsLinked } = await linkUnknownMembers()
+      window.alert(
+        `Rattachement à INCONNU INCONNU :\n` +
+          `• ${membersLinked} membre(s) sans parrain\n` +
+          `• ${contractsLinked} contrat(s) CI sans contact d'urgence`,
+      )
+    } catch (err) {
+      console.error(err)
+      setError('Erreur pendant le rattachement à INCONNU.')
+    } finally {
+      setLinkingUnknown(false)
+    }
+  }
+
   const handleImportMembers = async () => {
     if (!membersAnalysis || !user?.uid || memberViews.length === 0) return
     setImporting(true)
@@ -322,6 +363,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           sourceFile: fileName,
           existing: membersMap,
           enrich: memberData,
+          adhesions: adhesionData,
         },
         (done, total) => setProgress({ done, total }),
       )
@@ -353,6 +395,11 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   // Import de membres (feuille MEMBRES)
   const membersToCreate = memberViews.filter((m) => !m.exists)
   const membersExisting = memberViews.length - membersToCreate.length
+  // Abonnements (ADHESION MEMBRES) qui seront créés pour les membres à importer.
+  const adhesionsToCreate = membersToCreate.reduce(
+    (sum, m) => sum + (adhesionData.get(m.matricule.trim())?.length ?? 0),
+    0,
+  )
 
   // Feuilles proposées selon la section (membres / caisse imprévue / toutes).
   const availableSheets = sheetNames.filter((name) => {
@@ -434,6 +481,25 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
               {error}
             </div>
           )}
+
+          {/* Maintenance : rattachement des manquants au membre INCONNU INCONNU */}
+          <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-gray-600">
+              Rattacher rétroactivement les membres sans parrain et les contrats CI sans contact d'urgence au compte{' '}
+              <span className="font-semibold">INCONNU INCONNU</span>.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleLinkUnknown}
+              disabled={linkingUnknown}
+              className="h-9 shrink-0"
+            >
+              {linkingUnknown ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserX className="mr-1 h-4 w-4" />}
+              Rattacher les manquants à INCONNU
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -453,6 +519,8 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                 Cible : <span className="font-mono">users</span> · {membersAnalysis.totalRows} ligne(s) ·{' '}
                 {membersAnalysis.uniqueMembers} membre(s) unique(s)
                 {memberData.size > 0 && ' · identités enrichies via la feuille MEMBRES'}
+                {adhesionsToCreate > 0 &&
+                  ` · ${adhesionsToCreate} abonnement(s) via ADHESION MEMBRES`}
               </p>
             </div>
           </div>
@@ -586,6 +654,9 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                     <CheckCircle2 className="h-4 w-4" /> Import terminé : {membersReport.created} membre(s) créé(s)
                     {membersReport.skipped > 0 && (
                       <span className="text-amber-700">· {membersReport.skipped} ignoré(s)</span>
+                    )}
+                    {membersReport.subscriptionsCreated > 0 && (
+                      <span className="text-emerald-700">· {membersReport.subscriptionsCreated} abonnement(s)</span>
                     )}
                   </p>
                   {Object.keys(membersReport.byType).length > 0 && (

@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useOverduePayments, type OverdueProduct } from '@/hooks/useOverduePayments'
+import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/hooks/useOverduePayments'
+import { generateWhatsAppUrl } from '@/domains/memberships/utils/whatsappUrl'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { AlertTriangle, Building2, Calendar, Download, Phone, RefreshCw, User } from 'lucide-react'
+import { AlertTriangle, Building2, Calendar, Download, MessageCircle, Phone, RefreshCw, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface OverdueCaissePaymentsListProps {
@@ -23,6 +24,21 @@ function slugify(product: OverdueProduct): string {
 // toLocaleString s'affichent mal — "/" — dans la police par défaut de jsPDF)
 function fmtAmount(n: number): string {
   return n.toLocaleString('fr-FR').replace(/\s/g, ' ')
+}
+
+/** Message de rappel de paiement amical envoyé via WhatsApp au retardataire. */
+function buildReminderMessage(item: OverduePayment): string {
+  const name = item.name?.trim() || 'cher membre'
+  const due = format(item.dueAt, 'dd/MM/yyyy', { locale: fr })
+  return `Bonjour ${name},
+
+Petit rappel amical de la part de la famille KARA 🙏
+
+Un versement ${item.typeLabel} de ${fmtAmount(item.amount)} FCFA pour ta ${item.product} est en retard depuis le ${due} (${item.daysOverdue} jour${item.daysOverdue > 1 ? 's' : ''}).
+
+Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
+
+— L'équipe KARA`
 }
 
 export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsListProps) {
@@ -113,6 +129,19 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
     }
   }
 
+  const handleSendWhatsApp = (item: OverduePayment) => {
+    if (!item.phone) {
+      toast.error('Aucun numéro de téléphone enregistré.')
+      return
+    }
+    try {
+      const url = generateWhatsAppUrl(item.phone, buildReminderMessage(item))
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch {
+      toast.error('Numéro de téléphone invalide.')
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* En-tête */}
@@ -164,13 +193,14 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                   <TableHead className="text-right">Montant dû</TableHead>
                   <TableHead>Échéance</TableHead>
                   <TableHead className="text-right">Retard</TableHead>
+                  <TableHead className="text-right">Rappel</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading &&
                   [...Array(5)].map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -178,7 +208,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && isError && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-red-600">
+                    <TableCell colSpan={8} className="text-center py-10 text-red-600">
                       Erreur lors du chargement des versements en retard.
                     </TableCell>
                   </TableRow>
@@ -186,7 +216,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && !isError && items.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-10 text-gray-500">
                       🎉 Aucun versement en retard.
                     </TableCell>
                   </TableRow>
@@ -231,6 +261,18 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                         <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums">
                           {i.daysOverdue} j
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSendWhatsApp(i)}
+                          disabled={!i.phone}
+                          title={i.phone ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
+                          className="h-8 bg-[#25D366] hover:bg-[#1ebe5b] text-white disabled:opacity-50"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Rappel</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

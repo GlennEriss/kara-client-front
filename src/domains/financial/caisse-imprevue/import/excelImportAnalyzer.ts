@@ -137,6 +137,7 @@ export interface ImportAnalysis {
 const SHEET_ACTIVE = 'GESTION ENTRAIDE ACTIF'
 const SHEET_CLOSED = 'ADHESION VOLET ENTRAIDE'
 const SHEET_MEMBERS = 'MEMBRES' // feuille source des membres (état civil complet)
+// La feuille « ADHESION MEMBRES » (abonnements) est lue côté page via parseAdhesionMembersSheet.
 const SHEET_CS_ACTIVE = 'GESTION TONTINE ACTIF' // contrats Caisse Spéciale (actifs)
 const SHEET_CS_CLOSED = 'ADHESION TONTINE' // contrats Caisse Spéciale clôturés (INACTIF)
 
@@ -205,6 +206,16 @@ function dateStr(v: unknown): string | null {
     const m = String(v.getMonth() + 1).padStart(2, '0')
     const d = String(v.getDate()).padStart(2, '0')
     return `${y}-${m}-${d}`
+  }
+  // Numéro de série Excel (ex. 39231) → date. Base : 1899-12-30 (jour 0).
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 2958466) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000)
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getUTCFullYear()
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
   }
   return null
 }
@@ -975,15 +986,27 @@ export interface ImportMemberData {
   contacts: string[]
   email?: string
   gender?: string
+  hasCar?: boolean
   birthDate?: string
+  birthCertificateNumber?: string
   birthPlace?: string
   nationality?: string
   profession?: string
   companyName?: string
   identityDocument?: string
   identityDocumentNumber?: string
+  maritalStatus?: string
   partnerName?: string
   partnerPhone?: string
+  religion?: string
+  prayerPlace?: string
+  /** Matricule du parrain / entremetteur (colonne CODE ENTRE). */
+  intermediaryCode?: string
+  /** Paiement d'adhésion porté directement sur la ligne MEMBRES (le plus récent). */
+  membershipPaymentDate?: string // DATE INSCRIPTION
+  membershipPaymentAmount?: number // MONTANT (10 000)
+  membershipPaymentMode?: string // MOYEN/PAIE
+  membershipPaymentAgent?: string // AGENT PAIE
   address?: {
     province: string
     city: string
@@ -1001,11 +1024,13 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
     const matricule = str(cell(r, 1))
     if (!matricule) continue
     const contacts = [mval(cell(r, 4)), mval(cell(r, 5))].filter((x): x is string => !!x)
-    const province = mval(cell(r, 15))
-    const city = mval(cell(r, 17))
-    const district = mval(cell(r, 19))
-    const arrondissement = mval(cell(r, 18))
-    const additionalInfo = mval(cell(r, 16))
+    // Adresse du domicile : PROVINCE(21) / COMMUNE-VILLE(23) / QUARTIER(25) /
+    // ARRONDISSEMENT(24) / INFO COMPLEMENTAIRE(26).
+    const province = mval(cell(r, 21))
+    const city = mval(cell(r, 23))
+    const district = mval(cell(r, 25))
+    const arrondissement = mval(cell(r, 24))
+    const additionalInfo = mval(cell(r, 26))
     const address =
       province || city || district || arrondissement
         ? {
@@ -1018,22 +1043,76 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
         : undefined
     map.set(matricule.trim(), {
       matricule: matricule.trim(),
-      lastName: str(cell(r, 2)),
-      firstName: str(cell(r, 3)),
-      contacts,
-      email: mval(cell(r, 6)),
-      gender: mval(cell(r, 7)),
-      birthDate: dateStr(cell(r, 8)) || undefined,
-      birthPlace: mval(cell(r, 10)),
-      nationality: mval(cell(r, 14)),
-      profession: mval(cell(r, 21)),
-      companyName: mval(cell(r, 22)),
-      identityDocument: mval(cell(r, 12)),
-      identityDocumentNumber: mval(cell(r, 13)),
-      partnerName: mval(cell(r, 25)),
-      partnerPhone: mval(cell(r, 26)),
+      lastName: str(cell(r, 2)), // NOM
+      firstName: str(cell(r, 3)), // PRENOM
+      contacts, // TELEPHONE 1 / 2
+      email: mval(cell(r, 6)), // E-MAIL
+      gender: mval(cell(r, 7)), // SEXE
+      hasCar: str(cell(r, 8)).trim().toUpperCase().startsWith('OUI'), // VOITURE (OUI/NON)
+      birthDate: dateStr(cell(r, 9)) || undefined, // DATE DE NAISSANCE
+      birthCertificateNumber: mval(cell(r, 12)), // NUMERO D'ACTE DE NAISSANCE
+      birthPlace: mval(cell(r, 11)), // LIEU DE NAISSANCE
+      nationality: mval(cell(r, 20)), // NATIONALITE
+      profession: mval(cell(r, 27)), // PROFESSION
+      companyName: mval(cell(r, 29)), // ENTREPRISE
+      identityDocument: mval(cell(r, 16)), // TYPE DE PIECE
+      identityDocumentNumber: mval(cell(r, 17)), // NUMERO PIECE
+      maritalStatus: mval(cell(r, 31)), // S.MATRIMONIALE
+      partnerName: mval(cell(r, 32)), // NOM PARTENAIRE
+      partnerPhone: mval(cell(r, 33)), // TELEPHONE PARTENAIRE
+      religion: mval(cell(r, 13)), // RELIGION
+      prayerPlace: mval(cell(r, 14)), // LIEU DE PRIERE
+      intermediaryCode: mval(cell(r, 34)), // CODE ENTRE (matricule du parrain)
+      membershipPaymentDate: dateStr(cell(r, 37)) || undefined, // DATE INSCRIPTION
+      membershipPaymentAmount: isPresent(cell(r, 39)) ? num(cell(r, 39)) || undefined : undefined, // MONTANT
+      membershipPaymentMode: mval(cell(r, 41)), // MOYEN/PAIE
+      membershipPaymentAgent: mval(cell(r, 42)), // AGENT PAIE
       address,
     })
+  }
+  return map
+}
+
+/** Adhésion (abonnement) d'un membre — une par année, issue de ADHESION MEMBRES. */
+export interface ImportAdhesion {
+  dateStart?: string
+  dateEnd?: string
+  montant?: number
+  type: MembershipTypeValue
+  year?: number
+  paymentDate?: string
+  mode?: string
+  agent?: string
+}
+
+/**
+ * Parse la feuille ADHESION MEMBRES → Map matricule -> liste d'adhésions.
+ * Un membre peut avoir plusieurs adhésions (renouvellements par année).
+ * Colonnes : MATRICULE(1) T.MEMBRES(6) DEBUT AD(7) FIN AD(8) DATE PAIEMENT(10)
+ *            MONTANT(12) MOYEN(14) AGENT PAIE(15) ANNEE(17).
+ */
+export function parseAdhesionMembersSheet(aoa: unknown[][]): Map<string, ImportAdhesion[]> {
+  const map = new Map<string, ImportAdhesion[]>()
+  const headerIdx = findHeaderRowIndex(aoa)
+  for (const r of aoa.slice(headerIdx + 1)) {
+    const matricule = str(cell(r, 1)).trim()
+    if (!matricule) continue
+    const dateStart = dateStr(cell(r, 7)) || undefined
+    const dateEnd = dateStr(cell(r, 8)) || undefined
+    if (!dateStart && !dateEnd) continue // ligne sans période d'adhésion exploitable
+    const adhesion: ImportAdhesion = {
+      dateStart,
+      dateEnd,
+      montant: isPresent(cell(r, 12)) ? num(cell(r, 12)) : undefined,
+      type: mapMembership(cell(r, 6)).type,
+      year: isPresent(cell(r, 17)) ? num(cell(r, 17)) || undefined : undefined,
+      paymentDate: dateStr(cell(r, 10)) || undefined,
+      mode: mval(cell(r, 14)),
+      agent: mval(cell(r, 15)),
+    }
+    const list = map.get(matricule) ?? []
+    list.push(adhesion)
+    map.set(matricule, list)
   }
   return map
 }
@@ -1062,7 +1141,8 @@ export interface MembersAnalysis {
 
 /**
  * Analyse la feuille MEMBRES → liste de membres dédoublonnée par matricule.
- * MEMBRES ne contient pas de colonne « type de compte » → adhérent par défaut.
+ * Le type de compte est lu dans la colonne T.MEMBRES (col 36) :
+ * ADHERENT / SYMPATHISANT / BIENFAITEUR (adhérent par défaut si vide).
  * L'état civil complet (naissance, e-mail, pièce, adresse…) est repris à
  * l'écriture via parseMembersSheet (même feuille).
  */
@@ -1080,8 +1160,8 @@ export function analyzeMembersSheet(sheetName: string, aoa: unknown[][]): Member
     if (seen.has(matricule.trim())) continue // dédoublonnage par matricule
     seen.add(matricule.trim())
 
-    // Feuille MEMBRES : pas de colonne « type de compte » → adhérent par défaut.
-    const mt = mapMembership(undefined)
+    // Type de compte lu dans T.MEMBRES (col 36) ; adhérent par défaut si vide.
+    const mt = mapMembership(cell(r, 36))
     const contacts = [mval(cell(r, 4)), mval(cell(r, 5))].filter((x): x is string => !!x)
     const issues: string[] = []
     if (!str(cell(r, 2)) && !str(cell(r, 3))) issues.push('Nom/prénom manquant')
