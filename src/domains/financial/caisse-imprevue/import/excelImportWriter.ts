@@ -16,6 +16,7 @@ import {
   collection,
   db,
   doc,
+  getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
@@ -27,12 +28,21 @@ import {
   CATEGORY_AMOUNT,
   type AnalyzedMember,
   type AnalyzedRow,
+  type ImportAdhesion,
   type ImportMemberData,
   type ImportTarget,
 } from './excelImportAnalyzer'
+import {
+  UNKNOWN_USER_FIRST_NAME,
+  UNKNOWN_USER_ID,
+  UNKNOWN_USER_LAST_NAME,
+  UNKNOWN_USER_MATRICULE,
+  buildUnknownUserBase,
+} from './unknownUser'
 
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsCI'
+const MEMBER_SUBSCRIPTIONS = firebaseCollectionNames.subscriptions || 'subscriptions'
 const USERS = firebaseCollectionNames.users || 'users'
 const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
 
@@ -134,6 +144,25 @@ function sanitizeMatricule(m: string): string {
   return m.replace(/[^a-zA-Z0-9]/g, '')
 }
 
+let unknownUserEnsured = false
+/**
+ * Crée le compte « INCONNU INCONNU » s'il n'existe pas (idempotent, une fois par
+ * session). Utilisé comme parrain / contact d'urgence par défaut.
+ */
+async function ensureUnknownUser(): Promise<void> {
+  if (unknownUserEnsured) return
+  const ref = doc(db, USERS, UNKNOWN_USER_ID)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      ...buildUnknownUserBase(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  }
+  unknownUserEnsured = true
+}
+
 function safeUserDocIdFromMatricule(matricule: string): string {
   return matricule.trim().replace(/[/\\#?[\]]/g, '-')
 }
@@ -212,11 +241,22 @@ export function makeContractId(
 
 /**
  * ID de contrat pour une ligne analysée (même logique que l'écriture).
- * Critères de doublon : type + matricule + date de début + catégorie + montant
- * mensuel + durée + date de fin. Deux lignes ne partagent l'ID (= doublon) que
- * si TOUS ces critères coïncident.
+ *
+ * Critère de doublon = CODE ENTRAIDE (colonne « CODE ENTRAI »). C'est l'identifiant
+ * unique d'un contrat : un même code ⇒ un même document (idempotent), y compris
+ * lorsqu'il apparaît dans plusieurs feuilles (GESTION …ACTIF vs ADHESION …) ou
+ * que le membre possède plusieurs contrats (matricule répété).
+ *
+ * Repli (lignes sans code) : ancienne clé composite type + matricule + date début
+ * + catégorie + montant mensuel + durée + date de fin.
  */
 export function contractIdForRow(row: AnalyzedRow, target: ImportTarget = 'CI'): string {
+  const prefix = target === 'CS' ? 'MK_CS_MIG' : 'MK_CI_MIG'
+
+  const code = row.entraide?.code ? sanitizeMatricule(row.entraide.code) : ''
+  if (code) return `${prefix}_CODE_${code}`
+
+  // Repli : pas de CODE ENTRAIDE sur la ligne → clé composite historique.
   const kind: 'A' | 'C' = row.status === 'ACTIVE' ? 'A' : 'C'
   const cat = sanitizeMatricule(row.category) || 'X'
   const key = `${row.amountPerMonth}|${row.durationMonths}|${row.entraide?.contractEndDate ?? ''}`
@@ -240,6 +280,14 @@ function pickForfait(
 
 /** Retire récursivement les clés `undefined` d'un objet de DONNÉES simple
  *  (sans FieldValue). À n'utiliser que sur des blocs sans serverTimestamp. */
+/** Date → "yyyy-MM-dd" (même format que les adhésions issues de l'analyzer). */
+function isoDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function cleanPlain<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(obj)) {
@@ -371,23 +419,37 @@ async function ensureMember(
   const birthdayFields = calculateBirthdayFields(data?.birthDate)
 
   const userData: Record<string, unknown> = {
+    civility: '',
     lastName,
     firstName,
     birthDate: data?.birthDate ?? '',
     birthMonth: birthdayFields.birthMonth,
     birthDay: birthdayFields.birthDay,
     birthDayOfYear: birthdayFields.birthDayOfYear,
-    birthPlace: data?.birthPlace,
+    birthPlace: data?.birthPlace ?? '',
+    birthCertificateNumber: data?.birthCertificateNumber ?? '',
     contacts,
     gender: data?.gender ?? '',
-    email: data?.email,
+    email: data?.email ?? '',
     nationality: data?.nationality ?? '',
-    hasCar: false,
-    address: data?.address,
-    companyName: data?.companyName,
-    profession: data?.profession,
-    identityDocument: data?.identityDocument,
-    identityDocumentNumber: data?.identityDocumentNumber,
+    hasCar: data?.hasCar ?? false,
+    address: data?.address ?? {
+      province: '',
+      city: '',
+      district: '',
+      arrondissement: '',
+      additionalInfo: '',
+    },
+    companyName: data?.companyName ?? '',
+    profession: data?.profession ?? '',
+    identityDocument: data?.identityDocument ?? '',
+    identityDocumentNumber: data?.identityDocumentNumber ?? '',
+    maritalStatus: data?.maritalStatus ?? '',
+    partnerName: data?.partnerName ?? '',
+    partnerPhone: data?.partnerPhone ?? '',
+    religion: data?.religion ?? '',
+    prayerPlace: data?.prayerPlace ?? '',
+    intermediaryCode: data?.intermediaryCode || UNKNOWN_USER_MATRICULE, // parrain manquant → INCONNU
     photoURL: null,
     photoPath: null,
     companyId: null,
@@ -493,9 +555,10 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
   }
 
   // Contact d'urgence : ligne entraide si présent, sinon partenaire du membre,
-  // sinon placeholder marqué « à compléter ».
+  // sinon membre INCONNU INCONNU par défaut.
   const memberRow = ctx.memberData.get(row.matricule.trim())
   let emergency = row.emergency
+  let emergencyIsUnknown = false
   const emergencyMissing = !emergency.lastName || emergency.lastName === 'INCONNU'
   if (emergencyMissing && memberRow?.partnerName) {
     emergency = {
@@ -505,7 +568,15 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
       relationship: 'Conjoint(e)',
     }
   } else if (emergencyMissing) {
-    placeholders.push("contact d'urgence")
+    // Aucun contact connu → INCONNU INCONNU (rattaché au compte placeholder).
+    emergency = {
+      lastName: UNKNOWN_USER_LAST_NAME,
+      firstName: UNKNOWN_USER_FIRST_NAME,
+      phone1: '',
+      relationship: 'INCONNU',
+    }
+    emergencyIsUnknown = true
+    placeholders.push("contact d'urgence (INCONNU par défaut)")
   }
   if (totalMonthsPaid > 0) placeholders.push('preuves de versement')
 
@@ -595,6 +666,7 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     paymentFrequency: 'MONTHLY',
     firstPaymentDate: row.startDate || '',
     emergencyContact: {
+      ...(emergencyIsUnknown ? { memberId: UNKNOWN_USER_ID } : {}),
       lastName: emergency.lastName,
       firstName: emergency.firstName,
       phone1: emergency.phone1,
@@ -805,6 +877,9 @@ export async function writeImport(
 ): Promise<ImportReport> {
   const isCS = ctx.target === 'CS'
 
+  // Compte INCONNU (parrain / contact d'urgence par défaut) prêt avant l'écriture.
+  await ensureUnknownUser()
+
   // Forfaits A–E : uniquement pour la Caisse Imprévue.
   let forfaitsCreated: string[] = []
   let forfaits = ctx.forfaits
@@ -892,6 +967,30 @@ export async function rollbackImport(ctx: {
   return (await response.json()) as RollbackResult
 }
 
+export interface LinkUnknownResult {
+  unknownCreated: boolean
+  membersLinked: number
+  contractsLinked: number
+}
+
+/**
+ * Rattache rétroactivement les membres sans parrain et les contrats CI sans
+ * contact d'urgence au compte INCONNU INCONNU (créé si absent).
+ */
+export async function linkUnknownMembers(): Promise<LinkUnknownResult> {
+  const response = await fetch('/api/import-caisse-imprevue/link-unknown', {
+    method: 'POST',
+    headers: await adminImportHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({}),
+  })
+  if (!response.ok) {
+    const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+    throw new Error(details?.details || details?.error || response.statusText)
+  }
+  return (await response.json()) as LinkUnknownResult
+}
+
 // ===================== IMPORT DES MEMBRES (ADHESION MEMBRES) =====================
 
 export interface WriteMembersResult {
@@ -905,6 +1004,8 @@ export interface WriteMembersResult {
 export interface WriteMembersReport {
   created: number
   skipped: number
+  /** Abonnements créés depuis ADHESION MEMBRES (croisement). */
+  subscriptionsCreated: number
   byType: Record<string, number>
   results: WriteMembersResult[]
 }
@@ -917,6 +1018,8 @@ export interface MembersImportContext {
   existing: Map<string, User>
   /** Données MEMBRES (par matricule) pour enrichir l'identité. */
   enrich: Map<string, ImportMemberData>
+  /** Adhésions ADHESION MEMBRES (par matricule) → abonnements créés. */
+  adhesions?: Map<string, ImportAdhesion[]>
 }
 
 /** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
@@ -925,7 +1028,11 @@ export async function writeMembers(
   ctx: MembersImportContext,
   onProgress?: (done: number, total: number) => void,
 ): Promise<WriteMembersReport> {
+  // Compte INCONNU (parrain par défaut) prêt avant la création des membres.
+  await ensureUnknownUser()
+
   const results: WriteMembersResult[] = []
+  let subscriptionsCreated = 0
   for (let i = 0; i < members.length; i++) {
     const m = members[i]
     const key = m.matricule.trim()
@@ -940,21 +1047,46 @@ export async function writeMembers(
       if (!userId) {
         throw new Error(`Matricule invalide pour la création du membre: "${m.matricule}"`)
       }
+      // Firestore refuse `undefined` : on stocke des champs VIDES ('' / null) plutôt
+      // que de les omettre, pour que la fiche membre ait un schéma complet et
+      // éditable (champs prêts à être renseignés depuis l'UI).
+      const birthdayFields = calculateBirthdayFields(data?.birthDate)
       const userData: Record<string, unknown> = {
+        civility: '', // absent du fichier
         lastName: m.lastName || data?.lastName || 'INCONNU',
         firstName: m.firstName || data?.firstName || '',
         birthDate: data?.birthDate ?? '',
-        birthPlace: data?.birthPlace,
+        birthMonth: birthdayFields.birthMonth,
+        birthDay: birthdayFields.birthDay,
+        birthDayOfYear: birthdayFields.birthDayOfYear,
+        birthPlace: data?.birthPlace ?? '',
+        birthCertificateNumber: data?.birthCertificateNumber ?? '',
         contacts: m.contacts.length ? m.contacts : (data?.contacts ?? []),
         gender: data?.gender ?? '',
-        email: data?.email,
+        email: data?.email ?? '', // factice (VIDE@…) déjà filtré → ''
         nationality: data?.nationality ?? '',
-        hasCar: false,
-        address: data?.address,
-        companyName: data?.companyName,
-        profession: data?.profession,
-        identityDocument: data?.identityDocument,
-        identityDocumentNumber: data?.identityDocumentNumber,
+        hasCar: data?.hasCar ?? false,
+        address: data?.address ?? {
+          province: '',
+          city: '',
+          district: '',
+          arrondissement: '',
+          additionalInfo: '',
+        },
+        companyName: data?.companyName ?? '',
+        companyId: null,
+        profession: data?.profession ?? '',
+        professionId: null,
+        identityDocument: data?.identityDocument ?? '',
+        identityDocumentNumber: data?.identityDocumentNumber ?? '',
+        maritalStatus: data?.maritalStatus ?? '',
+        partnerName: data?.partnerName ?? '',
+        partnerPhone: data?.partnerPhone ?? '',
+        religion: data?.religion ?? '',
+        prayerPlace: data?.prayerPlace ?? '',
+        intermediaryCode: data?.intermediaryCode || UNKNOWN_USER_MATRICULE, // parrain manquant → INCONNU
+        photoURL: null, // absent du fichier
+        photoPath: null,
         subscriptions: [],
         dossier: 'MIGRATION',
         membershipType: m.membershipType,
@@ -980,6 +1112,69 @@ export async function writeMembers(
           updatedAt: serverTimestamp(),
         },
       )
+
+      // Croisement ADHESION MEMBRES → abonnements (collection `subscriptions`).
+      // Détermine le statut « abonnement valide » du membre (renouvellements inclus).
+      const adhesions = [...(ctx.adhesions?.get(key) ?? [])]
+
+      // Le paiement d'adhésion porté sur la ligne MEMBRES (10 000) est souvent plus
+      // récent que ADHESION MEMBRES. On l'ajoute s'il ÉTEND la couverture (dateEnd
+      // plus lointaine), sinon il fait déjà doublon avec l'historique.
+      if (data?.membershipPaymentAmount && data.membershipPaymentAmount > 0) {
+        const startDate = data.membershipPaymentDate
+          ? new Date(data.membershipPaymentDate)
+          : new Date() // date manquante → 1 an depuis l'import
+        const endDate = new Date(startDate)
+        endDate.setFullYear(endDate.getFullYear() + 1)
+        const newEndIso = isoDate(endDate)
+        const currentMaxEnd = adhesions.reduce<string>(
+          (mx, a) => (a.dateEnd && a.dateEnd > mx ? a.dateEnd : mx),
+          '',
+        )
+        if (newEndIso > currentMaxEnd) {
+          adhesions.push({
+            dateStart: isoDate(startDate),
+            dateEnd: newEndIso,
+            montant: data.membershipPaymentAmount,
+            type: m.membershipType,
+            paymentDate: data.membershipPaymentDate,
+            mode: data.membershipPaymentMode,
+            agent: data.membershipPaymentAgent,
+          })
+        }
+      }
+
+      for (let a = 0; a < adhesions.length; a++) {
+        const adh = adhesions[a]
+        const start = adh.dateStart ? new Date(adh.dateStart) : undefined
+        const end = adh.dateEnd ? new Date(adh.dateEnd) : undefined
+        if (!start && !end) continue
+        const stamp = (adh.dateStart || adh.dateEnd || String(a)).replace(/[^0-9]/g, '') || String(a)
+        const subId = `MK_MEMBER_SUB_${userId}_${stamp}`
+        const subData: Record<string, unknown> = {
+          userId,
+          dateStart: start ?? end,
+          dateEnd: end ?? start,
+          montant: adh.montant,
+          currency: 'XAF',
+          type: adh.type,
+          year: adh.year,
+          paymentDate: adh.paymentDate,
+          paymentMode: adh.mode,
+          agent: adh.agent,
+          createdBy: ctx.adminId,
+          isMigrated: true,
+          migrationSource: ctx.sourceFile,
+          migrationSheet: ctx.sheetName,
+        }
+        await setDoc(doc(db, MEMBER_SUBSCRIPTIONS, subId), {
+          ...cleanPlain(subData),
+          id: subId,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+        subscriptionsCreated++
+      }
       results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'created', membershipType: m.membershipType })
     } catch (e) {
       results.push({
@@ -998,6 +1193,7 @@ export async function writeMembers(
   return {
     created: results.filter((r) => r.status === 'created').length,
     skipped: results.filter((r) => r.status === 'skipped').length,
+    subscriptionsCreated,
     byType,
     results,
   }

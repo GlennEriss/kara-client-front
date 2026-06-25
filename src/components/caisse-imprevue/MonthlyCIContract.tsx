@@ -122,6 +122,7 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
   const e = (contract as ContractCI & { entraide?: EntraideMeta }).entraide
   if (!e) return null
   const isCanceled = contract.status === 'CANCELED'
+  const isFinished = contract.status === 'FINISHED'
 
   const guarantor = e.guarantorMatricule?.trim()
   const rows: Array<[string, string | undefined]> = [
@@ -137,12 +138,23 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
   const visible = rows.filter(([, v]) => v && v.trim() !== '')
 
   const s = e.summary
+  // « Mois cotisés » = nombre réel de mois payés (= versements importés),
+  // PAS la colonne DUREE PERIODE de l'Excel (peu fiable). « Mois impayés » =
+  // durée du contrat − mois cotisés.
+  const paidMonths = s?.versementsCount
+  const totalMonths = contract.subscriptionCIDuration
+  const unpaidMonths =
+    typeof totalMonths === 'number' && typeof paidMonths === 'number'
+      ? Math.max(0, totalMonths - paidMonths)
+      : undefined
   const summaryAll: Array<[string, string | undefined]> = s
     ? [
-        ['Versements (Excel)', fmtNum(s.versementsCount)],
-        [isCanceled ? 'Mois cotisés' : 'Mois impayés', fmtNum(s.monthsUnpaid)],
+        ['Mois cotisés', fmtNum(paidMonths)],
+        ...((isCanceled || isFinished) && unpaidMonths !== undefined
+          ? ([['Mois impayés', fmtNum(unpaidMonths)]] as Array<[string, string | undefined]>)
+          : []),
         ['Imprévus', fmtNum(s.imprevusCount)],
-        ['Montant total (Excel)', s.montantTotal ? `${fmtNum(s.montantTotal)} FCFA` : undefined],
+        ['Montant total', s.montantTotal ? `${fmtNum(s.montantTotal)} FCFA` : undefined],
       ]
     : []
   const summaryRows = summaryAll.filter(([, v]) => v !== undefined && v !== '')
