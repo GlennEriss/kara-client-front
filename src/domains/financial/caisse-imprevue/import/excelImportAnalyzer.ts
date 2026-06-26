@@ -39,6 +39,8 @@ export interface ImportPayment {
   versement: ImportVersement | null
   /** Date d'échéance planifiée (YYYY-MM-DD) — utilisée pour la Caisse Spéciale. */
   dueDate?: string
+  /** Index de la PERIODE (0-based) — versements journaliers issus de JOURNALIERE. */
+  periodIndex?: number
 }
 
 export interface ImportSupport {
@@ -437,6 +439,7 @@ export function parseJournaliereSheet(aoa: unknown[][]): Map<string, Journaliere
     let matricule = ''
     let startDate = ''
     let periodsCount = 0
+    let currentPeriod = -1
     const payments: ImportPayment[] = []
     let index = 0
     for (const row of aoa) {
@@ -447,6 +450,7 @@ export function parseJournaliereSheet(aoa: unknown[][]): Map<string, Journaliere
         startDate = dateStr(cell(row, base + 1)) || startDate
       } else if (label.startsWith('PERIODE') && label !== 'PERIODE') {
         periodsCount++
+        currentPeriod++
       }
       // Lignes "jour" : col base = numéro de jour, col base+3 = montant versé.
       const day = cell(row, base)
@@ -458,6 +462,7 @@ export function parseJournaliereSheet(aoa: unknown[][]): Map<string, Journaliere
           targetAmount: montant,
           status: 'PAID',
           dueDate: date || undefined,
+          periodIndex: Math.max(0, currentPeriod),
           versement: {
             date,
             time: parseHeure(cell(row, base + 2)),
@@ -494,7 +499,14 @@ function analyzeCaisseActiveRow(
   let startDate = dateStr(cell(row, 7)) // H DEBUT VERSEMENT
 
   const payments: ImportPayment[] = []
+  // AGENT (start+5) et REMARQUE (start+6) par période — réutilisés pour rattacher
+  // l'agent/remarque aux versements quotidiens (JOURNALIERE n'a pas ces colonnes).
+  const periodMeta: Array<{ agent?: string; note?: string }> = []
   CS_ECHEANCE_STARTS.forEach((start, monthIndex) => {
+    periodMeta[monthIndex] = {
+      agent: strOpt(cell(row, start + 5)),
+      note: strOpt(cell(row, start + 6)),
+    }
     const echeance = cell(row, start)
     const dateRemise = cell(row, start + 1)
     const montant = num(cell(row, start + 2))
@@ -526,7 +538,16 @@ function analyzeCaisseActiveRow(
     caisseType === 'JOURNALIERE' ? journaliere?.get(matricule.trim()) : undefined
   if (journaliereDetail && journaliereDetail.payments.length > 0) {
     payments.length = 0
-    payments.push(...journaliereDetail.payments)
+    for (const p of journaliereDetail.payments) {
+      // Rattache l'AGENT / la REMARQUE de la période (GESTION TONTINE ACTIF) au
+      // versement quotidien, que la feuille JOURNALIERE ne fournit pas.
+      const meta = periodMeta[p.periodIndex ?? 0]
+      if (p.versement && meta) {
+        if (!p.versement.agentName && meta.agent) p.versement.agentName = meta.agent
+        if (!p.versement.note && meta.note) p.versement.note = meta.note
+      }
+      payments.push(p)
+    }
     if (!startDate && journaliereDetail.startDate) startDate = journaliereDetail.startDate
   }
 

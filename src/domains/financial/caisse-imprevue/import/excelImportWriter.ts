@@ -31,6 +31,7 @@ import {
   type ImportAdhesion,
   type ImportMemberData,
   type ImportTarget,
+  type ImportVersement,
 } from './excelImportAnalyzer'
 import {
   UNKNOWN_USER_FIRST_NAME,
@@ -749,6 +750,56 @@ function addMonths(d: Date, n: number): Date {
   return x
 }
 
+/** Combine une date "YYYY-MM-DD" et une heure "HH:mm" en Date. */
+function combineDateTime(dateStr: string, time?: string): Date {
+  const d = safeDate(dateStr)
+  const m = time?.match(/^(\d{1,2}):(\d{2})/)
+  if (m) d.setHours(Number(m[1]), Number(m[2]), 0, 0)
+  return d
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+/**
+ * Index du mois calendaire d'une date par rapport à la date de début (mêmes
+ * bornes que le détail contrat : période M_i = [start+i mois, start+i+1 mois)).
+ */
+function calMonthIndex(start: Date, d: Date): number {
+  let diff = (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth())
+  let boundary = new Date(start)
+  boundary.setMonth(boundary.getMonth() + diff)
+  while (boundary > d && diff > 0) {
+    diff -= 1
+    boundary = new Date(start)
+    boundary.setMonth(start.getMonth() + diff)
+  }
+  let next = new Date(boundary)
+  next.setMonth(next.getMonth() + 1)
+  while (d >= next) {
+    diff += 1
+    boundary = next
+    next = new Date(boundary)
+    next.setMonth(next.getMonth() + 1)
+  }
+  return Math.max(0, diff)
+}
+
+/** Construit une contribution (contrib) migrée à partir d'un versement. */
+function buildMigContrib(v: ImportVersement, mi: number, idx: number): Record<string, unknown> {
+  const paidAt = combineDateTime(v.date, v.time)
+  return {
+    id: `MK_CS_C_MIG_${mi}_${idx}`,
+    amount: v.amount,
+    paidAt,
+    time: v.time,
+    mode: v.mode,
+    ...(v.agentName ? { agent: v.agentName } : {}),
+    ...(v.note ? { remarque: v.note } : {}),
+    createdAt: paidAt,
+  }
+}
+
 /**
  * Écrit une ligne en contrat Caisse Spéciale (caisseContracts + payments).
  * Crée le membre si absent.
@@ -768,6 +819,30 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
   const csStatus = row.status === 'RESCINDED' || row.status === 'CLOSED' ? row.status : 'ACTIVE'
   const isClosed = csStatus !== 'ACTIVE'
 
+  // Regroupement par mois, avec contribs[] (structure attendue par le détail
+  // contrat) :
+  //  - JOURNALIER : mois de 30 jours depuis le début (calendrier journalier).
+  //  - LIBRE : mois calendaire de la DATE de paiement réelle (montants variables,
+  //    paiements parfois en avance) → les dates correspondent enfin aux mois.
+  const isDaily = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
+  const isLibre = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
+  const useBuckets = (isDaily || isLibre) && !!startDateObj
+  const buckets = new Map<number, Array<Record<string, unknown>>>()
+  if (useBuckets && startDateObj) {
+    const startMid = midnight(startDateObj)
+    for (const p of row.payments) {
+      if (!p.versement) continue
+      const payDate = safeDate(p.versement.date)
+      const mi = isDaily
+        ? Math.max(0, Math.floor((midnight(payDate).getTime() - startMid.getTime()) / MS_PER_DAY / 30))
+        : calMonthIndex(startMid, midnight(payDate))
+      const list = buckets.get(mi) ?? []
+      list.push(buildMigContrib(p.versement, mi, list.length))
+      buckets.set(mi, list)
+    }
+  }
+  const currentMonthIndex = useBuckets ? buckets.size : paidCount
+
   const docs: AdminImportDoc[] = []
 
   docs.push({
@@ -785,7 +860,7 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
       firstPaymentDate: row.startDate || '',
       ...(startDateObj ? { contractStartAt: startDateObj, nextDueAt: startDateObj } : {}),
       status: csStatus,
-      currentMonthIndex: paidCount,
+      currentMonthIndex,
       withdrawLockedUntilM: 4,
       nominalPaid,
       bonusAccrued: 0,
@@ -798,24 +873,58 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
     },
   })
 
-  for (const p of row.payments) {
-    const dueAt = p.dueDate ? safeDate(p.dueDate) : startDateObj ? addMonths(startDateObj, p.monthIndex) : undefined
-    const paid = p.status === 'PAID'
-    const paymentId = `MK_CS_P_MIG_${p.monthIndex}`
-    const data: Record<string, unknown> = {
-      id: paymentId,
-      dueMonthIndex: p.monthIndex,
-      amount: p.versement?.amount ?? p.targetAmount ?? monthlyAmount,
-      status: paid ? 'PAID' : 'DUE',
-      ...(dueAt ? { dueAt } : {}),
-      createdAt: adminServerTimestamp(),
+  if (useBuckets && startDateObj) {
+    // 1 doc paiement par mois, détail des versements dans contribs[].
+    const startMid = midnight(startDateObj)
+    for (const [mi, contribs] of buckets) {
+      const accumulated = contribs.reduce((s, c) => s + (Number(c.amount) || 0), 0)
+      const dueAt = isDaily
+        ? new Date(startMid.getTime() + mi * 30 * MS_PER_DAY)
+        : addMonths(startMid, mi)
+      const paymentId = `MK_CS_P_MIG_${mi}`
+      docs.push({
+        path: [CAISSE_CONTRACTS, contractId, 'payments', paymentId],
+        data: {
+          id: paymentId,
+          dueMonthIndex: mi,
+          status: 'PAID',
+          amount: accumulated,
+          accumulatedAmount: accumulated,
+          targetAmount: monthlyAmount,
+          contribs,
+          dueAt,
+          createdAt: adminServerTimestamp(),
+          updatedAt: adminServerTimestamp(),
+          createdBy: ctx.adminId,
+        },
+      })
     }
-    if (paid && p.versement) {
-      data.paidAt = safeDate(p.versement.date)
-      data.time = p.versement.time
-      data.mode = p.versement.mode
+  } else {
+    // STANDARD : 1 échéance = 1 mois. On renseigne accumulatedAmount + contrib
+    // pour que le « Total du mois » et la date du versement s'affichent.
+    for (const p of row.payments) {
+      const dueAt = p.dueDate ? safeDate(p.dueDate) : startDateObj ? addMonths(startDateObj, p.monthIndex) : undefined
+      const paid = p.status === 'PAID'
+      const paymentId = `MK_CS_P_MIG_${p.monthIndex}`
+      const data: Record<string, unknown> = {
+        id: paymentId,
+        dueMonthIndex: p.monthIndex,
+        amount: p.versement?.amount ?? p.targetAmount ?? monthlyAmount,
+        accumulatedAmount: paid ? (p.versement?.amount ?? 0) : 0,
+        status: paid ? 'PAID' : 'DUE',
+        ...(dueAt ? { dueAt } : {}),
+        createdAt: adminServerTimestamp(),
+      }
+      if (paid && p.versement) {
+        data.paidAt = safeDate(p.versement.date)
+        data.time = p.versement.time
+        data.mode = p.versement.mode
+        if (p.versement.agentName) data.agent = p.versement.agentName
+        if (p.versement.note) data.remarque = p.versement.note
+        data.contribs = [buildMigContrib(p.versement, p.monthIndex, 0)]
+      }
+      docs.push({ path: [CAISSE_CONTRACTS, contractId, 'payments', paymentId], data })
     }
-    docs.push({ path: [CAISSE_CONTRACTS, contractId, 'payments', paymentId], data })
   }
 
   // Contrat clôturé → remboursement (caisseContracts/{id}/refunds).
