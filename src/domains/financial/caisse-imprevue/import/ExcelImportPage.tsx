@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 import {
   AlertCircle,
@@ -131,6 +132,33 @@ type ImportScope = 'members' | 'caisse-imprevue' | 'caisse-speciale'
 
 export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  /**
+   * Invalide les caches des stats/listes impactées par un import ou un rollback,
+   * pour que le site (Tableau de bord, Membres, Demandes, contrats) reflète
+   * immédiatement les nouveaux chiffres.
+   */
+  const invalidateStatsCaches = () => {
+    const keys = [
+      ['dashboard'],
+      ['members'],
+      ['allMembers'],
+      ['membership-requests'],
+      ['membership-requests-stats'],
+      ['memberships'],
+      ['filleuls'],
+      // Caisse Imprévue : listes + stats
+      ['contractsCI'],
+      ['contractsCIStats'],
+      // Caisse Spéciale : listes + stats (clés distinctes)
+      ['caisse-contracts'],
+      ['caisse-contracts-stats'],
+      ['all-contracts'],
+      ['subscriptions'],
+    ]
+    keys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }))
+  }
   const [fileName, setFileName] = useState<string>('')
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
   const [sheetNames, setSheetNames] = useState<string[]>([])
@@ -297,6 +325,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
         (done, total) => setProgress({ done, total }),
       )
       setReport(res)
+      invalidateStatsCaches()
     } catch (err) {
       console.error(err)
       setError("Erreur pendant l'import.")
@@ -313,16 +342,17 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     if (!fileName || !selectedSheet) return
     setRollingBack(true)
     try {
-      const { contractsDeleted, usersDeleted, subscriptionsDeleted } = await rollbackImport({
+      const { contractsDeleted, usersDeleted, subscriptionsDeleted, requestsDeleted = 0 } = await rollbackImport({
         sheetName: selectedSheet,
         sourceFile: fileName,
       })
       setReport(null)
       setMembersReport(null)
-      const total = contractsDeleted + usersDeleted + subscriptionsDeleted
+      invalidateStatsCaches()
+      const total = contractsDeleted + usersDeleted + subscriptionsDeleted + requestsDeleted
       setError(total > 0 ? null : 'Aucun élément migré trouvé pour ce fichier/feuille.')
       window.alert(
-        `Suppression : ${contractsDeleted} contrat(s), ${usersDeleted} membre(s), ${subscriptionsDeleted} adhésion(s).`,
+        `Suppression : ${contractsDeleted} contrat(s), ${usersDeleted} membre(s), ${subscriptionsDeleted} adhésion(s), ${requestsDeleted} demande(s).`,
       )
     } catch (err) {
       console.error(err)
@@ -368,6 +398,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
         (done, total) => setProgress({ done, total }),
       )
       setMembersReport(res)
+      invalidateStatsCaches()
     } catch (err) {
       console.error(err)
       setError("Erreur pendant l'import des membres.")
