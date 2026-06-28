@@ -44,12 +44,10 @@ import {
   analyzeMembersSheet,
   analyzeSheet,
   detectSheetType,
-  parseAdhesionMembersSheet,
   parseJournaliereSheet,
   parseMembersSheet,
   type AnalyzedMember,
   type AnalyzedRow,
-  type ImportAdhesion,
   type ImportAnalysis,
   type ImportMemberData,
   type MembersAnalysis,
@@ -95,10 +93,6 @@ function findMembersSheetName(sheetNames: string[]): string | undefined {
 
 function findJournaliereSheetName(sheetNames: string[]): string | undefined {
   return sheetNames.find((name) => name.trim().toUpperCase() === 'JOURNALIERE')
-}
-
-function findAdhesionMembersSheetName(sheetNames: string[]): string | undefined {
-  return sheetNames.find((name) => name.trim().toUpperCase() === 'ADHESION MEMBRES')
 }
 
 /** "2026-01-28" -> "28/01/2026" */
@@ -170,7 +164,6 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [membersReport, setMembersReport] = useState<WriteMembersReport | null>(null)
   const [membersMap, setMembersMap] = useState<Map<string, User>>(new Map())
   const [memberData, setMemberData] = useState<Map<string, ImportMemberData>>(new Map())
-  const [adhesionData, setAdhesionData] = useState<Map<string, ImportAdhesion[]>>(new Map())
   const [forfaits, setForfaits] = useState<SubscriptionCI[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -190,7 +183,6 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     setMembersReport(null)
     setMembersMap(new Map())
     setMemberData(new Map())
-    setAdhesionData(new Map())
     setReport(null)
     setProgress(null)
     setError(null)
@@ -236,19 +228,6 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           )
         : new Map<string, ImportMemberData>()
       setMemberData(enrich)
-
-      // Croisement ADHESION MEMBRES → abonnements (période + paiement) par matricule.
-      const adhesionSheet = findAdhesionMembersSheetName(workbook.SheetNames)
-      const adhesions = adhesionSheet
-        ? parseAdhesionMembersSheet(
-            XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[adhesionSheet], {
-              header: 1,
-              raw: true,
-              blankrows: false,
-            }),
-          )
-        : new Map<string, ImportAdhesion[]>()
-      setAdhesionData(adhesions)
 
       // ----- Feuille MEMBRES : import de membres -----
       if (detectSheetType(selectedSheet) === 'MEMBERS') {
@@ -393,7 +372,6 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           sourceFile: fileName,
           existing: membersMap,
           enrich: memberData,
-          adhesions: adhesionData,
         },
         (done, total) => setProgress({ done, total }),
       )
@@ -426,9 +404,9 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   // Import de membres (feuille MEMBRES)
   const membersToCreate = memberViews.filter((m) => !m.exists)
   const membersExisting = memberViews.length - membersToCreate.length
-  // Abonnements (ADHESION MEMBRES) qui seront créés pour les membres à importer.
+  // Abonnements créés = membres à importer ayant une DATE INSCRIPTION (feuille MEMBRES).
   const adhesionsToCreate = membersToCreate.reduce(
-    (sum, m) => sum + (adhesionData.get(m.matricule.trim())?.length ?? 0),
+    (sum, m) => sum + (memberData.get(m.matricule.trim())?.membershipPaymentDate ? 1 : 0),
     0,
   )
 
@@ -549,9 +527,8 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
               <p className="mt-0.5 text-xs text-gray-600">
                 Cible : <span className="font-mono">users</span> · {membersAnalysis.totalRows} ligne(s) ·{' '}
                 {membersAnalysis.uniqueMembers} membre(s) unique(s)
-                {memberData.size > 0 && ' · identités enrichies via la feuille MEMBRES'}
                 {adhesionsToCreate > 0 &&
-                  ` · ${adhesionsToCreate} abonnement(s) via ADHESION MEMBRES`}
+                  ` · ${adhesionsToCreate} abonnement(s) (date d'inscription présente)`}
               </p>
             </div>
           </div>

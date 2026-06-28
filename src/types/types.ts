@@ -595,6 +595,14 @@ export interface User {
   groupIds?: string[]
   // Caisse Spéciale
   caisseContractIds?: string[]
+  // Position GPS exacte du domicile, capturée par un admin depuis la fiche membre
+  gpsLocation?: {
+    latitude: number
+    longitude: number
+    accuracy?: number
+    capturedAt?: Date | string
+    capturedBy?: string
+  }
 }
 
 // ================== TYPES CAISSE IMPREVUE ==================
