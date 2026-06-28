@@ -22,6 +22,7 @@ import {
   setDoc,
 } from '@/firebase/firestore'
 import { auth } from '@/firebase/auth'
+import { addCaisseContractToUser } from '@/db/member.db'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { SubscriptionCI, User } from '@/types/types'
 import {
@@ -964,6 +965,14 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
   }
 
   await commitAdminImportDocs(docs)
+
+  // Ramification : back-référence du contrat sur la fiche membre (comme la
+  // création normale d'un contrat CS). Non bloquant si l'update échoue.
+  try {
+    await addCaisseContractToUser(member.id, contractId)
+  } catch {
+    // ignore — le contrat reste retrouvable via memberId
+  }
 
   return {
     rowNumber: row.rowNumber,

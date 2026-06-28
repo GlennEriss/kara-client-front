@@ -169,9 +169,11 @@ export class ContractCIRepository implements IContractCIRepository {
         ]);
 
         let totalAmountPaid = 0;
+        let paidCount = 0;
         paymentsSnap.forEach((doc) => {
             const data = doc.data();
             totalAmountPaid += Number(data?.accumulatedAmount ?? 0);
+            if (data?.status === 'PAID') paidCount += 1;
         });
 
         let totalSupportRemaining = 0;
@@ -183,7 +185,8 @@ export class ContractCIRepository implements IContractCIRepository {
         });
 
         return {
-            paymentCount: paymentsSnap.size,
+            // Nombre de versements = mois réellement payés (les mois DUE ne comptent pas).
+            paymentCount: paidCount,
             totalAmountPaid,
             supportCount: supportsSnap.size,
             totalSupportRemaining,

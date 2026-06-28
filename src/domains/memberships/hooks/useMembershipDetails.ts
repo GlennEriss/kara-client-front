@@ -7,6 +7,7 @@ import type { User, Subscription, Filleul } from '@/types/types'
 import { getUserById } from '@/db/user.db'
 import { getMemberSubscriptions } from '@/db/member.db'
 import { listContractsByMember } from '@/db/caisse/contracts.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useMemberWithFilleuls } from '@/hooks/filleuls'
 import { useDocumentList } from '@/hooks/documents/useDocumentList'
 import { getNationalityName } from '@/constantes/nationality'
@@ -113,13 +114,23 @@ export function useMembershipDetails(
     gcTime: 10 * 60 * 1000, // 10 minutes
   })
 
-  // Requête pour les contrats
+  // Requête pour les contrats Caisse Spéciale (collection caisseContracts)
   const contractsQuery = useQuery<MemberContract[]>({
     queryKey: [MEMBERSHIP_DETAILS_CACHE_KEY, 'contracts', memberId],
     queryFn: () => listContractsByMember(memberId),
     enabled: enabled && !!memberId,
     staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  // Requête pour les contrats Caisse Imprévue (collection séparée contractsCI)
+  const ciContractsQuery = useQuery<MemberContract[]>({
+    queryKey: [MEMBERSHIP_DETAILS_CACHE_KEY, 'contracts-ci', memberId],
+    queryFn: async () =>
+      (await ServiceFactory.getCaisseImprevueService().getContractsCIByMemberId(memberId)) as unknown as MemberContract[],
+    enabled: enabled && !!memberId,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   })
 
   // Hook pour les filleuls (utilise le hook existant)
@@ -162,6 +173,8 @@ export function useMembershipDetails(
   // Organiser les contrats par type
   const contracts: MemberContracts = useMemo(() => {
     const allContracts = contractsQuery.data || []
+    // Contrats Caisse Imprévue : collection séparée (contractsCI).
+    const caisseImprevue = ciContractsQuery.data || []
 
     const caisseSpeciale = allContracts.filter(
       (c) =>
@@ -172,7 +185,6 @@ export function useMembershipDetails(
         c.caisseType === 'JOURNALIERE_CHARITABLE' ||
         c.caisseType === 'LIBRE_CHARITABLE',
     )
-    const caisseImprevue = allContracts.filter((c) => c.caisseType === 'CAISSE_IMPREVUE')
     const placements = allContracts.filter((c) => c.caisseType === 'PLACEMENT')
 
     const activeStatuses = [
@@ -182,6 +194,8 @@ export function useMembershipDetails(
       'FINAL_REFUND_PENDING',
       'EARLY_REFUND_PENDING',
     ]
+    // Statuts actifs côté Caisse Imprévue (ContractCIStatus).
+    const activeCIStatuses = ['ACTIVE']
 
     return {
       caisseSpeciale,
@@ -189,18 +203,19 @@ export function useMembershipDetails(
       hasActiveCaisseSpeciale: caisseSpeciale.some((c) => activeStatuses.includes(c.status)),
       caisseImprevue,
       caisseImprevueCount: caisseImprevue.length,
-      hasActiveCaisseImprevue: caisseImprevue.some((c) => activeStatuses.includes(c.status)),
+      hasActiveCaisseImprevue: caisseImprevue.some((c) => activeCIStatuses.includes(c.status)),
       placements,
       placementsCount: placements.length,
-      totalCount: allContracts.length,
+      totalCount: allContracts.length + caisseImprevue.length,
     }
-  }, [contractsQuery.data])
+  }, [contractsQuery.data, ciContractsQuery.data])
 
   // États agrégés
   const isLoading =
     memberQuery.isLoading ||
     subscriptionsQuery.isLoading ||
     contractsQuery.isLoading ||
+    ciContractsQuery.isLoading ||
     filleulsData.isLoading ||
     documentsQuery.isLoading
 
@@ -208,6 +223,7 @@ export function useMembershipDetails(
     memberQuery.isError ||
     subscriptionsQuery.isError ||
     contractsQuery.isError ||
+    ciContractsQuery.isError ||
     filleulsData.isError ||
     documentsQuery.isError
 
@@ -225,6 +241,7 @@ export function useMembershipDetails(
       memberQuery.refetch(),
       subscriptionsQuery.refetch(),
       contractsQuery.refetch(),
+      ciContractsQuery.refetch(),
       filleulsData.filleuls.refetch(),
     ])
   }
