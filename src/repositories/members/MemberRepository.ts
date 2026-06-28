@@ -19,33 +19,48 @@ export class MemberRepository implements IMemberRepository {
         try {
             const { collection, db, getDocs, query, where } = await getFirestore();
 
-            // Chercher dans les MembershipRequest approuvées qui contiennent le code intermédiaire
-            const q = query(
+            const byMatricule = new Map<string, Filleul>();
+
+            // 1) Demandes d'adhésion approuvées portant ce code intermédiaire.
+            const reqSnap = await getDocs(query(
                 collection(db, firebaseCollectionNames.membershipRequests || "membership-requests"),
                 where("identity.intermediaryCode", "==", intermediaryCode),
                 where("status", "==", "approved")
-            );
-
-            const querySnapshot = await getDocs(q);
-            const filleuls: Filleul[] = [];
-
-            querySnapshot.forEach((doc) => {
-                const membershipData = { id: doc.id, ...doc.data() } as MembershipRequest;
-
-                // Transformer MembershipRequest en Filleul
-                const filleulData: Filleul = {
-                    lastName: membershipData.identity.lastName || '',
-                    firstName: membershipData.identity.firstName || '',
-                    matricule: membershipData.matricule || doc.id,
-                    photoURL: membershipData.identity.photoURL,
-                    photoPath: membershipData.identity.photoPath,
-                    createdAt: (membershipData.createdAt as any)?.toDate ? (membershipData.createdAt as any).toDate() : new Date()
-                };
-
-                filleuls.push(filleulData);
+            ));
+            reqSnap.forEach((doc) => {
+                const m = { id: doc.id, ...doc.data() } as MembershipRequest;
+                const matricule = m.matricule || doc.id;
+                byMatricule.set(matricule, {
+                    lastName: m.identity.lastName || '',
+                    firstName: m.identity.firstName || '',
+                    matricule,
+                    photoURL: m.identity.photoURL,
+                    photoPath: m.identity.photoPath,
+                    createdAt: (m.createdAt as any)?.toDate ? (m.createdAt as any).toDate() : new Date(),
+                });
             });
 
-            return filleuls;
+            // 2) Membres (collection users) portant ce code intermédiaire — couvre
+            //    les membres importés (migration) qui n'ont pas de demande d'adhésion.
+            const usersSnap = await getDocs(query(
+                collection(db, firebaseCollectionNames.users || "users"),
+                where("intermediaryCode", "==", intermediaryCode)
+            ));
+            usersSnap.forEach((doc) => {
+                const u = { id: doc.id, ...doc.data() } as any;
+                const matricule = u.matricule || doc.id;
+                if (byMatricule.has(matricule)) return; // déjà présent via la demande
+                byMatricule.set(matricule, {
+                    lastName: u.lastName || '',
+                    firstName: u.firstName || '',
+                    matricule,
+                    photoURL: u.photoURL ?? undefined,
+                    photoPath: u.photoPath ?? undefined,
+                    createdAt: (u.createdAt as any)?.toDate ? (u.createdAt as any).toDate() : new Date(),
+                });
+            });
+
+            return Array.from(byMatricule.values());
 
         } catch (error) {
             console.error("Erreur lors de la récupération des filleuls par code intermédiaire:", error);

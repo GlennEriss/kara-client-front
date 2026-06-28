@@ -1,5 +1,6 @@
 import { verifyAdminSessionFromRequest } from '@/domains/auth/server/session'
 import { adminFirestore } from '@/firebase/adminFirestore'
+import { FieldValue } from 'firebase-admin/firestore'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -62,10 +63,22 @@ export async function POST(req: NextRequest) {
       .where('migrationSource', '==', sourceFile)
       .get()
     for (const contractDoc of csSnap.docs) {
-      if ((contractDoc.data() as { migrationSheet?: string }).migrationSheet !== sheetName) continue
+      const data = contractDoc.data() as { migrationSheet?: string; memberId?: string }
+      if (data.migrationSheet !== sheetName) continue
       for (const sub of ['payments', 'refunds']) {
         const subSnap = await contractDoc.ref.collection(sub).get()
         for (const d of subSnap.docs) await d.ref.delete()
+      }
+      // Ramification : retirer la back-référence du membre (caisseContractIds).
+      if (data.memberId) {
+        try {
+          await adminFirestore
+            .collection(USERS)
+            .doc(data.memberId)
+            .update({ caisseContractIds: FieldValue.arrayRemove(contractDoc.id) })
+        } catch {
+          // membre déjà supprimé ou absent → ignore
+        }
       }
       await contractDoc.ref.delete()
       contractsDeleted++

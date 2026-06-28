@@ -111,7 +111,7 @@ interface DailyCIContractProps {
 }
 
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const PaymentStatsGrid = ({ contract, paymentStats }: { contract: ContractCI; paymentStats?: { totalAmountPaid: number; paymentCount: number; supportCount: number } }) => {
+const PaymentStatsGrid = ({ contract, paymentStats }: { contract: ContractCI; paymentStats?: { totalAmountPaid: number; paymentCount: number; paidMonthsCount: number; supportCount: number } }) => {
   const totalTarget = contract.subscriptionCINominal || 0
   const amountPaid = paymentStats?.totalAmountPaid || 0
   const progressPercentage = totalTarget > 0 ? Math.min(100, (amountPaid / totalTarget) * 100) : 0
@@ -120,7 +120,7 @@ const PaymentStatsGrid = ({ contract, paymentStats }: { contract: ContractCI; pa
     { title: 'Montant mensuel', value: `${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`, accent: true },
     { title: 'Durée du contrat', value: `${contract.subscriptionCIDuration} mois` },
     { title: 'Nominal total', value: `${contract.subscriptionCINominal.toLocaleString('fr-FR')} FCFA` },
-    { title: 'Versements effectués', value: paymentStats?.paymentCount || 0 },
+    { title: 'Versements effectués', value: paymentStats?.paidMonthsCount || 0 },
     {
       title: 'Montant versé',
       value: `${(paymentStats?.totalAmountPaid || 0).toLocaleString('fr-FR')} FCFA`,

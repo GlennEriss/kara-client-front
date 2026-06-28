@@ -47,7 +47,8 @@ export function MemberDetailsHeader({
         </div>
       </div>
       <div className="flex flex-col md:flex-row items-center gap-4 self-start lg:self-auto">
-        {member.dossier && (
+        {/* Pas de demande réelle pour les membres migrés (dossier = "MIGRATION…") */}
+        {member.dossier && !member.dossier.startsWith('MIGRATION') && (
           <Button
             onClick={onOpenMembershipRequest}
             className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8"

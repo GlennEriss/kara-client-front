@@ -355,33 +355,45 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
     }
   })
 
-  const paidCount = payments.filter((p) => p.status === 'PAID').length
-  const dueCount = payments.filter((p) => p.status === 'DUE').length
-
   // Durée RÉELLE de l'échéancier = nb de mois planifiés (payés + impayés).
   // ⚠️ Ne PAS utiliser la colonne PERIODE/MOIS (M) : elle ne correspond pas au
   // nombre de mois (ex. M=13 alors que N°VERSEMENT + MOIS/IMPAYE = 12).
-  // L'affichage des contrats actifs rend `subscriptionCIDuration` mois.
+  // On prend la borne la plus large pour ne JAMAIS masquer une échéance présente.
+  const detectedCount = payments.length
   const summaryMonths = num(cell(row, 13)) + num(cell(row, 14)) // N° VERSEMENT + MOIS/IMPAYE
-  const durationMonths = payments.length || summaryMonths || 12
+  const maxIdx = payments.reduce((m, p) => Math.max(m, p.monthIndex), -1)
+  const durationMonths = Math.max(maxIdx + 1, summaryMonths, detectedCount) || 12
+
+  // Complète les mois manquants en DUE → calendrier et détail affichent tout le
+  // planning (uniquement si l'échéancier existe, pour ne pas inventer des contrats vides).
+  if (detectedCount > 0 || summaryMonths > 0) {
+    fillDuePayments(payments, durationMonths, amountPerMonth, startDate)
+  }
+
+  const paidCount = payments.filter((p) => p.status === 'PAID').length
+  const dueCount = payments.filter((p) => p.status === 'DUE').length
 
   const issues: string[] = []
   if (!CATEGORY_AMOUNT[category]) issues.push(`Catégorie inconnue ("${category || '∅'}")`)
   if (amountPerMonth <= 0) issues.push('Montant mensuel manquant')
-  if (payments.length === 0) issues.push('Aucune échéance détectée')
+  if (detectedCount === 0) issues.push('Aucune échéance détectée')
   if (!str(cell(row, 3)) && !str(cell(row, 4))) issues.push('Nom/prénom manquant')
 
   const contacts = contactsOf(cell(row, 5), cell(row, 6))
+
+  // Montant total réellement versé = somme des versements payés (et non la
+  // colonne MONTANT TOTAL du fichier, parfois divergente de la saisie).
+  const montantTotalPaid = payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0)
 
   const entraide: EntraideMeta = {
     code: strOpt(cell(row, 2)),
     contractEndDate: dateStr(cell(row, 8)) || undefined,
     receptionDate: dateStr(cell(row, 9)) || undefined,
     summary: {
-      versementsCount: num(cell(row, 13)),
+      versementsCount: paidCount,
       monthsUnpaid: num(cell(row, 14)),
       imprevusCount: num(cell(row, 15)),
-      montantTotal: num(cell(row, 16)),
+      montantTotal: montantTotalPaid,
     },
   }
 
@@ -553,9 +565,12 @@ function analyzeCaisseActiveRow(
 
   const paidCount = payments.filter((p) => p.status === 'PAID').length
   const dueCount = payments.filter((p) => p.status === 'DUE').length
+  // Journalier : monthIndex = index quotidien (pas un mois) → durée = nb de périodes.
+  // Standard/Libre : ne jamais être < dernier mois présent (sinon échéance masquée).
+  const maxIdx = payments.reduce((m, p) => Math.max(m, p.monthIndex), -1)
   const durationMonths = journaliereDetail
     ? journaliereDetail.periodsCount || payments.length || 12
-    : payments.length || num(cell(row, 13)) + num(cell(row, 14)) || 12
+    : Math.max(maxIdx + 1, payments.length, num(cell(row, 13)) + num(cell(row, 14))) || 12
 
   const contacts = contactsOf(cell(row, 5), cell(row, 6))
 
@@ -745,6 +760,31 @@ function addMonthsIso(iso: string | null, n: number): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+}
+
+/**
+ * Complète l'échéancier avec les mois DUE manquants dans [0, durationMonths) afin
+ * que TOUS les mois planifiés aient un document (échéancier contigu) — nécessaire
+ * pour que le calendrier et le détail affichent l'intégralité du planning.
+ */
+function fillDuePayments(
+  payments: ImportPayment[],
+  durationMonths: number,
+  amountPerMonth: number,
+  startDate: string | null,
+): void {
+  const present = new Set(payments.map((p) => p.monthIndex))
+  for (let mi = 0; mi < durationMonths; mi++) {
+    if (present.has(mi)) continue
+    payments.push({
+      monthIndex: mi,
+      targetAmount: amountPerMonth,
+      status: 'DUE',
+      dueDate: addMonthsIso(startDate, mi) || undefined,
+      versement: null,
+    })
+  }
+  payments.sort((a, b) => a.monthIndex - b.monthIndex)
 }
 
 function analyzeClosedRow(row: unknown[], rowNumber: number): AnalyzedRow | null {
