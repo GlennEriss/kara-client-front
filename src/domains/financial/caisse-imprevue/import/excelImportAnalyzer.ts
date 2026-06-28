@@ -1053,9 +1053,13 @@ export interface ImportMemberData {
   birthPlace?: string
   nationality?: string
   profession?: string
+  seniority?: string // ANCIENNETE
   companyName?: string
+  companyAddress?: string // ADRESSE ENTREPRISE
   identityDocument?: string
   identityDocumentNumber?: string
+  identityIssuingPlace?: string // LIEU DE DELIVRANCE
+  identityExpirationDate?: string // DATE EXPIRATION (pièce)
   maritalStatus?: string
   partnerName?: string
   partnerPhone?: string
@@ -1068,6 +1072,7 @@ export interface ImportMemberData {
   membershipPaymentAmount?: number // MONTANT (10 000)
   membershipPaymentMode?: string // MOYEN/PAIE
   membershipPaymentAgent?: string // AGENT PAIE
+  membershipPaymentTime?: string // HEURE PAIEMENT
   address?: {
     province: string
     city: string
@@ -1091,9 +1096,22 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
     const city = mval(cell(r, 23))
     const district = mval(cell(r, 25))
     const arrondissement = mval(cell(r, 24))
-    const additionalInfo = mval(cell(r, 26))
+    // INFO COMPLEMENTAIRE(26) + colonnes sans champ dédié : DEPARTEMENT(22),
+    // ENTREMETTEUR(35), SOLIDAIRE(40) → regroupées en infos complémentaires.
+    const departement = mval(cell(r, 22))
+    const entremetteur = mval(cell(r, 35))
+    const solidaire = mval(cell(r, 40))
+    const additionalInfo =
+      [
+        mval(cell(r, 26)),
+        departement ? `Département: ${departement}` : undefined,
+        entremetteur ? `Entremetteur: ${entremetteur}` : undefined,
+        solidaire ? `Solidaire: ${solidaire}` : undefined,
+      ]
+        .filter((x): x is string => !!x)
+        .join(' • ') || undefined
     const address =
-      province || city || district || arrondissement
+      province || city || district || arrondissement || additionalInfo
         ? {
             province: province ?? '',
             city: city ?? '',
@@ -1115,9 +1133,13 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
       birthPlace: mval(cell(r, 11)), // LIEU DE NAISSANCE
       nationality: mval(cell(r, 20)), // NATIONALITE
       profession: mval(cell(r, 27)), // PROFESSION
+      seniority: mval(cell(r, 28)), // ANCIENNETE
       companyName: mval(cell(r, 29)), // ENTREPRISE
+      companyAddress: mval(cell(r, 30)), // ADRESSE ENTREPRISE
       identityDocument: mval(cell(r, 16)), // TYPE DE PIECE
       identityDocumentNumber: mval(cell(r, 17)), // NUMERO PIECE
+      identityIssuingPlace: mval(cell(r, 18)), // LIEU DE DELIVRANCE
+      identityExpirationDate: dateStr(cell(r, 19)) || undefined, // DATE EXPIRATION
       maritalStatus: mval(cell(r, 31)), // S.MATRIMONIALE
       partnerName: mval(cell(r, 32)), // NOM PARTENAIRE
       partnerPhone: mval(cell(r, 33)), // TELEPHONE PARTENAIRE
@@ -1128,6 +1150,7 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
       membershipPaymentAmount: isPresent(cell(r, 39)) ? num(cell(r, 39)) || undefined : undefined, // MONTANT
       membershipPaymentMode: mval(cell(r, 41)), // MOYEN/PAIE
       membershipPaymentAgent: mval(cell(r, 42)), // AGENT PAIE
+      membershipPaymentTime: isPresent(cell(r, 38)) ? parseHeure(cell(r, 38)) : undefined, // HEURE PAIEMENT
       address,
     })
   }

@@ -29,7 +29,6 @@ import {
   CATEGORY_AMOUNT,
   type AnalyzedMember,
   type AnalyzedRow,
-  type ImportAdhesion,
   type ImportMemberData,
   type ImportTarget,
   type ImportVersement,
@@ -283,14 +282,6 @@ function pickForfait(
 
 /** Retire récursivement les clés `undefined` d'un objet de DONNÉES simple
  *  (sans FieldValue). À n'utiliser que sur des blocs sans serverTimestamp. */
-/** Date → "yyyy-MM-dd" (même format que les adhésions issues de l'analyzer). */
-function isoDate(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 function cleanPlain<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(obj)) {
@@ -1136,10 +1127,8 @@ export interface MembersImportContext {
   sourceFile: string
   /** Membres déjà présents (par matricule). */
   existing: Map<string, User>
-  /** Données MEMBRES (par matricule) pour enrichir l'identité. */
+  /** Données MEMBRES (par matricule) pour enrichir l'identité + abonnement. */
   enrich: Map<string, ImportMemberData>
-  /** Adhésions ADHESION MEMBRES (par matricule) → abonnements créés. */
-  adhesions?: Map<string, ImportAdhesion[]>
 }
 
 /** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
@@ -1197,10 +1186,14 @@ export async function writeMembers(
         },
         companyName: data?.companyName ?? '',
         companyId: null,
+        companyAddress: data?.companyAddress ?? '',
         profession: data?.profession ?? '',
         professionId: null,
+        seniority: data?.seniority ?? '',
         identityDocument: data?.identityDocument ?? '',
         identityDocumentNumber: data?.identityDocumentNumber ?? '',
+        identityDocumentIssuingPlace: data?.identityIssuingPlace ?? '',
+        identityDocumentExpiration: data?.identityExpirationDate ?? '',
         maritalStatus: data?.maritalStatus ?? '',
         partnerName: data?.partnerName ?? '',
         partnerPhone: data?.partnerPhone ?? '',
@@ -1270,12 +1263,15 @@ export async function writeMembers(
         company: {
           isEmployed: !!data?.companyName,
           companyName: userData.companyName,
+          companyAddress: data?.companyAddress ?? '',
           profession: userData.profession,
-          seniority: '',
+          seniority: data?.seniority ?? '',
         },
         documents: {
           identityDocument: userData.identityDocument,
           identityDocumentNumber: userData.identityDocumentNumber,
+          issuingPlace: data?.identityIssuingPlace ?? '',
+          expirationDate: data?.identityExpirationDate ?? '',
           termsAccepted: true,
         },
         approvedBy: ctx.adminId,
@@ -1292,55 +1288,25 @@ export async function writeMembers(
         updatedAt: serverTimestamp(),
       })
 
-      // Croisement ADHESION MEMBRES → abonnements (collection `subscriptions`).
-      // Détermine le statut « abonnement valide » du membre (renouvellements inclus).
-      const adhesions = [...(ctx.adhesions?.get(key) ?? [])]
-
-      // Le paiement d'adhésion porté sur la ligne MEMBRES (10 000) est souvent plus
-      // récent que ADHESION MEMBRES. On l'ajoute s'il ÉTEND la couverture (dateEnd
-      // plus lointaine), sinon il fait déjà doublon avec l'historique.
-      if (data?.membershipPaymentAmount && data.membershipPaymentAmount > 0) {
-        const startDate = data.membershipPaymentDate
-          ? new Date(data.membershipPaymentDate)
-          : new Date() // date manquante → 1 an depuis l'import
-        const endDate = new Date(startDate)
-        endDate.setFullYear(endDate.getFullYear() + 1)
-        const newEndIso = isoDate(endDate)
-        const currentMaxEnd = adhesions.reduce<string>(
-          (mx, a) => (a.dateEnd && a.dateEnd > mx ? a.dateEnd : mx),
-          '',
-        )
-        if (newEndIso > currentMaxEnd) {
-          adhesions.push({
-            dateStart: isoDate(startDate),
-            dateEnd: newEndIso,
-            montant: data.membershipPaymentAmount,
-            type: m.membershipType,
-            paymentDate: data.membershipPaymentDate,
-            mode: data.membershipPaymentMode,
-            agent: data.membershipPaymentAgent,
-          })
-        }
-      }
-
-      for (let a = 0; a < adhesions.length; a++) {
-        const adh = adhesions[a]
-        const start = adh.dateStart ? new Date(adh.dateStart) : undefined
-        const end = adh.dateEnd ? new Date(adh.dateEnd) : undefined
-        if (!start && !end) continue
-        const stamp = (adh.dateStart || adh.dateEnd || String(a)).replace(/[^0-9]/g, '') || String(a)
-        const subId = `MK_MEMBER_SUB_${userId}_${stamp}`
+      // Abonnement (collection `subscriptions`) — UNIQUEMENT depuis la feuille
+      // MEMBRES : une DATE INSCRIPTION ⇒ un abonnement d'1 an (à partir de cette
+      // date). Pas de DATE INSCRIPTION ⇒ aucun abonnement (pas d'abonnement en cours).
+      if (data?.membershipPaymentDate) {
+        const start = new Date(data.membershipPaymentDate)
+        const end = new Date(start)
+        end.setFullYear(end.getFullYear() + 1)
+        const subId = `MK_MEMBER_SUB_${userId}`
         const subData: Record<string, unknown> = {
           userId,
-          dateStart: start ?? end,
-          dateEnd: end ?? start,
-          montant: adh.montant,
+          dateStart: start,
+          dateEnd: end,
+          montant: data.membershipPaymentAmount,
           currency: 'XAF',
-          type: adh.type,
-          year: adh.year,
-          paymentDate: adh.paymentDate,
-          paymentMode: adh.mode,
-          agent: adh.agent,
+          type: m.membershipType,
+          paymentDate: data.membershipPaymentDate,
+          paymentTime: data.membershipPaymentTime,
+          paymentMode: data.membershipPaymentMode,
+          agent: data.membershipPaymentAgent,
           createdBy: ctx.adminId,
           isMigrated: true,
           migrationSource: ctx.sourceFile,
