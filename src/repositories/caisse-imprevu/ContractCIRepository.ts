@@ -597,8 +597,10 @@ export class ContractCIRepository implements IContractCIRepository {
             const finished = filteredContracts.filter(c => c.status === 'FINISHED').length;
             const canceled = filteredContracts.filter(c => c.status === 'CANCELED').length;
 
+            // « Montant total » = montant réellement VERSÉ (cohérent avec la Caisse
+            // Spéciale qui somme nominalPaid). Pour la CI : mois payés × montant mensuel.
             const totalAmount = filteredContracts.reduce(
-                (sum, c) => sum + (c.subscriptionCIAmountPerMonth * c.subscriptionCIDuration),
+                (sum, c) => sum + ((Number((c as any).totalMonthsPaid) || 0) * (Number(c.subscriptionCIAmountPerMonth) || 0)),
                 0
             );
 

@@ -14,6 +14,7 @@ const CONTRACTS = 'contractsCI'
 const CAISSE_CONTRACTS = 'caisseContracts'
 const USERS = 'users'
 const SUBSCRIPTIONS = 'subscriptions'
+const MEMBERSHIP_REQUESTS = 'membership-requests'
 
 /**
  * Supprime tout ce qu'un import a créé, ciblé par `migrationSource` (nom du
@@ -106,7 +107,19 @@ export async function POST(req: NextRequest) {
       usersDeleted++
     }
 
-    return NextResponse.json({ contractsDeleted, usersDeleted, subscriptionsDeleted })
+    // 4) Demandes d'adhésion migrées (créées pour la cohérence stats/filleuls)
+    let requestsDeleted = 0
+    const reqSnap = await adminFirestore
+      .collection(MEMBERSHIP_REQUESTS)
+      .where('migrationSource', '==', sourceFile)
+      .get()
+    for (const reqDoc of reqSnap.docs) {
+      if ((reqDoc.data() as { migrationSheet?: string }).migrationSheet !== sheetName) continue
+      await reqDoc.ref.delete()
+      requestsDeleted++
+    }
+
+    return NextResponse.json({ contractsDeleted, usersDeleted, subscriptionsDeleted, requestsDeleted })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur inattendue'
     return NextResponse.json({ error: 'Erreur suppression import', details: message }, { status: 500 })

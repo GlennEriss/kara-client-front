@@ -47,6 +47,7 @@ const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsC
 const MEMBER_SUBSCRIPTIONS = firebaseCollectionNames.subscriptions || 'subscriptions'
 const USERS = firebaseCollectionNames.users || 'users'
 const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
+const MEMBERSHIP_REQUESTS = firebaseCollectionNames.membershipRequests || 'membership-requests'
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
 export async function fetchForfaits(): Promise<SubscriptionCI[]> {
@@ -1061,6 +1062,7 @@ export interface RollbackResult {
   contractsDeleted: number
   usersDeleted: number
   subscriptionsDeleted: number
+  requestsDeleted?: number
 }
 
 /**
@@ -1169,6 +1171,8 @@ export async function writeMembers(
       // que de les omettre, pour que la fiche membre ait un schéma complet et
       // éditable (champs prêts à être renseignés depuis l'UI).
       const birthdayFields = calculateBirthdayFields(data?.birthDate)
+      // Demande d'adhésion approuvée liée (cohérence stats/demandes/filleuls).
+      const requestId = `MK_MEMBER_REQ_MIG_${sanitizeMatricule(key) || 'NA'}`
       const userData: Record<string, unknown> = {
         civility: '', // absent du fichier
         lastName: m.lastName || data?.lastName || 'INCONNU',
@@ -1206,7 +1210,7 @@ export async function writeMembers(
         photoURL: null, // absent du fichier
         photoPath: null,
         subscriptions: [],
-        dossier: 'MIGRATION',
+        dossier: requestId,
         membershipType: m.membershipType,
         roles: [m.role],
         isActive: true,
@@ -1230,6 +1234,63 @@ export async function writeMembers(
           updatedAt: serverTimestamp(),
         },
       )
+
+      // Demande d'adhésion APPROUVÉE liée : rend le membre cohérent avec les
+      // sections basées sur les demandes (Demandes d'adhésion, KPIs dashboard,
+      // filleuls via identity.intermediaryCode, lien « Voir le dossier »).
+      const requestData: Record<string, unknown> = {
+        id: requestId,
+        matricule: key,
+        status: 'approved',
+        membershipType: m.membershipType,
+        memberNumber: key,
+        identity: {
+          civility: '',
+          lastName: userData.lastName,
+          firstName: userData.firstName,
+          birthDate: userData.birthDate,
+          birthPlace: userData.birthPlace,
+          birthCertificateNumber: userData.birthCertificateNumber,
+          prayerPlace: userData.prayerPlace,
+          religion: userData.religion,
+          contacts: userData.contacts,
+          email: userData.email,
+          gender: userData.gender,
+          nationality: userData.nationality,
+          maritalStatus: userData.maritalStatus,
+          spouseLastName: '',
+          spouseFirstName: '',
+          spousePhone: userData.partnerPhone,
+          intermediaryCode: userData.intermediaryCode,
+          hasCar: userData.hasCar,
+          photoURL: null,
+          photoPath: null,
+        },
+        address: userData.address,
+        company: {
+          isEmployed: !!data?.companyName,
+          companyName: userData.companyName,
+          profession: userData.profession,
+          seniority: '',
+        },
+        documents: {
+          identityDocument: userData.identityDocument,
+          identityDocumentNumber: userData.identityDocumentNumber,
+          termsAccepted: true,
+        },
+        approvedBy: ctx.adminId,
+        approvedAt: serverTimestamp(),
+        processedAt: serverTimestamp(),
+        processedBy: ctx.adminId,
+        isMigrated: true,
+        migrationSource: ctx.sourceFile,
+        migrationSheet: ctx.sheetName,
+      }
+      await setDoc(doc(db, MEMBERSHIP_REQUESTS, requestId), {
+        ...cleanPlain(requestData),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
 
       // Croisement ADHESION MEMBRES → abonnements (collection `subscriptions`).
       // Détermine le statut « abonnement valide » du membre (renouvellements inclus).
