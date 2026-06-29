@@ -8,7 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -57,7 +57,7 @@ export function GenererIdentifiantModal({
         ).toBlob()
         const filename = `identifiants-${pdfData.matricule.replace(/\s+/g, '-')}.pdf`
         downloadPdfBlob(blob, filename)
-        toast.success('Mot de passe réinitialisé', {
+        toast.success('Identifiants générés', {
           description: 'Le PDF des identifiants a été téléchargé.',
         })
         onOpenChange(false)
@@ -95,10 +95,12 @@ export function GenererIdentifiantModal({
         onPointerDownOutside={(e) => isLoading && e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Réinitialiser le mot de passe du membre</DialogTitle>
+          <DialogTitle>Générer les identifiants de connexion</DialogTitle>
           <DialogDescription>
-            Le mot de passe du membre sera remplacé par un mot de passe
-            aléatoire. Recopiez le matricule ci-dessous pour confirmer.
+            Un compte de connexion (email + mot de passe) est créé et activé pour
+            le membre s'il n'en a pas encore, sinon son mot de passe est
+            réinitialisé. Les identifiants sont fournis dans un PDF à lui remettre.
+            Recopiez le matricule ci-dessous pour confirmer.
           </DialogDescription>
         </DialogHeader>
 
@@ -159,7 +161,7 @@ export function GenererIdentifiantModal({
                 En cours…
               </>
             ) : (
-              'Accepter'
+              'Générer les identifiants'
             )}
           </Button>
         </DialogFooter>

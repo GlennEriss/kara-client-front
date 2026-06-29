@@ -1,11 +1,25 @@
 import { adminAuth } from '@/firebase/adminAuth'
+import { adminFirestore } from '@/firebase/adminFirestore'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
 
 /**
- * Réinitialise le mot de passe d'un membre (admin uniquement).
+ * Email de connexion généré, même schéma que l'ajout d'un membre par l'admin :
+ * prenomnom + 4 premiers chiffres du matricule @kara.ga (ex. jeandupont2014@kara.ga).
+ */
+function generateMemberEmail(matricule: string, firstName?: string, lastName?: string): string {
+  const fn = (firstName || '').toLowerCase().replace(/[^a-z]/g, '')
+  const ln = (lastName || '').toLowerCase().replace(/[^a-z]/g, '')
+  const namePart = `${fn}${ln}` || 'membre'
+  const digits = matricule.replace(/\D/g, '').slice(0, 4) || '0000'
+  return `${namePart}${digits}@kara.ga`
+}
+
+/**
+ * Réinitialise le mot de passe d'un membre (admin uniquement) et **crée le compte
+ * Firebase Auth s'il n'existe pas** (cas des membres importés, créés sans Auth).
  * Body: { memberId: string }
- * memberId = uid Firebase Auth (même que l'id du document users).
+ * memberId = uid Firebase Auth (= id du document users = matricule normalisé).
  */
 export async function POST(req: NextRequest) {
   if (!adminAuth) {
@@ -42,12 +56,70 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const userRecord = await adminAuth.getUser(memberId)
-    const email = userRecord.email || null
     const newPassword = generatePassword(12)
 
-    await adminAuth.updateUser(memberId, { password: newPassword })
-    return NextResponse.json({ success: true, email, newPassword })
+    // Données membre (nom, matricule, email réel) pour générer l'email de connexion.
+    let firstName = ''
+    let lastName = ''
+    let realEmail = ''
+    let matricule = memberId
+    if (adminFirestore) {
+      try {
+        const snap = await adminFirestore.collection('users').doc(memberId).get()
+        const d = (snap.exists ? snap.data() : null) as
+          | { email?: string; firstName?: string; lastName?: string; matricule?: string }
+          | null
+        if (d) {
+          firstName = d.firstName || ''
+          lastName = d.lastName || ''
+          matricule = d.matricule || memberId
+          if (typeof d.email === 'string' && d.email.includes('@')) realEmail = d.email.trim()
+        }
+      } catch {
+        // ignore : on génère l'email depuis le matricule
+      }
+    }
+
+    // Email de connexion : email réel s'il existe, sinon généré (schéma admin @kara.ga).
+    const email = realEmail || generateMemberEmail(matricule, firstName, lastName)
+    const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || undefined
+    let created = false
+
+    try {
+      // Compte Auth existant → réinitialiser le mot de passe + email + activer.
+      const userRecord = await adminAuth.getUser(memberId)
+      await adminAuth.updateUser(memberId, {
+        password: newPassword,
+        email: userRecord.email || email, // garder l'email existant, sinon le poser
+        emailVerified: true,
+        disabled: false,
+      })
+    } catch (err: unknown) {
+      const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code: unknown }).code) : ''
+      if (code !== 'auth/user-not-found') throw err
+
+      // Pas de compte Auth (membre importé) → création + activation directe.
+      await adminAuth.createUser({
+        uid: memberId,
+        email,
+        password: newPassword,
+        displayName,
+        emailVerified: true,
+        disabled: false,
+      })
+      created = true
+    }
+
+    // Stocker l'email de connexion sur la fiche membre (cohérence d'affichage).
+    if (adminFirestore) {
+      try {
+        await adminFirestore.collection('users').doc(memberId).update({ email, updatedAt: new Date() })
+      } catch {
+        // non bloquant
+      }
+    }
+
+    return NextResponse.json({ success: true, email, newPassword, created })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
     return NextResponse.json(

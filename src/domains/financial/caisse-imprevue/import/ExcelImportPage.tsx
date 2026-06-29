@@ -138,6 +138,8 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
       ['dashboard'],
       ['members'],
       ['allMembers'],
+      ['memberships-list-v2'], // liste Membres (clé distincte)
+      ['membership-details'], // fiche membre
       ['membership-requests'],
       ['membership-requests-stats'],
       ['memberships'],

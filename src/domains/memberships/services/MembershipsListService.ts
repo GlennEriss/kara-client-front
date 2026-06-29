@@ -50,13 +50,10 @@ export class MembershipsListService {
         break
 
       case 'abonnement-valide':
-        // Pour l’instant, ces filtres sont surtout gérés côté client via subscriptions.
-        // On pourra les déplacer côté Firestore plus tard.
-        filters.isActive = true
-        break
-
       case 'abonnement-invalide':
-        filters.isActive = false
+        // La validité d'abonnement n'est PAS un champ Firestore : elle est calculée
+        // côté client (isSubscriptionValid, depuis la collection subscriptions).
+        // → aucun filtre Firestore ici ; le filtrage se fait côté client dans la page.
         break
 
       case 'anniversaires':

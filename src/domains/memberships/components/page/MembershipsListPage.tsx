@@ -118,38 +118,21 @@ export function MembershipsListPage() {
   // Référence pour comparer les filtres précédents
   const prevFiltersRef = useRef<string>(JSON.stringify(filters))
 
-  // Synchroniser les filtres avec le tab actif
+  // Synchroniser les filtres avec le tab actif.
+  // ⚠️ On RÉINITIALISE d'abord les filtres injectés par les onglets (membershipType,
+  // isActive) pour ne pas garder ceux de l'onglet précédent (ex. passer d'« Adhérents »
+  // à « Abonnement valide » ne doit plus rester filtré sur adherant), puis on applique
+  // ceux du nouvel onglet. Les filtres du panneau (recherche, géo…) sont conservés.
   useEffect(() => {
-    if (activeTab !== 'all') {
-      // Construire les filtres pour le tab actif
-      const tabFilters = MembershipsListService.buildFiltersForTab({}, activeTab)
-      
-      // Mettre à jour les filtres pour refléter le tab
-      // On garde les autres filtres (recherche, géographie, etc.) mais on force les filtres du tab
-      setFilters(prevFilters => {
-        const newFilters = { ...prevFilters }
-        
-        // Appliquer les filtres du tab (écrase les filtres correspondants)
-        if (tabFilters.membershipType) {
-          newFilters.membershipType = tabFilters.membershipType
-        }
-        
-        if (tabFilters.isActive !== undefined) {
-          newFilters.isActive = tabFilters.isActive
-        }
-        
-        return newFilters
-      })
-    } else {
-      // Sur "all", on supprime les filtres injectés automatiquement par les tabs
-      // pour éviter qu'ils restent actifs après un retour depuis un onglet spécifique.
-      setFilters(prevFilters => {
-        const nextFilters = { ...prevFilters }
-        delete nextFilters.membershipType
-        delete nextFilters.isActive
-        return nextFilters
-      })
-    }
+    const tabFilters = MembershipsListService.buildFiltersForTab({}, activeTab)
+    setFilters(prevFilters => {
+      const next = { ...prevFilters }
+      delete next.membershipType
+      delete next.isActive
+      if (tabFilters.membershipType) next.membershipType = tabFilters.membershipType
+      if (tabFilters.isActive !== undefined) next.isActive = tabFilters.isActive
+      return next
+    })
   }, [activeTab])
 
   // Gestionnaires d'événements
@@ -318,7 +301,15 @@ export function MembershipsListPage() {
   }
 
   // Transformation des données
-  const membersWithSubscriptions: MemberWithSubscription[] = membersData?.data || []
+  const allMembers: MemberWithSubscription[] = membersData?.data || []
+  // La validité d'abonnement étant calculée côté client (non requêtable Firestore),
+  // on filtre ici les onglets « Abonnement valide / invalide ».
+  const membersWithSubscriptions: MemberWithSubscription[] =
+    activeTab === 'abonnement-valide'
+      ? allMembers.filter((m) => m.isSubscriptionValid)
+      : activeTab === 'abonnement-invalide'
+        ? allMembers.filter((m) => !m.isSubscriptionValid)
+        : allMembers
 
   // Gestion des erreurs
   if (isError || error) {
