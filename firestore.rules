@@ -130,23 +130,26 @@ service cloud.firestore {
       // La sécurité est gérée côté application via le code de sécurité
       allow read: if true;
 
-      // CRÉATION : Publique avec validation des champs requis
+      // CRÉATION : Admin (ex. demandes migrées déjà approuvées) OU publique (validation stricte)
       allow create: if
-        // Champs obligatoires présents
-        request.resource.data.keys().hasAll([
-          'matricule',
-          'status',
-          'identity',
-          'address',
-          'documents',
-          'createdAt'
-        ]) &&
-        // Statut initial imposé
-        request.resource.data.status == 'pending' &&
-        // Pas de tentative de se définir comme payé ou approuvé
-        request.resource.data.get('isPaid', false) == false &&
-        request.resource.data.get('processedBy', null) == null &&
-        request.resource.data.get('approvedBy', null) == null;
+        isAdmin() ||
+        (
+          // Champs obligatoires présents
+          request.resource.data.keys().hasAll([
+            'matricule',
+            'status',
+            'identity',
+            'address',
+            'documents',
+            'createdAt'
+          ]) &&
+          // Statut initial imposé
+          request.resource.data.status == 'pending' &&
+          // Pas de tentative de se définir comme payé ou approuvé
+          request.resource.data.get('isPaid', false) == false &&
+          request.resource.data.get('processedBy', null) == null &&
+          request.resource.data.get('approvedBy', null) == null
+        );
       
       // MISE À JOUR : Admin ou demandeur avec code de sécurité valide
       allow update: if (

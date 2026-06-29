@@ -1131,6 +1131,46 @@ export interface MembersImportContext {
   enrich: Map<string, ImportMemberData>
 }
 
+/**
+ * Crée/maj l'abonnement d'un membre depuis la feuille MEMBRES (DATE INSCRIPTION →
+ * 1 an). Idempotent (id déterministe). Renvoie true si un abonnement a été écrit.
+ */
+async function writeMemberSubscriptionIfAny(
+  userId: string,
+  data: ImportMemberData | undefined,
+  membershipType: string,
+  ctx: MembersImportContext,
+): Promise<boolean> {
+  if (!data?.membershipPaymentDate) return false
+  const start = new Date(data.membershipPaymentDate)
+  const end = new Date(start)
+  end.setFullYear(end.getFullYear() + 1)
+  const subId = `MK_MEMBER_SUB_${userId}`
+  const subData: Record<string, unknown> = {
+    userId,
+    dateStart: start,
+    dateEnd: end,
+    montant: data.membershipPaymentAmount,
+    currency: 'XAF',
+    type: membershipType,
+    paymentDate: data.membershipPaymentDate,
+    paymentTime: data.membershipPaymentTime,
+    paymentMode: data.membershipPaymentMode,
+    agent: data.membershipPaymentAgent,
+    createdBy: ctx.adminId,
+    isMigrated: true,
+    migrationSource: ctx.sourceFile,
+    migrationSheet: ctx.sheetName,
+  }
+  await setDoc(doc(db, MEMBER_SUBSCRIPTIONS, subId), {
+    ...cleanPlain(subData),
+    id: subId,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return true
+}
+
 /** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
 export async function writeMembers(
   members: AnalyzedMember[],
@@ -1145,8 +1185,22 @@ export async function writeMembers(
   for (let i = 0; i < members.length; i++) {
     const m = members[i]
     const key = m.matricule.trim()
-    if (ctx.existing.has(key)) {
-      results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'skipped', reason: 'Déjà présent' })
+    const existing = ctx.existing.get(key)
+    if (existing) {
+      // Membre déjà présent : on ne le recrée pas, mais on (ré)assure son
+      // abonnement depuis MEMBRES (sinon un réimport sans rollback laisserait le
+      // membre sans abonnement).
+      let reason = 'Déjà présent'
+      try {
+        const data = ctx.enrich.get(key)
+        if (await writeMemberSubscriptionIfAny(existing.id as string, data, m.membershipType, ctx)) {
+          subscriptionsCreated++
+          reason = 'Déjà présent (abonnement mis à jour)'
+        }
+      } catch {
+        // non bloquant
+      }
+      results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'skipped', reason })
       onProgress?.(i + 1, members.length)
       continue
     }
@@ -1228,9 +1282,17 @@ export async function writeMembers(
         },
       )
 
-      // Demande d'adhésion APPROUVÉE liée : rend le membre cohérent avec les
-      // sections basées sur les demandes (Demandes d'adhésion, KPIs dashboard,
-      // filleuls via identity.intermediaryCode, lien « Voir le dossier »).
+      // Abonnement (collection `subscriptions`) EN PREMIER — UNIQUEMENT depuis
+      // MEMBRES : DATE INSCRIPTION ⇒ abonnement d'1 an ; absente ⇒ aucun abonnement.
+      // (Écrit avant la demande pour ne jamais être bloqué par celle-ci.)
+      if (await writeMemberSubscriptionIfAny(userId, data, m.membershipType, ctx)) {
+        subscriptionsCreated++
+      }
+
+      // Demande d'adhésion APPROUVÉE liée (cohérence Demandes / dashboard / filleuls /
+      // lien « Voir le dossier »). Best-effort : si les règles Firestore refusent la
+      // création (demande migrée approuvée), on n'interrompt NI le membre NI l'abonnement.
+      try {
       const requestData: Record<string, unknown> = {
         id: requestId,
         matricule: key,
@@ -1287,38 +1349,9 @@ export async function writeMembers(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
-
-      // Abonnement (collection `subscriptions`) — UNIQUEMENT depuis la feuille
-      // MEMBRES : une DATE INSCRIPTION ⇒ un abonnement d'1 an (à partir de cette
-      // date). Pas de DATE INSCRIPTION ⇒ aucun abonnement (pas d'abonnement en cours).
-      if (data?.membershipPaymentDate) {
-        const start = new Date(data.membershipPaymentDate)
-        const end = new Date(start)
-        end.setFullYear(end.getFullYear() + 1)
-        const subId = `MK_MEMBER_SUB_${userId}`
-        const subData: Record<string, unknown> = {
-          userId,
-          dateStart: start,
-          dateEnd: end,
-          montant: data.membershipPaymentAmount,
-          currency: 'XAF',
-          type: m.membershipType,
-          paymentDate: data.membershipPaymentDate,
-          paymentTime: data.membershipPaymentTime,
-          paymentMode: data.membershipPaymentMode,
-          agent: data.membershipPaymentAgent,
-          createdBy: ctx.adminId,
-          isMigrated: true,
-          migrationSource: ctx.sourceFile,
-          migrationSheet: ctx.sheetName,
-        }
-        await setDoc(doc(db, MEMBER_SUBSCRIPTIONS, subId), {
-          ...cleanPlain(subData),
-          id: subId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-        subscriptionsCreated++
+      } catch {
+        // Règles Firestore : création de demande migrée refusée → non bloquant.
+        // (Le membre et l'abonnement sont déjà créés.)
       }
       results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'created', membershipType: m.membershipType })
     } catch (e) {
