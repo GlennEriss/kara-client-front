@@ -1078,6 +1078,37 @@ export async function rollbackImport(ctx: {
   return (await response.json()) as RollbackResult
 }
 
+export interface ChangeAdminUidResult {
+  success: boolean
+  oldUid: string
+  newUid: string
+  email: string
+  migratedDocs: string[]
+  claimsCopied: string[]
+}
+
+/**
+ * Migre l'UID d'un compte admin (Auth + Firestore) vers `newUid`.
+ * Recrée le compte avec le même email + le mot de passe fourni (conservé).
+ */
+export async function changeAdminUid(ctx: {
+  email: string
+  newUid: string
+  password: string
+}): Promise<ChangeAdminUidResult> {
+  const response = await fetch('/api/admin/change-uid', {
+    method: 'POST',
+    headers: await adminImportHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(ctx),
+  })
+  if (!response.ok) {
+    const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+    throw new Error(details?.details || details?.error || response.statusText)
+  }
+  return (await response.json()) as ChangeAdminUidResult
+}
+
 export interface LinkUnknownResult {
   unknownCreated: boolean
   membersLinked: number

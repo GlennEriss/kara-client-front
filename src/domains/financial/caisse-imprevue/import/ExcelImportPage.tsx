@@ -9,6 +9,7 @@ import {
   Database,
   FileSpreadsheet,
   Info,
+  KeyRound,
   Loader2,
   RotateCcw,
   Upload,
@@ -62,6 +63,7 @@ import {
   type ImportReport,
   type WriteMembersReport,
 } from './excelImportWriter'
+import { ChangeAdminUidModal } from './ChangeAdminUidModal'
 
 interface RowView extends AnalyzedRow {
   memberFound: boolean
@@ -174,6 +176,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [report, setReport] = useState<ImportReport | null>(null)
   const [rollingBack, setRollingBack] = useState(false)
+  const [changeUidOpen, setChangeUidOpen] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'import' | 'rollback' | null>(null)
   const [linkingUnknown, setLinkingUnknown] = useState(false)
 
@@ -483,6 +486,17 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
             >
               {rollingBack ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-1 h-4 w-4" />}
               Supprimer cet import
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setChangeUidOpen(true)}
+              className="h-9 border-gray-300 text-gray-700 hover:bg-gray-50"
+              title="Migrer l'UID d'un compte admin (Auth + Firestore)"
+            >
+              <KeyRound className="mr-1 h-4 w-4" />
+              Migrer UID admin
             </Button>
           </div>
 
@@ -1094,6 +1108,8 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      <ChangeAdminUidModal open={changeUidOpen} onOpenChange={setChangeUidOpen} />
     </div>
   )
 }
