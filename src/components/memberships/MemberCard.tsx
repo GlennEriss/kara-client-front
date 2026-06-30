@@ -44,6 +44,8 @@ interface MemberCardProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+  /** Appelé quand le membre n'a pas encore de PDF d'adhésion → ouvrir l'upload. */
+  onUploadAdhesion?: (member: MemberWithSubscription) => void
   onGenererIdentifiant?: (memberId: string, matricule: string) => void
 }
 
@@ -63,7 +65,7 @@ const isBirthdayToday = (birthDate: string): boolean => {
   }
 }
 
-const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion, onGenererIdentifiant }: MemberCardProps) => {
+const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion, onUploadAdhesion, onGenererIdentifiant }: MemberCardProps) => {
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
 
@@ -150,9 +152,17 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                     Générer identifiant
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => onPreviewAdhesion(member.lastSubscription?.adhesionPdfURL || null)}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const url = member.lastSubscription?.adhesionPdfURL || member.adhesionPdfURL || null
+                    if (url) onPreviewAdhesion(url)
+                    else onUploadAdhesion?.(member)
+                  }}
+                >
                   <FileText className="h-4 w-4 mr-2" />
-                  Fiche d'adhésion
+                  {member.lastSubscription?.adhesionPdfURL || member.adhesionPdfURL
+                    ? "Fiche d'adhésion"
+                    : "Téléverser la fiche d'adhésion"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push(routes.admin.paymentsHistoryDetails(member.dossier))}>
                   <FileText className="h-4 w-4 mr-2" />

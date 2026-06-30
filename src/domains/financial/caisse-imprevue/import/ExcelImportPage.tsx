@@ -64,6 +64,7 @@ import {
   type WriteMembersReport,
 } from './excelImportWriter'
 import { ChangeAdminUidModal } from './ChangeAdminUidModal'
+import { invalidateAppStats } from '@/lib/invalidateAppStats'
 
 interface RowView extends AnalyzedRow {
   memberFound: boolean
@@ -135,28 +136,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
    * pour que le site (Tableau de bord, Membres, Demandes, contrats) reflète
    * immédiatement les nouveaux chiffres.
    */
-  const invalidateStatsCaches = () => {
-    const keys = [
-      ['dashboard'],
-      ['members'],
-      ['allMembers'],
-      ['memberships-list-v2'], // liste Membres (clé distincte)
-      ['membership-details'], // fiche membre
-      ['membership-requests'],
-      ['membership-requests-stats'],
-      ['memberships'],
-      ['filleuls'],
-      // Caisse Imprévue : listes + stats
-      ['contractsCI'],
-      ['contractsCIStats'],
-      // Caisse Spéciale : listes + stats (clés distinctes)
-      ['caisse-contracts'],
-      ['caisse-contracts-stats'],
-      ['all-contracts'],
-      ['subscriptions'],
-    ]
-    keys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }))
-  }
+  const invalidateStatsCaches = () => invalidateAppStats(queryClient)
   const [fileName, setFileName] = useState<string>('')
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
   const [sheetNames, setSheetNames] = useState<string[]>([])

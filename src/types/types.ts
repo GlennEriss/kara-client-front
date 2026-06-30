@@ -565,9 +565,22 @@ export interface User {
     additionalInfo?: string
   }
 
+  // Informations personnelles complémentaires (présentes sur le document membre,
+  // notamment via l'import / l'édition de fiche)
+  birthCertificateNumber?: string
+  prayerPlace?: string
+  religion?: string
+  maritalStatus?: string
+  partnerName?: string
+  partnerPhone?: string
+  intermediaryCode?: string
+
   // Informations professionnelles (tirées de RegisterFormData.company)
   companyName?: string
+  /** Adresse de l'entreprise (texte libre côté document membre). */
+  companyAddress?: string
   profession?: string
+  seniority?: string
 
   // Photos
   photoURL?: string | null
@@ -576,6 +589,13 @@ export interface User {
   // Documents
   identityDocument?: string
   identityDocumentNumber?: string
+  identityDocumentIssuingPlace?: string
+  identityDocumentExpiration?: string
+  /** Image ou PDF de la pièce d'identité (recto / verso), téléversés par l'admin. */
+  identityDocumentFrontURL?: string
+  identityDocumentBackURL?: string
+  /** PDF d'adhésion téléversé (fiche scannée/signée) — fallback si pas d'abonnement. */
+  adhesionPdfURL?: string
 
   // Références
   subscriptions: string[] // Liste d'IDs de subscriptions

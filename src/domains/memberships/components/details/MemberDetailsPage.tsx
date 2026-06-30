@@ -24,6 +24,7 @@ import {
   MemberContractsCard,
   MemberRelationsCard,
 } from './index'
+import { MemberIdDocumentCard } from './MemberIdDocumentCard'
 
 export function MemberDetailsPage() {
   const params = useParams()
@@ -124,6 +125,9 @@ export function MemberDetailsPage() {
 
           {/* Profession */}
           <MemberProfessionCard member={member} />
+
+          {/* Pièce d'identité (upload recto/verso) */}
+          <MemberIdDocumentCard member={member} />
         </div>
 
         {/* Colonne latérale (1/3) */}

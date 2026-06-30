@@ -8,7 +8,10 @@ const SERVER_TIMESTAMP_TOKEN = '__karaServerTimestamp'
 const DATE_TOKEN = '__karaDate'
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
-const ALLOWED_COLLECTIONS = new Set([CONTRACTS, CAISSE_CONTRACTS])
+const MEMBERSHIP_REQUESTS = firebaseCollectionNames.membershipRequests || 'membership-requests'
+// `membership-requests` autorisé pour les demandes d'adhésion migrées (approuvées) :
+// les règles Firestore bloquent leur création côté client, on passe par l'Admin SDK.
+const ALLOWED_COLLECTIONS = new Set([CONTRACTS, CAISSE_CONTRACTS, MEMBERSHIP_REQUESTS])
 
 type ImportDoc = {
   path: string[]

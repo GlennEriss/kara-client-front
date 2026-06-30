@@ -138,6 +138,18 @@ export class MembershipExportService {
   }
 
   /**
+   * Déduit la civilité à partir du sexe (le fichier d'import n'a pas de colonne
+   * civilité). MASCULIN/Homme/M → Monsieur ; FEMININ/Femme/F → Madame.
+   */
+  private deriveCivility(gender?: string | null): string {
+    const g = (gender || '').trim().toLowerCase()
+    if (!g) return ''
+    if (g.startsWith('m') || g.includes('homme') || g === 'h') return 'Monsieur'
+    if (g.startsWith('f') || g.includes('femme')) return 'Madame'
+    return ''
+  }
+
+  /**
    * Label de statut d'abonnement
    */
   private getSubscriptionLabel(member: MemberWithSubscription): string {
@@ -245,23 +257,24 @@ export class MembershipExportService {
       'Demande soumise le': toISO(dossier?.createdAt),
       'Demande modifiée le': toISO(dossier?.updatedAt),
 
-      // Identity (fr)
-      'Civilité': identity.civility ?? '',
+      // Identity (fr) — repli systématique sur le document membre (cas des imports
+      // sans dossier complet : les données sont sur la fiche membre).
+      'Civilité': identity.civility || this.deriveCivility(identity.gender ?? member?.gender),
       'Prénom': identity.firstName ?? member?.firstName ?? '',
       'Nom': identity.lastName ?? member?.lastName ?? '',
-      'Date de naissance': identity.birthDate ?? '',
-      'Lieu de naissance': identity.birthPlace ?? '',
-      "Numéro d'acte de naissance": identity.birthCertificateNumber ?? '',
-      'Lieu de prière': identity.prayerPlace ?? '',
+      'Date de naissance': identity.birthDate ?? member?.birthDate ?? '',
+      'Lieu de naissance': identity.birthPlace ?? member?.birthPlace ?? '',
+      "Numéro d'acte de naissance": identity.birthCertificateNumber ?? member?.birthCertificateNumber ?? '',
+      'Lieu de prière': identity.prayerPlace ?? member?.prayerPlace ?? '',
       'Téléphones': contacts,
       'Email': identity.email ?? member?.email ?? '',
       'Sexe': identity.gender ?? member?.gender ?? '',
       'Nationalité': getNationalityName(identity.nationality ?? member?.nationality),
-      'État civil': identity.maritalStatus ?? '',
-      "Nom de l'épouse/époux": identity.spouseLastName ?? '',
+      'État civil': identity.maritalStatus ?? member?.maritalStatus ?? '',
+      "Nom de l'épouse/époux": identity.spouseLastName ?? member?.partnerName ?? '',
       "Prénom de l'époux/épouse": identity.spouseFirstName ?? '',
-      "Téléphone de l'époux/épouse": identity.spousePhone ?? '',
-      'Code entremetteur': identity.intermediaryCode ?? '',
+      "Téléphone de l'époux/épouse": identity.spousePhone ?? member?.partnerPhone ?? '',
+      'Code entremetteur': identity.intermediaryCode ?? member?.intermediaryCode ?? '',
       'Possède un véhicule': String(identity.hasCar ?? member?.hasCar ?? ''),
 
       // Adresse (fr)
@@ -273,17 +286,22 @@ export class MembershipExportService {
 
       // Entreprise (fr)
       'Entreprise': company.companyName ?? member?.companyName ?? '',
+      'Adresse entreprise': company.companyAddress
+        ? [company.companyAddress.province, company.companyAddress.city, company.companyAddress.district]
+            .filter(Boolean)
+            .join(', ')
+        : member?.companyAddress ?? '',
       'Province entreprise': company.companyAddress?.province ?? '',
       'Ville entreprise': company.companyAddress?.city ?? '',
       'Quartier entreprise': company.companyAddress?.district ?? '',
       'Profession': company.profession ?? member?.profession ?? '',
-      'Expérience': company.seniority ?? '',
+      'Expérience': company.seniority ?? member?.seniority ?? '',
 
       // Pièce d'identité (fr)
-      "Type de pièce d'identité": documents.identityDocument ?? '',
-      "Numéro de la pièce d'identité": documents.identityDocumentNumber ?? '',
-      "Date d'expiration de la pièce d'identité": documents.expirationDate ?? '',
-      'Lieu de livraison de la pièce': documents.issuingPlace ?? '',
+      "Type de pièce d'identité": documents.identityDocument ?? member?.identityDocument ?? '',
+      "Numéro de la pièce d'identité": documents.identityDocumentNumber ?? member?.identityDocumentNumber ?? '',
+      "Date d'expiration de la pièce d'identité": documents.expirationDate ?? member?.identityDocumentExpiration ?? '',
+      'Lieu de livraison de la pièce': documents.issuingPlace ?? member?.identityDocumentIssuingPlace ?? '',
       "Date de délivraison de la pièce": documents.issuingDate ?? '',
 
       // Paiements
