@@ -256,11 +256,19 @@ export class MembershipExportService {
       }
     }
 
+    // « Adhéré le » : pour un membre IMPORTÉ, createdAt = date de l'import (≈ aujourd'hui).
+    // On prend alors la DATE INSCRIPTION (début d'abonnement) = vraie date d'adhésion.
+    const isMigrated = Boolean((member as { migrationSource?: string })?.migrationSource)
+    const adheredAt =
+      isMigrated && member?.lastSubscription?.dateStart
+        ? member.lastSubscription.dateStart
+        : member?.createdAt
+
     return {
       // Métadonnées (fr)
       Matricule: member?.matricule || member?.id || '',
       'Accepté par': acceptedByName || dossier?.processedBy || dossier?.reviewedBy || '',
-      'Adhéré le': toISO(member?.createdAt),
+      'Adhéré le': toISO(adheredAt),
       'Modifié le': toISO(member?.updatedAt),
       'Demande soumise le': toISO(dossier?.createdAt),
       'Demande modifiée le': toISO(dossier?.updatedAt),

@@ -47,6 +47,17 @@ const MEMBER_SUBSCRIPTIONS = firebaseCollectionNames.subscriptions || 'subscript
 const USERS = firebaseCollectionNames.users || 'users'
 const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
 const MEMBERSHIP_REQUESTS = firebaseCollectionNames.membershipRequests || 'membership-requests'
+const PAYMENTS = firebaseCollectionNames.payments || 'payments'
+
+/** Mappe le moyen de paiement du fichier vers l'énumération de l'app. */
+function mapPaymentMode(raw?: string): string {
+  const up = (raw || '').toUpperCase().replace(/[\s_]+/g, '-')
+  if (up.includes('AIRTEL')) return 'airtel_money'
+  if (up.includes('MOBI') || up.includes('MOOV')) return 'mobicash'
+  if (up.includes('ESPECE') || up.includes('CASH') || up.includes('LIQUIDE')) return 'cash'
+  if (up.includes('VIREMENT') || up.includes('BANK') || up.includes('BANQUE')) return 'bank_transfer'
+  return 'other'
+}
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
 export async function fetchForfaits(): Promise<SubscriptionCI[]> {
@@ -1202,6 +1213,48 @@ async function writeMemberSubscriptionIfAny(
   return true
 }
 
+/**
+ * Enregistre le paiement d'adhésion dans la collection centralisée `payments`
+ * (lue par l'« Historique des paiements », filtrée sur `beneficiaryId == requestId`).
+ * Écrit via l'Admin SDK (contourne les règles). Idempotent (id déterministe).
+ */
+async function writeMemberAdhesionPayment(opts: {
+  matricule: string
+  requestId: string
+  beneficiaryName: string
+  data: ImportMemberData | undefined
+  ctx: MembersImportContext
+}): Promise<void> {
+  const { matricule, requestId, beneficiaryName, data, ctx } = opts
+  if (!data?.membershipPaymentDate) return
+  const rawMode = data.membershipPaymentMode || ''
+  const mode = mapPaymentMode(rawMode)
+  await commitAdminImportDocs([
+    {
+      path: [PAYMENTS, `MK_PYMT_MIG_${sanitizeMatricule(matricule) || 'NA'}`],
+      data: cleanPlain({
+        sourceType: 'membership-request',
+        sourceId: requestId,
+        beneficiaryId: requestId, // l'historique filtre sur ce champ
+        beneficiaryName,
+        date: new Date(data.membershipPaymentDate),
+        time: data.membershipPaymentTime || '',
+        mode,
+        paymentMethodOther: mode === 'other' ? rawMode : '',
+        amount: data.membershipPaymentAmount ?? 0,
+        paymentType: 'Membership',
+        acceptedBy: data.membershipPaymentAgent || ctx.adminId,
+        recordedBy: ctx.adminId,
+        recordedByName: data.membershipPaymentAgent || '',
+        recordedAt: new Date(),
+        isMigrated: true,
+        migrationSource: ctx.sourceFile,
+        migrationSheet: ctx.sheetName,
+      }),
+    },
+  ])
+}
+
 /** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
 export async function writeMembers(
   members: AnalyzedMember[],
@@ -1228,6 +1281,14 @@ export async function writeMembers(
           subscriptionsCreated++
           reason = 'Déjà présent (abonnement mis à jour)'
         }
+        // Paiement d'adhésion dans l'historique (idempotent).
+        await writeMemberAdhesionPayment({
+          matricule: key,
+          requestId: `MK_MEMBER_REQ_MIG_${sanitizeMatricule(key) || 'NA'}`,
+          beneficiaryName: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
+          data,
+          ctx,
+        })
       } catch {
         // non bloquant
       }
@@ -1404,6 +1465,19 @@ export async function writeMembers(
       ])
       } catch {
         // Échec d'écriture de la demande → non bloquant (membre + abonnement déjà créés).
+      }
+
+      // Paiement d'adhésion dans l'historique des paiements (non bloquant).
+      try {
+        await writeMemberAdhesionPayment({
+          matricule: key,
+          requestId,
+          beneficiaryName: `${userData.firstName} ${userData.lastName}`.trim(),
+          data,
+          ctx,
+        })
+      } catch {
+        // non bloquant
       }
       results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'created', membershipType: m.membershipType })
     } catch (e) {
