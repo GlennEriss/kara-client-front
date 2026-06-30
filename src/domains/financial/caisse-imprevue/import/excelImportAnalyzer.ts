@@ -1031,12 +1031,34 @@ export function analyzeSheet(
 
 // ----- Feuille MEMBRES (enrichissement des comptes membres créés) -----
 
-const MEMBER_PLACEHOLDERS = new Set(['NC', 'VIDE', 'N/A', 'NA', '-', 'VIDE@GMAIL.COM'])
+// Valeurs « bouche-trou » saisies dans GESTION.xlsx pour les champs inconnus.
+// Elles ne sont PAS des données : on les traite comme vides à l'import.
+const MEMBER_PLACEHOLDERS = new Set([
+  'NC', 'VIDE', 'N/A', 'NA', '-', '--', '?', '??', '...', 'NEANT', 'NÉANT',
+  'RAS', 'INCONNU', 'INCONNUE', 'INCONNUES', 'VIDE@GMAIL.COM',
+])
 
 function mval(v: unknown): string | undefined {
   const s = str(v)
   if (!s) return undefined
-  if (MEMBER_PLACEHOLDERS.has(s.toUpperCase())) return undefined
+  const up = s.toUpperCase()
+  if (MEMBER_PLACEHOLDERS.has(up)) return undefined
+  if (/^X+$/.test(up)) return undefined // « X », « XX », « XXXXX »… = bouche-trou ⇒ vide
+  if (/^[-.\/_*?]+$/.test(s)) return undefined // ponctuation seule (« . », « / », « -- »…)
+  return s
+}
+
+/**
+ * Normalise le sexe vers le format utilisé par l'app (`Homme` / `Femme`),
+ * pour que les stats de genre comptent aussi les membres importés.
+ * MASCULIN/Homme/M → Homme ; FEMININ/Femme/F → Femme.
+ */
+function normalizeGender(v: unknown): string | undefined {
+  const s = mval(v)
+  if (!s) return undefined
+  const up = s.toUpperCase()
+  if (up.startsWith('M') || up.includes('HOMME') || up === 'H') return 'Homme'
+  if (up.startsWith('F') || up.includes('FEMME')) return 'Femme'
   return s
 }
 
@@ -1055,7 +1077,9 @@ export interface ImportMemberData {
   profession?: string
   seniority?: string // ANCIENNETE
   companyName?: string
-  companyAddress?: string // ADRESSE ENTREPRISE
+  companyProvince?: string // PROVINCE ENTRE
+  companyCity?: string // VILLE ENTRE
+  companyAddress?: string // ADRESSE ENTREPRISE (détail / rue)
   identityDocument?: string
   identityDocumentNumber?: string
   identityIssuingPlace?: string // LIEU DE DELIVRANCE
@@ -1097,10 +1121,10 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
     const district = mval(cell(r, 25))
     const arrondissement = mval(cell(r, 24))
     // INFO COMPLEMENTAIRE(26) + colonnes sans champ dédié : DEPARTEMENT(22),
-    // ENTREMETTEUR(35), SOLIDAIRE(40) → regroupées en infos complémentaires.
+    // ENTREMETTEUR(37), SOLIDAIRE(42) → regroupées en infos complémentaires.
     const departement = mval(cell(r, 22))
-    const entremetteur = mval(cell(r, 35))
-    const solidaire = mval(cell(r, 40))
+    const entremetteur = mval(cell(r, 37))
+    const solidaire = mval(cell(r, 42))
     const additionalInfo =
       [
         mval(cell(r, 26)),
@@ -1126,7 +1150,7 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
       firstName: str(cell(r, 3)), // PRENOM
       contacts, // TELEPHONE 1 / 2
       email: mval(cell(r, 6)), // E-MAIL
-      gender: mval(cell(r, 7)), // SEXE
+      gender: normalizeGender(cell(r, 7)), // SEXE (→ Homme/Femme)
       hasCar: str(cell(r, 8)).trim().toUpperCase().startsWith('OUI'), // VOITURE (OUI/NON)
       birthDate: dateStr(cell(r, 9)) || undefined, // DATE DE NAISSANCE
       birthCertificateNumber: mval(cell(r, 12)), // NUMERO D'ACTE DE NAISSANCE
@@ -1135,22 +1159,24 @@ export function parseMembersSheet(aoa: unknown[][]): Map<string, ImportMemberDat
       profession: mval(cell(r, 27)), // PROFESSION
       seniority: mval(cell(r, 28)), // ANCIENNETE
       companyName: mval(cell(r, 29)), // ENTREPRISE
-      companyAddress: mval(cell(r, 30)), // ADRESSE ENTREPRISE
+      companyProvince: mval(cell(r, 30)), // PROVINCE ENTRE
+      companyCity: mval(cell(r, 31)), // VILLE ENTRE
+      companyAddress: mval(cell(r, 32)), // ADRESSE ENTREPRISE (détail / rue)
       identityDocument: mval(cell(r, 16)), // TYPE DE PIECE
       identityDocumentNumber: mval(cell(r, 17)), // NUMERO PIECE
       identityIssuingPlace: mval(cell(r, 18)), // LIEU DE DELIVRANCE
       identityExpirationDate: dateStr(cell(r, 19)) || undefined, // DATE EXPIRATION
-      maritalStatus: mval(cell(r, 31)), // S.MATRIMONIALE
-      partnerName: mval(cell(r, 32)), // NOM PARTENAIRE
-      partnerPhone: mval(cell(r, 33)), // TELEPHONE PARTENAIRE
+      maritalStatus: mval(cell(r, 33)), // S.MATRIMONIALE
+      partnerName: mval(cell(r, 34)), // NOM PARTENAIRE
+      partnerPhone: mval(cell(r, 35)), // TELEPHONE PARTENAIRE
       religion: mval(cell(r, 13)), // RELIGION
       prayerPlace: mval(cell(r, 14)), // LIEU DE PRIERE
-      intermediaryCode: mval(cell(r, 34)), // CODE ENTRE (matricule du parrain)
-      membershipPaymentDate: dateStr(cell(r, 37)) || undefined, // DATE INSCRIPTION
-      membershipPaymentAmount: isPresent(cell(r, 39)) ? num(cell(r, 39)) || undefined : undefined, // MONTANT
-      membershipPaymentMode: mval(cell(r, 41)), // MOYEN/PAIE
-      membershipPaymentAgent: mval(cell(r, 42)), // AGENT PAIE
-      membershipPaymentTime: isPresent(cell(r, 38)) ? parseHeure(cell(r, 38)) : undefined, // HEURE PAIEMENT
+      intermediaryCode: mval(cell(r, 36)), // CODE ENTRE (matricule du parrain)
+      membershipPaymentDate: dateStr(cell(r, 39)) || undefined, // DATE INSCRIPTION
+      membershipPaymentAmount: isPresent(cell(r, 41)) ? num(cell(r, 41)) || undefined : undefined, // MONTANT
+      membershipPaymentMode: mval(cell(r, 43)), // MOYEN/PAIE
+      membershipPaymentAgent: mval(cell(r, 44)), // AGENT PAIE
+      membershipPaymentTime: isPresent(cell(r, 40)) ? parseHeure(cell(r, 40)) : undefined, // HEURE PAIEMENT
       address,
     })
   }
@@ -1225,7 +1251,7 @@ export interface MembersAnalysis {
 
 /**
  * Analyse la feuille MEMBRES → liste de membres dédoublonnée par matricule.
- * Le type de compte est lu dans la colonne T.MEMBRES (col 36) :
+ * Le type de compte est lu dans la colonne T.MEMBRES (col 38) :
  * ADHERENT / SYMPATHISANT / BIENFAITEUR (adhérent par défaut si vide).
  * L'état civil complet (naissance, e-mail, pièce, adresse…) est repris à
  * l'écriture via parseMembersSheet (même feuille).
@@ -1244,8 +1270,8 @@ export function analyzeMembersSheet(sheetName: string, aoa: unknown[][]): Member
     if (seen.has(matricule.trim())) continue // dédoublonnage par matricule
     seen.add(matricule.trim())
 
-    // Type de compte lu dans T.MEMBRES (col 36) ; adhérent par défaut si vide.
-    const mt = mapMembership(cell(r, 36))
+    // Type de compte lu dans T.MEMBRES (col 38) ; adhérent par défaut si vide.
+    const mt = mapMembership(cell(r, 38))
     const contacts = [mval(cell(r, 4)), mval(cell(r, 5))].filter((x): x is string => !!x)
     const issues: string[] = []
     if (!str(cell(r, 2)) && !str(cell(r, 3))) issues.push('Nom/prénom manquant')

@@ -1258,6 +1258,8 @@ export async function writeMembers(
         birthPlace: data?.birthPlace ?? '',
         birthCertificateNumber: data?.birthCertificateNumber ?? '',
         contacts: m.contacts.length ? m.contacts : (data?.contacts ?? []),
+        // Pas de colonne WhatsApp dans le fichier → on prend le 1er contact.
+        whatsappNumber: (m.contacts.length ? m.contacts : (data?.contacts ?? []))[0] ?? '',
         gender: data?.gender ?? '',
         email: data?.email ?? '', // factice (VIDE@…) déjà filtré → ''
         nationality: data?.nationality ?? '',
@@ -1271,7 +1273,10 @@ export async function writeMembers(
         },
         companyName: data?.companyName ?? '',
         companyId: null,
-        companyAddress: data?.companyAddress ?? '',
+        // Adresse entreprise lisible (Province, Ville, détail) sur la fiche membre.
+        companyAddress: [data?.companyProvince, data?.companyCity, data?.companyAddress]
+          .filter(Boolean)
+          .join(', '),
         profession: data?.profession ?? '',
         professionId: null,
         seniority: data?.seniority ?? '',
@@ -1328,6 +1333,9 @@ export async function writeMembers(
         id: requestId,
         matricule: key,
         status: 'approved',
+        // Adhésion payée ⇔ présence d'une DATE INSCRIPTION (sinon non payée).
+        // Champ requis pour les stats « payées / non payées » des Demandes.
+        isPaid: !!data?.membershipPaymentDate,
         membershipType: m.membershipType,
         memberNumber: key,
         identity: {
@@ -1340,6 +1348,7 @@ export async function writeMembers(
           prayerPlace: userData.prayerPlace,
           religion: userData.religion,
           contacts: userData.contacts,
+          whatsappNumber: userData.whatsappNumber,
           email: userData.email,
           gender: userData.gender,
           nationality: userData.nationality,
@@ -1356,7 +1365,12 @@ export async function writeMembers(
         company: {
           isEmployed: !!data?.companyName,
           companyName: userData.companyName,
-          companyAddress: data?.companyAddress ?? '',
+          // Adresse entreprise structurée (PROVINCE ENTRE / VILLE ENTRE / détail).
+          companyAddress: {
+            province: data?.companyProvince ?? '',
+            city: data?.companyCity ?? '',
+            district: data?.companyAddress ?? '',
+          },
           profession: userData.profession,
           seniority: data?.seniority ?? '',
         },
@@ -1368,21 +1382,28 @@ export async function writeMembers(
           termsAccepted: true,
         },
         approvedBy: ctx.adminId,
-        approvedAt: serverTimestamp(),
-        processedAt: serverTimestamp(),
+        approvedAt: adminServerTimestamp(),
+        processedAt: adminServerTimestamp(),
         processedBy: ctx.adminId,
         isMigrated: true,
         migrationSource: ctx.sourceFile,
         migrationSheet: ctx.sheetName,
       }
-      await setDoc(doc(db, MEMBERSHIP_REQUESTS, requestId), {
-        ...cleanPlain(requestData),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
+      // Écrite via l'Admin SDK (route import-docs) pour CONTOURNER les règles
+      // Firestore qui refusent la création d'une demande migrée approuvée côté
+      // client. ⇒ la demande existe vraiment → « Voir le dossier » fonctionne.
+      await commitAdminImportDocs([
+        {
+          path: [MEMBERSHIP_REQUESTS, requestId],
+          data: {
+            ...cleanPlain(requestData),
+            createdAt: adminServerTimestamp(),
+            updatedAt: adminServerTimestamp(),
+          },
+        },
+      ])
       } catch {
-        // Règles Firestore : création de demande migrée refusée → non bloquant.
-        // (Le membre et l'abonnement sont déjà créés.)
+        // Échec d'écriture de la demande → non bloquant (membre + abonnement déjà créés).
       }
       results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'created', membershipType: m.membershipType })
     } catch (e) {

@@ -12,6 +12,7 @@ interface MembershipsListLayoutProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+  onUploadAdhesion?: (member: MemberWithSubscription) => void
   onGenererIdentifiant?: (memberId: string, matricule: string) => void
   isLoading?: boolean
 }
@@ -22,6 +23,7 @@ export function MembershipsListLayout({
   onViewSubscriptions,
   onViewDetails,
   onPreviewAdhesion,
+  onUploadAdhesion,
   onGenererIdentifiant,
   isLoading = false,
 }: MembershipsListLayoutProps) {
@@ -57,6 +59,7 @@ export function MembershipsListLayout({
             onViewSubscriptions={onViewSubscriptions}
             onViewDetails={onViewDetails}
             onPreviewAdhesion={onPreviewAdhesion}
+            onUploadAdhesion={onUploadAdhesion}
             onGenererIdentifiant={onGenererIdentifiant}
           />
         </div>

@@ -402,7 +402,7 @@ export function useCreateContractFromDemand() {
       queryClient.invalidateQueries({ queryKey: ['demand-detail', result.demand.id] })
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
-      
+
       toast.success('Contrat créé avec succès', {
         description: `Le contrat ${result.contractId} a été créé depuis la demande ${result.demand.id}.`,
       })

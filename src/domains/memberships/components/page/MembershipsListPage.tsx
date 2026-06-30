@@ -36,6 +36,8 @@ import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ExportMembershipModal from '@/components/memberships/ExportMembershipModal'
 import { GenererIdentifiantModal } from '@/domains/memberships/components/modals'
+import { UploadMemberAdhesionPdfModal } from '@/domains/memberships/components/modals/UploadMemberAdhesionPdfModal'
+import { useAuth } from '@/domains/auth/hooks/useAuth'
 
 type ViewMode = 'grid' | 'list'
 
@@ -87,6 +89,8 @@ export function MembershipsListPage() {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [adhesionUploadMember, setAdhesionUploadMember] = useState<MemberWithSubscription | null>(null)
+  const { user } = useAuth()
   const [isExportOpen, setIsExportOpen] = useState(false)
   const [genererIdentifiantOpen, setGenererIdentifiantOpen] = useState(false)
   const [genererIdentifiantMember, setGenererIdentifiantMember] = useState<{
@@ -195,6 +199,11 @@ export function MembershipsListPage() {
     } else {
       toast.info("Aucune fiche d'adhésion disponible pour ce membre")
     }
+  }
+
+  // Membre sans PDF d'adhésion (ex. importé) → ouvrir la modale de téléversement.
+  const handleUploadAdhesion = (member: MemberWithSubscription) => {
+    setAdhesionUploadMember(member)
   }
 
   const handleRefresh = async () => {
@@ -368,6 +377,7 @@ export function MembershipsListPage() {
             onViewSubscriptions={handleViewSubscriptions}
             onViewDetails={handleViewDetails}
             onPreviewAdhesion={handlePreviewAdhesion}
+            onUploadAdhesion={handleUploadAdhesion}
             onGenererIdentifiant={handleGenererIdentifiant}
             isLoading={isLoading}
           />
@@ -430,6 +440,12 @@ export function MembershipsListPage() {
           matricule={genererIdentifiantMember.matricule}
         />
       )}
+      <UploadMemberAdhesionPdfModal
+        isOpen={!!adhesionUploadMember}
+        onClose={() => setAdhesionUploadMember(null)}
+        member={adhesionUploadMember}
+        adminId={user?.uid || ''}
+      />
     </div>
   )
 }

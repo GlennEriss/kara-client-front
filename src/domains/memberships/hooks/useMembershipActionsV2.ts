@@ -32,11 +32,11 @@ export function useMembershipActionsV2() {
       service.approveMembershipRequest(params),
     onSuccess: () => {
       // Invalider les queries pour refetch
-      queryClient.invalidateQueries({ 
-        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 
+      queryClient.invalidateQueries({
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY]
       })
-      queryClient.invalidateQueries({ 
-        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      queryClient.invalidateQueries({
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY]
       })
     },
   })
@@ -52,8 +52,8 @@ export function useMembershipActionsV2() {
         queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
       })
       // Invalider les notifications pour afficher la nouvelle notification de rejet
-      queryClient.invalidateQueries({ 
-        queryKey: ['notifications'] 
+      queryClient.invalidateQueries({
+        queryKey: ['notifications']
       })
       toast.success('Demande rejetée', {
         description: 'La demande d\'adhésion a été rejetée avec succès.',
@@ -86,8 +86,8 @@ export function useMembershipActionsV2() {
       queryClient.invalidateQueries({ 
         queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 
       })
-      queryClient.invalidateQueries({ 
-        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      queryClient.invalidateQueries({
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY]
       })
     },
   })
@@ -157,10 +157,10 @@ export function useMembershipActionsV2() {
         queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
       })
       // Invalider les notifications pour afficher la notification de suppression (si créée)
-      queryClient.invalidateQueries({ 
-        queryKey: ['notifications'] 
+      queryClient.invalidateQueries({
+        queryKey: ['notifications']
       })
-      
+
       const message = data.warnings
         ? `Dossier supprimé. ${data.warnings}`
         : 'Le dossier a été supprimé définitivement avec succès.'
