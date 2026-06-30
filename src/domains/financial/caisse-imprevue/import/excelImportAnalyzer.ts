@@ -1043,7 +1043,7 @@ function mval(v: unknown): string | undefined {
   if (!s) return undefined
   const up = s.toUpperCase()
   if (MEMBER_PLACEHOLDERS.has(up)) return undefined
-  if (/^X{3,}$/.test(up)) return undefined // suites de X (XXXXX, XXXXXXX…) = champ vide
+  if (/^X+$/.test(up)) return undefined // « X », « XX », « XXXXX »… = bouche-trou ⇒ vide
   if (/^[-.\/_*?]+$/.test(s)) return undefined // ponctuation seule (« . », « / », « -- »…)
   return s
 }

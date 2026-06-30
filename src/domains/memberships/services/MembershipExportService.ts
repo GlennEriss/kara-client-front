@@ -8,6 +8,7 @@ import { MEMBERSHIP_TYPE_LABELS, type UserFilters } from '@/types/types'
 import type { MemberWithSubscription } from '@/db/member.db'
 import { MembersRepositoryV2 } from '../repositories/MembersRepositoryV2'
 import { getMembershipRequestById } from '@/db/membership.db'
+import { getUserById } from '@/db/user.db'
 import { getNationalityName } from '@/constantes/nationality'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -221,11 +222,18 @@ export class MembershipExportService {
   /**
    * Construit une ligne d'export à partir d'un membre et de son dossier
    */
-  buildRow(member: MemberWithSubscription, dossier: any): ExportRow {
+  buildRow(member: MemberWithSubscription, dossier: any, acceptedByName = ''): ExportRow {
     const identity = dossier?.identity || {}
     const address = dossier?.address || {}
     const company = dossier?.company || {}
     const documents = dossier?.documents || {}
+
+    // Numéro WhatsApp : champ dédié, sinon 1er contact (règle de l'app).
+    const whatsapp =
+      identity.whatsappNumber ??
+      member?.whatsappNumber ??
+      (Array.isArray(member?.contacts) ? member.contacts[0] : '') ??
+      ''
 
     const contacts = Array.isArray(identity.contacts)
       ? identity.contacts.join(' | ')
@@ -251,7 +259,7 @@ export class MembershipExportService {
     return {
       // Métadonnées (fr)
       Matricule: member?.matricule || member?.id || '',
-      'Accepté par': dossier?.processedBy || dossier?.reviewedBy || '',
+      'Accepté par': acceptedByName || dossier?.processedBy || dossier?.reviewedBy || '',
       'Adhéré le': toISO(member?.createdAt),
       'Modifié le': toISO(member?.updatedAt),
       'Demande soumise le': toISO(dossier?.createdAt),
@@ -267,13 +275,13 @@ export class MembershipExportService {
       "Numéro d'acte de naissance": identity.birthCertificateNumber ?? member?.birthCertificateNumber ?? '',
       'Lieu de prière': identity.prayerPlace ?? member?.prayerPlace ?? '',
       'Téléphones': contacts,
+      'Numéro WhatsApp': whatsapp,
       'Email': identity.email ?? member?.email ?? '',
       'Sexe': identity.gender ?? member?.gender ?? '',
       'Nationalité': getNationalityName(identity.nationality ?? member?.nationality),
       'État civil': identity.maritalStatus ?? member?.maritalStatus ?? '',
-      "Nom de l'épouse/époux": identity.spouseLastName ?? member?.partnerName ?? '',
-      "Prénom de l'époux/épouse": identity.spouseFirstName ?? '',
-      "Téléphone de l'époux/épouse": identity.spousePhone ?? member?.partnerPhone ?? '',
+      'Nom partenaire': identity.spouseLastName ?? member?.partnerName ?? '',
+      'Téléphone partenaire': identity.spousePhone ?? member?.partnerPhone ?? '',
       'Code entremetteur': identity.intermediaryCode ?? member?.intermediaryCode ?? '',
       'Possède un véhicule': String(identity.hasCar ?? member?.hasCar ?? ''),
 
@@ -295,7 +303,7 @@ export class MembershipExportService {
       'Ville entreprise': company.companyAddress?.city ?? '',
       'Quartier entreprise': company.companyAddress?.district ?? '',
       'Profession': company.profession ?? member?.profession ?? '',
-      'Expérience': company.seniority ?? member?.seniority ?? '',
+      'Ancienneté': company.seniority ?? member?.seniority ?? '',
 
       // Pièce d'identité (fr)
       "Type de pièce d'identité": documents.identityDocument ?? member?.identityDocument ?? '',
@@ -317,13 +325,44 @@ export class MembershipExportService {
     const members = await this.fetchMembersForExport(options)
     const rows: ExportRow[] = []
 
+    // « Accepté par » : résolution de l'ID admin → « Prénom Nom » (avec cache).
+    const adminNameCache = new Map<string, string>()
+    const resolveAdminName = async (id?: string | null): Promise<string> => {
+      if (!id) return ''
+      if (adminNameCache.has(id)) return adminNameCache.get(id) as string
+      let name = id
+      try {
+        const u = await getUserById(id)
+        const fromUser = u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : ''
+        if (fromUser) {
+          name = fromUser
+        } else {
+          // Repli : l'admin peut n'être que dans la collection `admins`.
+          const { db, doc, getDoc } = await import('@/firebase/firestore')
+          const snap = await getDoc(doc(db, 'admins', id))
+          if (snap.exists()) {
+            const d = snap.data() as { firstName?: string; lastName?: string; displayName?: string; name?: string }
+            const fromAdmin = `${d.firstName || ''} ${d.lastName || ''}`.trim() || d.displayName || d.name
+            if (fromAdmin) name = fromAdmin
+          }
+        }
+      } catch {
+        // on garde l'ID en repli
+      }
+      adminNameCache.set(id, name)
+      return name
+    }
+
     for (const member of members) {
       try {
         const dossierId = (member as any).dossier
         const dossier = dossierId ? await getMembershipRequestById(dossierId) : null
-        const row = this.buildRow(member, dossier)
+        const acceptedByName = await resolveAdminName(
+          dossier?.processedBy || dossier?.approvedBy,
+        )
+        const row = this.buildRow(member, dossier, acceptedByName)
         rows.push(row)
-      } catch (error) {
+      } catch {
         // En cas d'erreur, exporter quand même avec les données du membre
         const row = this.buildRow(member, null)
         rows.push(row)
