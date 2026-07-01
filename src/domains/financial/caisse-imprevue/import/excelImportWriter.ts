@@ -23,6 +23,7 @@ import {
 } from '@/firebase/firestore'
 import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
+import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { SubscriptionCI, User } from '@/types/types'
 import {
@@ -602,10 +603,15 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
   const docs: AdminImportDoc[] = []
   const supportIds: string[] = []
 
-  // --- Supports (feuille ACTIVE) ---
+  // --- Supports / aides (imprévus) ---
+  // ARGENT REMIS = montant de l'aide prise ; CLOTURE IMPREVUE = date de remboursement.
+  // Présence de la clôture ⇒ aide REMBOURSÉE ; absence ⇒ aide EN COURS (ACTIVE).
+  let outstandingSupportId: string | undefined
   row.supportsDetail.forEach((s, i) => {
     const supportId = `support-mig-${i}`
     supportIds.push(supportId)
+    const repaid = !!s.closureDate
+    if (!repaid) outstandingSupportId = supportId
     docs.push({
       path: [CONTRACTS, contractId, 'supports', supportId],
       data: {
@@ -613,14 +619,14 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
       contractId,
       amount: s.amount,
       motif: 'Import migration Excel',
-      status: 'REPAID',
-      amountRepaid: s.amount,
-      amountRemaining: 0,
+      status: repaid ? 'REPAID' : 'ACTIVE',
+      amountRepaid: repaid ? s.amount : 0,
+      amountRemaining: repaid ? 0 : s.amount,
       deductions: [],
       repayments: [],
       requestedAt: safeDate(s.date),
       paymentMode: s.mode,
-      ...(s.closureDate ? { closureDate: s.closureDate } : {}),
+      ...(repaid ? { repaidAt: safeDate(s.closureDate as string), closureDate: s.closureDate } : {}),
       ...(s.closureTime ? { closureTime: s.closureTime } : {}),
       ...(s.closureAgent ? { closureAgent: s.closureAgent } : {}),
       ...(s.note ? { closureNote: s.note } : {}),
@@ -714,8 +720,11 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     },
     status: row.status,
     supportHistory: supportIds,
+    // Aide non remboursée (pas de CLOTURE IMPREVUE) ⇒ support actif en cours.
+    ...(outstandingSupportId ? { currentSupportId: outstandingSupportId } : {}),
     totalMonthsPaid,
-    isEligibleForSupport: totalMonthsPaid >= 3,
+    // On ne peut pas obtenir une nouvelle aide tant qu'une aide est en cours.
+    isEligibleForSupport: totalMonthsPaid >= 3 && !outstandingSupportId,
     // Colonnes Excel sans champ direct dans le modèle (préservées telles quelles).
     entraide: cleanPlain({ ...row.entraide }),
     createdAt: adminServerTimestamp(),
@@ -944,6 +953,12 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
       memberMatricule: row.matricule.trim(),
       memberLastName: row.lastName,
       memberFirstName: row.firstName,
+      // Attributs de recherche (comme la création manuelle) → contrat retrouvable.
+      ...generateAllDemandSearchableTexts(
+        row.lastName || member.lastName || '',
+        row.firstName || member.firstName || '',
+        row.matricule.trim(),
+      ),
       monthlyAmount,
       monthsPlanned,
       caisseType,
