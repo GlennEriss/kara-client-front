@@ -24,6 +24,10 @@ import {
 import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
 import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
+import { getActiveSettings } from '@/db/caisse/settings.db'
+
+/** Cache du settingsVersion des réglages actifs par type de caisse (1 fetch/type). */
+const csSettingsVersionCache = new Map<string, string | undefined>()
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { SubscriptionCI, User } from '@/types/types'
 import {
@@ -918,6 +922,33 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
   const csStatus = row.status === 'RESCINDED' || row.status === 'CLOSED' ? row.status : 'ACTIVE'
   const isClosed = csStatus !== 'ACTIVE'
 
+  // Contact d'urgence (feuille clôturée : NOM URGENT / garant ; sinon INCONNU).
+  const memberRow = ctx.memberData.get(row.matricule.trim())
+  let emergency = row.emergency
+  let emergencyIsUnknown = !emergency.lastName || emergency.lastName === 'INCONNU'
+  if (emergencyIsUnknown && memberRow?.partnerName) {
+    emergency = { lastName: memberRow.partnerName, firstName: '', phone1: memberRow.partnerPhone ?? '', relationship: 'Conjoint' }
+    emergencyIsUnknown = false
+  } else if (emergencyIsUnknown) {
+    emergency = { lastName: UNKNOWN_USER_LAST_NAME, firstName: UNKNOWN_USER_FIRST_NAME, phone1: '', relationship: 'Autre' }
+  }
+  const csGuarantorRaw = row.entraide?.guarantorMatricule?.trim()
+  const csGuarantorMemberId =
+    csGuarantorRaw && /\.?MK\.?/i.test(csGuarantorRaw) ? safeUserDocIdFromMatricule(csGuarantorRaw) : undefined
+  const csEmergencyMemberId = csGuarantorMemberId ?? UNKNOWN_USER_ID
+
+  // settingsVersion (réglages actifs) — comme la création manuelle. Caché par type.
+  let settingsVersion: string | undefined
+  try {
+    if (!csSettingsVersionCache.has(caisseType)) {
+      const s = await getActiveSettings(caisseType as never)
+      csSettingsVersionCache.set(caisseType, (s as { id?: string } | null)?.id)
+    }
+    settingsVersion = csSettingsVersionCache.get(caisseType)
+  } catch {
+    // réglages indisponibles → on continue sans
+  }
+
   // Regroupement par mois, avec contribs[] (structure attendue par le détail
   // contrat) :
   //  - JOURNALIER : mois de 30 jours depuis le début (calendrier journalier).
@@ -970,6 +1001,20 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
       nominalPaid,
       bonusAccrued: 0,
       penaltiesTotal: 0,
+      // Contact d'urgence (rattaché au garant si présent, sinon INCONNU ; relationship
+      // « Autre » pour rester conforme au schéma CS).
+      emergencyContact: {
+        ...(csEmergencyMemberId ? { memberId: csEmergencyMemberId } : {}),
+        lastName: emergency.lastName,
+        firstName: emergency.firstName || '',
+        phone1: emergency.phone1 || '',
+        phone2: '',
+        relationship: 'Autre',
+        typeId: 'MIGRATION',
+        idNumber: 'MIGRATION',
+        documentPhotoUrl: '',
+      },
+      ...(settingsVersion ? { settingsVersion } : {}),
       entraide: cleanPlain({ ...row.entraide }),
       createdAt: adminServerTimestamp(),
       updatedAt: adminServerTimestamp(),
