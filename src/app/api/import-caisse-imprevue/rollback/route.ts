@@ -119,7 +119,38 @@ export async function POST(req: NextRequest) {
       requestsDeleted++
     }
 
-    return NextResponse.json({ contractsDeleted, usersDeleted, subscriptionsDeleted, requestsDeleted })
+    // 5) Demandes Caisse Imprévue migrées (converties, créées pour la traçabilité)
+    let ciDemandsDeleted = 0
+    const ciDemandSnap = await adminFirestore
+      .collection('caisseImprevueDemands')
+      .where('migrationSource', '==', sourceFile)
+      .get()
+    for (const d of ciDemandSnap.docs) {
+      if ((d.data() as { migrationSheet?: string }).migrationSheet !== sheetName) continue
+      await d.ref.delete()
+      ciDemandsDeleted++
+    }
+
+    // 6) Paiements centralisés migrés (adhésion)
+    let paymentsDeleted = 0
+    const paySnap = await adminFirestore
+      .collection('payments')
+      .where('migrationSource', '==', sourceFile)
+      .get()
+    for (const p of paySnap.docs) {
+      if ((p.data() as { migrationSheet?: string }).migrationSheet !== sheetName) continue
+      await p.ref.delete()
+      paymentsDeleted++
+    }
+
+    return NextResponse.json({
+      contractsDeleted,
+      usersDeleted,
+      subscriptionsDeleted,
+      requestsDeleted,
+      ciDemandsDeleted,
+      paymentsDeleted,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur inattendue'
     return NextResponse.json({ error: 'Erreur suppression import', details: message }, { status: 500 })

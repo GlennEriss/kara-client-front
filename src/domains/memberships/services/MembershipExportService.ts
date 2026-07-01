@@ -241,10 +241,27 @@ export class MembershipExportService {
       ? member.contacts.join(' | ')
       : ''
 
-    // Paiements (si présents)
+    // Paiements : on lit d'abord ceux du dossier ; à défaut (cas des importés),
+    // l'adhésion = 1 paiement dont le montant est celui de l'abonnement.
     const payments = Array.isArray(dossier?.payments) ? dossier.payments : []
-    const paymentsCount = payments.length
-    const paymentsTotal = payments.reduce((sum: number, p: any) => sum + (Number(p?.amount) || 0), 0)
+    const hasSubscription = !!member?.lastSubscription
+    const subscriptionAmount = Number(member?.lastSubscription?.montant) || 0
+    const paymentsCount = payments.length > 0 ? payments.length : hasSubscription ? 1 : 0
+    const paymentsTotal =
+      payments.length > 0
+        ? payments.reduce((sum: number, p: any) => sum + (Number(p?.amount) || 0), 0)
+        : hasSubscription
+          ? subscriptionAmount
+          : 0
+
+    // Premier des candidats qui est non-vide (corrige le masquage par '' du `??`,
+    // ex. dossier.company.seniority === '' qui cachait member.seniority).
+    const pick = (...vals: unknown[]): string => {
+      for (const v of vals) {
+        if (v !== null && v !== undefined && String(v).trim() !== '') return String(v)
+      }
+      return ''
+    }
 
     const toISO = (v: any): string => {
       try {
@@ -257,12 +274,12 @@ export class MembershipExportService {
     }
 
     // « Adhéré le » : pour un membre IMPORTÉ, createdAt = date de l'import (≈ aujourd'hui).
-    // On prend alors la DATE INSCRIPTION (début d'abonnement) = vraie date d'adhésion.
+    // On prend la DATE INSCRIPTION (début d'abonnement) = vraie date d'adhésion ;
+    // s'il n'y a PAS d'abonnement (pas d'adhésion), on laisse VIDE.
     const isMigrated = Boolean((member as { migrationSource?: string })?.migrationSource)
-    const adheredAt =
-      isMigrated && member?.lastSubscription?.dateStart
-        ? member.lastSubscription.dateStart
-        : member?.createdAt
+    const adheredAt = isMigrated
+      ? (member?.lastSubscription?.dateStart ?? null)
+      : member?.createdAt
 
     return {
       // Métadonnées (fr)
@@ -288,8 +305,8 @@ export class MembershipExportService {
       'Sexe': identity.gender ?? member?.gender ?? '',
       'Nationalité': getNationalityName(identity.nationality ?? member?.nationality),
       'État civil': identity.maritalStatus ?? member?.maritalStatus ?? '',
-      'Nom partenaire': identity.spouseLastName ?? member?.partnerName ?? '',
-      'Téléphone partenaire': identity.spousePhone ?? member?.partnerPhone ?? '',
+      'Nom partenaire': pick(identity.spouseLastName, member?.partnerName),
+      'Téléphone partenaire': pick(identity.spousePhone, member?.partnerPhone),
       'Code entremetteur': identity.intermediaryCode ?? member?.intermediaryCode ?? '',
       'Possède un véhicule': String(identity.hasCar ?? member?.hasCar ?? ''),
 
@@ -310,8 +327,8 @@ export class MembershipExportService {
       'Province entreprise': company.companyAddress?.province ?? '',
       'Ville entreprise': company.companyAddress?.city ?? '',
       'Quartier entreprise': company.companyAddress?.district ?? '',
-      'Profession': company.profession ?? member?.profession ?? '',
-      'Ancienneté': company.seniority ?? member?.seniority ?? '',
+      'Profession': pick(company.profession, member?.profession),
+      'Ancienneté': pick(company.seniority, member?.seniority),
 
       // Pièce d'identité (fr)
       "Type de pièce d'identité": documents.identityDocument ?? member?.identityDocument ?? '',
