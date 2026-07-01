@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { createFile } from '@/db/upload-image.db'
 import { updateUser } from '@/db/user.db'
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import type { MemberDetails } from '../../hooks/useMembershipDetails'
 
 interface MemberIdDocumentCardProps {
@@ -27,11 +28,13 @@ function DocSlot({
   label,
   url,
   uploading,
+  canUpload,
   onUpload,
 }: {
   label: string
   url?: string
   uploading: boolean
+  canUpload: boolean
   onUpload: (file: File) => void
 }) {
   const [isImage, setIsImage] = useState(true)
@@ -69,31 +72,34 @@ function DocSlot({
           </div>
         )}
       </div>
-      <label htmlFor={inputId} className="block">
-        <input
-          id={inputId}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          disabled={uploading}
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) onUpload(f)
-            e.target.value = ''
-          }}
-        />
-        <Button asChild size="sm" variant="outline" className="w-full" disabled={uploading}>
-          <span>
-            <Upload className="mr-1 h-3.5 w-3.5" /> {url ? 'Remplacer' : 'Téléverser'}
-          </span>
-        </Button>
-      </label>
+      {canUpload && (
+        <label htmlFor={inputId} className="block">
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) onUpload(f)
+              e.target.value = ''
+            }}
+          />
+          <Button asChild size="sm" variant="outline" className="w-full" disabled={uploading}>
+            <span>
+              <Upload className="mr-1 h-3.5 w-3.5" /> {url ? 'Remplacer' : 'Téléverser'}
+            </span>
+          </Button>
+        </label>
+      )}
     </div>
   )
 }
 
 export function MemberIdDocumentCard({ member }: MemberIdDocumentCardProps) {
   const queryClient = useQueryClient()
+  const isSuperAdmin = useIsSuperAdmin()
   const [uploadingSide, setUploadingSide] = useState<'front' | 'back' | null>(null)
 
   if (!member) return null
@@ -138,12 +144,14 @@ export function MemberIdDocumentCard({ member }: MemberIdDocumentCardProps) {
             label="Recto"
             url={member.identityDocumentFrontURL}
             uploading={uploadingSide === 'front'}
+            canUpload={isSuperAdmin}
             onUpload={(f) => handleUpload('front', f)}
           />
           <DocSlot
             label="Verso"
             url={member.identityDocumentBackURL}
             uploading={uploadingSide === 'back'}
+            canUpload={isSuperAdmin}
             onUpload={(f) => handleUpload('back', f)}
           />
         </div>

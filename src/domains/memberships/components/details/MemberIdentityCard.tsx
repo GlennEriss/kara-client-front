@@ -19,6 +19,7 @@ import { createFile } from '@/db/upload-image.db'
 import { updateUser } from '@/db/user.db'
 import { useMemberInlineEdit } from '../../hooks/useMemberInlineEdit'
 import { InlineEditActions } from './InlineEditActions'
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import type { MemberDetails } from '../../hooks/useMembershipDetails'
 
 interface CardProps {
@@ -32,6 +33,8 @@ const selectClass =
 export function MemberPersonalInfoCard({ member }: CardProps) {
   const { editing, setEditing, saving, save } = useMemberInlineEdit(member?.id || '')
   const [form, setForm] = useState({
+    lastName: '',
+    firstName: '',
     gender: '',
     nationality: '',
     hasCar: false,
@@ -45,6 +48,8 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
 
   const startEdit = () => {
     setForm({
+      lastName: member.lastName || '',
+      firstName: member.firstName || '',
       gender: member.gender || '',
       nationality: member.nationality || '',
       hasCar: !!member.hasCar,
@@ -59,8 +64,14 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
 
-  const onSave = () =>
+  const onSave = () => {
+    if (!form.lastName.trim() || !form.firstName.trim()) {
+      toast.error('Nom et prénom sont obligatoires')
+      return
+    }
     save({
+      lastName: form.lastName.trim(),
+      firstName: form.firstName.trim(),
       gender: form.gender,
       nationality: form.nationality.trim(),
       hasCar: form.hasCar,
@@ -69,6 +80,7 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
       maritalStatus: form.maritalStatus.trim(),
       religion: form.religion.trim(),
     })
+  }
 
   return (
     <Card className="group bg-gradient-to-br from-blue-50/30 to-blue-100/20 border-0 shadow-lg">
@@ -89,6 +101,14 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
       <CardContent className="pt-0" data-testid="member-identity-card">
         {editing ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500">Nom</Label>
+              <Input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500">Prénom</Label>
+              <Input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
+            </div>
             <div className="space-y-1">
               <Label className="text-xs text-gray-500">Genre</Label>
               <select className={selectClass} value={form.gender} onChange={(e) => set('gender', e.target.value)}>
@@ -180,6 +200,7 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
 /** Carte « Photo du membre » — téléversement / modification (admin). */
 export function MemberPhotoCard({ member }: CardProps) {
   const queryClient = useQueryClient()
+  const isSuperAdmin = useIsSuperAdmin()
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
@@ -226,32 +247,36 @@ export function MemberPhotoCard({ member }: CardProps) {
           </div>
         )}
 
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) handlePhotoUpload(f)
-            e.target.value = ''
-          }}
-        />
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full"
-          disabled={uploadingPhoto}
-          onClick={() => photoInputRef.current?.click()}
-          data-testid="member-photo-upload-button"
-        >
-          {uploadingPhoto ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Camera className="mr-1 h-3.5 w-3.5" />
-          )}
-          {member.photoURL ? 'Modifier la photo' : 'Téléverser une photo'}
-        </Button>
+        {isSuperAdmin && (
+          <>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handlePhotoUpload(f)
+                e.target.value = ''
+              }}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              disabled={uploadingPhoto}
+              onClick={() => photoInputRef.current?.click()}
+              data-testid="member-photo-upload-button"
+            >
+              {uploadingPhoto ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Camera className="mr-1 h-3.5 w-3.5" />
+              )}
+              {member.photoURL ? 'Modifier la photo' : 'Téléverser une photo'}
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   )

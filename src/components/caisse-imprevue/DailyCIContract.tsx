@@ -1,6 +1,7 @@
 'use client'
 
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
+import ContractCIMemberInfoDialog from '@/components/caisse-imprevue/ContractCIMemberInfoDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -684,7 +685,10 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             )}
 
             {/* Bouton Contact d'urgence */}
-            <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
+            <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} contractKind="CI" contractId={(contract as any)?.id} />
+
+            {/* Modifier les infos du membre (superAdmin) */}
+            <ContractCIMemberInfoDialog contract={contract} />
           </div>
 
           <div className="hidden lg:flex flex-wrap gap-2">

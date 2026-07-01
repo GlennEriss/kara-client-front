@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Check, Loader2, Pencil, X } from 'lucide-react'
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 
 interface InlineEditActionsProps {
   editing: boolean
@@ -11,8 +12,14 @@ interface InlineEditActionsProps {
   onCancel: () => void
 }
 
-/** Boutons d'édition inline pour l'en-tête d'une carte de fiche membre (admin). */
+/**
+ * Boutons d'édition inline pour l'en-tête d'une carte de fiche membre.
+ * Réservé au superAdmin : rien n'est rendu pour les autres rôles (lecture seule).
+ */
 export function InlineEditActions({ editing, saving, onEdit, onSave, onCancel }: InlineEditActionsProps) {
+  const isSuperAdmin = useIsSuperAdmin()
+  if (!isSuperAdmin) return null
+
   if (!editing) {
     return (
       <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-gray-500" onClick={onEdit}>

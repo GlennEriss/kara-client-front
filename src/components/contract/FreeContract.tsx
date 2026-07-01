@@ -473,7 +473,7 @@ export default function FreeContract({ id }: Props) {
               Historique des versements
             </Button>
 
-            <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
+            <EmergencyContact emergencyContact={(data as any)?.emergencyContact} contractKind="CS" contractId={(data as any)?.id} />
           </div>
           
           <div className="hidden lg:flex flex-wrap gap-2">
