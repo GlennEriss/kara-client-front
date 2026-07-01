@@ -9,9 +9,12 @@ const DATE_TOKEN = '__karaDate'
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
 const MEMBERSHIP_REQUESTS = firebaseCollectionNames.membershipRequests || 'membership-requests'
-// `membership-requests` autorisé pour les demandes d'adhésion migrées (approuvées) :
-// les règles Firestore bloquent leur création côté client, on passe par l'Admin SDK.
-const ALLOWED_COLLECTIONS = new Set([CONTRACTS, CAISSE_CONTRACTS, MEMBERSHIP_REQUESTS])
+const PAYMENTS = firebaseCollectionNames.payments || 'payments'
+const CI_DEMANDS = firebaseCollectionNames.caisseImprevueDemands || 'caisseImprevueDemands'
+// `membership-requests` + `payments` + `caisseImprevueDemands` autorisés pour les
+// migrations (demandes approuvées, paiement d'adhésion, demande CI convertie) :
+// écriture via Admin SDK pour contourner les règles.
+const ALLOWED_COLLECTIONS = new Set([CONTRACTS, CAISSE_CONTRACTS, MEMBERSHIP_REQUESTS, PAYMENTS, CI_DEMANDS])
 
 type ImportDoc = {
   path: string[]

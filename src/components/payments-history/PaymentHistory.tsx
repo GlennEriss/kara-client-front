@@ -26,7 +26,6 @@ import {
   List,
   RefreshCw,
   SearchX,
-  TrendingUp,
   User,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -254,10 +253,8 @@ function ModernPaymentStatsCard({
   title,
   value,
   subtitle,
-  percentage,
   color,
   icon: Icon,
-  trend = 'up',
 }: {
   title: string
   value: number
@@ -267,64 +264,23 @@ function ModernPaymentStatsCard({
   icon: React.ComponentType<any>
   trend?: 'up' | 'down' | 'neutral'
 }) {
-  const chartData = [
-    { name: 'value', value: percentage || 0, fill: color },
-    { name: 'remaining', value: Math.max(0, 100 - (percentage || 0)), fill: '#f3f4f6' },
-  ]
-
+  // Carte stat compacte horizontale — même design que le reste du site (ex. Caisse Imprévue).
   return (
-    <Card className="group border-0 bg-gradient-to-br from-white to-gray-50/50 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-      <CardContent className="relative z-10 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div
-              className="rounded-xl p-2.5 transition-transform duration-300 group-hover:scale-110"
-              style={{ backgroundColor: `${color}15`, color }}
-            >
-              <Icon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-600">{title}</p>
-              <div className="mt-0.5 flex items-center gap-2">
-                <p className="text-2xl font-bold text-gray-900">{value.toLocaleString('fr-FR')}</p>
-                {trend !== 'neutral' && (
-                  <div
-                    className={cn(
-                      'flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium',
-                      trend === 'down' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                    )}
-                  >
-                    <TrendingUp className={cn('h-3 w-3', trend === 'down' && 'rotate-180')} />
-                    {(percentage || 0).toFixed(0)}%
-                  </div>
-                )}
-              </div>
-              {subtitle && <p className="mt-0.5 text-xs font-medium text-slate-600">{subtitle}</p>}
-            </div>
-          </div>
-
-          <div className="h-12 w-12">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={16}
-                  outerRadius={22}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`${title}-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-              </RechartsPieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
+      <div
+        className="shrink-0 rounded-lg p-1.5 transition-transform duration-200 group-hover:scale-110"
+        style={{ backgroundColor: `${color}15`, color }}
+      >
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-gray-500">{title}</p>
+        <p className="whitespace-nowrap text-sm font-black tabular-nums text-gray-900">
+          {value.toLocaleString('fr-FR')}
+        </p>
+        {subtitle && <p className="truncate text-[10px] font-medium text-gray-400">{subtitle}</p>}
+      </div>
+    </div>
   )
 }
 

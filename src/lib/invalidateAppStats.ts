@@ -19,6 +19,8 @@ export const APP_STATS_QUERY_KEYS: readonly (readonly string[])[] = [
   // Caisse Imprévue
   ['contractsCI'],
   ['contractsCIStats'],
+  ['caisse-imprevue-demands'],
+  ['caisse-imprevue-demands-stats'],
   // Caisse Spéciale
   ['caisse-contracts'],
   ['caisse-contracts-stats'],

@@ -47,6 +47,18 @@ const MEMBER_SUBSCRIPTIONS = firebaseCollectionNames.subscriptions || 'subscript
 const USERS = firebaseCollectionNames.users || 'users'
 const CAISSE_CONTRACTS = firebaseCollectionNames.caisseContracts || 'caisseContracts'
 const MEMBERSHIP_REQUESTS = firebaseCollectionNames.membershipRequests || 'membership-requests'
+const PAYMENTS = firebaseCollectionNames.payments || 'payments'
+const CI_DEMANDS = firebaseCollectionNames.caisseImprevueDemands || 'caisseImprevueDemands'
+
+/** Mappe le moyen de paiement du fichier vers l'énumération de l'app. */
+function mapPaymentMode(raw?: string): string {
+  const up = (raw || '').toUpperCase().replace(/[\s_]+/g, '-')
+  if (up.includes('AIRTEL')) return 'airtel_money'
+  if (up.includes('MOBI') || up.includes('MOOV')) return 'mobicash'
+  if (up.includes('ESPECE') || up.includes('CASH') || up.includes('LIQUIDE')) return 'cash'
+  if (up.includes('VIREMENT') || up.includes('BANK') || up.includes('BANQUE')) return 'bank_transfer'
+  return 'other'
+}
 
 /** Récupère les forfaits A–E (subscriptionsCI) pour résoudre subscriptionCIID/Code. */
 export async function fetchForfaits(): Promise<SubscriptionCI[]> {
@@ -536,6 +548,8 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
 
   const kind: 'A' | 'C' = row.status === 'ACTIVE' ? 'A' : 'C'
   const contractId = contractIdForRow(row)
+  // Demande CI liée (traçabilité demande → contrat, comme le flux manuel).
+  const demandId = `${contractId}_DMD`
   const forfait = pickForfait(row.category, row.amountPerMonth, ctx.forfaits)
   const nominal = forfait?.nominal ?? row.amountPerMonth * Math.max(row.durationMonths, 1)
   const supportMin = forfait?.supportMin ?? 0
@@ -572,6 +586,17 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     emergencyIsUnknown = true
     placeholders.push("contact d'urgence (INCONNU par défaut)")
   }
+  // Le garant (col 20 « MATRICULE GARANT(E) », feuille CLÔTURÉE) est un membre → on
+  // lie le contact d'urgence à son compte, comme la recherche intelligente manuelle.
+  // ⚠️ Uniquement si ça ressemble à un matricule (…MK…) : sur la feuille ACTIVE la
+  // col 20 est une HEURE, pas un matricule.
+  const guarantorRaw = row.entraide?.guarantorMatricule?.trim()
+  const guarantorMemberId =
+    guarantorRaw && /\.?MK\.?/i.test(guarantorRaw) ? safeUserDocIdFromMatricule(guarantorRaw) : undefined
+  // Garant identifié → son compte ; sinon (pas de matricule garant exploitable) →
+  // rattaché au membre placeholder INCONNU. Le contact d'urgence a TOUJOURS un memberId.
+  const emergencyMemberId = guarantorMemberId ?? UNKNOWN_USER_ID
+  if (!guarantorMemberId && !emergencyIsUnknown) placeholders.push("contact d'urgence rattaché à INCONNU")
   if (totalMonthsPaid > 0) placeholders.push('preuves de versement')
 
   const docs: AdminImportDoc[] = []
@@ -644,11 +669,28 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     path: [CONTRACTS, contractId],
     data: {
     id: contractId,
+    demandId,
     memberId: member.id,
     memberMatricule: row.matricule.trim(),
     memberFirstName: row.firstName || member.firstName || '',
     memberLastName: row.lastName || member.lastName || '',
     memberContacts: row.contacts,
+    // Infos membre dénormalisées (comme la création manuelle depuis la demande).
+    memberEmail: memberRow?.email ?? '',
+    memberGender: memberRow?.gender ?? '',
+    memberBirthDate: memberRow?.birthDate ?? '',
+    memberNationality: memberRow?.nationality ?? '',
+    memberProfession: memberRow?.profession ?? '',
+    memberAddress: memberRow?.address
+      ? [
+          memberRow.address.province,
+          memberRow.address.city,
+          memberRow.address.district,
+          memberRow.address.arrondissement,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : '',
     subscriptionCIID: forfait?.id ?? `MIG_${row.category || 'NA'}`,
     subscriptionCICode: forfait?.code ?? row.category,
     subscriptionCILabel: forfait?.label ?? `Forfait ${row.category}`,
@@ -660,7 +702,7 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     paymentFrequency: 'MONTHLY',
     firstPaymentDate: row.startDate || '',
     emergencyContact: {
-      ...(emergencyIsUnknown ? { memberId: UNKNOWN_USER_ID } : {}),
+      ...(emergencyMemberId ? { memberId: emergencyMemberId } : {}),
       lastName: emergency.lastName,
       firstName: emergency.firstName,
       phone1: emergency.phone1,
@@ -682,6 +724,61 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
     updatedBy: ctx.adminId,
     ...marker(ctx, kind, row.rowNumber, row.raw),
     },
+  })
+
+  // --- Demande CI (convertie) — cohérence demande → contrat comme le flux manuel ---
+  docs.push({
+    path: [CI_DEMANDS, demandId],
+    data: cleanPlain({
+      id: demandId,
+      memberId: member.id,
+      memberFirstName: row.firstName || member.firstName || '',
+      memberLastName: row.lastName || member.lastName || '',
+      memberEmail: memberRow?.email ?? '',
+      memberContacts: row.contacts,
+      memberMatricule: row.matricule.trim(),
+      memberPhone: row.contacts[0] ?? '',
+      searchableText: `${row.lastName || member.lastName || ''} ${row.firstName || member.firstName || ''} ${row.matricule.trim()}`
+        .toLowerCase()
+        .trim(),
+      cause: 'Contrat existant importé (migration Excel) — demande générée pour la traçabilité.',
+      subscriptionCIID: forfait?.id ?? `MIG_${row.category || 'NA'}`,
+      subscriptionCICode: forfait?.code ?? row.category,
+      subscriptionCILabel: forfait?.label ?? `Forfait ${row.category}`,
+      subscriptionCIAmountPerMonth: row.amountPerMonth,
+      subscriptionCINominal: nominal,
+      subscriptionCIDuration: row.durationMonths,
+      subscriptionCISupportMin: supportMin,
+      subscriptionCISupportMax: supportMax,
+      paymentFrequency: 'MONTHLY',
+      desiredStartDate: row.startDate || '',
+      firstPaymentDate: row.startDate || '',
+      emergencyContact: {
+        ...(emergencyMemberId ? { memberId: emergencyMemberId } : {}),
+        lastName: emergency.lastName,
+        firstName: emergency.firstName,
+        phone1: emergency.phone1,
+        phone2: '',
+        relationship: emergency.relationship,
+        idNumber: 'MIGRATION',
+        typeId: 'MIGRATION',
+        documentPhotoUrl: '',
+      },
+      status: 'CONVERTED',
+      priority: 4,
+      decisionReason: 'Contrat existant importé (migration).',
+      contractId,
+      convertedDate: adminServerTimestamp(),
+      createdBy: ctx.adminId,
+      createdAt: adminServerTimestamp(),
+      updatedBy: ctx.adminId,
+      updatedAt: adminServerTimestamp(),
+      acceptedBy: ctx.adminId,
+      acceptedAt: adminServerTimestamp(),
+      convertedBy: ctx.adminId,
+      convertedAt: adminServerTimestamp(),
+      ...marker(ctx, kind, row.rowNumber),
+    }),
   })
 
   // --- Versements (payments) ---
@@ -1202,6 +1299,48 @@ async function writeMemberSubscriptionIfAny(
   return true
 }
 
+/**
+ * Enregistre le paiement d'adhésion dans la collection centralisée `payments`
+ * (lue par l'« Historique des paiements », filtrée sur `beneficiaryId == requestId`).
+ * Écrit via l'Admin SDK (contourne les règles). Idempotent (id déterministe).
+ */
+async function writeMemberAdhesionPayment(opts: {
+  matricule: string
+  requestId: string
+  beneficiaryName: string
+  data: ImportMemberData | undefined
+  ctx: MembersImportContext
+}): Promise<void> {
+  const { matricule, requestId, beneficiaryName, data, ctx } = opts
+  if (!data?.membershipPaymentDate) return
+  const rawMode = data.membershipPaymentMode || ''
+  const mode = mapPaymentMode(rawMode)
+  await commitAdminImportDocs([
+    {
+      path: [PAYMENTS, `MK_PYMT_MIG_${sanitizeMatricule(matricule) || 'NA'}`],
+      data: cleanPlain({
+        sourceType: 'membership-request',
+        sourceId: requestId,
+        beneficiaryId: requestId, // l'historique filtre sur ce champ
+        beneficiaryName,
+        date: new Date(data.membershipPaymentDate),
+        time: data.membershipPaymentTime || '',
+        mode,
+        paymentMethodOther: mode === 'other' ? rawMode : '',
+        amount: data.membershipPaymentAmount ?? 0,
+        paymentType: 'Membership',
+        acceptedBy: data.membershipPaymentAgent || ctx.adminId,
+        recordedBy: ctx.adminId,
+        recordedByName: data.membershipPaymentAgent || '',
+        recordedAt: new Date(),
+        isMigrated: true,
+        migrationSource: ctx.sourceFile,
+        migrationSheet: ctx.sheetName,
+      }),
+    },
+  ])
+}
+
 /** Crée les membres absents (compte sans Auth, id = matricule, type depuis T.MEMBRES). */
 export async function writeMembers(
   members: AnalyzedMember[],
@@ -1228,6 +1367,14 @@ export async function writeMembers(
           subscriptionsCreated++
           reason = 'Déjà présent (abonnement mis à jour)'
         }
+        // Paiement d'adhésion dans l'historique (idempotent).
+        await writeMemberAdhesionPayment({
+          matricule: key,
+          requestId: `MK_MEMBER_REQ_MIG_${sanitizeMatricule(key) || 'NA'}`,
+          beneficiaryName: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
+          data,
+          ctx,
+        })
       } catch {
         // non bloquant
       }
@@ -1336,6 +1483,22 @@ export async function writeMembers(
         // Adhésion payée ⇔ présence d'une DATE INSCRIPTION (sinon non payée).
         // Champ requis pour les stats « payées / non payées » des Demandes.
         isPaid: !!data?.membershipPaymentDate,
+        // Paiement d'adhésion porté par le dossier (lu par l'export / l'historique).
+        payments: data?.membershipPaymentDate
+          ? [
+              {
+                date: new Date(data.membershipPaymentDate),
+                time: data.membershipPaymentTime || '',
+                mode: mapPaymentMode(data.membershipPaymentMode),
+                amount: data.membershipPaymentAmount ?? 0,
+                acceptedBy: data.membershipPaymentAgent || ctx.adminId,
+                paymentType: 'Membership',
+                recordedBy: ctx.adminId,
+                recordedByName: data.membershipPaymentAgent || '',
+                recordedAt: new Date(),
+              },
+            ]
+          : [],
         membershipType: m.membershipType,
         memberNumber: key,
         identity: {
@@ -1404,6 +1567,19 @@ export async function writeMembers(
       ])
       } catch {
         // Échec d'écriture de la demande → non bloquant (membre + abonnement déjà créés).
+      }
+
+      // Paiement d'adhésion dans l'historique des paiements (non bloquant).
+      try {
+        await writeMemberAdhesionPayment({
+          matricule: key,
+          requestId,
+          beneficiaryName: `${userData.firstName} ${userData.lastName}`.trim(),
+          data,
+          ctx,
+        })
+      } catch {
+        // non bloquant
       }
       results.push({ rowNumber: m.rowNumber, matricule: m.matricule, status: 'created', membershipType: m.membershipType })
     } catch (e) {
