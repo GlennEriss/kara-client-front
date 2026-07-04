@@ -110,10 +110,15 @@ export async function POST(req: NextRequest) {
       created = true
     }
 
-    // Stocker l'email de connexion sur la fiche membre (cohérence d'affichage).
+    // Stocker l'email de connexion sur la fiche membre (cohérence d'affichage) et
+    // marquer le mot de passe comme « à changer » : le membre devra en définir un
+    // nouveau à sa prochaine connexion (le mot de passe initial est généré par l'admin).
     if (adminFirestore) {
       try {
-        await adminFirestore.collection('users').doc(memberId).update({ email, updatedAt: new Date() })
+        await adminFirestore
+          .collection('users')
+          .doc(memberId)
+          .update({ email, mustChangePassword: true, updatedAt: new Date() })
       } catch {
         // non bloquant
       }
