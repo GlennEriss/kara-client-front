@@ -611,6 +611,12 @@ export interface User {
   createdAt: Date
   updatedAt: Date
   isActive: boolean
+  /**
+   * Mot de passe initial (généré par l'admin) à changer : tant que `true`, une
+   * modale bloquante force le membre à définir son propre mot de passe à la
+   * connexion (espace membre). Levé après le changement.
+   */
+  mustChangePassword?: boolean
   // Groupes d'appartenance (peut appartenir à plusieurs groupes)
   groupIds?: string[]
   // Caisse Spéciale

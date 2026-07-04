@@ -113,6 +113,9 @@ export async function POST(req: NextRequest) {
             membershipType: membershipType as MembershipType,
             roles: [userRole], // Ajouter le membershipType dans le tableau roles
             isActive: true,
+            // Mot de passe par défaut ('123456') : le membre devra en définir un
+            // nouveau à sa première connexion (modale bloquante côté espace membre).
+            mustChangePassword: true,
         };
 
         const createdUser = await createUserWithMatricule(userData, matricule);

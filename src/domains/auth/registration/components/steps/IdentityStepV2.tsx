@@ -33,7 +33,8 @@ import type { RegisterFormData } from '@/schemas/schemas'
 const CIVILITIES = ['Monsieur', 'Madame', 'Mademoiselle'] as const
 const GENDERS = ['Homme', 'Femme'] as const
 const MARITAL_STATUS = ['Célibataire', 'Marié(e)', 'Veuf/Veuve', 'Divorcé(e)', 'Concubinage'] as const
-const RELIGIONS = ['Christianisme', 'Islam', 'Animisme', 'Sans religion', 'Autre'] as const
+// Aligné sur les autres formulaires d'inscription (adhésion membre + Register admin).
+const RELIGIONS = ['Chrétien', 'Musulman', 'Animiste', 'Sans religion', 'Autre'] as const
 
 
 

@@ -11,15 +11,13 @@ export const MARITAL_STATUS_OPTIONS = [
     { value: 'Concubinage', label: 'Concubinage' }
 ]
 
+// Aligné sur le formulaire d'adhésion membre : les confessions chrétiennes sont
+// regroupées sous « Chrétien ». Liste volontairement resserrée sur le contexte
+// gabonais (Chrétien / Musulman / Animiste / Sans religion / Autre).
 export const RELIGION_OPTIONS = [
-    { value: 'Athée', label: 'Athée' },
-    { value: 'Bahaïsme', label: 'Bahaïsme' },
-    { value: 'Bouddhisme', label: 'Bouddhisme' },
-    { value: 'Christianisme', label: 'Christianisme' },
-    { value: 'Hindouisme', label: 'Hindouisme' },
-    { value: 'Islam', label: 'Islam' },
-    { value: 'Judaïsme', label: 'Judaïsme' },
-    { value: 'Sikhisme', label: 'Sikhisme' },
-    { value: 'Taoïsme', label: 'Taoïsme' },
+    { value: 'Chrétien', label: 'Chrétien' },
+    { value: 'Musulman', label: 'Musulman' },
+    { value: 'Animiste', label: 'Animiste' },
+    { value: 'Sans religion', label: 'Sans religion' },
     { value: 'Autre', label: 'Autre' }
 ]
