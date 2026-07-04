@@ -23,6 +23,22 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
+
+    // Vérifie si l'utilisateur est SuperAdmin.
+    // Robuste au cas où le custom claim `role` est absent (ex. après migration
+    // d'UID) : on retombe alors sur le tableau `roles` du document admins/users.
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        // Méthode 1 : custom claim (token.role)
+        request.auth.token.role == 'SuperAdmin' ||
+        // Méthode 2 : tableau `roles` du document admins
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         ('SuperAdmin' in get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []))) ||
+        // Méthode 3 : tableau `roles` du document users
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         ('SuperAdmin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', [])))
+      );
+    }
     
     // Vérifie si le code de sécurité est valide pour modification par le demandeur
     function hasValidSecurityCode(requestData) {
@@ -273,8 +289,8 @@ service cloud.firestore {
     match /admins/{adminId} {
       // Lecture publique (nécessaire pour vérifier l'unicité du matricule)
       allow read: if true;
-      // Écriture réservée aux SuperAdmins
-      allow write: if isAuthenticated() && request.auth.token.role == 'SuperAdmin';
+      // Écriture réservée aux SuperAdmins (via claim OU tableau `roles` du doc)
+      allow write: if isSuperAdmin();
     }
     
     // ==========================================
@@ -361,8 +377,8 @@ service cloud.firestore {
       allow create: if request.auth == null;
       // Mise à jour : Interdite (logs immutables)
       allow update: if false;
-      // Suppression : SuperAdmin uniquement
-      allow delete: if isAuthenticated() && request.auth.token.role == 'SuperAdmin';
+      // Suppression : SuperAdmin uniquement (via claim OU tableau `roles` du doc)
+      allow delete: if isSuperAdmin();
     }
     
     // ==========================================
