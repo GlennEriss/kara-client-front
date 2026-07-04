@@ -417,6 +417,7 @@ export const identityDefaultValues: Partial<IdentityFormData> = {
     religion: '',
     customReligion: '',
     contacts: [''],
+    whatsappNumber: '',
     email: '',
     gender: 'Homme',
     nationality: 'GA',

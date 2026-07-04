@@ -19,6 +19,7 @@ import NationalityIdentityForm from '@/components/identity-form/NationalityIdent
 import PrayerPlaceIdentityForm from '@/components/identity-form/PrayerPlaceIdentityForm'
 import ReligionIdentityForm from '@/components/identity-form/ReligionIdentityForm'
 import SpouseInfoSection from '@/components/identity-form/SpouseInfoSection'
+import WhatsAppIdentityForm from '@/components/identity-form/WhatsAppIdentityForm'
 import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
 import PhotoIdentityForm from '../identity-form/PhotoIdentityForm'
 interface Step1Props {
@@ -78,6 +79,9 @@ export default function Step1({ requestId: _requestId }: Step1Props) {
 
           {/* Contacts */}
           <ContactsIdentityForm />
+
+          {/* Numéro WhatsApp (obligatoire) */}
+          <WhatsAppIdentityForm />
 
           {/* Selects et Checkbox */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
