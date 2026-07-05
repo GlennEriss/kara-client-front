@@ -452,73 +452,6 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                 )}
               />
             </div>
-            <div className="grid md:grid-cols-3 gap-4">
-              <FormField control={form.control} name="vehicleBrand" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Marque</FormLabel>
-                  <Input {...field} placeholder="Toyota" className="h-11" />
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="vehicleModel" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Modèle</FormLabel>
-                  <Input {...field} placeholder="Corolla" className="h-11" />
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="vehicleYear" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Année</FormLabel>
-                  <Input 
-                    type="number" 
-                    value={field.value || ''} 
-                    onChange={event => field.onChange(event.target.value ? Number(event.target.value) : undefined)} 
-                    placeholder="2020"
-                    className="h-11"
-                  />
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="energySource"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-semibold">Source d'énergie</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="h-11">
-                          <SelectValue placeholder="Energie" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="essence">Essence</SelectItem>
-                        <SelectItem value="diesel">Diesel</SelectItem>
-                        <SelectItem value="electrique">Électrique</SelectItem>
-                        <SelectItem value="hybride">Hybride</SelectItem>
-                        <SelectItem value="gaz">Gaz</SelectItem>
-                        <SelectItem value="autre">Autre</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="fiscalPower"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-semibold">Puissance fiscale / administrative</FormLabel>
-                    <Input {...field} placeholder="11 CV" className="h-11" />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -536,22 +469,13 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="insuranceCompany" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Compagnie d'assurance</FormLabel>
-                  <Input {...field} placeholder="Nom de l'assurance" className="h-11" />
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="policyNumber" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Numéro de police</FormLabel>
-                  <Input {...field} placeholder="POL-123456" className="h-11" />
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
+            <FormField control={form.control} name="insuranceCompany" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-semibold">Compagnie d'assurance</FormLabel>
+                <Input {...field} placeholder="Nom de l'assurance" className="h-11" />
+                <FormMessage />
+              </FormItem>
+            )} />
             <FormField
               control={form.control}
               name="warrantyMonths"

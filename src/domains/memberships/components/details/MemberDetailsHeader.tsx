@@ -5,9 +5,14 @@
 
 'use client'
 
+import { useState } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { useMemberInlineEdit } from '../../hooks/useMemberInlineEdit'
+import { InlineEditActions } from './InlineEditActions'
 import type { MemberDetails } from '../../hooks/useMembershipDetails'
 
 interface MemberDetailsHeaderProps {
@@ -21,7 +26,23 @@ export function MemberDetailsHeader({
   onBack,
   onOpenMembershipRequest,
 }: MemberDetailsHeaderProps) {
+  const { editing, setEditing, saving, save } = useMemberInlineEdit(member?.id || '')
+  const [form, setForm] = useState({ lastName: '', firstName: '' })
+
   if (!member) return null
+
+  const startEdit = () => {
+    setForm({ lastName: member.lastName || '', firstName: member.firstName || '' })
+    setEditing(true)
+  }
+
+  const onSave = () => {
+    if (!form.lastName.trim() || !form.firstName.trim()) {
+      toast.error('Nom et prénom sont obligatoires')
+      return
+    }
+    save({ lastName: form.lastName.trim(), firstName: form.firstName.trim() })
+  }
 
   return (
     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between bg-gradient-to-r from-white to-gray-50/50 p-4 lg:p-8 rounded-2xl shadow-lg border-0 space-y-4 lg:space-y-0">
@@ -36,9 +57,43 @@ export function MemberDetailsHeader({
           <span className="text-sm lg:text-base">Retour</span>
         </Button>
         <div className="space-y-1 lg:space-y-2">
-          <h1 className="text-xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent leading-tight" data-testid="member-details-title">
-            {member.displayName}
-          </h1>
+          {editing ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                value={form.lastName}
+                onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                placeholder="Nom"
+                className="h-9 w-full sm:w-44"
+                autoFocus
+              />
+              <Input
+                value={form.firstName}
+                onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                placeholder="Prénom"
+                className="h-9 w-full sm:w-44"
+              />
+              <InlineEditActions
+                editing={editing}
+                saving={saving}
+                onEdit={startEdit}
+                onSave={onSave}
+                onCancel={() => setEditing(false)}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent leading-tight" data-testid="member-details-title">
+                {member.displayName}
+              </h1>
+              <InlineEditActions
+                editing={editing}
+                saving={saving}
+                onEdit={startEdit}
+                onSave={onSave}
+                onCancel={() => setEditing(false)}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-2 text-gray-600">
             <Badge variant="outline" className="text-xs" data-testid="member-details-matricule">
               Matricule: {member.matricule}

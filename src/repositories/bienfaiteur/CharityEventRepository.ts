@@ -49,6 +49,43 @@ export class CharityEventRepository {
       const orderDirection = filters?.orderByDirection || 'desc'
       constraints.push(orderBy(orderField, orderDirection))
 
+      const hasSearch = !!(filters?.searchQuery && filters.searchQuery.trim().length > 0)
+
+      // ── Branche RECHERCHE ──────────────────────────────────────────────
+      // Firestore ne fait pas de recherche texte. Comme le filtre s'applique
+      // côté client, on ne peut pas laisser Firestore paginer avant (sinon on
+      // ne cherche que dans la page courante). On récupère donc tout le sous-
+      // ensemble (filtré par statut/date), on filtre par texte, puis on pagine
+      // en mémoire.
+      if (hasSearch) {
+        const searchQuery = filters!.searchQuery!.toLowerCase().trim()
+        const allSnap = await getDocs(query(collectionRef, ...constraints))
+        let all = allSnap.docs.map(d => this.mapDocToEvent(d.id, d.data()))
+
+        if (filters?.dateTo) {
+          const dateTo = filters.dateTo.getTime()
+          all = all.filter(event => event.endDate.getTime() <= dateTo)
+        }
+
+        all = all.filter(event =>
+          event.title.toLowerCase().includes(searchQuery) ||
+          event.description.toLowerCase().includes(searchQuery) ||
+          event.location.toLowerCase().includes(searchQuery)
+        )
+
+        const total = all.length
+        const start = (page - 1) * pageSize
+        const pageEvents = all.slice(start, start + pageSize)
+
+        return {
+          events: pageEvents,
+          total,
+          hasMore: start + pageSize < total,
+          lastDoc: null,
+        }
+      }
+
+      // ── Branche normale (pagination Firestore) ─────────────────────────
       // Récupérer le total (sans recherche pour le count)
       const countQuery = query(collectionRef, ...constraints)
       const countSnapshot = await getCountFromServer(countQuery)
@@ -72,18 +109,6 @@ export class CharityEventRepository {
       if (filters?.dateTo) {
         const dateTo = filters.dateTo.getTime()
         events = events.filter(event => event.endDate.getTime() <= dateTo)
-        total = events.length
-      }
-
-      // Filtre de recherche côté client (Firestore ne supporte pas bien les recherches textuelles)
-      if (filters?.searchQuery && filters.searchQuery.trim().length > 0) {
-        const searchQuery = filters.searchQuery.toLowerCase().trim()
-        events = events.filter(event => 
-          event.title.toLowerCase().includes(searchQuery) ||
-          event.description.toLowerCase().includes(searchQuery) ||
-          event.location.toLowerCase().includes(searchQuery)
-        )
-        // Ajuster le total après filtrage
         total = events.length
       }
 
