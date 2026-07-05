@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { VehicleInsurance, VehicleInsuranceListResult } from '@/types/types'
 import { Building2, Calendar, Car, Eye, MapPin, Pencil, Phone, RefreshCw, Trash2 } from 'lucide-react'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
+import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
 
 interface Props {
   data?: VehicleInsuranceListResult
@@ -164,6 +165,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                       <VehicleInsuranceBadge status={item.status} />
                     </TableCell>
                     <TableCell className="text-right space-x-2">
+                      <InsuranceWhatsAppReminderButton insurance={item} iconOnly />
                       <Button variant="ghost" size="icon" onClick={() => onView(item)}>
                         <Eye className="h-4 w-4" />
                       </Button>

@@ -42,10 +42,10 @@ export const vehicleInsuranceFormSchema = z.object({
   sponsorMatricule: z.string().optional().nullable(),
   sponsorContacts: z.array(z.string()).optional(),
   vehicleType: z.enum(['car', 'motorcycle', 'truck', 'bus', 'maison', 'other']),
-  vehicleBrand: z.string().min(1, 'La marque est requise'),
-  vehicleModel: z.string().min(1, 'Le modèle est requis'),
-  energySource: z.enum(['essence', 'diesel', 'electrique', 'hybride', 'gaz', 'autre']),
-  fiscalPower: z.string().min(1, 'La puissance fiscale est requise'),
+  vehicleBrand: z.string().optional(),
+  vehicleModel: z.string().optional(),
+  energySource: z.enum(['essence', 'diesel', 'electrique', 'hybride', 'gaz', 'autre']).optional(),
+  fiscalPower: z.string().optional(),
   vehicleYear: z
     .coerce.number({ message: "L'année doit être un nombre" })
     .int('Année invalide')
@@ -58,7 +58,7 @@ export const vehicleInsuranceFormSchema = z.object({
     .min(3, 'Plaque invalide')
     .regex(/[A-Za-z0-9-]+/, 'Format de plaque invalide'),
   insuranceCompany: z.string().min(1, "Le nom de l'assurance est requis"),
-  policyNumber: z.string().min(3, 'Numéro de police requis'),
+  policyNumber: z.string().optional(),
   warrantyMonths: z
     .coerce.number({ message: 'Durée invalide' })
     .int('La durée doit être un nombre entier')

@@ -6,6 +6,7 @@ import type { VehicleInsuranceStats } from '@/types/types'
 import { AlertTriangle, Ban, Car, Shield, TrendingUp, User, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
 
 interface Props {
   stats?: VehicleInsuranceStats
@@ -145,9 +146,12 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
                       {item.insuranceCompany} • {item.policyNumber}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-800">{item.endDate.toLocaleDateString('fr-FR')}</p>
-                    <p className="text-xs text-gray-500">Fin de validité</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-800">{item.endDate.toLocaleDateString('fr-FR')}</p>
+                      <p className="text-xs text-gray-500">Fin de validité</p>
+                    </div>
+                    <InsuranceWhatsAppReminderButton insurance={item} iconOnly />
                   </div>
                 </div>
               )

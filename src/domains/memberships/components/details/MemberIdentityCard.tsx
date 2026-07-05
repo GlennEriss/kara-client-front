@@ -33,8 +33,6 @@ const selectClass =
 export function MemberPersonalInfoCard({ member }: CardProps) {
   const { editing, setEditing, saving, save } = useMemberInlineEdit(member?.id || '')
   const [form, setForm] = useState({
-    lastName: '',
-    firstName: '',
     gender: '',
     nationality: '',
     hasCar: false,
@@ -48,8 +46,6 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
 
   const startEdit = () => {
     setForm({
-      lastName: member.lastName || '',
-      firstName: member.firstName || '',
       gender: member.gender || '',
       nationality: member.nationality || '',
       hasCar: !!member.hasCar,
@@ -65,13 +61,7 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
     setForm((f) => ({ ...f, [key]: value }))
 
   const onSave = () => {
-    if (!form.lastName.trim() || !form.firstName.trim()) {
-      toast.error('Nom et prénom sont obligatoires')
-      return
-    }
     save({
-      lastName: form.lastName.trim(),
-      firstName: form.firstName.trim(),
       gender: form.gender,
       nationality: form.nationality.trim(),
       hasCar: form.hasCar,
@@ -101,14 +91,6 @@ export function MemberPersonalInfoCard({ member }: CardProps) {
       <CardContent className="pt-0" data-testid="member-identity-card">
         {editing ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label className="text-xs text-gray-500">Nom</Label>
-              <Input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-gray-500">Prénom</Label>
-              <Input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
-            </div>
             <div className="space-y-1">
               <Label className="text-xs text-gray-500">Genre</Label>
               <select className={selectClass} value={form.gender} onChange={(e) => set('gender', e.target.value)}>

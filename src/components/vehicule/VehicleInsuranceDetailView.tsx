@@ -8,6 +8,7 @@ import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleIns
 import { useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
 import Link from 'next/link'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
+import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',
@@ -70,8 +71,9 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
           </h1>
           <p className="text-sm text-gray-500">Plaque {data.plateNumber}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <VehicleInsuranceBadge status={data.status} />
+          <InsuranceWhatsAppReminderButton insurance={data} />
           <Button variant="outline" asChild>
             <Link href={routes.admin.vehicules}>Retour à la liste</Link>
           </Button>
