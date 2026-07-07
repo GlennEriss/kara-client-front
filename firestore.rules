@@ -33,10 +33,10 @@ service cloud.firestore {
         request.auth.token.role == 'SuperAdmin' ||
         // Méthode 2 : tableau `roles` du document admins
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-         ('SuperAdmin' in get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []))) ||
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('roles', []).hasAny(['SuperAdmin'])) ||
         // Méthode 3 : tableau `roles` du document users
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         ('SuperAdmin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', [])))
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['SuperAdmin']))
       );
     }
     
@@ -568,8 +568,8 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
       );
 
-      // SUPPRESSION : Admin uniquement (PENDING, APPROVED, REJECTED — pas CONVERTED)
-      allow delete: if isAdmin() && resource.data.status in ['PENDING', 'APPROVED', 'REJECTED'];
+      // SUPPRESSION : Admin (PENDING, APPROVED, REJECTED — pas CONVERTED) ; le superAdmin peut supprimer quel que soit le statut
+      allow delete: if (isAdmin() && resource.data.status in ['PENDING', 'APPROVED', 'REJECTED']) || isSuperAdmin();
     }
     
     // ==========================================
@@ -896,8 +896,8 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
       );
 
-      // SUPPRESSION : Admin uniquement — seulement les demandes REJECTED
-      allow delete: if isAdmin() && resource.data.status == 'REJECTED';
+      // SUPPRESSION : Admin (demandes REJECTED uniquement) ; le superAdmin peut supprimer quel que soit le statut
+      allow delete: if (isAdmin() && resource.data.status == 'REJECTED') || isSuperAdmin();
     }
     
     // ============================================
@@ -1059,10 +1059,11 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
       );
 
-      // SUPPRESSION : Admin uniquement, seulement demandes PENDING sans contrat lié
-      allow delete: if isAdmin() &&
+      // SUPPRESSION : Admin (demandes PENDING sans contrat lié) ; le superAdmin peut supprimer quel que soit le statut
+      allow delete: if (isAdmin() &&
         resource.data.status == 'PENDING' &&
-        (!('contractId' in resource.data) || resource.data.get('contractId', null) == null);
+        (!('contractId' in resource.data) || resource.data.get('contractId', null) == null))
+        || isSuperAdmin();
     }
     
     // ==========================================

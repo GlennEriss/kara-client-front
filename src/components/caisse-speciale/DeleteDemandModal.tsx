@@ -81,6 +81,24 @@ export default function DeleteDemandModal({
             </AlertDescription>
           </Alert>
 
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-semibold text-amber-900">Éléments qui seront supprimés :</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
+              <li>La demande de caisse spéciale</li>
+              {demand.contractId ? (
+                <li>
+                  Le <strong>contrat lié</strong> et toutes ses données : versements et remboursements
+                </li>
+              ) : null}
+              <li>Les paiements de l&apos;historique rattachés à cette demande</li>
+            </ul>
+            {demand.contractId ? (
+              <p className="mt-2 text-xs font-medium text-red-700">
+                ⚠️ Cette demande a été convertie en contrat : le contrat et son historique financier seront effacés.
+              </p>
+            ) : null}
+          </div>
+
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
               Pour confirmer la suppression, collez exactement l&apos;ID suivant :

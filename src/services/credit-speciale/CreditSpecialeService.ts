@@ -15,6 +15,7 @@ import { IDocumentRepository } from "@/domains/infrastructure/documents/reposito
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
 import { getStorageInstance } from "@/firebase/storage";
 import { ref, deleteObject } from "@/firebase/storage";
+import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { EmergencyContact } from "@/schemas/emergency-contact.schema";
@@ -239,18 +240,59 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         });
     }
 
+    /** Supprime tous les documents d'une collection où `field == value`, par lots de 400. */
+    private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
+        const { db, collection, query, where, getDocs, writeBatch, doc } = await import("@/firebase/firestore");
+        const snap = await getDocs(query(collection(db, colName), where(field, "==", value)));
+        const ids = snap.docs.map((d) => d.id);
+        for (let i = 0; i < ids.length; i += 400) {
+            const batch = writeBatch(db);
+            for (const id of ids.slice(i, i + 400)) batch.delete(doc(db, colName, id));
+            await batch.commit();
+        }
+    }
+
+    /**
+     * Suppression EN CASCADE d'un contrat crédit et de TOUTES ses données liées
+     * (échéances, paiements, pénalités, rémunérations/paiements garant, documents +
+     * fichiers Storage), puis le contrat lui-même. Irréversible.
+     */
+    private async cascadeDeleteCreditContract(contractId: string): Promise<void> {
+        const C = firebaseCollectionNames;
+        await this.deleteAllWhere(C.creditInstallments || "creditInstallments", "contractId", contractId);
+        await this.deleteAllWhere(C.creditPayments || "creditPayments", "contractId", contractId);
+        await this.deleteAllWhere(C.creditPenalties || "creditPenalties", "contractId", contractId);
+        await this.deleteAllWhere(C.guarantorRemunerations || "guarantorRemunerations", "creditId", contractId);
+        await this.deleteAllWhere(C.guarantorPayments || "guarantorPayments", "creditId", contractId);
+
+        // Documents (+ fichiers Storage) — best effort
+        try {
+            const documents = await this.documentRepository.getDocumentsByContractId(contractId);
+            for (const d of documents) {
+                if (d.path) {
+                    try { await deleteObject(ref(getStorageInstance(), d.path)); } catch { /* non bloquant */ }
+                }
+                if (d.id) {
+                    try { await this.documentRepository.deleteDocument(d.id); } catch { /* non bloquant */ }
+                }
+            }
+        } catch { /* non bloquant */ }
+
+        // Le contrat lui-même
+        await this.creditContractRepository.deleteContract(contractId);
+    }
+
     async deleteDemand(demandId: string): Promise<void> {
         const demand = await this.creditDemandRepository.getDemandById(demandId);
         if (!demand) {
             throw new Error('Demande introuvable');
         }
 
-        // Si la demande est liée à un contrat, on détache la référence avant suppression.
+        // Cascade : si la demande a généré un contrat, on supprime le contrat et
+        // TOUTES ses données liées, puis la demande. (Réservé au superAdmin par les
+        // règles Firestore pour les demandes hors statut supprimable.)
         if (demand.contractId) {
-            await this.creditContractRepository.updateContract(demand.contractId, {
-                demandId: null as unknown as string,
-                updatedAt: new Date(),
-            } as unknown as Partial<Omit<CreditContract, 'id' | 'createdAt'>>);
+            await this.cascadeDeleteCreditContract(demand.contractId);
         }
 
         await this.creditDemandRepository.deleteDemand(demandId);
