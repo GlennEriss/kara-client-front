@@ -292,6 +292,16 @@ service cloud.firestore {
       // Écriture réservée aux SuperAdmins (via claim OU tableau `roles` du doc)
       allow write: if isSuperAdmin();
     }
+
+    // ==========================================
+    // BOUTIQUES (annuaire des commerces des membres)
+    // ==========================================
+    match /shops/{shopId} {
+      // Lecture par tout membre connecté (annuaire visible côté membre)
+      allow read: if isAuthenticated();
+      // Création / modification / suppression réservées aux admins
+      allow write: if isAdmin();
+    }
     
     // ==========================================
     // ABONNEMENTS (SUBSCRIPTIONS)

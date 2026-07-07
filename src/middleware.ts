@@ -29,6 +29,7 @@ const ADMIN_ROUTE_PREFIXES = [
     '/credit-speciale',
     '/caisse-imprevue',
     '/vehicules',
+    '/boutiques',
     '/bienfaiteur',
     '/placements',
     '/geographie',

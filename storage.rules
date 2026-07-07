@@ -14,7 +14,10 @@ service firebase.storage {
     function isAdmin() {
       return isAuthenticated() && (
         (request.auth.token.role != null &&
-         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur'])
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur']) ||
+        // Repli sur le document `admins` (robuste si le custom claim est absent,
+        // ex. après une migration d'UID).
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
       );
     }
     
@@ -419,9 +422,19 @@ service firebase.storage {
     }
 
     // ==========================================
+    // BOUTIQUES — PHOTOS / LOGOS
+    // ==========================================
+    // Photo d'une boutique de l'annuaire (créée par l'admin, visible par tous).
+    match /shops/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
-    
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
