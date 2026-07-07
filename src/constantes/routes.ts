@@ -75,6 +75,8 @@ const routes = {
         vehicules: '/vehicules',
         vehiculeDetails: (id: string) => `/vehicules/${id}`,
         vehiculeEdit: (id: string) => `/vehicules/${id}/edit`,
+        // Boutiques (annuaire des commerces des membres)
+        boutiques: '/boutiques',
         // Bienfaiteur
         bienfaiteur: '/bienfaiteur',
         bienfaiteurList: '/bienfaiteur',

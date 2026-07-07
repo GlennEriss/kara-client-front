@@ -53,6 +53,8 @@ export const firebaseCollectionNames = {
     payments: "payments",
     // Agents de recouvrement
     agentsRecouvrement: "agentsRecouvrement",
+    // Boutiques des membres (annuaire)
+    shops: "shops",
 }
 
 // Export également en majuscules pour compatibilité

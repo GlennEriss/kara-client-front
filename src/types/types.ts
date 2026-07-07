@@ -2761,3 +2761,58 @@ export interface AgentsStats {
   femmes: number
   anniversairesMois: number
 }
+
+/** Horaires d'un jour pour une boutique. */
+export interface ShopDayHours {
+  /** Libellé du jour (Lundi…Dimanche). */
+  day: string
+  /** Fermé ce jour-là. */
+  closed: boolean
+  /** Heure d'ouverture (HH:MM). */
+  open: string
+  /** Heure de fermeture (HH:MM). */
+  close: string
+}
+
+/**
+ * Boutique / commerce d'un membre (annuaire « Boutiques »).
+ * Créée et gérée par l'admin, consultable par tous les membres.
+ */
+export interface Shop {
+  id: string
+  name: string
+  /** Spécialité / catégorie (ex. Restauration, Couture, Électronique…). */
+  category: string
+  description?: string
+  // Propriétaire (membre lié) — dénormalisé pour l'affichage
+  ownerMemberId?: string
+  ownerName?: string
+  ownerMatricule?: string
+  // Contact
+  phone?: string
+  whatsapp?: string
+  email?: string
+  // Localisation (système géographique de l'app)
+  province?: string
+  city?: string
+  district?: string
+  address?: string
+  // Médias & horaires
+  photoURL?: string
+  photoPath?: string
+  /** Horaires structurés par jour (7 entrées Lundi→Dimanche). */
+  openingHours?: ShopDayHours[]
+  /** Visible dans l'annuaire membre si true. */
+  isActive: boolean
+  createdAt: Date
+  createdBy: string
+  updatedAt: Date
+  updatedBy?: string
+}
+
+export interface ShopFilters {
+  search?: string
+  category?: string
+  city?: string
+  isActive?: boolean
+}
