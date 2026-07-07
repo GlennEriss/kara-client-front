@@ -7,6 +7,7 @@
 
 import { DemandCIRepository } from '../repositories/DemandCIRepository'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { IContractCIRepository } from '@/repositories/caisse-imprevu/IContractCIRepository'
 import type { ContractCI } from '@/types/types'
 import type {
@@ -179,12 +180,56 @@ export class CaisseImprevueService {
   /**
    * Supprime une demande avec traçabilité
    */
+  /** Supprime tous les documents d'une sous-collection d'un contrat CI, par lots. */
+  private async deleteSubcollection(contractId: string, subName: string): Promise<void> {
+    const { db, collection, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
+    const col = firebaseCollectionNames.contractsCI || 'contractsCI'
+    const snap = await getDocs(collection(db, col, contractId, subName))
+    const ids = snap.docs.map((d) => d.id)
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = writeBatch(db)
+      for (const sid of ids.slice(i, i + 400)) batch.delete(doc(db, col, contractId, subName, sid))
+      await batch.commit()
+    }
+  }
+
+  /** Supprime tous les documents d'une collection où `field == value`, par lots. */
+  private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
+    const { db, collection, query, where, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
+    const snap = await getDocs(query(collection(db, colName), where(field, '==', value)))
+    const ids = snap.docs.map((d) => d.id)
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = writeBatch(db)
+      for (const id of ids.slice(i, i + 400)) batch.delete(doc(db, colName, id))
+      await batch.commit()
+    }
+  }
+
+  /**
+   * Suppression EN CASCADE d'un contrat CI et de ses sous-collections
+   * (payments, supports, earlyRefunds), puis le contrat. Irréversible.
+   */
+  private async cascadeDeleteContractCI(contractId: string): Promise<void> {
+    await this.deleteSubcollection(contractId, 'payments')
+    await this.deleteSubcollection(contractId, 'supports')
+    await this.deleteSubcollection(contractId, 'earlyRefunds')
+    await this.contractRepository.deleteContract(contractId)
+  }
+
   async deleteDemand(id: string, deletedBy: string): Promise<void> {
     // Vérifier que la demande existe
     const demand = await this.demandRepository.getById(id)
     if (!demand) {
       throw new Error('Demande non trouvée')
     }
+
+    // Cascade : contrat généré (+ sous-collections) et paiements centralisés liés,
+    // puis la demande. (Autorisé au superAdmin par les règles pour tout statut.)
+    if (demand.contractId) {
+      await this.cascadeDeleteContractCI(demand.contractId)
+    }
+    // Paiements centralisés (historique) rattachés à la demande (beneficiaryId == demandId)
+    await this.deleteAllWhere(firebaseCollectionNames.payments || 'payments', 'beneficiaryId', id)
 
     await this.demandRepository.delete(id, deletedBy)
   }

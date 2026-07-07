@@ -9,6 +9,7 @@ import { NotificationService } from "@/services/notifications/NotificationServic
 import { subscribe } from "@/services/caisse/mutations";
 import { generateAllDemandSearchableTexts } from "@/utils/demandSearchableText";
 import { getActiveSettings } from "@/db/caisse/settings.db";
+import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 
 export class CaisseSpecialeService implements ICaisseSpecialeService {
     readonly name = "CaisseSpecialeService";
@@ -484,14 +485,55 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         };
     }
 
+    /** Supprime tous les docs d'une sous-collection d'un contrat CS, par lots. */
+    private async deleteSubcollection(contractId: string, subName: string): Promise<void> {
+        const { db, collection, getDocs, writeBatch, doc } = await import("@/firebase/firestore");
+        const col = firebaseCollectionNames.caisseContracts || "caisseContracts";
+        const snap = await getDocs(collection(db, col, contractId, subName));
+        const ids = snap.docs.map((d) => d.id);
+        for (let i = 0; i < ids.length; i += 400) {
+            const batch = writeBatch(db);
+            for (const sid of ids.slice(i, i + 400)) batch.delete(doc(db, col, contractId, subName, sid));
+            await batch.commit();
+        }
+    }
+
+    /** Supprime tous les docs d'une collection où `field == value`, par lots. */
+    private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
+        const { db, collection, query, where, getDocs, writeBatch, doc } = await import("@/firebase/firestore");
+        const snap = await getDocs(query(collection(db, colName), where(field, "==", value)));
+        const ids = snap.docs.map((d) => d.id);
+        for (let i = 0; i < ids.length; i += 400) {
+            const batch = writeBatch(db);
+            for (const id of ids.slice(i, i + 400)) batch.delete(doc(db, colName, id));
+            await batch.commit();
+        }
+    }
+
+    /**
+     * Suppression EN CASCADE d'un contrat CS et de ses sous-collections
+     * (payments, refunds), puis le contrat. Irréversible.
+     */
+    private async cascadeDeleteCaisseContract(contractId: string): Promise<void> {
+        await this.deleteSubcollection(contractId, "payments");
+        await this.deleteSubcollection(contractId, "refunds");
+        const { db, doc, deleteDoc } = await import("@/firebase/firestore");
+        await deleteDoc(doc(db, firebaseCollectionNames.caisseContracts || "caisseContracts", contractId));
+    }
+
     async deleteDemand(demandId: string): Promise<void> {
         const demand = await this.getDemandById(demandId);
         if (!demand) {
             throw new Error('Demande introuvable');
         }
-        if (demand.status === 'CONVERTED' && demand.contractId) {
-            throw new Error('Impossible de supprimer une demande déjà convertie en contrat');
+        // Cascade : si la demande a été convertie, on supprime le contrat lié et ses
+        // sous-collections, puis la demande. (Autorisé au superAdmin par les règles.)
+        if (demand.contractId) {
+            await this.cascadeDeleteCaisseContract(demand.contractId);
         }
+        // Paiements centralisés (historique) rattachés à la demande
+        await this.deleteAllWhere(firebaseCollectionNames.payments || "payments", "beneficiaryId", demandId);
+
         await this.caisseSpecialeDemandRepository.deleteDemand(demandId);
     }
 

@@ -90,9 +90,19 @@ export function DeleteDemandModalV2({
         <div className="py-2 sm:py-4">
           <div className="rounded-lg bg-red-50 p-3 sm:p-4 border border-red-200">
             <p className="text-xs sm:text-sm text-red-800">
-              <strong>Attention :</strong> La suppression enregistrera la traçabilité (deletedBy, deletedAt) avant
-              de supprimer définitivement la demande de la base de données.
+              <strong>Attention :</strong> suppression définitive et irréversible.
             </p>
+          </div>
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-semibold text-amber-900">Éléments qui seront supprimés :</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
+              <li>La demande de caisse imprévue</li>
+              <li>Les paiements de l&apos;historique rattachés à cette demande</li>
+              <li>
+                <strong>Si la demande a été convertie en contrat</strong> : le contrat lié et ses
+                sous-collections (paiements, supports, remboursements anticipés) seront aussi effacés
+              </li>
+            </ul>
           </div>
           <div className="mt-4 space-y-2">
             <Label htmlFor="confirm-demand-id-v2" className="text-sm font-semibold text-gray-900">
