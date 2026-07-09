@@ -38,6 +38,7 @@ import ExportMembershipModal from '@/components/memberships/ExportMembershipModa
 import { GenererIdentifiantModal } from '@/domains/memberships/components/modals'
 import { UploadMemberAdhesionPdfModal } from '@/domains/memberships/components/modals/UploadMemberAdhesionPdfModal'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { downloadFile } from '@/utils/downloadFile'
 
 type ViewMode = 'grid' | 'list'
 
@@ -417,8 +418,8 @@ export function MembershipsListPage() {
             <div className="flex gap-2">
               <Button onClick={() => { if (previewUrl) window.open(previewUrl, '_blank', 'noopener,noreferrer') }} className="bg-[#234D65] hover:bg-[#234D65] text-white">Ouvrir</Button>
               {previewUrl && (
-                <Button variant="outline" asChild>
-                  <a href={previewUrl} download>Télécharger</a>
+                <Button variant="outline" onClick={() => downloadFile(previewUrl, 'fiche_adhesion.pdf')}>
+                  Télécharger
                 </Button>
               )}
             </div>

@@ -37,7 +37,9 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
+import { downloadFile } from '@/utils/downloadFile'
 
 // Labels pour les types de documents
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
@@ -249,7 +251,11 @@ export default function ContractsHistoryPage() {
 
   // Fonction pour télécharger un document
   const handleDownload = (document: Document) => {
-    window.open(document.url, '_blank')
+    const filename = document.originalFileName || document.libelle || `${document.type}.pdf` || 'document.pdf'
+    const success = downloadFile(document.url, filename)
+    if (!success) {
+      toast.error('URL du document non disponible')
+    }
   }
 
   // Exporter Excel

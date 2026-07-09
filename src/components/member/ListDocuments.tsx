@@ -17,6 +17,7 @@ import {
 } from '@/domains/infrastructure/documents/utils/documentTypes'
 import { cn } from '@/lib/utils'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
+import { downloadFile } from '@/utils/downloadFile'
 import { Eye, FileText, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DocumentPreviewModal } from './DocumentPreviewModal'
@@ -214,14 +215,16 @@ export default function ListDocuments({ memberId }: ListDocumentsProps) {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3">
-                        <a
-                          href={document.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => downloadFile(
+                            document.url,
+                            `${document.libelle || 'document'}${document.format ? `.${document.format}` : ''}`
+                          )}
                           className="text-sm font-medium text-[#1b3a4e] hover:text-[#10222f] hover:underline"
                         >
                           Télécharger
-                        </a>
+                        </button>
 
                         {document.format === 'pdf' && document.url && (
                           <Button

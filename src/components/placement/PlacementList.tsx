@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { DOCUMENT_TYPE_OPTIONS } from '@/domains/infrastructure/documents/constants/document-types'
@@ -24,7 +26,7 @@ import type { CommissionPaymentPlacement, CommissionStatus, PayoutMode, Placemen
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
-import { AlertCircle, AlertTriangle, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, DollarSign, Eye, FileDown, FileSpreadsheet, FileText, IdCard, Loader2, Phone, Plus, Receipt, RefreshCw, Search, TrendingUp, Upload, User as UserIcon, Users, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Calendar, CheckCircle, ChevronDown, Clock, DollarSign, Download, Eye, FileDown, FileSpreadsheet, FileText, IdCard, Loader2, Phone, PiggyBank, Plus, Receipt, RefreshCw, Search, TrendingUp, Upload, User as UserIcon, Users, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -644,7 +646,7 @@ export default function PlacementList() {
         value: stats.total,
         subtitle: 'Tous les placements',
         percentage: 100,
-        color: '#6366f1',
+        color: '#234D65',
         icon: FileText,
       },
       {
@@ -656,7 +658,7 @@ export default function PlacementList() {
         }).format(stats.totalAmount),
         subtitle: 'Total engagé (FCFA)',
         percentage: 100,
-        color: '#0ea5e9',
+        color: '#CBB171',
         icon: DollarSign,
       },
       {
@@ -766,26 +768,6 @@ export default function PlacementList() {
   // #endregion
 
   const topBenefactors = useMemo(() => placementStats?.topBenefactors || [], [placementStats])
-
-  const [itemsPerView, setItemsPerView] = useState(1)
-  const [carouselIndex, setCarouselIndex] = useState(0)
-
-  const maxIndex = Math.max(0, statsItems.length - itemsPerView)
-  const goPrev = () => setCarouselIndex((i) => Math.max(0, i - 1))
-  const goNext = () => setCarouselIndex((i) => Math.min(maxIndex, i + 1))
-
-  React.useEffect(() => {
-    const update = () => {
-      const w = window.innerWidth
-      if (w >= 1280) setItemsPerView(4)
-      else if (w >= 1024) setItemsPerView(3)
-      else if (w >= 768) setItemsPerView(2)
-      else setItemsPerView(1)
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
 
   const handleFiltersChange = (newFilters: PlacementFilters) => {
     setFilters(newFilters)
@@ -966,158 +948,118 @@ export default function PlacementList() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        {/* En-tête */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-              Placements
-            </h1>
-            <p className="text-gray-600 text-base md:text-lg mt-1">
-              Gestion des placements et suivi des bienfaiteurs
-            </p>
-            <p className="text-sm text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
-              <span>{filteredByTab.length} résultat(s) affiché(s) / {placements.length} au total</span>
-              <span className="text-gray-300">|</span>
-              <Link
-                href={routes.admin.placementDemandes}
-                className="text-[#234D65] hover:underline font-medium"
-              >
-                Voir les demandes de placement
-              </Link>
-            </p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={exportPDF} className="bg-white hover:bg-gray-50 shadow-sm">
-              <FileDown className="h-4 w-4 mr-2" /> Placements PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportCSV} className="bg-white hover:bg-gray-50 shadow-sm">
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Placements Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportBenefactorsPDF} className="bg-white hover:bg-gray-50 shadow-sm">
-              <FileDown className="h-4 w-4 mr-2" /> Bienfaiteurs PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportBenefactorsCSV} className="bg-white hover:bg-gray-50 shadow-sm">
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Bienfaiteurs Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportReceiptsCSV} className="bg-white hover:bg-gray-50 shadow-sm">
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Reçus Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportReceiptsPDF} className="bg-white hover:bg-gray-50 shadow-sm">
-              <FileDown className="h-4 w-4 mr-2" /> Reçus PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="bg-white hover:bg-gray-50 shadow-sm">
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => {
-                setEditingPlacementId(null)
-                editingPlacementIdRef.current = null
-                setIsCreateOpen(true)
-              }} 
-              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#1a3a4d] hover:to-[#234D65] text-white shadow-md hover:shadow-lg transition-all" 
-              disabled={!user?.uid || authLoading}
-            >
-              <Plus className="h-4 w-4 mr-2" /> Nouveau Placement
-            </Button>
-          </div>
-        </div>
+    <div className="space-y-6 md:space-y-8">
+        {/* Barre d'actions - design aligné avec caisse imprévue */}
+        <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+          <CardContent className="p-4 md:p-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+                  <PiggyBank className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-xl font-black text-transparent md:text-2xl">
+                    Liste des placements
+                  </h2>
+                  <p className="font-medium text-gray-600">
+                    {filteredByTab.length.toLocaleString()} résultat{filteredByTab.length !== 1 ? 's' : ''} / {placements.length.toLocaleString()} au total
+                    <span className="mx-2 text-gray-300">•</span>
+                    <Link href={routes.admin.placementDemandes} className="font-semibold text-[#234D65] hover:underline">
+                      Voir les demandes
+                    </Link>
+                  </p>
+                </div>
+              </div>
 
-        {/* Statistiques avec carousel */}
-        <div className="relative">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Statistiques</h2>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={goPrev} 
-                disabled={carouselIndex === 0}
-                className="h-8 w-8 rounded-full bg-white shadow-sm hover:shadow-md transition-all disabled:opacity-30"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={goNext} 
-                disabled={carouselIndex === maxIndex}
-                className="h-8 w-8 rounded-full bg-white shadow-sm hover:shadow-md transition-all disabled:opacity-30"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="overflow-hidden">
-              <div
-                className="flex gap-4 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${(carouselIndex * 100) / itemsPerView}%)` }}
-              >
-                {statsItems.map((item, idx) => {
-                  const pieData = [
-                    { name: 'value', value: item.percentage, fill: item.color },
-                    { name: 'remaining', value: 100 - item.percentage, fill: '#f3f4f6' }
-                  ]
-                  return (
-                    <div key={idx} className="min-w-0 w-full md:w-1/2 lg:w-1/3 xl:w-1/4 flex-shrink-0">
-                      <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3 flex-1">
-                              <div 
-                                className="p-3 rounded-xl transition-transform duration-300 group-hover:scale-110 shadow-sm" 
-                                style={{ backgroundColor: `${item.color}15`, color: item.color }}
-                              >
-                                <item.icon className="w-6 h-6" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{item.title}</p>
-                                <div className="flex items-baseline gap-2">
-                                  <p className="text-3xl font-black text-gray-900 truncate">{item.value}</p>
-                                  {item.percentage < 100 && (
-                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-gray-100 to-gray-50 text-gray-600 shadow-sm">
-                                      <TrendingUp className="w-3 h-3" />
-                                      {Math.round(item.percentage)}%
-                                    </div>
-                                  )}
-                                </div>
-                                {item.subtitle && (
-                                  <p className="text-xs text-gray-500 mt-1.5 font-medium">{item.subtitle}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="w-16 h-16 ml-2 flex-shrink-0">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                  <Pie
-                                    data={pieData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={22}
-                                    outerRadius={30}
-                                    dataKey="value"
-                                    strokeWidth={0}
-                                    animationBegin={0}
-                                    animationDuration={800}
-                                  >
-                                    {pieData.map((entry, i) => (
-                                      <Cell key={`cell-${i}`} fill={entry.fill} />
-                                    ))}
-                                  </Pie>
-                                </PieChart>
-                              </ResponsiveContainer>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )
-                })}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={isLoading}
+                  className="h-10 w-full cursor-pointer rounded-xl border-2 border-[#234D65]/40 bg-white px-4 text-[#234D65] transition-all duration-200 hover:bg-[#234D65] hover:text-white disabled:opacity-50 sm:w-auto"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-full cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50 sm:w-auto"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Exporter
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[200px]">
+                    <DropdownMenuLabel>Placements</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={exportPDF} className="cursor-pointer">
+                      <FileDown className="mr-2 h-4 w-4 text-rose-700" /> Placements PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportCSV} className="cursor-pointer">
+                      <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-700" /> Placements Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Bienfaiteurs</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={exportBenefactorsPDF} className="cursor-pointer">
+                      <FileDown className="mr-2 h-4 w-4 text-rose-700" /> Bienfaiteurs PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportBenefactorsCSV} className="cursor-pointer">
+                      <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-700" /> Bienfaiteurs Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Reçus</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={exportReceiptsPDF} className="cursor-pointer">
+                      <FileDown className="mr-2 h-4 w-4 text-rose-700" /> Reçus PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportReceiptsCSV} className="cursor-pointer">
+                      <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-700" /> Reçus Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingPlacementId(null)
+                    editingPlacementIdRef.current = null
+                    setIsCreateOpen(true)
+                  }}
+                  className="h-10 w-full cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md disabled:opacity-50 sm:w-auto"
+                  disabled={!user?.uid || authLoading}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Nouveau Placement
+                </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Statistiques compactes - alignées avec caisse imprévue */}
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Statistiques</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+            {statsItems.map((item, idx) => (
+              <div
+                key={idx}
+                className="group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200"
+              >
+                <div
+                  className="p-1.5 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110"
+                  style={{ backgroundColor: `${item.color}15`, color: item.color }}
+                >
+                  <item.icon className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 truncate">{item.title}</p>
+                  <p className="text-sm font-black text-gray-900 tabular-nums truncate">{item.value}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1258,8 +1200,25 @@ export default function PlacementList() {
                 <AlertDescription>Erreur lors du chargement des placements</AlertDescription>
               </Alert>
             ) : isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[#234D65]" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-4">
+                        <Skeleton className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-4 w-3/4 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full" />
+                          <Skeleton className="h-3 w-1/2 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full" />
+                          <Skeleton className="h-3 w-2/3 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <Skeleton className="h-3 w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-full" />
+                        <Skeleton className="h-3 w-3/4 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : filteredByTab.length === 0 ? (
               <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-md">
@@ -1311,7 +1270,6 @@ export default function PlacementList() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
 
       {/* Modal suppression placement */}
       <Dialog open={!!deletePlacementId} onOpenChange={(open) => !open && setDeletePlacementId(null)}>

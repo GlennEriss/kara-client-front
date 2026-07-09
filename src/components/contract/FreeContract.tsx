@@ -14,6 +14,7 @@ import { useMember } from '@/hooks/useMembers'
 import { approveRefund, cancelEarlyRefund, markRefundPaid, pay, requestEarlyRefund, requestFinalRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import type { PaymentMode, RefundDocument } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
+import { downloadFile } from '@/utils/downloadFile'
 import {
     AlertTriangle,
     ArrowLeft,
@@ -84,6 +85,17 @@ export default function FreeContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
   const { data: member } = useMember((data as any)?.memberId)
+
+  /** Télécharge un document de remboursement lié au contrat via le proxy `/api/download`. */
+  const downloadRefundDocument = (url: string | undefined, label: string) => {
+    const last = String(member?.lastName ?? '').toUpperCase().replace(/\s+/g, '_')
+    const first = String(member?.firstName ?? '').toUpperCase().replace(/\s+/g, '_')
+    const base = last || first ? `${last}_${first}` : `CONTRAT_${id}`
+    const filename = `${base}_${label}.pdf`
+    if (!downloadFile(url, filename)) {
+      toast.error('URL du document non disponible')
+    }
+  }
 
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -913,7 +925,7 @@ export default function FreeContract({ id }: Props) {
                           <div className="flex items-center gap-2 text-sm">
                             <span className="text-gray-600">Document téléversé:</span>
                             {finalDocumentUrl ? (
-                              <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                              <button type="button" onClick={() => downloadRefundDocument(finalDocumentUrl, 'DOCUMENT_REMBOURSEMENT')} className="text-indigo-600 hover:underline font-medium">Télécharger</button>
                             ) : (
                               <span className="text-xs text-gray-500">Indisponible</span>
                             )}
@@ -921,7 +933,7 @@ export default function FreeContract({ id }: Props) {
                           <div className="flex items-center gap-2 text-sm">
                             <span className="text-gray-600">Preuve téléversée:</span>
                             {finalProofUrl ? (
-                              <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                              <button type="button" onClick={() => downloadRefundDocument(finalProofUrl, 'PREUVE_REMBOURSEMENT')} className="text-indigo-600 hover:underline font-medium">Télécharger</button>
                             ) : (
                               <span className="text-xs text-gray-500">Indisponible</span>
                             )}

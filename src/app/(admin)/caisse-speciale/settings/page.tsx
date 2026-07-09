@@ -1,5 +1,6 @@
 "use client"
 
+import { PageHero } from '@/components/ui/page-hero'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveCaisseSettings, useCaisseSettingsList, useCaisseSettingsMutations } from '@/hooks/useCaisseSettings'
 import { AlertTriangle, Calendar, Check, DollarSign, Download, Edit3, Loader2, Plus, Power, Settings, Trash2, TrendingUp, X } from 'lucide-react'
@@ -234,35 +235,33 @@ export default function AdminCaisseSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent break-words">
-              Paramètres Caisse Spéciale
-            </h1>
-            <p className="text-gray-600 text-sm sm:text-base lg:text-lg mt-1 break-words">Configurez les bonus et pénalités par type de caisse</p>
-          </div>
-          <button
-            onClick={exportToExcel}
-            disabled={isExporting || list.isLoading || !list.data || list.data.length === 0}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base shrink-0"
-          >
-            {isExporting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="hidden sm:inline">Exportation en cours...</span>
-                <span className="sm:hidden">Export...</span>
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Exporter Excel</span>
-                <span className="sm:hidden">Excel</span>
-              </>
-            )}
-          </button>
-        </div>
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 p-4 md:p-6 overflow-x-hidden">
+        <PageHero
+          icon={Settings}
+          title="Paramètres Caisse Spéciale"
+          subtitle="Configurez les bonus et pénalités par type de caisse"
+          rightSlot={(
+            <button
+              onClick={exportToExcel}
+              disabled={isExporting || list.isLoading || !list.data || list.data.length === 0}
+              className="bg-white text-[#234D65] font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl hover:bg-white/90 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base shrink-0"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="hidden sm:inline">Exportation en cours...</span>
+                  <span className="sm:hidden">Export...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Exporter Excel</span>
+                  <span className="sm:hidden">Excel</span>
+                </>
+              )}
+            </button>
+          )}
+        />
 
         {/* Information sur l'activation */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 sm:p-4">
@@ -760,6 +759,5 @@ export default function AdminCaisseSettingsPage() {
           </div>
         )}
       </div>
-    </div>
   )
 }

@@ -8,12 +8,32 @@ import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/
 import { generateWhatsAppUrl, resolveWhatsappNumber } from '@/domains/memberships/utils/whatsappUrl'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { AlertTriangle, Building2, Calendar, Download, MessageCircle, Phone, RefreshCw, User } from 'lucide-react'
+import { AlertTriangle, Building2, Calendar, ChevronDown, ChevronRight, Download, MessageCircle, Phone, RefreshCw, User } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 interface OverdueCaissePaymentsListProps {
   /** Produit (caisse) dont on affiche les retards */
   product: OverdueProduct
+}
+
+/** Retardataire regroupé : une personne (ou un groupe) et l'ensemble de ses versements en retard. */
+interface OverdueGroup {
+  personKey: string
+  matricule?: string
+  name: string
+  isGroup: boolean
+  phone?: string
+  whatsappNumber?: string
+  product: OverdueProduct
+  /** Versements en retard, triés du plus ancien au plus récent. */
+  payments: OverduePayment[]
+  count: number
+  totalAmount: number
+  maxDaysOverdue: number
+  earliestDueAt: Date
+  /** Libellés de type distincts (souvent un seul). */
+  typeLabels: string[]
 }
 
 function slugify(product: OverdueProduct): string {
@@ -26,15 +46,89 @@ function fmtAmount(n: number): string {
   return n.toLocaleString('fr-FR').replace(/\s/g, ' ')
 }
 
+/** Clé d'identité d'un retardataire : le matricule si disponible, sinon le nom (+ type). */
+function personKeyOf(item: OverduePayment): string {
+  const mat = item.matricule?.trim()
+  if (mat) return `mat:${mat}`
+  return `${item.isGroup ? 'g' : 'm'}:${item.name.trim().toLowerCase()}`
+}
+
+/** Regroupe les versements en retard par personne/groupe. */
+function groupOverdue(items: OverduePayment[]): OverdueGroup[] {
+  const map = new Map<string, OverdueGroup>()
+
+  for (const item of items) {
+    const key = personKeyOf(item)
+    const existing = map.get(key)
+    if (existing) {
+      existing.payments.push(item)
+      existing.count += 1
+      existing.totalAmount += item.amount || 0
+      existing.maxDaysOverdue = Math.max(existing.maxDaysOverdue, item.daysOverdue)
+      if (item.dueAt < existing.earliestDueAt) existing.earliestDueAt = item.dueAt
+      if (!existing.typeLabels.includes(item.typeLabel)) existing.typeLabels.push(item.typeLabel)
+      // Compléter les infos de contact si elles manquaient sur le premier versement.
+      if (!existing.phone && item.phone) existing.phone = item.phone
+      if (!existing.whatsappNumber && item.whatsappNumber) existing.whatsappNumber = item.whatsappNumber
+      if (!existing.matricule && item.matricule) existing.matricule = item.matricule
+    } else {
+      map.set(key, {
+        personKey: key,
+        matricule: item.matricule,
+        name: item.name,
+        isGroup: item.isGroup,
+        phone: item.phone,
+        whatsappNumber: item.whatsappNumber,
+        product: item.product,
+        payments: [item],
+        count: 1,
+        totalAmount: item.amount || 0,
+        maxDaysOverdue: item.daysOverdue,
+        earliestDueAt: item.dueAt,
+        typeLabels: [item.typeLabel],
+      })
+    }
+  }
+
+  const groups = Array.from(map.values())
+  // Tri des versements internes du plus ancien au plus récent.
+  for (const g of groups) {
+    g.payments.sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+  }
+  // Les plus urgents (retard le plus élevé) en premier.
+  groups.sort((a, b) => b.maxDaysOverdue - a.maxDaysOverdue)
+  return groups
+}
+
 /** Message de rappel de paiement amical envoyé via WhatsApp au retardataire. */
-function buildReminderMessage(item: OverduePayment): string {
-  const name = item.name?.trim() || 'cher membre'
-  const due = format(item.dueAt, 'dd/MM/yyyy', { locale: fr })
+function buildReminderMessage(group: OverdueGroup): string {
+  const name = group.name?.trim() || 'cher membre'
+
+  if (group.count === 1) {
+    const p = group.payments[0]
+    const due = format(p.dueAt, 'dd/MM/yyyy', { locale: fr })
+    return `Bonjour ${name},
+
+Petit rappel amical de la part de la famille KARA 🙏
+
+Un versement ${p.typeLabel} de ${fmtAmount(p.amount)} FCFA pour ta ${group.product} est en retard depuis le ${due} (${p.daysOverdue} jour${p.daysOverdue > 1 ? 's' : ''}).
+
+Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
+
+— L'équipe KARA`
+  }
+
+  const earliest = format(group.earliestDueAt, 'dd/MM/yyyy', { locale: fr })
+  const detail = group.payments
+    .map((p) => `• ${p.typeLabel} — ${fmtAmount(p.amount)} FCFA (échéance du ${format(p.dueAt, 'dd/MM/yyyy', { locale: fr })})`)
+    .join('\n')
+
   return `Bonjour ${name},
 
 Petit rappel amical de la part de la famille KARA 🙏
 
-Un versement ${item.typeLabel} de ${fmtAmount(item.amount)} FCFA pour ta ${item.product} est en retard depuis le ${due} (${item.daysOverdue} jour${item.daysOverdue > 1 ? 's' : ''}).
+Tu as ${group.count} versements en retard pour ta ${group.product}, pour un total de ${fmtAmount(group.totalAmount)} FCFA (le plus ancien depuis le ${earliest}, soit ${group.maxDaysOverdue} jour${group.maxDaysOverdue > 1 ? 's' : ''}) :
+${detail}
 
 Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
 
@@ -44,10 +138,21 @@ Merci de bien vouloir régulariser dès que possible. Pour toute question, nous 
 export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsListProps) {
   const { data: items = [], isLoading, isError, refetch, isFetching } = useOverduePayments([product])
 
+  const groups = useMemo(() => groupOverdue(items), [items])
   const totalAmount = items.reduce((sum, i) => sum + (i.amount || 0), 0)
 
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const toggleExpanded = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const handleExportExcel = async () => {
-    if (items.length === 0) {
+    if (groups.length === 0) {
       toast.info('Aucun versement en retard à exporter')
       return
     }
@@ -55,32 +160,51 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       const XLSX = await import('xlsx')
 
       const title = `Versements en retard — ${product}`
-      const meta = `Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}  •  ${items.length} versement(s)  •  Total dû : ${fmtAmount(totalAmount)} FCFA`
-      const header = ['Matricule', 'Membre / Groupe', 'Téléphone', 'Type', 'Montant dû (FCFA)', 'Échéance', 'Retard (jours)']
-      const dataRows = items.map((i) => [
-        i.matricule || '—',
-        i.name,
-        i.phone || '',
-        i.typeLabel,
-        i.amount, // nombre : Excel le formate et permet les totaux
-        format(i.dueAt, 'dd/MM/yyyy', { locale: fr }),
-        i.daysOverdue,
+      const meta = `Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}  •  ${groups.length} retardataire(s)  •  ${items.length} versement(s)  •  Total dû : ${fmtAmount(totalAmount)} FCFA`
+      const header = ['Matricule', 'Membre / Groupe', 'Téléphone', 'Nb retards', 'Montant total dû (FCFA)', 'Échéance la plus ancienne', 'Retard max (jours)']
+      const dataRows = groups.map((g) => [
+        g.matricule || '—',
+        g.name,
+        g.phone || '',
+        g.count,
+        g.totalAmount, // nombre : Excel le formate et permet les totaux
+        format(g.earliestDueAt, 'dd/MM/yyyy', { locale: fr }),
+        g.maxDaysOverdue,
       ])
 
-      const aoa: (string | number)[][] = [[title], [meta], [], header, ...dataRows]
+      // Ligne total en bas de la synthèse.
+      const totalRow: (string | number)[] = ['', 'TOTAL', '', items.length, totalAmount, '', '']
+      const aoa: (string | number)[][] = [[title], [meta], [], header, ...dataRows, [], totalRow]
       const worksheet = XLSX.utils.aoa_to_sheet(aoa)
 
       // Largeurs de colonnes + fusion du titre/méta sur toute la largeur
       worksheet['!cols'] = [
-        { wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 14 },
+        { wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 11 }, { wch: 20 }, { wch: 20 }, { wch: 16 },
       ]
       worksheet['!merges'] = [
         { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
         { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
       ]
 
+      // Feuille "Détail" : un versement en retard par ligne (rapprochement comptable).
+      const detailHeader = ['Matricule', 'Membre / Groupe', 'Téléphone', 'Type', 'Montant dû (FCFA)', 'Échéance', 'Retard (jours)']
+      const detailRows = items.map((i) => [
+        i.matricule || '—',
+        i.name,
+        i.phone || '',
+        i.typeLabel,
+        i.amount,
+        format(i.dueAt, 'dd/MM/yyyy', { locale: fr }),
+        i.daysOverdue,
+      ])
+      const detailSheet = XLSX.utils.aoa_to_sheet([detailHeader, ...detailRows])
+      detailSheet['!cols'] = [
+        { wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 14 },
+      ]
+
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Retards')
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Synthèse')
+      XLSX.utils.book_append_sheet(workbook, detailSheet, 'Détail')
       XLSX.writeFile(workbook, `versements_en_retard_${slugify(product)}.xlsx`)
       toast.success('Export Excel généré')
     } catch (error) {
@@ -90,7 +214,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   }
 
   const handleExportPdf = async () => {
-    if (items.length === 0) {
+    if (groups.length === 0) {
       toast.info('Aucun versement en retard à exporter')
       return
     }
@@ -102,22 +226,24 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       doc.setFontSize(16)
       doc.text(`Versements en retard — ${product}`, 14, 14)
       doc.setFontSize(10)
-      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })} • ${items.length} versement(s)`, 14, 20)
+      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })} • ${groups.length} retardataire(s) • ${items.length} versement(s)`, 14, 20)
 
       autoTable(doc, {
-        head: [['Matricule', 'Membre / Groupe', 'Téléphone', 'Type', 'Montant dû (FCFA)', 'Échéance', 'Retard (j)']],
-        body: items.map((i) => [
-          i.matricule || '—',
-          i.name,
-          i.phone || '—',
-          i.typeLabel,
-          fmtAmount(i.amount),
-          format(i.dueAt, 'dd/MM/yyyy', { locale: fr }),
-          i.daysOverdue.toString(),
+        head: [['Matricule', 'Membre / Groupe', 'Téléphone', 'Nb retards', 'Montant total dû (FCFA)', 'Échéance la + ancienne', 'Retard max (j)']],
+        body: groups.map((g) => [
+          g.matricule || '—',
+          g.name,
+          g.phone || '—',
+          g.count.toString(),
+          fmtAmount(g.totalAmount),
+          format(g.earliestDueAt, 'dd/MM/yyyy', { locale: fr }),
+          g.maxDaysOverdue.toString(),
         ]),
+        foot: [['', 'TOTAL', '', items.length.toString(), fmtAmount(totalAmount), '', '']],
         startY: 26,
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 247, 250] },
       })
 
@@ -129,14 +255,14 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
     }
   }
 
-  const handleSendWhatsApp = (item: OverduePayment) => {
-    const whatsapp = resolveWhatsappNumber(item.whatsappNumber, [item.phone])
+  const handleSendWhatsApp = (group: OverdueGroup) => {
+    const whatsapp = resolveWhatsappNumber(group.whatsappNumber, [group.phone])
     if (!whatsapp) {
       toast.error('Aucun numéro de téléphone enregistré.')
       return
     }
     try {
-      const url = generateWhatsAppUrl(whatsapp, buildReminderMessage(item))
+      const url = generateWhatsAppUrl(whatsapp, buildReminderMessage(group))
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       toast.error('Numéro de téléphone invalide.')
@@ -152,7 +278,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
           <h3 className="text-base font-semibold text-gray-900">Versements en retard</h3>
           {!isLoading && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-              {items.length}
+              {groups.length} retardataire{groups.length !== 1 ? 's' : ''}
             </span>
           )}
         </div>
@@ -161,11 +287,11 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
             Actualiser
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={items.length === 0}>
+          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={groups.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Excel
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={items.length === 0}>
+          <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={groups.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
@@ -173,10 +299,11 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       </div>
 
       {/* Total dû */}
-      {!isLoading && items.length > 0 && (
+      {!isLoading && groups.length > 0 && (
         <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm">
           <span className="text-gray-600">Total dû en retard : </span>
           <span className="font-bold text-red-700 tabular-nums">{totalAmount.toLocaleString('fr-FR')} FCFA</span>
+          <span className="text-gray-500"> • {items.length} versement{items.length !== 1 ? 's' : ''} sur {groups.length} retardataire{groups.length !== 1 ? 's' : ''}</span>
         </div>
       )}
 
@@ -187,13 +314,14 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
+                  <TableHead className="w-8" />
                   <TableHead>Matricule</TableHead>
                   <TableHead>Membre / Groupe</TableHead>
                   <TableHead>Téléphone</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Montant dû</TableHead>
-                  <TableHead>Échéance</TableHead>
-                  <TableHead className="text-right">Retard</TableHead>
+                  <TableHead className="text-center">Retards</TableHead>
+                  <TableHead className="text-right">Montant total dû</TableHead>
+                  <TableHead>Échéance la + ancienne</TableHead>
+                  <TableHead className="text-right">Retard max</TableHead>
                   <TableHead className="text-right">Rappel</TableHead>
                 </TableRow>
               </TableHeader>
@@ -201,7 +329,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                 {isLoading &&
                   [...Array(5)].map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -209,15 +337,15 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && isError && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10 text-red-600">
+                    <TableCell colSpan={9} className="text-center py-10 text-red-600">
                       Erreur lors du chargement des versements en retard.
                     </TableCell>
                   </TableRow>
                 )}
 
-                {!isLoading && !isError && items.length === 0 && (
+                {!isLoading && !isError && groups.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-10 text-gray-500">
                       🎉 Aucun versement en retard.
                     </TableCell>
                   </TableRow>
@@ -225,58 +353,128 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading &&
                   !isError &&
-                  items.map((i) => (
-                    <TableRow key={i.key} className="hover:bg-gray-50">
-                      <TableCell className="font-mono text-xs text-gray-500">{i.matricule || '—'}</TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1.5 font-medium text-gray-900">
-                          {i.isGroup ? (
-                            <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                          ) : (
-                            <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                          )}
-                          {i.name}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {i.phone ? (
-                          <span className="flex items-center gap-1.5 text-sm text-gray-700">
-                            <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                            {i.phone}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">{i.typeLabel}</TableCell>
-                      <TableCell className="text-right font-semibold text-gray-900 tabular-nums">
-                        {i.amount.toLocaleString('fr-FR')} FCFA
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1.5 text-sm text-gray-700">
-                          <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                          {format(i.dueAt, 'dd/MM/yyyy', { locale: fr })}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums">
-                          {i.daysOverdue} j
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSendWhatsApp(i)}
-                          disabled={!resolveWhatsappNumber(i.whatsappNumber, [i.phone])}
-                          title={resolveWhatsappNumber(i.whatsappNumber, [i.phone]) ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
-                          className="h-8 bg-[#25D366] hover:bg-[#1ebe5b] text-white disabled:opacity-50"
+                  groups.map((g) => {
+                    const isMulti = g.count > 1
+                    const isOpen = expanded.has(g.personKey)
+                    const canRemind = !!resolveWhatsappNumber(g.whatsappNumber, [g.phone])
+                    return (
+                      <Fragment key={g.personKey}>
+                        <TableRow
+                          className={`hover:bg-gray-50 ${isMulti ? 'cursor-pointer' : ''}`}
+                          onClick={isMulti ? () => toggleExpanded(g.personKey) : undefined}
+                          role={isMulti ? 'button' : undefined}
+                          tabIndex={isMulti ? 0 : undefined}
+                          aria-expanded={isMulti ? isOpen : undefined}
+                          onKeyDown={
+                            isMulti
+                              ? (e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    toggleExpanded(g.personKey)
+                                  }
+                                }
+                              : undefined
+                          }
                         >
-                          <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
-                          <span className="hidden sm:inline">Rappel</span>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <TableCell className="text-gray-400">
+                            {isMulti ? (
+                              isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-gray-500">{g.matricule || '—'}</TableCell>
+                          <TableCell>
+                            <span className="flex items-center gap-1.5 font-medium text-gray-900">
+                              {g.isGroup ? (
+                                <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                              ) : (
+                                <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                              )}
+                              {g.name}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {g.phone ? (
+                              <span className="flex items-center gap-1.5 text-sm text-gray-700">
+                                <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                {g.phone}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                                isMulti ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+                              }`}
+                              title={isMulti ? 'Cliquez pour voir le détail des versements' : undefined}
+                            >
+                              {g.count} retard{g.count > 1 ? 's' : ''}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-gray-900 tabular-nums">
+                            {g.totalAmount.toLocaleString('fr-FR')} FCFA
+                          </TableCell>
+                          <TableCell>
+                            <span className="flex items-center gap-1.5 text-sm text-gray-700">
+                              <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                              {format(g.earliestDueAt, 'dd/MM/yyyy', { locale: fr })}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums">
+                              {g.maxDaysOverdue} j
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleSendWhatsApp(g)
+                              }}
+                              disabled={!canRemind}
+                              title={canRemind ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
+                              className="h-8 bg-[#25D366] hover:bg-[#1ebe5b] text-white disabled:opacity-50"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
+                              <span className="hidden sm:inline">Rappel</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+
+                        {isMulti && isOpen && (
+                          <TableRow className="bg-gray-50/60">
+                            <TableCell />
+                            <TableCell colSpan={8} className="py-2">
+                              <div className="space-y-1.5">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                  Détail des {g.count} versements en retard
+                                </p>
+                                <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
+                                  {g.payments.map((p) => (
+                                    <div key={p.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                                      <span className="text-gray-600">{p.typeLabel}</span>
+                                      <span className="flex items-center gap-1.5 text-gray-700">
+                                        <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                        {format(p.dueAt, 'dd/MM/yyyy', { locale: fr })}
+                                      </span>
+                                      <span className="font-semibold text-gray-900 tabular-nums">
+                                        {p.amount.toLocaleString('fr-FR')} FCFA
+                                      </span>
+                                      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums">
+                                        {p.daysOverdue} j
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    )
+                  })}
               </TableBody>
             </Table>
           </div>

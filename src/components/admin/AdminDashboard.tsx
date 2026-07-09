@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { PageHero } from '@/components/ui/page-hero'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ADMIN_ROLE_LABELS, AdminRole, AdminUser, updateAdminDeep } from '@/db/admin.db'
 import { useAdminMutations, useAdmins } from '@/hooks/useAdmins'
 import { useAuth } from '@/hooks/useAuth'
 import { AdminCreateFormData } from '@/schemas/schemas'
-import { CheckCircle2, Edit3, Loader2, Mail, Phone, RefreshCw, Search, Shield, Trash2, UserPlus, Users } from 'lucide-react'
+import { Ban, CheckCircle2, Edit3, Loader2, Mail, Phone, RefreshCw, Search, Shield, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 // recharts chargé à la demande (hors bundle initial du dashboard)
@@ -244,71 +245,61 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-            Gestion des Administrateurs
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            {data?.pagination.totalItems.toLocaleString() || 0} administrateurs au total
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading}
-            className="h-9"
+    <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-6">
+      <PageHero
+        icon={Shield}
+        title="Gestion des Administrateurs"
+        subtitle={`${data?.pagination.totalItems.toLocaleString() || 0} administrateurs au total`}
+        rightSlot={(
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </Button>
+            <Button size="sm" onClick={handleCreateOpen} className="h-9 bg-white text-[#234D65] hover:bg-white/90">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Nouvel Admin
+            </Button>
+          </div>
+        )}
+      />
+
+      {/* Statistiques compactes - alignées avec caisse imprévue */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+        {[
+          { title: 'Total', value: stats.total, color: '#234D65', icon: Users },
+          { title: 'Actifs', value: stats.active, color: '#10b981', icon: CheckCircle2 },
+          { title: 'Inactifs', value: stats.total - stats.active, color: '#ef4444', icon: Ban },
+          { title: 'Super Admins', value: stats.byRole.SuperAdmin, color: '#8b5cf6', icon: ShieldCheck },
+          { title: 'Admins', value: stats.byRole.Admin, color: '#3b82f6', icon: Shield },
+          { title: 'Secrétaires', value: stats.byRole.Secretary, color: '#f59e0b', icon: Edit3 },
+        ].map((stat, i) => (
+          <div
+            key={i}
+            className="group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-          <Button size="sm" onClick={handleCreateOpen} className="h-9 bg-[#234D65] hover:bg-[#234D65]/90 text-white">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Nouvel Admin
-          </Button>
-        </div>
+            <div
+              className="p-1.5 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110"
+              style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
+            >
+              <stat.icon className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 truncate">{stat.title}</p>
+              <p className="text-sm font-black text-gray-900 tabular-nums truncate">{stat.value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Stats avec graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stats principales */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Administrateurs</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-                </div>
-                <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Administrateurs Actifs</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.active}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% du total
-                  </p>
-                </div>
-                <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
+      {/* Graphiques de répartition */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graphique des rôles */}
         <Card>
           <CardHeader className="pb-3">
@@ -446,9 +437,9 @@ export default function AdminDashboard() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {admins.map((admin) => (
-              <Card key={admin.id} className="h-full hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3 mb-3">
+              <Card key={admin.id} className="group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
+                <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage
@@ -484,7 +475,7 @@ export default function AdminDashboard() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
                     <Badge
                       variant={admin.isActive ? 'default' : 'secondary'}
                       className={`text-xs ${admin.isActive

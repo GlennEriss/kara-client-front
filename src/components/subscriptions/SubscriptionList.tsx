@@ -19,6 +19,7 @@ import { ArrowLeft, Calendar, Clock, CreditCard, FileText, Loader2, UploadCloud,
 import { useParams, useRouter } from 'next/navigation'
 import React from 'react'
 import { toast } from 'sonner'
+import { downloadFile } from '@/utils/downloadFile'
 
 function formatDate(date: Date) {
     try { return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) } catch { return 'Date invalide' }
@@ -331,8 +332,14 @@ export default function SubscriptionList() {
                         <div className="flex gap-2">
                             <Button onClick={() => { if (previewUrl) window.open(previewUrl, '_blank', 'noopener,noreferrer') }} className="bg-[#234D65] hover:bg-[#234D65] text-white">Ouvrir</Button>
                             {previewUrl && (
-                              <Button variant="outline" asChild>
-                                <a href={previewUrl} download>Télécharger</a>
+                              <Button
+                                variant="outline"
+                                onClick={() => downloadFile(
+                                  previewUrl,
+                                  `fiche_adhesion_${member?.lastName || ''}_${member?.firstName || ''}.pdf`
+                                )}
+                              >
+                                Télécharger
                               </Button>
                             )}
                         </div>

@@ -7,6 +7,7 @@ import CommuneListV2 from './CommuneListV2'
 import DistrictListV2 from './DistrictListV2'
 import QuarterListV2 from './QuarterListV2'
 import { MapPin } from 'lucide-react'
+import { PageHero } from '@/components/ui/page-hero'
 import { useGeographyStats } from '../../hooks/useGeographie'
 import GeographyStatsV2 from './GeographyStatsV2'
 
@@ -25,22 +26,12 @@ export default function GeographieManagementV2() {
 
   return (
     <div className="space-y-4 sm:space-y-6" data-testid="geographie-management-v2">
-      {/* Header avec couleurs KARA */}
-      <header className="space-y-2" data-testid="geographie-header">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-kara-primary-dark flex items-center justify-center shrink-0 shadow-sm">
-            <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-white" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-kara-primary-dark" data-testid="geographie-title">
-              Gestion Géographique
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1" data-testid="geographie-description">
-              Gérez les provinces, départements, communes, arrondissements et quartiers
-            </p>
-          </div>
-        </div>
-      </header>
+      {/* Header - PageHero partagé (cohérence KARA) */}
+      <PageHero
+        icon={MapPin}
+        title="Gestion Géographique"
+        subtitle="Gérez les provinces, départements, communes, arrondissements et quartiers"
+      />
 
       {/* Statistiques avec couleurs KARA */}
       <section data-testid="geographie-stats-section">

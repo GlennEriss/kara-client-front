@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
+import { downloadFile } from '@/utils/downloadFile'
 import {
   buildCreditSpecialFactureData,
   buildCreditSpecialFacturePage1Data,
@@ -242,6 +243,16 @@ const getStatusConfig = (status: CreditContractStatus) => {
 const canUploadSignedContract = (contract: CreditContract): boolean => {
   const uploadableStatuses: CreditContractStatus[] = ['PENDING', 'ACTIVE', 'PARTIAL', 'OVERDUE', 'BLOCKED']
   return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
+}
+
+/** Télécharge un document lié à un contrat de crédit spécial via le proxy `/api/download`. */
+const downloadCreditContractDocument = (contract: CreditContract, url: string | undefined, label: string) => {
+  const last = String(contract.clientLastName ?? '').toUpperCase().replace(/\s+/g, '_')
+  const first = String(contract.clientFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
+  const filename = `${last}_${first}_${label}.pdf`
+  if (!downloadFile(url, filename)) {
+    toast.error('URL du document non disponible')
+  }
 }
 
 export default function CreditContractDetail({
@@ -3329,7 +3340,7 @@ export default function CreditContractDetail({
                     variant="outline"
                     className="justify-start"
                     onClick={(currentCycleDocuments?.contractUrl || contract.contractUrl)
-                      ? () => window.open(currentCycleDocuments?.contractUrl || contract.contractUrl || '', '_blank')
+                      ? () => downloadCreditContractDocument(contract, currentCycleDocuments?.contractUrl || contract.contractUrl, 'CONTRAT')
                       : () => setShowContractPDFModal(true)}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -3341,7 +3352,7 @@ export default function CreditContractDetail({
                     <Button
                       variant="outline"
                       className="justify-start"
-                      onClick={() => window.open(currentCycleDocuments?.signedContractUrl || contract.signedContractUrl || '', '_blank')}
+                      onClick={() => downloadCreditContractDocument(contract, currentCycleDocuments?.signedContractUrl || contract.signedContractUrl, 'CONTRAT_SIGNE')}
                     >
                       <FileSignature className="h-4 w-4 mr-2" />
                       Voir contrat
@@ -3397,7 +3408,7 @@ export default function CreditContractDetail({
                               size="sm"
                               onClick={
                                 cycleDocument.contractUrl
-                                  ? () => window.open(cycleDocument.contractUrl, '_blank')
+                                  ? () => downloadCreditContractDocument(contract, cycleDocument.contractUrl, `CONTRAT_CYCLE_${cycleDocument.cycleNumber}`)
                                   : () => setShowContractPDFModal(true)
                               }
                               disabled={!canOpenCycleContract}
@@ -3408,7 +3419,7 @@ export default function CreditContractDetail({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(cycleDocument.signedContractUrl, '_blank')}
+                              onClick={() => downloadCreditContractDocument(contract, cycleDocument.signedContractUrl, `CONTRAT_SIGNE_CYCLE_${cycleDocument.cycleNumber}`)}
                               disabled={!cycleDocument.signedContractUrl}
                             >
                               <FileSignature className="h-4 w-4 mr-2" />
@@ -3434,7 +3445,7 @@ export default function CreditContractDetail({
                   <Button
                     variant="outline"
                     className="justify-start"
-                    onClick={() => window.open(contract.signedQuittanceUrl, '_blank')}
+                    onClick={() => downloadCreditContractDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE_SIGNEE')}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Quittance signée
@@ -3444,7 +3455,7 @@ export default function CreditContractDetail({
                   <Button
                     variant="outline"
                     className="justify-start"
-                    onClick={() => window.open(contract.dischargeUrl, '_blank')}
+                    onClick={() => downloadCreditContractDocument(contract, contract.dischargeUrl, 'DECHARGE')}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Décharge

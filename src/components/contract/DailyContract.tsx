@@ -26,6 +26,7 @@ import { earlyRefundDefaultValues, earlyRefundSchema, type EarlyRefundFormData }
 import { approveRefund, cancelEarlyRefund, markRefundPaid, requestEarlyRefund, requestFinalRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import type { RefundDocument } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
+import { downloadFile } from '@/utils/downloadFile'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, ArrowLeft, Banknote, Building2, Calendar, CalendarDays, CheckCircle, CheckCircle2, Clock, CreditCard, DollarSign, Download, ExternalLink, Eye, FileText, History, Loader2, RefreshCw, Smartphone, Trash2, TrendingUp, Upload, XCircle } from 'lucide-react'
@@ -109,6 +110,18 @@ export default function DailyContract({ id }: Props) {
 
   const { user } = useAuth()
   const { data: member } = useMember((data as any)?.memberId)
+
+  /** Télécharge un document de remboursement lié au contrat via le proxy `/api/download`. */
+  const downloadRefundDocument = (url: string | undefined, label: string) => {
+    const last = String(member?.lastName ?? '').toUpperCase().replace(/\s+/g, '_')
+    const first = String(member?.firstName ?? '').toUpperCase().replace(/\s+/g, '_')
+    const base = last || first ? `${last}_${first}` : `CONTRAT_${id}`
+    const filename = `${base}_${label}.pdf`
+    if (!downloadFile(url, filename)) {
+      toast.error('URL du document non disponible')
+    }
+  }
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
@@ -1083,7 +1096,7 @@ export default function DailyContract({ id }: Props) {
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-gray-600">Document téléversé:</span>
                         {finalDocumentUrl ? (
-                          <a href={finalDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                          <button type="button" onClick={() => downloadRefundDocument(finalDocumentUrl, 'DOCUMENT_REMBOURSEMENT')} className="text-indigo-600 hover:underline font-medium">Télécharger</button>
                         ) : (
                           <span className="text-xs text-gray-500">Indisponible</span>
                         )}
@@ -1091,7 +1104,7 @@ export default function DailyContract({ id }: Props) {
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-gray-600">Preuve téléversée:</span>
                         {finalProofUrl ? (
-                          <a href={finalProofUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">Télécharger</a>
+                          <button type="button" onClick={() => downloadRefundDocument(finalProofUrl, 'PREUVE_REMBOURSEMENT')} className="text-indigo-600 hover:underline font-medium">Télécharger</button>
                         ) : (
                           <span className="text-xs text-gray-500">Indisponible</span>
                         )}

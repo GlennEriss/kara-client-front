@@ -3,8 +3,9 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,12 +15,13 @@ import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import type { EnrichedCharityContribution } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Download, Eye, FileDown, FileSpreadsheet, FileText, Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, Coins, DollarSign, Download, Eye, FileDown, FileSpreadsheet, FileText, HandHeart, Package, Plus, Search, Trash2, Users } from 'lucide-react'
 import Image from 'next/image'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import AddContributionForm from './AddContributionForm'
 import CharityContributionReceiptPDF from './CharityContributionReceiptPDF'
+import { downloadFile } from '@/utils/downloadFile'
 
 interface CharityContributionsSectionProps {
   eventId: string
@@ -68,10 +70,12 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
       // Filtre par statut
       if (statusFilter !== 'all' && contribution.status !== statusFilter) return false
 
-      // Filtre par recherche (TODO: ajouter nom du contributeur)
-      if (searchQuery) {
-        // const searchLower = searchQuery.toLowerCase()
-        // return contribution contient la recherche
+      // Filtre par recherche (nom du contributeur / du groupe)
+      if (searchQuery.trim()) {
+        const searchLower = searchQuery.trim().toLowerCase()
+        const nameMatch = contribution.participant?.name?.toLowerCase().includes(searchLower)
+        const groupMatch = contribution.participant?.groupName?.toLowerCase().includes(searchLower)
+        if (!nameMatch && !groupMatch) return false
       }
 
       return true
@@ -366,102 +370,126 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
 
   return (
     <div className="space-y-6">
-      {/* Résumé */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/55 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.88)]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">Total collecté</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-800">{totalAmount.toLocaleString()} FCFA</div>
-            <p className="mt-1 text-xs text-slate-500">{cashContributions} contributions</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-emerald-100/70 bg-gradient-to-br from-white to-emerald-50/60 shadow-[0_12px_26px_-22px_rgba(18,89,63,0.74)]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">Dons en nature</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-800">{inKindContributions}</div>
-            <p className="mt-1 text-xs text-slate-500">contributions</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-indigo-100/70 bg-gradient-to-br from-white to-indigo-50/60 shadow-[0_12px_26px_-22px_rgba(66,76,135,0.7)]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-800">{filtered.length}</div>
-            <p className="mt-1 text-xs text-slate-500">contributions au total</p>
-          </CardContent>
-        </Card>
+      {/* Statistiques compactes - alignées avec caisse imprévue */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { title: 'Total collecté', value: `${totalAmount.toLocaleString('fr-FR')} FCFA`, color: '#CBB171', icon: DollarSign },
+          { title: 'Contributions espèces', value: cashContributions, color: '#234D65', icon: Coins },
+          { title: 'Dons en nature', value: inKindContributions, color: '#10b981', icon: Package },
+          { title: 'Contributeurs', value: contributorGroups.length, color: '#3b82f6', icon: Users },
+        ].map((stat, i) => (
+          <div key={i} className="group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200">
+            <div
+              className="p-1.5 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110"
+              style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
+            >
+              <stat.icon className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 truncate">{stat.title}</p>
+              <p className="text-sm font-black text-gray-900 tabular-nums whitespace-nowrap">{stat.value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Filtres et actions */}
-      <Card className="border-cyan-100/70 bg-white/80 shadow-[0_12px_26px_-22px_rgba(16,58,95,0.8)] backdrop-blur-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Rechercher un contributeur..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-11 border-cyan-100 bg-white pl-10"
-              />
+      {/* Barre d'actions - design aligné avec caisse imprévue */}
+      <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-md">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#cbb171]" />
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] p-2.5 shadow-sm">
+                <HandHeart className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-xl font-black text-transparent md:text-2xl">
+                  Contributions
+                </h2>
+                <p className="font-medium text-gray-600">
+                  {filtered.length.toLocaleString()} contribution{filtered.length !== 1 ? 's' : ''}
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Select value={typeFilter} onValueChange={(value: any) => setTypeFilter(value)}>
-                <SelectTrigger className="h-11 w-[180px] border-cyan-100 bg-white">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  <SelectItem value="money">Espèces</SelectItem>
-                  <SelectItem value="in_kind">En nature</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Rechercher un contributeur..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 rounded-xl border-slate-200 bg-white pl-10"
+                />
+              </div>
 
-              <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-                <SelectTrigger className="h-11 w-[180px] border-cyan-100 bg-white">
-                  <SelectValue placeholder="Statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="confirmed">Confirmé</SelectItem>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="canceled">Annulé</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={typeFilter} onValueChange={(value: any) => setTypeFilter(value)}>
+                  <SelectTrigger className="h-10 w-[150px] rounded-xl border-slate-200 bg-white">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les types</SelectItem>
+                    <SelectItem value="money">Espèces</SelectItem>
+                    <SelectItem value="in_kind">En nature</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Button variant="outline" onClick={handleExportExcel} className="h-11 border-cyan-100 bg-white">
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Exporter Excel
-              </Button>
-              <Button variant="outline" onClick={handleExportPDF} className="h-11 border-cyan-100 bg-white">
-                <FileDown className="w-4 h-4 mr-2" />
-                Exporter PDF
-              </Button>
+                <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+                  <SelectTrigger className="h-10 w-[150px] rounded-xl border-slate-200 bg-white">
+                    <SelectValue placeholder="Statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="confirmed">Confirmé</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="canceled">Annulé</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Button onClick={() => setIsAddOpen(true)} className="h-11 bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter
-              </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Exporter
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[180px]">
+                    <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer">
+                      <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-700" /> Exporter Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
+                      <FileDown className="mr-2 h-4 w-4 text-rose-700" /> Exporter PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  onClick={() => setIsAddOpen(true)}
+                  size="sm"
+                  className="h-10 cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Tableau */}
-      <Card className="overflow-hidden border-cyan-100/70 bg-white/80 shadow-[0_14px_30px_-24px_rgba(17,57,93,0.82)] backdrop-blur-sm">
+      <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-md">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="space-y-4 p-6">
               {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 rounded-lg border border-cyan-100/70" />
+                <Skeleton key={i} className="h-16 rounded-lg border border-slate-200/80" />
               ))}
             </div>
           ) : paginatedContributions.length > 0 ? (
@@ -520,7 +548,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                         )}
                       </div>
 
-                      <div className="space-y-1 rounded-lg border border-cyan-100/70 bg-cyan-50/35 p-3">
+                      <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                         {contribution.contributionType === 'money' ? (
                           <>
                             <p className="text-lg font-semibold text-[#234D65]">
@@ -550,7 +578,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                             variant="outline"
                             size="sm"
                             onClick={() => handleViewProof(contribution.id)}
-                            className="flex-1 border-cyan-100 bg-white"
+                            className="flex-1 border-slate-200 bg-white"
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Preuve
@@ -560,7 +588,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                           variant="outline"
                           size="sm"
                           onClick={() => handleGenerateReceipt(contribution.id)}
-                          className="flex-1 border-cyan-100 bg-white"
+                          className="flex-1 border-slate-200 bg-white"
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           Reçu
@@ -584,7 +612,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
               <div className="hidden md:block">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-cyan-50/70 hover:bg-cyan-50/70">
+                    <TableRow className="bg-slate-50/70 hover:bg-slate-50/70">
                       <TableHead className="text-slate-700">Date</TableHead>
                       <TableHead className="text-slate-700">Contributeur</TableHead>
                       <TableHead className="text-slate-700">Type</TableHead>
@@ -602,7 +630,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                         contribution.updatedAt
                       const paymentMethod = contribution.payment?.mode
                       return (
-                        <TableRow key={contribution.id} className="border-cyan-100/60 hover:bg-cyan-50/35">
+                        <TableRow key={contribution.id} className="border-slate-100 hover:bg-slate-50/60">
                           <TableCell className="font-medium">
                             {formatDateSafe(referenceDate)}
                           </TableCell>
@@ -704,7 +732,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="border-t border-cyan-100/70 p-4">
+                <div className="border-t border-slate-200/80 p-4">
                   <ListPagination
                     currentPage={currentPage}
                     totalPages={totalPages}
@@ -717,7 +745,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
           ) : (
             <div className="p-12 text-center text-slate-500">
               <p className="mb-4">Aucune contribution pour le moment</p>
-              <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
+              <Button onClick={() => setIsAddOpen(true)} className="rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md">
                 <Plus className="w-4 h-4 mr-2" />
                 Ajouter la première contribution
               </Button>
@@ -780,7 +808,15 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
               <Button variant="outline" onClick={() => setProofToView(null)}>
                 Fermer
               </Button>
-              <Button onClick={() => window.open(proofToView, '_blank')}>
+              <Button
+                onClick={() => {
+                  const isPdf = proofToView.endsWith('.pdf') || proofToView.includes('application/pdf')
+                  const proofContribution = contributions?.find(c => c.proofUrl === proofToView)
+                  const donorName = proofContribution?.participant?.name?.trim().replace(/\s+/g, '_')
+                  const filename = donorName ? `preuve_${donorName}.${isPdf ? 'pdf' : 'jpg'}` : 'preuve.pdf'
+                  downloadFile(proofToView, filename)
+                }}
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Télécharger
               </Button>
