@@ -14,6 +14,7 @@ import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutati
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { getContractStatusConfig } from '@/utils/contract-status'
+import { downloadFile } from '@/utils/downloadFile'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -1522,15 +1523,22 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                             {(r.type === 'FINAL' ? (r.paymentProofUrl || r.proofUrl) : r.proofUrl) && (
                               <div className="flex items-center gap-2 text-sm">
                                 <span className="text-gray-600">{r.type === 'FINAL' ? 'Preuve de paiement:' : 'Preuve téléversée:'}</span>
-                                <a
-                                  href={r.type === 'FINAL' ? (r.paymentProofUrl || r.proofUrl) : r.proofUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-indigo-600 hover:underline font-medium flex items-center gap-1"
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = r.type === 'FINAL' ? (r.paymentProofUrl || r.proofUrl) : r.proofUrl
+                                    const last = String(contract?.memberLastName ?? '').toUpperCase().replace(/\s+/g, '_')
+                                    const first = String(contract?.memberFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
+                                    const filename = `${last}_${first}_PREUVE_${r.type ?? 'REMBOURSEMENT'}.pdf`
+                                    if (!downloadFile(url, filename)) {
+                                      toast.error('URL du document non disponible')
+                                    }
+                                  }}
+                                  className="text-indigo-600 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                                 >
                                   <Download className="h-4 w-4" />
                                   Télécharger
-                                </a>
+                                </button>
                               </div>
                             )}
                           </div>
@@ -1540,15 +1548,21 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                           <div className="pt-3 border-t border-gray-100">
                             <div className="flex items-center gap-2 text-sm">
                               <span className="text-gray-600">Preuve de paiement:</span>
-                              <a
-                                href={r.paymentProofUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-indigo-600 hover:underline font-medium flex items-center gap-1"
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const last = String(contract?.memberLastName ?? '').toUpperCase().replace(/\s+/g, '_')
+                                  const first = String(contract?.memberFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
+                                  const filename = `${last}_${first}_PREUVE_${r.type ?? 'REMBOURSEMENT'}.pdf`
+                                  if (!downloadFile(r.paymentProofUrl, filename)) {
+                                    toast.error('URL du document non disponible')
+                                  }
+                                }}
+                                className="text-indigo-600 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                               >
                                 <Download className="h-4 w-4" />
                                 Télécharger
-                              </a>
+                              </button>
                             </div>
                           </div>
                         )}

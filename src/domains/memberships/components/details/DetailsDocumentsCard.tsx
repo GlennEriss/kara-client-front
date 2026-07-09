@@ -12,6 +12,7 @@ import { ModernCard } from './shared/ModernCard'
 import { InfoField } from './shared/InfoField'
 import { formatDateDetailed, isDateExpired } from '../../utils/details'
 import { useMembershipDocumentPhotos } from '../../hooks/useMembershipDocumentPhotos'
+import { downloadFile } from '@/utils/downloadFile'
 import { toast } from 'sonner'
 import type { MembershipRequest } from '../../entities'
 
@@ -176,12 +177,7 @@ export function DetailsDocumentsCard({
                   <Button
                     size="sm"
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3"
-                    onClick={() => {
-                      const link = document.createElement('a')
-                      link.href = resolvedFrontURL
-                      link.download = 'document-recto.jpg'
-                      link.click()
-                    }}
+                    onClick={() => downloadFile(resolvedFrontURL, 'document-recto.jpg')}
                   >
                     <Download className="w-3 h-3 lg:w-4 lg:h-4" />
                   </Button>
@@ -219,12 +215,7 @@ export function DetailsDocumentsCard({
                   <Button
                     size="sm"
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3"
-                    onClick={() => {
-                      const link = document.createElement('a')
-                      link.href = resolvedBackURL
-                      link.download = 'document-verso.jpg'
-                      link.click()
-                    }}
+                    onClick={() => downloadFile(resolvedBackURL, 'document-verso.jpg')}
                   >
                     <Download className="w-3 h-3 lg:w-4 lg:h-4" />
                   </Button>

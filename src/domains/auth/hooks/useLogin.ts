@@ -17,7 +17,12 @@ import { toast } from "sonner";
 export const useLogin = () => {
   const router = useRouter();
   const form = useForm<MemberLoginFormData>({
-    resolver: zodResolver(memberLoginSchema)
+    resolver: zodResolver(memberLoginSchema),
+    defaultValues: {
+      matricule: '',
+      email: '',
+      password: '',
+    },
   });
   const mediator = LoginMediatorFactory.create(form);
 

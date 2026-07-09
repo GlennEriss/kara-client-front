@@ -23,9 +23,14 @@ import {
 import { DocumentPreviewModal } from '@/components/member/DocumentPreviewModal'
 import type { Document as DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
+import { downloadFile } from '@/utils/downloadFile'
 
 interface ListDocumentsV2Props {
   memberId: string
+}
+
+function getDocumentFilename(document: DocumentType) {
+  return document.libelle || document.originalFileName || document.type || 'document.pdf'
 }
 
 function TableSkeleton() {
@@ -252,19 +257,13 @@ export default function ListDocumentsV2({ memberId }: ListDocumentsV2Props) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem 
-                            asChild
+                          <DropdownMenuItem
+                            onClick={() => downloadFile(document.url, getDocumentFilename(document))}
                             className="cursor-pointer"
+                            data-testid={`btn-download-document-${document.id}`}
                           >
-                            <a
-                              href={document.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              data-testid={`btn-download-document-${document.id}`}
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Télécharger
-                            </a>
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger
                           </DropdownMenuItem>
                           {document.format === 'pdf' && document.url && (
                             <DropdownMenuItem 
@@ -343,18 +342,12 @@ export default function ListDocumentsV2({ memberId }: ListDocumentsV2Props) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                asChild
+                                onClick={() => downloadFile(document.url, getDocumentFilename(document))}
                                 className="h-8 px-2 hover:bg-kara-primary-light/20 hover:text-kara-primary-dark"
                                 data-testid={`btn-download-document-desktop-${document.id}`}
                               >
-                                <a
-                                  href={document.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <Download className="w-4 h-4 mr-1" />
-                                  Télécharger
-                                </a>
+                                <Download className="w-4 h-4 mr-1" />
+                                Télécharger
                               </Button>
                               {document.format === 'pdf' && document.url && (
                                 <Button

@@ -1,7 +1,9 @@
 'use client'
 
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
+import { downloadFile } from '@/utils/downloadFile'
 import { Download, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface RefundDocumentLinkCIProps {
   documentId?: string
@@ -27,15 +29,21 @@ export default function RefundDocumentLinkCI({ documentId }: RefundDocumentLinkC
     return <span className="text-xs text-gray-500">Indisponible</span>
   }
 
+  const handleDownload = () => {
+    const filename = document.originalFileName ?? 'document.pdf'
+    if (!downloadFile(document.url, filename)) {
+      toast.error('URL du document non disponible')
+    }
+  }
+
   return (
-    <a
-      href={document.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-indigo-600 hover:underline font-medium inline-flex items-center gap-1 text-sm"
+    <button
+      type="button"
+      onClick={handleDownload}
+      className="text-indigo-600 hover:underline font-medium inline-flex items-center gap-1 text-sm cursor-pointer"
     >
       <Download className="h-4 w-4" />
       Télécharger
-    </a>
+    </button>
   )
 }

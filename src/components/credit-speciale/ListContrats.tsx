@@ -22,6 +22,7 @@ import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
 import { useCreditContractMutations, useCreditContracts } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
+import { downloadFile } from '@/utils/downloadFile'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
 import {
@@ -156,6 +157,16 @@ function canUploadSignedContract(contract: CreditContract): boolean {
 /** Contrat de remboursement disponible quand la quittance signée a été téléversée */
 function canViewRepaymentContract(contract: CreditContract): boolean {
   return Boolean(contract.signedQuittanceUrl)
+}
+
+/** Télécharge un document lié à un contrat de crédit spécial via le proxy `/api/download`. */
+function downloadCreditContractDocument(contract: CreditContract, url: string | undefined, label: string) {
+  const last = String(contract.clientLastName ?? '').toUpperCase().replace(/\s+/g, '_')
+  const first = String(contract.clientFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
+  const filename = `${last}_${first}_${label}.pdf`
+  if (!downloadFile(url, filename)) {
+    toast.error('URL du document non disponible')
+  }
 }
 
 // Composant skeleton moderne
@@ -1693,7 +1704,7 @@ const ListContrats = ({
                                 Voir toutes les infos
                               </Button>
                               <Button
-                                onClick={() => window.open(contract.signedContractUrl, '_blank')}
+                                onClick={() => downloadCreditContractDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE')}
                                 variant="outline"
                                 className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                               >
@@ -1737,7 +1748,7 @@ const ListContrats = ({
                           {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                             <Button
                               onClick={contract.contractUrl
-                                ? () => window.open(contract.contractUrl, '_blank')
+                                ? () => downloadCreditContractDocument(contract, contract.contractUrl, 'CONTRAT')
                                 : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                               variant="outline"
                               className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
@@ -1748,7 +1759,7 @@ const ListContrats = ({
                           )}
                           {canViewRepaymentContract(contract) && (
                             <Button
-                              onClick={() => window.open(contract.signedQuittanceUrl, '_blank')}
+                              onClick={() => downloadCreditContractDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE')}
                               variant="outline"
                               className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
                             >
@@ -1861,7 +1872,7 @@ const ListContrats = ({
                               {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={contract.contractUrl
-                                    ? () => window.open(contract.contractUrl, '_blank')
+                                    ? () => downloadCreditContractDocument(contract, contract.contractUrl, 'CONTRAT')
                                     : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                                   className="cursor-pointer"
                                 >
@@ -1870,13 +1881,13 @@ const ListContrats = ({
                                 </DropdownMenuItem>
                               )}
                               {contract.signedContractUrl && (
-                                <DropdownMenuItem onClick={() => window.open(contract.signedContractUrl, '_blank')} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => downloadCreditContractDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE')} className="cursor-pointer">
                                   <Eye className="h-4 w-4 mr-2" />
                                   Voir contrat
                                 </DropdownMenuItem>
                               )}
                               {canViewRepaymentContract(contract) && (
-                                <DropdownMenuItem onClick={() => window.open(contract.signedQuittanceUrl, '_blank')} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => downloadCreditContractDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE')} className="cursor-pointer">
                                   <Eye className="h-4 w-4 mr-2" />
                                   Contrat de remboursement
                                 </DropdownMenuItem>
