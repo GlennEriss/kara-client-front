@@ -640,12 +640,11 @@ export class ContractCIRepository implements IContractCIRepository {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const overdueContracts: ContractCI[] = [];
-
-        for (const contract of contracts) {
+        // Vérification des retards en parallèle (au lieu d'un await séquentiel par contrat).
+        const overdueChecks = await Promise.all(contracts.map(async (contract): Promise<ContractCI | null> => {
             // Ne vérifier que les contrats actifs
             if (contract.status !== 'ACTIVE') {
-                continue;
+                return null;
             }
 
             try {
@@ -700,15 +699,14 @@ export class ContractCIRepository implements IContractCIRepository {
                     }
                 }
 
-                if (hasOverdue) {
-                    overdueContracts.push(contract);
-                }
+                return hasOverdue ? contract : null;
             } catch (error) {
                 console.error(`Erreur lors de la vérification des retards pour le contrat ${contract.id}:`, error);
                 // En cas d'erreur, ne pas inclure le contrat
+                return null;
             }
-        }
+        }));
 
-        return overdueContracts;
+        return overdueChecks.filter((c): c is ContractCI => c !== null);
     }
 }

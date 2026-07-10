@@ -111,36 +111,43 @@ export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, e
 
       const allItems: CalendarPaymentItemCredit[] = []
 
-      for (const contract of activeContracts) {
-        try {
-          const installments = await service.getInstallmentsByCreditId(contract.id)
-          for (const installment of installments) {
-            const dueDate =
-              installment.dueDate instanceof Date
-                ? installment.dueDate
-                : new Date(installment.dueDate)
-            const dueStart = startOfDay(dueDate)
-            if (dueStart < monthStart || dueStart > monthEnd) continue
+      // Chargement des échéances en parallèle (au lieu d'un await séquentiel par contrat).
+      const itemChunks = await Promise.all(
+        activeContracts.map(async (contract): Promise<CalendarPaymentItemCredit[]> => {
+          try {
+            const installments = await service.getInstallmentsByCreditId(contract.id)
+            const chunk: CalendarPaymentItemCredit[] = []
+            for (const installment of installments) {
+              const dueDate =
+                installment.dueDate instanceof Date
+                  ? installment.dueDate
+                  : new Date(installment.dueDate)
+              const dueStart = startOfDay(dueDate)
+              if (dueStart < monthStart || dueStart > monthEnd) continue
 
-            allItems.push({
-              contract,
-              installment,
-              dueDate,
-              amount: installment.totalAmount,
-              paidAmount: installment.paidAmount || 0,
-              remainingAmount: Math.max(installment.remainingAmount || 0, 0),
-              status: installment.status,
-              clientDisplayName: `${contract.clientFirstName} ${contract.clientLastName}`.trim(),
-              color: getPaymentColor(installment, dueDate, today),
-            })
+              chunk.push({
+                contract,
+                installment,
+                dueDate,
+                amount: installment.totalAmount,
+                paidAmount: installment.paidAmount || 0,
+                remainingAmount: Math.max(installment.remainingAmount || 0, 0),
+                status: installment.status,
+                clientDisplayName: `${contract.clientFirstName} ${contract.clientLastName}`.trim(),
+                color: getPaymentColor(installment, dueDate, today),
+              })
+            }
+            return chunk
+          } catch (error) {
+            console.error(
+              `Erreur lors du chargement des échéances crédit pour le contrat ${contract.id}:`,
+              error
+            )
+            return []
           }
-        } catch (error) {
-          console.error(
-            `Erreur lors du chargement des échéances crédit pour le contrat ${contract.id}:`,
-            error
-          )
-        }
-      }
+        })
+      )
+      allItems.push(...itemChunks.flat())
 
       const grouped = allItems.reduce(
         (acc: Record<string, DayPaymentsCredit>, item) => {

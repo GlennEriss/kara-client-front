@@ -17,85 +17,82 @@ export class CharityContributionService {
    * Enrichit les contributions avec les données des participants
    */
   private static async enrichContributions(
-    eventId: string, 
+    eventId: string,
     contributions: CharityContribution[]
   ): Promise<EnrichedCharityContribution[]> {
-    const enriched: EnrichedCharityContribution[] = []
+    // 1) Participants uniques → une lecture par participant (en parallèle, dédupliqué).
+    const participantIds = Array.from(
+      new Set(contributions.map((c) => c.participantId).filter((id): id is string => !!id))
+    )
+    const participantEntries = await Promise.all(
+      participantIds.map(async (pid) => [pid, await CharityParticipantRepository.getById(eventId, pid)] as const)
+    )
+    const participantById = new Map(participantEntries)
 
-    for (const contribution of contributions) {
+    // 2) Membres & groupes référencés uniques.
+    const memberIds = new Set<string>()
+    const groupIds = new Set<string>()
+    for (const p of participantById.values()) {
+      if (p?.participantType === 'member' && p.memberId) memberIds.add(p.memberId)
+      else if (p?.participantType === 'group' && p.groupId) groupIds.add(p.groupId)
+    }
+
+    const [memberEntries, groupEntries] = await Promise.all([
+      Promise.all(Array.from(memberIds, async (id) => [id, await getDoc(doc(db, 'users', id))] as const)),
+      Promise.all(Array.from(groupIds, async (id) => [id, await getDoc(doc(db, 'groups', id))] as const)),
+    ])
+    const userById = new Map(memberEntries)
+    const groupById = new Map(groupEntries)
+
+    // 3) Noms des groupes référencés par les membres (groupIds[0]), en évitant les doublons déjà chargés.
+    const memberGroupIds = new Set<string>()
+    for (const [, snap] of memberEntries) {
+      const gid = snap.exists() ? (snap.data().groupIds?.[0] as string | undefined) : undefined
+      if (gid && !groupById.has(gid)) memberGroupIds.add(gid)
+    }
+    const memberGroupEntries = await Promise.all(
+      Array.from(memberGroupIds, async (id) => [id, await getDoc(doc(db, 'groups', id))] as const)
+    )
+    for (const [id, snap] of memberGroupEntries) groupById.set(id, snap)
+
+    // 4) Assemblage sans aucune I/O (tout est déjà en cache mémoire).
+    return contributions.map((contribution) => {
       if (!contribution.participantId) {
-        console.warn('Contribution without participantId', contribution.id)
-        enriched.push({
-          ...contribution,
-          participant: undefined
-        })
-        continue
+        return { ...contribution, participant: undefined }
       }
-      const participant = await CharityParticipantRepository.getById(eventId, contribution.participantId)
-      
-      if (participant) {
-        let participantData: any = {}
-        
-        // Récupérer les données du membre ou du groupe
-        if (participant.participantType === 'member' && participant.memberId) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', participant.memberId))
-            if (userDoc.exists()) {
-              const userData = userDoc.data()
-              participantData = {
-                type: 'member' as const,
-                name: `${userData.firstName} ${userData.lastName}`,
-                groupName: userData.groupIds?.[0] ? await this.getGroupName(userData.groupIds[0]) : undefined,
-                photoURL: userData.photoURL
-              }
-            }
-          } catch {
-            // Error fetching member - continue sans
-          }
-        } else if (participant.participantType === 'group' && participant.groupId) {
-          try {
-            const groupDoc = await getDoc(doc(db, 'groups', participant.groupId))
-            if (groupDoc.exists()) {
-              const groupData = groupDoc.data()
-              participantData = {
-                type: 'group' as const,
-                name: groupData.name,
-                photoURL: groupData.photoURL
-              }
-            }
-          } catch {
-            // Error fetching group - continue sans
+      const participant = participantById.get(contribution.participantId)
+      if (!participant) {
+        return { ...contribution, participant: undefined }
+      }
+
+      let participantData: any = {}
+      if (participant.participantType === 'member' && participant.memberId) {
+        const snap = userById.get(participant.memberId)
+        if (snap?.exists()) {
+          const userData = snap.data()
+          const gid = userData.groupIds?.[0] as string | undefined
+          const groupSnap = gid ? groupById.get(gid) : undefined
+          participantData = {
+            type: 'member' as const,
+            name: `${userData.firstName} ${userData.lastName}`,
+            groupName: groupSnap?.exists() ? groupSnap.data().name : undefined,
+            photoURL: userData.photoURL,
           }
         }
-
-        enriched.push({
-          ...contribution,
-          participant: participantData.name ? participantData : undefined
-        })
-      } else {
-        enriched.push({
-          ...contribution,
-          participant: undefined
-        })
+      } else if (participant.participantType === 'group' && participant.groupId) {
+        const snap = groupById.get(participant.groupId)
+        if (snap?.exists()) {
+          const groupData = snap.data()
+          participantData = {
+            type: 'group' as const,
+            name: groupData.name,
+            photoURL: groupData.photoURL,
+          }
+        }
       }
-    }
 
-    return enriched
-  }
-
-  /**
-   * Récupère le nom d'un groupe
-   */
-  private static async getGroupName(groupId: string): Promise<string | undefined> {
-    try {
-      const groupDoc = await getDoc(doc(db, 'groups', groupId))
-      if (groupDoc.exists()) {
-        return groupDoc.data().name
-      }
-    } catch (error) {
-      console.error('Error fetching group name:', error)
-    }
-    return undefined
+      return { ...contribution, participant: participantData.name ? participantData : undefined }
+    })
   }
 
   /**

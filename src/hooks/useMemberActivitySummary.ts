@@ -119,61 +119,62 @@ async function fetchCaisseSpecialeContracts(memberId: string): Promise<ContractS
     const activeStatuses = ['ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY', 'DRAFT']
     const activeContracts = contracts.filter((c: any) => activeStatuses.includes(c.status))
     
-    const summaries: ContractSummary[] = []
-    
-    for (const contract of activeContracts) {
-      try {
-        // Récupérer l'état calculé du contrat
-        const contractWithState = await getContractWithComputedState(contract.id)
-        if (!contractWithState) continue
-        
-        // Récupérer les paiements
-        const payments = await listPayments(contract.id)
-        const paidPayments = payments.filter((p: any) => p.status === 'PAID')
-        
-        // Trouver le dernier paiement
-        const lastPayment = paidPayments
-          .sort((a: any, b: any) => {
-            const dateA = a.paidAt?.toDate ? a.paidAt.toDate() : (a.paidAt ? new Date(a.paidAt) : new Date(0))
-            const dateB = b.paidAt?.toDate ? b.paidAt.toDate() : (b.paidAt ? new Date(b.paidAt) : new Date(0))
-            return dateB.getTime() - dateA.getTime()
-          })[0]
-        
-        const lastPaymentDate = lastPayment?.paidAt 
-          ? (lastPayment.paidAt.toDate ? lastPayment.paidAt.toDate() : new Date(lastPayment.paidAt))
-          : null
-        
-        // Prochaine échéance
-        const nextDue = payments.find((p: any) => p.status === 'DUE')
-        const nextPaymentDate = contractWithState.nextDueAt || null
-        
-        // Vérifier si à jour
-        const isUpToDate = contractWithState.status === 'ACTIVE' && 
-          (!nextPaymentDate || nextPaymentDate > new Date())
-        const hasDelay = ['LATE_NO_PENALTY', 'LATE_WITH_PENALTY'].includes(contractWithState.status)
-        
-        summaries.push({
-          id: contract.id,
-          type: 'CAISSE_SPECIALE',
-          status: contractWithState.status,
-          monthlyAmount: contract.monthlyAmount,
-          lastPaymentDate,
-          nextPaymentDate,
-          isUpToDate,
-          hasDelay,
-          contractLink: `/caisse-speciale/contrats/${contract.id}`,
-          monthsPlanned: contract.monthsPlanned,
-          currentMonthIndex: contract.currentMonthIndex,
-          nominalPaid: contract.nominalPaid,
-          bonusAccrued: contract.bonusAccrued,
-          caisseType: contract.caisseType,
-        })
-      } catch (error) {
-        console.error(`Erreur lors du traitement du contrat ${contract.id}:`, error)
-      }
-    }
-    
-    return summaries
+    // Traitement des contrats en parallèle (au lieu d'un await séquentiel par contrat).
+    const summariesRaw = await Promise.all(
+      activeContracts.map(async (contract: any): Promise<ContractSummary | null> => {
+        try {
+          // Récupérer l'état calculé du contrat
+          const contractWithState = await getContractWithComputedState(contract.id)
+          if (!contractWithState) return null
+
+          // Récupérer les paiements
+          const payments = await listPayments(contract.id)
+          const paidPayments = payments.filter((p: any) => p.status === 'PAID')
+
+          // Trouver le dernier paiement
+          const lastPayment = paidPayments
+            .sort((a: any, b: any) => {
+              const dateA = a.paidAt?.toDate ? a.paidAt.toDate() : (a.paidAt ? new Date(a.paidAt) : new Date(0))
+              const dateB = b.paidAt?.toDate ? b.paidAt.toDate() : (b.paidAt ? new Date(b.paidAt) : new Date(0))
+              return dateB.getTime() - dateA.getTime()
+            })[0]
+
+          const lastPaymentDate = lastPayment?.paidAt
+            ? (lastPayment.paidAt.toDate ? lastPayment.paidAt.toDate() : new Date(lastPayment.paidAt))
+            : null
+
+          // Prochaine échéance
+          const nextPaymentDate = contractWithState.nextDueAt || null
+
+          // Vérifier si à jour
+          const isUpToDate = contractWithState.status === 'ACTIVE' &&
+            (!nextPaymentDate || nextPaymentDate > new Date())
+          const hasDelay = ['LATE_NO_PENALTY', 'LATE_WITH_PENALTY'].includes(contractWithState.status)
+
+          return {
+            id: contract.id,
+            type: 'CAISSE_SPECIALE',
+            status: contractWithState.status,
+            monthlyAmount: contract.monthlyAmount,
+            lastPaymentDate,
+            nextPaymentDate,
+            isUpToDate,
+            hasDelay,
+            contractLink: `/caisse-speciale/contrats/${contract.id}`,
+            monthsPlanned: contract.monthsPlanned,
+            currentMonthIndex: contract.currentMonthIndex,
+            nominalPaid: contract.nominalPaid,
+            bonusAccrued: contract.bonusAccrued,
+            caisseType: contract.caisseType,
+          }
+        } catch (error) {
+          console.error(`Erreur lors du traitement du contrat ${contract.id}:`, error)
+          return null
+        }
+      })
+    )
+
+    return summariesRaw.filter((s): s is ContractSummary => s !== null)
   } catch {
     return []
   }
@@ -187,14 +188,14 @@ async function fetchCaisseImprevueContracts(memberId: string): Promise<ContractS
     // Filtrer seulement les contrats actifs
     const activeContracts = contracts.filter((c: any) => c.status === 'ACTIVE')
     
-    const summaries: ContractSummary[] = []
-    
-    for (const contract of activeContracts) {
+    // Traitement des contrats en parallèle (au lieu d'un await séquentiel par contrat).
+    const summariesRaw = await Promise.all(
+      activeContracts.map(async (contract: any): Promise<ContractSummary | null> => {
       try {
         // Récupérer les paiements
         const payments = await service.getPaymentsByContractId(contract.id)
         const paidPayments = payments.filter((p: any) => p.status === 'PAID' || p.status === 'PARTIAL')
-        
+
         // Pour CI, les paiements ont des versements
         let lastPaymentDate: Date | null = null
         if (paidPayments.length > 0) {
@@ -245,7 +246,7 @@ async function fetchCaisseImprevueContracts(memberId: string): Promise<ContractS
           (!nextPaymentDate || nextPaymentDate > new Date())
         const hasDelay = false // CI n'a pas de statut de retard explicite
         
-        summaries.push({
+        return {
           id: contract.id,
           type: 'CAISSE_IMPREVUE',
           status: contract.status,
@@ -261,13 +262,15 @@ async function fetchCaisseImprevueContracts(memberId: string): Promise<ContractS
           subscriptionCINominal: contract.subscriptionCINominal,
           isEligibleForSupport: contract.isEligibleForSupport,
           subscriptionCICode: contract.subscriptionCICode,
-        })
+        }
       } catch {
         // Erreur lors du traitement du contrat CI - continue sans
+        return null
       }
-    }
-    
-    return summaries
+      })
+    )
+
+    return summariesRaw.filter((s): s is ContractSummary => s !== null)
   } catch {
     return []
   }
@@ -289,54 +292,54 @@ async function fetchCharities(memberId: string, currentYear: number, previousYea
       return eventYear === currentYear || eventYear === previousYear
     })
     
-    const summaries: CharitySummary[] = []
-    
-    for (const event of relevantEvents) {
-      try {
-        // Récupérer les contributions de l'événement
-        const contributions = await CharityContributionService.getEventContributions(event.id)
-        
-        // Filtrer les contributions du membre
-        const memberContributions = contributions.filter((c: any) => {
-          // Vérifier si le participant est le membre
-          if (c.participant?.type === 'member') {
-            // Le participantId devrait correspondre au memberId
-            return c.participantId === memberId
-          }
-          return false
-        })
-        
-        for (const contribution of memberContributions) {
-          // Gérer startDate qui peut être un Date ou un Timestamp Firestore
-          let eventDate: Date
-          if (event.startDate instanceof Date) {
-            eventDate = event.startDate
-          } else if (event.startDate && typeof (event.startDate as any).toDate === 'function') {
-            eventDate = (event.startDate as any).toDate()
-          } else {
-            eventDate = new Date(event.startDate || Date.now())
-          }
-          
-          // Le montant dépend du type de contribution
-          const amount = contribution.contributionType === 'money' 
-            ? (contribution.payment?.amount || 0)
-            : (contribution.estimatedValue || 0)
-          
-          summaries.push({
-            id: contribution.id,
-            name: event.title || 'Événement sans titre',
-            date: eventDate,
-            amount,
-            type: contribution.contributionType,
-            charityLink: `/bienfaiteur/charities/${event.id}`,
+    // Chargement des contributions par événement en parallèle (au lieu d'un await séquentiel).
+    const summaryChunks = await Promise.all(
+      relevantEvents.map(async (event: any): Promise<CharitySummary[]> => {
+        try {
+          // Récupérer les contributions de l'événement
+          const contributions = await CharityContributionService.getEventContributions(event.id)
+
+          // Filtrer les contributions du membre
+          const memberContributions = contributions.filter((c: any) => {
+            if (c.participant?.type === 'member') {
+              return c.participantId === memberId
+            }
+            return false
           })
+
+          return memberContributions.map((contribution: any): CharitySummary => {
+            // Gérer startDate qui peut être un Date ou un Timestamp Firestore
+            let eventDate: Date
+            if (event.startDate instanceof Date) {
+              eventDate = event.startDate
+            } else if (event.startDate && typeof (event.startDate as any).toDate === 'function') {
+              eventDate = (event.startDate as any).toDate()
+            } else {
+              eventDate = new Date(event.startDate || Date.now())
+            }
+
+            // Le montant dépend du type de contribution
+            const amount = contribution.contributionType === 'money'
+              ? (contribution.payment?.amount || 0)
+              : (contribution.estimatedValue || 0)
+
+            return {
+              id: contribution.id,
+              name: event.title || 'Événement sans titre',
+              date: eventDate,
+              amount,
+              type: contribution.contributionType,
+              charityLink: `/bienfaiteur/charities/${event.id}`,
+            }
+          })
+        } catch {
+          // Erreur lors du traitement de la charité - continue sans
+          return []
         }
-      } catch {
-        // Erreur lors du traitement de la charité - continue sans
-      }
-    }
-    
-    return summaries.sort((a, b) => b.date.getTime() - a.date.getTime())
+      })
+    )
+
+    return summaryChunks.flat().sort((a, b) => b.date.getTime() - a.date.getTime())
   } catch (error) {
     console.error('Erreur lors de la récupération des charités:', error)
     return []

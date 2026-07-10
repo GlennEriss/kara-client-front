@@ -152,11 +152,17 @@ export async function listContracts(opts: { status?: string; limit?: number } = 
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
 }
 
-// Nouvelle fonction pour récupérer tous les contrats
-export async function getAllContracts() {
-  const { db, collection, getDocs, query, orderBy } = await getFirestore() as any
+// Récupère les contrats. `statuses` (optionnel) filtre côté serveur via `where('status','in',...)`
+// — index composite (status, createdAt) requis, déjà présent dans firestore.indexes.json.
+export async function getAllContracts(opts: { statuses?: string[] } = {}) {
+  const { db, collection, getDocs, query, orderBy, where } = await getFirestore() as any
   const colRef = collection(db, firebaseCollectionNames.caisseContracts)
-  const q = query(colRef, orderBy('createdAt', 'desc'))
+  const cons: any[] = []
+  if (opts.statuses && opts.statuses.length > 0) {
+    cons.push(where('status', 'in', opts.statuses))
+  }
+  cons.push(orderBy('createdAt', 'desc'))
+  const q = query(colRef, ...cons)
   const snap = await getDocs(q)
   return snap.docs.map((d: any) => {
     const data = d.data()

@@ -140,30 +140,43 @@ export function useCalendarCaisseSpeciale(
       const allPayments: Array<CaissePayment & { contract: CaisseContract }> =
         []
 
-      for (const contract of filteredContracts) {
-        try {
-          const contractPayments = await listPayments(contract.id || '')
-          const paymentsInMonth = contractPayments.filter((p: CaissePayment) => {
-            if (!p.dueAt) return false
-            const dueDate = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
-            return dueDate >= filters.monthStart && dueDate <= filters.monthEnd
-          })
+      // Chargement des versements en parallèle (au lieu d'un await séquentiel par contrat).
+      const paymentChunks = await Promise.all(
+        filteredContracts.map(async (contract) => {
+          try {
+            const contractPayments = await listPayments(contract.id || '')
+            const paymentsInMonth = contractPayments.filter((p: CaissePayment) => {
+              if (!p.dueAt) return false
+              const dueDate = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
+              return dueDate >= filters.monthStart && dueDate <= filters.monthEnd
+            })
 
-          allPayments.push(
-            ...paymentsInMonth.map((p: CaissePayment) => ({
-              ...p,
-              contract,
-            }))
-          )
-        } catch (error) {
-          console.error(
-            `Erreur lors de la récupération des versements pour le contrat ${contract.id}:`,
-            error
-          )
-        }
+            return paymentsInMonth.map((p: CaissePayment) => ({ ...p, contract }))
+          } catch (error) {
+            console.error(
+              `Erreur lors de la récupération des versements pour le contrat ${contract.id}:`,
+              error
+            )
+            return []
+          }
+        })
+      )
+      allPayments.push(...paymentChunks.flat())
+
+      // 3. Enrichir avec les données des membres/groupes.
+      // Cache mémoïsé : un même membre/groupe n'est lu qu'une fois (un contrat a
+      // plusieurs versements → sans cache le membre serait relu à chaque versement).
+      const userCache = new Map<string, Promise<any>>()
+      const groupCache = new Map<string, Promise<any>>()
+      const getUserCached = (id: string) => {
+        if (!userCache.has(id)) userCache.set(id, getUserById(id).catch(() => null))
+        return userCache.get(id)!
+      }
+      const getGroupCached = (id: string) => {
+        if (!groupCache.has(id)) groupCache.set(id, getGroupById(id).catch(() => null))
+        return groupCache.get(id)!
       }
 
-      // 3. Enrichir avec les données des membres/groupes
       const enrichedPayments: CalendarPaymentItem[] = await Promise.all(
         allPayments.map(async (payment) => {
           const contract = payment.contract
@@ -172,7 +185,7 @@ export function useCalendarCaisseSpeciale(
 
           if (contract.contractType === 'INDIVIDUAL' && contract.memberId) {
             try {
-              const member = await getUserById(contract.memberId)
+              const member = await getUserCached(contract.memberId)
               if (member) {
                 memberDisplayName = `${member.firstName || ''} ${member.lastName || ''}`.trim()
               }
@@ -184,7 +197,7 @@ export function useCalendarCaisseSpeciale(
             }
           } else if (contract.contractType === 'GROUP' && contract.groupeId) {
             try {
-              const group = await getGroupById(contract.groupeId)
+              const group = await getGroupCached(contract.groupeId)
               if (group) {
                 groupDisplayName = group.name
               }

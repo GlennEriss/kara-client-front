@@ -56,74 +56,91 @@ function extractPhone(contacts: unknown): string | undefined {
   return contacts ? String(contacts) : undefined
 }
 
+/**
+ * Fabrique un lecteur de membre mémoïsé : le même membre n'est lu qu'une fois
+ * par exécution (dédup des appels concurrents via mise en cache de la promesse).
+ */
+function makeUserCache() {
+  const cache = new Map<string, Promise<any>>()
+  return (id: string | undefined | null): Promise<any> => {
+    if (!id) return Promise.resolve(null)
+    let p = cache.get(id)
+    if (!p) {
+      p = getUserById(id).catch(() => null)
+      cache.set(id, p)
+    }
+    return p
+  }
+}
+
 /* ---------- Caisse Spéciale ---------- */
+const OVERDUE_CS_STATUSES = ['ACTIVE', 'LATE_NO_PENALTY', 'LATE_WITH_PENALTY']
+
 async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]> {
-  const allContracts = await getAllContracts()
-  const contracts = (allContracts as CaisseContract[]).filter(
-    (c) =>
-      c.status === 'ACTIVE' ||
-      c.status === 'LATE_NO_PENALTY' ||
-      c.status === 'LATE_WITH_PENALTY',
+  // Filtre serveur : on ne charge que les contrats actifs/en retard (au lieu de toute la collection).
+  const contracts = (await getAllContracts({ statuses: OVERDUE_CS_STATUSES })) as CaisseContract[]
+
+  const getUser = makeUserCache()
+
+  const perContract = await Promise.all(
+    contracts.map(async (contract): Promise<OverduePayment[]> => {
+      try {
+        const payments = await listPayments(contract.id || '')
+        const overdue = payments.filter((p: CaissePayment) => {
+          if (p.status !== 'DUE' || !p.dueAt) return false
+          const due = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
+          return startOfDay(due) < today
+        })
+        if (overdue.length === 0) return []
+
+        let name = '—'
+        let phone: string | undefined
+        let whatsappNumber: string | undefined
+        let matricule: string | undefined
+        let isGroup = false
+
+        if (contract.contractType === 'GROUP' && contract.groupeId) {
+          isGroup = true
+          try {
+            const group = await getGroupById(contract.groupeId)
+            if (group) name = group.name
+          } catch { /* ignore */ }
+        } else if (contract.memberId) {
+          try {
+            const member = await getUser(contract.memberId)
+            if (member) {
+              name = `${member.firstName || ''} ${member.lastName || ''}`.trim() || '—'
+              phone = extractPhone(member.contacts)
+              whatsappNumber = member.whatsappNumber || undefined
+              matricule = member.matricule
+            }
+          } catch { /* ignore */ }
+        }
+
+        return overdue.map((p: CaissePayment) => {
+          const due = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
+          return {
+            key: `cs-${contract.id}-${p.id}`,
+            product: 'Caisse Spéciale' as const,
+            matricule,
+            name,
+            isGroup,
+            phone,
+            whatsappNumber,
+            typeLabel: CAISSE_TYPE_LABELS[contract.caisseType] || contract.caisseType,
+            amount: p.amount,
+            dueAt: due,
+            daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+          }
+        })
+      } catch (error) {
+        console.error(`[overdue][CS] contrat ${contract.id}:`, error)
+        return []
+      }
+    }),
   )
 
-  const items: OverduePayment[] = []
-
-  for (const contract of contracts) {
-    try {
-      const payments = await listPayments(contract.id || '')
-      const overdue = payments.filter((p: CaissePayment) => {
-        if (p.status !== 'DUE' || !p.dueAt) return false
-        const due = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
-        return startOfDay(due) < today
-      })
-      if (overdue.length === 0) continue
-
-      let name = '—'
-      let phone: string | undefined
-      let whatsappNumber: string | undefined
-      let matricule: string | undefined
-      let isGroup = false
-
-      if (contract.contractType === 'GROUP' && contract.groupeId) {
-        isGroup = true
-        try {
-          const group = await getGroupById(contract.groupeId)
-          if (group) name = group.name
-        } catch { /* ignore */ }
-      } else if (contract.memberId) {
-        try {
-          const member = await getUserById(contract.memberId)
-          if (member) {
-            name = `${member.firstName || ''} ${member.lastName || ''}`.trim() || '—'
-            phone = extractPhone(member.contacts)
-            whatsappNumber = member.whatsappNumber || undefined
-            matricule = member.matricule
-          }
-        } catch { /* ignore */ }
-      }
-
-      for (const p of overdue) {
-        const due = p.dueAt instanceof Date ? p.dueAt : new Date(p.dueAt)
-        items.push({
-          key: `cs-${contract.id}-${p.id}`,
-          product: 'Caisse Spéciale',
-          matricule,
-          name,
-          isGroup,
-          phone,
-          whatsappNumber,
-          typeLabel: CAISSE_TYPE_LABELS[contract.caisseType] || contract.caisseType,
-          amount: p.amount,
-          dueAt: due,
-          daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
-        })
-      }
-    } catch (error) {
-      console.error(`[overdue][CS] contrat ${contract.id}:`, error)
-    }
-  }
-
-  return items
+  return perContract.flat()
 }
 
 /* ---------- Caisse Imprévue ---------- */
@@ -138,57 +155,60 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
   const service = ServiceFactory.getCaisseImprevueService()
   const contracts: ContractCI[] = await service.getContractsCIPaginated({ status: 'ACTIVE' })
 
-  const items: OverduePayment[] = []
+  const getUser = makeUserCache()
 
-  for (const contract of contracts) {
-    try {
-      const payments: PaymentCI[] = await service.getPaymentsByContractId(contract.id)
-
-      const overdue = payments.filter((p) => {
-        const isDue =
-          p.status === 'DUE' ||
-          (p.status === 'PARTIAL' && p.accumulatedAmount < p.targetAmount)
-        if (!isDue) return false
-        return startOfDay(ciDueDate(contract, p)) < today
-      })
-      if (overdue.length === 0) continue
-
-      // Matricule : pas présent sur le contrat CI → récupéré via le membre
-      let matricule: string | undefined
-      let whatsappNumber: string | undefined
+  const perContract = await Promise.all(
+    contracts.map(async (contract): Promise<OverduePayment[]> => {
       try {
-        const member = await getUserById(contract.memberId)
-        matricule = member?.matricule
-        whatsappNumber = member?.whatsappNumber || undefined
-      } catch { /* ignore */ }
+        const payments: PaymentCI[] = await service.getPaymentsByContractId(contract.id)
 
-      const name = `${contract.memberFirstName || ''} ${contract.memberLastName || ''}`.trim() || '—'
-      const phone = extractPhone(contract.memberContacts)
-      const typeLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
-
-      for (const p of overdue) {
-        const due = ciDueDate(contract, p)
-        const remaining = Math.max(0, p.targetAmount - (p.accumulatedAmount || 0))
-        items.push({
-          key: `ci-${contract.id}-${p.id ?? p.monthIndex}`,
-          product: 'Caisse Imprévue',
-          matricule,
-          name,
-          isGroup: false,
-          phone,
-          whatsappNumber,
-          typeLabel,
-          amount: remaining,
-          dueAt: due,
-          daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+        const overdue = payments.filter((p) => {
+          const isDue =
+            p.status === 'DUE' ||
+            (p.status === 'PARTIAL' && p.accumulatedAmount < p.targetAmount)
+          if (!isDue) return false
+          return startOfDay(ciDueDate(contract, p)) < today
         })
-      }
-    } catch (error) {
-      console.error(`[overdue][CI] contrat ${contract.id}:`, error)
-    }
-  }
+        if (overdue.length === 0) return []
 
-  return items
+        // Matricule : pas présent sur le contrat CI → récupéré via le membre
+        let matricule: string | undefined
+        let whatsappNumber: string | undefined
+        try {
+          const member = await getUser(contract.memberId)
+          matricule = member?.matricule
+          whatsappNumber = member?.whatsappNumber || undefined
+        } catch { /* ignore */ }
+
+        const name = `${contract.memberFirstName || ''} ${contract.memberLastName || ''}`.trim() || '—'
+        const phone = extractPhone(contract.memberContacts)
+        const typeLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
+
+        return overdue.map((p) => {
+          const due = ciDueDate(contract, p)
+          const remaining = Math.max(0, p.targetAmount - (p.accumulatedAmount || 0))
+          return {
+            key: `ci-${contract.id}-${p.id ?? p.monthIndex}`,
+            product: 'Caisse Imprévue' as const,
+            matricule,
+            name,
+            isGroup: false,
+            phone,
+            whatsappNumber,
+            typeLabel,
+            amount: remaining,
+            dueAt: due,
+            daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+          }
+        })
+      } catch (error) {
+        console.error(`[overdue][CI] contrat ${contract.id}:`, error)
+        return []
+      }
+    }),
+  )
+
+  return perContract.flat()
 }
 
 /* ---------- Crédit (Spéciale / Fixe / Aide) ---------- */
@@ -203,66 +223,70 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
   if (!creditType) return []
 
   const service = ServiceFactory.getCreditSpecialeService()
-  const allContracts: CreditContract[] = await service.getContractsWithFilters()
-  const contracts = allContracts.filter(
+  // Filtre serveur sur le type de crédit (index (creditType, createdAt) présent) ;
+  // le statut multi-valeurs reste filtré côté client.
+  const typeContracts: CreditContract[] = await service.getContractsWithFilters({ creditType })
+  const contracts = typeContracts.filter(
     (c) =>
-      c.creditType === creditType &&
-      (c.status === 'ACTIVE' ||
-        c.status === 'OVERDUE' ||
-        c.status === 'PARTIAL' ||
-        c.status === 'BLOCKED'),
+      c.status === 'ACTIVE' ||
+      c.status === 'OVERDUE' ||
+      c.status === 'PARTIAL' ||
+      c.status === 'BLOCKED',
   )
 
-  const items: OverduePayment[] = []
+  const getUser = makeUserCache()
 
-  for (const contract of contracts) {
-    try {
-      const installments: CreditInstallment[] = await service.getInstallmentsByCreditId(contract.id)
-      const overdue = installments.filter((inst) => {
-        if (inst.status === 'PAID' || inst.status === 'PENDING') return false
-        const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate)
-        return startOfDay(due) < today
-      })
-      if (overdue.length === 0) continue
-
-      // Matricule : member?.matricule sinon clientId (même logique que les factures crédit)
-      let matricule: string | undefined = contract.clientId
-      let whatsappNumber: string | undefined
+  const perContract = await Promise.all(
+    contracts.map(async (contract): Promise<OverduePayment[]> => {
       try {
-        const member = await getUserById(contract.clientId)
-        matricule = member?.matricule || contract.clientId
-        whatsappNumber = member?.whatsappNumber || undefined
-      } catch { /* ignore */ }
-
-      const name = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.trim() || '—'
-      const phone = extractPhone(contract.clientContacts)
-
-      for (const inst of overdue) {
-        const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate)
-        const remaining = Math.max(
-          inst.remainingAmount ?? (inst.totalAmount - (inst.paidAmount || 0)),
-          0,
-        )
-        items.push({
-          key: `credit-${contract.id}-${inst.dueDate}`,
-          product,
-          matricule,
-          name,
-          isGroup: false,
-          phone,
-          whatsappNumber,
-          typeLabel: 'Mensualité',
-          amount: remaining,
-          dueAt: due,
-          daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+        const installments: CreditInstallment[] = await service.getInstallmentsByCreditId(contract.id)
+        const overdue = installments.filter((inst) => {
+          if (inst.status === 'PAID' || inst.status === 'PENDING') return false
+          const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate)
+          return startOfDay(due) < today
         })
-      }
-    } catch (error) {
-      console.error(`[overdue][${product}] contrat ${contract.id}:`, error)
-    }
-  }
+        if (overdue.length === 0) return []
 
-  return items
+        // Matricule : member?.matricule sinon clientId (même logique que les factures crédit)
+        let matricule: string | undefined = contract.clientId
+        let whatsappNumber: string | undefined
+        try {
+          const member = await getUser(contract.clientId)
+          matricule = member?.matricule || contract.clientId
+          whatsappNumber = member?.whatsappNumber || undefined
+        } catch { /* ignore */ }
+
+        const name = `${contract.clientFirstName || ''} ${contract.clientLastName || ''}`.trim() || '—'
+        const phone = extractPhone(contract.clientContacts)
+
+        return overdue.map((inst) => {
+          const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate)
+          const remaining = Math.max(
+            inst.remainingAmount ?? (inst.totalAmount - (inst.paidAmount || 0)),
+            0,
+          )
+          return {
+            key: `credit-${contract.id}-${inst.dueDate}`,
+            product,
+            matricule,
+            name,
+            isGroup: false,
+            phone,
+            whatsappNumber,
+            typeLabel: 'Mensualité',
+            amount: remaining,
+            dueAt: due,
+            daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+          }
+        })
+      } catch (error) {
+        console.error(`[overdue][${product}] contrat ${contract.id}:`, error)
+        return []
+      }
+    }),
+  )
+
+  return perContract.flat()
 }
 
 const ALL_PRODUCTS: OverdueProduct[] = [
