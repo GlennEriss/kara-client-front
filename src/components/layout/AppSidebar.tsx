@@ -16,7 +16,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import routes from "@/constantes/routes";
+import { requiredViewPermissionForPath } from "@/constantes/permissions";
 import { useAuth } from "@/hooks/useAuth";
+import { useMyAccess } from "@/hooks/useMyAccess";
 import { useLogout } from "@/domains/auth/hooks";
 import { cn } from "@/lib/utils";
 import {
@@ -313,11 +315,31 @@ export function AppSidebar() {
   const { user } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
 
-  // La réinitialisation totale n'est visible que pour le superAdmin.
-  const isSuperAdmin = (user?.email ?? "").toLowerCase() === "phil@gmail.com";
+  // Accès de l'admin connecté (superAdmin + permissions fines).
+  const { isSuperAdmin, can } = useMyAccess();
+
+  // Un item est visible si sa route n'est pas restreinte ou si l'admin a la permission « view ».
+  const canSeeUrl = (url: string) => {
+    const required = requiredViewPermissionForPath(url);
+    return !required || can(required);
+  };
+
+  // Menu principal filtré selon les droits (les parents disparaissent si aucun enfant visible).
+  const visibleAdminItems = adminMenuItems
+    .map((item): SidebarItem | null => {
+      if ("children" in item && item.children) {
+        const children = item.children.filter((c) => canSeeUrl(c.url));
+        return children.length > 0 ? { ...item, children } : null;
+      }
+      return canSeeUrl(item.url) ? item : null;
+    })
+    .filter((item): item is SidebarItem => item !== null);
+
+  // Section Système filtrée ; « Réinitialisation » réservée au superAdmin.
+  const baseSystemItems = systemMenuItems.filter((it: any) => canSeeUrl(it.url));
   const systemItems = isSuperAdmin
-    ? [...systemMenuItems, { title: "Réinitialisation", url: "/reinitialisation", icon: Trash2 }]
-    : systemMenuItems;
+    ? [...baseSystemItems, { title: "Réinitialisation", url: "/reinitialisation", icon: Trash2 }]
+    : baseSystemItems;
 
   // Ferme le tiroir offcanvas après une navigation sur mobile.
   const closeMobile = () => {
@@ -470,7 +492,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {adminMenuItems.map((item) => {
+              {visibleAdminItems.map((item) => {
                 if (!item.children) {
                   const isActive = isActiveRoute(item.url);
                   return (

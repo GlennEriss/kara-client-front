@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { cn, compressImage, getImageInfo, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { CivilityEnum, GenderEnum } from '@/schemas/identity.schema'
 import { AdminCreateFormData, adminCreateSchema, AdminRoleEnum } from '@/schemas/schemas'
+import { PermissionsEditor } from '@/components/admin/PermissionsEditor'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Camera, CheckCircle, Loader2 } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
@@ -31,6 +33,8 @@ interface AdminFormModalProps {
 
 export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'create', initialValues }: AdminFormModalProps) {
   const { user } = useAuth()
+  const { isSuperAdmin: iAmSuperAdmin, can: iCan } = useMyAccess()
+  const canManageAdmins = iAmSuperAdmin || iCan('admins.manage')
   // Schéma dynamique pour le téléphone selon l'environnement
   const phoneSchema = process.env.NODE_ENV === 'production'
     ? z.string().regex(/^\d{9}$/, 'Le numéro gabonais doit contenir exactement 9 chiffres')
@@ -54,6 +58,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
     email: '',
     contacts: [''],
     roles: ['Admin'],
+    permissions: [],
     photoURL: null,
     photoPath: null,
     uid: undefined,
@@ -83,6 +88,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         email: initialValues.email ?? '',
         contacts: initialValues.contacts && initialValues.contacts.length > 0 ? [initialValues.contacts[0]] : [''],
         roles: (initialValues.roles as any) ?? ['Admin'],
+        permissions: (initialValues.permissions as any) ?? [],
         photoURL: initialValues.photoURL ?? null,
         photoPath: initialValues.photoPath ?? null,
       })
@@ -172,6 +178,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
           phone = `+241${phone.replace(/[^\d]/g, '').replace(/^0+/, '')}`
         }
 
+        const isSuperAdminRoleEdit = (values.roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))
         await updateAdmin(values.uid, {
           firstName: values.firstName,
           lastName: values.lastName,
@@ -181,6 +188,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
           email: values.email?.trim() ? values.email.trim() : undefined,
           contacts: phone ? [phone] : [],
           roles: values.roles as any,
+          permissions: isSuperAdminRoleEdit ? [] : (values.permissions ?? []),
           photoURL: values.photoURL,
           photoPath: values.photoPath,
         })
@@ -239,6 +247,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
       })
 
       // Créer l'admin dans la collection admins avec l'ID = matricule
+      const isSuperAdminRoleCreate = (values.roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))
       await createAdminWithId(matricule, {
         firstName: values.firstName,
         lastName: values.lastName,
@@ -248,6 +257,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         email: values.email?.trim() ? values.email.trim() : undefined,
         contacts: [phone],
         roles: values.roles as any,
+        permissions: isSuperAdminRoleCreate ? [] : (values.permissions ?? []),
         photoURL: uploadedPhotoURL,
         photoPath: uploadedPhotoPath,
         isActive: true,
@@ -474,6 +484,33 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                 </FormItem>
               )}
             />
+
+            {/* Éditeur d'accès fin (masqué pour les superAdmins : ils ont tous les droits) */}
+            {(() => {
+              const selectedRoles = form.watch('roles') || []
+              const isSuperAdminRole = selectedRoles.some((r) => String(r).toLowerCase().includes('superadmin'))
+              if (isSuperAdminRole) {
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    Les super administrateurs disposent de <strong>tous les droits</strong> — aucune permission à configurer.
+                  </div>
+                )
+              }
+              if (!canManageAdmins) return null
+              const permissions = form.watch('permissions') || []
+              return (
+                <FormItem>
+                  <FormLabel>Accès &amp; permissions</FormLabel>
+                  <FormDescription>
+                    Cochez précisément les sections et actions autorisées pour cet administrateur.
+                  </FormDescription>
+                  <PermissionsEditor
+                    value={permissions}
+                    onChange={(next) => form.setValue('permissions', next, { shouldDirty: true })}
+                  />
+                </FormItem>
+              )
+            })()}
 
           </form>
         </Form>
