@@ -86,14 +86,9 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
 
             await batch.commit();
 
-            // Récupérer les échéances créées
-            const created: CreditInstallment[] = [];
-            for (const id of createdIds) {
-                const installment = await this.getInstallmentById(id);
-                if (installment) {
-                    created.push(installment);
-                }
-            }
+            // Récupérer les échéances créées (lectures en parallèle).
+            const createdResults = await Promise.all(createdIds.map((id) => this.getInstallmentById(id)));
+            const created: CreditInstallment[] = createdResults.filter((i): i is CreditInstallment => i !== null);
 
             return created;
         } catch (error) {
@@ -336,10 +331,10 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
             const installments = await this.getInstallmentsByCreditId(creditId);
             const { doc, deleteDoc, db } = await getFirestore();
 
-            for (const installment of installments) {
+            await Promise.all(installments.map((installment) => {
                 const installmentRef = doc(db, firebaseCollectionNames.creditInstallments || "creditInstallments", installment.id);
-                await deleteDoc(installmentRef);
-            }
+                return deleteDoc(installmentRef);
+            }));
         } catch (error) {
             console.error("Erreur lors de la suppression des échéances:", error);
             throw error;

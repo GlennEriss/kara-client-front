@@ -1010,22 +1010,27 @@ export class PlacementService {
       stats.payoutModeDistribution[placement.payoutMode]++
     }
 
-    // Calculer les statistiques des commissions
-    for (const placement of placements) {
-      try {
-        const commissions = await this.placementRepository.listCommissions(placement.id)
-        stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + this.toFiniteNumber(c.amount), 0)
-        
-        for (const commission of commissions) {
-          if (commission.status === 'Due') {
-            stats.commissionsDue++
-          } else if (commission.status === 'Paid') {
-            stats.commissionsPaid++
-            stats.paidCommissionsAmount += this.toFiniteNumber(commission.amount)
-          }
+    // Calculer les statistiques des commissions.
+    // Chargement en parallèle (au lieu d'un await séquentiel par placement), puis agrégation synchrone.
+    const commissionsPerPlacement = await Promise.all(
+      placements.map(async (placement) => {
+        try {
+          return await this.placementRepository.listCommissions(placement.id)
+        } catch {
+          // Erreur lors du chargement des commissions - continue sans
+          return []
         }
-      } catch {
-        // Erreur lors du calcul des commissions - continue sans
+      })
+    )
+    for (const commissions of commissionsPerPlacement) {
+      stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + this.toFiniteNumber(c.amount), 0)
+      for (const commission of commissions) {
+        if (commission.status === 'Due') {
+          stats.commissionsDue++
+        } else if (commission.status === 'Paid') {
+          stats.commissionsPaid++
+          stats.paidCommissionsAmount += this.toFiniteNumber(commission.amount)
+        }
       }
     }
 

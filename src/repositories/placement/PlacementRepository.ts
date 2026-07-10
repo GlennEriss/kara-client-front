@@ -125,12 +125,8 @@ export class PlacementRepository implements IRepository {
   }
 
   async createCommissions(placementId: string, commissions: Omit<CommissionPaymentPlacement, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<CommissionPaymentPlacement[]> {
-    const createdCommissions: CommissionPaymentPlacement[] = []
-    for (const commissionData of commissions) {
-      const commission = await this.createCommission(placementId, commissionData)
-      createdCommissions.push(commission)
-    }
-    return createdCommissions
+    // Créations en parallèle (documents indépendants), en préservant l'ordre.
+    return Promise.all(commissions.map((commissionData) => this.createCommission(placementId, commissionData)))
   }
 
   async listCommissions(placementId: string): Promise<CommissionPaymentPlacement[]> {

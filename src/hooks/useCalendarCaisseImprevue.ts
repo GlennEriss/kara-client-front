@@ -160,31 +160,34 @@ export function useCalendarCaisseImprevue(
       // 2. Récupérer les versements pour chaque contrat
       const allPayments: Array<PaymentCI & { contract: ContractCI; dueDate: Date }> = []
 
-      for (const contract of filteredContracts) {
-        try {
-          const contractPayments = await service.getPaymentsByContractId(contract.id)
-          
-          // Calculer la date d'échéance pour chaque versement
-          const paymentsWithDueDate = contractPayments.map((p: PaymentCI) => ({
-            ...p,
-            contract,
-            dueDate: calculateDueDate(contract, p),
-          }))
-          
-          // Filtrer les versements du mois
-          const monthPayments = paymentsWithDueDate.filter((p) => {
-            const dueDateStart = startOfDay(p.dueDate)
-            return dueDateStart >= filters.monthStart && dueDateStart <= filters.monthEnd
-          })
-          
-          allPayments.push(...monthPayments)
-        } catch (error) {
-          console.error(
-            `Erreur lors de la récupération des versements pour le contrat ${contract.id}:`,
-            error
-          )
-        }
-      }
+      // Chargement des versements en parallèle (au lieu d'un await séquentiel par contrat).
+      const paymentChunks = await Promise.all(
+        filteredContracts.map(async (contract) => {
+          try {
+            const contractPayments = await service.getPaymentsByContractId(contract.id)
+
+            // Calculer la date d'échéance pour chaque versement
+            const paymentsWithDueDate = contractPayments.map((p: PaymentCI) => ({
+              ...p,
+              contract,
+              dueDate: calculateDueDate(contract, p),
+            }))
+
+            // Filtrer les versements du mois
+            return paymentsWithDueDate.filter((p) => {
+              const dueDateStart = startOfDay(p.dueDate)
+              return dueDateStart >= filters.monthStart && dueDateStart <= filters.monthEnd
+            })
+          } catch (error) {
+            console.error(
+              `Erreur lors de la récupération des versements pour le contrat ${contract.id}:`,
+              error
+            )
+            return []
+          }
+        })
+      )
+      allPayments.push(...paymentChunks.flat())
 
       // 3. Enrichir avec les données des membres (déjà dans le contrat)
       const enrichedPayments: CalendarPaymentItemCI[] = allPayments.map((payment) => {
