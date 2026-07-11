@@ -8,7 +8,7 @@ import { User, ExternalLink, Download } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ModernCard } from './shared/ModernCard'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import type { MembershipRequest } from '../../entities'
 
 interface DetailsPhotoCardProps {
@@ -16,6 +16,7 @@ interface DetailsPhotoCardProps {
 }
 
 export function DetailsPhotoCard({ request }: DetailsPhotoCardProps) {
+  const { openDocument } = useDocumentViewer()
   return (
     <ModernCard 
       title="Photo du demandeur" 
@@ -47,10 +48,11 @@ export function DetailsPhotoCard({ request }: DetailsPhotoCardProps) {
               <Button
                 size="sm"
                 className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-xl h-8 lg:h-10 px-2 lg:px-4"
-                onClick={() => downloadFile(
-                  request.identity.photoURL,
-                  `photo-${request.identity.firstName}-${request.identity.lastName}.jpg`
-                )}
+                onClick={() => openDocument({
+                  url: request.identity.photoURL,
+                  filename: `photo-${request.identity.firstName}-${request.identity.lastName}.jpg`,
+                  title: 'Photo du demandeur',
+                })}
               >
                 <Download className="w-3 h-3 lg:w-4 lg:h-4" />
               </Button>

@@ -12,7 +12,7 @@ import { ModernCard } from './shared/ModernCard'
 import { InfoField } from './shared/InfoField'
 import { formatDateDetailed, isDateExpired } from '../../utils/details'
 import { useMembershipDocumentPhotos } from '../../hooks/useMembershipDocumentPhotos'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import { toast } from 'sonner'
 import type { MembershipRequest } from '../../entities'
 
@@ -33,6 +33,7 @@ export function DetailsDocumentsCard({
   onReplaceAdhesionPdf,
   onViewDocumentPhotos,
 }: DetailsDocumentsCardProps) {
+  const { openDocument } = useDocumentViewer()
   const { frontURL: resolvedFrontURL, backURL: resolvedBackURL, isLoading: isLoadingPhotos } = useMembershipDocumentPhotos(request)
 
   const handleViewAdhesionPdf = () => {
@@ -177,7 +178,7 @@ export function DetailsDocumentsCard({
                   <Button
                     size="sm"
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3"
-                    onClick={() => downloadFile(resolvedFrontURL, 'document-recto.jpg')}
+                    onClick={() => openDocument({ url: resolvedFrontURL, filename: 'document-recto.jpg', title: "Pièce d'identité — recto" })}
                   >
                     <Download className="w-3 h-3 lg:w-4 lg:h-4" />
                   </Button>
@@ -215,7 +216,7 @@ export function DetailsDocumentsCard({
                   <Button
                     size="sm"
                     className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-8 lg:h-9 px-2 lg:px-3"
-                    onClick={() => downloadFile(resolvedBackURL, 'document-verso.jpg')}
+                    onClick={() => openDocument({ url: resolvedBackURL, filename: 'document-verso.jpg', title: "Pièce d'identité — verso" })}
                   >
                     <Download className="w-3 h-3 lg:w-4 lg:h-4" />
                   </Button>

@@ -19,7 +19,7 @@ import { ArrowLeft, Calendar, Clock, CreditCard, FileText, Loader2, UploadCloud,
 import { useParams, useRouter } from 'next/navigation'
 import React from 'react'
 import { toast } from 'sonner'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 
 function formatDate(date: Date) {
     try { return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) } catch { return 'Date invalide' }
@@ -36,6 +36,7 @@ function daysRemaining(endDate: Date) {
 }
 
 export default function SubscriptionList() {
+    const { openDocument } = useDocumentViewer()
     const params = useParams()
     const router = useRouter()
     const memberId = params.id as string
@@ -334,10 +335,11 @@ export default function SubscriptionList() {
                             {previewUrl && (
                               <Button
                                 variant="outline"
-                                onClick={() => downloadFile(
-                                  previewUrl,
-                                  `fiche_adhesion_${member?.lastName || ''}_${member?.firstName || ''}.pdf`
-                                )}
+                                onClick={() => openDocument({
+                                  url: previewUrl,
+                                  filename: `fiche_adhesion_${member?.lastName || ''}_${member?.firstName || ''}.pdf`,
+                                  title: "Fiche d'adhésion",
+                                })}
                               >
                                 Télécharger
                               </Button>

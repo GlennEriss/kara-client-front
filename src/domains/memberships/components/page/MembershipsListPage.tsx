@@ -38,7 +38,7 @@ import ExportMembershipModal from '@/components/memberships/ExportMembershipModa
 import { GenererIdentifiantModal } from '@/domains/memberships/components/modals'
 import { UploadMemberAdhesionPdfModal } from '@/domains/memberships/components/modals/UploadMemberAdhesionPdfModal'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 
 type ViewMode = 'grid' | 'list'
 
@@ -81,6 +81,7 @@ const getUserDisplayName = (user: MemberWithSubscription): string => {
  * Utilise l'architecture V2 avec hooks, services et repositories.
  */
 export function MembershipsListPage() {
+  const { openDocument } = useDocumentViewer()
   // États
   const [filters, setFilters] = useState<UserFilters>({})
   const [currentPage, setCurrentPage] = useState(1)
@@ -418,7 +419,7 @@ export function MembershipsListPage() {
             <div className="flex gap-2">
               <Button onClick={() => { if (previewUrl) window.open(previewUrl, '_blank', 'noopener,noreferrer') }} className="bg-[#234D65] hover:bg-[#234D65] text-white">Ouvrir</Button>
               {previewUrl && (
-                <Button variant="outline" onClick={() => downloadFile(previewUrl, 'fiche_adhesion.pdf')}>
+                <Button variant="outline" onClick={() => openDocument({ url: previewUrl, filename: 'fiche_adhesion.pdf', title: "Fiche d'adhésion" })}>
                   Télécharger
                 </Button>
               )}

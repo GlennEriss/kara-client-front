@@ -39,7 +39,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 
 // Labels pour les types de documents
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
@@ -103,6 +103,7 @@ const DOCUMENT_TYPE_COLORS: Record<string, string> = {
 }
 
 export default function ContractsHistoryPage() {
+  const { openDocument } = useDocumentViewer()
   const router = useRouter()
 
   // États des filtres
@@ -252,10 +253,7 @@ export default function ContractsHistoryPage() {
   // Fonction pour télécharger un document
   const handleDownload = (document: Document) => {
     const filename = document.originalFileName || document.libelle || `${document.type}.pdf` || 'document.pdf'
-    const success = downloadFile(document.url, filename)
-    if (!success) {
-      toast.error('URL du document non disponible')
-    }
+    openDocument({ url: document.url, filename, title: document.libelle || document.type || 'Document' })
   }
 
   // Exporter Excel

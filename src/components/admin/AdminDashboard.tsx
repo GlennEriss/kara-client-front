@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { PageHero } from '@/components/ui/page-hero'
+import { PermissionGate } from '@/components/auth/PermissionGate'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ADMIN_ROLE_LABELS, AdminRole, AdminUser, updateAdminDeep } from '@/db/admin.db'
@@ -262,10 +263,12 @@ export default function AdminDashboard() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Actualiser
             </Button>
-            <Button size="sm" onClick={handleCreateOpen} className="h-9 bg-white text-[#234D65] hover:bg-white/90">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Nouvel Admin
-            </Button>
+            <PermissionGate permission="admins.manage">
+              <Button size="sm" onClick={handleCreateOpen} className="h-9 bg-white text-[#234D65] hover:bg-white/90">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Nouvel Admin
+              </Button>
+            </PermissionGate>
           </div>
         )}
       />
@@ -486,32 +489,37 @@ export default function AdminDashboard() {
                       {admin.isActive ? 'Actif' : 'Inactif'}
                     </Badge>
 
-                    <div className="flex items-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEdit(admin)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleActive(admin)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteConfirm(admin)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <PermissionGate
+                      permission="admins.manage"
+                      fallback={<span className="text-[11px] text-gray-400">Lecture seule</span>}
+                    >
+                      <div className="flex items-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(admin)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleActive(admin)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteConfirm(admin)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </PermissionGate>
                   </div>
                 </CardContent>
               </Card>

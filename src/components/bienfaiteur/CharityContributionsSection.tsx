@@ -21,13 +21,14 @@ import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import AddContributionForm from './AddContributionForm'
 import CharityContributionReceiptPDF from './CharityContributionReceiptPDF'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 
 interface CharityContributionsSectionProps {
   eventId: string
 }
 
 export default function CharityContributionsSection({ eventId }: CharityContributionsSectionProps) {
+  const { openDocument } = useDocumentViewer()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'money' | 'in_kind'>('all')
@@ -814,7 +815,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                   const proofContribution = contributions?.find(c => c.proofUrl === proofToView)
                   const donorName = proofContribution?.participant?.name?.trim().replace(/\s+/g, '_')
                   const filename = donorName ? `preuve_${donorName}.${isPdf ? 'pdf' : 'jpg'}` : 'preuve.pdf'
-                  downloadFile(proofToView, filename)
+                  openDocument({ url: proofToView, filename, title: 'Preuve de contribution' })
                 }}
               >
                 <Download className="w-4 h-4 mr-2" />

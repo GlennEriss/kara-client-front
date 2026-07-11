@@ -291,6 +291,8 @@ export const adminCreateSchema = z.object({
       .regex(/^[\+]?[0-9\s\-\(\)]+$/, 'Format de téléphone invalide')
   ).length(1, 'Un seul numéro de téléphone est requis'),
   roles: z.array(AdminRoleEnum).min(1, 'Sélectionnez au moins un rôle'),
+  // Permissions fines (clés du catalogue). Ignorées pour les superAdmins (tous les droits).
+  permissions: z.array(z.string()).optional(),
   photoURL: z.string().url('URL invalide').nullable().optional(),
   photoPath: z.string().nullable().optional(),
 })

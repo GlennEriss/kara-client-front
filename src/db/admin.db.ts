@@ -221,6 +221,7 @@ export interface CreateAdminInput {
   email?: string
   contacts: string[] // longueur=1
   roles: AdminRole[] // longueur>=1
+  permissions?: string[] // permissions fines (ignorées pour les superAdmins)
   photoURL?: string | null
   photoPath?: string | null
   isActive?: boolean

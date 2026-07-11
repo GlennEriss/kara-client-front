@@ -23,7 +23,7 @@ import {
 } from "@/services/caisse/mutations"
 import type { RefundDocument } from "@/types/types"
 import { getContractStatusConfig } from '@/utils/contract-status'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
     AlertTriangle,
@@ -110,15 +110,16 @@ export default function StandardContract({ id }: Props) {
   const { user } = useAuth()
   const { data: member } = useMember((data as any)?.memberId)
 
-  /** Télécharge un document de remboursement lié au contrat via le proxy `/api/download`. */
+  const { openDocument } = useDocumentViewer()
+
+  /** Ouvre l'aperçu/téléchargement d'un document de remboursement lié au contrat. */
   const downloadRefundDocument = (url: string | undefined, label: string) => {
     const last = String(member?.lastName ?? '').toUpperCase().replace(/\s+/g, '_')
     const first = String(member?.firstName ?? '').toUpperCase().replace(/\s+/g, '_')
     const base = last || first ? `${last}_${first}` : `CONTRAT_${id}`
     const filename = `${base}_${label}.pdf`
-    if (!downloadFile(url, filename)) {
-      toast.error('URL du document non disponible')
-    }
+    const title = label.charAt(0).toUpperCase() + label.slice(1).toLowerCase().replace(/_/g, ' ')
+    openDocument({ url, filename, title })
   }
 
   const { data: group } = useQuery({
