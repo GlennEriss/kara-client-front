@@ -23,7 +23,7 @@ import {
 import { DocumentPreviewModal } from '@/components/member/DocumentPreviewModal'
 import type { Document as DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 
 interface ListDocumentsV2Props {
   memberId: string
@@ -61,6 +61,7 @@ function TableSkeleton() {
  * - Sélecteurs stables avec data-testid pour les tests E2E
  */
 export default function ListDocumentsV2({ memberId }: ListDocumentsV2Props) {
+  const { openDocument } = useDocumentViewer()
   const {
     documents,
     filterOptions,
@@ -258,7 +259,7 @@ export default function ListDocumentsV2({ memberId }: ListDocumentsV2Props) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
                           <DropdownMenuItem
-                            onClick={() => downloadFile(document.url, getDocumentFilename(document))}
+                            onClick={() => openDocument({ url: document.url, filename: getDocumentFilename(document), title: document.libelle || 'Document' })}
                             className="cursor-pointer"
                             data-testid={`btn-download-document-${document.id}`}
                           >
@@ -342,7 +343,7 @@ export default function ListDocumentsV2({ memberId }: ListDocumentsV2Props) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => downloadFile(document.url, getDocumentFilename(document))}
+                                onClick={() => openDocument({ url: document.url, filename: getDocumentFilename(document), title: document.libelle || 'Document' })}
                                 className="h-8 px-2 hover:bg-kara-primary-light/20 hover:text-kara-primary-dark"
                                 data-testid={`btn-download-document-desktop-${document.id}`}
                               >

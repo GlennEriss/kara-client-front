@@ -22,7 +22,6 @@ import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
 import { useCreditContractMutations, useCreditContracts } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
-import { downloadFile } from '@/utils/downloadFile'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { CreditContract, CreditContractStatus, CreditType } from '@/types/types'
 import {
@@ -48,6 +47,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import DocumentViewerModal from '@/components/documents/DocumentViewerModal'
 import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
 import DeleteCreditContractModal from './DeleteCreditContractModal'
 import StatisticsCreditContrats from './StatisticsCreditContrats'
@@ -159,15 +159,15 @@ function canViewRepaymentContract(contract: CreditContract): boolean {
   return Boolean(contract.signedQuittanceUrl)
 }
 
-/** Télécharge un document lié à un contrat de crédit spécial via le proxy `/api/download`. */
-function downloadCreditContractDocument(contract: CreditContract, url: string | undefined, label: string) {
+/** Nom de fichier normalisé pour un document lié à un contrat de crédit spécial. */
+function creditDocFilename(contract: CreditContract, label: string) {
   const last = String(contract.clientLastName ?? '').toUpperCase().replace(/\s+/g, '_')
   const first = String(contract.clientFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
-  const filename = `${last}_${first}_${label}.pdf`
-  if (!downloadFile(url, filename)) {
-    toast.error('URL du document non disponible')
-  }
+  return `${last}_${first}_${label}.pdf`
 }
+
+/** Document en cours de consultation dans la modale d'aperçu. */
+type ViewerDoc = { url?: string; filename: string; title: string; subtitle?: string }
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
@@ -828,7 +828,18 @@ const ListContrats = ({
   const [selectedContractForOverview, setSelectedContractForOverview] = useState<CreditContract | null>(null)
   const [showDeleteContractModal, setShowDeleteContractModal] = useState(false)
   const [selectedContractForDelete, setSelectedContractForDelete] = useState<CreditContract | null>(null)
+  const [viewerDoc, setViewerDoc] = useState<ViewerDoc | null>(null)
   const isUploadActivationFlow = selectedContractForUpload?.status === 'PENDING'
+
+  // Ouvre la modale d'aperçu/téléchargement (mécanisme mobile unifié).
+  const openCreditDocument = (contract: CreditContract, url: string | undefined | null, label: string, title: string) => {
+    setViewerDoc({
+      url: url ?? undefined,
+      filename: creditDocFilename(contract, label),
+      title,
+      subtitle: `${contract.clientFirstName ?? ''} ${contract.clientLastName ?? ''}`.trim() || undefined,
+    })
+  }
 
   // Reset page when filters or tab change
   React.useEffect(() => {
@@ -1704,7 +1715,7 @@ const ListContrats = ({
                                 Voir toutes les infos
                               </Button>
                               <Button
-                                onClick={() => downloadCreditContractDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE')}
+                                onClick={() => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')}
                                 variant="outline"
                                 className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                               >
@@ -1748,7 +1759,7 @@ const ListContrats = ({
                           {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                             <Button
                               onClick={contract.contractUrl
-                                ? () => downloadCreditContractDocument(contract, contract.contractUrl, 'CONTRAT')
+                                ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
                                 : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                               variant="outline"
                               className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
@@ -1759,7 +1770,7 @@ const ListContrats = ({
                           )}
                           {canViewRepaymentContract(contract) && (
                             <Button
-                              onClick={() => downloadCreditContractDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE')}
+                              onClick={() => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement')}
                               variant="outline"
                               className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
                             >
@@ -1872,7 +1883,7 @@ const ListContrats = ({
                               {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={contract.contractUrl
-                                    ? () => downloadCreditContractDocument(contract, contract.contractUrl, 'CONTRAT')
+                                    ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
                                     : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                                   className="cursor-pointer"
                                 >
@@ -1881,13 +1892,13 @@ const ListContrats = ({
                                 </DropdownMenuItem>
                               )}
                               {contract.signedContractUrl && (
-                                <DropdownMenuItem onClick={() => downloadCreditContractDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE')} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')} className="cursor-pointer">
                                   <Eye className="h-4 w-4 mr-2" />
                                   Voir contrat
                                 </DropdownMenuItem>
                               )}
                               {canViewRepaymentContract(contract) && (
-                                <DropdownMenuItem onClick={() => downloadCreditContractDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE')} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement')} className="cursor-pointer">
                                   <Eye className="h-4 w-4 mr-2" />
                                   Contrat de remboursement
                                 </DropdownMenuItem>
@@ -2381,6 +2392,14 @@ const ListContrats = ({
           contract={selectedContractForPDF}
         />
       )}
+      <DocumentViewerModal
+        isOpen={!!viewerDoc}
+        onClose={() => setViewerDoc(null)}
+        url={viewerDoc?.url}
+        filename={viewerDoc?.filename ?? 'document.pdf'}
+        title={viewerDoc?.title ?? 'Document'}
+        subtitle={viewerDoc?.subtitle}
+      />
       <DeleteCreditContractModal
         isOpen={showDeleteContractModal}
         onClose={() => {

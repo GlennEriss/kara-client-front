@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
-import { downloadFile } from '@/utils/downloadFile'
+import DocumentViewerModal from '@/components/documents/DocumentViewerModal'
 import {
   buildCreditSpecialFactureData,
   buildCreditSpecialFacturePage1Data,
@@ -245,15 +245,15 @@ const canUploadSignedContract = (contract: CreditContract): boolean => {
   return !contract.signedContractUrl && uploadableStatuses.includes(contract.status)
 }
 
-/** Télécharge un document lié à un contrat de crédit spécial via le proxy `/api/download`. */
-const downloadCreditContractDocument = (contract: CreditContract, url: string | undefined, label: string) => {
+/** Nom de fichier normalisé pour un document lié à un contrat de crédit spécial. */
+const creditDocFilename = (contract: CreditContract, label: string) => {
   const last = String(contract.clientLastName ?? '').toUpperCase().replace(/\s+/g, '_')
   const first = String(contract.clientFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
-  const filename = `${last}_${first}_${label}.pdf`
-  if (!downloadFile(url, filename)) {
-    toast.error('URL du document non disponible')
-  }
+  return `${last}_${first}_${label}.pdf`
 }
+
+/** Document en cours de consultation dans la modale d'aperçu. */
+type ViewerDoc = { url?: string; filename: string; title: string; subtitle?: string }
 
 export default function CreditContractDetail({
   contract,
@@ -288,12 +288,23 @@ export default function CreditContractDetail({
   const [showPenaltyPaymentModal, setShowPenaltyPaymentModal] = useState(false)
   const [showPenaltyReceiptModal, setShowPenaltyReceiptModal] = useState(false)
   const [penaltyPaymentModalMode, setPenaltyPaymentModalMode] = useState<'pay' | 'edit'>('pay')
+  const [viewerDoc, setViewerDoc] = useState<ViewerDoc | null>(null)
   const [isGeneratingGlobalFacturePdf, setIsGeneratingGlobalFacturePdf] = useState(false)
   const [isGeneratingLossHistoryPdf, setIsGeneratingLossHistoryPdf] = useState(false)
   const [isExportingLossHistoryExcel, setIsExportingLossHistoryExcel] = useState(false)
   const [isGeneratingGuarantorCommissionsPdf, setIsGeneratingGuarantorCommissionsPdf] = useState(false)
   const [isExportingGuarantorCommissionsExcel, setIsExportingGuarantorCommissionsExcel] = useState(false)
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
+
+  // Ouvre la modale d'aperçu/téléchargement (mécanisme mobile unifié).
+  const openCreditDocument = (contractArg: CreditContract, url: string | undefined | null, label: string, title: string) => {
+    setViewerDoc({
+      url: url ?? undefined,
+      filename: creditDocFilename(contractArg, label),
+      title,
+      subtitle: `${contractArg.clientFirstName ?? ''} ${contractArg.clientLastName ?? ''}`.trim() || undefined,
+    })
+  }
   const switchToFixedPhase = useSwitchToFixedPhase()
 
   // États pour les modals
@@ -3340,7 +3351,7 @@ export default function CreditContractDetail({
                     variant="outline"
                     className="justify-start"
                     onClick={(currentCycleDocuments?.contractUrl || contract.contractUrl)
-                      ? () => downloadCreditContractDocument(contract, currentCycleDocuments?.contractUrl || contract.contractUrl, 'CONTRAT')
+                      ? () => openCreditDocument(contract, currentCycleDocuments?.contractUrl || contract.contractUrl, 'CONTRAT', 'Contrat')
                       : () => setShowContractPDFModal(true)}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -3352,7 +3363,7 @@ export default function CreditContractDetail({
                     <Button
                       variant="outline"
                       className="justify-start"
-                      onClick={() => downloadCreditContractDocument(contract, currentCycleDocuments?.signedContractUrl || contract.signedContractUrl, 'CONTRAT_SIGNE')}
+                      onClick={() => openCreditDocument(contract, currentCycleDocuments?.signedContractUrl || contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')}
                     >
                       <FileSignature className="h-4 w-4 mr-2" />
                       Voir contrat
@@ -3408,7 +3419,7 @@ export default function CreditContractDetail({
                               size="sm"
                               onClick={
                                 cycleDocument.contractUrl
-                                  ? () => downloadCreditContractDocument(contract, cycleDocument.contractUrl, `CONTRAT_CYCLE_${cycleDocument.cycleNumber}`)
+                                  ? () => openCreditDocument(contract, cycleDocument.contractUrl, `CONTRAT_CYCLE_${cycleDocument.cycleNumber}`, `Contrat — cycle ${cycleDocument.cycleNumber}`)
                                   : () => setShowContractPDFModal(true)
                               }
                               disabled={!canOpenCycleContract}
@@ -3419,7 +3430,7 @@ export default function CreditContractDetail({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => downloadCreditContractDocument(contract, cycleDocument.signedContractUrl, `CONTRAT_SIGNE_CYCLE_${cycleDocument.cycleNumber}`)}
+                              onClick={() => openCreditDocument(contract, cycleDocument.signedContractUrl, `CONTRAT_SIGNE_CYCLE_${cycleDocument.cycleNumber}`, `Contrat signé — cycle ${cycleDocument.cycleNumber}`)}
                               disabled={!cycleDocument.signedContractUrl}
                             >
                               <FileSignature className="h-4 w-4 mr-2" />
@@ -3445,7 +3456,7 @@ export default function CreditContractDetail({
                   <Button
                     variant="outline"
                     className="justify-start"
-                    onClick={() => downloadCreditContractDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE_SIGNEE')}
+                    onClick={() => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE_SIGNEE', 'Quittance signée')}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Quittance signée
@@ -3455,7 +3466,7 @@ export default function CreditContractDetail({
                   <Button
                     variant="outline"
                     className="justify-start"
-                    onClick={() => downloadCreditContractDocument(contract, contract.dischargeUrl, 'DECHARGE')}
+                    onClick={() => openCreditDocument(contract, contract.dischargeUrl, 'DECHARGE', 'Décharge')}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Décharge
@@ -3892,6 +3903,14 @@ export default function CreditContractDetail({
         isOpen={showContractPDFModal}
         onClose={() => setShowContractPDFModal(false)}
         contract={contract}
+      />
+      <DocumentViewerModal
+        isOpen={!!viewerDoc}
+        onClose={() => setViewerDoc(null)}
+        url={viewerDoc?.url}
+        filename={viewerDoc?.filename ?? 'document.pdf'}
+        title={viewerDoc?.title ?? 'Document'}
+        subtitle={viewerDoc?.subtitle}
       />
       <FinalRepaymentModal
         isOpen={showFinalRepaymentModal}

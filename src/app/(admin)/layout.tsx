@@ -2,6 +2,7 @@
 
 import LayoutDashboard from '@/components/layout/LayoutDashboard'
 import { RouteAccessGuard } from '@/components/auth/PermissionGate'
+import { DocumentViewerProvider } from '@/components/documents/DocumentViewerProvider'
 import React, { useEffect } from 'react'
 
 export default function AdminLayout({ children }:  React.PropsWithChildren) {
@@ -19,7 +20,9 @@ export default function AdminLayout({ children }:  React.PropsWithChildren) {
 
   return (
     <LayoutDashboard>
-        <RouteAccessGuard>{children}</RouteAccessGuard>
+        <DocumentViewerProvider>
+          <RouteAccessGuard>{children}</RouteAccessGuard>
+        </DocumentViewerProvider>
     </LayoutDashboard>
   )
 }

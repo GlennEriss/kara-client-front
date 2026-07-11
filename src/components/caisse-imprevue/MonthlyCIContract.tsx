@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import {
     AlertCircle,
     ArrowLeft,
@@ -203,6 +203,7 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
 }
 
 export default function MonthlyCIContract({ contract, document: _document, isLoadingDocument: _isLoadingDocument }: MonthlyCIContractProps) {
+  const { openDocument } = useDocumentViewer()
   const router = useRouter()
   const { user } = useAuth()
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
@@ -1116,9 +1117,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                     const last = String(contract?.memberLastName ?? '').toUpperCase().replace(/\s+/g, '_')
                                     const first = String(contract?.memberFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
                                     const filename = `${last}_${first}_PREUVE_${r.type ?? 'REMBOURSEMENT'}.pdf`
-                                    if (!downloadFile(url, filename)) {
-                                      toast.error('URL du document non disponible')
-                                    }
+                                    openDocument({ url, filename, title: 'Preuve de paiement' })
                                   }}
                                   className="text-indigo-600 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                                 >
@@ -1140,9 +1139,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                   const last = String(contract?.memberLastName ?? '').toUpperCase().replace(/\s+/g, '_')
                                   const first = String(contract?.memberFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
                                   const filename = `${last}_${first}_PREUVE_${r.type ?? 'REMBOURSEMENT'}.pdf`
-                                  if (!downloadFile(r.paymentProofUrl, filename)) {
-                                    toast.error('URL du document non disponible')
-                                  }
+                                  openDocument({ url: r.paymentProofUrl, filename, title: 'Preuve de paiement' })
                                 }}
                                 className="text-indigo-600 hover:underline font-medium flex items-center gap-1 cursor-pointer"
                               >

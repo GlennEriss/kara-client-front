@@ -1,9 +1,8 @@
 'use client'
 
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import { Download, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface RefundDocumentLinkCIProps {
   documentId?: string
@@ -11,6 +10,7 @@ interface RefundDocumentLinkCIProps {
 
 export default function RefundDocumentLinkCI({ documentId }: RefundDocumentLinkCIProps) {
   const { data: document, isLoading } = useDocumentCI(documentId)
+  const { openDocument } = useDocumentViewer()
 
   if (!documentId) {
     return <span className="text-xs text-gray-500">Indisponible</span>
@@ -31,9 +31,7 @@ export default function RefundDocumentLinkCI({ documentId }: RefundDocumentLinkC
 
   const handleDownload = () => {
     const filename = document.originalFileName ?? 'document.pdf'
-    if (!downloadFile(document.url, filename)) {
-      toast.error('URL du document non disponible')
-    }
+    openDocument({ url: document.url, filename, title: document.libelle || 'Document de remboursement' })
   }
 
   return (

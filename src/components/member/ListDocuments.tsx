@@ -17,7 +17,7 @@ import {
 } from '@/domains/infrastructure/documents/utils/documentTypes'
 import { cn } from '@/lib/utils'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
-import { downloadFile } from '@/utils/downloadFile'
+import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import { Eye, FileText, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DocumentPreviewModal } from './DocumentPreviewModal'
@@ -27,6 +27,7 @@ interface ListDocumentsProps {
 }
 
 export default function ListDocuments({ memberId }: ListDocumentsProps) {
+  const { openDocument } = useDocumentViewer()
   const {
     documents,
     filterOptions,
@@ -217,10 +218,11 @@ export default function ListDocuments({ memberId }: ListDocumentsProps) {
                       <div className="flex flex-wrap items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => downloadFile(
-                            document.url,
-                            `${document.libelle || 'document'}${document.format ? `.${document.format}` : ''}`
-                          )}
+                          onClick={() => openDocument({
+                            url: document.url,
+                            filename: `${document.libelle || 'document'}${document.format ? `.${document.format}` : ''}`,
+                            title: document.libelle || 'Document',
+                          })}
                           className="text-sm font-medium text-[#1b3a4e] hover:text-[#10222f] hover:underline"
                         >
                           Télécharger
