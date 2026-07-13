@@ -23,7 +23,10 @@ import {
     setNotificationSoundMuted,
 } from '@/lib/notificationSound'
 import { Notification } from '@/types/types'
-import { Bell, Cake, CheckCheck, Volume2, VolumeX } from 'lucide-react'
+import { Bell, BellRing, Cake, CheckCheck, Volume2, VolumeX } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
+import { enablePush, getPushStatus, listenForegroundMessages, refreshPushToken, type PushStatus } from '@/lib/push'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
@@ -174,6 +177,33 @@ export default function NotificationBell() {
   const previousCountRef = useRef<number | null>(null)
   const [isMuted, setIsMuted] = useState<boolean>(false)
 
+  // ---- Push web (FCM) ----
+  const { user } = useAuth()
+  const [pushStatus, setPushStatus] = useState<PushStatus>('unsupported')
+  useEffect(() => {
+    let unsub: (() => void) | undefined
+    void (async () => {
+      const status = await getPushStatus()
+      setPushStatus(status)
+      if (status === 'granted' && user?.uid) {
+        void refreshPushToken([user.uid])
+      }
+      unsub = await listenForegroundMessages(({ title, body }) => {
+        toast(title, { description: body })
+      })
+    })()
+    return () => unsub?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid])
+
+  const handleEnablePush = async () => {
+    if (!user?.uid) return
+    const status = await enablePush([user.uid])
+    setPushStatus(status)
+    if (status === 'granted') toast.success('Notifications push activées sur cet appareil')
+    else if (status === 'denied') toast.error('Permission refusée — autorisez les notifications dans votre navigateur')
+  }
+
   // Initial muted state from localStorage (client only)
   useEffect(() => {
     setIsMuted(isNotificationSoundMuted())
@@ -262,6 +292,22 @@ export default function NotificationBell() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {pushStatus === 'default' && user?.uid && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                void handleEnablePush()
+              }}
+              className="flex w-full items-center gap-2 bg-[#234D65]/5 px-3 py-2.5 text-left text-xs font-medium text-[#234D65] hover:bg-[#234D65]/10"
+            >
+              <BellRing className="h-4 w-4 shrink-0" />
+              Activer les notifications push sur cet appareil
+            </button>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {isLoadingNotifications ? (
           <div className="p-4 text-center text-sm text-gray-500">Chargement...</div>
         ) : notifications.length === 0 ? (

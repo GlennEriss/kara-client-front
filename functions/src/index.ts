@@ -1,4 +1,6 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler'
+import { onDocumentCreated } from 'firebase-functions/v2/firestore'
+import { sendPushForNotification } from './push/sendPushOnNotification'
 import { generateBirthdayNotifications } from './scheduled/birthdayNotifications'
 import { processScheduledNotifications } from './scheduled/scheduledNotifications'
 import { checkAndNotifyOverdueCommissions } from './scheduled/overdueCommissions'
@@ -244,3 +246,25 @@ export { syncCISupportsToCentralizedPayments } from './caisse-imprevue/syncCIPay
 // ==================== ALGOLIA EXTENSION - TRANSFORM FUNCTIONS ====================
 // Fonctions HTTP appelées par l’extension Firebase Algolia (TRANSFORM_FUNCTION)
 export { transformMembersAlgoliaPayload, transformMembershipRequestsAlgoliaPayload }
+
+// ==================== PUSH WEB (FCM) ====================
+// Push déclenché à la création de chaque notification in-app :
+// recipientId présent → push au membre ; sinon → push aux admins.
+export const sendPushOnNotification = onDocumentCreated(
+  {
+    document: 'notifications/{notificationId}',
+    region: 'europe-west1',
+    memory: '256MiB',
+    maxInstances: 10,
+  },
+  async (event) => {
+    const data = event.data?.data()
+    if (!data) return
+    try {
+      await sendPushForNotification(event.params.notificationId, data)
+    } catch (err) {
+      // Best-effort : un échec de push ne doit pas faire boucler le trigger.
+      console.error('[push] échec envoi:', err)
+    }
+  }
+)
