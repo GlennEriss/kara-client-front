@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { CompanyFilters, PaginatedCompanies } from '../repositories/ICompanyRepository'
 import { Company } from '../entities/company.types'
+
+const REF_MODULE = { module: 'references', moduleLabel: 'Métiers / Entreprises' } as const
 
 /**
  * Hook pour récupérer les entreprises avec pagination
@@ -23,6 +26,7 @@ export function useCompaniesPaginated(filters: CompanyFilters = {}, page = 1, li
 export function useCompanyMutations() {
   const queryClient = useQueryClient()
   const companyService = ServiceFactory.getCompanyService()
+  const { log } = useAuditLogger()
 
   const create = useMutation({
     mutationFn: ({ 
@@ -51,10 +55,11 @@ export function useCompanyMutations() {
       employeeCount,
       createdBy: adminId,
     }, adminId),
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['companies'] })
       queryClient.invalidateQueries({ queryKey: ['company-search'] })
       queryClient.invalidateQueries({ queryKey: ['company-suggestions'] })
+      log({ action: 'create', ...REF_MODULE, targetType: 'entreprise', description: `Création de l'entreprise « ${variables.name} »` })
     },
   })
 
@@ -86,10 +91,11 @@ export function useCompanyMutations() {
 
   const remove = useMutation({
     mutationFn: (id: string) => companyService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['companies'] })
       queryClient.invalidateQueries({ queryKey: ['company-search'] })
       queryClient.invalidateQueries({ queryKey: ['company-suggestions'] })
+      log({ action: 'delete', ...REF_MODULE, targetType: 'entreprise', targetId: id, description: 'Suppression d\'une entreprise' })
     },
   })
 

@@ -294,6 +294,17 @@ service cloud.firestore {
     }
 
     // ==========================================
+    // JOURNALISATION (audit des actions admin) — append-only
+    // ==========================================
+    match /auditLogs/{logId} {
+      // Lecture réservée aux administrateurs
+      allow read: if isAdmin();
+      // Création uniquement (journal inaltérable) : pas de modification ni suppression
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ==========================================
     // BOUTIQUES (annuaire des commerces des membres)
     // ==========================================
     match /shops/{shopId} {

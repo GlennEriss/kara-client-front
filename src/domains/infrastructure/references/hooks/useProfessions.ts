@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { ProfessionFilters, PaginatedProfessions } from '../entities/profession.types'
 import { Profession } from '../entities/profession.types'
+
+const REF_MODULE = { module: 'references', moduleLabel: 'Métiers / Entreprises' } as const
 
 /**
  * Hook pour récupérer les professions avec pagination
@@ -23,6 +26,7 @@ export function useProfessionsPaginated(filters: ProfessionFilters = {}, page = 
 export function useProfessionMutations() {
   const queryClient = useQueryClient()
   const professionService = ServiceFactory.getProfessionService()
+  const { log } = useAuditLogger()
 
   const create = useMutation({
     mutationFn: ({ 
@@ -42,10 +46,11 @@ export function useProfessionMutations() {
       description,
       createdBy: adminId,
     }, adminId),
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['professions'] })
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['profession-search'] })
+      log({ action: 'create', ...REF_MODULE, targetType: 'métier', description: `Création du métier « ${variables.name} »` })
     },
   })
 
@@ -70,10 +75,11 @@ export function useProfessionMutations() {
 
   const remove = useMutation({
     mutationFn: (id: string) => professionService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['professions'] })
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['profession-search'] })
+      log({ action: 'delete', ...REF_MODULE, targetType: 'métier', targetId: id, description: 'Suppression d\'un métier' })
     },
   })
 

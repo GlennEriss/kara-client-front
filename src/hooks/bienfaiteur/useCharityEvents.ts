@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CharityEventService } from '@/services/bienfaiteur/CharityEventService'
 import { CharityEvent, CharityEventFilters } from '@/types/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 
 /**
  * Hook pour récupérer la liste paginée des évènements
@@ -68,14 +69,16 @@ export function useCharityEventStats(eventId: string) {
 export function useCreateCharityEvent() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: (event: Omit<CharityEvent, 'id'>) => {
       if (!user?.uid) throw new Error('User not authenticated')
       return CharityEventService.createEvent(event, user.uid)
     },
-    onSuccess: () => {
+    onSuccess: (result: any, event) => {
       queryClient.invalidateQueries({ queryKey: ['charity-events'] })
+      log({ action: 'create', module: 'bienfaiteur', moduleLabel: 'Bienfaiteur', targetType: 'événement', targetId: result?.id, description: `Création de l'évènement caritatif « ${event.title ?? ''} »` })
     },
   })
 }
@@ -86,6 +89,7 @@ export function useCreateCharityEvent() {
 export function useUpdateCharityEvent() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ eventId, updates }: { eventId: string; updates: Partial<CharityEvent> }) => {
@@ -96,6 +100,7 @@ export function useUpdateCharityEvent() {
       queryClient.invalidateQueries({ queryKey: ['charity-events', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', 'global-stats'] })
+      log({ action: 'update', module: 'bienfaiteur', moduleLabel: 'Bienfaiteur', targetType: 'événement', targetId: variables.eventId, description: 'Modification d\'un évènement caritatif' })
     },
   })
 }
@@ -105,11 +110,13 @@ export function useUpdateCharityEvent() {
  */
 export function useDeleteCharityEvent() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: (eventId: string) => CharityEventService.deleteEvent(eventId),
-    onSuccess: () => {
+    onSuccess: (_, eventId) => {
       queryClient.invalidateQueries({ queryKey: ['charity-events'] })
+      log({ action: 'delete', module: 'bienfaiteur', moduleLabel: 'Bienfaiteur', targetType: 'événement', targetId: eventId, description: 'Suppression d\'un évènement caritatif' })
     },
   })
 }

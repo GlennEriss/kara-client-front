@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { StatsCard as StatChip } from '@/components/ui/stats-card'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import routes from '@/constantes/routes'
 import { createGroup, deleteGroup, listGroups, updateGroup } from '@/db/group.db'
 import { countMembersByGroup } from '@/db/member.db'
@@ -15,6 +16,7 @@ import React from 'react'
 import { toast } from 'sonner'
 
 export default function GroupList() {
+    const { log } = useAuditLogger()
     const [groups, setGroups] = React.useState<Group[]>([])
     const [isCreateOpen, setIsCreateOpen] = React.useState(false)
     const [name, setName] = React.useState('')
@@ -69,6 +71,7 @@ export default function GroupList() {
             setLabel('')
             setDescription('')
             toast.success('✅ Groupe créé avec succès')
+            log({ action: 'create', module: 'groups', moduleLabel: 'Groupes', targetType: 'groupe', targetId: created?.id, description: `Création du groupe « ${created?.name ?? name.trim()} »` })
         } finally {
             setIsSubmitting(false)
         }
@@ -102,6 +105,7 @@ export default function GroupList() {
             setGroups((prev) => prev.map((g) => (g.id === toEdit.id ? { ...g, name: editName, label: editLabel || undefined, description: editDescription || undefined } : g)))
             setToEdit(null)
             toast.success('✅ Groupe modifié avec succès')
+            log({ action: 'update', module: 'groups', moduleLabel: 'Groupes', targetType: 'groupe', targetId: toEdit.id, description: `Modification du groupe « ${editName.trim()} »` })
         } finally {
             setIsUpdating(false)
         }
@@ -117,9 +121,12 @@ export default function GroupList() {
                 return
             }
             await deleteGroup(toDelete.id)
+            const deletedName = toDelete.name
+            const deletedId = toDelete.id
             setGroups((prev) => prev.filter((g) => g.id !== toDelete.id))
             setToDelete(null)
             toast.success('✅ Groupe supprimé avec succès')
+            log({ action: 'delete', module: 'groups', moduleLabel: 'Groupes', targetType: 'groupe', targetId: deletedId, description: `Suppression du groupe « ${deletedName} »` })
         } finally {
             setIsDeleting(false)
         }

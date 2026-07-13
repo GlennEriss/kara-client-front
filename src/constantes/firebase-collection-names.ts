@@ -55,6 +55,8 @@ export const firebaseCollectionNames = {
     agentsRecouvrement: "agentsRecouvrement",
     // Boutiques des membres (annuaire)
     shops: "shops",
+    // Journalisation des actions administrateurs (audit)
+    auditLogs: "auditLogs",
 }
 
 // Export également en majuscules pour compatibilité

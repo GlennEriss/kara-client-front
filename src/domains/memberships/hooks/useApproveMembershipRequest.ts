@@ -13,6 +13,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { toast } from 'sonner'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { MembershipServiceV2 } from '../services/MembershipServiceV2'
 import { MEMBERSHIP_REQUEST_CACHE } from '@/constantes/membership-requests'
 import type { ApproveMembershipRequestParams } from '../services/interfaces/IMembershipService'
@@ -25,11 +26,13 @@ interface UseApproveMembershipRequestOptions {
 export function useApproveMembershipRequest(options?: UseApproveMembershipRequestOptions) {
   const queryClient = useQueryClient()
   const service = MembershipServiceV2.getInstance()
+  const { log } = useAuditLogger()
 
   const mutation = useMutation({
     mutationFn: (params: ApproveMembershipRequestParams) =>
       service.approveMembershipRequest(params),
     onSuccess: (_, params) => {
+      log({ action: 'validate', module: 'memberRequests', moduleLabel: "Demandes d'adhésion", targetType: 'demande', targetId: (params as any)?.requestId ?? (params as any)?.id, description: 'Approbation d\'une demande d\'adhésion (membre créé)' })
       // Invalider les queries pour refetch
       queryClient.invalidateQueries({ 
         queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 

@@ -9,7 +9,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { toast } from 'sonner'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { MembershipServiceV2 } from '../services/MembershipServiceV2'
+
+const MEMBER_REQ_MODULE = { module: 'memberRequests', moduleLabel: "Demandes d'adhésion" } as const
 import { MEMBERSHIP_REQUEST_CACHE } from '@/constantes/membership-requests'
 import { generateCorrectionLink, generateWhatsAppMessage } from '../utils/correctionUtils'
 import { generateWhatsAppUrl } from '../utils/whatsappUrl'
@@ -26,11 +29,12 @@ import { app } from '@/firebase/app'
 export function useMembershipActionsV2() {
   const queryClient = useQueryClient()
   const service = MembershipServiceV2.getInstance()
+  const { log } = useAuditLogger()
 
   const approveMutation = useMutation({
     mutationFn: (params: ApproveMembershipRequestParams) =>
       service.approveMembershipRequest(params),
-    onSuccess: () => {
+    onSuccess: (_, params) => {
       // Invalider les queries pour refetch
       queryClient.invalidateQueries({
         queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY]
@@ -38,18 +42,19 @@ export function useMembershipActionsV2() {
       queryClient.invalidateQueries({
         queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY]
       })
+      log({ action: 'validate', ...MEMBER_REQ_MODULE, targetType: 'demande', targetId: (params as any)?.requestId ?? (params as any)?.id, description: 'Approbation d\'une demande d\'adhésion (membre créé)' })
     },
   })
 
   const rejectMutation = useMutation({
     mutationFn: (params: RejectMembershipRequestParams) =>
       service.rejectMembershipRequest(params),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 
+    onSuccess: (_, params) => {
+      queryClient.invalidateQueries({
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY]
       })
-      queryClient.invalidateQueries({ 
-        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      queryClient.invalidateQueries({
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY]
       })
       // Invalider les notifications pour afficher la nouvelle notification de rejet
       queryClient.invalidateQueries({
@@ -58,6 +63,7 @@ export function useMembershipActionsV2() {
       toast.success('Demande rejetée', {
         description: 'La demande d\'adhésion a été rejetée avec succès.',
       })
+      log({ action: 'reject', ...MEMBER_REQ_MODULE, targetType: 'demande', targetId: (params as any)?.requestId ?? (params as any)?.id, description: 'Rejet d\'une demande d\'adhésion' })
     },
     onError: (error: Error) => {
       toast.error('Erreur lors du rejet', {
@@ -82,13 +88,14 @@ export function useMembershipActionsV2() {
   const processPaymentMutation = useMutation({
     mutationFn: (params: ProcessPaymentParams) =>
       service.processPayment(params),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 
+    onSuccess: (_, params) => {
+      queryClient.invalidateQueries({
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY]
       })
       queryClient.invalidateQueries({
         queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY]
       })
+      log({ action: 'payment', ...MEMBER_REQ_MODULE, targetType: 'demande', targetId: (params as any)?.requestId ?? (params as any)?.id, description: 'Enregistrement du paiement d\'adhésion' })
     },
   })
 

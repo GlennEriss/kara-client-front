@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import type { AgentsFilters } from '@/types/types'
 import type { CreateAgentInput } from '@/repositories/agent-recouvrement/IAgentRecouvrementRepository'
+
+const AGENT_MODULE = { module: 'agents', moduleLabel: 'Agents de recouvrement', targetType: 'agent' } as const
 
 const QUERY_KEY = 'agentsRecouvrement'
 
@@ -62,11 +65,13 @@ export function useAgentsActifs() {
 export function useCreateAgentRecouvrement() {
   const queryClient = useQueryClient()
   const service = ServiceFactory.getAgentRecouvrementService()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: (input: CreateAgentInput) => service.createAgent(input),
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      log({ action: 'create', ...AGENT_MODULE, targetId: result?.id, description: `Création d'un agent de recouvrement${result?.nom ? ` — ${result.prenom ?? ''} ${result.nom}`.trimEnd() : ''}` })
     },
   })
 }
@@ -74,6 +79,7 @@ export function useCreateAgentRecouvrement() {
 export function useUpdateAgentRecouvrement() {
   const queryClient = useQueryClient()
   const service = ServiceFactory.getAgentRecouvrementService()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -90,6 +96,7 @@ export function useUpdateAgentRecouvrement() {
       if (variables?.id) {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.id] })
       }
+      log({ action: 'update', ...AGENT_MODULE, targetId: variables?.id, description: 'Modification d\'un agent de recouvrement' })
     },
   })
 }
@@ -97,6 +104,7 @@ export function useUpdateAgentRecouvrement() {
 export function useDeactivateAgentRecouvrement() {
   const queryClient = useQueryClient()
   const service = ServiceFactory.getAgentRecouvrementService()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ id, updatedBy }: { id: string; updatedBy: string }) =>
@@ -106,6 +114,7 @@ export function useDeactivateAgentRecouvrement() {
       if (variables?.id) {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.id] })
       }
+      log({ action: 'update', ...AGENT_MODULE, targetId: variables?.id, description: 'Désactivation d\'un agent de recouvrement' })
     },
   })
 }
@@ -113,6 +122,7 @@ export function useDeactivateAgentRecouvrement() {
 export function useReactivateAgentRecouvrement() {
   const queryClient = useQueryClient()
   const service = ServiceFactory.getAgentRecouvrementService()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ id, updatedBy }: { id: string; updatedBy: string }) =>
@@ -122,6 +132,7 @@ export function useReactivateAgentRecouvrement() {
       if (variables?.id) {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.id] })
       }
+      log({ action: 'update', ...AGENT_MODULE, targetId: variables?.id, description: 'Réactivation d\'un agent de recouvrement' })
     },
   })
 }
@@ -129,11 +140,13 @@ export function useReactivateAgentRecouvrement() {
 export function useDeleteAgentRecouvrement() {
   const queryClient = useQueryClient()
   const service = ServiceFactory.getAgentRecouvrementService()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: (id: string) => service.deleteAgent(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      log({ action: 'delete', ...AGENT_MODULE, targetId: id, description: 'Suppression d\'un agent de recouvrement' })
     },
   })
 }

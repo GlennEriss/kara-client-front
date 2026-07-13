@@ -145,6 +145,13 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     actions: actions('agents', [VIEW, MANAGE]),
   },
   {
+    key: 'journal',
+    label: 'Journalisation',
+    pathPrefixes: ['/admin/journalisation'],
+    system: true,
+    actions: actions('journal', [VIEW]),
+  },
+  {
     key: 'admins',
     label: 'Administration (admins)',
     pathPrefixes: ['/admin'],

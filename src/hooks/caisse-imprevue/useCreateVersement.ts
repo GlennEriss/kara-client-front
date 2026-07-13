@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { toast } from 'sonner'
 import type { VersementFormData } from '@/services/caisse-imprevue/ICaisseImprevueService'
 
@@ -16,6 +17,7 @@ interface CreateVersementParams {
  */
 export const useCreateVersement = () => {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: async (params: CreateVersementParams) => {
@@ -41,6 +43,11 @@ export const useCreateVersement = () => {
       
       toast.success('Versement enregistré avec succès', {
         description: `Montant: ${variables.versementData.amount.toLocaleString('fr-FR')} FCFA`
+      })
+      log({
+        action: 'payment', module: 'caisseImprevue', moduleLabel: 'Caisse Imprévue', targetType: 'versement', targetId: variables.contractId,
+        description: `Enregistrement d'un versement de ${variables.versementData.amount.toLocaleString('fr-FR')} FCFA`,
+        metadata: { amount: variables.versementData.amount, monthIndex: variables.monthIndex },
       })
     },
     onError: (error: any) => {

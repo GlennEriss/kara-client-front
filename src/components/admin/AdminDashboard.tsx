@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { PageHero } from '@/components/ui/page-hero'
 import { PermissionGate } from '@/components/auth/PermissionGate'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ADMIN_ROLE_LABELS, AdminRole, AdminUser, updateAdminDeep } from '@/db/admin.db'
@@ -107,6 +108,7 @@ export default function AdminDashboard() {
   )
 
   const { updateMutation, deleteMutation } = useAdminMutations()
+  const { log } = useAuditLogger()
 
   useEffect(() => {
     setCurrentPage(1)
@@ -150,12 +152,19 @@ export default function AdminDashboard() {
   }
 
   const handleCreateOpen = () => setIsCreateOpen(true)
-  const handleCreateSubmit = async (_values: AdminCreateFormData) => {
+  const handleCreateSubmit = async (values: AdminCreateFormData) => {
     try {
       // La création est gérée intégralement dans AdminFormModal (Auth + Firestore).
       // Ici, on force juste un rafraîchissement pour mettre la liste à jour.
       await refetch()
       toast.success('Administrateur créé')
+      log({
+        action: 'create',
+        module: 'admins',
+        moduleLabel: 'Administration',
+        targetType: 'administrateur',
+        description: `Création de l'administrateur ${values.firstName} ${values.lastName}`.trim(),
+      })
     } catch {
       toast.error("Erreur lors de la création de l'administrateur")
     }
@@ -163,8 +172,17 @@ export default function AdminDashboard() {
 
   const handleToggleActive = async (admin: AdminUser) => {
     try {
-      await updateMutation.mutateAsync({ id: admin.id, updates: { isActive: !admin.isActive } })
+      const nextActive = !admin.isActive
+      await updateMutation.mutateAsync({ id: admin.id, updates: { isActive: nextActive } })
       toast.success('Statut mis à jour')
+      log({
+        action: 'update',
+        module: 'admins',
+        moduleLabel: 'Administration',
+        targetType: 'administrateur',
+        targetId: admin.id,
+        description: `${nextActive ? 'Activation' : 'Désactivation'} de l'administrateur ${admin.firstName} ${admin.lastName}`,
+      })
     } catch {
       toast.error('Erreur de mise à jour')
     }
@@ -200,6 +218,14 @@ export default function AdminDashboard() {
         },
       })
       toast.success('Administrateur mis à jour')
+      log({
+        action: 'update',
+        module: 'admins',
+        moduleLabel: 'Administration',
+        targetType: 'administrateur',
+        targetId: adminToEdit.id,
+        description: `Modification de l'administrateur ${values.firstName} ${values.lastName}`.trim(),
+      })
     } catch {
       toast.error("Erreur lors de la mise à jour de l'administrateur")
     } finally {
@@ -219,6 +245,14 @@ export default function AdminDashboard() {
       // Supprimer dans notre collection admins/users listés
       await deleteMutation.mutateAsync(admin.id)
       toast.success('Administrateur supprimé')
+      log({
+        action: 'delete',
+        module: 'admins',
+        moduleLabel: 'Administration',
+        targetType: 'administrateur',
+        targetId: admin.id,
+        description: `Suppression de l'administrateur ${admin.firstName} ${admin.lastName}`,
+      })
     } catch {
       toast.error('Erreur lors de la suppression')
     }

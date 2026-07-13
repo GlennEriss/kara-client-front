@@ -35,6 +35,7 @@ import {
   type AnalyzedMember,
   type AnalyzedRow,
   type ImportMemberData,
+  type ImportPayment,
   type ImportTarget,
   type ImportVersement,
 } from './excelImportAnalyzer'
@@ -865,27 +866,111 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
 const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
 /**
- * Index du mois calendaire d'une date par rapport à la date de début (mêmes
- * bornes que le détail contrat : période M_i = [start+i mois, start+i+1 mois)).
+ * Regroupement des versements CS par mois (clé = index de bucket) :
+ *  - JOURNALIER : mois de 30 jours depuis le début (la feuille JOURNALIERE
+ *    n'a pas de structure mensuelle, on découpe par la date réelle).
+ *  - LIBRE : index du bloc d'échéance Excel (chaque bloc = 1 mois). Surtout
+ *    PAS le mois calendaire de la date de paiement : les versements en avance
+ *    (plusieurs mois payés le même jour) s'écraseraient dans un seul mois
+ *    (ex. 12 mois payés → 4-5 affichés, cas matricule 6932.MK.070226).
+ * Renvoie null si le contrat n'est pas bucketisé (STANDARD, ou sans début).
  */
-function calMonthIndex(start: Date, d: Date): number {
-  let diff = (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth())
-  let boundary = new Date(start)
-  boundary.setMonth(boundary.getMonth() + diff)
-  while (boundary > d && diff > 0) {
-    diff -= 1
-    boundary = new Date(start)
-    boundary.setMonth(start.getMonth() + diff)
+export function groupCSVersementsByMonth(row: AnalyzedRow): Map<number, ImportPayment[]> | null {
+  const caisseType = row.category || 'STANDARD'
+  const isDaily = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
+  const isLibre = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
+  if (!(isDaily || isLibre) || !row.startDate) return null
+  const startMid = midnight(safeDate(row.startDate))
+  const buckets = new Map<number, ImportPayment[]>()
+  for (const p of row.payments) {
+    if (!p.versement) continue
+    const mi = isDaily
+      ? Math.max(
+          0,
+          Math.floor((midnight(safeDate(p.versement.date)).getTime() - startMid.getTime()) / MS_PER_DAY / 30),
+        )
+      : p.monthIndex
+    const list = buckets.get(mi) ?? []
+    list.push(p)
+    buckets.set(mi, list)
   }
-  let next = new Date(boundary)
-  next.setMonth(next.getMonth() + 1)
-  while (d >= next) {
-    diff += 1
-    boundary = next
-    next = new Date(boundary)
-    next.setMonth(next.getMonth() + 1)
+  return buckets
+}
+
+/**
+ * Mois payés attendus après import — exactement le compteur que l'écriture
+ * mettra sur le contrat (`currentMonthIndex` CS / `totalMonthsPaid` CI).
+ * Sert à comparer avec la base sans réimporter.
+ */
+export function expectedMonthsPaid(row: AnalyzedRow, target: ImportTarget = 'CI'): number {
+  const paidCount = row.payments.filter((p) => p.status === 'PAID').length
+  if (target !== 'CS') return paidCount
+  const grouped = groupCSVersementsByMonth(row)
+  return grouped ? grouped.size : paidCount
+}
+
+export interface ContractDriftRow {
+  contractId: string
+  /** Le contrat existe déjà en base. */
+  exists: boolean
+  expectedMonthsPaid: number
+  expectedNominalPaid: number
+  dbMonthsPaid: number | null
+  dbNominalPaid: number | null
+  /** Existe en base avec des compteurs différents → à rectifier. */
+  drifted: boolean
+}
+
+/**
+ * Compare chaque ligne analysée avec le contrat déjà en base (ID déterministe) :
+ * mois payés (CS `currentMonthIndex` / CI `totalMonthsPaid`) et total versé (CS).
+ * Alimente les indicateurs « écart » et la rectification ciblée, sans réimporter.
+ */
+export async function checkContractsDrift(
+  rows: AnalyzedRow[],
+  target: ImportTarget = 'CI',
+): Promise<Map<string, ContractDriftRow>> {
+  const isCS = target === 'CS'
+  const collName = isCS ? CAISSE_CONTRACTS : CONTRACTS
+  // Une entrée par contrat — les lignes en doublon fusionnent comme à l'import.
+  const byId = new Map<string, AnalyzedRow>()
+  for (const row of rows) {
+    const id = contractIdForRow(row, target)
+    if (!byId.has(id)) byId.set(id, row)
   }
-  return Math.max(0, diff)
+  const result = new Map<string, ContractDriftRow>()
+  const entries = Array.from(byId.entries())
+  const CHUNK = 20
+  for (let i = 0; i < entries.length; i += CHUNK) {
+    await Promise.all(
+      entries.slice(i, i + CHUNK).map(async ([id, row]) => {
+        const expectedMonths = expectedMonthsPaid(row, target)
+        const expectedNominal = row.payments.reduce((s, p) => s + (p.versement?.amount ?? 0), 0)
+        let exists = false
+        let dbMonths: number | null = null
+        let dbNominal: number | null = null
+        const snap = await getDoc(doc(db, collName, id))
+        if (snap.exists()) {
+          exists = true
+          const data = snap.data() as Record<string, unknown>
+          dbMonths = Number(isCS ? data.currentMonthIndex : data.totalMonthsPaid) || 0
+          dbNominal = isCS ? Number(data.nominalPaid) || 0 : null
+        }
+        const drifted =
+          exists && (dbMonths !== expectedMonths || (isCS && dbNominal !== expectedNominal))
+        result.set(id, {
+          contractId: id,
+          exists,
+          expectedMonthsPaid: expectedMonths,
+          expectedNominalPaid: expectedNominal,
+          dbMonthsPaid: dbMonths,
+          dbNominalPaid: dbNominal,
+          drifted,
+        })
+      }),
+    )
+  }
+  return result
 }
 
 /** Construit une contribution (contrib) migrée à partir d'un versement. */
@@ -950,25 +1035,17 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
   }
 
   // Regroupement par mois, avec contribs[] (structure attendue par le détail
-  // contrat) :
-  //  - JOURNALIER : mois de 30 jours depuis le début (calendrier journalier).
-  //  - LIBRE : mois calendaire de la DATE de paiement réelle (montants variables,
-  //    paiements parfois en avance) → les dates correspondent enfin aux mois.
+  // contrat) — logique partagée avec la vérification des écarts.
   const isDaily = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
-  const isLibre = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
-  const useBuckets = (isDaily || isLibre) && !!startDateObj
+  const grouped = groupCSVersementsByMonth(row)
+  const useBuckets = grouped !== null
   const buckets = new Map<number, Array<Record<string, unknown>>>()
-  if (useBuckets && startDateObj) {
-    const startMid = midnight(startDateObj)
-    for (const p of row.payments) {
-      if (!p.versement) continue
-      const payDate = safeDate(p.versement.date)
-      const mi = isDaily
-        ? Math.max(0, Math.floor((midnight(payDate).getTime() - startMid.getTime()) / MS_PER_DAY / 30))
-        : calMonthIndex(startMid, midnight(payDate))
-      const list = buckets.get(mi) ?? []
-      list.push(buildMigContrib(p.versement, mi, list.length))
-      buckets.set(mi, list)
+  if (grouped) {
+    for (const [mi, ps] of grouped) {
+      buckets.set(
+        mi,
+        ps.flatMap((p, idx) => (p.versement ? [buildMigContrib(p.versement, mi, idx)] : [])),
+      )
     }
   }
   const currentMonthIndex = useBuckets ? buckets.size : paidCount
