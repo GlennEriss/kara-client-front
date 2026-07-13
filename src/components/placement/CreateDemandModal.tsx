@@ -1,6 +1,8 @@
 'use client'
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { TrendingUp } from 'lucide-react'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
 import { PlacementDemandForm } from '@/domains/financial/placement/demandes'
 import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
 import { useAuth } from '@/hooks/useAuth'
@@ -57,15 +59,13 @@ export default function CreateDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62]">
-            Nouvelle demande de placement
-          </DialogTitle>
-          <DialogDescription>
-            Créez une nouvelle demande de placement pour un bienfaiteur
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="3xl" className="w-[95vw]">
+        <ModalHeader
+          icon={TrendingUp}
+          title="Nouvelle demande de placement"
+          description="Créez une nouvelle demande de placement pour un bienfaiteur"
+        />
+        <ModalBody>
         <PlacementDemandForm
           form={form}
           onSubmit={onSubmit}
@@ -74,7 +74,8 @@ export default function CreateDemandModal({
           cancelLabel="Annuler"
           submitLabel="Créer la demande"
         />
-      </DialogContent>
+        </ModalBody>
+      </ModalContent>
     </Dialog>
   )
 }

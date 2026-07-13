@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -33,6 +34,7 @@ import {
     Phone,
     Plus,
     Users,
+    Wallet,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -363,12 +365,13 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
         Créer un contrat
       </Button>
       <Dialog open={open} onOpenChange={(o) => !loading && setOpen(o)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nouveau contrat Caisse Spéciale</DialogTitle>
-            <DialogDescription>Définissez le montant, la durée et la caisse.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Wallet}
+            title="Nouveau contrat Caisse Spéciale"
+            description="Définissez le montant, la durée et la caisse."
+          />
+          <ModalBody className="space-y-3">
             <div>
               <label className="block text-sm mb-1">
                 {caisseType === 'STANDARD' || caisseType === 'STANDARD_CHARITABLE'
@@ -475,8 +478,8 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
                 required
               />
             </div>
-          </div>
-          <DialogFooter>
+          </ModalBody>
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Annuler</Button>
             <Button 
               className="bg-[#234D65] text-white" 
@@ -485,8 +488,8 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
             >
               {loading ? 'Création…' : 'Créer'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </>
   )

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -393,19 +394,21 @@ export default function ProvinceListV2() {
 
       {/* Modal création / édition */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-province-form">
-          <DialogHeader>
-            <DialogTitle className="text-kara-primary-dark" data-testid="modal-province-title">
-              {editingProvince ? 'Modifier la province' : 'Nouvelle province'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingProvince
+        <ModalContent size="sm" data-testid="modal-province-form">
+          <ModalHeader
+            icon={MapPin}
+            title={<><span data-testid="modal-province-title">{editingProvince ? 'Modifier la province' : 'Nouvelle province'}</span></>}
+            description={
+              <>
+                {editingProvince
                 ? 'Modifiez les informations de la province'
                 : 'Renseignez les informations de la nouvelle province'}
-            </DialogDescription>
-          </DialogHeader>
+              </>
+            }
+          />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitProvince)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(submitProvince)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody>
               <FormField
                 control={form.control}
                 name="code"
@@ -443,8 +446,9 @@ export default function ProvinceListV2() {
                   </FormItem>
                 )}
               />
+              </ModalBody>
 
-              <DialogFooter className="gap-2 sm:gap-0">
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -465,26 +469,30 @@ export default function ProvinceListV2() {
                   )}
                   {editingProvince ? 'Modifier' : 'Créer'}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Confirmation suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-province-delete">
-          <DialogHeader>
-            <DialogTitle className="text-kara-error">Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer la province <strong>"{provinceToDelete?.name}"</strong> ?
+        <ModalContent size="sm" data-testid="modal-province-delete">
+          <ModalHeader
+            icon={MapPin}
+            tone="destructive"
+            title={<>Confirmer la suppression</>}
+            description={
+              <>
+                Êtes-vous sûr de vouloir supprimer la province <strong>"{provinceToDelete?.name}"</strong> ?
               <br />
               <span className="text-kara-error font-medium mt-2 block">
                 ⚠️ Cette action supprimera également tous les départements, communes, arrondissements et quartiers associés.
               </span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+              </>
+            }
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
@@ -501,8 +509,8 @@ export default function ProvinceListV2() {
               {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

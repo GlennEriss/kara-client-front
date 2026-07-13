@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCharityParticipants, useRemoveCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
 import { useAllMembers } from '@/hooks/useMembers'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Plus, Search, UserMinus } from 'lucide-react'
+import { Plus, Search, UserMinus, UserX } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import AddParticipantModal from './AddParticipantModal'
@@ -243,20 +244,20 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
 
       {/* Confirmation de suppression */}
       <Dialog open={!!participantToRemove} onOpenChange={() => setParticipantToRemove(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Retirer le participant</DialogTitle>
-            <DialogDescription>
-              {(() => {
-                const participant = filtered.find(p => p.id === participantToRemove)
-                if (participant && participant.contributionsCount > 0) {
-                  return `Impossible de retirer ce participant car il a ${participant.contributionsCount} contribution(s). Veuillez d'abord supprimer toutes ses contributions.`
-                }
-                return 'Êtes-vous sûr de vouloir retirer ce participant de l\'évènement ? Cette action est irréversible.'
-              })()}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={UserX}
+            tone="destructive"
+            title="Retirer le participant"
+            description={(() => {
+              const participant = filtered.find(p => p.id === participantToRemove)
+              if (participant && participant.contributionsCount > 0) {
+                return `Impossible de retirer ce participant car il a ${participant.contributionsCount} contribution(s). Veuillez d'abord supprimer toutes ses contributions.`
+              }
+              return 'Êtes-vous sûr de vouloir retirer ce participant de l\'évènement ? Cette action est irréversible.'
+            })()}
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button variant="outline" onClick={() => setParticipantToRemove(null)} disabled={isRemoving}>
               Annuler
             </Button>
@@ -270,8 +271,8 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
             >
               {isRemoving ? 'Retrait en cours...' : 'Retirer'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

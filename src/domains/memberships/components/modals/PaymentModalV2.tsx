@@ -7,14 +7,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -266,18 +260,18 @@ export function PaymentModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[90vh] overflow-y-auto px-4 sm:px-6" data-testid="modal-payment">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark">
-            <CreditCard className="w-5 h-5 text-blue-600" />
-            Enregistrer un paiement
-          </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            Vous êtes sur le point d'enregistrer un paiement pour la demande de <strong>{memberName}</strong>.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="w-[95vw] sm:max-w-[700px]" data-testid="modal-payment">
+        <ModalHeader
+          icon={CreditCard}
+          title="Enregistrer un paiement"
+          description={
+            <>
+              Vous êtes sur le point d'enregistrer un paiement pour la demande de <strong>{memberName}</strong>.
+            </>
+          }
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           {/* 1. Type de paiement */}
           <div className="space-y-2">
             <Label htmlFor="paymentType" className="text-sm font-semibold text-kara-primary-dark">
@@ -594,9 +588,9 @@ export function PaymentModalV2({
               Photo/Capture obligatoire (JPG/PNG/WEBP, max 5MB) ou justification requise
             </p>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -623,8 +617,8 @@ export function PaymentModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -15,6 +15,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import CharityContributionsSection from './CharityContributionsSection'
+import CharityDeclarationsSection from './CharityDeclarationsSection'
 import CharityEventSettings from './CharityEventSettings'
 import CharityGroupsSection from './CharityGroupsSection'
 import CharityMediaSection from './CharityMediaSection'
@@ -249,6 +250,7 @@ export default function CharityEventDetail({ eventId }: CharityEventDetailProps)
           </div>
 
           <TabsContent value="contributions" className="space-y-4">
+            <CharityDeclarationsSection eventId={eventId} />
             <Card className="border-cyan-100/70 bg-white/75 p-1 shadow-[0_14px_30px_-24px_rgba(16,56,90,0.85)] backdrop-blur-sm">
               <CardContent className="p-3 sm:p-4">
                 <CharityContributionsSection eventId={eventId} />

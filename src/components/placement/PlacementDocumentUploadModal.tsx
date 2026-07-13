@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -180,19 +181,16 @@ export default function PlacementDocumentUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5 text-[#234D65]" />
-            {title}
-          </DialogTitle>
-          <DialogDescription>
-            {description || `Téléverser le ${DOCUMENT_TYPE_LABELS[documentType as PlacementSpecificDocumentType]?.toLowerCase() || 'document'} pour le placement #${placementId.slice(-6)}`}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="sm:max-w-[500px]">
+        <ModalHeader
+          icon={Upload}
+          title={title}
+          description={description || `Téléverser le ${DOCUMENT_TYPE_LABELS[documentType as PlacementSpecificDocumentType]?.toLowerCase() || 'document'} pour le placement #${placementId.slice(-6)}`}
+        />
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody>
             {existingDocumentId && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-700">
@@ -279,8 +277,9 @@ export default function PlacementDocumentUploadModal({
                 </FormItem>
               )}
             />
+            </ModalBody>
 
-            <DialogFooter>
+            <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
               <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
                 Annuler
               </Button>
@@ -292,10 +291,10 @@ export default function PlacementDocumentUploadModal({
                 {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {existingDocumentId ? 'Remplacer' : 'Téléverser'}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
         </Form>
-      </DialogContent>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -15,7 +16,7 @@ import { CharityMedia } from '@/types/types'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Calendar, Eye, Image as ImageIcon, Plus, Search, Trash2, Video } from 'lucide-react'
+import { Calendar, Eye, Image as ImageIcon, ImagePlus, Plus, Search, Trash2, Video } from 'lucide-react'
 import Image from 'next/image'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -313,15 +314,15 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
 
       {/* Modal d'ajout */}
       <Dialog open={isAddOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Ajouter un média</DialogTitle>
-            <DialogDescription>
-              Téléchargez une photo ou une vidéo pour cet évènement
-            </DialogDescription>
-          </DialogHeader>
+        <ModalContent size="lg">
+          <ModalHeader
+            icon={ImagePlus}
+            title="Ajouter un média"
+            description="Téléchargez une photo ou une vidéo pour cet évènement"
+          />
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody>
             {/* Type de média */}
             <div className="space-y-2">
               <Label>Type de média *</Label>
@@ -453,8 +454,9 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
                 <p className="text-sm text-red-500">{errors.takenAt.message}</p>
               )}
             </div>
+            </ModalBody>
 
-            <DialogFooter>
+            <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
               <Button type="button" variant="outline" onClick={handleClose} disabled={isCreating}>
                 Annuler
               </Button>
@@ -468,9 +470,9 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
                   'Ajouter le média'
                 )}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Lightbox */}

@@ -230,8 +230,8 @@ export class PlacementService {
     })
   }
 
-  async listPlacements(): Promise<Placement[]> {
-    return this.placementRepository.getAll()
+  async listPlacements(opts: { statuses?: Placement['status'][]; payoutMode?: Placement['payoutMode'] } = {}): Promise<Placement[]> {
+    return this.placementRepository.getAll(opts)
   }
 
   async getPlacement(id: string): Promise<Placement | null> {

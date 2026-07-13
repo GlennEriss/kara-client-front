@@ -69,12 +69,11 @@ const ModalContent = React.forwardRef<
 
 ModalContent.displayName = "ModalContent"
 
-type ModalHeaderProps = {
+type ModalHeaderProps = Omit<React.ComponentProps<"div">, "title"> & {
   title?: React.ReactNode
   description?: React.ReactNode
   icon?: React.ComponentType<{ className?: string }>
   tone?: ModalTone
-  className?: string
   /** Contenu d'en-tête personnalisé (étapes, badges…). Remplace title/description. */
   children?: React.ReactNode
 }
@@ -86,6 +85,7 @@ function ModalHeader({
   tone = "default",
   className,
   children,
+  ...props
 }: ModalHeaderProps) {
   return (
     <div
@@ -94,6 +94,7 @@ function ModalHeader({
         "shrink-0 border-b border-gray-100 px-6 py-4",
         className
       )}
+      {...props}
     >
       {children ?? (
         <div className="flex min-w-0 items-center gap-3 pr-8">

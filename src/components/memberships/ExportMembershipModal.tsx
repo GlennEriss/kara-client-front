@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useMembershipExport } from '@/domains/memberships/hooks/useMembershipExport'
@@ -58,23 +59,14 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !isExporting && !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl overflow-hidden border-0 bg-gradient-to-b from-white via-white to-slate-50/80 p-0 shadow-2xl">
-        <DialogHeader className="border-b border-[#234D65]/15 bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#234D65] px-6 py-5 text-white">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <DialogTitle className="text-xl font-bold text-white">Exporter les membres</DialogTitle>
-              <DialogDescription className="mt-1 text-white/85">
-                Personnalisez votre export avant de générer le fichier.
-              </DialogDescription>
-            </div>
-            <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-              <Download className="h-3.5 w-3.5" />
-              Export personnalisé
-            </div>
-          </div>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={Download}
+          title="Exporter les membres"
+          description="Personnalisez votre export avant de générer le fichier."
+        />
 
-        <div className="space-y-4 px-5 py-5 sm:px-6">
+        <ModalBody>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#234D65]">
@@ -171,9 +163,9 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
               </div>
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="border-t border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button variant="outline" onClick={onClose} disabled={isExporting} className="h-10 rounded-xl border-slate-300 px-4 text-slate-700 hover:bg-slate-50">
             Annuler
           </Button>
@@ -184,8 +176,8 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
               'Exporter'
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

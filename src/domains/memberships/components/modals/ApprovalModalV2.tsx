@@ -10,14 +10,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -170,25 +164,24 @@ export function ApprovalModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent 
-        className="w-[95vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto overflow-x-hidden px-4 sm:px-6" 
+      <ModalContent
+        className="w-[95vw] sm:max-w-[720px]"
         data-testid="approval-modal"
       >
-        <DialogHeader data-testid="approval-modal-header">
-          <DialogTitle 
-            className="flex items-center gap-2 text-xl sm:text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent"
-            data-testid="approval-modal-title"
-          >
-            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-[#234D65]" />
-            Approuver une Demande d'Adhésion
-          </DialogTitle>
-          <DialogDescription className="text-sm text-kara-neutral-600">
-            <span className="font-semibold text-kara-primary-dark">{request.identity?.firstName} {request.identity?.lastName}</span>
-            {' '}• Vérifiez le dossier avant validation.
-          </DialogDescription>
-        </DialogHeader>
+        <ModalHeader
+          data-testid="approval-modal-header"
+          icon={CheckCircle}
+          tone="success"
+          title={<span data-testid="approval-modal-title">Approuver une Demande d'Adhésion</span>}
+          description={
+            <>
+              <span className="font-semibold text-kara-primary-dark">{request.identity?.firstName} {request.identity?.lastName}</span>
+              {' '}• Vérifiez le dossier avant validation.
+            </>
+          }
+        />
 
-        <div className="space-y-3 py-3 sm:py-4">
+        <ModalBody className="space-y-3">
           {/* Informations du Dossier */}
           <Card className="rounded-xl border border-kara-neutral-200 shadow-sm" data-testid="approval-modal-dossier-section">
             <CardHeader className="pb-2 px-4 sm:px-5">
@@ -423,9 +416,9 @@ export function ApprovalModalV2({
               </AlertDescription>
             </Alert>
           )}
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2 flex-col sm:flex-row pb-2 sm:pb-3">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -453,8 +446,8 @@ export function ApprovalModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

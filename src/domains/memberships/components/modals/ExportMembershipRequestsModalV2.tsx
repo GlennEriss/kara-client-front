@@ -30,14 +30,8 @@ import {
   Layers
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -770,25 +764,17 @@ export function ExportMembershipRequestsModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !isExporting && !open && onClose()}>
-      <DialogContent 
-        className="w-[calc(100vw-2rem)] max-w-xl sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0" 
+      <ModalContent
+        className="w-[calc(100vw-2rem)] max-w-xl sm:max-w-2xl"
         data-testid="modal-export-requests"
       >
-        {/* Header fixe */}
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-kara-neutral-100 shrink-0">
-          <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg">
-            <div className="p-1.5 bg-kara-primary-dark/10 rounded-lg">
-              <Download className="w-4 h-4 sm:w-5 sm:h-5 text-kara-primary-dark" />
-            </div>
-            Exporter les demandes
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm mt-1">
-            Configurez votre export avant de générer le fichier
-          </DialogDescription>
-        </DialogHeader>
+        <ModalHeader
+          icon={Download}
+          title="Exporter les demandes"
+          description="Configurez votre export avant de générer le fichier"
+        />
 
-        {/* Contenu scrollable */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4">
+        <ModalBody className="overflow-x-hidden">
           <div className="space-y-5">
             
             {/* 1. Format du fichier */}
@@ -1104,10 +1090,10 @@ export function ExportMembershipRequestsModalV2({
               </section>
             )}
           </div>
-        </div>
+        </ModalBody>
 
         {/* Footer fixe */}
-        <DialogFooter className="px-4 sm:px-6 py-3 sm:py-4 border-t border-kara-neutral-100 shrink-0 bg-kara-neutral-50/50">
+        <ModalFooter className="bg-kara-neutral-50/50">
           <div className="flex flex-col-reverse sm:flex-row w-full gap-2 sm:gap-3">
             {/* Boutons secondaires */}
             <div className="flex gap-2 sm:flex-1">
@@ -1156,8 +1142,8 @@ export function ExportMembershipRequestsModalV2({
             )}
           </Button>
           </div>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

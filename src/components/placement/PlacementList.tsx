@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,7 @@ import { ServiceFactory } from '@/factories/ServiceFactory'
 import { getStorageInstance } from '@/firebase/storage'
 import { useAuth } from '@/hooks/useAuth'
 import { useMember, useSearchMembers } from '@/hooks/useMembers'
-import { useEarlyExit, usePlacementCommissions, usePlacementMutations, usePlacements, usePlacementStats } from '@/hooks/usePlacements'
+import { useEarlyExit, usePlacementCommissions, usePlacementMutations, usePlacements, usePlacementStats, type PlacementListFilter } from '@/hooks/usePlacements'
 import { cn } from '@/lib/utils'
 import { RelationshipEnum } from '@/schemas/emergency-contact.schema'
 import { ImageCompressionService } from '@/services/imageCompressionService'
@@ -26,7 +27,7 @@ import type { CommissionPaymentPlacement, CommissionStatus, PayoutMode, Placemen
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
-import { AlertCircle, AlertTriangle, Calendar, CheckCircle, ChevronDown, Clock, DollarSign, Download, Eye, FileDown, FileSpreadsheet, FileText, IdCard, Loader2, Phone, PiggyBank, Plus, Receipt, RefreshCw, Search, TrendingUp, Upload, User as UserIcon, Users, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Banknote, Calendar, CheckCircle, ChevronDown, Clock, DollarSign, Download, Eye, FileDown, FileSpreadsheet, FileText, IdCard, Loader2, Phone, PiggyBank, Plus, Receipt, RefreshCw, Search, Trash2, TrendingUp, Upload, User as UserIcon, Users, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -228,7 +229,23 @@ export default function PlacementList() {
   })
   
   const { data: memberResults = [] } = useSearchMembers(memberSearch, memberSearch.length >= 2)
-  const { data: placements = [], isLoading, error, refetch } = usePlacements()
+  // Filtre serveur selon l'onglet actif : on ne charge que le sous-ensemble
+  // utile au lieu de toute la collection (scalabilité).
+  const serverFilter = useMemo<PlacementListFilter>(() => {
+    switch (activeTab) {
+      case 'actifs': return { statuses: ['Active'] }
+      case 'brouillons': return { statuses: ['Draft'] }
+      case 'clos': return { statuses: ['Closed'] }
+      case 'early': return { statuses: ['EarlyExit'] }
+      // Commissions du mois / retards ne concernent que les placements actifs.
+      case 'month':
+      case 'late': return { statuses: ['Active'] }
+      case 'mensuel': return { payoutMode: 'MonthlyCommission_CapitalEnd' }
+      case 'final': return { payoutMode: 'CapitalPlusCommission_End' }
+      default: return {}
+    }
+  }, [activeTab])
+  const { data: placements = [], isLoading, error, refetch } = usePlacements(serverFilter)
   const { create, update, requestEarlyExit, payCommission, remove } = usePlacementMutations()
   const { user, loading: authLoading } = useAuth()
   const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null)
@@ -1283,14 +1300,14 @@ export default function PlacementList() {
 
       {/* Modal suppression placement */}
       <Dialog open={!!deletePlacementId} onOpenChange={(open) => !open && setDeletePlacementId(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Supprimer le placement ?</DialogTitle>
-            <DialogDescription>
-              Cette action est définitive. Le placement (brouillon) sera supprimé ainsi que ses commissions associées.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4">
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Trash2}
+            tone="destructive"
+            title="Supprimer le placement ?"
+            description="Cette action est définitive. Le placement (brouillon) sera supprimé ainsi que ses commissions associées."
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button variant="outline" onClick={() => setDeletePlacementId(null)}>
               Annuler
             </Button>
@@ -1310,8 +1327,8 @@ export default function PlacementList() {
               {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {/* Modal de création/modification */}
@@ -1325,19 +1342,19 @@ export default function PlacementList() {
         }
         setIsCreateOpen(open)
       }}>
-        <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="border-b pb-4">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-              {editingPlacementId ? 'Modifier le placement' : 'Nouveau placement'}
-            </DialogTitle>
-            <DialogDescription className="text-gray-600">
-              {editingPlacementId 
+        <ModalContent size="lg" className="max-w-[95vw]">
+          <ModalHeader
+            icon={TrendingUp}
+            title={editingPlacementId ? 'Modifier le placement' : 'Nouveau placement'}
+            description={
+              editingPlacementId
                 ? 'Modifiez les informations du placement'
-                : 'Recherchez et sélectionnez un membre bienfaiteur, puis saisissez les informations du placement'}
-            </DialogDescription>
-          </DialogHeader>
+                : 'Recherchez et sélectionnez un membre bienfaiteur, puis saisissez les informations du placement'
+            }
+          />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitPlacement)} className="space-y-5 mt-6">
+            <form onSubmit={form.handleSubmit(submitPlacement)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody className="space-y-5">
               <FormField
                 control={form.control}
                 name="benefactorId"
@@ -1885,7 +1902,8 @@ export default function PlacementList() {
                 </CardContent>
               </Card>
 
-              <DialogFooter className="gap-2 pt-4 border-t">
+              </ModalBody>
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -1902,35 +1920,37 @@ export default function PlacementList() {
                   {(editingPlacementId ? update.isPending : create.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingPlacementId ? 'Modifier le placement' : 'Créer le placement'}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Modal Retrait anticipé */}
       <Dialog open={!!earlyExitPlacementId} onOpenChange={(open) => !open && setEarlyExitPlacementId(null)}>
-        <DialogContent className="sm:max-w-lg max-w-[95vw]">
-          <DialogHeader>
-            <DialogTitle>Retrait anticipé</DialogTitle>
-            <DialogDescription>
-              Les montants sont calculés automatiquement selon la règle : commission d'un mois si au moins 1 mois écoulé, sinon 0 commission.
-            </DialogDescription>
-          </DialogHeader>
-          {earlyExitPlacementId && <EarlyExitForm placementId={earlyExitPlacementId} onClose={() => setEarlyExitPlacementId(null)} />}
-        </DialogContent>
+        <ModalContent size="md" className="max-w-[95vw]">
+          <ModalHeader
+            icon={Banknote}
+            tone="warning"
+            title="Retrait anticipé"
+            description="Les montants sont calculés automatiquement selon la règle : commission d'un mois si au moins 1 mois écoulé, sinon 0 commission."
+          />
+          <ModalBody>
+            {earlyExitPlacementId && <EarlyExitForm placementId={earlyExitPlacementId} onClose={() => setEarlyExitPlacementId(null)} />}
+          </ModalBody>
+        </ModalContent>
       </Dialog>
 
       {/* Modal Détails placement (commissions + retrait anticipé) */}
       <Dialog open={!!detailState.placementId} onOpenChange={(open) => !open && setDetailState({ placementId: null })}>
-        <DialogContent className="sm:max-w-6xl max-w-[95vw] max-h-[95vh] overflow-y-auto p-8">
-          <DialogHeader className="pb-6 mb-6 border-b">
-            <DialogTitle className="text-2xl font-bold">Détails du placement</DialogTitle>
-            <DialogDescription className="text-base mt-2">
-              Informations complètes du placement, du bienfaiteur et des commissions.
-            </DialogDescription>
-          </DialogHeader>
+        <ModalContent size="4xl" className="max-w-[95vw]">
+          <ModalHeader
+            icon={TrendingUp}
+            title="Détails du placement"
+            description="Informations complètes du placement, du bienfaiteur et des commissions."
+          />
 
+          <ModalBody>
           {detailState.placementId ? (() => {
             const currentPlacement = placements.find(p => p.id === detailState.placementId)
             if (!currentPlacement) return <p className="text-gray-500">Placement introuvable.</p>
@@ -2625,7 +2645,8 @@ export default function PlacementList() {
           })() : (
             <p className="text-gray-500">Placement introuvable.</p>
           )}
-        </DialogContent>
+          </ModalBody>
+        </ModalContent>
       </Dialog>
 
       {/* Modal upload contrat */}

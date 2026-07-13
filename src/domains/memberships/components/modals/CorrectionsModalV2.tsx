@@ -8,14 +8,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -66,21 +60,15 @@ export function CorrectionsModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]" data-testid="corrections-modal">
-        <DialogHeader>
-          <DialogTitle 
-            className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark"
-            data-testid="corrections-modal-title"
-          >
-            <FileEdit className="w-5 h-5 text-amber-600" />
-            Demander des corrections
-          </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            Saisissez les corrections à apporter (une par ligne). Le demandeur recevra un code de sécurité pour accéder aux corrections.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="sm:max-w-[600px]" data-testid="corrections-modal">
+        <ModalHeader
+          icon={FileEdit}
+          tone="warning"
+          title={<span data-testid="corrections-modal-title">Demander des corrections</span>}
+          description="Saisissez les corrections à apporter (une par ligne). Le demandeur recevra un code de sécurité pour accéder aux corrections."
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           {/* Zone de saisie des corrections */}
           <div className="space-y-2">
             <Label htmlFor="corrections" className="text-sm font-semibold text-kara-primary-dark">
@@ -105,9 +93,9 @@ export function CorrectionsModalV2({
                 : `${correctionsCount} correction${correctionsCount > 1 ? 's' : ''} détectée${correctionsCount > 1 ? 's' : ''}`}
             </p>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -135,8 +123,8 @@ export function CorrectionsModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { Camera, Loader2 } from 'lucide-react'
+import { Store, Camera, Loader2 } from 'lucide-react'
 
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -167,15 +168,14 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90dvh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{isEdit ? 'Modifier la boutique' : 'Ajouter une boutique'}</DialogTitle>
-          <DialogDescription>
-            Renseignez les informations de la boutique. Elle sera visible par les membres si « Active ».
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={Store}
+          title={isEdit ? 'Modifier la boutique' : 'Ajouter une boutique'}
+          description="Renseignez les informations de la boutique. Elle sera visible par les membres si « Active »."
+        />
 
-        <div className="overflow-y-auto flex-1 min-h-0 space-y-4 pr-1">
+        <ModalBody>
           {/* Base */}
           <p className="text-xs font-semibold uppercase tracking-wide text-[#234D65]/70">Informations</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -327,16 +327,16 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
               </Button>
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="flex-shrink-0">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Annuler</Button>
           <Button type="button" onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             {isEdit ? 'Enregistrer' : 'Créer'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -319,9 +319,9 @@ const PAYOUT_MODE_LABELS: Record<string, string> = {
 
 async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
   const service = ServiceFactory.getPlacementService()
-  const placements: Placement[] = await service.listPlacements()
-  // Actifs (remise du capital à terme + 30 j) et retraits anticipés en cours.
-  const candidates = placements.filter((p) => p.status === 'Active' || p.status === 'EarlyExit')
+  // Filtre serveur : seuls les placements actifs (remise à terme + 30 j)
+  // et les retraits anticipés en cours nous intéressent.
+  const candidates: Placement[] = await service.listPlacements({ statuses: ['Active', 'EarlyExit'] })
 
   const getUser = makeUserCache()
 

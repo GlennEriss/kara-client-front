@@ -6,14 +6,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RotateCcw, Loader2, AlertTriangle } from 'lucide-react'
@@ -67,21 +61,15 @@ export function RenewSecurityCodeModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]" data-testid="renew-code-modal">
-        <DialogHeader>
-          <DialogTitle 
-            className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark"
-            data-testid="renew-code-modal-title"
-          >
-            <RotateCcw className="w-5 h-5 text-amber-600" />
-            Régénérer le code de sécurité
-          </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            Régénérer le code invalide l'ancien code. Le demandeur devra utiliser le nouveau code pour accéder aux corrections.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="sm:max-w-[500px]" data-testid="renew-code-modal">
+        <ModalHeader
+          icon={RotateCcw}
+          tone="warning"
+          title={<span data-testid="renew-code-modal-title">Régénérer le code de sécurité</span>}
+          description="Régénérer le code invalide l'ancien code. Le demandeur devra utiliser le nouveau code pour accéder aux corrections."
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           {/* Avertissement */}
           <div 
             className="p-3 bg-amber-50 border border-amber-200 rounded-lg"
@@ -160,9 +148,9 @@ export function RenewSecurityCodeModalV2({
               </span>
             </label>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -190,8 +178,8 @@ export function RenewSecurityCodeModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

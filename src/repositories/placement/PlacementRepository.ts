@@ -36,10 +36,16 @@ export class PlacementRepository implements IRepository {
     } as Placement
   }
 
-  async getAll(): Promise<Placement[]> {
-    const { collection, getDocs, db, orderBy, query } = await getFirestore()
+  async getAll(opts: { statuses?: Placement['status'][]; payoutMode?: Placement['payoutMode'] } = {}): Promise<Placement[]> {
+    const { collection, getDocs, db, orderBy, query, where } = await getFirestore()
     const colRef = collection(db, this.collectionName)
-    const q = query(colRef, orderBy('createdAt', 'desc'))
+    // Filtre serveur : on ne charge que le sous-ensemble utile (onglet actif,
+    // remises à venir…) au lieu de toute la collection.
+    const cons: any[] = []
+    if (opts.statuses && opts.statuses.length > 0) cons.push(where('status', 'in', opts.statuses))
+    if (opts.payoutMode) cons.push(where('payoutMode', '==', opts.payoutMode))
+    cons.push(orderBy('createdAt', 'desc'))
+    const q = query(colRef, ...cons)
     const snaps = await getDocs(q)
     return snaps.docs.map(docSnap => {
       const d = docSnap.data()

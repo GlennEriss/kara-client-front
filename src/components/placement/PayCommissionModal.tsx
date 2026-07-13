@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ImageCompressionService } from '@/services/imageCompressionService'
@@ -227,18 +221,14 @@ export default function PayCommissionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <DollarSign className="h-6 w-6" />
-            Payer la commission
-          </DialogTitle>
-          <DialogDescription>
-            Enregistrer le paiement de la commission du {new Date(commission.dueDate).toLocaleDateString('fr-FR')}
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={DollarSign}
+          title="Payer la commission"
+          description={`Enregistrer le paiement de la commission du ${new Date(commission.dueDate).toLocaleDateString('fr-FR')}`}
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations de la commission */}
           <Alert className="border-blue-200 bg-blue-50">
             <DollarSign className="h-4 w-4 text-blue-600" />
@@ -455,9 +445,9 @@ export default function PayCommissionModal({
               </div>
             )}
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Annuler
           </Button>
@@ -469,8 +459,8 @@ export default function PayCommissionModal({
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enregistrer le paiement
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

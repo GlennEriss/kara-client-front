@@ -3,11 +3,17 @@ import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuditLogger } from '@/hooks/useAuditLog'
 import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement } from '@/types/types'
 
-export function usePlacements() {
+export type PlacementListFilter = {
+  statuses?: Placement['status'][]
+  payoutMode?: Placement['payoutMode']
+}
+
+export function usePlacements(filter: PlacementListFilter = {}) {
   const service = ServiceFactory.getPlacementService()
   return useQuery<Placement[]>({
-    queryKey: ['placements'],
-    queryFn: () => service.listPlacements(),
+    // La clé inclut le filtre serveur : chaque onglet a son propre cache.
+    queryKey: ['placements', filter.statuses ?? null, filter.payoutMode ?? null],
+    queryFn: () => service.listPlacements(filter),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   })

@@ -9,12 +9,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2, Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -255,17 +256,15 @@ export default function PaymentSummaryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[95vw] !max-w-[1100px] max-h-[95vh] overflow-y-auto bg-white border-0 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            VERSEMENT DU: {formatDate(payment.paymentDate)}
-          </DialogTitle>
-          <DialogDescription>
-            Résumé détaillé du versement
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="4xl" className="!w-[95vw] !max-w-[1100px]">
+        <ModalHeader
+          icon={Receipt}
+          title={`VERSEMENT DU : ${formatDate(payment.paymentDate)}`}
+          description="Résumé détaillé du versement"
+        />
 
-        <div className="mt-4">
+        <ModalBody>
+        <div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -287,8 +286,9 @@ export default function PaymentSummaryModal({
             </TableBody>
           </Table>
         </div>
+        </ModalBody>
 
-        <DialogFooter className="mt-6">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button variant="outline" onClick={onClose}>
             Fermer
           </Button>
@@ -309,8 +309,8 @@ export default function PaymentSummaryModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -14,7 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { districtSchema, districtBulkCreateSchema, type DistrictFormData, type DistrictBulkCreateFormData } from '../../schemas/geographie.schema'
 import { useDistrictsV2, useDistrictMutationsV2, useCommunesV2, useDepartmentsV2, useProvincesV2 } from '../../hooks/useGeographieV2'
 import { LoadMoreButton } from '@/components/ui/load-more-button'
-import { Plus, Search, Edit3, Trash2, Route, Loader2, Download, Home, MoreVertical } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Route, Loader2, Download, Home, MoreVertical, MapPin } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { District } from '../../entities/geography.types'
 
@@ -505,19 +506,21 @@ export default function DistrictListV2() {
 
       {/* Modal création / édition */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-district-form">
-          <DialogHeader>
-            <DialogTitle className="text-kara-primary-dark" data-testid="modal-district-title">
-              {editingDistrict ? 'Modifier l\'arrondissement' : 'Nouvel arrondissement'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingDistrict
+        <ModalContent size="sm" data-testid="modal-district-form">
+          <ModalHeader
+            icon={MapPin}
+            title={<><span data-testid="modal-district-title">{editingDistrict ? 'Modifier l\'arrondissement' : 'Nouvel arrondissement'}</span></>}
+            description={
+              <>
+                {editingDistrict
                 ? 'Modifiez les informations de l\'arrondissement'
                 : 'Renseignez les informations du nouvel arrondissement'}
-            </DialogDescription>
-          </DialogHeader>
+              </>
+            }
+          />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitDistrict)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(submitDistrict)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody>
               <FormField
                 control={form.control}
                 name="communeId"
@@ -618,8 +621,9 @@ export default function DistrictListV2() {
                   </FormItem>
                 )}
               />
+              </ModalBody>
 
-              <DialogFooter className="gap-2 sm:gap-0">
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -640,23 +644,27 @@ export default function DistrictListV2() {
                   )}
                   {editingDistrict ? 'Modifier' : 'Créer'}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Modal création en masse */}
       <Dialog open={isBulkCreateOpen} onOpenChange={setIsBulkCreateOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-district-bulk-form">
-          <DialogHeader>
-            <DialogTitle className="text-kara-primary-dark">Créer des arrondissements en masse</DialogTitle>
-            <DialogDescription>
-              Créez plusieurs arrondissements pour une commune. Les arrondissements seront nommés automatiquement : "1er arrondissement", "2ème arrondissement", etc.
-            </DialogDescription>
-          </DialogHeader>
+        <ModalContent size="sm" data-testid="modal-district-bulk-form">
+          <ModalHeader
+            icon={MapPin}
+            title={<>Créer des arrondissements en masse</>}
+            description={
+              <>
+                Créez plusieurs arrondissements pour une commune. Les arrondissements seront nommés automatiquement : "1er arrondissement", "2ème arrondissement", etc.
+              </>
+            }
+          />
           <Form {...bulkForm}>
-            <form onSubmit={bulkForm.handleSubmit(submitBulkCreate)} className="space-y-4">
+            <form onSubmit={bulkForm.handleSubmit(submitBulkCreate)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody>
               <FormField
                 control={bulkForm.control}
                 name="communeId"
@@ -759,8 +767,9 @@ export default function DistrictListV2() {
                   </FormItem>
                 )}
               />
+              </ModalBody>
 
-              <DialogFooter className="gap-2 sm:gap-0">
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -779,26 +788,30 @@ export default function DistrictListV2() {
                   {createBulk.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                   Créer les arrondissements
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Confirmation suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-district-delete">
-          <DialogHeader>
-            <DialogTitle className="text-kara-error">Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer l'arrondissement <strong>"{districtToDelete?.name}"</strong> ?
+        <ModalContent size="sm" data-testid="modal-district-delete">
+          <ModalHeader
+            icon={MapPin}
+            tone="destructive"
+            title={<>Confirmer la suppression</>}
+            description={
+              <>
+                Êtes-vous sûr de vouloir supprimer l'arrondissement <strong>"{districtToDelete?.name}"</strong> ?
               <br />
               <span className="text-kara-error font-medium mt-2 block">
                 ⚠️ Cette action supprimera également tous les quartiers associés.
               </span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+              </>
+            }
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
@@ -815,8 +828,8 @@ export default function DistrictListV2() {
               {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

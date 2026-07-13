@@ -4,11 +4,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
 import { useCharityParticipants, useRemoveCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
-import { ChevronLeft, ChevronRight, Plus, Search, Trash2, Users } from 'lucide-react'
+import { Building2, ChevronLeft, ChevronRight, Plus, Search, Trash2, Users } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import AddParticipantModal from './AddParticipantModal'
@@ -275,21 +276,25 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
 
       {/* Confirmation de suppression */}
       <Dialog open={!!groupToRemove} onOpenChange={() => setGroupToRemove(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Retirer le groupe</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir retirer ce groupe de l'évènement ?
-              {(() => {
-                const group = sorted.find(g => g.id === groupToRemove)
-                if (group && group.contributionsCount > 0) {
-                  return ` Ce groupe a ${group.contributionsCount} contribution(s) et ne peut pas être retiré.`
-                }
-                return ' Cette action est irréversible.'
-              })()}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Building2}
+            tone="destructive"
+            title="Retirer le groupe"
+            description={
+              <>
+                Êtes-vous sûr de vouloir retirer ce groupe de l'évènement ?
+                {(() => {
+                  const group = sorted.find(g => g.id === groupToRemove)
+                  if (group && group.contributionsCount > 0) {
+                    return ` Ce groupe a ${group.contributionsCount} contribution(s) et ne peut pas être retiré.`
+                  }
+                  return ' Cette action est irréversible.'
+                })()}
+              </>
+            }
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button variant="outline" onClick={() => setGroupToRemove(null)} disabled={isRemoving}>
               Annuler
             </Button>
@@ -303,8 +308,8 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
             >
               {isRemoving ? 'Retrait en cours...' : 'Retirer'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

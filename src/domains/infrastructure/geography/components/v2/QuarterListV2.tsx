@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -14,7 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { quarterSchema, type QuarterFormData } from '../../schemas/geographie.schema'
 import { useQuartersV2, useQuarterMutationsV2, useDistrictsV2, useCommunesV2, useDepartmentsV2, useProvincesV2 } from '../../hooks/useGeographieV2'
 import { LoadMoreButton } from '@/components/ui/load-more-button'
-import { Plus, Search, Edit3, Trash2, Home, Loader2, Download, MoreVertical } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Home, Loader2, Download, MoreVertical, MapPin } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Quarter } from '../../entities/geography.types'
 
@@ -495,19 +496,21 @@ export default function QuarterListV2() {
 
       {/* Modal création / édition */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-quarter-form">
-          <DialogHeader>
-            <DialogTitle className="text-kara-primary-dark" data-testid="modal-quarter-title">
-              {editingQuarter ? 'Modifier le quartier' : 'Nouveau quartier'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingQuarter
+        <ModalContent size="sm" data-testid="modal-quarter-form">
+          <ModalHeader
+            icon={MapPin}
+            title={<><span data-testid="modal-quarter-title">{editingQuarter ? 'Modifier le quartier' : 'Nouveau quartier'}</span></>}
+            description={
+              <>
+                {editingQuarter
                 ? 'Modifiez les informations du quartier'
                 : 'Renseignez les informations du nouveau quartier'}
-            </DialogDescription>
-          </DialogHeader>
+              </>
+            }
+          />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitQuarter)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(submitQuarter)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody>
               <FormField
                 control={form.control}
                 name="districtId"
@@ -636,8 +639,9 @@ export default function QuarterListV2() {
                   </FormItem>
                 )}
               />
+              </ModalBody>
 
-              <DialogFooter className="gap-2 sm:gap-0">
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -658,22 +662,26 @@ export default function QuarterListV2() {
                   )}
                   {editingQuarter ? 'Modifier' : 'Créer'}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Confirmation suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-quarter-delete">
-          <DialogHeader>
-            <DialogTitle className="text-kara-error">Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer le quartier <strong>"{quarterToDelete?.name}"</strong> ?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+        <ModalContent size="sm" data-testid="modal-quarter-delete">
+          <ModalHeader
+            icon={MapPin}
+            tone="destructive"
+            title={<>Confirmer la suppression</>}
+            description={
+              <>
+                Êtes-vous sûr de vouloir supprimer le quartier <strong>"{quarterToDelete?.name}"</strong> ?
+              </>
+            }
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
@@ -690,8 +698,8 @@ export default function QuarterListV2() {
               {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

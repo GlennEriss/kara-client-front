@@ -1,13 +1,7 @@
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { FileText, Loader2, Upload } from 'lucide-react'
@@ -66,17 +60,19 @@ export function ReplaceAdhesionPdfModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md" data-testid="replace-adhesion-pdf-modal">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-emerald-600" />
-            Remplacer le PDF d&apos;adhésion
-          </DialogTitle>
-          <DialogDescription>
-            Demande <span className="font-mono font-medium">{request.matricule}</span> — PDF déjà validé.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="sm:max-w-md" data-testid="replace-adhesion-pdf-modal">
+        <ModalHeader
+          icon={FileText}
+          tone="success"
+          title="Remplacer le PDF d'adhésion"
+          description={
+            <>
+              Demande <span className="font-mono font-medium">{request.matricule}</span> — PDF déjà validé.
+            </>
+          }
+        />
 
+        <ModalBody>
         <Alert className="border-amber-200 bg-amber-50 text-amber-900">
           <AlertDescription>
             Le remplacement sera effectif immédiatement. L&apos;ancien PDF restera archivé dans l&apos;historique.
@@ -99,8 +95,9 @@ export function ReplaceAdhesionPdfModal({
             </p>
           )}
         </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button type="button" variant="outline" onClick={handleClose} disabled={isReplacing}>
             Annuler
           </Button>
@@ -123,8 +120,8 @@ export function ReplaceAdhesionPdfModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

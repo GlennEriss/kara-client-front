@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Building2 } from 'lucide-react'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -97,15 +99,15 @@ export default function AddCompanyModal({ open, onClose, onSuccess }: AddCompany
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Ajouter une nouvelle entreprise</DialogTitle>
-          <DialogDescription>
-            Créez rapidement une nouvelle entreprise sans quitter le formulaire
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader
+          icon={Building2}
+          title="Ajouter une nouvelle entreprise"
+          description="Créez rapidement une nouvelle entreprise sans quitter le formulaire"
+        />
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody>
             <FormField
               control={form.control}
               name="name"
@@ -210,17 +212,18 @@ export default function AddCompanyModal({ open, onClose, onSuccess }: AddCompany
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            </ModalBody>
+            <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Annuler
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Création...' : 'Créer'}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
         </Form>
-      </DialogContent>
+      </ModalContent>
     </Dialog>
   )
 }

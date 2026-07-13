@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { MapPin } from 'lucide-react'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -80,15 +82,15 @@ export default function AddQuarterModal({ open, onClose, onSuccess, districtId }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Ajouter un nouveau quartier</DialogTitle>
-          <DialogDescription>
-            Créez rapidement un nouveau quartier sans quitter le formulaire
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader
+          icon={MapPin}
+          title="Ajouter un nouveau quartier"
+          description={`Créez rapidement un nouveau quartier sans quitter le formulaire`}
+        />
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody>
             <FormField
               control={form.control}
               name="districtId"
@@ -130,7 +132,8 @@ export default function AddQuarterModal({ open, onClose, onSuccess, districtId }
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            </ModalBody>
+            <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Annuler
               </Button>
@@ -141,10 +144,10 @@ export default function AddQuarterModal({ open, onClose, onSuccess, districtId }
               >
                 {isSubmitting ? 'Création...' : 'Créer'}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
         </Form>
-      </DialogContent>
+      </ModalContent>
     </Dialog>
   )
 }
