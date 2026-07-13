@@ -2,6 +2,7 @@ import GroupList from '@/components/groups/GroupList'
 import { PageHero } from '@/components/ui/page-hero'
 import { Users } from 'lucide-react'
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: 'Groupes | KARA Admin',
@@ -17,7 +18,10 @@ export default function GroupsPage() {
         subtitle="Créez des groupes et rattachez des membres"
       />
 
-      <GroupList />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <GroupList />
+      </Suspense>
     </div>
   )
 }

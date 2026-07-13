@@ -189,7 +189,9 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   {
     key: 'settings',
     label: 'Paramètres (caisses)',
-    pathPrefixes: ['/settings'],
+    // Chemins réels des pages de paramètres (le préfixe le plus spécifique gagne
+    // sur /caisse-speciale et /caisse-imprevue) — '/settings' seul ne matchait rien.
+    pathPrefixes: ['/caisse-speciale/settings', '/caisse-imprevue/settings'],
     system: true,
     actions: actions('settings', [MANAGE]),
   },

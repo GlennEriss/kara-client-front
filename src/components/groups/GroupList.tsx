@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { StatsCard as StatChip } from '@/components/ui/stats-card'
 import { useAuditLogger } from '@/hooks/useAuditLog'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
+import { useSearchParams } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { createGroup, deleteGroup, listGroups, updateGroup } from '@/db/group.db'
 import { countMembersByGroup } from '@/db/member.db'
@@ -22,7 +24,10 @@ export default function GroupList() {
     const [name, setName] = React.useState('')
     const [label, setLabel] = React.useState('')
     const [description, setDescription] = React.useState('')
-    const [search, setSearch] = React.useState('')
+    // Recherche initialisée depuis l'URL (retour navigateur / lien partageable).
+    const searchParams = useSearchParams()
+    const [search, setSearch] = React.useState(searchParams.get('q') || '')
+    useListUrlSync({ q: search || null })
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
     React.useEffect(() => {
