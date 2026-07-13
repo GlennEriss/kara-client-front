@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncCISupportsToCentralizedPayments = exports.syncCIPaymentsToCentralizedPayments = exports.syncCSPaymentsToCentralizedPayments = exports.syncMemberCharitySummary = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.replaceAdhesionPdf = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.sendPushOnNotification = exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncCISupportsToCentralizedPayments = exports.syncCIPaymentsToCentralizedPayments = exports.syncCSPaymentsToCentralizedPayments = exports.syncMemberCharitySummary = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.replaceAdhesionPdf = exports.migrateExistingDuplicates = exports.onDuplicateGroupResolved = exports.onMembershipRequestWrite = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyAgentRecouvrementNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
+const firestore_1 = require("firebase-functions/v2/firestore");
+const sendPushOnNotification_1 = require("./push/sendPushOnNotification");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
 const overdueCommissions_1 = require("./scheduled/overdueCommissions");
@@ -189,4 +191,24 @@ var syncCIPaymentsToCentralizedPayments_1 = require("./caisse-imprevue/syncCIPay
 Object.defineProperty(exports, "syncCIPaymentsToCentralizedPayments", { enumerable: true, get: function () { return syncCIPaymentsToCentralizedPayments_1.syncCIPaymentsToCentralizedPayments; } });
 var syncCIPaymentsToCentralizedPayments_2 = require("./caisse-imprevue/syncCIPaymentsToCentralizedPayments");
 Object.defineProperty(exports, "syncCISupportsToCentralizedPayments", { enumerable: true, get: function () { return syncCIPaymentsToCentralizedPayments_2.syncCISupportsToCentralizedPayments; } });
+// ==================== PUSH WEB (FCM) ====================
+// Push déclenché à la création de chaque notification in-app :
+// recipientId présent → push au membre ; sinon → push aux admins.
+exports.sendPushOnNotification = (0, firestore_1.onDocumentCreated)({
+    document: 'notifications/{notificationId}',
+    region: 'europe-west1',
+    memory: '256MiB',
+    maxInstances: 10,
+}, async (event) => {
+    const data = event.data?.data();
+    if (!data)
+        return;
+    try {
+        await (0, sendPushOnNotification_1.sendPushForNotification)(event.params.notificationId, data);
+    }
+    catch (err) {
+        // Best-effort : un échec de push ne doit pas faire boucler le trigger.
+        console.error('[push] échec envoi:', err);
+    }
+});
 //# sourceMappingURL=index.js.map
