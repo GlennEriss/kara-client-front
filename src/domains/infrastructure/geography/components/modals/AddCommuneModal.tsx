@@ -4,11 +4,12 @@ import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, MapPin } from 'lucide-react'
 import { useCommuneMutations, useDepartments } from '../../hooks/useGeographie'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -81,15 +82,15 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Ajouter une nouvelle commune</DialogTitle>
-          <DialogDescription>
-            Créez rapidement une nouvelle commune sans quitter le formulaire
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="sm">
+        <ModalHeader
+          icon={MapPin}
+          title="Ajouter une nouvelle commune"
+          description="Créez rapidement une nouvelle commune sans quitter le formulaire"
+        />
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody>
             <FormField
               control={form.control}
               name="departmentId"
@@ -198,7 +199,8 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            </ModalBody>
+            <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Annuler
               </Button>
@@ -209,10 +211,10 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
               >
                 {isSubmitting ? 'Création...' : 'Créer'}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
         </Form>
-      </DialogContent>
+      </ModalContent>
 
       {/* Modal de création de département en cascade */}
       <AddDepartmentModal

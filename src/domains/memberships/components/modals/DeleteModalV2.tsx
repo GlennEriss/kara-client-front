@@ -6,14 +6,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -61,23 +55,19 @@ export function DeleteModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] sm:w-full" data-testid="delete-modal">
-        <DialogHeader>
-          <DialogTitle
-            className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-lg sm:text-xl font-bold text-red-600"
-            data-testid="delete-modal-title"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              <span className="break-words">Supprimer définitivement le dossier</span>
-            </div>
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-2" data-testid="delete-modal-description">
-            Cette action est irréversible. Toutes les données seront définitivement supprimées.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] sm:w-full" data-testid="delete-modal">
+        <ModalHeader
+          icon={Trash2}
+          tone="destructive"
+          title={<span data-testid="delete-modal-title">Supprimer définitivement le dossier</span>}
+          description={
+            <span data-testid="delete-modal-description">
+              Cette action est irréversible. Toutes les données seront définitivement supprimées.
+            </span>
+          }
+        />
 
-        <div className="space-y-3 sm:space-y-4 py-2 sm:py-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <ModalBody className="space-y-3 sm:space-y-4">
           {/* Avertissement */}
           <Alert variant="destructive" data-testid="delete-modal-warning">
             <AlertTriangle className="h-4 w-4" />
@@ -130,9 +120,9 @@ export function DeleteModalV2({
               </p>
             )}
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2 pt-2 sm:pt-0">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -162,8 +152,8 @@ export function DeleteModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

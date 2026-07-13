@@ -3,6 +3,7 @@
 import ListContracts from '@/components/caisse-speciale/ListContracts'
 import { PageHero } from '@/components/ui/page-hero'
 import { Wallet } from 'lucide-react'
+import { Suspense } from 'react'
 
 export default function AdminCaissePage() {
   return (
@@ -13,7 +14,10 @@ export default function AdminCaissePage() {
         subtitle="Gestion des contrats et suivi des versements"
       />
 
-      <ListContracts />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <ListContracts />
+      </Suspense>
     </div>
   )
 }

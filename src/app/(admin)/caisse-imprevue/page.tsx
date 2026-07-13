@@ -1,6 +1,7 @@
 import { PageHero } from '@/components/ui/page-hero'
 import ListContractsCIV2 from '@/domains/financial/caisse-imprevue/components/contracts/ListContractsCIV2'
 import { HeartHandshake } from 'lucide-react'
+import { Suspense } from 'react'
 
 export default function CaisseImprevuePage() {
   return (
@@ -11,7 +12,10 @@ export default function CaisseImprevuePage() {
         subtitle="Gestion des contrats et suivi des versements"
       />
 
-      <ListContractsCIV2 />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <ListContractsCIV2 />
+      </Suspense>
     </div>
   )
 }

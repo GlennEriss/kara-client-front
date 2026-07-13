@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -764,31 +765,30 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
 
       {/* Confirmation de suppression */}
       <Dialog open={!!contributionToDelete} onOpenChange={() => setContributionToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Supprimer la contribution</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette contribution ? Cette action est irréversible et mettra à jour les statistiques de l'évènement et du participant.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Trash2}
+            tone="destructive"
+            title="Supprimer la contribution"
+            description="Êtes-vous sûr de vouloir supprimer cette contribution ? Cette action est irréversible et mettra à jour les statistiques de l'évènement et du participant."
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button variant="outline" onClick={() => setContributionToDelete(null)} disabled={isDeleting}>
               Annuler
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
               {isDeleting ? 'Suppression...' : 'Supprimer'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {/* Modal de visualisation de preuve */}
       {proofToView && (
         <Dialog open={!!proofToView} onOpenChange={() => setProofToView(null)}>
-          <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90dvh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Preuve de contribution</DialogTitle>
-            </DialogHeader>
+          <ModalContent size="2xl" className="w-[95vw]">
+            <ModalHeader icon={FileText} title="Preuve de contribution" />
+            <ModalBody>
             <div className="relative w-full h-[70vh] bg-gray-100 rounded-lg overflow-hidden">
               {proofToView.endsWith('.pdf') || proofToView.includes('application/pdf') ? (
                 <iframe
@@ -805,7 +805,8 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                 />
               )}
             </div>
-            <DialogFooter>
+            </ModalBody>
+            <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
               <Button variant="outline" onClick={() => setProofToView(null)}>
                 Fermer
               </Button>
@@ -821,8 +822,8 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                 <Download className="w-4 h-4 mr-2" />
                 Télécharger
               </Button>
-            </DialogFooter>
-          </DialogContent>
+            </ModalFooter>
+          </ModalContent>
         </Dialog>
       )}
 

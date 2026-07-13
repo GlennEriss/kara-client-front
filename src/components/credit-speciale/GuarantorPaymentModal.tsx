@@ -9,6 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -91,23 +92,14 @@ export default function GuarantorPaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-xl max-h-[calc(100vh-1.5rem)] overflow-hidden border-0 p-0 shadow-2xl">
-        <div className="flex max-h-[calc(100vh-1.5rem)] flex-col">
-          <DialogHeader className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-[#234D65] to-[#2f6a8d] px-4 py-4 text-white sm:px-6 sm:py-5">
-            <div className="flex items-start gap-3 pr-10">
-              <div className="rounded-lg bg-white/15 p-2.5">
-                <Landmark className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold text-white sm:text-xl">Enregistrer un paiement au garant</DialogTitle>
-                <DialogDescription className="mt-1 text-slate-100">
-                  Renseignez les informations du versement et ajoutez la preuve de paiement.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
+      <ModalContent className="w-[calc(100vw-1.5rem)] max-w-xl">
+          <ModalHeader
+            icon={Landmark}
+            title="Enregistrer un paiement au garant"
+            description="Renseignez les informations du versement et ajoutez la preuve de paiement."
+          />
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-            <div className="space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+            <ModalBody className="space-y-5">
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <CalendarClock className="h-4 w-4 text-[#234D65]" />
@@ -235,9 +227,9 @@ export default function GuarantorPaymentModal({
                   </div>
                 </div>
               </div>
-            </div>
+            </ModalBody>
 
-            <DialogFooter className="shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:justify-between sm:px-6">
+            <ModalFooter className="sm:justify-between">
               <Button type="button" variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                 Annuler
               </Button>
@@ -248,10 +240,9 @@ export default function GuarantorPaymentModal({
               >
                 {recordPayment.isPending ? 'Enregistrement...' : 'Enregistrer le paiement'}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
-        </div>
-      </DialogContent>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -2,7 +2,8 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -10,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
 import { useAddCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
 import { useAllMembers } from '@/hooks/useMembers'
-import { Search } from 'lucide-react'
+import { Search, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -84,18 +85,20 @@ export default function AddParticipantModal({ eventId, isOpen, onClose, allowedT
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>
-            {allowedTypes.length === 1 
-              ? allowedTypes[0] === 'group' 
-                ? 'Ajouter un groupe' 
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={UserPlus}
+          title={
+            allowedTypes.length === 1
+              ? allowedTypes[0] === 'group'
+                ? 'Ajouter un groupe'
                 : 'Ajouter un membre'
-              : 'Ajouter un participant'}
-          </DialogTitle>
-        </DialogHeader>
+              : 'Ajouter un participant'
+          }
+          description="Recherchez puis sélectionnez le participant à ajouter à l'évènement."
+        />
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+        <ModalBody className="flex flex-col overflow-hidden">
           {/* Type de participant - seulement si plusieurs types autorisés */}
           {allowedTypes.length > 1 && (
             <div className="space-y-2">
@@ -231,17 +234,17 @@ export default function AddParticipantModal({ eventId, isOpen, onClose, allowedT
               )
             )}
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={handleClose} disabled={isPending}>
             Annuler
           </Button>
           <Button onClick={handleAdd} disabled={!selectedId || isPending} className="bg-[#234D65] hover:bg-[#2c5a73]">
             {isPending ? 'Ajout en cours...' : 'Ajouter'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

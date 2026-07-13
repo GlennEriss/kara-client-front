@@ -1004,6 +1004,28 @@ service cloud.firestore {
         );
         allow update, delete: if isAdmin();
       }
+
+      // Sous-collection : versements déclarés par le MEMBRE (app membre),
+      // en attente de validation par un gestionnaire (même flux que la CS).
+      match /declaredVersements/{versementId} {
+        // Lecture : Admin ou membre propriétaire du contrat parent
+        allow read: if isAdmin() || (
+          isAuthenticated() &&
+          isCaisseImprevueMember(get(/databases/$(database)/documents/contractsCI/$(contractId)).data.memberId)
+        );
+        // Création : membre pour son propre contrat, uniquement en attente
+        allow create: if isAdmin() || (
+          isAuthenticated() &&
+          isCaisseImprevueMember(get(/databases/$(database)/documents/contractsCI/$(contractId)).data.memberId) &&
+          request.resource.data.status == 'PENDING_MEMBER' &&
+          request.resource.data._submittedByMember == true &&
+          request.resource.data.amount is number &&
+          request.resource.data.amount > 0 &&
+          request.resource.data.memberId is string &&
+          request.resource.data.createdAt is timestamp
+        );
+        allow update, delete: if isAdmin();
+      }
     }
     
     // ==========================================
@@ -1182,7 +1204,19 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
     }
-    
+
+    // Déclarations d'intention de contribution des MEMBRES (app membre).
+    // Le membre déclare (status "pending") ; un gestionnaire confirme ou refuse
+    // depuis la fiche évènement admin (la contribution réelle est alors créée
+    // dans charity-events/{id}/contributions).
+    match /charityContributions/{declarationId} {
+      allow read: if isAdmin() || isAuthenticated();
+      // Création par un membre connecté, uniquement en "pending".
+      allow create: if isAuthenticated() && request.resource.data.status == 'pending';
+      // Validation / refus réservés aux gestionnaires.
+      allow update, delete: if isAdmin();
+    }
+
     // ==========================================
     // PLACEMENTS (MEMBER ACTIVITY SUMMARY)
     // ==========================================

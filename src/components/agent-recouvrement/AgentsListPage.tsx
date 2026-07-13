@@ -26,8 +26,9 @@ import { useDebounce } from '@/hooks/useDebounce'
 import type { AgentRecouvrement, AgentRecouvrementFilterTab } from '@/types/types'
 import { formatAgentDate } from '@/utils/agentDateUtils'
 import { Eye, LayoutGrid, List, MoreVertical, Pause, Pencil, Play, Plus, Search, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { toast } from 'sonner'
 import { AgentCard } from './AgentCard'
 import { AgentFilterBadgesCarousel } from './AgentFilterBadgesCarousel'
@@ -42,11 +43,28 @@ import {
 
 export function AgentsListPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<AgentRecouvrementFilterTab>('actifs')
-  const [page, setPage] = useState(1)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [orderBy, setOrderBy] = useState<'nom-asc' | 'nom-desc' | 'prenom-asc' | 'prenom-desc' | 'createdAt-desc'>('nom-asc')
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<AgentRecouvrementFilterTab>(
+    (searchParams.get('tab') as AgentRecouvrementFilterTab) || 'actifs',
+  )
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+  const [orderBy, setOrderBy] = useState<'nom-asc' | 'nom-desc' | 'prenom-asc' | 'prenom-desc' | 'createdAt-desc'>(
+    (searchParams.get('tri') as 'nom-asc') || 'nom-asc',
+  )
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>(
+    (searchParams.get('view') as 'cards' | 'table') || 'cards',
+  )
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    tab: tab !== 'actifs' ? tab : null,
+    page: page > 1 ? page : null,
+    q: searchQuery || null,
+    tri: orderBy !== 'nom-asc' ? orderBy : null,
+    view: viewMode !== 'cards' ? viewMode : null,
+  })
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editAgent, setEditAgent] = useState<AgentRecouvrement | null>(null)

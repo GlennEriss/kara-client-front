@@ -11,18 +11,33 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAllMembers, useUpdateMemberHasCar } from '@/hooks/useMembers'
 import { UserFilters } from '@/types/types'
 import { AlertCircle, Car, Filter, Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import MembershipPagination from './MembershipPagination'
 
 type VehicleFilter = 'all' | 'with' | 'without'
 
 export default function MemberVehicleList() {
   const { user } = useAuth()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(20)
-  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  // État initialisé depuis l'URL (paramètres préfixés `v…` : la page /memberships
+  // héberge aussi la liste des membres, qui utilise déjà tab/page/q).
+  const searchParams = useSearchParams()
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('vpage')) || 1)
+  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('vlimit')) || 20)
+  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>(
+    (searchParams.get('vfiltre') as VehicleFilter) || 'all',
+  )
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('vq') || '')
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    vpage: currentPage > 1 ? currentPage : null,
+    vlimit: itemsPerPage !== 20 ? itemsPerPage : null,
+    vfiltre: vehicleFilter !== 'all' ? vehicleFilter : null,
+    vq: searchQuery || null,
+  })
 
   // Construire les filtres selon le filtre véhicule sélectionné + recherche nom/matricule
   const filters: UserFilters = {

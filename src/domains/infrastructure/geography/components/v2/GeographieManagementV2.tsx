@@ -1,5 +1,7 @@
 "use client"
 import React, { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ProvinceListV2 from './ProvinceListV2'
 import DepartmentListV2 from './DepartmentListV2'
@@ -21,7 +23,10 @@ import GeographyStatsV2 from './GeographyStatsV2'
  * - Tabs avec attributs ARIA améliorés
  */
 export default function GeographieManagementV2() {
-  const [activeTab, setActiveTab] = useState('provinces')
+  // Onglet initialisé depuis l'URL : le retour navigateur retrouve la page au même endroit.
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'provinces')
+  useListUrlSync({ tab: activeTab !== 'provinces' ? activeTab : null })
   const stats = useGeographyStats()
 
   return (

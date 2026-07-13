@@ -8,8 +8,9 @@ import { useCharityEventsList, useCharityGlobalStats, useUpdateCharityEvent } fr
 import { useCharityEventsRealtimeSync } from '@/hooks/bienfaiteur/useCharityEventsRealtimeSync'
 import { CharityEventStatus } from '@/types/types'
 import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { toast } from 'sonner'
 import CharityEventCard from './CharityEventCard'
 import CharityEventTable from './CharityEventTable'
@@ -19,11 +20,25 @@ import CharityStatsCards from './CharityStatsCards'
 export default function CharityEventsList() {
   const router = useRouter()
   useCharityEventsRealtimeSync(true)
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
-  const [statusFilter, setStatusFilter] = useState<CharityEventStatus | 'all'>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
+  // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(
+    (searchParams.get('view') as 'grid' | 'table') || 'grid',
+  )
+  const [statusFilter, setStatusFilter] = useState<CharityEventStatus | 'all'>(
+    (searchParams.get('statut') as CharityEventStatus) || 'all',
+  )
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
   const [pageSize] = useState(12)
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    statut: statusFilter !== 'all' ? statusFilter : null,
+    page: currentPage > 1 ? currentPage : null,
+    view: viewMode !== 'grid' ? viewMode : null,
+    q: searchQuery || null,
+  })
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null)
 
   const { mutate: updateEvent } = useUpdateCharityEvent()

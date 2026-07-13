@@ -25,8 +25,9 @@ import {
 import { useCaisseImprevueDemands } from '@/domains/financial/caisse-imprevue/hooks'
 import { cn } from '@/lib/utils'
 import { Filter, LayoutGrid, RefreshCw, Search, Table2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import type { DemandFilters, PaginationParams, SortParams } from '../../entities/demand-filters.types'
 import { ExportDemandsModalV2 } from '../modals/ExportDemandsModalV2'
 import {
@@ -75,17 +76,21 @@ export function ListDemandesV2({
   subscriptions,
 }: ListDemandesV2Props) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
-  const [searchQuery, setSearchQuery] = useState('')
+  const searchParams = useSearchParams()
+  // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'all')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(
+    (searchParams.get('view') as 'grid' | 'table') || 'grid',
+  )
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const debouncedSearchQuery = useLocalDebounce(searchQuery, 300)
   const [filters, setFilters] = useState<DemandFilters>({
     status: 'all',
     paymentFrequency: 'all',
   })
   const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
+    page: Number(searchParams.get('page')) || 1,
+    limit: Number(searchParams.get('limit')) || 10,
   })
   const [sort, setSort] = useState<SortParams>({
     sortBy: 'date',
@@ -93,6 +98,15 @@ export function ListDemandesV2({
   })
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    tab: activeTab !== 'all' ? activeTab : null,
+    page: pagination.page > 1 ? pagination.page : null,
+    limit: pagination.limit !== 10 ? pagination.limit : null,
+    view: viewMode !== 'grid' ? viewMode : null,
+    q: searchQuery || null,
+  })
 
   // Mettre à jour le filtre de statut selon l'onglet actif + searchQuery
   const effectiveFilters: DemandFilters = {

@@ -7,14 +7,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -170,21 +164,15 @@ export function SendWhatsAppModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]" data-testid="whatsapp-modal">
-        <DialogHeader>
-          <DialogTitle 
-            className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark"
-            data-testid="whatsapp-modal-title"
-          >
-            <MessageSquare className="w-5 h-5 text-green-600" />
-            Envoyer via WhatsApp
-          </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            Sélectionnez le numéro de téléphone pour envoyer le lien de correction à {memberName}.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="sm:max-w-[500px]" data-testid="whatsapp-modal">
+        <ModalHeader
+          icon={MessageSquare}
+          tone="success"
+          title={<span data-testid="whatsapp-modal-title">Envoyer via WhatsApp</span>}
+          description={<>Sélectionnez le numéro de téléphone pour envoyer le lien de correction à {memberName}.</>}
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           {/* Sélection du numéro */}
           <div className="space-y-2">
             <Label htmlFor="phone-select" className="text-sm font-semibold text-kara-primary-dark">
@@ -238,9 +226,9 @@ export function SendWhatsAppModalV2({
               {generateWhatsAppMessage(correctionLink, securityCode, securityCodeExpiry)}
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -268,8 +256,8 @@ export function SendWhatsAppModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

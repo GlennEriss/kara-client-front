@@ -6,14 +6,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,25 +55,21 @@ export function RejectModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] sm:w-full" data-testid="reject-modal">
-        <DialogHeader>
-          <DialogTitle
-            className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-lg sm:text-xl font-bold text-kara-primary-dark"
-            data-testid="reject-modal-title"
-          >
-            <div className="flex items-center gap-2">
-              <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
-              <span className="break-words">Rejeter la demande d'adhésion</span>
-            </div>
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-2" data-testid="reject-modal-description">
-            Vous êtes sur le point de rejeter la demande de{' '}
-            <strong data-testid="reject-modal-member-name" className="break-words">{memberName}</strong>.
-            Veuillez fournir un motif de rejet (minimum {minLength} caractères).
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] sm:w-full" data-testid="reject-modal">
+        <ModalHeader
+          icon={XCircle}
+          tone="destructive"
+          title={<span data-testid="reject-modal-title">Rejeter la demande d'adhésion</span>}
+          description={
+            <span data-testid="reject-modal-description">
+              Vous êtes sur le point de rejeter la demande de{' '}
+              <strong data-testid="reject-modal-member-name" className="break-words">{memberName}</strong>.
+              Veuillez fournir un motif de rejet (minimum {minLength} caractères).
+            </span>
+          }
+        />
 
-        <div className="space-y-3 sm:space-y-4 py-2 sm:py-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <ModalBody className="space-y-3 sm:space-y-4">
           {/* Motif de rejet */}
           <div className="space-y-2">
             <Label htmlFor="reason" className="text-xs sm:text-sm font-semibold text-kara-primary-dark" data-testid="reject-modal-reason-label">
@@ -109,9 +99,9 @@ export function RejectModalV2({
               </span>
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2 pt-2 sm:pt-0">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -141,8 +131,8 @@ export function RejectModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

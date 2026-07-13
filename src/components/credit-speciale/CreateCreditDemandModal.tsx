@@ -3,7 +3,8 @@
 import SelectApp from '@/components/forms/SelectApp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -146,30 +147,30 @@ export default function CreateCreditDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[96vw] bg-white !max-w-[1200px] max-h-[94vh] overflow-hidden border border-slate-200   to-white p-0 shadow-2xl">
-        <DialogHeader className="border-b border-slate-200/80 bg-white/90 px-5 py-4 md:px-7 md:py-5">
-          <div className="flex items-start justify-between gap-3">
+      <ModalContent size="4xl" className="w-[96vw] !max-w-[1200px]">
+        <ModalHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
             <div>
-              <DialogTitle className="text-2xl font-black text-[#224D62]">
+              <DialogTitle className="text-base">
                 {lockCreditType && initialCreditType === 'SPECIALE'
                   ? 'Nouvelle demande de crédit spéciale'
                   : 'Nouvelle demande de crédit'}
               </DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-slate-600">
+              <DialogDescription className="mt-0.5">
                 {lockCreditType && initialCreditType === 'SPECIALE'
                   ? 'Remplissez les informations du client, du crédit et du garant.'
                   : 'Créez une nouvelle demande de crédit spéciale, fixe ou aide.'}
               </DialogDescription>
             </div>
-            <div className="hidden rounded-full border border-[#234D65]/20 bg-[#234D65]/10 px-3 py-1.5 text-xs font-semibold text-[#234D65] sm:block">
+            <div className="hidden shrink-0 rounded-full border border-[#234D65]/20 bg-[#234D65]/10 px-3 py-1.5 text-xs font-semibold text-[#234D65] sm:block">
               {creditTypeLabel}
             </div>
           </div>
-        </DialogHeader>
+        </ModalHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex max-h-[calc(94vh-96px)] flex-col">
-            <div className="space-y-5 overflow-y-auto px-5 py-5 md:px-7">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody className="space-y-5">
               {/* Type de crédit (masqué si verrouillé) */}
               {!lockCreditType ? (
                 <Card className="border border-slate-200/80 bg-white shadow-sm">
@@ -456,11 +457,11 @@ export default function CreateCreditDemandModal({
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </ModalBody>
 
             {/* Actions */}
-            <div className="border-t border-slate-200/80 bg-white/95 px-5 py-8 md:px-7">
-              <div className="flex flex-col-reverse justify-end gap-2 sm:flex-row sm:gap-3">
+            <ModalFooter>
+              <div className="flex w-full flex-col-reverse justify-end gap-2 sm:flex-row sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -485,10 +486,10 @@ export default function CreateCreditDemandModal({
                   )}
                 </Button>
               </div>
-            </div>
+            </ModalFooter>
           </form>
         </Form>
-      </DialogContent>
+      </ModalContent>
     </Dialog>
   )
 }

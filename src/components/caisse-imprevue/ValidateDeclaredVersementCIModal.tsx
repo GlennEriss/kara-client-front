@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
-import { updateDeclaredVersementCS } from '@/db/caisse/refunds.db'
+import { updateDeclaredVersementCI } from '@/db/caisse/refunds.db'
 import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
@@ -34,7 +34,7 @@ interface Props {
   onSuccess?: () => void | Promise<void>
 }
 
-export default function ValidateDeclaredVersementCSModal({ open, onClose, contractId, versement, onSuccess }: Props) {
+export default function ValidateDeclaredVersementCIModal({ open, onClose, contractId, versement, onSuccess }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [rejectionReason, setRejectionReason] = useState('')
@@ -58,7 +58,7 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
       const admin = await getAdminById(user.uid)
       const validatedByName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : user.uid
 
-      await updateDeclaredVersementCS(contractId, versement.id, {
+      await updateDeclaredVersementCI(contractId, versement.id, {
         status: 'VALIDATED',
         validatedBy: user.uid,
         validatedByName,
@@ -69,21 +69,21 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
       if (versement?.memberId) {
         await ServiceFactory.getNotificationService().notifyMember({
           recipientId: versement.memberId,
-          module: 'caisse_speciale',
+          module: 'caisse_imprevue',
           entityId: contractId,
           type: 'status_update',
           title: 'Versement validé',
-          message: `Votre versement déclaré de ${new Intl.NumberFormat('fr-FR').format(versement.amount ?? 0)} FCFA (Caisse Spéciale) a été validé.`,
+          message: `Votre versement déclaré de ${new Intl.NumberFormat('fr-FR').format(versement.amount ?? 0)} FCFA (Caisse Imprévue) a été validé.`,
           metadata: { contractId, versementId: versement.id, status: 'VALIDATED' },
         })
       }
 
       toast.success('Déclaration validée')
-      queryClient.invalidateQueries({ queryKey: ['declaredVersementsCS', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['declaredVersementsCI', contractId] })
       handleClose()
       await onSuccess?.()
     } catch (err: any) {
-      console.error('Erreur validation déclaration CS:', err)
+      console.error('Erreur validation déclaration CI:', err)
       toast.error(err?.message || 'Erreur lors de la validation')
     } finally {
       setIsValidating(false)
@@ -97,7 +97,7 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
       const admin = await getAdminById(user.uid)
       const rejectedByName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : user.uid
 
-      await updateDeclaredVersementCS(contractId, versement.id, {
+      await updateDeclaredVersementCI(contractId, versement.id, {
         status: 'REJECTED',
         rejectedBy: user.uid,
         rejectedByName,
@@ -109,23 +109,23 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
       if (versement?.memberId) {
         await ServiceFactory.getNotificationService().notifyMember({
           recipientId: versement.memberId,
-          module: 'caisse_speciale',
+          module: 'caisse_imprevue',
           entityId: contractId,
           type: 'status_update',
           title: 'Versement refusé',
-          message: `Votre versement déclaré (Caisse Spéciale) a été refusé : ${rejectionReason.trim()}`,
+          message: `Votre versement déclaré (Caisse Imprévue) a été refusé : ${rejectionReason.trim()}`,
           metadata: { contractId, versementId: versement.id, status: 'REJECTED' },
         })
       }
 
       toast.success('Déclaration refusée')
-      queryClient.invalidateQueries({ queryKey: ['declaredVersementsCS', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['declaredVersementsCI', contractId] })
       setRejectionReason('')
       setShowRejectForm(false)
       handleClose()
       await onSuccess?.()
     } catch (err: any) {
-      console.error('Erreur refus déclaration CS:', err)
+      console.error('Erreur refus déclaration CI:', err)
       toast.error(err?.message || 'Erreur lors du refus')
     } finally {
       setIsRejecting(false)

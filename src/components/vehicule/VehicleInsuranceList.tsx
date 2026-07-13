@@ -10,8 +10,10 @@ import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRenewVehicleIn
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { VehicleInsurance, VehicleInsuranceFilters } from '@/types/types'
 import { FileSpreadsheet, FileText, Plus, ShieldCheck } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { VehicleInsuranceDetail } from './VehicleInsuranceDetail'
 import { VehicleInsuranceFilters as FiltersComponent } from './VehicleInsuranceFilters'
 import { VehicleInsuranceForm } from './VehicleInsuranceForm'
@@ -62,9 +64,25 @@ const EXPORT_HEADERS = [
 
 export function VehicleInsuranceList() {
   useVehicleInsurancesRealtimeSync(true)
-  const [filters, setFilters] = useState<VehicleInsuranceFilters>(DEFAULT_FILTERS)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
+  const [filters, setFilters] = useState<VehicleInsuranceFilters>(() => ({
+    ...DEFAULT_FILTERS,
+    ...(searchParams.get('statut') ? { status: searchParams.get('statut') as VehicleInsuranceFilters['status'] } : {}),
+    ...(searchParams.get('type') ? { vehicleType: searchParams.get('type') as VehicleInsuranceFilters['vehicleType'] } : {}),
+    ...(searchParams.get('q') ? { searchQuery: searchParams.get('q') as string } : {}),
+  }))
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
+  const [pageSize, setPageSize] = useState(Number(searchParams.get('limit')) || 10)
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    statut: filters.status && filters.status !== 'all' ? filters.status : null,
+    type: filters.vehicleType && filters.vehicleType !== 'all' ? filters.vehicleType : null,
+    q: filters.searchQuery || null,
+    page: page > 1 ? page : null,
+    limit: pageSize !== 10 ? pageSize : null,
+  })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [currentInsurance, setCurrentInsurance] = useState<VehicleInsurance | null>(null)

@@ -28,13 +28,8 @@ import {
   ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -98,25 +93,17 @@ export function PaymentDetailsModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
-        className="w-[calc(100vw-2rem)] max-w-2xl sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0" 
+      <ModalContent
+        className="w-[calc(100vw-2rem)] max-w-2xl sm:max-w-3xl"
         data-testid="modal-payment-details"
       >
-        {/* Header fixe */}
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-kara-neutral-100 shrink-0">
-          <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg">
-            <div className="p-1.5 bg-kara-primary-dark/10 rounded-lg">
-              <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-kara-primary-dark" />
-            </div>
-            Détails du paiement
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm mt-1">
-            Informations complètes du paiement enregistré
-          </DialogDescription>
-        </DialogHeader>
+        <ModalHeader
+          icon={Receipt}
+          title="Détails du paiement"
+          description="Informations complètes du paiement enregistré"
+        />
 
-        {/* Contenu scrollable */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4">
+        <ModalBody className="overflow-x-hidden">
           <div className="space-y-5">
           {/* Informations du membre */}
             <section className="space-y-3">
@@ -304,11 +291,11 @@ export function PaymentDetailsModalV2({
             </div>
             </section>
           </div>
-        </div>
+        </ModalBody>
 
         {/* Footer fixe */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-kara-neutral-100 shrink-0 bg-kara-neutral-50/50">
-          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
+        <ModalFooter className="bg-kara-neutral-50/50">
+          <div className="flex w-full flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
           <Button
             variant="outline"
               size="sm"
@@ -337,8 +324,8 @@ export function PaymentDetailsModalV2({
               )}
           </Button>
           </div>
-        </div>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -3,6 +3,7 @@
 import { AgentsListPage } from '@/components/agent-recouvrement/AgentsListPage'
 import { PageHero } from '@/components/ui/page-hero'
 import { UserCheck } from 'lucide-react'
+import { Suspense } from 'react'
 
 export default function AgentsRecouvrementPage() {
   return (
@@ -12,7 +13,10 @@ export default function AgentsRecouvrementPage() {
         title="Agents de Recouvrement"
         subtitle="Gérez les agents terrain qui collectent les paiements"
       />
-      <AgentsListPage />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <AgentsListPage />
+      </Suspense>
     </div>
   )
 }

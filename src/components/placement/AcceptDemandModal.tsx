@@ -2,14 +2,8 @@
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
@@ -84,18 +78,15 @@ export default function AcceptDemandModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-            Accepter la demande
-          </DialogTitle>
-          <DialogDescription>
-            Vous êtes sur le point d'accepter cette demande de placement. Veuillez indiquer le motif d'acceptation.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={CheckCircle}
+          tone="success"
+          title="Accepter la demande"
+          description="Vous êtes sur le point d'accepter cette demande de placement. Veuillez indiquer le motif d'acceptation."
+        />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations de la demande */}
           <Alert>
             <AlertTriangle className="h-4 w-4" />
@@ -136,9 +127,9 @@ export default function AcceptDemandModal({
               Expliquez pourquoi cette demande est acceptée (ex: bienfaiteur fiable, montant raisonnable...)
             </p>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             type="button"
             variant="outline"
@@ -165,8 +156,8 @@ export default function AcceptDemandModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

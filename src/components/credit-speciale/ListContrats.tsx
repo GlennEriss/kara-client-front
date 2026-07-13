@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -2181,20 +2182,18 @@ const ListContrats = ({
 
       {/* Modal de téléversement de contrat */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Téléverser le contrat signé
-            </DialogTitle>
-            <DialogDescription>
-              {isUploadActivationFlow
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Upload}
+            title="Téléverser le contrat signé"
+            description={
+              isUploadActivationFlow
                 ? 'Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l\'upload.'
-                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'}
-            </DialogDescription>
-          </DialogHeader>
+                : 'Téléversez le nouveau contrat signé par le client après augmentation du crédit.'
+            }
+          />
 
-          <div className="space-y-4 py-4">
+          <ModalBody>
             {selectedContractForUpload && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
@@ -2235,9 +2234,9 @@ const ListContrats = ({
                 </p>
               </div>
             )}
-          </div>
+          </ModalBody>
 
-          <DialogFooter>
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button
               variant="outline"
               onClick={() => {
@@ -2288,24 +2287,20 @@ const ListContrats = ({
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {/* Modal de remplacement du contrat signé */}
       <Dialog open={showReplaceModal} onOpenChange={setShowReplaceModal}>
-        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Modifier le contrat signé
-            </DialogTitle>
-            <DialogDescription>
-              Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas.
-            </DialogDescription>
-          </DialogHeader>
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={FileText}
+            title="Modifier le contrat signé"
+            description="Le fichier précédent sera remplacé par le nouveau PDF. Le statut du contrat ne change pas."
+          />
 
-          <div className="space-y-4 py-4">
+          <ModalBody>
             {selectedContractForReplace && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-sm text-amber-800">
@@ -2334,9 +2329,9 @@ const ListContrats = ({
                 </div>
               )}
             </div>
-          </div>
+          </ModalBody>
 
-          <DialogFooter>
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button
               variant="outline"
               onClick={() => {
@@ -2378,8 +2373,8 @@ const ListContrats = ({
                 'Remplacer'
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
 
       {selectedContractForPDF && (

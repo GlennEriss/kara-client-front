@@ -1,18 +1,12 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-react'
+import { KeyRound, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useGenererIdentifiant } from '@/domains/memberships/hooks/useGenererIdentifiant'
 import { IdentifiantsMembrePDF } from '@/domains/memberships/components/IdentifiantsMembrePDF'
@@ -89,22 +83,18 @@ export function GenererIdentifiantModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
+      <ModalContent
         className="sm:max-w-md"
         data-testid="generer-identifiant-modal"
         onPointerDownOutside={(e) => isLoading && e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>Générer les identifiants de connexion</DialogTitle>
-          <DialogDescription>
-            Un compte de connexion (email + mot de passe) est créé et activé pour
-            le membre s'il n'en a pas encore, sinon son mot de passe est
-            réinitialisé. Les identifiants sont fournis dans un PDF à lui remettre.
-            Recopiez le matricule ci-dessous pour confirmer.
-          </DialogDescription>
-        </DialogHeader>
+        <ModalHeader
+          icon={KeyRound}
+          title="Générer les identifiants de connexion"
+          description="Un compte de connexion (email + mot de passe) est créé et activé pour le membre s'il n'en a pas encore, sinon son mot de passe est réinitialisé. Les identifiants sont fournis dans un PDF à lui remettre. Recopiez le matricule ci-dessous pour confirmer."
+        />
 
-        <div className="space-y-4 py-2">
+        <ModalBody>
           <div className="space-y-2">
             <Label>Matricule du membre</Label>
             <Input
@@ -138,9 +128,9 @@ export function GenererIdentifiantModal({
               {error}
             </p>
           )}
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}
@@ -164,8 +154,8 @@ export function GenererIdentifiantModal({
               'Générer les identifiants'
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

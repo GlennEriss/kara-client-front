@@ -13,14 +13,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { FileText, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { createFile } from '@/db/upload-image.db'
 import { updateSubscription } from '@/db/subscription.db'
@@ -110,24 +104,25 @@ export function UploadMemberAdhesionPdfModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md" data-testid="upload-member-adhesion-pdf-modal">
-        <DialogHeader>
-          <DialogTitle>
-            <FileText className="text-emerald-600" /> Téléverser la fiche d&apos;adhésion
-          </DialogTitle>
-          <DialogDescription>
-            {member ? (
+      <ModalContent className="sm:max-w-md" data-testid="upload-member-adhesion-pdf-modal">
+        <ModalHeader
+          icon={FileText}
+          tone="success"
+          title="Téléverser la fiche d'adhésion"
+          description={
+            member ? (
               <>
                 Membre <span className="font-mono font-medium">{member.matricule}</span> — aucun PDF
-                d&apos;adhésion pour le moment. Choisissez le document à enregistrer.
+                d'adhésion pour le moment. Choisissez le document à enregistrer.
               </>
             ) : (
               'Choisissez le document à enregistrer.'
-            )}
-          </DialogDescription>
-        </DialogHeader>
+            )
+          }
+        />
 
-        <div className="space-y-2 py-2">
+        <ModalBody>
+        <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Fichier PDF</label>
           <input
             ref={fileInputRef}
@@ -143,8 +138,9 @@ export function UploadMemberAdhesionPdfModal({
             </p>
           )}
         </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button type="button" variant="outline" onClick={handleClose} disabled={uploading}>
             Annuler
           </Button>
@@ -165,8 +161,8 @@ export function UploadMemberAdhesionPdfModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

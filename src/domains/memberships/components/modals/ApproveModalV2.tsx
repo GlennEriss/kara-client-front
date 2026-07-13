@@ -6,14 +6,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -69,19 +63,20 @@ export function ApproveModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            Approuver la demande d'adhésion
-          </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            Vous êtes sur le point d'approuver la demande de <strong>{memberName}</strong>.
-            Veuillez sélectionner le type de membre.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="sm:max-w-[500px]">
+        <ModalHeader
+          icon={CheckCircle2}
+          tone="success"
+          title="Approuver la demande d'adhésion"
+          description={
+            <>
+              Vous êtes sur le point d'approuver la demande de <strong>{memberName}</strong>.
+              Veuillez sélectionner le type de membre.
+            </>
+          }
+        />
 
-        <div className="space-y-4 py-4">
+        <ModalBody>
           {/* Type de membre */}
           <div className="space-y-2">
             <Label htmlFor="membershipType" className="text-sm font-semibold text-kara-primary-dark">
@@ -132,9 +127,9 @@ export function ApproveModalV2({
               className="h-10"
             />
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="gap-2">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -160,8 +155,8 @@ export function ApproveModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

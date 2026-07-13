@@ -1,11 +1,14 @@
 "use client"
 import React, { useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -54,8 +57,11 @@ function TableSkeleton() {
 
 
 export default function ProfessionListV2() {
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  // État initialisé depuis l'URL (préfixe `m…` : la page héberge aussi les entreprises).
+  const searchParams = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('mq') || '')
+  const [page, setPage] = useState(Number(searchParams.get('mpage')) || 1)
+  useListUrlSync({ mq: search || null, mpage: page > 1 ? page : null })
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [professionToDelete, setProfessionToDelete] = useState<Profession | null>(null)
@@ -395,19 +401,21 @@ export default function ProfessionListV2() {
 
       {/* Modal création / édition */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-kara-primary-dark">
-              {editingProfession ? 'Modifier le métier' : 'Nouveau métier'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingProfession 
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Briefcase}
+            title={<>{editingProfession ? 'Modifier le métier' : 'Nouveau métier'}</>}
+            description={
+              <>
+                {editingProfession 
                 ? 'Modifiez les informations du métier' 
                 : 'Renseignez les informations du nouveau métier'}
-            </DialogDescription>
-          </DialogHeader>
+              </>
+            }
+          />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitProfession)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(submitProfession)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody>
               <FormField
                 control={form.control}
                 name="name"
@@ -444,7 +452,8 @@ export default function ProfessionListV2() {
                   </FormItem>
                 )}
               />
-              <DialogFooter className="gap-2">
+              </ModalBody>
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -464,23 +473,27 @@ export default function ProfessionListV2() {
                   )}
                   {editingProfession ? 'Mettre à jour' : 'Créer'}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Confirmation suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-kara-error">Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer le métier "{professionToDelete?.name}" ? 
+        <ModalContent size="sm">
+          <ModalHeader
+            icon={Briefcase}
+            tone="destructive"
+            title={<>Confirmer la suppression</>}
+            description={
+              <>
+                Êtes-vous sûr de vouloir supprimer le métier "{professionToDelete?.name}" ? 
               Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
+              </>
+            }
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button 
               variant="outline" 
               onClick={() => setIsDeleteOpen(false)}
@@ -497,8 +510,8 @@ export default function ProfessionListV2() {
               {remove.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

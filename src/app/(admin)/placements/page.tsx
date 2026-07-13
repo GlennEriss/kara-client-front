@@ -1,6 +1,7 @@
 import PlacementList from '@/components/placement/PlacementList'
 import { PageHero } from '@/components/ui/page-hero'
 import { PiggyBank } from 'lucide-react'
+import { Suspense } from 'react'
 
 export const metadata = {
   title: 'Placements | Kara Administration',
@@ -16,7 +17,10 @@ export default function PlacementsPage() {
         subtitle="Gestion des placements et suivi des bienfaiteurs"
       />
 
-      <PlacementList />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <PlacementList />
+      </Suspense>
     </div>
   )
 }

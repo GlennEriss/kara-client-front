@@ -1,5 +1,7 @@
 "use client"
 import React, { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CompanyListV2 from './CompanyListV2'
@@ -23,7 +25,10 @@ interface ReferencesManagementV2Props {
  * 3. Tabs (Entreprises / Métiers)
  */
 export default function ReferencesManagementV2({ defaultTab = 'companies' }: ReferencesManagementV2Props) {
-  const [activeTab, setActiveTab] = useState(defaultTab)
+  // Onglet initialisé depuis l'URL : le retour navigateur retrouve la page au même endroit.
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || defaultTab)
+  useListUrlSync({ tab: activeTab !== defaultTab ? activeTab : null })
   
   // Récupérer les stats via les hooks existants
   const { data: companiesData } = useCompaniesPaginated({}, 1, 1)

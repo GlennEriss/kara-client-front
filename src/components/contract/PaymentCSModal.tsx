@@ -5,12 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
 } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -247,16 +243,10 @@ export default function PaymentCSModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <DollarSign className="h-6 w-6" />
-            {title}
-          </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader icon={DollarSign} title={title} description={description} />
 
-        <div className="space-y-6 py-4">
+        <ModalBody className="space-y-6">
           {/* Informations du membre (si contrat de groupe) */}
           {isGroupContract && groupMemberName && (
             <Alert className="border-blue-200 bg-blue-50">
@@ -533,9 +523,9 @@ export default function PaymentCSModal({
               />
             </div>
           )}
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button
             type="button"
             variant="outline"
@@ -573,8 +563,8 @@ export default function PaymentCSModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

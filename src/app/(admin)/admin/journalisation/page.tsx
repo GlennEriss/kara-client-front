@@ -1,5 +1,6 @@
 import AuditLogPage from '@/components/admin/AuditLogPage'
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: 'Journalisation | KARA Admin',
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 }
 
 export default function Page() {
-  return <AuditLogPage />
+  // useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build
+  return (
+    <Suspense fallback={null}>
+      <AuditLogPage />
+    </Suspense>
+  )
 }

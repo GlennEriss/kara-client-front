@@ -6,14 +6,8 @@
 
 'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/responsive-dialog'
+import { Dialog } from '@/components/ui/responsive-dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -65,23 +59,18 @@ export function ReopenModalV2({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] sm:w-full" data-testid="reopen-modal">
-        <DialogHeader>
-          <DialogTitle
-            className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-lg sm:text-xl font-bold text-kara-primary-dark"
-            data-testid="reopen-modal-title"
-          >
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
-              <span className="break-words">Réouvrir la demande d'adhésion</span>
-            </div>
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-2" data-testid="reopen-modal-description">
-            Vous êtes sur le point de réouvrir cette demande qui a été rejetée.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent className="w-[95vw] max-w-[95vw] sm:max-w-[500px] sm:w-full" data-testid="reopen-modal">
+        <ModalHeader
+          icon={RotateCcw}
+          title={<span data-testid="reopen-modal-title">Réouvrir la demande d'adhésion</span>}
+          description={
+            <span data-testid="reopen-modal-description">
+              Vous êtes sur le point de réouvrir cette demande qui a été rejetée.
+            </span>
+          }
+        />
 
-        <div className="space-y-3 sm:space-y-4 py-2 sm:py-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <ModalBody className="space-y-3 sm:space-y-4">
           {/* Informations du dossier */}
           <div className="space-y-2 sm:space-y-2 rounded-lg bg-gray-50 p-3 sm:p-4">
             <div className="text-xs sm:text-sm break-words">
@@ -133,9 +122,9 @@ export function ReopenModalV2({
               </span>
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2 pt-2 sm:pt-0">
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -164,8 +153,8 @@ export function ReopenModalV2({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

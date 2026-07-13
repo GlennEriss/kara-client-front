@@ -1,4 +1,5 @@
 import { ReferencesManagement } from '@/domains/infrastructure/references/components'
+import { Suspense } from 'react'
 
 /**
  * Page de gestion des Entreprises
@@ -9,7 +10,10 @@ import { ReferencesManagement } from '@/domains/infrastructure/references/compon
 export default function CompaniesPage() {
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-6">
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
       <ReferencesManagement defaultTab="companies" />
+      </Suspense>
     </div>
   )
 }

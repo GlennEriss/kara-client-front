@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -19,7 +20,7 @@ import { CharityContributionFormData, charityContributionSchema } from '@/schema
 import { uploadContributionProof } from '@/services/bienfaiteur/CharityMediaService'
 import { CharityContributionInput, PaymentMode } from '@/types/types'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Calendar, DollarSign, Gift, Upload, User, Users, X } from 'lucide-react'
+import { Calendar, DollarSign, Gift, HandCoins, Upload, User, Users, X } from 'lucide-react'
 import Image from 'next/image'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -244,15 +245,15 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-3xl max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Ajouter une contribution</DialogTitle>
-          <DialogDescription>
-            Enregistrez une nouvelle contribution pour cet évènement de charité
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="xl">
+        <ModalHeader
+          icon={HandCoins}
+          title="Ajouter une contribution"
+          description="Enregistrez une nouvelle contribution pour cet évènement de charité"
+        />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-6">
           {/* Type de contributeur */}
           <Card>
             <CardContent className="p-6 space-y-4">
@@ -568,8 +569,9 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
               </div>
             </CardContent>
           </Card>
+          </ModalBody>
 
-          <DialogFooter className="gap-3">
+          <ModalFooter className="gap-3">
             <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
               Annuler
             </Button>
@@ -583,9 +585,9 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
                 'Ajouter la contribution'
               )}
             </Button>
-          </DialogFooter>
+          </ModalFooter>
         </form>
-      </DialogContent>
+      </ModalContent>
     </Dialog>
   )
 }

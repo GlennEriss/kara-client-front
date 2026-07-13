@@ -49,7 +49,8 @@ import {
     Trash2,
     User
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import DeleteContractCIModal from './DeleteContractCIModal'
@@ -440,11 +441,15 @@ export default function ListContractsCISection() {
   ]
   
   // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard, Mois en cours)
-  const [activeTab, setActiveTab] = useState<ContractTabValue>('all')
-  
+  // Initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<ContractTabValue>(
+    (searchParams.get('tab') as ContractTabValue) || 'all',
+  )
+
   // États
   const [filters, setFilters] = useState<ContractCIFilters>({
-    search: '',
+    search: searchParams.get('q') || '',
     status: 'all' as ContractCIStatus | 'all',
     paymentFrequency: 'all',
     subscriptionCIID: undefined,
@@ -470,10 +475,18 @@ export default function ListContractsCISection() {
     paymentCountMin: undefined,
     paymentCountMax: undefined,
   })
-  const [currentPage, setCurrentPage] = useState(1)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
+  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isExporting, setIsExporting] = useState(false)
   const itemsPerPage = 14
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    tab: activeTab !== 'all' ? activeTab : null,
+    page: currentPage > 1 ? currentPage : null,
+    view: viewMode !== 'grid' ? viewMode : null,
+    q: filters.search || null,
+  })
 
   // États pour les modals
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<ContractCI | null>(null)

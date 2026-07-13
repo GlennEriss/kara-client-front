@@ -1,4 +1,5 @@
 import { GeographieManagement } from '@/domains/infrastructure/geography/components'
+import { Suspense } from 'react'
 
 /**
  * Page de gestion géographique
@@ -11,7 +12,10 @@ import { GeographieManagement } from '@/domains/infrastructure/geography/compone
 export default function GeographiePage() {
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-6">
-      <GeographieManagement />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <GeographieManagement />
+      </Suspense>
     </div>
   )
 }

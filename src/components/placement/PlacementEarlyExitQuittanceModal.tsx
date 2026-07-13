@@ -1,13 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
 import { useMember } from '@/hooks/useMembers'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { EarlyExitPlacement, Placement } from '@/types/types'
@@ -328,23 +323,15 @@ export default function PlacementEarlyExitQuittanceModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[95vh] overflow-y-auto p-8">
-        <DialogHeader className="pb-6 mb-6 border-b">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg">
-              <FileText className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
-                Quittance de Sortie Anticipée
-              </DialogTitle>
-              <DialogDescription className="text-gray-600 mt-1">
-                Placement #{placement.id.slice(-8).toUpperCase()}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+      <ModalContent size="lg" className="max-w-[95vw]">
+        <ModalHeader
+          icon={FileText}
+          tone="warning"
+          title="Quittance de Sortie Anticipée"
+          description={<>Placement #{placement.id.slice(-8).toUpperCase()}</>}
+        />
 
+        <ModalBody>
         {memberLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-[#234D65]" />
@@ -465,7 +452,8 @@ export default function PlacementEarlyExitQuittanceModal({
             </div>
           </div>
         )}
-      </DialogContent>
+        </ModalBody>
+      </ModalContent>
     </Dialog>
   )
 }

@@ -1,14 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -101,18 +95,14 @@ export default function ConvertDemandToPlacementModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
-      <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <CreditCard className="h-6 w-6 text-[#224D62]" />
-            Créer le placement
-          </DialogTitle>
-          <DialogDescription>
-            Complétez les informations de remise avant de convertir la demande en placement actif.
-          </DialogDescription>
-        </DialogHeader>
+      <ModalContent size="lg">
+        <ModalHeader
+          icon={CreditCard}
+          title="Créer le placement"
+          description="Complétez les informations de remise avant de convertir la demande en placement actif."
+        />
 
-        <div className="space-y-4 py-2">
+        <ModalBody>
           <div className="space-y-2">
             <Label>Moyen de paiement</Label>
             <Select
@@ -202,9 +192,9 @@ export default function ConvertDemandToPlacementModal({
               />
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <DialogFooter>
+        <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Annuler
           </Button>
@@ -223,8 +213,8 @@ export default function ConvertDemandToPlacementModal({
               'Créer le placement'
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ModalFooter>
+      </ModalContent>
     </Dialog>
   )
 }

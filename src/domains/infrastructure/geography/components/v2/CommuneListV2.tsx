@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -15,7 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { communeSchema, type CommuneFormData } from '../../schemas/geographie.schema'
 import { useCommunesV2, useCommuneMutationsV2, useDepartmentsV2, useProvincesV2 } from '../../hooks/useGeographieV2'
 import { LoadMoreButton } from '@/components/ui/load-more-button'
-import { Plus, Search, Edit3, Trash2, MapPinned, Loader2, Download, Route, MoreVertical } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, MapPin, MapPinned, Loader2, Download, Route, MoreVertical } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Commune } from '../../entities/geography.types'
 
@@ -454,19 +455,21 @@ export default function CommuneListV2() {
 
       {/* Modal création / édition */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-commune-form">
-          <DialogHeader>
-            <DialogTitle className="text-kara-primary-dark" data-testid="modal-commune-title">
-              {editingCommune ? 'Modifier la commune' : 'Nouvelle commune'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingCommune
+        <ModalContent size="sm" data-testid="modal-commune-form">
+          <ModalHeader
+            icon={MapPin}
+            title={<><span data-testid="modal-commune-title">{editingCommune ? 'Modifier la commune' : 'Nouvelle commune'}</span></>}
+            description={
+              <>
+                {editingCommune
                 ? 'Modifiez les informations de la commune'
                 : 'Renseignez les informations de la nouvelle commune'}
-            </DialogDescription>
-          </DialogHeader>
+              </>
+            }
+          />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitCommune)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(submitCommune)} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody>
               <FormField
                 control={form.control}
                 name="departmentId"
@@ -553,8 +556,9 @@ export default function CommuneListV2() {
                   </FormItem>
                 )}
               />
+              </ModalBody>
 
-              <DialogFooter className="gap-2 sm:gap-0">
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -575,26 +579,30 @@ export default function CommuneListV2() {
                   )}
                   {editingCommune ? 'Modifier' : 'Créer'}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Confirmation suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-commune-delete">
-          <DialogHeader>
-            <DialogTitle className="text-kara-error">Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer la commune <strong>"{communeToDelete?.name}"</strong> ?
+        <ModalContent size="sm" data-testid="modal-commune-delete">
+          <ModalHeader
+            icon={MapPin}
+            tone="destructive"
+            title={<>Confirmer la suppression</>}
+            description={
+              <>
+                Êtes-vous sûr de vouloir supprimer la commune <strong>"{communeToDelete?.name}"</strong> ?
               <br />
               <span className="text-kara-error font-medium mt-2 block">
                 ⚠️ Cette action supprimera également tous les arrondissements et quartiers associés.
               </span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+              </>
+            }
+          />
+          <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
@@ -611,8 +619,8 @@ export default function CommuneListV2() {
               {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
               Supprimer
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </ModalFooter>
+        </ModalContent>
       </Dialog>
     </div>
   )

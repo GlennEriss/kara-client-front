@@ -4,11 +4,12 @@ import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, MapPin } from 'lucide-react'
 import { useDistrictMutations, useProvinces, useDepartments, useCommunes } from '../../hooks/useGeographie'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -124,15 +125,15 @@ export default function AddDistrictModal({ open, onClose, onSuccess, communeId }
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Créer des arrondissements en masse</DialogTitle>
-            <DialogDescription>
-              Créez plusieurs arrondissements pour une commune. Les arrondissements seront nommés automatiquement : "1er arrondissement", "2ème arrondissement", etc.
-            </DialogDescription>
-          </DialogHeader>
+        <ModalContent size="sm">
+        <ModalHeader
+          icon={MapPin}
+          title="Créer des arrondissements en masse"
+          description={`Créez plusieurs arrondissements pour une commune. Les arrondissements seront nommés automatiquement : "1er arrondissement", "2ème arrondissement", etc.`}
+        />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody>
               <FormField
                 control={form.control}
                 name="communeId"
@@ -317,7 +318,8 @@ export default function AddDistrictModal({ open, onClose, onSuccess, communeId }
                   </FormItem>
                 )}
               />
-              <DialogFooter>
+              </ModalBody>
+              <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
                 <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                   Annuler
                 </Button>
@@ -335,10 +337,10 @@ export default function AddDistrictModal({ open, onClose, onSuccess, communeId }
                     'Créer les arrondissements'
                   )}
                 </Button>
-              </DialogFooter>
+              </ModalFooter>
             </form>
           </Form>
-        </DialogContent>
+        </ModalContent>
       </Dialog>
 
       {/* Modals de création en cascade */}

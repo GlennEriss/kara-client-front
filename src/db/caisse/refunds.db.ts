@@ -143,3 +143,36 @@ export async function updateDeclaredVersementCS(contractId: string, versementId:
   await updateDoc(ref, payload)
   return true
 }
+
+/** Versements déclarés par le membre sur un contrat Caisse Imprévue (app membre). */
+export async function listDeclaredVersementsCI(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+  const colRef = collection(db, `${firebaseCollectionNames.contractsCI}/${contractId}/declaredVersements`)
+  const q = query(colRef, orderBy('declaredAt', 'desc'))
+  const snap = await getDocs(q)
+  const toDate = (value: any) => {
+    if (!value) return undefined
+    if (typeof value?.toDate === 'function') return value.toDate()
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+  }
+  return snap.docs.map((d: any) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      ...data,
+      declaredAt: toDate(data.declaredAt),
+      validatedAt: toDate(data.validatedAt),
+      rejectedAt: toDate(data.rejectedAt),
+    }
+  })
+}
+
+export async function updateDeclaredVersementCI(contractId: string, versementId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+  const ref = doc(db, `${firebaseCollectionNames.contractsCI}/${contractId}/declaredVersements`, versementId)
+  const payload: any = { ...updates, updatedAt: serverTimestamp() }
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+  await updateDoc(ref, payload)
+  return true
+}

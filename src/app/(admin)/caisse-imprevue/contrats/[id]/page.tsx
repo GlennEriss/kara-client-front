@@ -6,6 +6,7 @@ import ContractCIDetailsSkeleton from '@/components/caisse-imprevue/ContractCIDe
 import ValidateMemberSignedModal from '@/components/caisse-imprevue/ValidateMemberSignedModal'
 import ValidateSupportDocumentModal from '@/components/caisse-imprevue/ValidateSupportDocumentModal'
 import ValidateRefundCIModal from '@/components/caisse-imprevue/ValidateRefundCIModal'
+import ValidateDeclaredVersementCIModal from '@/components/caisse-imprevue/ValidateDeclaredVersementCIModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import routes from '@/constantes/routes'
@@ -14,6 +15,7 @@ import { useContractCI } from '@/hooks/caisse-imprevue/useContractCI'
 import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
 import { useActiveSupport } from '@/hooks/caisse-imprevue/useActiveSupport'
 import { useRefundsCI } from '@/hooks/caisse-imprevue/useRefundsCI'
+import { useDeclaredVersementsCI } from '@/hooks/caisse-imprevue/useDeclaredVersementsCI'
 import {
     AlertTriangle,
     ArrowLeft,
@@ -33,6 +35,7 @@ export default function ContractCIDetailsPage() {
   const [validateModalOpen, setValidateModalOpen] = useState(false)
   const [validateSupportModalOpen, setValidateSupportModalOpen] = useState(false)
   const [validateRefundModalOpen, setValidateRefundModalOpen] = useState(false)
+  const [validateVersementModalOpen, setValidateVersementModalOpen] = useState(false)
   useCaisseImprevueContractRealtimeSync(id, true)
 
   // Fetch du contrat
@@ -47,6 +50,13 @@ export default function ContractCIDetailsPage() {
   // Fetch des remboursements pour détecter une demande PENDING
   const { data: refunds = [] } = useRefundsCI(id)
   const pendingRefund = useMemo(() => refunds.find((r: any) => r.status === 'PENDING') ?? null, [refunds])
+
+  // Versements déclarés par le membre (app membre) en attente de validation
+  const { data: declaredVersements = [] } = useDeclaredVersementsCI(id)
+  const pendingVersement = useMemo(
+    () => declaredVersements.find((v: any) => v.status === 'PENDING_MEMBER') ?? null,
+    [declaredVersements],
+  )
 
   // États de chargement
   if (isLoadingContract) {
@@ -262,6 +272,38 @@ export default function ContractCIDetailsPage() {
         </div>
       )}
 
+      {/* Bannière : versement déclaré par le membre en attente de validation */}
+      {pendingVersement && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-amber-100 p-2 shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-amber-700" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Versement déclaré en attente de validation
+                </p>
+                <p className="text-xs text-amber-700">
+                  Le membre a déclaré un versement de{' '}
+                  <strong>{new Intl.NumberFormat('fr-FR').format((pendingVersement as any).amount ?? 0)} FCFA</strong>
+                  {' '}(Mois {((pendingVersement as any).monthIndex ?? 0) + 1}).
+                  Veuillez valider ou refuser.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setValidateVersementModalOpen(true)}
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Traiter la déclaration
+            </Button>
+          </div>
+        </div>
+      )}
+
       {renderContractComponent()}
 
       {hasPendingSupport && activeSupport && (
@@ -280,6 +322,16 @@ export default function ContractCIDetailsPage() {
           onClose={() => setValidateRefundModalOpen(false)}
           contractId={id}
           refund={pendingRefund}
+        />
+      )}
+
+      {pendingVersement && (
+        <ValidateDeclaredVersementCIModal
+          open={validateVersementModalOpen}
+          onClose={() => setValidateVersementModalOpen(false)}
+          contractId={id}
+          versement={pendingVersement}
+          onSuccess={() => setValidateVersementModalOpen(false)}
         />
       )}
     </>
