@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +39,7 @@ import { GenererIdentifiantModal } from '@/domains/memberships/components/modals
 import { UploadMemberAdhesionPdfModal } from '@/domains/memberships/components/modals/UploadMemberAdhesionPdfModal'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 
 type ViewMode = 'grid' | 'list'
 
@@ -82,12 +83,25 @@ const getUserDisplayName = (user: MemberWithSubscription): string => {
  */
 export function MembershipsListPage() {
   const { openDocument } = useDocumentViewer()
-  // États
-  const [filters, setFilters] = useState<UserFilters>({})
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10) // Valeur par défaut : 10 pour correspondre aux options du sélecteur
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [activeTab, setActiveTab] = useState<MembersTab>('all')
+  const searchParams = useSearchParams()
+  // États — initialisés depuis l'URL pour retrouver la liste au même endroit
+  // (retour navigateur / lien partagé), comme les listes de demandes.
+  const [filters, setFilters] = useState<UserFilters>(() =>
+    searchParams.get('q') ? { searchQuery: searchParams.get('q') as string } : {},
+  )
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
+  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 10) // 10 par défaut pour correspondre aux options du sélecteur
+  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
+  const [activeTab, setActiveTab] = useState<MembersTab>((searchParams.get('tab') as MembersTab) || 'all')
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    tab: activeTab !== 'all' ? activeTab : null,
+    page: currentPage > 1 ? currentPage : null,
+    limit: itemsPerPage !== 10 ? itemsPerPage : null,
+    view: viewMode !== 'grid' ? viewMode : null,
+    q: filters.searchQuery || null,
+  })
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)

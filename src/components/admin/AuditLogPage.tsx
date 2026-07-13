@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { PageHero } from '@/components/ui/page-hero'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -38,12 +40,26 @@ const PAGE_SIZE = 15
 export default function AuditLogPage() {
   const { data: logs = [], isLoading, isFetching, refetch } = useAuditLogs(500)
 
-  const [search, setSearch] = useState('')
-  const [actionFilter, setActionFilter] = useState<'all' | AuditAction>('all')
-  const [moduleFilter, setModuleFilter] = useState<'all' | string>('all')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [page, setPage] = useState(1)
+  // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') || '')
+  const [actionFilter, setActionFilter] = useState<'all' | AuditAction>(
+    (searchParams.get('action') as AuditAction) || 'all',
+  )
+  const [moduleFilter, setModuleFilter] = useState<'all' | string>(searchParams.get('module') || 'all')
+  const [from, setFrom] = useState(searchParams.get('du') || '')
+  const [to, setTo] = useState(searchParams.get('au') || '')
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    q: search || null,
+    action: actionFilter !== 'all' ? actionFilter : null,
+    module: moduleFilter !== 'all' ? moduleFilter : null,
+    du: from || null,
+    au: to || null,
+    page: page > 1 ? page : null,
+  })
 
   // Modules réellement présents dans les logs (pour le select).
   const modulesPresent = useMemo(() => {

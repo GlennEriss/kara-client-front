@@ -1,5 +1,7 @@
 "use client"
 import React, { useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-pagination'
@@ -53,8 +55,11 @@ function TableSkeleton() {
 
 
 export default function CompanyListV2() {
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  // État initialisé depuis l'URL (préfixe `e…` : la page héberge aussi les métiers).
+  const searchParams = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('eq') || '')
+  const [page, setPage] = useState(Number(searchParams.get('epage')) || 1)
+  useListUrlSync({ eq: search || null, epage: page > 1 ? page : null })
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)

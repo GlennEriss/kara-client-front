@@ -29,8 +29,9 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { AlertCircle, AlertTriangle, Calendar, CheckCircle, ChevronDown, Clock, DollarSign, Download, Eye, FileDown, FileSpreadsheet, FileText, IdCard, Loader2, Phone, PiggyBank, Plus, Receipt, RefreshCw, Search, TrendingUp, Upload, User as UserIcon, Users, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useMemo, useRef, useState } from 'react'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { useForm } from 'react-hook-form'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { toast } from 'sonner'
@@ -177,10 +178,12 @@ const payoutLabels: Record<PayoutMode, string> = {
 const TYPE_ID_OPTIONS = ['CNI', 'Passeport', 'Carte consulaire', 'Carte étudiant', 'Autre']
 
 export default function PlacementList() {
+  // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
   const [filters, setFilters] = useState<PlacementFilters>({
-    search: '',
+    search: searchParams.get('q') || '',
     status: 'all',
     payoutMode: 'all',
     periodMonths: 'all',
@@ -203,8 +206,15 @@ export default function PlacementList() {
   const [deletePlacementId, setDeletePlacementId] = useState<string | null>(null)
   const [urgentDocumentFile, setUrgentDocumentFile] = useState<File | null>(null)
   const [isUploadingUrgentDoc, setIsUploadingUrgentDoc] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>('all')
-  const [page, setPage] = useState(1)
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'all')
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    tab: activeTab !== 'all' ? activeTab : null,
+    page: page > 1 ? page : null,
+    q: filters.search || null,
+  })
   const pageSize = 6
   const router = useRouter()
   const earlyExitForm = useForm<EarlyExitFormData>({

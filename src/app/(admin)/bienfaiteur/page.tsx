@@ -2,6 +2,7 @@ import CharityEventsList from '@/components/bienfaiteur/CharityEventsList'
 import { PageHero } from '@/components/ui/page-hero'
 import { HandHeart } from 'lucide-react'
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: 'Évènements Bienfaiteur | KARA Admin',
@@ -17,7 +18,10 @@ export default function BienfaiteurPage() {
         subtitle="Gérez les actions de solidarité, les participants et les contributions depuis un tableau de bord unifié."
       />
 
-      <CharityEventsList />
+      {/* useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
+        <CharityEventsList />
+      </Suspense>
     </div>
   )
 }

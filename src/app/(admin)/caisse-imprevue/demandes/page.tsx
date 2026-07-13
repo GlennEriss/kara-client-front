@@ -30,7 +30,7 @@ import {
 import { useCaisseImprevueDemandesRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueDemandesRealtimeSync'
 import { ClipboardList, Download, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 export default function DemandesPage() {
   const router = useRouter()
@@ -167,7 +167,8 @@ export default function DemandesPage() {
         }
       />
 
-      {/* Liste des demandes */}
+      {/* Liste des demandes — useSearchParams impose une frontière Suspense au build */}
+      <Suspense fallback={null}>
       <ListDemandesV2
         onViewDetails={(id) => router.push(`/caisse-imprevue/demandes/${id}`)}
         onAccept={handleAccept}
@@ -177,6 +178,7 @@ export default function DemandesPage() {
         onEdit={handleEdit}
         onCreateContract={handleCreateContract}
       />
+      </Suspense>
 
       {/* Modals */}
       <ExportDemandsModalV2

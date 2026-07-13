@@ -61,7 +61,8 @@ import {
     Upload,
     User,
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import React, { useEffect, useRef, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
@@ -1170,7 +1171,11 @@ const ListContracts = () => {
   }
   
   // État pour l'onglet actif (Tous les contrats / Standard / Journalier / Libre / Retard / Mois en cours)
-  const [activeTab, setActiveTab] = useState<CaisseTypeTabValue>('all')
+  // Initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<CaisseTypeTabValue>(
+    (searchParams.get('tab') as CaisseTypeTabValue) || 'all',
+  )
   const [groupedCaisseSubFilters, setGroupedCaisseSubFilters] = useState<
     Record<GroupedCaisseTabValue, GroupedCaisseSubFilterValue>
   >({
@@ -1181,7 +1186,7 @@ const ListContracts = () => {
   
   // États
   const [filters, setFilters] = useState({
-    search: '',
+    search: searchParams.get('q') || '',
     status: 'all',
     contractType: 'all',
     caisseType: 'all',
@@ -1208,7 +1213,15 @@ const ListContracts = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(12)
   const [pageCursors, setPageCursors] = useState<Record<number, string | null>>({ 1: null })
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
+
+  // Miroir URL (onglet, vue, recherche). La page n'est PAS synchronisée ici :
+  // la pagination par curseurs ne permet pas de restaurer une page arbitraire.
+  useListUrlSync({
+    tab: activeTab !== 'all' ? activeTab : null,
+    view: viewMode !== 'grid' ? viewMode : null,
+    q: filters.search || null,
+  })
   const [isExporting, setIsExporting] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)

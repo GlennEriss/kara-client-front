@@ -6,10 +6,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BirthdaysPage } from '@/domains/memberships/components/birthdays/BirthdaysPage'
 import { MembershipsListPage } from '@/domains/memberships/components/page/MembershipsListPage'
 import { Cake, Car, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 
+// useSearchParams impose une frontière Suspense au build (même pattern que les demandes).
 export default function MembershipsPage() {
-  const [activeTab, setActiveTab] = useState('list')
+  return (
+    <Suspense fallback={null}>
+      <MembershipsPageInner />
+    </Suspense>
+  )
+}
+
+function MembershipsPageInner() {
+  const searchParams = useSearchParams()
+  // `section` (et non `tab`) : `tab` est réservé aux onglets internes de la liste des membres.
+  const [activeTab, setActiveTab] = useState(searchParams.get('section') || 'list')
+  useListUrlSync({ section: activeTab !== 'list' ? activeTab : null })
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-6">

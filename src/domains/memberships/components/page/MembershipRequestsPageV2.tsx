@@ -8,7 +8,8 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useListUrlSync } from '@/hooks/useListUrlSync'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
@@ -193,12 +194,21 @@ export function MembershipRequestsPageV2() {
   // Synchronisation temps réel multi-admin (progressif: scope membership-requests)
   useMembershipRequestsRealtimeSync(Boolean(user?.uid))
 
-  // États des filtres et pagination
+  // États des filtres et pagination — initialisés depuis l'URL pour que le
+  // retour navigateur retrouve la liste au même endroit.
+  const searchParams = useSearchParams()
   const [filters, setFilters] = useState<MembershipRequestFilters>({})
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const debouncedSearchQuery = useDebounce(searchQuery, MEMBERSHIP_REQUEST_SEARCH.DEBOUNCE_MS)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [activeTab, setActiveTab] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'all')
+
+  // Miroir URL (les valeurs par défaut restent absentes de l'URL).
+  useListUrlSync({
+    tab: activeTab !== 'all' ? activeTab : null,
+    page: currentPage > 1 ? currentPage : null,
+    q: searchQuery || null,
+  })
   
   // État pour le mode d'affichage (grid/liste)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {

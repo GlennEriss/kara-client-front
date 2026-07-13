@@ -6,7 +6,13 @@
  */
 
 import { MembershipRequestsPageV2 } from '@/domains/memberships/components/page'
+import { Suspense } from 'react'
 
 export default function MembershipRequestsPage() {
-  return <MembershipRequestsPageV2 />
+  // useSearchParams (état de liste dans l'URL) impose une frontière Suspense au build
+  return (
+    <Suspense fallback={null}>
+      <MembershipRequestsPageV2 />
+    </Suspense>
+  )
 }
