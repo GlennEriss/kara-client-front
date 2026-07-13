@@ -11,6 +11,7 @@ import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/
 import { useAuth } from '@/hooks/useAuth'
 import { updateDeclaredVersementCS } from '@/db/caisse/refunds.db'
 import { getAdminById } from '@/db/admin.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -64,6 +65,19 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
         validatedAt: new Date(),
       })
 
+      // Prévenir le membre que sa déclaration est validée (best-effort).
+      if (versement?.memberId) {
+        await ServiceFactory.getNotificationService().notifyMember({
+          recipientId: versement.memberId,
+          module: 'caisse_speciale',
+          entityId: contractId,
+          type: 'status_update',
+          title: 'Versement validé',
+          message: `Votre versement déclaré de ${new Intl.NumberFormat('fr-FR').format(versement.amount ?? 0)} FCFA (Caisse Spéciale) a été validé.`,
+          metadata: { contractId, versementId: versement.id, status: 'VALIDATED' },
+        })
+      }
+
       toast.success('Déclaration validée')
       queryClient.invalidateQueries({ queryKey: ['declaredVersementsCS', contractId] })
       handleClose()
@@ -90,6 +104,19 @@ export default function ValidateDeclaredVersementCSModal({ open, onClose, contra
         rejectionReason: rejectionReason.trim(),
         rejectedAt: new Date(),
       })
+
+      // Prévenir le membre du refus et du motif (best-effort).
+      if (versement?.memberId) {
+        await ServiceFactory.getNotificationService().notifyMember({
+          recipientId: versement.memberId,
+          module: 'caisse_speciale',
+          entityId: contractId,
+          type: 'status_update',
+          title: 'Versement refusé',
+          message: `Votre versement déclaré (Caisse Spéciale) a été refusé : ${rejectionReason.trim()}`,
+          metadata: { contractId, versementId: versement.id, status: 'REJECTED' },
+        })
+      }
 
       toast.success('Déclaration refusée')
       queryClient.invalidateQueries({ queryKey: ['declaredVersementsCS', contractId] })

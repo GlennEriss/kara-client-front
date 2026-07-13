@@ -16,6 +16,7 @@ import { collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc, w
 import { db } from '@/firebase/firestore'
 import { CharityContributionService } from '@/services/bienfaiteur/CharityContributionService'
 import { getUsersByMatricules } from '@/db/user.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuditLogger } from '@/hooks/useAuditLog'
 import type { CharityContributionInput, PaymentMode } from '@/types/types'
@@ -146,6 +147,17 @@ export function useConfirmCharityDeclaration() {
         processedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+
+      // Prévenir le membre que sa contribution est confirmée (best-effort).
+      await ServiceFactory.getNotificationService().notifyMember({
+        recipientId: declaration.participantId,
+        module: 'bienfaiteur',
+        entityId: declaration.eventId,
+        type: 'status_update',
+        title: 'Contribution confirmée',
+        message: 'Votre déclaration de contribution a été confirmée par un gestionnaire. Merci pour votre générosité !',
+        metadata: { declarationId: declaration.id, status: 'confirmed' },
+      })
       return declaration
     },
     onSuccess: (declaration) => {
@@ -178,6 +190,17 @@ export function useCancelCharityDeclaration() {
         processedBy: user?.uid ?? 'system',
         processedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+      })
+
+      // Prévenir le membre du refus (best-effort).
+      await ServiceFactory.getNotificationService().notifyMember({
+        recipientId: declaration.participantId,
+        module: 'bienfaiteur',
+        entityId: declaration.eventId,
+        type: 'status_update',
+        title: 'Contribution refusée',
+        message: 'Votre déclaration de contribution n\'a pas pu être confirmée. Rapprochez-vous d\'un gestionnaire pour plus de détails.',
+        metadata: { declarationId: declaration.id, status: 'canceled' },
       })
       return declaration
     },
