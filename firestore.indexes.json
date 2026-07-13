@@ -9131,6 +9131,1084 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "contractType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "contractType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contractType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contractType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentFrequency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionCIID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberLastName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberFirstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "hasCar",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "vehicleInsurances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "vehicleInsurances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "vehicleType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "vehicleInsurances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "insuranceCompany",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "vehicleInsurances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sponsorMemberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "charityEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "charityEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "placementDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "benefactorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "placementDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "payoutMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "placementDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "decisionMadeBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "memberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseImprevueRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "memberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "charity-events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "startDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "beneficiaryId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "supports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

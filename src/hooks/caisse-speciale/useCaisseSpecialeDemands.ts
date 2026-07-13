@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '../useAuth'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { toast } from 'sonner'
+
+const CS_MODULE = { module: 'caisseSpeciale', moduleLabel: 'Caisse Spéciale' } as const
 import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters } from '@/types/types'
 import { CaisseSpecialeDemandFormInput, approveDemandSchema, rejectDemandSchema, reopenDemandSchema } from '@/schemas/caisse-speciale.schema'
 import { z } from 'zod'
@@ -49,6 +52,7 @@ export function useCaisseSpecialeDemandsStats(filters?: CaisseSpecialeDemandFilt
 export function useCaisseSpecialeDemandMutations() {
     const qc = useQueryClient()
     const { user } = useAuth()
+    const { log } = useAuditLogger()
 
     const create = useMutation({
         mutationFn: (data: CaisseSpecialeDemandFormInput) => {
@@ -56,10 +60,11 @@ export function useCaisseSpecialeDemandMutations() {
             // Forcer contractType à 'INDIVIDUAL'
             return service.createDemand({ ...data, contractType: 'INDIVIDUAL' } as any, user.uid)
         },
-        onSuccess: () => {
+        onSuccess: (result: any) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             toast.success('Demande créée avec succès')
+            log({ action: 'create', ...CS_MODULE, targetType: 'demande', targetId: result?.id, description: 'Création d\'une demande de caisse spéciale' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la création de la demande')
@@ -73,12 +78,13 @@ export function useCaisseSpecialeDemandMutations() {
             approveDemandSchema.parse({ reason })
             return service.approveDemand(demandId, user.uid, reason)
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
             qc.invalidateQueries({ queryKey: ['caisseContracts'] })
             toast.success('Demande acceptée et contrat créé avec succès')
+            log({ action: 'validate', ...CS_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Acceptation d\'une demande de caisse spéciale (contrat créé)' })
         },
         onError: (error: any) => {
             if (error instanceof z.ZodError) {
@@ -96,11 +102,12 @@ export function useCaisseSpecialeDemandMutations() {
             rejectDemandSchema.parse({ reason })
             return service.rejectDemand(demandId, user.uid, reason)
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
             toast.success('Demande refusée')
+            log({ action: 'reject', ...CS_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Refus d\'une demande de caisse spéciale' })
         },
         onError: (error: any) => {
             if (error instanceof z.ZodError) {

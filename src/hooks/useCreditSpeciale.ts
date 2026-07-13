@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from './useAuth'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { toast } from 'sonner'
+
+const CREDIT_MODULE = { module: 'creditSpeciale', moduleLabel: 'Crédit' } as const
 import type {
     CreditDemand,
     CreditContract,
@@ -62,6 +65,7 @@ export function useCreditDemandMutations() {
     const qc = useQueryClient()
     const { user } = useAuth()
     const service = ServiceFactory.getCreditSpecialeService()
+    const { log } = useAuditLogger()
 
     const create = useMutation({
         mutationFn: (data: Omit<CreditDemand, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -72,10 +76,11 @@ export function useCreditDemandMutations() {
                 updatedBy: user.uid,
             })
         },
-        onSuccess: () => {
+        onSuccess: (result: any) => {
             qc.invalidateQueries({ queryKey: ['creditDemands'] })
             qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
             toast.success('Demande créée avec succès')
+            log({ action: 'create', ...CREDIT_MODULE, targetType: 'demande de crédit', targetId: result?.id, description: 'Création d\'une demande de crédit' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la création de la demande')
@@ -87,11 +92,14 @@ export function useCreditDemandMutations() {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.updateDemandStatus(id, status, user.uid, comments, amount, monthlyPaymentAmount)
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['creditDemands'] })
             qc.invalidateQueries({ queryKey: ['creditDemand'] })
             qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
             toast.success('Statut de la demande mis à jour')
+            const s = String(variables.status).toUpperCase()
+            const action = s.includes('REJ') ? 'reject' : (s.includes('VALID') || s.includes('APPROV') || s.includes('ACCEPT')) ? 'validate' : 'update'
+            log({ action, ...CREDIT_MODULE, targetType: 'demande de crédit', targetId: variables.id, description: `Demande de crédit : statut « ${variables.status} »` })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la mise à jour du statut')
@@ -116,11 +124,12 @@ export function useCreditDemandMutations() {
 
     const deleteDemand = useMutation({
         mutationFn: (demandId: string) => service.deleteDemand(demandId),
-        onSuccess: () => {
+        onSuccess: (_, demandId) => {
             qc.invalidateQueries({ queryKey: ['creditDemands'] })
             qc.invalidateQueries({ queryKey: ['creditDemand'] })
             qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
             toast.success('Demande supprimée')
+            log({ action: 'delete', ...CREDIT_MODULE, targetType: 'demande de crédit', targetId: demandId, description: 'Suppression d\'une demande de crédit' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la suppression de la demande')
@@ -168,6 +177,7 @@ export function useCreditContractMutations() {
     const qc = useQueryClient()
     const { user } = useAuth()
     const service = ServiceFactory.getCreditSpecialeService()
+    const { log } = useAuditLogger()
 
     const createFromDemand = useMutation({
         mutationFn: ({ 
@@ -217,6 +227,7 @@ export function useCreditContractMutations() {
             ])
             // Refetch explicite pour mettre à jour immédiatement
             await qc.refetchQueries({ queryKey: ['creditDemands'] })
+            log({ action: 'create', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: contract?.id, description: 'Création d\'un contrat de crédit depuis une demande' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la création du contrat')
@@ -242,11 +253,12 @@ export function useCreditContractMutations() {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.uploadSignedContract(contractId, signedContractFile, user.uid)
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['creditContract'] })
             qc.invalidateQueries({ queryKey: ['creditContracts'] })
             qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
             toast.success('Contrat signé téléversé et contrat activé avec succès')
+            log({ action: 'validate', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: 'Téléversement du contrat signé et activation du contrat de crédit' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors du téléversement du contrat signé')
@@ -307,6 +319,7 @@ export function useCreditContractMutations() {
         onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
             toast.success('Remboursement final validé')
+            log({ action: 'validate', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: 'Validation du remboursement final (décharge)' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la validation du remboursement final')
@@ -381,13 +394,14 @@ export function useCreditContractMutations() {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.deleteContract(contractId, user.uid)
         },
-        onSuccess: () => {
+        onSuccess: (_, contractId) => {
             qc.invalidateQueries({ queryKey: ['creditContracts'] })
             qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
             qc.invalidateQueries({ queryKey: ['creditContract'] })
             qc.invalidateQueries({ queryKey: ['creditDemands'] })
             qc.invalidateQueries({ queryKey: ['creditDemandsStats'] })
             toast.success('Contrat supprimé')
+            log({ action: 'delete', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: contractId, description: 'Suppression d\'un contrat de crédit' })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la suppression du contrat')
@@ -437,6 +451,7 @@ export function useCreditPaymentMutations() {
     const qc = useQueryClient()
     const { user } = useAuth()
     const service = ServiceFactory.getCreditSpecialeService()
+    const { log } = useAuditLogger()
 
     const create = useMutation({
         mutationFn: ({ data, proofFile, penaltyIds, installmentNumber }: { data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt' | 'proofUrl'>; proofFile?: File; penaltyIds?: string[]; installmentNumber?: number }) => {
@@ -458,6 +473,7 @@ export function useCreditPaymentMutations() {
             qc.invalidateQueries({ queryKey: ['creditContracts'] })
             qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
             toast.success('Paiement enregistré avec succès')
+            log({ action: 'payment', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: creditId, description: `Enregistrement d'un paiement de crédit${variables.data?.amount ? ` de ${Number(variables.data.amount).toLocaleString('fr-FR')} FCFA` : ''}` })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de l\'enregistrement du paiement')

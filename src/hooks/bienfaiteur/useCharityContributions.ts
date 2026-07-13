@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CharityContributionService } from '@/services/bienfaiteur/CharityContributionService'
 import { CharityContribution, CharityContributionInput } from '@/types/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 
 /**
  * Hook pour récupérer les contributions d'un évènement
@@ -34,6 +35,7 @@ export function useCharityContribution(eventId: string, contributionId: string) 
 export function useCreateCharityContribution() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ 
@@ -50,6 +52,7 @@ export function useCreateCharityContribution() {
       queryClient.invalidateQueries({ queryKey: ['charity-contributions', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', variables.eventId, 'stats'] })
+      log({ action: 'create', module: 'bienfaiteur', moduleLabel: 'Bienfaiteur', targetType: 'contribution', targetId: variables.eventId, description: 'Ajout d\'une contribution caritative' })
     },
   })
 }
@@ -86,6 +89,7 @@ export function useUpdateCharityContribution() {
  */
 export function useDeleteCharityContribution() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ eventId, contributionId }: { eventId: string; contributionId: string }) => {
@@ -94,6 +98,7 @@ export function useDeleteCharityContribution() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['charity-contributions', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', variables.eventId] })
+      log({ action: 'delete', module: 'bienfaiteur', moduleLabel: 'Bienfaiteur', targetType: 'contribution', targetId: variables.contributionId, description: 'Suppression d\'une contribution caritative' })
     },
   })
 }
@@ -104,6 +109,7 @@ export function useDeleteCharityContribution() {
 export function useAddParticipantWithContribution() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ 
@@ -130,6 +136,7 @@ export function useAddParticipantWithContribution() {
       queryClient.invalidateQueries({ queryKey: ['charity-contributions', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-participants', variables.eventId] })
       queryClient.invalidateQueries({ queryKey: ['charity-events', variables.eventId] })
+      log({ action: 'create', module: 'bienfaiteur', moduleLabel: 'Bienfaiteur', targetType: 'contribution', targetId: variables.eventId, description: 'Ajout d\'un participant et de sa contribution' })
     },
   })
 }

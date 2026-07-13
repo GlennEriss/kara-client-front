@@ -319,7 +319,10 @@ function analyzeActiveRow(row: unknown[], rowNumber: number): AnalyzedRow | null
     const montant = num(cell(row, start + 2))
     const exists = isPresent(echeance) || isPresent(dateRemise) || montant > 0
     if (!exists) return
-    const paid = montant > 0 && isPresent(dateRemise)
+    // Un mois est PAYÉ dès qu'un MONTANT est enregistré, même sans DATE REMISE saisie
+    // (cas fréquent). Sans ça, on sous-comptait les mois payés (ex. 12 payés → 4 affichés).
+    // La date du versement retombe sur DATE REMISE → ECHEANCE → date de début.
+    const paid = montant > 0
     payments.push({
       monthIndex,
       targetAmount: amountPerMonth,
@@ -524,7 +527,10 @@ function analyzeCaisseActiveRow(
     const montant = num(cell(row, start + 2))
     const exists = isPresent(echeance) || isPresent(dateRemise) || montant > 0
     if (!exists) return
-    const paid = montant > 0 && isPresent(dateRemise)
+    // Un mois est PAYÉ dès qu'un MONTANT est enregistré, même sans DATE REMISE saisie
+    // (cas fréquent). Sans ça, on sous-comptait les mois payés (ex. 12 payés → 4 affichés).
+    // La date du versement retombe sur DATE REMISE → ECHEANCE → date de début.
+    const paid = montant > 0
     payments.push({
       monthIndex,
       targetAmount: amountPerMonth || montant,

@@ -6,6 +6,7 @@ import { CalendarViewCI } from "@/components/calendrier/CalendarViewCI"
 import { CalendarViewCreditSpeciale } from "@/components/calendrier/CalendarViewCreditSpeciale"
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
 import { OverdueCaissePaymentsList } from "@/components/calendrier/OverdueCaissePaymentsList"
+import { UpcomingPayoutsList } from "@/components/calendrier/UpcomingPayoutsList"
 import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
 import { PageHero } from "@/components/ui/page-hero"
@@ -311,6 +312,13 @@ export default function CalendrierPage() {
               </TabsContent>
             </div>
         </Tabs>
+      </div>
+
+      {/* Remises d'argent à venir (CS + CI + Placement) : dues 30 jours après le
+          dernier versement (contrat cotisé), la fin du placement, ou la demande
+          de retrait anticipé. */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <UpcomingPayoutsList />
       </div>
     </div>
   )

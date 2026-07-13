@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from './useAuth'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import type { Province, Department, Commune, District, Quarter } from '@/types/types'
 import type { ProvinceFormData, DepartmentFormData, CommuneFormData, DistrictFormData, QuarterFormData } from '@/schemas/geographie.schema'
 import { toast } from 'sonner'
+
+const GEO_MODULE = { module: 'geography', moduleLabel: 'Géographie' } as const
 
 // ================== PROVINCES ==================
 
@@ -33,15 +36,17 @@ export function useProvinceMutations() {
   const qc = useQueryClient()
   const { user } = useAuth()
   const service = ServiceFactory.getGeographieService()
+  const { log } = useAuditLogger()
 
   const create = useMutation({
     mutationFn: (data: ProvinceFormData) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.createProvince(data, user.uid)
     },
-    onSuccess: () => {
+    onSuccess: (_result, data) => {
       qc.invalidateQueries({ queryKey: ['provinces'] })
       toast.success('Province créée avec succès')
+      log({ action: 'create', ...GEO_MODULE, targetType: 'province', description: `Création de la province « ${(data as any)?.name ?? ''} »` })
     },
     onError: (error: any) => {
       toast.error(error?.message || 'Erreur lors de la création de la province')
@@ -64,9 +69,10 @@ export function useProvinceMutations() {
 
   const remove = useMutation({
     mutationFn: (id: string) => service.deleteProvince(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ['provinces'] })
       toast.success('Province supprimée avec succès')
+      log({ action: 'delete', ...GEO_MODULE, targetType: 'province', targetId: id, description: 'Suppression d\'une province' })
     },
     onError: (error: any) => {
       toast.error(error?.message || 'Erreur lors de la suppression de la province')

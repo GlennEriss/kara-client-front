@@ -10,12 +10,14 @@ import {
   FileSpreadsheet,
   Info,
   KeyRound,
+  ListChecks,
   Loader2,
   RotateCcw,
   Upload,
   UserPlus,
   Users as UsersIcon,
   UserX,
+  Wrench,
 } from 'lucide-react'
 
 import {
@@ -54,12 +56,14 @@ import {
   type MembersAnalysis,
 } from './excelImportAnalyzer'
 import {
+  checkContractsDrift,
   contractIdForRow,
   fetchForfaits,
   linkUnknownMembers,
   rollbackImport,
   writeImport,
   writeMembers,
+  type ContractDriftRow,
   type ImportReport,
   type WriteMembersReport,
 } from './excelImportWriter'
@@ -157,8 +161,11 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [report, setReport] = useState<ImportReport | null>(null)
   const [rollingBack, setRollingBack] = useState(false)
   const [changeUidOpen, setChangeUidOpen] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<'import' | 'rollback' | null>(null)
+  const [confirmAction, setConfirmAction] = useState<'import' | 'rectify' | 'rollback' | null>(null)
   const [linkingUnknown, setLinkingUnknown] = useState(false)
+  // Comparaison fichier ↔ base (par ID de contrat) : indicateurs d'écart + rectification ciblée.
+  const [drift, setDrift] = useState<Map<string, ContractDriftRow> | null>(null)
+  const [checkingDrift, setCheckingDrift] = useState(false)
 
   const resetAnalysis = () => {
     setAnalysis(null)
@@ -171,6 +178,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     setReport(null)
     setProgress(null)
     setError(null)
+    setDrift(null)
   }
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,6 +306,55 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     }
   }
 
+  /** Compare le fichier analysé avec les contrats déjà en base (sans rien écrire). */
+  const handleCheckDrift = async () => {
+    if (!analysis || rowViews.length === 0) return
+    setCheckingDrift(true)
+    setError(null)
+    try {
+      setDrift(await checkContractsDrift(rowViews, analysis.target))
+    } catch (err) {
+      console.error(err)
+      setError('Erreur pendant la vérification des écarts avec la base.')
+    } finally {
+      setCheckingDrift(false)
+    }
+  }
+
+  /** Réécrit UNIQUEMENT les contrats en écart avec la base (rectification ciblée). */
+  const handleRectify = async () => {
+    if (!analysis || !user?.uid || !drift) return
+    const rows = rowViews.filter((r) => drift.get(contractIdForRow(r, analysis.target))?.drifted)
+    if (rows.length === 0) return
+    setImporting(true)
+    setReport(null)
+    setProgress({ done: 0, total: rows.length })
+    try {
+      const res = await writeImport(
+        rows,
+        {
+          adminId: user.uid,
+          sheetName: analysis.sheetName,
+          sourceFile: fileName,
+          members: membersMap,
+          forfaits,
+          memberData,
+          target: analysis.target,
+        },
+        (done, total) => setProgress({ done, total }),
+      )
+      setReport(res)
+      invalidateStatsCaches()
+      // Rafraîchit les indicateurs : les contrats corrigés passent « À jour ».
+      setDrift(await checkContractsDrift(rowViews, analysis.target))
+    } catch (err) {
+      console.error(err)
+      setError('Erreur pendant la rectification.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   /**
    * Supprime tout ce que cet import a créé pour (fichier + feuille sélectionnés).
    * Autonome : ne nécessite pas d'avoir analysé — il suffit du fichier et de la feuille.
@@ -383,6 +440,11 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   })
   const distinctContracts = idCount.size
   const duplicateRows = rowViews.length - distinctContracts
+  // Synthèse de la comparaison fichier ↔ base.
+  const driftValues = drift ? Array.from(drift.values()) : []
+  const driftCount = driftValues.filter((d) => d.drifted).length
+  const driftUpToDate = driftValues.filter((d) => d.exists && !d.drifted).length
+  const driftMissing = driftValues.filter((d) => !d.exists).length
   // Membres distincts à créer (un membre peut avoir plusieurs contrats).
   const distinctNewMembers = new Set(membersMissing.map((r) => r.matricule.trim())).size
 
@@ -831,6 +893,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                           <th className="px-3 py-3 text-right font-semibold">Versé</th>
                           <th className="px-3 py-3 font-semibold">Aides / Retrait</th>
                           <th className="px-3 py-3 font-semibold">Compte</th>
+                          <th className="px-3 py-3 font-semibold">Base</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -904,6 +967,36 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                                 </span>
                               )}
                             </td>
+                            <td className="px-3 py-2.5">
+                              {(() => {
+                                const d = drift?.get(contractIdForRow(r, analysis?.target))
+                                if (!d) return <span className="text-gray-300">—</span>
+                                if (!d.exists) {
+                                  return (
+                                    <Badge variant="outline" className="border-gray-300 text-[10px] text-gray-500">
+                                      Absent
+                                    </Badge>
+                                  )
+                                }
+                                if (d.drifted) {
+                                  return (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-amber-300 bg-amber-50 text-[10px] font-semibold text-amber-700"
+                                    >
+                                      {d.dbMonthsPaid !== d.expectedMonthsPaid
+                                        ? `Écart : ${d.dbMonthsPaid} → ${d.expectedMonthsPaid} mois`
+                                        : `Écart versé : ${fmtAmount(d.dbNominalPaid ?? 0)} → ${fmtAmount(d.expectedNominalPaid)}`}
+                                    </Badge>
+                                  )
+                                }
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                                    <CheckCircle2 className="h-4 w-4" /> À jour
+                                  </span>
+                                )
+                              })()}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -915,6 +1008,67 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
               {/* Barre d'import */}
               <Card className="border border-[#234D65]/15 bg-[#234D65]/5 shadow-sm">
                 <CardContent className="space-y-3 p-4 md:p-5">
+                  {/* Comparaison fichier ↔ base : indicateurs d'écart + rectification ciblée */}
+                  <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 text-sm">
+                      {drift ? (
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="inline-flex items-center gap-1 text-emerald-700">
+                            <CheckCircle2 className="h-4 w-4" /> {driftUpToDate} à jour
+                          </span>
+                          <span
+                            className={
+                              driftCount > 0
+                                ? 'inline-flex items-center gap-1 font-semibold text-amber-700'
+                                : 'inline-flex items-center gap-1 text-gray-400'
+                            }
+                          >
+                            <AlertCircle className="h-4 w-4" /> {driftCount} en écart
+                          </span>
+                          {driftMissing > 0 && (
+                            <span className="text-gray-500">{driftMissing} absent(s) de la base</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-600">
+                          Comparer le fichier avec les contrats déjà en base (mois payés, total versé) —
+                          sans rien écrire. La colonne « Base » du tableau détaille chaque ligne.
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCheckDrift}
+                        disabled={checkingDrift || importing || rollingBack || rowViews.length === 0}
+                        className="h-9"
+                      >
+                        {checkingDrift ? (
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ListChecks className="mr-1 h-4 w-4" />
+                        )}
+                        Vérifier les écarts
+                      </Button>
+                      {drift && driftCount > 0 && (
+                        <Button
+                          type="button"
+                          onClick={() => setConfirmAction('rectify')}
+                          disabled={importing || rollingBack || !user?.uid}
+                          className="h-9 bg-amber-600 hover:bg-amber-700"
+                        >
+                          {importing ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Wrench className="mr-1 h-4 w-4" />
+                          )}
+                          Corriger {driftCount} contrat(s)
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-gray-700">
                       <span className="font-bold text-[#234D65]">{distinctContracts}</span> contrat(s) seront créés
@@ -1058,6 +1212,30 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
                   {membersAnalysis
                     ? `Importer ${membersToCreate.length} membre(s)`
                     : `Importer ${distinctContracts} contrat(s)`}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          ) : confirmAction === 'rectify' ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Corriger les contrats en écart ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {driftCount} contrat(s) dont les compteurs en base diffèrent du fichier vont être
+                  réécrits (contrat + versements) à partir de la feuille « {analysis?.sheetName} ».
+                  Les contrats à jour et absents ne sont <strong>pas touchés</strong>. IDs
+                  déterministes — aucun doublon.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-amber-600 hover:bg-amber-700"
+                  onClick={() => {
+                    setConfirmAction(null)
+                    void handleRectify()
+                  }}
+                >
+                  Corriger {driftCount} contrat(s)
                 </AlertDialogAction>
               </AlertDialogFooter>
             </>

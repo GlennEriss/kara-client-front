@@ -97,6 +97,7 @@ const routes = {
         // Agents de recouvrement
         agentsRecouvrement: '/admin/agents-recouvrement',
         agentRecouvrementDetails: (id: string) => `/admin/agents-recouvrement/${id}`,
+        journalisation: '/admin/journalisation',
         // Événements
         events: '/events',
         eventNew: '/events/nouveau',

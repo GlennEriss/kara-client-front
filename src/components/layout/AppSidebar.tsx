@@ -37,6 +37,7 @@ import {
   Home,
   LogOut,
   MapPin,
+  ScrollText,
   Settings,
   Shield,
   Trash2,
@@ -259,6 +260,11 @@ const systemMenuItems: any[] = [
     title: "Agents de recouvrement",
     url: routes.admin.agentsRecouvrement,
     icon: UserCheck,
+  },
+  {
+    title: "Journalisation",
+    url: routes.admin.journalisation,
+    icon: ScrollText,
   },
   {
     title: "Groupes",

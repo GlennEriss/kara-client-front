@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement } from '@/types/types'
 
 export function usePlacements() {
@@ -25,6 +26,7 @@ export function usePlacement(id?: string) {
 export function usePlacementMutations() {
   const qc = useQueryClient()
   const service = ServiceFactory.getPlacementService()
+  const { log } = useAuditLogger()
 
   const create = useMutation({
     mutationFn: (data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { adminId: string }) => {
@@ -38,23 +40,29 @@ export function usePlacementMutations() {
         adminId
       )
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
+      log({
+        action: 'create', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: result?.id,
+        description: `Création d'un placement${result?.benefactorName ? ` — ${result.benefactorName}` : ''}`,
+      })
     },
   })
 
   const update = useMutation({
     mutationFn: ({ id, data, adminId }: { id: string; data: Partial<Placement>; adminId: string }) =>
       service.updatePlacement(id, data, adminId),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
+      log({ action: 'update', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: variables.id, description: 'Modification d\'un placement' })
     },
   })
 
   const remove = useMutation({
     mutationFn: (id: string) => service.deletePlacement(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
+      log({ action: 'delete', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: id, description: 'Suppression d\'un placement' })
     },
   })
 
@@ -115,6 +123,7 @@ export function usePlacementMutations() {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId, 'early-exit'] })
+      log({ action: 'other', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: variables.placementId, description: 'Demande de sortie anticipée d\'un placement' })
     },
   })
 
@@ -124,6 +133,7 @@ export function usePlacementMutations() {
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId, 'commissions'] })
+      log({ action: 'payment', module: 'placements', moduleLabel: 'Placements', targetType: 'commission', targetId: variables.placementId, description: 'Paiement d\'une commission de placement' })
     },
   })
 

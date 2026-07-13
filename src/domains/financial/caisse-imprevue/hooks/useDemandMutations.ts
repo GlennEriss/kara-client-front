@@ -6,7 +6,10 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CaisseImprevueService } from '../services/CaisseImprevueService'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { toast } from 'sonner'
+
+const CI_MODULE = { module: 'caisseImprevue', moduleLabel: 'Caisse Imprévue' } as const
 import type {
   CaisseImprevueDemand,
   CreateCaisseImprevueDemandInput,
@@ -23,6 +26,7 @@ const service = CaisseImprevueService.getInstance()
  */
 export function useCreateDemand() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -36,10 +40,11 @@ export function useCreateDemand() {
       // Invalider les caches
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands-stats'] })
-      
+
       toast.success('Demande créée avec succès', {
         description: `La demande ${demand.id} a été créée.`,
       })
+      log({ action: 'create', ...CI_MODULE, targetType: 'demande', targetId: demand?.id, description: 'Création d\'une demande de caisse imprévue' })
     },
     onError: (error: Error) => {
       toast.error('Erreur lors de la création de la demande', {
@@ -54,6 +59,7 @@ export function useCreateDemand() {
  */
 export function useAcceptDemand() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -134,6 +140,7 @@ export function useAcceptDemand() {
       toast.success('Demande acceptée avec succès', {
         description: `La demande ${demand.id} a été acceptée.`,
       })
+      log({ action: 'validate', ...CI_MODULE, targetType: 'demande', targetId: demand?.id, description: 'Acceptation d\'une demande de caisse imprévue' })
     },
   })
 }
@@ -143,6 +150,7 @@ export function useAcceptDemand() {
  */
 export function useRejectDemand() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -223,6 +231,7 @@ export function useRejectDemand() {
       toast.success('Demande refusée', {
         description: `La demande ${demand.id} a été refusée.`,
       })
+      log({ action: 'reject', ...CI_MODULE, targetType: 'demande', targetId: demand?.id, description: 'Refus d\'une demande de caisse imprévue' })
     },
   })
 }
@@ -354,6 +363,7 @@ export function useUpdateDemand() {
  */
 export function useDeleteDemand() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -368,10 +378,11 @@ export function useDeleteDemand() {
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands-stats'] })
       queryClient.removeQueries({ queryKey: ['demand-detail', variables.id] })
-      
+
       toast.success('Demande supprimée avec succès', {
         description: `La demande ${variables.id} a été supprimée.`,
       })
+      log({ action: 'delete', ...CI_MODULE, targetType: 'demande', targetId: variables.id, description: 'Suppression d\'une demande de caisse imprévue' })
     },
     onError: (error: Error) => {
       toast.error('Erreur lors de la suppression de la demande', {
@@ -386,6 +397,7 @@ export function useDeleteDemand() {
  */
 export function useCreateContractFromDemand() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -402,6 +414,7 @@ export function useCreateContractFromDemand() {
       queryClient.invalidateQueries({ queryKey: ['demand-detail', result.demand.id] })
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
+      log({ action: 'create', ...CI_MODULE, targetType: 'contrat', targetId: (result as any)?.contract?.id, description: 'Création d\'un contrat de caisse imprévue depuis une demande' })
 
       toast.success('Contrat créé avec succès', {
         description: `Le contrat ${result.contractId} a été créé depuis la demande ${result.demand.id}.`,
