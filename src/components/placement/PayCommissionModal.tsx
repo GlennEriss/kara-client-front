@@ -394,7 +394,7 @@ export default function PayCommissionModal({
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#224D62] transition-colors">
                 <Input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileChange}
                   disabled={isLoading || isCompressing}
                   className="hidden"

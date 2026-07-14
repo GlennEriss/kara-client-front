@@ -71,7 +71,7 @@ export default function PhotoIdentityForm() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleFileChange}
                     className="hidden"
                   />

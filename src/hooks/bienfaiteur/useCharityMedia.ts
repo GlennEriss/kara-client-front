@@ -30,7 +30,8 @@ export function useCreateCharityMedia() {
       type,
       title,
       description,
-      takenAt
+      takenAt,
+      onProgress
     }: { 
       eventId: string
       file: File
@@ -38,9 +39,10 @@ export function useCreateCharityMedia() {
       title?: string
       description?: string
       takenAt?: Date
+      onProgress?: (percent: number) => void
     }) => {
       if (!user?.uid) throw new Error('User not authenticated')
-      return CharityMediaService.createMedia(eventId, file, type, user.uid, title, description, takenAt)
+      return CharityMediaService.createMedia(eventId, file, type, user.uid, title, description, takenAt, onProgress)
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['charity-media', variables.eventId] })

@@ -351,7 +351,7 @@ export default function CreditPenaltyPaymentModal({
             <Input
               id="penalty-proof"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileChange}
               disabled={isCompressing || activeMutation.isPending}
             />

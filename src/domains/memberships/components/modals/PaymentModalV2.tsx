@@ -470,7 +470,7 @@ export function PaymentModalV2({
                       ref={fileInputRef}
                       id="proof"
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       onChange={handleFileChange}
                       disabled={isProcessing}
                       className="hidden"

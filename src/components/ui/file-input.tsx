@@ -1,7 +1,7 @@
 "use client"
 
 import { AlertCircle, FileImage, FileText, Upload, X } from 'lucide-react'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface FileInputProps {
   accept?: string
@@ -145,6 +145,17 @@ export default function FileInput({
   // Utiliser l'état interne pour l'affichage
   const displayFile = internalFile || currentFile
 
+  // Miniature pour les images sélectionnées (l'URL objet est libérée à chaque changement)
+  const previewUrl = useMemo(
+    () => (displayFile?.type.startsWith('image/') ? URL.createObjectURL(displayFile) : null),
+    [displayFile]
+  )
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
+
   return (
     <div className={`w-full ${className}`}>
       {label && (
@@ -181,7 +192,14 @@ export default function FileInput({
           // Affichage du fichier sélectionné
           <div className="space-y-3">
             <div className="flex items-center justify-center">
-              {displayFile.type === 'application/pdf' ? (
+              {previewUrl ? (
+                // eslint-disable-next-line
+                <img
+                  src={previewUrl}
+                  alt={displayFile.name}
+                  className="h-24 max-w-full rounded-md border border-gray-200 object-contain"
+                />
+              ) : displayFile.type === 'application/pdf' ? (
                 <FileText className="w-12 h-12 text-[#234D65]" />
               ) : (
                 <FileImage className="w-12 h-12 text-[#234D65]" />

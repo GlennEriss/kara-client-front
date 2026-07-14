@@ -56,6 +56,7 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
     }
   })
 
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const mediaType = watch('type')
   const fileValue = watch('file')
 
@@ -72,9 +73,22 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
     return true
   }) || []
 
+  // Limites alignées sur storage.rules (images < 5 Mo, vidéos < 50 Mo) :
+  // on refuse avant l'upload plutôt que de laisser Firebase rejeter à la fin.
+  const MAX_PHOTO_MB = 5
+  const MAX_VIDEO_MB = 50
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      const maxMb = file.type.startsWith('video/') ? MAX_VIDEO_MB : MAX_PHOTO_MB
+      if (file.size > maxMb * 1024 * 1024) {
+        toast.error('Fichier trop volumineux', {
+          description: `Taille maximale : ${maxMb} Mo (fichier : ${(file.size / 1024 / 1024).toFixed(1)} Mo)`
+        })
+        e.target.value = ''
+        return
+      }
       setValue('file', file)
       
       // Prévisualisation pour les images
@@ -103,7 +117,8 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
         type: data.type,
         title: data.title || undefined,
         description: data.description || undefined,
-        takenAt: data.takenAt ? new Date(data.takenAt) : undefined
+        takenAt: data.takenAt ? new Date(data.takenAt) : undefined,
+        onProgress: setUploadProgress
       },
       {
         onSuccess: () => {
@@ -112,7 +127,8 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
         },
         onError: (error: any) => {
           toast.error(error.message || 'Erreur lors de l\'ajout du média')
-        }
+        },
+        onSettled: () => setUploadProgress(null)
       }
     )
   }
@@ -460,11 +476,22 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
               <Button type="button" variant="outline" onClick={handleClose} disabled={isCreating}>
                 Annuler
               </Button>
+              {isCreating && uploadProgress !== null && (
+                <div className="w-full sm:mr-auto sm:max-w-[220px]">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-[#234D65] transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-center text-xs text-gray-500">{uploadProgress}%</p>
+                </div>
+              )}
               <Button type="submit" disabled={isCreating || !fileValue} className="bg-[#234D65] hover:bg-[#2c5a73]">
                 {isCreating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                    Upload en cours...
+                    {uploadProgress !== null ? `Envoi ${uploadProgress}%` : 'Upload en cours...'}
                   </>
                 ) : (
                   'Ajouter le média'

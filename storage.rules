@@ -99,8 +99,8 @@ service firebase.storage {
       allow read: if isAdmin() || (
         isAuthenticated() && (
           request.auth.uid == memberId ||
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+          (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
         )
       );
       allow write: if isAdmin() && (
@@ -129,8 +129,8 @@ service firebase.storage {
       allow read: if isAdmin() || (
         isAuthenticated() && (
           request.auth.uid == memberId ||
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+          (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
         )
       );
       allow write: if isAdmin() && isImage() && isImageSizeValid();
@@ -316,21 +316,30 @@ service firebase.storage {
     // Preuve de versement déclaré
     match /declared-versement-proof/{allPaths=**} {
       allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
       allow delete: if isAdmin();
     }
 
     // Preuve retrait anticipé CI
     match /early-refund-proof/{allPaths=**} {
       allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
       allow delete: if isAdmin();
     }
 
     // Preuve remboursement final CI
     match /final-refund-proof/{allPaths=**} {
       allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
       allow delete: if isAdmin();
     }
 
@@ -377,19 +386,28 @@ service firebase.storage {
 
     match /cs-declared-versement-proof/{allPaths=**} {
       allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
       allow delete: if isAdmin();
     }
 
     match /cs-early-refund-proof/{allPaths=**} {
       allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
       allow delete: if isAdmin();
     }
 
     match /cs-final-refund-proof/{allPaths=**} {
       allow read: if isAdmin() || isAuthenticated();
-      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow write: if isAuthenticated() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
       allow delete: if isAdmin();
     }
 

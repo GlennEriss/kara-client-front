@@ -29,7 +29,7 @@ export interface ICaisseImprevueService extends IService{
     getAdminById(id: string): Promise<Admin | null>
     getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]>
     getContractsCIStats(filters?: ContractsCIFilters): Promise<ContractsCIStats>
-    uploadContractDocument(file: File, contractId: string, memberId: string, userId: string): Promise<{ documentId: string; contract: ContractCI }>
+    uploadContractDocument(file: File, contractId: string, memberId: string, userId: string, onProgress?: (percent: number) => void): Promise<{ documentId: string; contract: ContractCI }>
     validateMemberSignedContract(contractId: string, adminId: string, file: File): Promise<ContractCI>
     rejectMemberSignedContract(contractId: string, adminId: string): Promise<ContractCI>
     uploadEmergencyContactImage(imageUrl: string, memberId: string, contractId: string): Promise<{ url: string; path: string }>

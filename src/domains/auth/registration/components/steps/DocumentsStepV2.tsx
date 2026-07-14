@@ -299,7 +299,7 @@ export default function DocumentsStepV2() {
       <input
         ref={isBack ? backInputRef : frontInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         capture="environment"
         className="hidden"
         onChange={(e) => {

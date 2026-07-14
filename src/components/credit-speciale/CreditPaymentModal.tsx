@@ -678,7 +678,7 @@ export default function CreditPaymentModal({
             <Input
               id="proof"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileChange}
               disabled={isCompressing}
             />

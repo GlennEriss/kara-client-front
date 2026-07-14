@@ -123,9 +123,9 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         return await this.contractCIRepository.getContractsStats(filters)
     }
 
-    async uploadContractDocument(file: File, contractId: string, memberId: string, userId: string): Promise<{ documentId: string; contract: ContractCI }> {
+    async uploadContractDocument(file: File, contractId: string, memberId: string, userId: string, onProgress?: (percent: number) => void): Promise<{ documentId: string; contract: ContractCI }> {
         // 1. Upload du fichier vers Firebase Storage
-        const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, memberId, 'ADHESION_CI')
+        const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, memberId, 'ADHESION_CI', onProgress)
 
         // 2. Créer l'enregistrement du document dans Firestore
         const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {

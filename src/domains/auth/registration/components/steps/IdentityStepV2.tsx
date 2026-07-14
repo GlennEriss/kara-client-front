@@ -240,7 +240,7 @@ export default function IdentityStepV2() {
               </div>
               <input 
                 type="file" 
-                accept="image/*" 
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden" 
                 onChange={handlePhotoUpload}
               />

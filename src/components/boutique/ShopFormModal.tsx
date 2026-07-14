@@ -311,7 +311,7 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
               <input
                 ref={photoInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0]

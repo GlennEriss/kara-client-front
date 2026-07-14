@@ -1,6 +1,6 @@
 import { CharityMediaRepository } from '@/repositories/bienfaiteur/CharityMediaRepository'
 import { CharityMedia } from '@/types/types'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from '@/firebase/storage'
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
 
 /**
@@ -122,7 +122,8 @@ export class CharityMediaService {
     adminId: string,
     title?: string,
     description?: string,
-    takenAt?: Date
+    takenAt?: Date,
+    onProgress?: (percent: number) => void
   ): Promise<string> {
     try {
       const storage = getStorageInstance()
@@ -131,10 +132,19 @@ export class CharityMediaService {
       const fileName = `${eventId}_${timestamp}_${type}.${fileExtension}`
       const filePath = `charity-events/${eventId}/media/${fileName}`
 
-      // Upload du fichier
+      // Upload résumable : indispensable pour les vidéos (jusqu'à 50 Mo) afin
+      // d'afficher une progression réelle au lieu d'un spinner figé.
       const storageRef = ref(storage, filePath)
-      const snapshot = await uploadBytes(storageRef, file)
-      const downloadURL = await getDownloadURL(snapshot.ref)
+      const uploadTask = uploadBytesResumable(storageRef, file)
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snap) => onProgress?.(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+          reject,
+          () => resolve()
+        )
+      })
+      const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
 
       // Pour les vidéos, on pourrait générer une miniature plus tard
       // Pour l'instant, on utilise la même URL

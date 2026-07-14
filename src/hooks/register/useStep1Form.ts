@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { IdentityFormMediatorFactory } from "@/factories/IdentityFormMediatorFactory";
 import { useCallback, useState } from "react";
 import { useFormContext } from "react-hook-form";
@@ -12,6 +13,10 @@ export default function useStep1Form() {
     
     // Gestion de l'upload de photo avec compression via le médiateur
     const handlePhotoUpload = useCallback(async (file: File) => {
+        if (file && file.size > 10 * 1024 * 1024) {
+            toast.error('Photo trop volumineuse (max 10 Mo)')
+            return
+        }
         if (file && file.type.startsWith('image/')) {
             try {
                 await mediator.handlePhotoUpload(file)
