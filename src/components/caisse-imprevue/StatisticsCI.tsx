@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useContractsCI, useContractsCIStats } from '@/hooks/caisse-imprevue/useContractsCI'
 import { ContractsCIFilters } from '@/repositories/caisse-imprevu/IContractCIRepository'
@@ -59,6 +60,8 @@ const PAYMENT_FREQUENCY_LABELS: Record<CaisseImprevuePaymentFrequency, string> =
 }
 
 export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {}) {
+  // Mobile : étiquettes extérieures des camemberts coupées → masquées.
+  const isMobile = useIsMobile()
   const filters: ContractsCIFilters | undefined = paymentFrequency 
     ? { paymentFrequency }
     : undefined
@@ -165,8 +168,8 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
                         nameKey="label" 
                         cx="50%" 
                         cy="50%" 
-                        outerRadius={90} 
-                        label
+                        outerRadius={isMobile ? 70 : 90}
+                        label={!isMobile}
                       >
                         {byPaymentFrequency.map((entry, index) => (
                           <Cell key={`frequency-${entry.type}`} fill={COLORS[index % COLORS.length]} />

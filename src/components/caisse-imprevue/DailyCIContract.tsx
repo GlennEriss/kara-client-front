@@ -1,5 +1,6 @@
 'use client'
 
+import { backOr } from '@/lib/backNavigation'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 import ContractCIMemberInfoDialog from '@/components/caisse-imprevue/ContractCIMemberInfoDialog'
 import { Badge } from '@/components/ui/badge'
@@ -658,7 +659,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
-              onClick={() => router.push(routes.admin.caisseImprevue)}
+              onClick={() => backOr(router, routes.admin.caisseImprevue)}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />

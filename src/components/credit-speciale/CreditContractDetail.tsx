@@ -1,5 +1,6 @@
 'use client'
 
+import { backOr } from '@/lib/backNavigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -2035,7 +2036,7 @@ export default function CreditContractDetail({
         <div className="flex items-center justify-between flex-wrap gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.push(listPath)}
+            onClick={() => backOr(router, listPath)}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />

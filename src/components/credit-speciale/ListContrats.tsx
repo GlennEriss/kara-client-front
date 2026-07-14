@@ -1618,32 +1618,31 @@ const ListContrats = ({
                     isContractOverdue(contract) && 'border-red-200'
                   )}>
                     <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                      {/* Header : avatar + nom à gauche, statut dot + type à droite */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <Avatar className="size-9 shrink-0 rounded-xl">
-                            <AvatarFallback className="rounded-xl bg-[#234D65] text-white font-semibold text-xs">
-                              {initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
-                            <p className="truncate text-xs text-gray-400">{primaryContact}</p>
-                            <p className="truncate font-mono text-[10px] text-gray-400">{contract.id}</p>
-                          </div>
+                      {/* Header : avatar + nom pleine largeur, statut sur sa propre ligne
+                          (un statut long à droite tronquait le nom). */}
+                      <div className="flex items-start gap-3">
+                        <Avatar className="size-9 shrink-0 rounded-xl">
+                          <AvatarFallback className="rounded-xl bg-[#234D65] text-white font-semibold text-xs">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
+                          <p className="truncate text-xs text-gray-400">{primaryContact}</p>
+                          <p className="truncate font-mono text-[10px] text-gray-400">{contract.id}</p>
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(contract.status).text}`}>
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(contract.status).dot}`} />
-                            {getStatusLabel(contract.status)}
-                          </span>
-                          <span className="text-[10px] font-medium text-gray-400">{getCreditTypeLabel(contract.creditType)}</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                        <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(contract.status).text}`}>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(contract.status).dot}`} />
+                          {getStatusLabel(contract.status)}
                           {isContractOverdue(contract) && (
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-red-600">
+                            <span className="ml-1 flex items-center gap-1 text-[10px] font-semibold text-red-600">
                               <AlertCircle className="h-3 w-3" /> Retard
                             </span>
                           )}
-                        </div>
+                        </span>
+                        <span className="text-[10px] font-medium text-gray-400">{getCreditTypeLabel(contract.creditType)}</span>
                       </div>
 
                       <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm">

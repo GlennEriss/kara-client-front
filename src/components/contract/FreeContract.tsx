@@ -1,5 +1,6 @@
 "use client"
 
+import { backOr } from '@/lib/backNavigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -470,7 +471,7 @@ export default function FreeContract({ id }: Props) {
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
-              onClick={() => router.push(routes.admin.caisseSpeciale)}
+              onClick={() => backOr(router, routes.admin.caisseSpeciale)}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -664,7 +665,13 @@ export default function FreeContract({ id }: Props) {
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-gray-600">Payé le:</span>
                               <span className="font-semibold text-green-600">
-                                {new Date((p as any).paidAt ?? (p as any).contribs?.[0]?.paidAt).toLocaleDateString("fr-FR")}
+                                {(() => {
+                                  // contribs[].paidAt est un Timestamp Firestore BRUT (le loader ne
+                                  // convertit que le premier niveau) — new Date(Timestamp) = Invalid Date.
+                                  const pa = (p as any).paidAt ?? (p as any).contribs?.[0]?.paidAt
+                                  const d = typeof pa?.toDate === 'function' ? pa.toDate() : new Date(pa)
+                                  return !isNaN(d.getTime()) ? d.toLocaleDateString('fr-FR') : '—'
+                                })()}
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
@@ -1070,7 +1077,7 @@ export default function FreeContract({ id }: Props) {
                             <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/jpeg,image/png,image/webp"
                               onChange={async (e) => {
                                 const f = e.target.files?.[0]
                                 if (!f) {
