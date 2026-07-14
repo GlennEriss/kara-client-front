@@ -17,6 +17,7 @@ import {
   Upload,
   UserPlus,
   Users as UsersIcon,
+  Users2,
   UserX,
   Wrench,
 } from 'lucide-react'
@@ -62,6 +63,7 @@ import {
   fetchForfaits,
   fixImportDates,
   linkUnknownMembers,
+  relinkUnknown,
   rollbackImport,
   writeImport,
   writeMembers,
@@ -164,6 +166,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [rollingBack, setRollingBack] = useState(false)
   const [changeUidOpen, setChangeUidOpen] = useState(false)
   const [fixingDates, setFixingDates] = useState(false)
+  const [relinking, setRelinking] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'import' | 'rectify' | 'rollback' | null>(null)
   const [linkingUnknown, setLinkingUnknown] = useState(false)
   // Comparaison fichier ↔ base (par ID de contrat) : indicateurs d'écart + rectification ciblée.
@@ -451,6 +454,48 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     }
   }
 
+  /**
+   * Re-pointe les références au mauvais compte INCONNU vers le bon (par matricule).
+   * Simulation d'abord, puis application après confirmation. Idempotent.
+   */
+  const handleRelinkUnknown = async () => {
+    const toMatricule = window.prompt(
+      "Matricule du BON compte INCONNU (vers lequel repointer les membres/contrats) :",
+      '2548.MK.290126',
+    )
+    if (!toMatricule || !toMatricule.trim()) return
+
+    setRelinking(true)
+    try {
+      const dry = await relinkUnknown({ toMatricule: toMatricule.trim(), dryRun: true })
+      const total = dry.membersRelinked + dry.contractsRelinked
+      if (total === 0) {
+        window.alert(`Aucune référence « ${dry.fromId} » à repointer.`)
+        return
+      }
+      const ok = window.confirm(
+        `Repointer vers ${dry.targetName} (${dry.toMatricule}) :\n\n` +
+          `• ${dry.membersRelinked} membre(s) (parrain)\n` +
+          `• ${dry.contractsRelinked} contrat(s) CI (contact d'urgence)\n\n` +
+          `Appliquer maintenant ?`,
+      )
+      if (!ok) return
+
+      const res = await relinkUnknown({ toMatricule: toMatricule.trim(), dryRun: false })
+      invalidateStatsCaches()
+      window.alert(
+        `Re-pointage effectué vers ${res.targetName} :\n` +
+          `• ${res.membersRelinked} membre(s)\n` +
+          `• ${res.contractsRelinked} contrat(s) CI`,
+      )
+    } catch (err) {
+      console.error(err)
+      setError(err instanceof Error ? err.message : 'Erreur pendant le re-pointage INCONNU.')
+    } finally {
+      setRelinking(false)
+    }
+  }
+
   const handleImportMembers = async () => {
     if (!membersAnalysis || !user?.uid || memberViews.length === 0) return
     setImporting(true)
@@ -606,17 +651,31 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
               Rattacher rétroactivement les membres sans parrain et les contrats CI sans contact d'urgence au compte{' '}
               <span className="font-semibold">INCONNU INCONNU</span>.
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleLinkUnknown}
-              disabled={linkingUnknown}
-              className="h-9 shrink-0"
-            >
-              {linkingUnknown ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserX className="mr-1 h-4 w-4" />}
-              Rattacher les manquants à INCONNU
-            </Button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleLinkUnknown}
+                disabled={linkingUnknown}
+                className="h-9"
+              >
+                {linkingUnknown ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserX className="mr-1 h-4 w-4" />}
+                Rattacher les manquants à INCONNU
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRelinkUnknown}
+                disabled={relinking}
+                className="h-9 border-gray-300"
+                title="Repointer les références vers un autre compte INCONNU (par matricule)"
+              >
+                {relinking ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Users2 className="mr-1 h-4 w-4" />}
+                Corriger le compte INCONNU
+              </Button>
+            </div>
           </div>
 
           {/* Maintenance : correction du décalage J-1 des dates importées */}
