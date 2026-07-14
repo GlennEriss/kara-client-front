@@ -18,6 +18,17 @@ export const runtime = 'nodejs'
  */
 const BOOTSTRAP_EMAIL = 'phil@gmail.com'
 
+/** Un SuperAdmin existe-t-il déjà (admins ou users) ? */
+async function superAdminExists(db: FirebaseFirestore.Firestore): Promise<boolean> {
+  for (const col of ['admins', 'users']) {
+    const byArray = await db.collection(col).where('roles', 'array-contains', 'SuperAdmin').limit(1).get()
+    if (!byArray.empty) return true
+    const byField = await db.collection(col).where('role', '==', 'SuperAdmin').limit(1).get()
+    if (!byField.empty) return true
+  }
+  return false
+}
+
 export async function POST(req: NextRequest) {
   if (!adminFirestore) {
     return NextResponse.json({ error: 'Firebase Admin Firestore non configuré' }, { status: 503 })
@@ -26,13 +37,22 @@ export async function POST(req: NextRequest) {
   if (!claims) {
     return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
   }
-  if ((claims.email || '').toLowerCase() !== BOOTSTRAP_EMAIL) {
-    return NextResponse.json({ error: 'Réservé au compte d\'amorçage' }, { status: 403 })
-  }
 
   const db = adminFirestore
   const uid = claims.uid
   const now = new Date()
+
+  // Autorisé si : c'est le compte d'amorçage désigné, OU aucun SuperAdmin
+  // n'existe encore (premier SuperAdmin du système). Sinon → passer par l'UI.
+  const isBootstrapEmail = (claims.email || '').toLowerCase() === BOOTSTRAP_EMAIL
+  if (!isBootstrapEmail) {
+    if (await superAdminExists(db)) {
+      return NextResponse.json(
+        { error: 'Un SuperAdmin existe déjà — utilisez la page Administration pour promouvoir un compte.' },
+        { status: 403 },
+      )
+    }
+  }
 
   try {
     const updatedDocs: string[] = []
