@@ -41,8 +41,26 @@ export async function POST(req: NextRequest) {
             updateData.photoURL = photoURL;
         }
         
-        // Mettre à jour l'utilisateur Firebase Auth
-        const user = await adminAuth.updateUser(uid, updateData);
+        // Mettre à jour l'utilisateur Firebase Auth. Si le document Firestore
+        // existe mais que le compte Auth n'a jamais été créé, on le répare ici.
+        let user;
+        try {
+            user = await adminAuth.updateUser(uid, updateData);
+        } catch (error: any) {
+            if (error?.code !== 'auth/user-not-found' || !email) {
+                throw error;
+            }
+
+            const createData: any = {
+                uid,
+                email: String(email).trim().toLowerCase(),
+                password: password || uid,
+                displayName: `${firstName || ''} ${lastName || ''}`.trim(),
+            };
+            if (phoneNumber) createData.phoneNumber = phoneNumber;
+            if (photoURL) createData.photoURL = photoURL;
+            user = await adminAuth.createUser(createData);
+        }
         
         // Mettre à jour les custom claims si nécessaire
         const customClaims: any = {};

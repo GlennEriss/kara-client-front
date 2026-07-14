@@ -231,7 +231,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         form.setValue('photoPath', path)
       }
 
-      await fetch('/api/auth/create-admin/by-email', {
+      const authResponse = await fetch('/api/auth/create-admin/by-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -247,6 +247,10 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
           phoneNumber: phone,
         }),
       })
+      if (!authResponse.ok) {
+        const errorData = await authResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Création Firebase Auth échouée')
+      }
 
       // Créer l'admin dans la collection admins avec l'ID = matricule
       const isSuperAdminRoleCreate = (values.roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))
@@ -272,6 +276,8 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
       setPhotoPreview(null)
       setCompressionInfo(null)
       onClose()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la sauvegarde de l’administrateur')
     } finally {
       setIsSubmitting(false)
     }
@@ -531,4 +537,3 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
     </Dialog>
   )
 }
-
