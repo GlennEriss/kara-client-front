@@ -70,7 +70,7 @@ function KindBadge({ payout }: { payout: UpcomingPayout }) {
 
 function referenceLabel(payout: UpcomingPayout): string {
   if (payout.kind === 'EARLY') return 'Date de la demande de retrait'
-  return payout.product === 'Placement' ? 'Date de fin du placement' : 'Date du dernier versement'
+  return payout.product === 'Placement' ? 'Date de fin du placement' : 'Date de fin du contrat'
 }
 
 /**

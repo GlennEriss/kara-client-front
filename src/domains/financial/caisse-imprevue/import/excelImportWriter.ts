@@ -1317,6 +1317,37 @@ export async function rollbackImport(ctx: {
   return (await response.json()) as RollbackResult
 }
 
+export interface FixImportDatesResult {
+  dryRun: boolean
+  sourceFile: string
+  caisseImprevue: { scanned: number; fixed: number; alreadyFixed: number }
+  caisseSpeciale: { scanned: number; fixed: number; alreadyFixed: number }
+  membres: { scanned: number; fixed: number; alreadyFixed: number }
+  message: string
+}
+
+/**
+ * Corrige le décalage J-1 des dates des documents importés (Caisse Imprévue,
+ * Caisse Spéciale, membres). `dryRun` = simulation (aucune écriture).
+ * `sourceFile` limite la correction à un fichier ; absent = tous les imports.
+ */
+export async function fixImportDates(ctx: {
+  dryRun: boolean
+  sourceFile?: string
+}): Promise<FixImportDatesResult> {
+  const response = await fetch('/api/import-caisse-imprevue/fix-dates', {
+    method: 'POST',
+    headers: await adminImportHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ dryRun: ctx.dryRun, sourceFile: ctx.sourceFile }),
+  })
+  if (!response.ok) {
+    const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+    throw new Error(details?.details || details?.error || response.statusText)
+  }
+  return (await response.json()) as FixImportDatesResult
+}
+
 export interface ChangeAdminUidResult {
   success: boolean
   oldUid: string

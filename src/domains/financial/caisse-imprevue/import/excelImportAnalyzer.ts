@@ -204,10 +204,15 @@ function num(v: unknown): number {
 
 function dateStr(v: unknown): string | null {
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
-    const y = v.getFullYear()
-    const m = String(v.getMonth() + 1).padStart(2, '0')
-    const d = String(v.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
+    // SheetJS (cellDates:true) produit, sur les fuseaux UTC+ (dont le Gabon),
+    // un instant à ~23h59 la VEILLE du jour voulu. Lire les composantes locales
+    // donnait alors J-1. On recentre sur midi UTC avant de lire en UTC : le bon
+    // jour ressort quel que soit le fuseau de la machine qui importe.
+    const d = new Date(v.getTime() + 12 * 60 * 60 * 1000)
+    const y = d.getUTCFullYear()
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
   }
   // Numéro de série Excel (ex. 39231) → date. Base : 1899-12-30 (jour 0).
   if (typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 2958466) {

@@ -409,7 +409,25 @@ export default function FreeContract({ id }: Props) {
   }
 
 
-  const payments = data.payments || []
+  // Échéancier complet : les contrats importés ne portent que les mois déjà
+  // payés. On reconstitue les mois restants (échéances « À venir ») pour les
+  // afficher comme les contrats standards, sans rien créer côté base.
+  const payments = useMemo(() => {
+    const real = data.payments || []
+    const planned = data.monthsPlanned || 0
+    if (planned <= 0) return real
+    const byIndex = new Map<number, any>()
+    for (const p of real) byIndex.set(p.dueMonthIndex, p)
+    const full: any[] = []
+    for (let i = 0; i < planned; i++) {
+      full.push(
+        byIndex.get(i) ?? { id: `due-${i}`, dueMonthIndex: i, status: 'DUE', accumulatedAmount: 0 },
+      )
+    }
+    // Paiements au-delà de la durée planifiée (sécurité) conservés à la fin.
+    for (const p of real) if (p.dueMonthIndex >= planned) full.push(p)
+    return full
+  }, [data.payments, data.monthsPlanned])
   const paidCount = payments.filter((x: any) => x.status === 'PAID').length
   const allPaid = payments.length > 0 && paidCount === payments.length
   const canEarly = paidCount >= 1 && !allPaid

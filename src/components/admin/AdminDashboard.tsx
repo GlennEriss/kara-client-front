@@ -193,6 +193,28 @@ export default function AdminDashboard() {
     setIsEditOpen(true)
   }
 
+  /** Promotion rapide en SuperAdmin : écrit le rôle dans Firestore (source lue par useMyAccess). */
+  const handlePromoteSuperAdmin = async (admin: AdminUser) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: admin.id,
+        // On repart des rôles existants en garantissant SuperAdmin en tête.
+        updates: { roles: ['SuperAdmin', ...(admin.roles || []).filter((r) => r !== 'SuperAdmin')] },
+      })
+      toast.success(`${admin.firstName} ${admin.lastName} est désormais SuperAdmin`)
+      log({
+        action: 'update',
+        module: 'admins',
+        moduleLabel: 'Administration',
+        targetType: 'administrateur',
+        targetId: admin.id,
+        description: `Promotion SuperAdmin de ${admin.firstName} ${admin.lastName}`.trim(),
+      })
+    } catch {
+      toast.error('Erreur lors de la promotion en SuperAdmin')
+    }
+  }
+
   const handleSubmitEdit = async (values: any) => {
     if (!adminToEdit) return
     try {
@@ -528,6 +550,17 @@ export default function AdminDashboard() {
                       fallback={<span className="text-[11px] text-gray-400">Lecture seule</span>}
                     >
                       <div className="flex items-center">
+                        {!(admin.roles || []).includes('SuperAdmin') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePromoteSuperAdmin(admin)}
+                            className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700"
+                            title="Promouvoir en SuperAdmin"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
