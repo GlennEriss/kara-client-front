@@ -8,21 +8,19 @@ import { ShieldCheck, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-/** Compte autorisé à s'auto-promouvoir SuperAdmin (amorçage unique). */
-const BOOTSTRAP_EMAIL = 'phil@gmail.com'
-
 /**
- * Bouton d'amorçage visible UNIQUEMENT par le compte d'amorçage tant qu'il
- * n'est pas SuperAdmin. Résout le blocage « aucun SuperAdmin ne peut promouvoir ».
- * La promotion est appliquée côté serveur (route sécurisée par l'email).
+ * Bouton d'amorçage visible par tout admin PAS ENCORE SuperAdmin. La promotion
+ * est décidée côté serveur : autorisée pour le compte d'amorçage désigné, ou
+ * tant qu'aucun SuperAdmin n'existe (premier SuperAdmin du système). Le bouton
+ * disparaît automatiquement une fois le compte promu.
  */
 export default function BootstrapSuperAdminButton() {
   const { user } = useAuth()
   const { isSuperAdmin, isLoading } = useMyAccess()
   const [promoting, setPromoting] = useState(false)
 
-  const email = (user?.email || '').toLowerCase()
-  if (isLoading || email !== BOOTSTRAP_EMAIL || isSuperAdmin) return null
+  // Affiché seulement pour un compte connecté, chargé, et pas déjà SuperAdmin.
+  if (isLoading || !user?.uid || isSuperAdmin) return null
 
   const handlePromote = async () => {
     setPromoting(true)
