@@ -1,6 +1,18 @@
 import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
 
+function normalizePhoneNumber(value: unknown): string | undefined {
+    const raw = typeof value === "string" ? value.trim() : "";
+    if (!raw) return undefined;
+
+    const digits = raw.replace(/[^\d]/g, "");
+    if (!digits) return undefined;
+    if (raw.startsWith("+")) return `+${digits}`;
+    if (digits.startsWith("241")) return `+${digits}`;
+
+    return `+241${digits.replace(/^0+/, "")}`;
+}
+
 export async function POST(req: NextRequest) {
     // Vérifier si Firebase Admin est disponible
     if (!adminAuth) {
@@ -32,8 +44,9 @@ export async function POST(req: NextRequest) {
             updateData.displayName = `${firstName} ${lastName}`;
         }
         
-        if (phoneNumber !== undefined) {
-            updateData.phoneNumber = phoneNumber;
+        const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
+        if (phoneNumber !== undefined && normalizedPhoneNumber) {
+            updateData.phoneNumber = normalizedPhoneNumber;
         }
         
         // Ajouter photoURL seulement s'il est défini
@@ -57,7 +70,7 @@ export async function POST(req: NextRequest) {
                 password: password || uid,
                 displayName: `${firstName || ''} ${lastName || ''}`.trim(),
             };
-            if (phoneNumber) createData.phoneNumber = phoneNumber;
+            if (normalizedPhoneNumber) createData.phoneNumber = normalizedPhoneNumber;
             if (photoURL) createData.photoURL = photoURL;
             user = await adminAuth.createUser(createData);
         }
