@@ -1317,6 +1317,39 @@ export async function rollbackImport(ctx: {
   return (await response.json()) as RollbackResult
 }
 
+export interface RelinkUnknownResult {
+  dryRun: boolean
+  fromId: string
+  toMatricule: string
+  targetId: string
+  targetName: string
+  membersRelinked: number
+  contractsRelinked: number
+  message: string
+}
+
+/**
+ * Re-pointe les références « INCONNU » (parrain / contact d'urgence) vers un
+ * autre compte placeholder identifié par son matricule. `dryRun` = simulation.
+ */
+export async function relinkUnknown(ctx: {
+  toMatricule: string
+  fromId?: string
+  dryRun: boolean
+}): Promise<RelinkUnknownResult> {
+  const response = await fetch('/api/import-caisse-imprevue/relink-unknown', {
+    method: 'POST',
+    headers: await adminImportHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ toMatricule: ctx.toMatricule, fromId: ctx.fromId, dryRun: ctx.dryRun }),
+  })
+  if (!response.ok) {
+    const details = (await response.json().catch(() => null)) as { error?: string; details?: string } | null
+    throw new Error(details?.details || details?.error || response.statusText)
+  }
+  return (await response.json()) as RelinkUnknownResult
+}
+
 export interface FixImportDatesResult {
   dryRun: boolean
   sourceFile: string
