@@ -240,8 +240,9 @@ function parseHeure(v: unknown): string {
   const s = str(v).toUpperCase().replace(/\s/g, '')
   const m = s.match(/^(\d{1,2})[H:](\d{0,2})/)
   if (!m) return '00:00'
-  const hh = m[1].padStart(2, '0')
-  const mm = (m[2] || '0').padStart(2, '0')
+  // Bornage : l'Excel contient parfois des heures impossibles (« 12H65 »).
+  const hh = String(Math.min(Number(m[1]), 23)).padStart(2, '0')
+  const mm = String(Math.min(Number(m[2] || '0'), 59)).padStart(2, '0')
   return `${hh}:${mm}`
 }
 
