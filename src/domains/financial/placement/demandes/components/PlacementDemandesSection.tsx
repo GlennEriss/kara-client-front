@@ -5,6 +5,7 @@
 
 'use client'
 
+import { useMyAccess } from '@/hooks/useMyAccess'
 import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListPagination } from '@/components/ui/list-pagination'
@@ -114,6 +115,7 @@ function PlacementDemandTableRow({
   setReopenModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   setConvertModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
 }) {
+  const { can } = useMyAccess()
   const router = useRouter()
   const { data: member, isLoading: memberLoading } = useMember(demande.benefactorId)
   const uc = demande.urgentContact
@@ -165,7 +167,7 @@ function PlacementDemandTableRow({
                 <Eye className="h-4 w-4 mr-2" />
                 Voir détails
               </DropdownMenuItem>
-              {demande.status === 'PENDING' && (
+              {demande.status === 'PENDING' && can('placements.validate') && (
                 <>
                   <DropdownMenuItem
                     onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
@@ -183,7 +185,7 @@ function PlacementDemandTableRow({
                   </DropdownMenuItem>
                 </>
               )}
-              {demande.status === 'REJECTED' && (
+              {demande.status === 'REJECTED' && can('placements.validate') && (
                 <DropdownMenuItem
                   onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
                   className="cursor-pointer"
@@ -192,7 +194,7 @@ function PlacementDemandTableRow({
                   Réouvrir
                 </DropdownMenuItem>
               )}
-              {demande.status === 'APPROVED' && !demande.placementId && (
+              {demande.status === 'APPROVED' && !demande.placementId && can('placements.validate') && (
                 <DropdownMenuItem
                   onClick={() => setConvertModalState({ isOpen: true, demand: demande })}
                   className="cursor-pointer"
@@ -229,6 +231,7 @@ function PlacementDemandCard({
   setConvertModalState: (s: { isOpen: boolean; demand: PlacementDemand | null }) => void
   convertPending: boolean
 }) {
+  const { can } = useMyAccess()
   const router = useRouter()
   const { data: member, isLoading: memberLoading } = useMember(demande.benefactorId)
   const uc = demande.urgentContact
@@ -253,7 +256,7 @@ function PlacementDemandCard({
                 {`${(member?.firstName || '')[0] || ''}${(member?.lastName || '')[0] || ''}`.toUpperCase() || 'BF'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {memberLoading ? (
                 <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
               ) : (
@@ -262,15 +265,14 @@ function PlacementDemandCard({
                     {`${member?.lastName ?? ''} ${member?.firstName ?? ''}`.trim() || '—'}
                   </p>
                   <p className="truncate text-xs text-gray-400">Mat. {member?.matricule ?? '—'}</p>
+                  {/* Statut sous le nom (à droite il tronquait les noms longs). */}
+                  <span className={`mt-1 flex items-center gap-1.5 text-xs font-semibold ${(STATUS_DOT[demande.status] || STATUS_DOT.PENDING).text}`}>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${(STATUS_DOT[demande.status] || STATUS_DOT.PENDING).dot}`} />
+                    {getStatusLabel(demande.status)}
+                  </span>
                 </>
               )}
             </div>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className={`flex items-center gap-1.5 text-xs font-semibold ${(STATUS_DOT[demande.status] || STATUS_DOT.PENDING).text}`}>
-              <span className={`w-2 h-2 rounded-full shrink-0 ${(STATUS_DOT[demande.status] || STATUS_DOT.PENDING).dot}`} />
-              {getStatusLabel(demande.status)}
-            </span>
           </div>
         </div>
 
@@ -307,7 +309,7 @@ function PlacementDemandCard({
           )}
         </div>
         <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
-          {demande.status === 'PENDING' && (
+          {demande.status === 'PENDING' && can('placements.validate') && (
             <>
               <Button size="sm" onClick={() => setAcceptModalState({ isOpen: true, demand: demande })} className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
                 <CheckCircle className="h-4 w-4 mr-1" /> Accepter
@@ -317,12 +319,12 @@ function PlacementDemandCard({
               </Button>
             </>
           )}
-          {demande.status === 'REJECTED' && (
+          {demande.status === 'REJECTED' && can('placements.validate') && (
             <Button size="sm" variant="outline" onClick={() => setReopenModalState({ isOpen: true, demand: demande })} className="w-full h-9 text-xs border-blue-200 text-blue-600 hover:bg-blue-50">
               <RotateCcw className="h-4 w-4 mr-1" /> Réouvrir
             </Button>
           )}
-          {demande.status === 'APPROVED' && !demande.placementId && (
+          {demande.status === 'APPROVED' && !demande.placementId && can('placements.validate') && (
             <Button
               size="sm"
               onClick={() => setConvertModalState({ isOpen: true, demand: demande })}

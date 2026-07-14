@@ -10,6 +10,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useListUrlSync } from '@/hooks/useListUrlSync'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
@@ -197,6 +198,8 @@ export function MembershipRequestsPageV2() {
   // États des filtres et pagination — initialisés depuis l'URL pour que le
   // retour navigateur retrouve la liste au même endroit.
   const searchParams = useSearchParams()
+  // Permissions fines : les actions ne sont proposées que si l'admin les détient.
+  const { can } = useMyAccess()
   const [filters, setFilters] = useState<MembershipRequestFilters>({})
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const debouncedSearchQuery = useDebounce(searchQuery, MEMBERSHIP_REQUEST_SEARCH.DEBOUNCE_MS)
@@ -890,6 +893,7 @@ export function MembershipRequestsPageV2() {
               </p>
             </div>
             <div className="flex w-full md:w-auto items-center gap-2 shrink-0 self-start md:self-auto flex-wrap md:flex-nowrap">
+              {can('memberRequests.edit') && (
               <Button
                 onClick={() => router.push(routes.admin.membershipAdd)}
                 size="sm"
@@ -900,6 +904,8 @@ export function MembershipRequestsPageV2() {
                 <span className="hidden sm:inline">Nouvelle demande</span>
                 <span className="sm:hidden">Nouvelle</span>
               </Button>
+              )}
+              {can('memberRequests.export') && (
               <Button
                 onClick={() => setExportModalOpen(true)}
                 size="sm"
@@ -910,6 +916,7 @@ export function MembershipRequestsPageV2() {
                 <span className="hidden sm:inline">Exporter</span>
                 <span className="sm:hidden">Export</span>
               </Button>
+              )}
               <Button
                 onClick={() => refetch()}
                 size="sm"
@@ -1249,12 +1256,12 @@ export function MembershipRequestsPageV2() {
                   requests={filteredRequests}
                   isLoading={isLoading}
                   onViewDetails={handleViewDetails}
-                  onApprove={openApproveModal}
-                  onReject={openRejectModal}
+                  onApprove={can('memberRequests.validate') ? openApproveModal : undefined}
+                  onReject={can('memberRequests.reject') ? openRejectModal : undefined}
                   onRequestCorrections={openCorrectionsModal}
                   onPay={openPaymentModal}
                   onReopen={openReopenModal}
-                  onDelete={openDeleteModal}
+                  onDelete={can('memberRequests.delete') ? openDeleteModal : undefined}
                   onSendWhatsAppRejection={openRejectWhatsAppModal}
                   onViewMembershipForm={handleViewMembershipForm}
                   onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
@@ -1323,22 +1330,22 @@ export function MembershipRequestsPageV2() {
                         key={request.id}
                         request={request}
                         onViewDetails={handleViewDetails}
-                        onApprove={(id) => {
+                        onApprove={can('memberRequests.validate') ? (id) => {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openApproveModal(req)
-                        }}
-                        onReject={(id) => {
+                        } : undefined}
+                        onReject={can('memberRequests.reject') ? (id) => {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openRejectModal(req)
-                        }}
+                        } : undefined}
                         onReopen={(id) => {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openReopenModal(req)
                         }}
-                        onDelete={(id) => {
+                        onDelete={can('memberRequests.delete') ? (id) => {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openDeleteModal(req)
-                        }}
+                        } : undefined}
                         onSendWhatsAppRejection={(id) => {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openRejectWhatsAppModal(req)
@@ -1401,12 +1408,12 @@ export function MembershipRequestsPageV2() {
                   onViewPaymentDetails={handleViewPaymentDetails}
                   onExportPDF={(id) => handleExportPDF(id)}
                   onExportExcel={(id) => handleExportExcel(id)}
-                  onApprove={openApproveModal}
-                  onReject={openRejectModal}
+                  onApprove={can('memberRequests.validate') ? openApproveModal : undefined}
+                  onReject={can('memberRequests.reject') ? openRejectModal : undefined}
                   onRequestCorrections={openCorrectionsModal}
                   onPay={openPaymentModal}
                   onReopen={openReopenModal}
-                  onDelete={openDeleteModal}
+                  onDelete={can('memberRequests.delete') ? openDeleteModal : undefined}
                   onSendWhatsAppRejection={openRejectWhatsAppModal}
                   onCopyCorrectionLink={handleCopyCorrectionLink}
                   onSendWhatsAppCorrection={handleSendWhatsAppCorrection}

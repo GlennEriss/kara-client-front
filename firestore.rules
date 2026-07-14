@@ -354,6 +354,16 @@ service cloud.firestore {
     // NOTIFICATIONS
     // ==========================================
     
+    // Tokens de notification push (FCM) des deux applications.
+    // Doc id = token. Chaque navigateur enregistre/rafraîchit/supprime le sien ;
+    // la lecture client est inutile (la Cloud Function lit via l'Admin SDK).
+    match /fcmTokens/{token} {
+      allow read: if isAdmin();
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.audience in ['admin', 'member'];
+      allow delete: if isAuthenticated();
+    }
+
     match /notifications/{notificationId} {
       // Lecture : Admin OU le membre destinataire (notifications avec recipientId).
       // Pour les LIST queries, le `where("recipientId", "==", X)` du client filtre déjà

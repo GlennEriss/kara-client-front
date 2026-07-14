@@ -476,7 +476,7 @@ export default function PaymentCSModal({
             <Input
               id="proof"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileChange}
               disabled={isCompressing || isSubmitting}
               required={!editMode}

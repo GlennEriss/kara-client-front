@@ -1,5 +1,6 @@
 "use client"
 
+import { backOr } from '@/lib/backNavigation'
 import { Badge, Badge as BadgeShadcn } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -417,7 +418,7 @@ export default function StandardContract({ id }: Props) {
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
-              onClick={() => router.push(routes.admin.caisseSpeciale)}
+              onClick={() => backOr(router, routes.admin.caisseSpeciale)}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -1047,7 +1048,7 @@ export default function StandardContract({ id }: Props) {
                                     <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
                                     <input
                                       type="file"
-                                      accept="image/*"
+                                      accept="image/jpeg,image/png,image/webp"
                                       onChange={async (e) => {
                                         const f = e.target.files?.[0]
                                         if (!f) {

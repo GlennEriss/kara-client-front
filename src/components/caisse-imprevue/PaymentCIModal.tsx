@@ -617,7 +617,7 @@ export default function PaymentCIModal({
             <Input
               id="payment-proof"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileChange}
               disabled={isCompressing || isPaying}
               required={!editMode}

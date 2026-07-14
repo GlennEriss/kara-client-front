@@ -9,6 +9,7 @@ import routes from '@/constantes/routes'
 import { ClipboardList, Download, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Suspense, useState } from 'react'
+import { useMyAccess } from '@/hooks/useMyAccess'
 
 function ListDemandesSkeleton() {
   return (
@@ -26,6 +27,7 @@ function ListDemandesSkeleton() {
 export default function CaisseSpecialeDemandesPage() {
   const router = useRouter()
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const { can } = useMyAccess()
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 p-4 md:p-6">
@@ -35,6 +37,7 @@ export default function CaisseSpecialeDemandesPage() {
         subtitle="Gestion des demandes de contrats Caisse Spéciale"
         action={
           <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
+            {can('caisseSpeciale.export') && (
             <Button
               variant="outline"
               onClick={() => setIsExportModalOpen(true)}
@@ -43,6 +46,8 @@ export default function CaisseSpecialeDemandesPage() {
               <Download className="w-4 h-4 mr-2" />
               Exporter
             </Button>
+            )}
+            {can('caisseSpeciale.create') && (
             <Button
               onClick={() => router.push(routes.admin.caisseSpecialeNewDemand)}
               className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
@@ -50,6 +55,7 @@ export default function CaisseSpecialeDemandesPage() {
               <Plus className="w-4 h-4 mr-2" />
               Nouvelle demande
             </Button>
+            )}
           </div>
         }
       />

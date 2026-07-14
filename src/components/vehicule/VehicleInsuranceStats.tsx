@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { VehicleInsuranceStats } from '@/types/types'
 import { AlertTriangle, Ban, Car, Shield, TrendingUp, User, Users } from 'lucide-react'
@@ -51,6 +52,8 @@ const StatsCard = ({
 }
 
 export function VehicleInsuranceStats({ stats, isLoading }: Props) {
+  // Mobile : étiquettes extérieures des camemberts coupées → masquées.
+  const isMobile = useIsMobile()
   const statsData = useMemo(
     () => stats ? [
       { title: 'Assurés', value: formatNumber(stats.totalInsured), color: '#234D65', icon: Shield },
@@ -101,7 +104,7 @@ export function VehicleInsuranceStats({ stats, isLoading }: Props) {
             <div className="h-60 flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={stats.byCompany} dataKey="count" nameKey="company" cx="50%" cy="50%" outerRadius={90} label>
+                  <Pie data={stats.byCompany} dataKey="count" nameKey="company" cx="50%" cy="50%" outerRadius={isMobile ? 70 : 90} label={!isMobile}>
                     {stats.byCompany.map((entry, index) => (
                       <Cell key={`company-${entry.company}`} fill={COLORS[index % COLORS.length]} />
                     ))}

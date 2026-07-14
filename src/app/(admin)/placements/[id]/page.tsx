@@ -1,5 +1,6 @@
 "use client"
 
+import { backOr } from '@/lib/backNavigation'
 import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
 import PayCommissionModal, { CommissionPaymentFormData } from '@/components/placement/PayCommissionModal'
 import PlacementDocumentUploadModal from '@/components/placement/PlacementDocumentUploadModal'
@@ -314,7 +315,7 @@ const handleGenerateGlobalFacture = async () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/placements')} className="bg-white">
+            <Button variant="outline" onClick={() => backOr(router, '/placements')} className="bg-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Retour
             </Button>

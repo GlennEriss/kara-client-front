@@ -209,7 +209,7 @@ export default function Step4({ form }: Step4Props) {
               <input
                 ref={frontUpload.fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={frontUpload.handleFileChange}
                 className="hidden"
               />
@@ -304,7 +304,7 @@ export default function Step4({ form }: Step4Props) {
               <input
                 ref={backUpload.fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={backUpload.handleFileChange}
                 className="hidden"
               />

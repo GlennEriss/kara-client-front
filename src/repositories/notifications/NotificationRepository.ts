@@ -172,17 +172,29 @@ export class NotificationRepository implements INotificationRepository {
     }
   }
 
+
+  /**
+   * Une notification portant un `recipientId` est destinée à un MEMBRE
+   * (app membre) : elle ne doit ni apparaître dans la cloche admin,
+   * ni être marquée lue par « tout marquer lu » côté admin.
+   */
+  private isMemberNotification(data: { recipientId?: unknown }): boolean {
+    return typeof data.recipientId === 'string' && data.recipientId.length > 0
+  }
+
   /**
    * Récupère le nombre de notifications non lues
    */
   async getUnreadCount(): Promise<number> {
     try {
-      const { collection, query, where, db, getCountFromServer } = await getFirestore()
+      const { collection, query, where, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const q = query(collectionRef, where('isRead', '==', false))
 
-      const snapshot = await getCountFromServer(q)
-      return snapshot.data().count
+      // Les documents destinés aux membres (recipientId) n'ont pas de champ
+      // discriminant côté admin : on filtre après lecture (volume non lu faible).
+      const snapshot = await getDocs(q)
+      return snapshot.docs.filter((d) => !this.isMemberNotification(d.data() as { recipientId?: unknown })).length
     } catch (error) {
       console.error('Erreur lors de la récupération du nombre de notifications non lues:', error)
       return 0
@@ -204,9 +216,9 @@ export class NotificationRepository implements INotificationRepository {
       )
 
       const snapshot = await getDocs(q)
-      return snapshot.docs.map((doc) =>
-        this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification)
-      )
+      return snapshot.docs
+        .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
+        .map((doc) => this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification))
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications non lues:', error)
       return []
@@ -248,9 +260,9 @@ export class NotificationRepository implements INotificationRepository {
       const q = query(collectionRef, ...constraints)
       const snapshot = await getDocs(q)
 
-      return snapshot.docs.map((doc) =>
-        this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification)
-      )
+      return snapshot.docs
+        .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
+        .map((doc) => this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification))
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications par module:', error)
       return []
@@ -298,9 +310,9 @@ export class NotificationRepository implements INotificationRepository {
       const q = query(collectionRef, ...constraints)
       const snapshot = await getDocs(q)
 
-      const allNotifications = snapshot.docs.map((doc) =>
-        this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification)
-      )
+      const allNotifications = snapshot.docs
+        .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
+        .map((doc) => this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification))
 
       const totalItems = allNotifications.length
       const totalPages = Math.ceil(totalItems / limit)
@@ -359,9 +371,11 @@ export class NotificationRepository implements INotificationRepository {
       const snapshot = await getDocs(q)
       const batch = writeBatch(db)
 
-      snapshot.docs.forEach((doc) => {
-        batch.update(doc.ref, { isRead: true })
-      })
+      snapshot.docs
+        .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
+        .forEach((doc) => {
+          batch.update(doc.ref, { isRead: true })
+        })
 
       await batch.commit()
     } catch (error) {
@@ -386,9 +400,11 @@ export class NotificationRepository implements INotificationRepository {
       const snapshot = await getDocs(q)
       const batch = writeBatch(db)
 
-      snapshot.docs.forEach((doc) => {
-        batch.update(doc.ref, { isRead: true })
-      })
+      snapshot.docs
+        .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
+        .forEach((doc) => {
+          batch.update(doc.ref, { isRead: true })
+        })
 
       await batch.commit()
     } catch (error) {

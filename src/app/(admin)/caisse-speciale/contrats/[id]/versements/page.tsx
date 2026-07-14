@@ -198,11 +198,18 @@ export default function ContractPaymentsPage() {
   const exportToExcel = () => {
     if (!payments.length) return
 
+    // Convertit Date | Timestamp | string en Date valide (contribs = Timestamps bruts).
+    const asDate = (v: unknown): Date | null => {
+      if (!v) return null
+      const d = typeof (v as any)?.toDate === 'function' ? (v as any).toDate() : new Date(v as any)
+      return Number.isNaN(d.getTime()) ? null : d
+    }
+
     // Préparer les données pour l'export
     const exportData = payments.map((payment, _index) => {
       const now = new Date()
-      const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
-      
+      const dueDate = asDate(payment.dueAt)
+
       let status = ''
       if (payment.status === 'PAID') {
         status = 'Payé'
@@ -212,15 +219,29 @@ export default function ContractPaymentsPage() {
         status = 'En attente'
       }
 
+      // Contrats LIBRE / paiements importés : paidAt/time/mode vivent dans
+      // contribs[] — repli sur la dernière contribution (la plus récente).
+      const contribs = Array.isArray(payment.contribs) ? payment.contribs : []
+      const lastContrib = contribs.length
+        ? contribs.reduce((last: any, c: any) => {
+            const paid = asDate(c.paidAt)
+            const lastPaid = asDate(last.paidAt)
+            return paid && (!lastPaid || paid.getTime() > lastPaid.getTime()) ? c : last
+          }, contribs[0])
+        : null
+      const paidAt = asDate(payment.paidAt) ?? asDate(lastContrib?.paidAt)
+      const time = payment.time || lastContrib?.time || ''
+      const mode = payment.mode || lastContrib?.mode || ''
+
       return {
         'N° Échéance': payment.dueMonthIndex,
         'ID Versement': payment.id,
-        'Date d\'échéance': payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'Non définie',
+        'Date d\'échéance': dueDate ? dueDate.toLocaleDateString('fr-FR') : 'Non définie',
         'Montant': payment.amount || 0,
         'Statut': status,
-        'Date de paiement': payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('fr-FR') : '',
-        'Heure de paiement': payment.time || '',
-        'Moyen de paiement': payment.mode || '',
+        'Date de paiement': paidAt ? paidAt.toLocaleDateString('fr-FR') : '',
+        'Heure de paiement': time,
+        'Moyen de paiement': mode,
         'Pénalité appliquée': payment.penaltyApplied || 0,
         'Jours de retard': (payment as any).penaltyDays || 0,
         'Traité par': getAdminDisplayName(payment.updatedBy),
@@ -557,13 +578,32 @@ export default function ContractPaymentsPage() {
       } else {
         const isPaymentCompleted = payment.status === 'PAID' || Boolean(payment.paidAt)
         const displayedAmount = isPaymentCompleted ? (payment.amount || 0) : 0
+        // Contrats LIBRE (et paiements importés) : paidAt/time/mode vivent dans
+        // contribs[] — repli sur la dernière contribution, comme le journalier.
+        const contribs = Array.isArray(payment.contribs) ? payment.contribs : []
+        const lastContrib =
+          contribs.length > 0
+            ? contribs.reduce(
+                (last: any, c: any) => {
+                  const paid = toDateSafe(c.paidAt)
+                  const lastPaid = toDateSafe(last.paidAt)
+                  return paid && (!lastPaid || paid.getTime() > lastPaid.getTime()) ? c : last
+                },
+                contribs[0]
+              )
+            : null
+        const paidAt = payment.paidAt ?? lastContrib?.paidAt
+        const time = payment.time ?? lastContrib?.time
+        const mode = payment.mode ?? lastContrib?.mode
         rowValues = [
           formatLongDate(payment.dueAt),
-          formatLongDate(payment.paidAt),
+          formatLongDate(paidAt),
           `${formatAmountForPDF(displayedAmount)} FCFA`,
-          payment.time || '-',
-          formatMode(payment.mode),
-          getAdminNameForExport(payment),
+          time || '-',
+          formatMode(mode),
+          getAdminNameForExport({
+            updatedBy: payment.updatedBy ?? lastContrib?.updatedBy ?? lastContrib?.createdBy,
+          }),
           getPaymentRemark(payment),
         ]
       }

@@ -144,20 +144,21 @@ export function DemandCardV2({
                 {memberInitials || '--'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">
                 {demand.memberFirstName} {demand.memberLastName}
               </p>
               {demand.memberPhone && (
                 <p className="truncate text-xs text-gray-400">{demand.memberPhone}</p>
               )}
+              {/* Statut sous le nom (à droite il tronquait les noms longs). */}
+              <span className={cn('mt-1 flex items-center gap-1.5 text-xs font-semibold', statusInfo.textColor)}>
+                <span className={cn('h-2 w-2 rounded-full shrink-0', statusInfo.dot)} />
+                {statusInfo.label}
+              </span>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusInfo.textColor)}>
-              <span className={cn('h-2 w-2 rounded-full shrink-0', statusInfo.dot)} />
-              {statusInfo.label}
-            </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

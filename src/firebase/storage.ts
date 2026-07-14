@@ -32,6 +32,7 @@ export const isStorageAvailable = (): boolean => {
 export {
   ref,
   uploadBytes,
+  uploadBytesResumable,
   deleteObject,
   getDownloadURL,
   updateMetadata

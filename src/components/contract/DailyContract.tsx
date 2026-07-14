@@ -1,5 +1,6 @@
 "use client"
 
+import { backOr } from '@/lib/backNavigation'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import { ContractCalendarGrid, useContractCalendar } from '@/components/contract/calendar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -693,7 +694,7 @@ export default function DailyContract({ id }: Props) {
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
-              onClick={() => router.push(routes.admin.caisseSpeciale)}
+              onClick={() => backOr(router, routes.admin.caisseSpeciale)}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -1241,7 +1242,7 @@ export default function DailyContract({ id }: Props) {
                             <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
                             <input
                                       type="file"
-                                      accept="image/*"
+                                      accept="image/jpeg,image/png,image/webp"
                                       onChange={async (e) => {
                                 const f = e.target.files?.[0]
                                 if (!f) {
@@ -1539,7 +1540,7 @@ export default function DailyContract({ id }: Props) {
               <Input
                 id="proof"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   console.log('📎 Fichier sélectionné:', file)
@@ -2316,7 +2317,7 @@ export default function DailyContract({ id }: Props) {
               <Input
                 id="edit-proof"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (!file) {
@@ -2573,7 +2574,7 @@ export default function DailyContract({ id }: Props) {
                 <Input
                   id="late-proof"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     console.log('📎 [Versement retard] Fichier sélectionné:', file)

@@ -80,17 +80,18 @@ export function BirthdayCard({ member, isHighlighted }: BirthdayCardProps) {
                 {initials || '--'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">
                 {member.lastName.toUpperCase()} {member.firstName}
               </p>
               <p className="truncate text-xs text-gray-400">{member.matricule}</p>
+              {/* Compte à rebours sous le nom (à droite il tronquait les noms longs). */}
+              <span className={cn('mt-1 flex items-center gap-1.5 text-xs font-semibold', countdown.text)}>
+                <span className={cn('h-2 w-2 rounded-full shrink-0', countdown.dot)} />
+                {countdown.label}
+              </span>
             </div>
           </div>
-          <span className={cn('flex shrink-0 items-center gap-1.5 text-xs font-semibold', countdown.text)}>
-            <span className={cn('h-2 w-2 rounded-full shrink-0', countdown.dot)} />
-            {countdown.label}
-          </span>
         </div>
 
         {/* Stats : date + âge */}

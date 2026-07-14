@@ -1314,7 +1314,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
 
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-kara-primary-dark">Photo du cadrant (en haut à droite)</p>
-                  <Input type="file" accept="image/*" onChange={handleHeaderPhotoChange} className="h-10 text-xs" />
+                  <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleHeaderPhotoChange} className="h-10 text-xs" />
                   <div className="flex items-center gap-3">
                     <div className="h-16 w-16 overflow-hidden rounded-md border border-gray-300 bg-gray-50">
                       {fillData.headerPhotoDataUrl ? (

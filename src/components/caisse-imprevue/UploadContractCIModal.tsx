@@ -52,6 +52,7 @@ export default function UploadContractCIModal({
 }: UploadContractCIModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isCompressing, setIsCompressing] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   
   const { user } = useAuth()
   const uploadMutation = useUploadContractDocument()
@@ -98,7 +99,8 @@ export default function UploadContractCIModal({
         file: compressedFile,
         contractId: contract.id,
         memberId: contract.memberId,
-        userId: user.uid
+        userId: user.uid,
+        onProgress: setUploadProgress
       })
       
       form.reset()
@@ -108,6 +110,8 @@ export default function UploadContractCIModal({
     } catch (error) {
       console.error('Erreur lors du téléversement:', error)
       // Le toast d'erreur est géré par le hook
+    } finally {
+      setUploadProgress(null)
     }
   }
 
@@ -238,6 +242,16 @@ export default function UploadContractCIModal({
         </ModalBody>
 
         <ModalFooter>
+          {isUploading && uploadProgress !== null && (
+            <div className="w-full sm:mr-auto sm:max-w-[200px]">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full rounded-full bg-[#234D65] transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -260,7 +274,7 @@ export default function UploadContractCIModal({
             ) : isUploading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Téléversement...
+                {uploadProgress !== null ? `Envoi ${uploadProgress}%` : 'Téléversement...'}
               </>
             ) : (
               <>

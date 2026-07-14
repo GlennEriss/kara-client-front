@@ -16,7 +16,7 @@ export default function ProofFileForm({ disabled = false }: ProofFileFormProps) 
           <FormLabel>Preuve de paiement *</FormLabel>
           <FormControl>
             <FileInput
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               maxSize={5}
               onFileSelect={async (selectedFile) => {
                 if (!selectedFile) {

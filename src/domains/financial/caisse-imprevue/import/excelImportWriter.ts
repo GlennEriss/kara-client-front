@@ -1109,6 +1109,9 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
         ? new Date(startMid.getTime() + mi * 30 * MS_PER_DAY)
         : addMonths(startMid, mi)
       const paymentId = `MK_CS_P_MIG_${mi}`
+      // paidAt/time de premier niveau (dernière contribution) : parité avec le
+      // flux manuel — les écrans lisent p.paidAt avant de retomber sur contribs.
+      const lastContrib = contribs[contribs.length - 1] as { paidAt?: Date; time?: string } | undefined
       docs.push({
         path: [CAISSE_CONTRACTS, contractId, 'payments', paymentId],
         data: {
@@ -1120,6 +1123,8 @@ async function writeCSRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportR
           targetAmount: monthlyAmount,
           contribs,
           dueAt,
+          ...(lastContrib?.paidAt ? { paidAt: lastContrib.paidAt } : {}),
+          ...(lastContrib?.time ? { time: lastContrib.time } : {}),
           createdAt: adminServerTimestamp(),
           updatedAt: adminServerTimestamp(),
           createdBy: ctx.adminId,

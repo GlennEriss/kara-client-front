@@ -1,8 +1,27 @@
 import { IDocumentRepository, DocumentListQuery, DocumentListResult, DocumentSortInput } from "./IDocumentRepository";
 import { Document } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, type UploadMetadata } from 'firebase/storage';
 import { getStorageInstance } from '@/firebase/storage';
+
+/** Upload résumable avec remontée de progression, puis retourne l'URL de téléchargement. */
+async function uploadWithProgress(
+    storageRef: ReturnType<typeof ref>,
+    file: File,
+    metadata?: UploadMetadata,
+    onProgress?: (percent: number) => void
+): Promise<string> {
+    const task = uploadBytesResumable(storageRef, file, metadata);
+    await new Promise<void>((resolve, reject) => {
+        task.on(
+            'state_changed',
+            (snap) => onProgress?.(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+            reject,
+            () => resolve()
+        );
+    });
+    return getDownloadURL(task.snapshot.ref);
+}
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -108,7 +127,7 @@ export class DocumentRepository implements IDocumentRepository {
      * @param {string} documentType - Type de document
      * @returns {Promise<{url: string, path: string, size: number}>}
      */
-    async uploadDocumentFile(file: File, memberId: string, documentType: string): Promise<{ url: string; path: string; size: number }> {
+    async uploadDocumentFile(file: File, memberId: string, documentType: string, onProgress?: (percent: number) => void): Promise<{ url: string; path: string; size: number }> {
         try {
             const storage = getStorageInstance();
 
@@ -128,11 +147,9 @@ export class DocumentRepository implements IDocumentRepository {
                 }
             };
 
-            // Upload du fichier
-            const snapshot = await uploadBytes(storageRef, file, metadata);
-
-            // Récupérer l'URL de téléchargement
-            const downloadURL = await getDownloadURL(snapshot.ref);
+            // Upload résumable : permet d'afficher une progression réelle
+            // sur les PDF lourds (connexions mobiles lentes).
+            const downloadURL = await uploadWithProgress(storageRef, file, metadata, onProgress);
 
             return {
                 url: downloadURL,

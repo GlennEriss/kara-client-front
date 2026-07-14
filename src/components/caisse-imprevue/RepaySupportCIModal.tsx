@@ -339,7 +339,7 @@ export default function RepaySupportCIModal({
             <input
               id="repay-proof"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileChange}
               className="hidden"
             />

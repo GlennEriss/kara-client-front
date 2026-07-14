@@ -20,6 +20,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { BellRing, Check, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { toast } from 'sonner'
 
 const STATUS_BADGE: Record<CharityDeclaration['status'], { label: string; cls: string }> = {
@@ -33,6 +34,7 @@ export default function CharityDeclarationsSection({ eventId }: { eventId: strin
   const confirm = useConfirmCharityDeclaration()
   const cancel = useCancelCharityDeclaration()
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const { can } = useMyAccess()
 
   const pending = declarations.filter((d) => d.status === 'pending')
   // Sans déclaration, la section reste invisible (pas de bruit sur la fiche).
@@ -103,7 +105,7 @@ export default function CharityDeclarationsSection({ eventId }: { eventId: strin
                       {d.notes && <span className="text-gray-400"> · {d.notes}</span>}
                     </p>
                   </div>
-                  {d.status === 'pending' && (
+                  {d.status === 'pending' && can('bienfaiteur.contribute') && (
                     <div className="flex shrink-0 gap-2">
                       <Button
                         size="sm"

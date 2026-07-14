@@ -503,11 +503,12 @@ export default function FilleulsList() {
                       <p className="truncate text-xs text-gray-400">{filleul.matricule}</p>
                     </div>
                   </div>
-                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                    <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
-                    Actif
-                  </span>
                 </div>
+                {/* Statut sous le nom (à droite il tronquait les noms longs). */}
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                  <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
+                  Actif
+                </span>
 
                 <div className="space-y-1.5 text-xs text-gray-500">
                   <div className="flex items-center gap-2">

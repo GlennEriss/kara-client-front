@@ -9,6 +9,7 @@ interface UploadContractDocumentParams {
   contractId: string
   memberId: string
   userId: string
+  onProgress?: (percent: number) => void
 }
 
 /**
@@ -19,9 +20,9 @@ export const useUploadContractDocument = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ file, contractId, memberId, userId }: UploadContractDocumentParams) => {
+    mutationFn: async ({ file, contractId, memberId, userId, onProgress }: UploadContractDocumentParams) => {
       const service = ServiceFactory.getCaisseImprevueService()
-      return await service.uploadContractDocument(file, contractId, memberId, userId)
+      return await service.uploadContractDocument(file, contractId, memberId, userId, onProgress)
     },
     onSuccess: (data) => {
       // Invalider le cache des contrats pour rafraîchir la liste

@@ -51,39 +51,38 @@ export default function PlacementCard({
   return (
     <Card className="group flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md">
       <CardContent className="space-y-3 text-sm pt-5">
-        {/* Header : avatar + bienfaiteur à gauche, statut dot à droite */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-3">
-            <Avatar className="size-9 shrink-0 rounded-xl">
-              {member?.photoURL ? (
-                <AvatarImage src={member.photoURL} alt={`Photo de ${placement.benefactorName || 'membre'}`} className="h-full w-full object-cover object-center" />
-              ) : null}
-              <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
-                {`${member?.firstName?.[0] || ''}${member?.lastName?.[0] || ''}`.toUpperCase() || 'MB'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-gray-900">
-                {placement.benefactorName || (member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : placement.benefactorId.slice(0, 12))}
-              </p>
-              <p className="truncate text-xs text-gray-400">
-                {placement.benefactorPhone || `#${placement.id.slice(0, 8)}`}
-              </p>
-            </div>
+        {/* Header : avatar + bienfaiteur pleine largeur, statut sur sa propre
+            ligne (un statut long à droite tronquait le nom). */}
+        <div className="flex items-start gap-3">
+          <Avatar className="size-9 shrink-0 rounded-xl">
+            {member?.photoURL ? (
+              <AvatarImage src={member.photoURL} alt={`Photo de ${placement.benefactorName || 'membre'}`} className="h-full w-full object-cover object-center" />
+            ) : null}
+            <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
+              {`${member?.firstName?.[0] || ''}${member?.lastName?.[0] || ''}`.toUpperCase() || 'MB'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-900">
+              {placement.benefactorName || (member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : placement.benefactorId.slice(0, 12))}
+            </p>
+            <p className="truncate text-xs text-gray-400">
+              {placement.benefactorPhone || `#${placement.id.slice(0, 8)}`}
+            </p>
           </div>
-          <span className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold ${
-            placement.status === 'Active' ? 'text-emerald-700' :
-            placement.status === 'Draft' ? 'text-amber-700' :
-            'text-gray-600'
-          }`}>
-            <span className={`h-2 w-2 rounded-full shrink-0 ${
-              placement.status === 'Active' ? 'bg-emerald-500' :
-              placement.status === 'Draft' ? 'bg-amber-400' :
-              'bg-gray-400'
-            }`} />
-            {statusLabel[placement.status] || placement.status}
-          </span>
         </div>
+        <span className={`flex items-center gap-1.5 text-xs font-semibold ${
+          placement.status === 'Active' ? 'text-emerald-700' :
+          placement.status === 'Draft' ? 'text-amber-700' :
+          'text-gray-600'
+        }`}>
+          <span className={`h-2 w-2 rounded-full shrink-0 ${
+            placement.status === 'Active' ? 'bg-emerald-500' :
+            placement.status === 'Draft' ? 'bg-amber-400' :
+            'bg-gray-400'
+          }`} />
+          {statusLabel[placement.status] || placement.status}
+        </span>
         {placement.urgentContact && (
           <div className="flex items-center gap-3 text-gray-600 rounded-lg bg-slate-50 px-3 py-2">
             <AlertCircle className="h-4 w-4 text-amber-600" />

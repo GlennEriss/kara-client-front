@@ -54,6 +54,7 @@ import {
     XCircle,
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import React, { useEffect, useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
 import CreateDemandModal from './CreateDemandModal'
@@ -121,8 +122,9 @@ const DemandCard = ({
   const router = useRouter()
   const { data: member, isLoading: isLoadingMember } = useMember(demande.memberId)
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
-  const canAcceptOrReject = demande.status === 'PENDING'
-  const canReopen = demande.status === 'REJECTED'
+  const { can } = useMyAccess()
+  const canAcceptOrReject = demande.status === 'PENDING' && can('caisseSpeciale.validate')
+  const canReopen = demande.status === 'REJECTED' && can('caisseSpeciale.validate')
   const demandReason = (demande.cause || (demande as CaisseSpecialeDemand & { reason?: string }).reason || '').trim()
 
   // Extraire les contacts
@@ -157,7 +159,7 @@ const DemandCard = ({
                 {memberInitials || '--'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {isLoadingMember ? (
                 <span className="text-sm text-gray-400 animate-pulse">Chargement...</span>
               ) : (
@@ -168,15 +170,16 @@ const DemandCard = ({
                   <p className="truncate text-xs text-gray-400">
                     {memberPhone || member?.email || '—'}
                   </p>
+                  {/* Statut sous le nom (à droite il tronquait les noms longs). */}
+                  <span className={cn('mt-1 flex items-center gap-1.5 text-xs font-semibold', statusInfo.text)}>
+                    <span className={cn('w-2 h-2 rounded-full shrink-0', statusInfo.dot)} />
+                    {statusInfo.label}
+                  </span>
                 </>
               )}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <span className={cn('flex items-center gap-1.5 text-xs font-semibold', statusInfo.text)}>
-              <span className={cn('w-2 h-2 rounded-full shrink-0', statusInfo.dot)} />
-              {statusInfo.label}
-            </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -196,6 +199,7 @@ const DemandCard = ({
                   <Eye className="h-4 w-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
+                {can('caisseSpeciale.create') && (
                 <DropdownMenuItem
                   onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
                   className="cursor-pointer"
@@ -203,6 +207,8 @@ const DemandCard = ({
                   <FileEdit className="h-4 w-4 mr-2" />
                   Modifier
                 </DropdownMenuItem>
+                )}
+                {can('caisseSpeciale.delete') && (
                 <DropdownMenuItem
                   onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
                   className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -210,6 +216,7 @@ const DemandCard = ({
                   <Trash2 className="h-4 w-4 mr-2" />
                   Supprimer
                 </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -335,6 +342,7 @@ const DemandTableRow = ({
   setReopenModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null }) => void
   setDeleteModalState: (s: { isOpen: boolean; demand: CaisseSpecialeDemand | null; memberMatricule?: string }) => void
 }) => {
+  const { can } = useMyAccess()
   const router = useRouter()
   const { data: member } = useMember(demande.memberId)
   const statusInfo = statusUiConfig[demande.status] || statusUiConfig.PENDING
@@ -373,6 +381,7 @@ const DemandTableRow = ({
               </DropdownMenuItem>
               {demande.status === 'PENDING' && (
                 <>
+                  {can('caisseSpeciale.create') && (
                   <DropdownMenuItem
                     onClick={() => router.push(routes.admin.caisseSpecialeDemandEdit(demande.id))}
                     className="cursor-pointer"
@@ -380,6 +389,9 @@ const DemandTableRow = ({
                     <FileEdit className="h-4 w-4 mr-2" />
                     Modifier
                   </DropdownMenuItem>
+                  )}
+                  {can('caisseSpeciale.validate') && (
+                  <>
                   <DropdownMenuItem
                     onClick={() => setAcceptModalState({ isOpen: true, demand: demande })}
                     className="cursor-pointer"
@@ -394,9 +406,11 @@ const DemandTableRow = ({
                     <XCircle className="h-4 w-4 mr-2" />
                     Refuser
                   </DropdownMenuItem>
+                  </>
+                  )}
                 </>
               )}
-              {demande.status === 'REJECTED' && (
+              {demande.status === 'REJECTED' && can('caisseSpeciale.validate') && (
                 <DropdownMenuItem
                   onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
                   className="cursor-pointer"
@@ -405,6 +419,7 @@ const DemandTableRow = ({
                   Réouvrir
                 </DropdownMenuItem>
               )}
+              {can('caisseSpeciale.delete') && (
               <DropdownMenuItem
                 onClick={() => setDeleteModalState({ isOpen: true, demand: demande, memberMatricule: member?.matricule })}
                 className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -412,6 +427,7 @@ const DemandTableRow = ({
                 <Trash2 className="h-4 w-4 mr-2" />
                 Supprimer
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

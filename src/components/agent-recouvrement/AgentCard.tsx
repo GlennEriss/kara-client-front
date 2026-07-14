@@ -46,16 +46,17 @@ export function AgentCard({ agent, onEdit, onDesactiver, onReactiver, onSupprime
               <AvatarImage src={agent.photoUrl || undefined} alt={`${agent.prenom} ${agent.nom}`} />
               <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">{initiales}</AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{`${agent.nom || ''} ${agent.prenom || ''}`.trim() || '—'}</p>
               <p className="truncate text-xs text-gray-400">{age !== null ? `${age} ans` : (agent.pieceIdentite?.numero || '—')}</p>
+              {/* Statut sous le nom (à droite il tronquait les noms longs). */}
+              <span className={`mt-1 flex items-center gap-1.5 text-xs font-semibold ${statusMeta.text}`}>
+                <span className={`h-2 w-2 rounded-full shrink-0 ${statusMeta.dot}`} />
+                {statusMeta.label}
+              </span>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <span className={`flex items-center gap-1.5 text-xs font-semibold ${statusMeta.text}`}>
-              <span className={`h-2 w-2 rounded-full shrink-0 ${statusMeta.dot}`} />
-              {statusMeta.label}
-            </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-80 transition-opacity group-hover:opacity-100">
