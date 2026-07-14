@@ -5,6 +5,7 @@ import React, { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import BootstrapSuperAdminButton from "./BootstrapSuperAdminButton";
 import { DashboardBreadcrumb } from "./DashboardBreadcrumb";
 import NotificationBell from "./NotificationBell";
 
@@ -35,6 +36,8 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
             <div className="min-w-0 flex-1 md:flex-none">
               <MemberNavbarSearch />
             </div>
+
+            <BootstrapSuperAdminButton />
 
             <NotificationBell />
           </header>
