@@ -80,7 +80,63 @@ service firebase.storage {
       allow write: if isAdmin();
       allow delete: if isAdmin();
     }
-    
+
+    // ==========================================
+    // ÉDITION FICHE MEMBRE PAR L'ADMIN
+    // ==========================================
+    // Photo de profil et pièces d'identité modifiées depuis la fiche membre (admin).
+    //   member-photos/{memberId}/{fileName}
+    //   member-id-documents/{memberId}/{side}/{fileName}
+
+    // Photo de profil : lecture publique (affichée partout), écriture admin
+    match /member-photos/{memberId}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // Pièce d'identité recto/verso : document sensible, lecture réservée aux admins
+    match /member-id-documents/{memberId}/{side}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // PHOTOS DES ADMINISTRATEURS
+    // ==========================================
+    //   admin-photos/{fileName}
+    //   admins-photo/{matricule}/{fileName}
+
+    match /admin-photos/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /admins-photo/{matricule}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // CRÉDIT — JUSTIFICATIF DE PAIEMENT AU GARANT
+    // ==========================================
+    //   credit/{creditId}/guarantor-payments/{fileName}
+
+    match /credit/{creditId}/guarantor-payments/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && (
+        (isImage() && isImageSizeValid()) ||
+        (isPDF() && isPDFSizeValid())
+      );
+      allow delete: if isAdmin();
+    }
+
     // ==========================================
     // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
     // ==========================================

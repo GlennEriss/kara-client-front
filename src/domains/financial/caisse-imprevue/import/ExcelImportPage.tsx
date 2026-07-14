@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 import {
   AlertCircle,
+  CalendarClock,
   CheckCircle2,
   Database,
   FileSpreadsheet,
@@ -59,6 +60,7 @@ import {
   checkContractsDrift,
   contractIdForRow,
   fetchForfaits,
+  fixImportDates,
   linkUnknownMembers,
   rollbackImport,
   writeImport,
@@ -161,6 +163,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
   const [report, setReport] = useState<ImportReport | null>(null)
   const [rollingBack, setRollingBack] = useState(false)
   const [changeUidOpen, setChangeUidOpen] = useState(false)
+  const [fixingDates, setFixingDates] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'import' | 'rectify' | 'rollback' | null>(null)
   const [linkingUnknown, setLinkingUnknown] = useState(false)
   // Comparaison fichier ↔ base (par ID de contrat) : indicateurs d'écart + rectification ciblée.
@@ -400,6 +403,54 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     }
   }
 
+  /**
+   * Correction du décalage J-1 des dates des imports : d'abord une simulation
+   * (compte les documents concernés), puis application après confirmation.
+   * Idempotent côté serveur — relançable sans risque de double décalage.
+   */
+  const handleFixDates = async () => {
+    setFixingDates(true)
+    try {
+      const dry = await fixImportDates({ dryRun: true })
+      const totalFixable =
+        dry.caisseImprevue.fixed + dry.caisseSpeciale.fixed + dry.membres.fixed
+      const alreadyDone =
+        dry.caisseImprevue.alreadyFixed + dry.caisseSpeciale.alreadyFixed + dry.membres.alreadyFixed
+
+      if (totalFixable === 0) {
+        window.alert(
+          `Aucune date à corriger.\n` +
+            `${alreadyDone} document(s) déjà corrigé(s) précédemment.`,
+        )
+        return
+      }
+
+      const ok = window.confirm(
+        `Correction du décalage J-1 (+1 jour) sur les dates importées :\n\n` +
+          `• Caisse Imprévue : ${dry.caisseImprevue.fixed} contrat(s) à corriger\n` +
+          `• Caisse Spéciale : ${dry.caisseSpeciale.fixed} contrat(s) à corriger\n` +
+          `• Membres : ${dry.membres.fixed} fiche(s) à corriger\n` +
+          (alreadyDone > 0 ? `\n(${alreadyDone} déjà corrigé(s), ignoré(s))\n` : '') +
+          `\nAppliquer la correction maintenant ?`,
+      )
+      if (!ok) return
+
+      const res = await fixImportDates({ dryRun: false })
+      invalidateStatsCaches()
+      window.alert(
+        `Correction appliquée :\n` +
+          `• Caisse Imprévue : ${res.caisseImprevue.fixed}\n` +
+          `• Caisse Spéciale : ${res.caisseSpeciale.fixed}\n` +
+          `• Membres : ${res.membres.fixed}`,
+      )
+    } catch (err) {
+      console.error(err)
+      setError(err instanceof Error ? err.message : 'Erreur pendant la correction des dates.')
+    } finally {
+      setFixingDates(false)
+    }
+  }
+
   const handleImportMembers = async () => {
     if (!membersAnalysis || !user?.uid || memberViews.length === 0) return
     setImporting(true)
@@ -565,6 +616,26 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
             >
               {linkingUnknown ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserX className="mr-1 h-4 w-4" />}
               Rattacher les manquants à INCONNU
+            </Button>
+          </div>
+
+          {/* Maintenance : correction du décalage J-1 des dates importées */}
+          <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-amber-800">
+              Corriger le décalage <span className="font-semibold">J-1</span> des dates des documents importés
+              (Caisse Imprévue, Caisse Spéciale et membres). Simulation d'abord, puis application. Relançable sans risque
+              (les documents déjà corrigés sont ignorés).
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleFixDates}
+              disabled={fixingDates}
+              className="h-9 shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
+            >
+              {fixingDates ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CalendarClock className="mr-1 h-4 w-4" />}
+              Corriger les dates (J-1)
             </Button>
           </div>
         </CardContent>

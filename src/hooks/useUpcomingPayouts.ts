@@ -158,9 +158,13 @@ async function fetchUpcomingCS(today: Date): Promise<UpcomingPayout[]> {
           // Retrait anticipé : les 30 jours courent depuis la demande.
           referenceAt = toDate(pending?.createdAt) ?? toDate(pending?.withdrawalDate) ?? toDate(c.updatedAt)
         } else {
-          // Contrat entièrement cotisé : depuis le dernier versement.
-          const payments = (await listPayments(c.id || '')) as CaissePayment[]
-          referenceAt = lastPaidDateCS(payments) ?? toDate(pending?.createdAt)
+          // Contrat entièrement cotisé : les 30 jours courent depuis la DATE DE FIN
+          // du contrat (fin des versements planifiés), pas depuis le dernier versement.
+          const start = toDate(c.contractStartAt) ?? toDate(c.createdAt)
+          referenceAt =
+            toDate(c.contractEndAt) ??
+            (start ? addMonths(start, c.monthsPlanned || 0) : undefined) ??
+            lastPaidDateCS((await listPayments(c.id || '')) as CaissePayment[])
         }
         if (!referenceAt) return null
 
@@ -263,8 +267,13 @@ async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
         if (isEarly) {
           referenceAt = toDate(pending?.createdAt) ?? toDate(pending?.withdrawalDate)
         } else {
-          const payments: PaymentCI[] = await service.getPaymentsByContractId(c.id)
-          referenceAt = lastPaidDateCI(payments) ?? toDate(pending?.createdAt)
+          // Contrat entièrement cotisé : 30 jours après la DATE DE FIN du contrat
+          // (début + durée du forfait), pas après le dernier versement.
+          const start =
+            toDate(c.firstPaymentDate) ?? toDate((c as { startDate?: unknown }).startDate) ?? toDate(c.createdAt)
+          referenceAt = start
+            ? addMonths(start, c.subscriptionCIDuration || 0)
+            : lastPaidDateCI(await service.getPaymentsByContractId(c.id))
         }
         if (!referenceAt) return null
 
