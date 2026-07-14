@@ -33,8 +33,10 @@ interface AdminFormModalProps {
 
 export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'create', initialValues }: AdminFormModalProps) {
   const { user } = useAuth()
-  const { isSuperAdmin: iAmSuperAdmin, can: iCan } = useMyAccess()
-  const canManageAdmins = iAmSuperAdmin || iCan('admins.manage')
+  const { isSuperAdmin: iAmSuperAdmin } = useMyAccess()
+  // Aligné sur les règles Firestore : seule l'écriture SuperAdmin est autorisée
+  // sur la collection admins — l'UI ne propose donc la gestion qu'aux SuperAdmins.
+  const canManageAdmins = iAmSuperAdmin
   // Schéma dynamique pour le téléphone selon l'environnement
   const phoneSchema = process.env.NODE_ENV === 'production'
     ? z.string().regex(/^\d{9}$/, 'Le numéro gabonais doit contenir exactement 9 chiffres')
@@ -315,7 +317,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                 <Camera className="w-8 h-8 text-[#224D62] group-hover:scale-110 transition-transform" />
               </div>
             )}
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={onSelectFile} className="hidden" disabled={isUploading || isSubmitting} />
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={onSelectFile} className="hidden" disabled={isUploading || isSubmitting} />
           </div>
         </div>
         {compressionInfo && (

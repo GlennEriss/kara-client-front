@@ -1,5 +1,6 @@
 'use client'
 
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -154,6 +155,14 @@ interface DemandFiltersState {
   amountMax: string
   monthlyAmountMin: string
   monthlyAmountMax: string
+}
+
+
+/** Module de permission correspondant au type de crédit d'une demande. */
+function creditPermissionModule(creditType?: string): string {
+  if (creditType === 'FIXE') return 'creditFixe'
+  if (creditType === 'AIDE') return 'creditAide'
+  return 'creditSpeciale'
 }
 
 interface ListDemandesProps {
@@ -511,6 +520,8 @@ const ListDemandes = ({
   useCreditDemandesRealtimeSync(true)
   const router = useRouter()
   const searchParams = useSearchParams()
+  // Permissions fines (module selon le type de crédit de chaque demande).
+  const { can } = useMyAccess()
   const isCreditTypeLocked = Boolean(forcedCreditType)
   const normalizedDetailsBasePath = demandDetailsBasePath.replace(/\/$/, '')
 
@@ -1343,25 +1354,26 @@ const ListDemandes = ({
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
                     {/* Header : avatar + nom à gauche, statut dot + menu + type à droite */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-3">
+                      {/* Nom pleine largeur ; le statut passe sous l'en-tête (il tronquait le nom). */}
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         <Avatar className="size-9 shrink-0 rounded-xl">
                           <AvatarFallback className="rounded-xl bg-[#234D65] text-[11px] font-semibold text-white">
                             {`${(demande.clientFirstName || '')[0] || ''}${(demande.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-gray-900">
                             {`${demande.clientLastName || ''} ${demande.clientFirstName || ''}`.trim() || '—'}
                           </p>
                           <p className="truncate font-mono text-[11px] text-gray-400">#{demande.id}</p>
+                          <span className={`mt-1 flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(demande.status).text}`}>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(demande.status).dot}`} />
+                            {getStatusLabel(demande.status)}
+                          </span>
                         </div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
                         <div className="flex items-center gap-1">
-                          <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(demande.status).text}`}>
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(demande.status).dot}`} />
-                            {getStatusLabel(demande.status)}
-                          </span>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -1389,13 +1401,15 @@ const ListDemandes = ({
                                 <Edit className="h-4 w-4 mr-2" />
                                 Modifier
                               </DropdownMenuItem>
-                              <DropdownMenuItem
+                              {can(`${creditPermissionModule(demande.creditType)}.delete`) && (
+<DropdownMenuItem
                                 onClick={() => setDeleteModalState({ isOpen: true, demand: demande })}
                                 className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Supprimer
                               </DropdownMenuItem>
+)}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1448,7 +1462,7 @@ const ListDemandes = ({
 
                     {/* Actions alignées verticalement */}
                     <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
-                      {demande.status === 'PENDING' && (
+                      {demande.status === 'PENDING' && can(`${creditPermissionModule(demande.creditType)}.validate`) && (
                         <>
                           <Button
                             size="sm"

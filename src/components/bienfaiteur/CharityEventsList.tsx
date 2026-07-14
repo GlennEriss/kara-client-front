@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useListUrlSync } from '@/hooks/useListUrlSync'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { toast } from 'sonner'
 import CharityEventCard from './CharityEventCard'
 import CharityEventTable from './CharityEventTable'
@@ -22,6 +23,7 @@ export default function CharityEventsList() {
   useCharityEventsRealtimeSync(true)
   // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
   const searchParams = useSearchParams()
+  const { can } = useMyAccess()
   const [viewMode, setViewMode] = useState<'grid' | 'table'>(
     (searchParams.get('view') as 'grid' | 'table') || 'grid',
   )
@@ -104,7 +106,7 @@ export default function CharityEventsList() {
         setSearchQuery={setSearchQuery}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        onCreateEvent={handleCreateEvent}
+        onCreateEvent={can('bienfaiteur.create') ? handleCreateEvent : undefined}
         onRefresh={handleRefresh}
         isLoading={isLoadingEvents}
       />
@@ -218,10 +220,12 @@ export default function CharityEventsList() {
                 ? 'Aucun évènement ne correspond à vos critères'
                 : 'Aucun évènement disponible'}
             </p>
-            <Button onClick={handleCreateEvent} className="rounded-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white shadow-sm hover:opacity-95">
-              <Plus className="w-4 h-4 mr-2" />
-              Créer un évènement
-            </Button>
+            {can('bienfaiteur.create') && (
+              <Button onClick={handleCreateEvent} className="rounded-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white shadow-sm hover:opacity-95">
+                <Plus className="w-4 h-4 mr-2" />
+                Créer un évènement
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

@@ -33,6 +33,8 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useMemo, useRef, useState } from 'react'
 import { useListUrlSync } from '@/hooks/useListUrlSync'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { useForm } from 'react-hook-form'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { toast } from 'sonner'
@@ -246,6 +248,10 @@ export default function PlacementList() {
     }
   }, [activeTab])
   const { data: placements = [], isLoading, error, refetch } = usePlacements(serverFilter)
+  // Mobile : étiquettes extérieures des camemberts coupées → on les masque (tooltip + légende suffisent).
+  const isMobile = useIsMobile()
+  // Permissions fines : les actions ne sont proposées que si l'admin les détient.
+  const { can } = useMyAccess()
   const { create, update, requestEarlyExit, payCommission, remove } = usePlacementMutations()
   const { user, loading: authLoading } = useAuth()
   const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null)
@@ -1010,6 +1016,7 @@ export default function PlacementList() {
                   <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
                 </Button>
 
+                {can('placements.export') && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1048,7 +1055,9 @@ export default function PlacementList() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                )}
 
+                {can('placements.create') && (
                 <Button
                   size="sm"
                   onClick={() => {
@@ -1061,6 +1070,7 @@ export default function PlacementList() {
                 >
                   <Plus className="mr-2 h-4 w-4" /> Nouveau Placement
                 </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -1105,8 +1115,8 @@ export default function PlacementList() {
                     nameKey="name" 
                     cx="50%" 
                     cy="50%" 
-                    outerRadius={70}
-                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                    outerRadius={isMobile ? 55 : 70}
+                    label={isMobile ? false : ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
                     labelLine={false}
                   >
                     {payoutPieData.filter(d => d.value > 0).map((entry, index) => (
@@ -1145,8 +1155,8 @@ export default function PlacementList() {
                       nameKey="name" 
                       cx="50%" 
                       cy="50%" 
-                      outerRadius={70}
-                      label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                      outerRadius={isMobile ? 55 : 70}
+                      label={isMobile ? false : ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
                       labelLine={false}
                     >
                       {statusPieData.filter(d => d.value > 0).map((entry, index) => (
@@ -1263,16 +1273,16 @@ export default function PlacementList() {
                       key={p.id}
                       placement={p}
                       onDetailsClick={p.status === 'Active' && p.contractDocumentId ? () => setDetailState({ placementId: p.id }) : undefined}
-                      onPayCommissionClick={(commissionId) => {
+                      onPayCommissionClick={can('placements.commission') ? (commissionId) => {
                         setPayCommissionPlacementId(p.id)
                         setPayCommissionId(commissionId)
-                      }}
+                      } : () => {}}
                       onOpenClick={() => router.push(`/placements/${p.id}`)}
-                      onEditClick={p.status === 'Draft' ? () => {
+                      onEditClick={p.status === 'Draft' && can('placements.create') ? () => {
                         setEditingPlacementId(p.id)
                         setIsCreateOpen(true)
                       } : undefined}
-                      onDeleteClick={p.status === 'Draft' ? () => setDeletePlacementId(p.id) : undefined}
+                      onDeleteClick={p.status === 'Draft' && can('placements.delete') ? () => setDeletePlacementId(p.id) : undefined}
                       onUploadContractClick={!p.contractDocumentId ? () => setUploadContractPlacementId(p.id) : undefined}
                       onDownloadContractClick={() => openPlacementContractModal(p)}
                       onViewContractClick={p.contractDocumentId ? () => {

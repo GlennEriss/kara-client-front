@@ -10,6 +10,7 @@
 import { Button } from '@/components/ui/button'
 import { PageHero } from '@/components/ui/page-hero'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import {
     AcceptDemandModalV2,
@@ -43,6 +44,9 @@ export default function DemandesPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
   const { user } = useAuth()
+  // Permissions fines : chaque action n'est proposée que si l'admin la détient
+  // (les cartes/tableaux masquent les boutons dont le handler est absent).
+  const { can } = useMyAccess()
   const { data: selectedDemand } = useDemandDetail(selectedDemandId || '')
 
   const acceptMutation = useAcceptDemand()
@@ -142,6 +146,7 @@ export default function DemandesPage() {
         subtitle="Gérez les demandes de contrats Caisse Imprévue"
         action={
           <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
+            {can('caisseImprevue.export') && (
             <Button
               variant="outline"
               onClick={() => setIsExportModalOpen(true)}
@@ -151,6 +156,8 @@ export default function DemandesPage() {
               <Download className="w-4 h-4 mr-2" />
               Exporter
             </Button>
+            )}
+            {can('caisseImprevue.create') && (
             <Button
               onClick={(e) => {
                 e.preventDefault()
@@ -163,6 +170,7 @@ export default function DemandesPage() {
               <Plus className="w-4 h-4 mr-2" />
               Nouvelle demande
             </Button>
+            )}
           </div>
         }
       />
@@ -171,12 +179,12 @@ export default function DemandesPage() {
       <Suspense fallback={null}>
       <ListDemandesV2
         onViewDetails={(id) => router.push(`/caisse-imprevue/demandes/${id}`)}
-        onAccept={handleAccept}
-        onReject={handleReject}
-        onReopen={handleReopen}
-        onDelete={handleDelete}
-        onEdit={handleEdit}
-        onCreateContract={handleCreateContract}
+        onAccept={can('caisseImprevue.validate') ? handleAccept : undefined}
+        onReject={can('caisseImprevue.validate') ? handleReject : undefined}
+        onReopen={can('caisseImprevue.validate') ? handleReopen : undefined}
+        onDelete={can('caisseImprevue.delete') ? handleDelete : undefined}
+        onEdit={can('caisseImprevue.create') ? handleEdit : undefined}
+        onCreateContract={can('caisseImprevue.validate') ? handleCreateContract : undefined}
       />
       </Suspense>
 

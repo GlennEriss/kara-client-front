@@ -12,7 +12,7 @@ interface CharityFiltersProps {
   setSearchQuery: (query: string) => void
   viewMode: 'grid' | 'table'
   setViewMode: (mode: 'grid' | 'table') => void
-  onCreateEvent: () => void
+  onCreateEvent?: () => void
   onRefresh?: () => void
   isLoading?: boolean
 }
@@ -107,10 +107,10 @@ export default function CharityFilters({
           )}
 
           {/* Bouton créer */}
-          <Button onClick={onCreateEvent} className="rounded-xl bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white shadow-sm hover:opacity-95">
+          {onCreateEvent && (<Button onClick={onCreateEvent} className="rounded-xl bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white shadow-sm hover:opacity-95">
             <Plus className="w-4 h-4 mr-2" />
             Créer un évènement
-          </Button>
+          </Button>)}
         </div>
       </div>
     </div>
