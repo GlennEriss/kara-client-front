@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { doc, getDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
@@ -27,27 +27,62 @@ interface AccessData {
   permissionsDefined: boolean
 }
 
-async function resolveAccess(uid: string, getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>): Promise<AccessData> {
+async function getAccountDocs(uid: string, email?: string | null) {
   const usersCol = FIREBASE_COLLECTION_NAMES.USERS || 'users'
   const adminsCol = FIREBASE_COLLECTION_NAMES.ADMINS || 'admins'
-
-  let isSuperAdmin = false
-  let permissions: string[] = []
-  let permissionsDefined = false
+  const docs: Record<string, unknown>[] = []
+  const seen = new Set<string>()
+  const emailCandidates = Array.from(
+    new Set([email?.trim(), email?.trim().toLowerCase()].filter((value): value is string => Boolean(value)))
+  )
 
   for (const col of [usersCol, adminsCol]) {
     try {
       const snap = await getDoc(doc(db, col, uid))
       if (snap.exists()) {
-        const data = snap.data() as Record<string, unknown>
-        if (hasSuperAdmin(data)) isSuperAdmin = true
-        if (Array.isArray(data.permissions) && !permissionsDefined) {
-          permissions = (data.permissions as unknown[]).filter((p): p is string => typeof p === 'string')
-          permissionsDefined = true
-        }
+        seen.add(`${col}/${snap.id}`)
+        docs.push(snap.data() as Record<string, unknown>)
       }
     } catch {
       // ignore et continue
+    }
+
+    // Certains documents admins historiques sont indexés par matricule, pas par
+    // UID Firebase Auth. L'email relie alors le compte connecté au bon document.
+    for (const emailValue of emailCandidates) {
+      try {
+        const snap = await getDocs(query(collection(db, col), where('email', '==', emailValue)))
+        snap.docs.forEach((docSnap) => {
+          const key = `${col}/${docSnap.id}`
+          if (!seen.has(key)) {
+            seen.add(key)
+            docs.push(docSnap.data() as Record<string, unknown>)
+          }
+        })
+      } catch {
+        // ignore et continue
+      }
+    }
+  }
+
+  return docs
+}
+
+async function resolveAccess(
+  uid: string,
+  email: string | null | undefined,
+  getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>
+): Promise<AccessData> {
+  let isSuperAdmin = false
+  let permissions: string[] = []
+  let permissionsDefined = false
+
+  const accountDocs = await getAccountDocs(uid, email)
+  for (const data of accountDocs) {
+    if (hasSuperAdmin(data)) isSuperAdmin = true
+    if (Array.isArray(data.permissions) && !permissionsDefined) {
+      permissions = (data.permissions as unknown[]).filter((p): p is string => typeof p === 'string')
+      permissionsDefined = true
     }
   }
 
@@ -79,17 +114,18 @@ export interface MyAccess {
 
 /**
  * Accès de l'administrateur connecté : superAdmin + permissions fines.
- * La source de vérité est le document Firestore (`users/{uid}` puis `admins/{uid}`).
+ * La source de vérité est le document Firestore (`users/admins` par uid, puis
+ * par email pour les anciens documents admin indexés par matricule).
  */
 export function useMyAccess(): MyAccess {
   const { user } = useAuth()
 
   const { data, isLoading } = useQuery<AccessData>({
-    queryKey: ['my-access', user?.uid],
+    queryKey: ['my-access', user?.uid, user?.email],
     enabled: !!user?.uid,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    queryFn: () => resolveAccess(user!.uid, () => user!.getIdTokenResult()),
+    queryFn: () => resolveAccess(user!.uid, user!.email, () => user!.getIdTokenResult()),
   })
 
   const isSuperAdmin = data?.isSuperAdmin ?? false
