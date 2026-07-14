@@ -29,6 +29,26 @@ async function superAdminExists(db: FirebaseFirestore.Firestore): Promise<boolea
   return false
 }
 
+async function findAccountDocs(db: FirebaseFirestore.Firestore, uid: string, email?: string | null) {
+  const refs = new Map<string, FirebaseFirestore.DocumentReference>()
+  const normalizedEmail = (email || '').trim().toLowerCase()
+
+  for (const col of ['admins', 'users']) {
+    const byUidRef = db.collection(col).doc(uid)
+    const byUidSnap = await byUidRef.get()
+    if (byUidSnap.exists) refs.set(byUidRef.path, byUidRef)
+
+    // Certains documents admins historiques ont pour id le matricule (ex:
+    // 0001.MK.290626), pas l'UID Firebase Auth. On les retrouve par email.
+    if (normalizedEmail) {
+      const byEmail = await db.collection(col).where('email', '==', normalizedEmail).get()
+      byEmail.docs.forEach((doc) => refs.set(doc.ref.path, doc.ref))
+    }
+  }
+
+  return Array.from(refs.values())
+}
+
 export async function POST(req: NextRequest) {
   if (!adminFirestore) {
     return NextResponse.json({ error: 'Firebase Admin Firestore non configuré' }, { status: 503 })
@@ -56,10 +76,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const updatedDocs: string[] = []
-    for (const col of ['admins', 'users']) {
-      const ref = db.collection(col).doc(uid)
+    const refs = await findAccountDocs(db, uid, claims.email)
+
+    for (const ref of refs) {
       const snap = await ref.get()
-      if (!snap.exists) continue
       const data = snap.data() as { roles?: unknown }
       const existing = Array.isArray(data.roles)
         ? (data.roles as unknown[]).filter((r): r is string => typeof r === 'string' && r !== 'SuperAdmin')
@@ -68,7 +88,7 @@ export async function POST(req: NextRequest) {
         { role: 'SuperAdmin', roles: ['SuperAdmin', ...existing], updatedAt: now },
         { merge: true },
       )
-      updatedDocs.push(col)
+      updatedDocs.push(ref.path)
     }
 
     // Bonus : custom claim (prend effet au prochain rafraîchissement du token).

@@ -42,6 +42,7 @@ export default function BootstrapSuperAdminButton() {
         const d = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(d?.error || res.statusText)
       }
+      await auth.currentUser?.getIdToken(true)
       toast.success('Vous êtes maintenant SuperAdmin. Rechargement…')
       setTimeout(() => window.location.reload(), 1200)
     } catch (err) {
