@@ -120,51 +120,71 @@ export const emergencyContactDefaultValues = {
 // Formats acceptés: +241 77 89 89 09, +24177898909, 77898909, etc.
 const gabonPhoneRegex = /^(\+241\s?|241\s?)?(60|62|65|66|74|76|77)\s?[0-9]{2}\s?[0-9]{2}\s?[0-9]{2}$/
 
-// Schéma pour un contact d'urgence Caisse Imprévue (structure différente)
-export const emergencyContactCISchema = z.object({
-  // ID du membre si le contact d'urgence est un membre (optionnel)
-  memberId: z.string().optional(),
-  
-  // Nom obligatoire
-  lastName: z.string()
-    .min(1, 'Le nom du contact d\'urgence est obligatoire')
-    .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
-  
-  // Prénom optionnel
-  firstName: z.string()
-    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
-    .optional()
-    .or(z.literal('')),
-  
-  // Téléphone 1 obligatoire (phone1 dans EmergencyContactCI)
-  phone1: z.string()
-    .min(1, 'Le numéro de téléphone principal est obligatoire')
-    .regex(gabonPhoneRegex, 'Format de téléphone invalide. Ex: +241 77 89 89 09'),
-  
-  // Téléphone 2 optionnel (phone2 dans EmergencyContactCI)
-  phone2: z.string()
-    .regex(gabonPhoneRegex, 'Format de téléphone invalide. Ex: +241 77 89 89 09')
-    .optional()
-    .or(z.literal('')),
-  
-  // Lien de parenté obligatoire
-  relationship: z.string()
-    .min(1, 'Le lien de parenté est obligatoire'),
-  
-  // Type de document d'identité obligatoire
-  typeId: z.string()
-    .min(1, 'Le type de document est obligatoire'),
-  
-  // Numéro de document d'identité obligatoire
-  idNumber: z.string()
-    .min(1, 'Le numéro de document est obligatoire')
-    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
-  
-  // URL de la photo du document obligatoire
-  documentPhotoUrl: z.string()
-    .min(1, 'La photo du document est obligatoire')
-    .url('L\'URL de la photo doit être valide'),
-})
+/**
+ * Un contact d'urgence « inconnu » (aucune info disponible) n'a ni téléphone,
+ * ni lien, ni pièce d'identité : on reconnaît ce cas au nom « INCONNU » ou au
+ * compte placeholder, et on lève alors les exigences correspondantes.
+ */
+const UNKNOWN_CONTACT_IDS = new Set(['INCONNU', '2548.MK.290126'])
+function isUnknownEmergencyContact(d: { lastName?: string; memberId?: string }): boolean {
+  const lastName = (d.lastName || '').trim().toUpperCase()
+  const memberId = (d.memberId || '').trim()
+  return lastName === 'INCONNU' || UNKNOWN_CONTACT_IDS.has(memberId)
+}
+
+// Schéma pour un contact d'urgence Caisse Imprévue (structure différente).
+// Champs de base permissifs + règles strictes appliquées via superRefine
+// UNIQUEMENT lorsque le contact est renseigné (pas « inconnu »).
+export const emergencyContactCISchema = z
+  .object({
+    // ID du membre si le contact d'urgence est un membre (optionnel)
+    memberId: z.string().optional(),
+
+    // Nom obligatoire
+    lastName: z.string()
+      .min(1, 'Le nom du contact d\'urgence est obligatoire')
+      .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
+
+    // Prénom optionnel
+    firstName: z.string()
+      .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+      .optional()
+      .or(z.literal('')),
+
+    phone1: z.string(),
+    phone2: z.string().optional().or(z.literal('')),
+    relationship: z.string(),
+    typeId: z.string(),
+    idNumber: z.string().max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
+    documentPhotoUrl: z.string(),
+  })
+  .superRefine((d, ctx) => {
+    // Contact inconnu : aucune exigence sur téléphone/lien/pièce.
+    if (isUnknownEmergencyContact(d)) return
+
+    if (!d.phone1 || d.phone1.trim().length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Le numéro de téléphone principal est obligatoire' })
+    } else if (!gabonPhoneRegex.test(d.phone1)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+    }
+    if (d.phone2 && d.phone2.trim() && !gabonPhoneRegex.test(d.phone2)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone2'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+    }
+    if (d.relationship.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['relationship'], message: 'Le lien de parenté est obligatoire' })
+    }
+    if (d.typeId.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['typeId'], message: 'Le type de document est obligatoire' })
+    }
+    if (d.idNumber.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['idNumber'], message: 'Le numéro de document est obligatoire' })
+    }
+    if (d.documentPhotoUrl.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['documentPhotoUrl'], message: 'La photo du document est obligatoire' })
+    } else if (!/^https?:\/\//.test(d.documentPhotoUrl)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['documentPhotoUrl'], message: 'L\'URL de la photo doit être valide' })
+    }
+  })
 
 // Type TypeScript
 export type EmergencyContact = z.infer<typeof emergencyContactSchema>

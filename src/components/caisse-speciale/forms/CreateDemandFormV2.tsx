@@ -68,15 +68,23 @@ export function CreateDemandFormV2({
         if (errors.desiredDate) errorMessages.push('Date souhaitée requise')
 
         if (errors.emergencyContact) {
+          const ecLabels: Record<string, string> = {
+            lastName: 'Contact d\'urgence : nom',
+            phone1: 'Contact d\'urgence : téléphone',
+            relationship: 'Contact d\'urgence : lien de parenté',
+            typeId: 'Contact d\'urgence : type de pièce',
+            idNumber: 'Contact d\'urgence : numéro de pièce',
+            documentPhotoUrl: 'Contact d\'urgence : photo de la pièce',
+          }
           const ecErrors = errors.emergencyContact as Record<string, { message?: string }>
-          Object.values(ecErrors).forEach((err) => {
-            if (err?.message) errorMessages.push(err.message)
+          Object.entries(ecErrors).forEach(([field, err]) => {
+            if (err?.message) errorMessages.push(ecLabels[field] || `Contact d'urgence : ${err.message}`)
           })
         }
 
         const description =
           errorMessages.length > 0
-            ? errorMessages.slice(0, 3).join(', ') + (errorMessages.length > 3 ? '...' : '')
+            ? errorMessages.slice(0, 4).join(', ') + (errorMessages.length > 4 ? '...' : '')
             : 'Vérifiez que tous les champs obligatoires sont remplis.'
 
         toast.error('Formulaire incomplet', { description })
