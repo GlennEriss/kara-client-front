@@ -125,10 +125,11 @@ export function useCaisseSpecialeDemandMutations() {
             reopenDemandSchema.parse({ reason })
             return service.reopenDemand(demandId, user.uid, reason)
         },
-        onSuccess: () => {
+        onSuccess: (_result, variables) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
+            log({ action: 'update', ...CS_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Réouverture d\'une demande de caisse spéciale' })
         },
         onError: (error: any) => {
             if (error instanceof z.ZodError) {
@@ -163,10 +164,11 @@ export function useCaisseSpecialeDemandMutations() {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.deleteDemand(demandId)
         },
-        onSuccess: () => {
+        onSuccess: (_result, demandId) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
+            log({ action: 'delete', ...CS_MODULE, targetType: 'demande', targetId: demandId, description: 'Suppression d\'une demande de caisse spéciale' })
             toast.success('Demande supprimée définitivement')
         },
         onError: (error: any) => {
@@ -179,10 +181,11 @@ export function useCaisseSpecialeDemandMutations() {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.updateDemandDetails(demandId, data, user.uid)
         },
-        onSuccess: () => {
+        onSuccess: (_result, variables) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
+            log({ action: 'update', ...CS_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Modification d\'une demande de caisse spéciale' })
             toast.success('Demande modifiée avec succès')
         },
         onError: (error: any) => {

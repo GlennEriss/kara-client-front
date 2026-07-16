@@ -4,26 +4,30 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { CaisseImprevueService } from '../services/CaisseImprevueService'
 import { toast } from 'sonner'
 
 const service = CaisseImprevueService.getInstance()
+const CI_MODULE = { module: 'caisseImprevue', moduleLabel: 'Caisse Imprévue' } as const
 
 export function useContractCIMutations() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   const deleteContract = useMutation({
     mutationFn: (contractId: string) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.deleteContractCI(contractId, user.uid)
     },
-    onSuccess: () => {
+    onSuccess: (_result, contractId) => {
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands-stats'] })
       queryClient.invalidateQueries({ queryKey: ['demand-detail'] })
+      log({ action: 'delete', ...CI_MODULE, targetType: 'contrat', targetId: contractId, description: 'Suppression d\'un contrat de caisse imprévue (et de sa demande liée)' })
       toast.success('Contrat supprimé')
     },
     onError: (error: Error) => {
