@@ -1,5 +1,6 @@
 "use client"
 import AdminFormModal from '@/components/admin/AdminFormModal'
+import PublicContactSettingsCard from '@/components/admin/PublicContactSettingsCard'
 import MembershipPagination from '@/components/memberships/MembershipPagination'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -417,6 +418,11 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Réglage du numéro WhatsApp public (membre + invité) */}
+      <PermissionGate permission="settings.manage">
+        <PublicContactSettingsCard />
+      </PermissionGate>
 
       {/* Filtres */}
       <Card>
