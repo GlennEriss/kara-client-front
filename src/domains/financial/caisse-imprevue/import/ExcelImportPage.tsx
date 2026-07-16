@@ -469,15 +469,16 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     try {
       const dry = await relinkUnknown({ toMatricule: toMatricule.trim(), dryRun: true })
       const total = dry.membersRelinked + dry.contractsRelinked
-      if (total === 0) {
-        window.alert(`Aucune référence « ${dry.fromId} » à repointer.`)
+      if (total === 0 && !dry.oldAccountDeleted) {
+        window.alert(`Aucune référence « ${dry.fromId} » à repointer, et aucun ancien compte à supprimer.`)
         return
       }
       const ok = window.confirm(
         `Repointer vers ${dry.targetName} (${dry.toMatricule}) :\n\n` +
           `• ${dry.membersRelinked} membre(s) (parrain)\n` +
-          `• ${dry.contractsRelinked} contrat(s) CI (contact d'urgence)\n\n` +
-          `Appliquer maintenant ?`,
+          `• ${dry.contractsRelinked} contrat(s) CI (contact d'urgence)\n` +
+          (dry.oldAccountDeleted ? `• l'ancien compte « ${dry.fromId} » sera supprimé\n` : '') +
+          `\nAppliquer maintenant ?`,
       )
       if (!ok) return
 
@@ -486,7 +487,8 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
       window.alert(
         `Re-pointage effectué vers ${res.targetName} :\n` +
           `• ${res.membersRelinked} membre(s)\n` +
-          `• ${res.contractsRelinked} contrat(s) CI`,
+          `• ${res.contractsRelinked} contrat(s) CI` +
+          (res.oldAccountDeleted ? `\n• ancien compte « ${res.fromId} » supprimé` : ''),
       )
     } catch (err) {
       console.error(err)
