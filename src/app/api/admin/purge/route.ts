@@ -11,8 +11,118 @@ export const maxDuration = 300
 
 /** Compte superAdmin conservé (et SEUL autorisé à purger). */
 const SUPERADMIN_EMAIL = (process.env.PURGE_SUPERADMIN_EMAIL || 'phil@gmail.com').toLowerCase()
-/** Phrase exacte à taper pour exécuter réellement. */
+/** Phrase exacte à taper pour exécuter réellement (purge globale/domaine). */
 const CONFIRM_PHRASE = 'SUPPRIMER TOUT KARA'
+
+/**
+ * Réinitialisation par SECTION métier : chaque section liste ses collections
+ * Firestore de premier niveau (les sous-collections sont supprimées en cascade
+ * via recursiveDelete). N'affecte ni Auth, ni Storage, ni Algolia.
+ */
+interface SectionDef {
+  label: string
+  /** Collections Firestore de premier niveau (sous-collections en cascade). */
+  collections: string[]
+  /** Valeur `sourceType` des versements centralisés (collection `payments`) à purger. */
+  paymentsSourceType?: string
+  /** Préfixes Storage possédés en propre par la section (fichiers supprimés). */
+  storagePrefixes?: string[]
+  /** Champ tableau de back-références à vider sur les fiches `users`. */
+  userBackRefField?: string
+}
+
+const SECTIONS: Record<string, SectionDef> = {
+  caisseImprevue: {
+    label: 'Caisse Imprévue',
+    collections: ['contractsCI', 'caisseImprevueDemands', 'subscriptionsCI'],
+    paymentsSourceType: 'caisse-imprevue',
+    storagePrefixes: [
+      'contracts-ci/',
+      'emergency-contacts-ci/',
+      'emergency-contact-ci/',
+      'contrat-signe-ci/',
+      'declared-versement-proof/',
+      'early-refund-proof/',
+      'final-refund-proof/',
+      'early-refund-signed/',
+      'final-refund-signed/',
+      'support-ci-signed/',
+    ],
+  },
+  caisseSpeciale: {
+    label: 'Caisse Spéciale',
+    collections: ['caisseContracts', 'caisseSpecialeDemands', 'caisseSettings', 'caisseAdminNotes'],
+    paymentsSourceType: 'caisse-speciale',
+    storagePrefixes: [
+      'contracts/',
+      'caisse/',
+      'contracts-cs/',
+      'contract-documents/',
+      'emergency-contacts/',
+      'cs-declared-versement-proof/',
+      'cs-early-refund-proof/',
+      'cs-final-refund-proof/',
+      'cs-early-refund-signed/',
+      'cs-final-refund-signed/',
+      'contrat-signe-cs/',
+    ],
+    userBackRefField: 'caisseContractIds',
+  },
+  placements: {
+    label: 'Placements',
+    collections: ['placements', 'placementDemands'],
+    paymentsSourceType: 'placement',
+  },
+  credit: {
+    label: 'Crédit Spéciale',
+    collections: [
+      'creditDemands',
+      'creditContracts',
+      'creditInstallments',
+      'creditPayments',
+      'creditPenalties',
+      'guarantorRemunerations',
+      'guarantorPayments',
+    ],
+    paymentsSourceType: 'credit-speciale',
+    storagePrefixes: ['credit/', 'credit-contracts/'],
+  },
+  bienfaiteur: {
+    label: 'Bienfaiteur',
+    collections: ['charity-events', 'charityContributions', 'member-charity-summary'],
+    storagePrefixes: ['charity-events/'],
+  },
+  membres: {
+    label: 'Membres (demandes & adhésions)',
+    collections: ['members', 'membership-requests', 'subscriptions', 'groups'],
+    paymentsSourceType: 'membership-request',
+    storagePrefixes: [
+      'membership-photos/',
+      'membership-documents/',
+      'membership-adhesion-pdfs/',
+      'membership-request-profile-photo/',
+      'membership-request-document-front/',
+      'membership-request-document-back/',
+      'member-photos/',
+      'member-id-documents/',
+    ],
+  },
+  evenements: {
+    label: 'Événements',
+    collections: ['events', 'news'],
+    storagePrefixes: ['events/images/'],
+  },
+  boutiques: {
+    label: 'Boutiques',
+    collections: ['shops'],
+    storagePrefixes: ['shops/'],
+  },
+}
+
+/** Phrase de confirmation attendue pour une section (ex. « RÉINITIALISER CAISSE IMPRÉVUE »). */
+function sectionConfirmPhrase(label: string): string {
+  return `RÉINITIALISER ${label.toUpperCase()}`
+}
 
 function bucketName(): string {
   return (
@@ -31,14 +141,19 @@ function keepDoc(colId: string, doc: FirebaseFirestore.QueryDocumentSnapshot, ke
 
 async function purgeFirestore(dryRun: boolean, keepUid: string) {
   const cols = await adminFirestore!.listCollections()
+  return purgeFirestoreCollections(dryRun, keepUid, cols.map((c) => c.id))
+}
+
+/** Purge uniquement les collections nommées (sous-collections en cascade). */
+async function purgeFirestoreCollections(dryRun: boolean, keepUid: string, names: string[]) {
   const perCollection: Record<string, number> = {}
   let deleted = 0
   let kept = 0
-  for (const col of cols) {
-    const snap = await col.get()
-    perCollection[col.id] = snap.size
+  for (const name of names) {
+    const snap = await adminFirestore!.collection(name).get()
+    perCollection[name] = snap.size
     for (const d of snap.docs) {
-      if (keepDoc(col.id, d, keepUid)) {
+      if (keepDoc(name, d, keepUid)) {
         kept++
         continue
       }
@@ -47,6 +162,56 @@ async function purgeFirestore(dryRun: boolean, keepUid: string) {
     }
   }
   return { deleted, kept, perCollection }
+}
+
+/** Purge les versements centralisés (collection `payments`) d'une section. */
+async function purgePaymentsBySourceType(dryRun: boolean, sourceType: string) {
+  const snap = await adminFirestore!.collection('payments').where('sourceType', '==', sourceType).get()
+  if (!dryRun) {
+    const docs = snap.docs
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = adminFirestore!.batch()
+      docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref))
+      await batch.commit()
+    }
+  }
+  return { deleted: snap.size }
+}
+
+/** Supprime les fichiers Storage sous les préfixes propres à la section. */
+async function purgeStoragePrefixes(dryRun: boolean, prefixes: string[]) {
+  const bucket = getStorage(adminApp!).bucket(bucketName())
+  const perPrefix: Record<string, number> = {}
+  let files = 0
+  for (const prefix of prefixes) {
+    try {
+      const [list] = await bucket.getFiles({ prefix })
+      perPrefix[prefix] = list.length
+      files += list.length
+      if (!dryRun && list.length > 0) await bucket.deleteFiles({ prefix, force: true })
+    } catch (e) {
+      perPrefix[prefix] = -1
+      if (files === 0) return { bucket: bucket.name, files, perPrefix, error: e instanceof Error ? e.message : 'storage error' }
+    }
+  }
+  return { bucket: bucket.name, files, perPrefix }
+}
+
+/** Vide un tableau de back-références (ex. caisseContractIds) sur toutes les fiches users. */
+async function clearUserBackRefs(dryRun: boolean, field: string) {
+  const snap = await adminFirestore!.collection('users').get()
+  const affected = snap.docs.filter((d) => {
+    const v = (d.data() as Record<string, unknown>)[field]
+    return Array.isArray(v) && v.length > 0
+  })
+  if (!dryRun) {
+    for (let i = 0; i < affected.length; i += 400) {
+      const batch = adminFirestore!.batch()
+      affected.slice(i, i + 400).forEach((d) => batch.update(d.ref, { [field]: [] }))
+      await batch.commit()
+    }
+  }
+  return { cleared: affected.length }
 }
 
 async function purgeAuth(dryRun: boolean, keepUid: string) {
@@ -126,9 +291,13 @@ export async function POST(req: NextRequest) {
     target?: string
   }
   const execute = body.mode === 'execute'
-  if (execute && body.confirmText !== CONFIRM_PHRASE) {
+  const target = body.target || 'all'
+  const section = SECTIONS[target]
+  // La phrase de confirmation dépend de la cible : globale ou spécifique à la section.
+  const expectedPhrase = section ? sectionConfirmPhrase(section.label) : CONFIRM_PHRASE
+  if (execute && body.confirmText !== expectedPhrase) {
     return NextResponse.json(
-      { error: `Confirmation invalide. Tape exactement : ${CONFIRM_PHRASE}` },
+      { error: `Confirmation invalide. Tape exactement : ${expectedPhrase}` },
       { status: 400 },
     )
   }
@@ -145,7 +314,6 @@ export async function POST(req: NextRequest) {
   }
 
   const dryRun = !execute
-  const target = body.target || 'all'
   const want = (t: string) => target === 'all' || target === t
 
   // Chaque domaine est isolé : une erreur/lenteur sur l'un n'empêche pas les autres.
@@ -162,6 +330,28 @@ export async function POST(req: NextRequest) {
     target,
     keptEmail: SUPERADMIN_EMAIL,
     keptUid: keep.uid,
+  }
+
+  // Réinitialisation par section : collections Firestore + versements centralisés
+  // + fichiers Storage liés + back-références membres (tout ce qui appartient à
+  // la section, sans toucher les autres).
+  if (section) {
+    out.sectionLabel = section.label
+    out.firestore = await safe('firestore', () =>
+      purgeFirestoreCollections(dryRun, keep.uid, section.collections),
+    )
+    if (section.paymentsSourceType) {
+      out.payments = await safe('payments', () =>
+        purgePaymentsBySourceType(dryRun, section.paymentsSourceType!),
+      )
+    }
+    if (section.storagePrefixes?.length) {
+      out.storage = await safe('storage', () => purgeStoragePrefixes(dryRun, section.storagePrefixes!))
+    }
+    if (section.userBackRefField) {
+      out.backRefs = await safe('backRefs', () => clearUserBackRefs(dryRun, section.userBackRefField!))
+    }
+    return NextResponse.json(out)
   }
 
   // Ordre : les domaines rapides d'abord, Firestore (lourd) en dernier.

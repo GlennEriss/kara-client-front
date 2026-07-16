@@ -22,18 +22,39 @@ import { useAuth } from '@/domains/auth/hooks/useAuth'
 const SUPERADMIN_EMAIL = 'phil@gmail.com'
 const CONFIRM_PHRASE = 'SUPPRIMER TOUT KARA'
 
-type PurgeTarget = 'all' | 'firestore' | 'auth' | 'storage' | 'algolia'
+/** Sections métier réinitialisables individuellement (clés alignées sur l'API). */
+const SECTIONS: { key: string; label: string }[] = [
+  { key: 'caisseImprevue', label: 'Caisse Imprévue' },
+  { key: 'caisseSpeciale', label: 'Caisse Spéciale' },
+  { key: 'placements', label: 'Placements' },
+  { key: 'credit', label: 'Crédit Spéciale' },
+  { key: 'bienfaiteur', label: 'Bienfaiteur' },
+  { key: 'membres', label: 'Membres (demandes & adhésions)' },
+  { key: 'evenements', label: 'Événements' },
+  { key: 'boutiques', label: 'Boutiques' },
+]
+
+/** Phrase de confirmation attendue pour une cible (section ou globale). */
+function confirmPhraseFor(target: string): string {
+  const s = SECTIONS.find((x) => x.key === target)
+  return s ? `RÉINITIALISER ${s.label.toUpperCase()}` : CONFIRM_PHRASE
+}
+
+type PurgeTarget = string
 
 type StepError = { error: string }
 interface PurgeResult {
   mode: 'preview' | 'execute'
   target: PurgeTarget
+  sectionLabel?: string
   keptEmail: string
   keptUid: string
   firestore?: { deleted: number; kept: number; perCollection: Record<string, number> } | StepError
   authUsers?: number | StepError
-  storage?: { bucket: string; files: number; error?: string } | StepError
+  storage?: { bucket: string; files: number; perPrefix?: Record<string, number>; error?: string } | StepError
   algolia?: { configured: boolean; indices: number; names?: string[]; error?: string } | StepError
+  payments?: { deleted: number } | StepError
+  backRefs?: { cleared: number } | StepError
   superAdminStillExists?: boolean
 }
 
@@ -77,8 +98,14 @@ function ResultView({ r }: { r: PurgeResult }) {
           </>
         )}
         {typeof r.authUsers === 'number' && <Stat label={`Comptes Auth (${verb})`} value={r.authUsers} />}
+        {r.payments && !hasError(r.payments) && (
+          <Stat label={`Versements centralisés (${verb})`} value={r.payments.deleted} />
+        )}
         {r.storage && !hasError(r.storage) && (
           <Stat label={`Fichiers Storage (${verb})`} value={r.storage.files} />
+        )}
+        {r.backRefs && !hasError(r.backRefs) && (
+          <Stat label="Fiches membres nettoyées" value={r.backRefs.cleared} />
         )}
         {r.algolia && !hasError(r.algolia) && (
           <Stat
@@ -106,6 +133,8 @@ function ResultView({ r }: { r: PurgeResult }) {
       {/* Erreurs par domaine */}
       {hasError(r.firestore) && <p className="text-xs text-red-700">Firestore : {r.firestore.error}</p>}
       {hasError(r.authUsers) && <p className="text-xs text-red-700">Auth : {r.authUsers.error}</p>}
+      {hasError(r.payments) && <p className="text-xs text-red-700">Versements : {r.payments.error}</p>}
+      {hasError(r.backRefs) && <p className="text-xs text-red-700">Back-références : {r.backRefs.error}</p>}
       {hasError(r.storage) && <p className="text-xs text-red-700">Storage : {r.storage.error}</p>}
       {!hasError(r.storage) && r.storage?.error && (
         <p className="text-xs text-amber-700">Storage ({r.storage.bucket}) : {r.storage.error}</p>
@@ -130,12 +159,17 @@ function ResultView({ r }: { r: PurgeResult }) {
   )
 }
 
-const TARGET_LABEL: Record<PurgeTarget, string> = {
+const TARGET_LABEL: Record<string, string> = {
   all: 'TOUT (Firestore + Auth + Storage + Algolia)',
   firestore: 'Firestore',
   auth: 'comptes Auth',
   storage: 'fichiers Storage',
   algolia: 'index Algolia',
+}
+
+/** Libellé lisible d'une cible (domaine technique ou section métier). */
+function targetLabel(target: string): string {
+  return TARGET_LABEL[target] || SECTIONS.find((s) => s.key === target)?.label || target
 }
 
 export function PurgeDatabasePage() {
@@ -260,6 +294,23 @@ export function PurgeDatabasePage() {
         </div>
       </div>
 
+      <Card className="border-orange-200 bg-orange-50/50">
+        <CardContent className="space-y-2.5 p-4 md:p-5">
+          <p className="text-sm font-bold text-orange-900">Réinitialiser une section</p>
+          <p className="text-xs text-orange-800">
+            Supprime tout ce qui appartient à la section choisie : documents Firestore (contrats,
+            demandes, sous-collections en cascade), versements centralisés, fichiers Storage liés et
+            back-références sur les membres. N’affecte ni les comptes de connexion, ni les autres
+            sections. Confirmation par phrase spécifique à chaque section.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SECTIONS.map((s) => (
+              <RetryBtn key={s.key} t={s.key} label={s.label} />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       )}
@@ -274,7 +325,7 @@ export function PurgeDatabasePage() {
       {result && (
         <div className="space-y-2">
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-            <CheckCircle2 className="h-4 w-4" /> Purge exécutée ({TARGET_LABEL[result.target]}) :
+            <CheckCircle2 className="h-4 w-4" /> Purge exécutée ({result.sectionLabel || targetLabel(result.target)}) :
           </p>
           <ResultView r={result} />
         </div>
@@ -285,25 +336,26 @@ export function PurgeDatabasePage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-700">Confirmer la suppression ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Domaine ciblé : <strong>{TARGET_LABEL[pendingTarget]}</strong>. Action{' '}
-              <strong>définitive</strong> (sauf {SUPERADMIN_EMAIL}). Pour confirmer, tape exactement :
-              <span className="mt-1 block font-mono font-bold text-gray-900">{CONFIRM_PHRASE}</span>
+              Cible : <strong>{targetLabel(pendingTarget)}</strong>. Action <strong>définitive</strong>
+              {SECTIONS.some((s) => s.key === pendingTarget) ? '' : ` (sauf ${SUPERADMIN_EMAIL})`}. Pour
+              confirmer, tape exactement :
+              <span className="mt-1 block font-mono font-bold text-gray-900">{confirmPhraseFor(pendingTarget)}</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            placeholder={CONFIRM_PHRASE}
+            placeholder={confirmPhraseFor(pendingTarget)}
             className="font-mono"
           />
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConfirmText('')}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              disabled={confirmText !== CONFIRM_PHRASE || busyTarget !== null}
+              disabled={confirmText !== confirmPhraseFor(pendingTarget) || busyTarget !== null}
               onClick={(e) => {
                 e.preventDefault()
-                if (confirmText === CONFIRM_PHRASE) void runExecute()
+                if (confirmText === confirmPhraseFor(pendingTarget)) void runExecute()
               }}
             >
               Supprimer définitivement

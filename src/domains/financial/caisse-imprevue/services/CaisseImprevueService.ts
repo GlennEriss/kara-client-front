@@ -193,6 +193,32 @@ export class CaisseImprevueService {
     }
   }
 
+  /** Efface les fichiers de preuve (Storage) puis les documents d'une sous-collection. */
+  private async deleteSubcollectionWithFiles(contractId: string, subName: string): Promise<void> {
+    const { db, collection, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
+    const { collectStoragePaths } = await import('@/lib/storagePaths')
+    const col = firebaseCollectionNames.contractsCI || 'contractsCI'
+    const snap = await getDocs(collection(db, col, contractId, subName))
+    const documentRepository = RepositoryFactory.getDocumentRepository()
+
+    const paths: string[] = []
+    for (const d of snap.docs) collectStoragePaths(d.data(), paths)
+    for (const p of paths) {
+      try {
+        await documentRepository.deleteFile(p)
+      } catch (err) {
+        console.error('Erreur suppression preuve Storage', p, err)
+      }
+    }
+
+    const ids = snap.docs.map((d) => d.id)
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = writeBatch(db)
+      for (const sid of ids.slice(i, i + 400)) batch.delete(doc(db, col, contractId, subName, sid))
+      await batch.commit()
+    }
+  }
+
   /** Supprime tous les documents d'une collection où `field == value`, par lots. */
   private async deleteAllWhere(colName: string, field: string, value: string): Promise<void> {
     const { db, collection, query, where, getDocs, writeBatch, doc } = await import('@/firebase/firestore')
@@ -369,18 +395,13 @@ export class CaisseImprevueService {
     }
     const documentRepository = RepositoryFactory.getDocumentRepository()
 
-    if (contract.demandId) {
-      const demand = await this.demandRepository.getById(contract.demandId)
-      if (!demand) {
-        throw new Error('Demande liée introuvable')
-      }
-      await this.demandRepository.update(
-        contract.demandId,
-        { status: 'APPROVED', contractId: null },
-        adminId
-      )
-    }
+    // 1) Sous-collections + fichiers de preuve (versements, aides, remboursements).
+    await this.deleteSubcollectionWithFiles(contractId, 'payments')
+    await this.deleteSubcollectionWithFiles(contractId, 'supports')
+    await this.deleteSubcollectionWithFiles(contractId, 'earlyRefunds')
 
+    // 2) Documents contractuels liés (PDF signé, résiliation, clôture, remboursements)
+    //    → fichier Storage + fiche `documents`.
     const documentIds = [
       contract.contractStartId,
       contract.contractCanceledId,
@@ -401,6 +422,17 @@ export class CaisseImprevueService {
       }
     }
 
+    // 3) Demande liée : supprimée (et ses versements centralisés), plus de remise en attente.
+    if (contract.demandId) {
+      try {
+        await this.deleteAllWhere(firebaseCollectionNames.payments || 'payments', 'beneficiaryId', contract.demandId)
+        await this.demandRepository.delete(contract.demandId, adminId)
+      } catch (err) {
+        console.error('Erreur suppression demande liée', contract.demandId, err)
+      }
+    }
+
+    // 4) Le contrat lui-même.
     await this.contractRepository.deleteContract(contractId)
   }
 
