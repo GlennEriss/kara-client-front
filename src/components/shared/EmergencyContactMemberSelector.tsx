@@ -124,6 +124,7 @@ export default function EmergencyContactMemberSelector({
   // Constantes pour le formatage des téléphones
   const DEFAULT_PHONE_PREFIX = '+241 '
   const PHONE_DIGITS_LIMIT = 8
+  const GABON_PHONE_COMPACT_REGEX = /^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/
 
   const formatPhoneValue = (value: string, allowEmpty = false) => {
     const rawTrimmed = value.replace(/\s/g, '')
@@ -135,6 +136,9 @@ export default function EmergencyContactMemberSelector({
 
     if (digits.startsWith('241')) {
       digits = digits.slice(3)
+    }
+    if (digits.startsWith('0')) {
+      digits = digits.slice(1)
     }
 
     const normalized = digits.slice(0, PHONE_DIGITS_LIMIT)
@@ -192,14 +196,23 @@ export default function EmergencyContactMemberSelector({
     // Remplir les téléphones si disponibles
     if (member.contacts && member.contacts.length > 0) {
       const firstContact = member.contacts[0]
-      onUpdate('phone1', formatPhoneValue(firstContact))
+      // Contact lié à un membre : on conserve le numéro tel qu'enregistré dans
+      // sa fiche (ex: 077 78 34 02). Le formateur local tronquait les numéros
+      // avec préfixe 0 en les forçant sur 8 chiffres.
+      onUpdate('phone1', String(firstContact || '').trim())
       
       if (member.contacts.length > 1) {
-        onUpdate('phone2', formatPhoneValue(member.contacts[1], true))
+        onUpdate('phone2', String(member.contacts[1] || '').trim())
       }
     } else {
       onUpdate('phone1', DEFAULT_PHONE_PREFIX)
     }
+    setErrors((prev) => {
+      const next = { ...prev }
+      delete next.phone1
+      delete next.phone2
+      return next
+    })
     
     // 1) Source la plus fiable : les champs de la pièce d'identité de la FICHE
     //    membre elle-même (recto, type, numéro). Beaucoup de membres n'ont pas
@@ -272,7 +285,7 @@ export default function EmergencyContactMemberSelector({
   const handleChange = (field: string, value: string) => {
     let filteredValue = value
     
-    if (field === 'phone1' || field === 'phone2') {
+    if ((field === 'phone1' || field === 'phone2') && !isMemberLinked) {
       filteredValue = formatPhoneValue(value, field === 'phone2')
     }
     
@@ -290,6 +303,7 @@ export default function EmergencyContactMemberSelector({
   const isUnknown =
     (lastName || '').trim().toUpperCase() === 'INCONNU' ||
     [UNKNOWN_MEMBER_ID, 'INCONNU'].includes((memberId || selectedMemberId || '').trim())
+  const isMemberLinked = !isUnknown && !!(memberId || selectedMemberId || '').trim()
 
   const handleSelectUnknown = () => {
     setSelectedMemberId(UNKNOWN_MEMBER_ID)
@@ -328,9 +342,11 @@ export default function EmergencyContactMemberSelector({
         
       case 'phone1': {
         const normalizedValue = value || ''
-        if (!normalizedValue || normalizedValue.trim() === '') {
+        if (isMemberLinked) {
+          delete newErrors.phone1
+        } else if (!normalizedValue || normalizedValue.trim() === '') {
           newErrors.phone1 = 'Le numéro de téléphone principal est obligatoire'
-        } else if (!/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(normalizedValue.replace(/\s/g, ''))) {
+        } else if (!GABON_PHONE_COMPACT_REGEX.test(normalizedValue.replace(/\s/g, ''))) {
           newErrors.phone1 = 'Format de téléphone invalide'
         } else {
           delete newErrors.phone1
@@ -341,7 +357,9 @@ export default function EmergencyContactMemberSelector({
       case 'phone2': {
         const normalizedValue = value || ''
         const cleaned = normalizedValue.replace(/\s/g, '')
-        if (cleaned && cleaned !== '+241' && !/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(normalizedValue.replace(/\s/g, ''))) {
+        if (isMemberLinked) {
+          delete newErrors.phone2
+        } else if (cleaned && cleaned !== '+241' && !GABON_PHONE_COMPACT_REGEX.test(normalizedValue.replace(/\s/g, ''))) {
           newErrors.phone2 = 'Format de téléphone invalide'
         } else {
           delete newErrors.phone2
