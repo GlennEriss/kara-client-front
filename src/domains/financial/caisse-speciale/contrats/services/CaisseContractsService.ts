@@ -281,13 +281,6 @@ export class CaisseContractsService {
 
     const demandRepo = RepositoryFactory.getCaisseSpecialeDemandRepository()
     const demand = await demandRepo.getByContractId(contractId)
-    if (demand) {
-      await demandRepo.updateDemand(demand.id, {
-        status: 'PENDING',
-        contractId: null as any,
-        updatedBy: adminId,
-      })
-    }
 
     if (contract.contractPdf?.path) {
       try {
@@ -297,8 +290,39 @@ export class CaisseContractsService {
       }
     }
 
+    // Preuves de versement et de remboursement (Storage) avant de vider les sous-collections.
+    try {
+      const { collectStoragePaths } = await import('@/lib/storagePaths')
+      const { listRefunds } = await import('@/db/caisse/refunds.db')
+      const [payments, refunds] = await Promise.all([
+        this.repo.getContractPayments(contractId),
+        listRefunds(contractId),
+      ])
+      const paths: string[] = []
+      collectStoragePaths(payments, paths)
+      collectStoragePaths(refunds, paths)
+      for (const p of paths) {
+        try {
+          await deleteFile(p)
+        } catch (err) {
+          console.error('Erreur suppression preuve Storage', p, err)
+        }
+      }
+    } catch (err) {
+      console.error('Erreur collecte des preuves à supprimer:', err)
+    }
+
     await this.repo.deletePayments(contractId)
     await this.repo.deleteRefunds(contractId)
+
+    // Demande liée : supprimée (plus de remise en attente).
+    if (demand) {
+      try {
+        await demandRepo.deleteDemand(demand.id)
+      } catch (err) {
+        console.error('Erreur suppression demande liée:', err)
+      }
+    }
 
     if (contract.memberId) {
       await removeCaisseContractFromEntity(contract.memberId, contractId, 'USER')

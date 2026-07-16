@@ -571,48 +571,25 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         });
     }
 
-    async deleteContract(id: string, adminId: string): Promise<void> {
+    async deleteContract(id: string, _adminId: string): Promise<void> {
         const contract = await this.creditContractRepository.getContractById(id);
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        const demandId = contract.demandId;
 
-        // 1) Mise à jour de la demande liée (si demandId) — contractId à null pour permettre de recréer un contrat
-        if (contract.demandId) {
-            await this.creditDemandRepository.updateDemand(contract.demandId, {
-                contractId: null,
-                updatedBy: adminId,
-                updatedAt: new Date(),
-            } as unknown as Partial<Omit<CreditDemand, 'id' | 'createdAt'>>);
-        }
+        // 1) Cascade complète : échéances, paiements, pénalités, rémunérations/paiements
+        //    garant, documents + fichiers Storage, puis le contrat lui-même.
+        await this.cascadeDeleteCreditContract(id);
 
-        // 2) Cleanup Storage et documents (best effort)
-        try {
-            const documents = await this.documentRepository.getDocumentsByContractId(id);
-            for (const doc of documents) {
-                if (doc.path) {
-                    try {
-                        const storage = getStorageInstance();
-                        const fileRef = ref(storage, doc.path);
-                        await deleteObject(fileRef);
-                    } catch (err) {
-                        console.error(`Erreur suppression fichier Storage (path: ${doc.path}):`, err);
-                    }
-                }
-                if (doc.id) {
-                    try {
-                        await this.documentRepository.deleteDocument(doc.id);
-                    } catch (err) {
-                        console.error(`Erreur suppression document (id: ${doc.id}):`, err);
-                    }
-                }
+        // 2) Demande liée : supprimée (plus de simple déliaison).
+        if (demandId) {
+            try {
+                await this.creditDemandRepository.deleteDemand(demandId);
+            } catch (err) {
+                console.error('Erreur suppression demande crédit liée', demandId, err);
             }
-        } catch (err) {
-            console.error('Erreur lors du cleanup documents pour le contrat:', err);
         }
-
-        // 3) Suppression du document contrat
-        await this.creditContractRepository.deleteContract(id);
     }
 
     async updateContractStatus(id: string, status: CreditContractStatus, adminId: string): Promise<CreditContract | null> {
