@@ -201,62 +201,70 @@ export default function EmergencyContactMemberSelector({
       onUpdate('phone1', DEFAULT_PHONE_PREFIX)
     }
     
-    // Récupérer le dossier du membre si disponible
-    if (member.dossier) {
-      console.log('📁 Récupération du dossier:', member.dossier)
+    // 1) Source la plus fiable : les champs de la pièce d'identité de la FICHE
+    //    membre elle-même (recto, type, numéro). Beaucoup de membres n'ont pas
+    //    de « dossier » (demande d'adhésion) lié — d'où la photo manquante.
+    let hasPhoto = false
+    let hasType = false
+    let hasNumber = false
+    if (member.identityDocumentFrontURL) {
+      onUpdate('documentPhotoUrl', member.identityDocumentFrontURL)
+      validateField('documentPhotoUrl', member.identityDocumentFrontURL)
+      hasPhoto = true
+    }
+    if (member.identityDocument) {
+      onUpdate('typeId', member.identityDocument)
+      validateField('typeId', member.identityDocument)
+      hasType = true
+    }
+    if (member.identityDocumentNumber) {
+      onUpdate('idNumber', member.identityDocumentNumber)
+      validateField('idNumber', member.identityDocumentNumber)
+      hasNumber = true
+    }
+
+    // 2) Compléter les infos manquantes depuis le dossier d'adhésion, si présent.
+    if ((!hasPhoto || !hasType || !hasNumber) && member.dossier) {
       setIsLoadingDossier(true)
       try {
         const dossier = await getMembershipRequestById(member.dossier)
-        console.log('📁 Dossier récupéré:', dossier)
-        
-        if (dossier && dossier.documents) {
-          console.log('📄 Documents du dossier:', dossier.documents)
-          
-          // Remplir automatiquement les informations du document
-          if (dossier.documents.documentPhotoFrontURL) {
-            console.log('📷 Photo du document:', dossier.documents.documentPhotoFrontURL)
-            onUpdate('documentPhotoUrl', dossier.documents.documentPhotoFrontURL)
-            validateField('documentPhotoUrl', dossier.documents.documentPhotoFrontURL)
+        const docs = dossier?.documents
+        if (docs) {
+          if (!hasPhoto && docs.documentPhotoFrontURL) {
+            onUpdate('documentPhotoUrl', docs.documentPhotoFrontURL)
+            validateField('documentPhotoUrl', docs.documentPhotoFrontURL)
+            hasPhoto = true
           }
-          
-          if (dossier.documents.identityDocument) {
-            console.log('🆔 Type de document:', dossier.documents.identityDocument)
-            console.log('🔄 Appel onUpdate pour typeId avec:', dossier.documents.identityDocument)
-            // Mettre à jour immédiatement
-            onUpdate('typeId', dossier.documents.identityDocument)
-            validateField('typeId', dossier.documents.identityDocument)
+          if (!hasType && docs.identityDocument) {
+            onUpdate('typeId', docs.identityDocument)
+            validateField('typeId', docs.identityDocument)
+            hasType = true
           }
-          
-          if (dossier.documents.identityDocumentNumber) {
-            console.log('🔢 Numéro de document:', dossier.documents.identityDocumentNumber)
-            onUpdate('idNumber', dossier.documents.identityDocumentNumber)
-            validateField('idNumber', dossier.documents.identityDocumentNumber)
+          if (!hasNumber && docs.identityDocumentNumber) {
+            onUpdate('idNumber', docs.identityDocumentNumber)
+            validateField('idNumber', docs.identityDocumentNumber)
+            hasNumber = true
           }
-          
-          toast.success('Informations du document récupérées automatiquement', {
-            description: 'Les informations de la pièce d\'identité ont été remplies depuis le dossier du membre.',
-            duration: 3000,
-          })
-        } else {
-          console.warn('⚠️ Dossier trouvé mais pas de documents:', dossier)
         }
       } catch (error) {
-        console.error('❌ Erreur lors de la récupération du dossier:', error)
-        toast.error('Impossible de récupérer le dossier du membre', {
-          description: 'Vous pouvez saisir manuellement les informations du document.',
-          duration: 4000,
-        })
+        console.error('Erreur récupération dossier:', error)
       } finally {
         setIsLoadingDossier(false)
       }
-    } else {
-      console.warn('⚠️ Le membre n\'a pas de dossier (membership-request)')
-      toast.info('Le membre sélectionné n\'a pas de dossier', {
-        description: 'Veuillez saisir manuellement les informations du document.',
+    }
+
+    if (hasPhoto || hasType || hasNumber) {
+      toast.success('Informations de la pièce récupérées', {
+        description: 'Les informations disponibles du membre ont été remplies automatiquement.',
         duration: 3000,
       })
+    } else {
+      toast.info('Aucune pièce d\'identité enregistrée pour ce membre', {
+        description: 'Saisissez la pièce manuellement, ou utilisez « Contact inconnu » si aucune info n\'est disponible.',
+        duration: 4000,
+      })
     }
-    
+
     setSearchQuery('')
   }
 
@@ -277,10 +285,38 @@ export default function EmergencyContactMemberSelector({
     handleChange('relationship', value)
   }
 
+  // Contact d'urgence INCONNU : compte placeholder, sans téléphone ni pièce.
+  const UNKNOWN_MEMBER_ID = '2548.MK.290126'
+  const isUnknown =
+    (lastName || '').trim().toUpperCase() === 'INCONNU' ||
+    [UNKNOWN_MEMBER_ID, 'INCONNU'].includes((memberId || selectedMemberId || '').trim())
+
+  const handleSelectUnknown = () => {
+    setSelectedMemberId(UNKNOWN_MEMBER_ID)
+    onUpdate('memberId', UNKNOWN_MEMBER_ID)
+    onUpdate('lastName', 'INCONNU')
+    onUpdate('firstName', '')
+    onUpdate('phone1', '')
+    onUpdate('phone2', '')
+    onUpdate('relationship', 'INCONNU')
+    onUpdate('typeId', 'INCONNU')
+    onUpdate('idNumber', 'INCONNU')
+    onUpdate('documentPhotoUrl', 'INCONNU')
+    setRelationshipOption('')
+    setCustomRelationship('')
+    setErrors({})
+    setSearchQuery('')
+  }
+
   // Valider un champ
   const validateField = (field: string, value: string) => {
+    // Contact inconnu : aucune exigence sur téléphone/lien/pièce.
+    if (isUnknown) {
+      setErrors({})
+      return
+    }
     const newErrors = { ...errors }
-    
+
     switch (field) {
       case 'lastName':
         if (!value || value.trim() === '') {
@@ -411,13 +447,14 @@ export default function EmergencyContactMemberSelector({
     }
   }
 
-  const isFormValid = lastName && lastName.trim() !== '' && 
-                     phone1 && phone1.trim() !== '' && 
+  const isFormValid = isUnknown || (
+                     lastName && lastName.trim() !== '' &&
+                     phone1 && phone1.trim() !== '' &&
                      relationship && relationship.trim() !== '' &&
                      typeId && typeId.trim() !== '' &&
                      idNumber && idNumber.trim() !== '' &&
                      documentPhotoUrl && documentPhotoUrl.trim() !== '' &&
-                     Object.keys(errors).length === 0
+                     Object.keys(errors).length === 0)
 
   return (
     <Card className={cn(
@@ -455,15 +492,32 @@ export default function EmergencyContactMemberSelector({
               Optionnel
             </Badge>
           </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Nom, prénom ou matricule..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Nom, prénom ou matricule..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSelectUnknown}
+              className="shrink-0 border-gray-300 text-gray-700 hover:bg-gray-50"
+              title="Utiliser le contact d'urgence INCONNU (aucune information disponible)"
+            >
+              Contact inconnu
+            </Button>
           </div>
+          {isUnknown && (
+            <p className="text-xs text-gray-500">
+              Contact d&apos;urgence <strong>INCONNU</strong> — téléphone, lien de parenté et pièce
+              d&apos;identité non requis.
+            </p>
+          )}
           
           {searchQuery && filteredMembers.length > 0 && (
             <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto bg-white">
