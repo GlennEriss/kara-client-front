@@ -162,13 +162,20 @@ export const emergencyContactCISchema = z
     // Contact inconnu : aucune exigence sur téléphone/lien/pièce.
     if (isUnknownEmergencyContact(d)) return
 
-    if (!d.phone1 || d.phone1.trim().length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Le numéro de téléphone principal est obligatoire' })
-    } else if (!gabonPhoneRegex.test(d.phone1)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
-    }
-    if (d.phone2 && d.phone2.trim() && !gabonPhoneRegex.test(d.phone2)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone2'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+    // Contact rattaché à un MEMBRE : téléphone et pièce proviennent de sa fiche
+    // déjà enregistrée → on ne réimpose PAS le format strict du numéro (les vrais
+    // numéros gabonais varient : préfixe 0, opérateurs multiples, etc.).
+    const isMemberLinked = !!(d.memberId && d.memberId.trim())
+
+    if (!isMemberLinked) {
+      if (!d.phone1 || d.phone1.trim().length === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Le numéro de téléphone principal est obligatoire' })
+      } else if (!gabonPhoneRegex.test(d.phone1)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+      }
+      if (d.phone2 && d.phone2.trim() && !gabonPhoneRegex.test(d.phone2)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone2'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+      }
     }
     if (d.relationship.trim().length < 1) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['relationship'], message: 'Le lien de parenté est obligatoire' })
