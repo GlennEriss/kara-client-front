@@ -1325,6 +1325,7 @@ export interface RelinkUnknownResult {
   targetName: string
   membersRelinked: number
   contractsRelinked: number
+  oldAccountDeleted?: boolean
   message: string
 }
 

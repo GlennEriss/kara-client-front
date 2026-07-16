@@ -111,6 +111,20 @@ export async function POST(req: NextRequest) {
       if (!dryRun && ops > 0) await batch.commit()
     }
 
+    // 4) Suppression de l'ancien compte placeholder (`fromId`) une fois les
+    //    références repointées. On ne supprime jamais le compte cible.
+    let oldAccountDeleted = false
+    if (fromId !== targetId) {
+      for (const col of ['users', 'admins']) {
+        const ref = db.collection(col).doc(fromId)
+        const snap = await ref.get()
+        if (snap.exists) {
+          if (!dryRun) await ref.delete()
+          oldAccountDeleted = true
+        }
+      }
+    }
+
     return NextResponse.json({
       dryRun,
       fromId,
@@ -119,9 +133,10 @@ export async function POST(req: NextRequest) {
       targetName: `${target.firstName || ''} ${target.lastName || ''}`.trim() || targetMatricule,
       membersRelinked,
       contractsRelinked,
+      oldAccountDeleted,
       message: dryRun
         ? 'Simulation : aucune donnée modifiée.'
-        : `Références « ${fromId} » repointées vers ${targetMatricule}.`,
+        : `Références « ${fromId} » repointées vers ${targetMatricule}${oldAccountDeleted ? ` et ancien compte « ${fromId} » supprimé` : ''}.`,
     })
   } catch (error) {
     console.error('[relink-unknown] échec:', error)

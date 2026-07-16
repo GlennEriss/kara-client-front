@@ -1337,6 +1337,15 @@ service cloud.firestore {
     }
 
     // ==========================================
+    // CONTACT PUBLIC (numéro WhatsApp visible invité + membre)
+    // ==========================================
+    // Lecture publique (l'invité n'est pas authentifié), écriture réservée aux admins.
+    match /settings/publicContact {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé
