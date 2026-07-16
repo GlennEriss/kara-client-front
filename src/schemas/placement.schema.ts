@@ -1,10 +1,45 @@
 import { z } from 'zod'
+import { isEmptyEmergencyPhoneValue, isValidGabonEmergencyPhone } from './emergency-contact.schema'
 
 // ================== SCHÉMA DEMANDE DE PLACEMENT ==================
 
 export const payoutModeEnum = z.enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End'])
 
 export const placementDemandStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED'])
+
+const placementUrgentContactSchema = z
+  .object({
+    name: z.string(),
+    firstName: z.string().optional(),
+    phone: z.string().max(30, 'Le numéro de téléphone ne peut pas dépasser 30 caractères'),
+    phone2: z.string()
+      .max(30, 'Le numéro de téléphone ne peut pas dépasser 30 caractères')
+      .optional(),
+    relationship: z.string().optional(),
+    idNumber: z.string().optional(),
+    typeId: z.string().optional(),
+    documentPhotoUrl: z.string().optional(),
+    memberId: z.string().optional(),
+  })
+  .superRefine((contact, ctx) => {
+    if (contact.memberId?.trim()) return
+
+    if (!isEmptyEmergencyPhoneValue(contact.phone) && !isValidGabonEmergencyPhone(contact.phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone'],
+        message: 'Format de téléphone invalide. Ex: +241 77 89 89 09',
+      })
+    }
+
+    if (contact.phone2 && !isEmptyEmergencyPhoneValue(contact.phone2) && !isValidGabonEmergencyPhone(contact.phone2)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone2'],
+        message: 'Format de téléphone invalide. Ex: +241 77 89 89 09',
+      })
+    }
+  })
 
 export const placementDemandSchema = z.object({
   id: z.string().min(1, 'L\'ID de la demande est requis'),
@@ -31,17 +66,7 @@ export const placementDemandSchema = z.object({
     .optional(),
   
   // Contact d'urgence (optionnel)
-  urgentContact: z.object({
-    name: z.string(),
-    firstName: z.string().optional(),
-    phone: z.string(),
-    phone2: z.string().optional(),
-    relationship: z.string().optional(),
-    idNumber: z.string().optional(),
-    typeId: z.string().optional(),
-    documentPhotoUrl: z.string().optional(),
-    memberId: z.string().optional(),
-  }).optional(),
+  urgentContact: placementUrgentContactSchema.optional(),
   
   // Statut et décision
   status: placementDemandStatusEnum,
@@ -82,17 +107,7 @@ export const placementDemandFormSchema = z.object({
   cause: z.string()
     .max(500, 'La cause ne peut pas dépasser 500 caractères')
     .optional(),
-  urgentContact: z.object({
-    name: z.string(),
-    firstName: z.string().optional(),
-    phone: z.string(),
-    phone2: z.string().optional(),
-    relationship: z.string().optional(),
-    idNumber: z.string().optional(),
-    typeId: z.string().optional(),
-    documentPhotoUrl: z.string().optional(),
-    memberId: z.string().optional(),
-  }).optional(),
+  urgentContact: placementUrgentContactSchema.optional(),
 })
 
 export type PlacementDemandFormInput = z.infer<typeof placementDemandFormSchema>

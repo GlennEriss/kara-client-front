@@ -106,11 +106,11 @@ export const emergencyContactSchema = z
 
     if (!d.phone1 || d.phone1.trim().length === 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Le numéro de téléphone principal est obligatoire' })
-    } else if (!gabonPhoneRegex.test(d.phone1)) {
+    } else if (!isValidGabonEmergencyPhone(d.phone1)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
     }
 
-    if (d.phone2 && d.phone2.trim() && !gabonPhoneRegex.test(d.phone2)) {
+    if (d.phone2 && d.phone2.trim() && !isValidGabonEmergencyPhone(d.phone2)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone2'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
     }
   })
@@ -131,6 +131,15 @@ export const emergencyContactDefaultValues = {
 // Regex pour les numéros de téléphone gabonais (avec ou sans espaces)
 // Formats acceptés: +241 77 89 89 09, +24177898909, 077 89 89 09, 77898909, etc.
 const gabonPhoneRegex = /^(\+241\s?|241\s?)?0?(60|62|65|66|74|76|77)\s?[0-9]{2}\s?[0-9]{2}\s?[0-9]{2}$/
+
+export function isEmptyEmergencyPhoneValue(phone?: string | null): boolean {
+  const cleaned = (phone || '').replace(/\s/g, '')
+  return cleaned === '' || cleaned === '+241' || cleaned === '241'
+}
+
+export function isValidGabonEmergencyPhone(phone: string): boolean {
+  return gabonPhoneRegex.test(phone)
+}
 
 /**
  * Un contact d'urgence « inconnu » (aucune info disponible) n'a ni téléphone,
@@ -182,10 +191,10 @@ export const emergencyContactCISchema = z
     if (!isMemberLinked) {
       if (!d.phone1 || d.phone1.trim().length === 0) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Le numéro de téléphone principal est obligatoire' })
-      } else if (!gabonPhoneRegex.test(d.phone1)) {
+      } else if (!isValidGabonEmergencyPhone(d.phone1)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
       }
-      if (d.phone2 && d.phone2.trim() && !gabonPhoneRegex.test(d.phone2)) {
+      if (d.phone2 && d.phone2.trim() && !isValidGabonEmergencyPhone(d.phone2)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone2'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
       }
     }

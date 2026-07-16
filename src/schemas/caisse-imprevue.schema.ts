@@ -39,63 +39,10 @@ export const caisseImprevueStep2Schema = z.object({
   firstPaymentDate: z.string().min(1, 'La date du premier versement est requise'),
 })
 
-// Schéma pour Step 3 : Contact d'urgence
-export const caisseImprevueStep3Schema = z.object({
-  // ID du membre si le contact d'urgence est un membre (optionnel)
-  memberId: z.string().optional(),
-  
-  // Nom obligatoire
-  lastName: z
-    .string()
-    .min(1, 'Le nom du contact d\'urgence est obligatoire')
-    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
-  
-  // Prénom optionnel
-  firstName: z
-    .string()
-    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
-    .optional()
-    .or(z.literal('')),
-  
-  // Téléphone 1 obligatoire
-  phone1: z
-    .string()
-    .min(1, 'Le numéro de téléphone principal est obligatoire')
-    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77'),
-  
-  // Téléphone 2 optionnel
-  phone2: z
-    .string()
-    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide')
-    .optional()
-    .or(z.literal('')),
-  
-  // Lien de parenté obligatoire
-  relationship: z
-    .string()
-    .min(1, 'Le lien de parenté est obligatoire'),
-  
-  // Numéro de document obligatoire
-  idNumber: z
-    .string()
-    .min(1, 'Le numéro de document est obligatoire')
-    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
-  
-  // Type de document obligatoire
-  typeId: z
-    .string()
-    .min(1, 'Le type de document est obligatoire'),
-  
-  // Photo du document obligatoire
-  documentPhotoUrl: z
-    .string()
-    .min(1, 'La photo du document est obligatoire')
-    .url('L\'URL de la photo doit être valide'),
-})
+// Schéma pour Step 3 : Contact d'urgence.
+// Réutilise la règle CI partagée pour accepter les numéros issus d'une fiche
+// membre sans réécrire leur format, et les numéros locaux avec le 0 initial.
+export const caisseImprevueStep3Schema = emergencyContactCISchema
 
 // Schéma global combinant les 3 étapes
 export const caisseImprevueGlobalSchema = z.object({
@@ -365,4 +312,3 @@ export const caisseImprevueDemandDefaultValues: Partial<CaisseImprevueDemandForm
   paymentFrequency: 'MONTHLY',
   desiredDate: new Date().toISOString().split('T')[0], // Date du jour par défaut
 }
-
