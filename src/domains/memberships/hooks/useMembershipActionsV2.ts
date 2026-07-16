@@ -168,6 +168,8 @@ export function useMembershipActionsV2() {
         queryKey: ['notifications']
       })
 
+      log({ action: 'delete', ...MEMBER_REQ_MODULE, targetType: 'demande', targetId: data.requestId, description: 'Suppression définitive d\'un dossier d\'adhésion' })
+
       const message = data.warnings
         ? `Dossier supprimé. ${data.warnings}`
         : 'Le dossier a été supprimé définitivement avec succès.'
