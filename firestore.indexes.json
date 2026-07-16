@@ -10301,6 +10301,78 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextFirstNameFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableTextMatriculeFirst",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "caisseType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableWords",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
