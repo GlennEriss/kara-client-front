@@ -55,53 +55,65 @@ export const RelationshipEnum = z.enum([
 ])
 
 // Schéma pour un contact d'urgence
-export const emergencyContactSchema = z.object({
-  // ID du membre si le contact d'urgence est un membre (optionnel)
-  memberId: z.string().optional(),
-  
-  // Nom obligatoire
-  lastName: z.string()
-    .min(1, 'Le nom du contact d\'urgence est obligatoire')
-    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
-  
-  // Prénom optionnel
-  firstName: z.string()
-    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
-    .optional()
-    .or(z.literal('')),
-  
-  // Téléphone 1 obligatoire
-  phone1: z.string()
-    .min(1, 'Le numéro de téléphone principal est obligatoire')
-    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)'),
-  
-  // Téléphone 2 optionnel
-  phone2: z.string()
-    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)')
-    .optional()
-    .or(z.literal('')),
-  
-  // Lien de parenté obligatoire
-  relationship: RelationshipEnum,
-  
-  // Type de document d'identité obligatoire
-  typeId: z.string()
-    .min(1, 'Le type de document est obligatoire'),
-  
-  // Numéro de document d'identité obligatoire
-  idNumber: z.string()
-    .min(1, 'Le numéro de document est obligatoire')
-    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
-  
-  // URL de la photo du document obligatoire
-  documentPhotoUrl: z.string()
-    .min(1, 'La photo du document est obligatoire')
-    .url('L\'URL de la photo doit être valide')
-})
+export const emergencyContactSchema = z
+  .object({
+    // ID du membre si le contact d'urgence est un membre (optionnel)
+    memberId: z.string().optional(),
+
+    // Nom obligatoire
+    lastName: z.string()
+      .min(1, 'Le nom du contact d\'urgence est obligatoire')
+      .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
+
+    // Prénom optionnel
+    firstName: z.string()
+      .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
+      .optional()
+      .or(z.literal('')),
+
+    // Validé conditionnellement dans superRefine pour accepter les contacts
+    // issus d'une fiche membre sans réécrire leur format historique.
+    phone1: z.string().max(30, 'Le numéro de téléphone ne peut pas dépasser 30 caractères'),
+    phone2: z.string()
+      .max(30, 'Le numéro de téléphone ne peut pas dépasser 30 caractères')
+      .optional()
+      .or(z.literal('')),
+
+    // Lien de parenté obligatoire
+    relationship: RelationshipEnum,
+
+    // Type de document d'identité obligatoire
+    typeId: z.string()
+      .min(1, 'Le type de document est obligatoire'),
+
+    // Numéro de document d'identité obligatoire
+    idNumber: z.string()
+      .min(1, 'Le numéro de document est obligatoire')
+      .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
+
+    // URL de la photo du document obligatoire
+    documentPhotoUrl: z.string()
+      .min(1, 'La photo du document est obligatoire')
+      .url('L\'URL de la photo doit être valide')
+  })
+  .superRefine((d, ctx) => {
+    if (isUnknownEmergencyContact(d)) return
+
+    const isMemberLinked = !!(d.memberId && d.memberId.trim())
+    if (isMemberLinked) return
+
+    if (!d.phone1 || d.phone1.trim().length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Le numéro de téléphone principal est obligatoire' })
+    } else if (!gabonPhoneRegex.test(d.phone1)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone1'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+    }
+
+    if (d.phone2 && d.phone2.trim() && !gabonPhoneRegex.test(d.phone2)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone2'], message: 'Format de téléphone invalide. Ex: +241 77 89 89 09' })
+    }
+  })
 
 // Valeurs par défaut
 export const emergencyContactDefaultValues = {
@@ -117,8 +129,8 @@ export const emergencyContactDefaultValues = {
 }
 
 // Regex pour les numéros de téléphone gabonais (avec ou sans espaces)
-// Formats acceptés: +241 77 89 89 09, +24177898909, 77898909, etc.
-const gabonPhoneRegex = /^(\+241\s?|241\s?)?(60|62|65|66|74|76|77)\s?[0-9]{2}\s?[0-9]{2}\s?[0-9]{2}$/
+// Formats acceptés: +241 77 89 89 09, +24177898909, 077 89 89 09, 77898909, etc.
+const gabonPhoneRegex = /^(\+241\s?|241\s?)?0?(60|62|65|66|74|76|77)\s?[0-9]{2}\s?[0-9]{2}\s?[0-9]{2}$/
 
 /**
  * Un contact d'urgence « inconnu » (aucune info disponible) n'a ni téléphone,
