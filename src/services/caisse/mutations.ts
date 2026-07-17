@@ -6,6 +6,22 @@ import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt } from
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
+import { logAdminAction } from '@/services/audit/auditLog'
+
+/** Journalise une action versement CS (best-effort, n'attend pas la promesse). */
+function logCsVersementAction(action: 'payment' | 'update', contractId: string, description: string) {
+  void logAdminAction({
+    adminId: auth?.currentUser?.uid || 'inconnu',
+    adminName: auth?.currentUser?.displayName?.trim() || auth?.currentUser?.email || 'Administrateur',
+    adminEmail: auth?.currentUser?.email || undefined,
+    action,
+    module: 'caisseSpeciale',
+    moduleLabel: 'Caisse Spéciale',
+    targetType: 'versement',
+    targetId: contractId,
+    description,
+  })
+}
 import { addCaisseContractToUser } from '@/db/member.db'
 import { deleteObject, ref } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
@@ -473,13 +489,13 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
   }
-  const incrementNominal = reached
-    ? (
-        type === 'STANDARD' || type === 'STANDARD_CHARITABLE'
-          ? contract.monthlyAmount
-          : Math.min(newAccumulated, targetForMonth) - (payment.accumulatedAmount || 0)
-      )
-    : 0
+  // LIBRE / JOURNALIÈRE : versements variables → le « Total versé » (nominalPaid)
+  // compte CHAQUE versement dès son enregistrement (y compris acomptes et
+  // excédents). STANDARD : mensualité fixe créditée à la complétion du mois.
+  const isVariableAmountType = type !== 'STANDARD' && type !== 'STANDARD_CHARITABLE'
+  const incrementNominal = isVariableAmountType
+    ? (typeof input.amount === 'number' && input.amount > 0 ? input.amount : 0)
+    : (reached ? contract.monthlyAmount : 0)
   const updated = {
     nominalPaid: (contract.nominalPaid || 0) + Math.max(0, incrementNominal),
     penaltiesTotal: (contract.penaltiesTotal || 0) + (penalty || 0),
@@ -520,7 +536,13 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     .catch((error) => {
       console.warn('[pay] Recalcul différé du contrat échoué:', error)
     })
-  
+
+  logCsVersementAction(
+    'payment',
+    input.contractId,
+    `Enregistrement d'un versement de caisse spéciale${typeof input.amount === 'number' ? ` de ${input.amount.toLocaleString('fr-FR')} FCFA` : ''}`,
+  )
+
   return { status, penalty, bonus, nextDueAt }
 }
 
@@ -1011,7 +1033,13 @@ export async function updatePaymentContribution(input: {
       // Ne pas faire échouer la modification si la suppression échoue
     }
   }
-  
+
+  logCsVersementAction(
+    'update',
+    input.contractId,
+    'Modification d\'un versement de caisse spéciale',
+  )
+
   return true
 }
 
@@ -1261,6 +1289,12 @@ export async function payGroup(input: {
     .catch((error) => {
       console.warn('[payGroup] Recalcul différé du contrat échoué:', error)
     })
+
+  logCsVersementAction(
+    'payment',
+    input.contractId,
+    'Enregistrement d\'une contribution de groupe (caisse spéciale)',
+  )
 
   return { 
     status: paymentUpdates.status || 'IN_PROGRESS', 

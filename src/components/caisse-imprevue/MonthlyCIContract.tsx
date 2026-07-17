@@ -1,5 +1,6 @@
 'use client'
 
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 import ContractCIMemberInfoDialog from '@/components/caisse-imprevue/ContractCIMemberInfoDialog'
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import routes from '@/constantes/routes'
 import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
-import { useActiveSupport, useCheckEligibilityForSupport, useContractPaymentStats, useCreateVersement, usePaymentsCI, useSupportHistory, useUpdateVersement } from '@/hooks/caisse-imprevue'
+import { useActiveSupport, useCheckEligibilityForSupport, useContractPaymentStats, useCreateVersement, useDeleteVersement, usePaymentsCI, useSupportHistory, useUpdateVersement } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
@@ -30,6 +31,7 @@ import {
     HandCoins,
     History,
     Pencil,
+    Trash2,
     RefreshCw,
     TrendingUp,
     XCircle,
@@ -206,6 +208,8 @@ function MigrationDetailsCard({ contract }: { contract: ContractCI }) {
 export default function MonthlyCIContract({ contract, document: _document, isLoadingDocument: _isLoadingDocument }: MonthlyCIContractProps) {
   const { openDocument } = useDocumentViewer()
   const router = useRouter()
+  // Actions sensibles (modifier/supprimer un versement) : SuperAdmin uniquement.
+  const isSuperAdmin = useIsSuperAdmin()
   const { user } = useAuth()
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -231,6 +235,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
   const updateVersementMutation = useUpdateVersement()
+  const deleteVersementMutation = useDeleteVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
@@ -876,7 +881,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                     <Eye className="h-3 w-3 mr-1" />
                                     Voir la facture
                                   </Button>
-                                  {!isContractTerminated && (
+                                  {!isContractTerminated && isSuperAdmin && (
                                     <Button
                                       type="button"
                                       variant="outline"
@@ -890,6 +895,30 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                     >
                                       <Pencil className="h-3 w-3 mr-1" />
                                       Modifier
+                                    </Button>
+                                  )}
+                                  {!isContractTerminated && isSuperAdmin && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                                      disabled={deleteVersementMutation.isPending}
+                                      onClick={async () => {
+                                        if (!window.confirm('Supprimer ce versement ? Les totaux du contrat seront recalculés. Action irréversible.')) return
+                                        try {
+                                          await deleteVersementMutation.mutateAsync({
+                                            contractId: contract.id,
+                                            monthIndex: monthPayment!.monthIndex,
+                                            versementId: lastVersement.id,
+                                          })
+                                        } catch {
+                                          // Erreur gérée par le hook (toast)
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      {deleteVersementMutation.isPending ? 'Suppression…' : 'Supprimer'}
                                     </Button>
                                   )}
                                 </div>

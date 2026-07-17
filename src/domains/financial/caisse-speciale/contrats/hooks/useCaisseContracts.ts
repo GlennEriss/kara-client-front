@@ -38,22 +38,26 @@ export function useCaisseContract(contractId?: string) {
 
 export function useCreateCaisseContract() {
   const qc = useQueryClient()
+  const { log } = useAuditLogger()
   return useMutation({
     mutationFn: (input: CreateCaisseContractInput) => service.createContract(input),
-    onSuccess: () => {
+    onSuccess: (contractId) => {
       qc.invalidateQueries({ queryKey: ['caisse-contracts'] })
       qc.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
+      log({ action: 'create', module: 'caisseSpeciale', moduleLabel: 'Caisse Spéciale', targetType: 'contrat', targetId: typeof contractId === 'string' ? contractId : undefined, description: 'Création d\'un contrat de caisse spéciale' })
     },
   })
 }
 
 export function useUploadContractPdf() {
   const qc = useQueryClient()
+  const { log } = useAuditLogger()
   return useMutation<ContractPdfMetadata, Error, UploadContractPdfInput>({
     mutationFn: (input) => service.uploadContractPdf(input),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['caisse-contract', variables.contractId] })
       qc.invalidateQueries({ queryKey: ['caisse-contracts'] })
+      log({ action: 'update', module: 'caisseSpeciale', moduleLabel: 'Caisse Spéciale', targetType: 'contrat', targetId: variables.contractId, description: 'Téléversement du PDF d\'un contrat de caisse spéciale' })
     },
   })
 }
@@ -96,6 +100,7 @@ export function useDeleteCaisseContract() {
 export function useReplaceContractPdf() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ contractId, file }: { contractId: string; file: File }) => {
@@ -106,6 +111,7 @@ export function useReplaceContractPdf() {
       queryClient.invalidateQueries({ queryKey: ['caisse-contract', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['caisse-contracts'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
+      log({ action: 'update', module: 'caisseSpeciale', moduleLabel: 'Caisse Spéciale', targetType: 'contrat', targetId: variables.contractId, description: 'Remplacement du PDF d\'un contrat de caisse spéciale' })
       toast.success('Contrat remplacé avec succès')
     },
     onError: (error: Error) => {
@@ -122,6 +128,7 @@ export function canDeletePayment(contract: { status?: string } | null): boolean 
 export function useDeleteContractPayment() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({
@@ -141,6 +148,7 @@ export function useDeleteContractPayment() {
       queryClient.invalidateQueries({ queryKey: ['caisse-contract-payments', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['caisse-contracts'] })
       queryClient.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
+      log({ action: 'delete', module: 'caisseSpeciale', moduleLabel: 'Caisse Spéciale', targetType: 'versement', targetId: variables.contractId, description: 'Suppression d\'un versement de caisse spéciale' })
       toast.success('Versement supprimé. Les totaux du contrat ont été recalculés.')
     },
     onError: (error: Error) => {

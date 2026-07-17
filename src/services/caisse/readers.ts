@@ -65,10 +65,29 @@ export async function getContractWithComputedState(contractId: string) {
     contractStartAt: toDateSafe(c.contractStartAt) || undefined,
   } as any)
 
-  // Écriture compensatoire minimale
-  await updateContract(contractId, { status, nextDueAt })
+  // LIBRE / JOURNALIÈRE : le total versé réel = somme des montants accumulés de
+  // tous les mois (acomptes inclus). Historique : nominalPaid ne comptait que
+  // les mois complétés (plafonnés) → on recale à la lecture si écart.
+  const updates: Record<string, unknown> = { status, nextDueAt }
+  let nominalPaid = c.nominalPaid
+  const t = c.caisseType
+  if (t === 'LIBRE' || t === 'LIBRE_CHARITABLE' || t === 'JOURNALIERE' || t === 'JOURNALIERE_CHARITABLE') {
+    const real = payments.reduce((sum: number, p: any) => {
+      const acc = Number(p.accumulatedAmount)
+      if (Number.isFinite(acc) && acc > 0) return sum + acc
+      const contribs = Array.isArray(p.contribs) ? p.contribs : []
+      return sum + contribs.reduce((s2: number, cb: any) => s2 + (Number(cb.amount) || 0), 0)
+    }, 0)
+    if (real > 0 && real !== (c.nominalPaid || 0)) {
+      updates.nominalPaid = real
+      nominalPaid = real
+    }
+  }
 
-  return { ...c, payments, refunds, status, nextDueAt }
+  // Écriture compensatoire minimale
+  await updateContract(contractId, updates)
+
+  return { ...c, payments, refunds, status, nextDueAt, nominalPaid }
 }
 
 export async function recomputeNow(contractId: string) {

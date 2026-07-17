@@ -279,6 +279,7 @@ export default function CalendrierPage() {
                   daysCommissions={daysCommissionsPlacement}
                   isLoading={isLoadingPlacement}
                 />
+                <OverdueCaissePaymentsList product="Placement" />
               </TabsContent>
 
               <TabsContent value="credit-speciale" className="space-y-6 mt-0">
