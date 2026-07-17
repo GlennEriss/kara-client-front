@@ -70,7 +70,10 @@ export function CommissionSidebarPlacement({
         queryKey: ["calendar-placements"],
       })
       await queryClient.invalidateQueries({
-        queryKey: ["placement-commissions", commission.placement.id],
+        queryKey: ["placement", commission.placement.id, "commissions"],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ["placement", commission.placement.id],
       })
 
       toast.success("Commission payée avec succès")

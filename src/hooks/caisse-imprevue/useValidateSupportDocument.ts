@@ -15,7 +15,7 @@ export function useValidateSupportDocument(contractId: string) {
       })
       queryClient.invalidateQueries({ queryKey: ['support-ci-active', contractId] })
       queryClient.invalidateQueries({ queryKey: ['support-ci-history', contractId] })
-      queryClient.invalidateQueries({ queryKey: ['contract-ci', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI', contractId] })
     },
     onError: (error) => {
       toast.error('Erreur lors de la validation', { description: error.message })
@@ -36,7 +36,7 @@ export function useRejectSupportDocument(contractId: string) {
       })
       queryClient.invalidateQueries({ queryKey: ['support-ci-active', contractId] })
       queryClient.invalidateQueries({ queryKey: ['support-ci-history', contractId] })
-      queryClient.invalidateQueries({ queryKey: ['contract-ci', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI', contractId] })
     },
     onError: (error) => {
       toast.error('Erreur lors du refus', { description: error.message })

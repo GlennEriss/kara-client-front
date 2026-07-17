@@ -3,6 +3,8 @@
 import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
 import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
 import ContractCIDetailsSkeleton from '@/components/caisse-imprevue/ContractCIDetailsSkeleton'
+import DownloadContractCIModal from '@/components/caisse-imprevue/DownloadContractCIModal'
+import UploadContractCIModal from '@/components/caisse-imprevue/UploadContractCIModal'
 import ValidateMemberSignedModal from '@/components/caisse-imprevue/ValidateMemberSignedModal'
 import ValidateSupportDocumentModal from '@/components/caisse-imprevue/ValidateSupportDocumentModal'
 import ValidateRefundCIModal from '@/components/caisse-imprevue/ValidateRefundCIModal'
@@ -20,6 +22,7 @@ import {
     AlertTriangle,
     ArrowLeft,
     CheckCircle2,
+    Download,
     FileText,
     HandHeart,
     RotateCcw,
@@ -33,6 +36,8 @@ export default function ContractCIDetailsPage() {
   const id = params.id
   const router = useRouter()
   const [validateModalOpen, setValidateModalOpen] = useState(false)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [pdfModalOpen, setPdfModalOpen] = useState(false)
   const [validateSupportModalOpen, setValidateSupportModalOpen] = useState(false)
   const [validateRefundModalOpen, setValidateRefundModalOpen] = useState(false)
   const [validateVersementModalOpen, setValidateVersementModalOpen] = useState(false)
@@ -169,26 +174,59 @@ export default function ContractCIDetailsPage() {
   // (sauf contrats migrés : on autorise l'accès aux détails sans PDF)
   if (!hasDocument && !isMigrated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-        <Card className="max-w-md border-0 shadow-2xl">
-          <CardContent className="p-8 text-center">
-            <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-              <Upload className="h-10 w-10 text-orange-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Document PDF requis</h2>
-            <p className="text-gray-600 mb-6">
-              Vous devez d'abord téléverser le document PDF signé du contrat avant d'accéder aux détails complets.
-            </p>
-            <Button
-              onClick={() => router.push(routes.admin.caisseImprevue)}
-              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]"
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Retour à la liste
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+          <Card className="max-w-md border-0 shadow-2xl">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+                <Upload className="h-10 w-10 text-orange-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Document PDF requis</h2>
+              <p className="text-gray-600 mb-6">
+                Générez le contrat, signez-le, puis téléversez le document PDF signé pour accéder aux
+                détails complets.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={() => setPdfModalOpen(true)}
+                  className="w-full gap-2 bg-gradient-to-r from-[#234D65] to-[#2c5a73]"
+                >
+                  <Download className="h-4 w-4" />
+                  Générer &amp; télécharger le contrat
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setUploadModalOpen(true)}
+                  className="w-full gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  Téléverser le PDF signé
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push(routes.admin.caisseImprevue)}
+                  className="text-gray-500 text-sm"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Retour à la liste
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <DownloadContractCIModal
+          isOpen={pdfModalOpen}
+          onClose={() => setPdfModalOpen(false)}
+          contract={contract}
+        />
+        <UploadContractCIModal
+          isOpen={uploadModalOpen}
+          onClose={() => setUploadModalOpen(false)}
+          contract={contract}
+          onSuccess={() => setUploadModalOpen(false)}
+        />
+      </>
     )
   }
 
