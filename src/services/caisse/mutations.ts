@@ -8,6 +8,13 @@ import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
 import { logAdminAction } from '@/services/audit/auditLog'
 
+/** Retire les clés à valeur `undefined` (Firestore rejette `undefined`). */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(obj)) if (v !== undefined) out[k] = v
+  return out as T
+}
+
 /** Journalise une action versement CS (best-effort, n'attend pas la promesse). */
 function logCsVersementAction(action: 'payment' | 'update', contractId: string, description: string) {
   void logAdminAction({
@@ -939,7 +946,7 @@ export async function updatePaymentContribution(input: {
   
   // Sérialiser les dates pour Firestore (Timestamp) afin que l'écriture persiste correctement
   const { Timestamp } = await import('firebase/firestore')
-  const contribsForFirestore = updatedContribs.map((c: any) => ({
+  const contribsForFirestore = updatedContribs.map((c: any) => stripUndefined({
     ...c,
     ...(c.paidAt && { paidAt: c.paidAt instanceof Date ? Timestamp.fromDate(c.paidAt) : c.paidAt }),
     ...(c.updatedAt && { updatedAt: c.updatedAt instanceof Date ? Timestamp.fromDate(c.updatedAt) : c.updatedAt }),
@@ -972,7 +979,7 @@ export async function updatePaymentContribution(input: {
   if (updates.modificationReason != null && updates.modificationReason !== '') {
     paymentPayload.modificationReason = updates.modificationReason
   }
-  await updatePayment(contractId, paymentId, paymentPayload)
+  await updatePayment(contractId, paymentId, stripUndefined(paymentPayload))
   
   // Mettre à jour le contrat si nécessaire (recalculer les totaux)
   const contract = await getContract(contractId)
