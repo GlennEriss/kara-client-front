@@ -82,7 +82,8 @@ export function useCaisseSpecialeDemandMutations() {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
-            qc.invalidateQueries({ queryKey: ['caisseContracts'] })
+            qc.invalidateQueries({ queryKey: ['caisse-contracts'] })
+            qc.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
             toast.success('Demande acceptée et contrat créé avec succès')
             log({ action: 'validate', ...CS_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Acceptation d\'une demande de caisse spéciale (contrat créé)' })
         },
@@ -150,7 +151,8 @@ export function useCaisseSpecialeDemandMutations() {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
             if (result?.contractId) {
-                qc.invalidateQueries({ queryKey: ['caisseContracts'] })
+                qc.invalidateQueries({ queryKey: ['caisse-contracts'] })
+                qc.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
             }
             toast.success('Contrat créé avec succès')
         },

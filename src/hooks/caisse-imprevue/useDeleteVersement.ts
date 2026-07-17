@@ -30,9 +30,9 @@ export const useDeleteVersement = () => {
       queryClient.invalidateQueries({ queryKey: ['paymentsCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
-      queryClient.invalidateQueries({ queryKey: ['activeSupport', variables.contractId] })
-      queryClient.invalidateQueries({ queryKey: ['supportHistory', variables.contractId] })
-      queryClient.invalidateQueries({ queryKey: ['checkEligibilityForSupport', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['support-ci-active', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['support-ci-history', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['support-ci-eligibility', variables.contractId] })
       toast.success('Versement supprimé. Les totaux du mois ont été recalculés.')
     },
     onError: (error: unknown) => {

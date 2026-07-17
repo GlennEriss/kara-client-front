@@ -26,7 +26,8 @@ export function useCaisseSpecialeDemandesRealtimeSync(enabled = true) {
         queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
         queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
         queryClient.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
-        queryClient.invalidateQueries({ queryKey: ['caisseContracts'] })
+        queryClient.invalidateQueries({ queryKey: ['caisse-contracts'] })
+        queryClient.invalidateQueries({ queryKey: ['caisse-contracts-stats'] })
       }, 250)
     }
 

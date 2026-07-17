@@ -35,9 +35,9 @@ export function useCaisseImprevueContractRealtimeSync(contractId?: string, enabl
         queryClient.invalidateQueries({ queryKey: ['support-ci-eligibility', contractId] })
 
         // Compatibilité avec des clés legacy présentes dans le module.
-        queryClient.invalidateQueries({ queryKey: ['activeSupport', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['supportHistory', contractId] })
-        queryClient.invalidateQueries({ queryKey: ['checkEligibilityForSupport', contractId] })
+        queryClient.invalidateQueries({ queryKey: ['support-ci-active', contractId] })
+        queryClient.invalidateQueries({ queryKey: ['support-ci-history', contractId] })
+        queryClient.invalidateQueries({ queryKey: ['support-ci-eligibility', contractId] })
       }, 250)
     }
 

@@ -91,6 +91,8 @@ export default function ValidateRefundCIModal({ open, onClose, contractId, refun
 
       toast.success('Demande de remboursement approuvée')
       queryClient.invalidateQueries({ queryKey: ['refundsCI', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       handleClose()
       await onSuccess?.()
     } catch (err: any) {
@@ -117,6 +119,8 @@ export default function ValidateRefundCIModal({ open, onClose, contractId, refun
 
       toast.success('Demande de remboursement refusée')
       queryClient.invalidateQueries({ queryKey: ['refundsCI', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       setRejectionReason('')
       setShowRejectForm(false)
       handleClose()

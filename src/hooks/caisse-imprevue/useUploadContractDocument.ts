@@ -28,6 +28,11 @@ export const useUploadContractDocument = () => {
       // Invalider le cache des contrats pour rafraîchir la liste
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
+      // Détail du contrat + demandes liées : sans ces invalidations, la page
+      // affichait l'ancien état jusqu'à une actualisation manuelle.
+      queryClient.invalidateQueries({ queryKey: ['contractCI'] })
+      queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
+      queryClient.invalidateQueries({ queryKey: ['demand-detail'] })
       
       toast.success('Document téléversé avec succès', {
         description: `Le contrat a été enregistré dans la base de données`

@@ -29,7 +29,7 @@ export function useRequestSupport() {
       // Invalider les requêtes liées
       queryClient.invalidateQueries({ queryKey: ['support-ci-active', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['support-ci-history', variables.contractId] })
-      queryClient.invalidateQueries({ queryKey: ['contract-ci', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contractCI', variables.contractId] })
     },
     onError: (error) => {
       console.error('Erreur lors de la demande de support:', error)

@@ -37,9 +37,9 @@ export const useCreateVersement = () => {
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
       
       // Invalider les queries de support pour mettre à jour l'historique en temps réel
-      queryClient.invalidateQueries({ queryKey: ['activeSupport', variables.contractId] })
-      queryClient.invalidateQueries({ queryKey: ['supportHistory', variables.contractId] })
-      queryClient.invalidateQueries({ queryKey: ['checkEligibilityForSupport', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['support-ci-active', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['support-ci-history', variables.contractId] })
+      queryClient.invalidateQueries({ queryKey: ['support-ci-eligibility', variables.contractId] })
       
       toast.success('Versement enregistré avec succès', {
         description: `Montant: ${variables.versementData.amount.toLocaleString('fr-FR')} FCFA`
