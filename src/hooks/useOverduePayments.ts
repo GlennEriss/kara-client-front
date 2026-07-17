@@ -161,16 +161,30 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
   const perContract = await Promise.all(
     contracts.map(async (contract): Promise<OverduePayment[]> => {
       try {
-        const payments: PaymentCI[] = await service.getPaymentsByContractId(contract.id)
+        const duration = contract.subscriptionCIDuration || 0
+        const amountPerMonth = contract.subscriptionCIAmountPerMonth || 0
+        if (duration <= 0 || !contract.firstPaymentDate) return []
 
-        const overdue = payments.filter((p) => {
-          const isDue =
-            p.status === 'DUE' ||
-            (p.status === 'PARTIAL' && p.accumulatedAmount < p.targetAmount)
-          if (!isDue) return false
-          return startOfDay(ciDueDate(contract, p)) < today
-        })
-        if (overdue.length === 0) return []
+        // Les contrats CI ne pré-créent PAS les échéances : un mois sans document
+        // = mois « DUE ». On reconstitue donc l'échéancier 0..durée (comme la fiche
+        // contrat) au lieu de n'itérer que les documents existants — sinon un
+        // contrat jamais payé (0 document) n'apparaissait jamais en retard.
+        const payments: PaymentCI[] = await service.getPaymentsByContractId(contract.id)
+        const byIndex = new Map<number, PaymentCI>()
+        for (const p of payments) byIndex.set(p.monthIndex, p)
+
+        const overdueMonths: { monthIndex: number; due: Date; remaining: number }[] = []
+        for (let mi = 0; mi < duration; mi++) {
+          const p = byIndex.get(mi)
+          const target = p?.targetAmount ?? amountPerMonth
+          const accumulated = p?.accumulatedAmount ?? 0
+          const isPaid = p?.status === 'PAID' || (p?.status === 'PARTIAL' && accumulated >= target)
+          if (isPaid) continue
+          const due = ciDueDate(contract, { monthIndex: mi } as PaymentCI)
+          if (startOfDay(due) >= today) continue // échéance encore à venir
+          overdueMonths.push({ monthIndex: mi, due, remaining: Math.max(0, target - accumulated) })
+        }
+        if (overdueMonths.length === 0) return []
 
         // Matricule : pas présent sur le contrat CI → récupéré via le membre
         let matricule: string | undefined
@@ -185,23 +199,19 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
         const phone = extractPhone(contract.memberContacts)
         const typeLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
 
-        return overdue.map((p) => {
-          const due = ciDueDate(contract, p)
-          const remaining = Math.max(0, p.targetAmount - (p.accumulatedAmount || 0))
-          return {
-            key: `ci-${contract.id}-${p.id ?? p.monthIndex}`,
-            product: 'Caisse Imprévue' as const,
-            matricule,
-            name,
-            isGroup: false,
-            phone,
-            whatsappNumber,
-            typeLabel,
-            amount: remaining,
-            dueAt: due,
-            daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
-          }
-        })
+        return overdueMonths.map(({ monthIndex, due, remaining }) => ({
+          key: `ci-${contract.id}-${monthIndex}`,
+          product: 'Caisse Imprévue' as const,
+          matricule,
+          name,
+          isGroup: false,
+          phone,
+          whatsappNumber,
+          typeLabel,
+          amount: remaining,
+          dueAt: due,
+          daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+        }))
       } catch (error) {
         console.error(`[overdue][CI] contrat ${contract.id}:`, error)
         return []

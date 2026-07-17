@@ -1,4 +1,5 @@
 "use client"
+import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -126,7 +127,7 @@ const placementSchema = z.object({
   payoutMode: z.enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End']),
   firstCommissionDate: z.string().min(1, 'La date est requise'),
   urgentName: z.string().trim().min(2, 'Nom requis').optional(),
-  urgentFirstName: z.string().trim().min(2, 'Prénom requis').optional(),
+  urgentFirstName: z.string().trim().min(2, 'Prénom requis').optional().or(z.literal('')),
   urgentPhone: z
     .string()
     .trim()
@@ -155,7 +156,7 @@ const placementSchema = z.object({
   urgentRelationship: z.string().optional(),
   urgentIdNumber: z.string().trim().min(2, 'N° pièce requis').optional(),
   urgentTypeId: z.string().trim().min(2, 'Type de pièce requis').optional(),
-  urgentDocumentUrl: z.string().url('URL de la pièce invalide').optional().or(z.literal('')),
+  urgentDocumentUrl: z.string().url('URL de la pièce invalide').optional().or(z.literal('')).or(z.literal('INCONNU')),
 })
 
 type PlacementFormData = z.infer<typeof placementSchema>
@@ -207,8 +208,8 @@ export default function PlacementList() {
   const [finalQuittancePlacementId, setFinalQuittancePlacementId] = useState<string | null>(null)
   const [earlyExitQuittancePlacementId, setEarlyExitQuittancePlacementId] = useState<string | null>(null)
   const [deletePlacementId, setDeletePlacementId] = useState<string | null>(null)
-  const [urgentDocumentFile, setUrgentDocumentFile] = useState<File | null>(null)
   const [isUploadingUrgentDoc, setIsUploadingUrgentDoc] = useState(false)
+  const [urgentMemberId, setUrgentMemberId] = useState<string | undefined>(undefined)
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'all')
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
 
@@ -329,7 +330,7 @@ export default function PlacementList() {
     } else if (!isCreateOpen && !editingPlacementId) {
       // Réinitialiser le formulaire quand on ferme sans être en mode édition
       form.reset()
-      setUrgentDocumentFile(null)
+      setUrgentMemberId(undefined)
     }
   }, [editingPlacement, isCreateOpen, editingPlacementId, form])
 
@@ -836,35 +837,28 @@ export default function PlacementList() {
       const hasUrgent =
         urgentName || urgentFirstName || urgentPhone || urgentPhone2 || urgentRelationship || urgentIdNumber || urgentTypeId
 
-      if (hasUrgent) {
+      // Contact inconnu (compte placeholder) : aucune info exigée.
+      const isUnknownUrgent = (urgentName || '').trim().toUpperCase() === 'INCONNU'
+
+      if (hasUrgent && !isUnknownUrgent) {
         if (!urgentName || !urgentPhone || !urgentRelationship || !urgentIdNumber || !urgentTypeId) {
           toast.error('Complétez toutes les informations du contact urgent (nom, téléphone, lien, type et n° de pièce).')
           return
         }
-        if (!urgentDocumentUrl && !urgentDocumentFile) {
+        if (!urgentDocumentUrl) {
           toast.error('Ajoutez la photo/scanne de la pièce du contact urgent.')
           return
         }
       }
 
-      let documentPhotoUrl = urgentDocumentUrl
-      if (hasUrgent && urgentDocumentFile) {
-        setIsUploadingUrgentDoc(true)
-        try {
-          const docRepo = RepositoryFactory.getDocumentRepository()
-          const upload = await docRepo.uploadDocumentFile(urgentDocumentFile, rest.benefactorId, 'PLACEMENT_EMERGENCY_ID')
-          documentPhotoUrl = upload.url
-        } finally {
-          setIsUploadingUrgentDoc(false)
-        }
-      }
+      const documentPhotoUrl = urgentDocumentUrl
 
       const urgentContact =
-        hasUrgent && urgentName && urgentPhone
+        hasUrgent && urgentName && (urgentPhone || isUnknownUrgent)
           ? {
               name: urgentName,
               firstName: urgentFirstName || undefined,
-              phone: urgentPhone,
+              phone: urgentPhone || '',
               phone2: urgentPhone2 || undefined,
               relationship: urgentRelationship || undefined,
               idNumber: urgentIdNumber || undefined,
@@ -910,7 +904,7 @@ export default function PlacementList() {
       setEditingPlacementId(null)
       editingPlacementIdRef.current = null
       form.reset()
-      setUrgentDocumentFile(null)
+      setUrgentMemberId(undefined)
     } catch (e) {
       // handled by react-query if needed
     }
@@ -1348,7 +1342,7 @@ export default function PlacementList() {
           setEditingPlacementId(null)
           editingPlacementIdRef.current = null
           form.reset()
-          setUrgentDocumentFile(null)
+          setUrgentMemberId(undefined)
         }
         setIsCreateOpen(open)
       }}>
@@ -1557,360 +1551,31 @@ export default function PlacementList() {
                 )}
               />
 
-              {/* Contact urgent (optionnel) */}
-              <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center space-x-2 text-blue-800">
-                    <AlertTriangle className="w-5 h-5 text-blue-600" />
-                    <span>Contact d&apos;urgence</span>
-                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">Optionnel</Badge>
-                  </CardTitle>
-                  <p className="text-sm text-blue-700">
-                    Personne à contacter en cas d&apos;urgence ou d&apos;accident
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Nom et Prénom */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="urgentName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-bold text-blue-800">
-                            Nom du contact
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500" />
-                              <Input
-                                {...field}
-                                placeholder="Nom de famille"
-                                className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="urgentFirstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-bold text-blue-800">
-                            Prénom du contact
-                            <Badge variant="secondary" className="ml-2 text-xs bg-blue-100 text-blue-700">
-                              Optionnel
-                            </Badge>
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500" />
-                              <Input
-                                {...field}
-                                placeholder="Prénom (optionnel)"
-                                className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Téléphones */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="urgentPhone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-bold text-blue-800">
-                            Téléphone principal
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500" />
-                              <Input
-                                {...field}
-                                placeholder="+241 65 34 56 78"
-                                maxLength={17}
-                                onKeyDown={(e) => {
-                                  // Empêcher la suppression du préfixe +241
-                                  const input = e.currentTarget
-                                  const cursorPos = input.selectionStart || 0
-                                  if ((e.key === 'Backspace' || e.key === 'Delete') && cursorPos <= 5) {
-                                    e.preventDefault()
-                                  }
-                                }}
-                                onPaste={(e) => {
-                                  e.preventDefault()
-                                  const pastedText = e.clipboardData.getData('text')
-                                  const currentValue = field.value || DEFAULT_PHONE_PREFIX
-                                  const formatted = formatPhoneValue(currentValue + pastedText, false)
-                                  field.onChange(formatted)
-                                }}
-                                onChange={(e) => {
-                                  const formatted = formatPhoneValue(e.target.value, false)
-                                  field.onChange(formatted)
-                                }}
-                                className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="urgentPhone2"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-bold text-blue-800">
-                            Téléphone secondaire
-                            <Badge variant="secondary" className="ml-2 text-xs bg-blue-100 text-blue-700">
-                              Optionnel
-                            </Badge>
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500" />
-                              <Input
-                                {...field}
-                                placeholder="+241 66 78 90 12"
-                                maxLength={17}
-                                onKeyDown={(e) => {
-                                  // Empêcher la suppression du préfixe +241
-                                  const input = e.currentTarget
-                                  const cursorPos = input.selectionStart || 0
-                                  if ((e.key === 'Backspace' || e.key === 'Delete') && cursorPos <= 5) {
-                                    e.preventDefault()
-                                  }
-                                }}
-                                onPaste={(e) => {
-                                  e.preventDefault()
-                                  const pastedText = e.clipboardData.getData('text')
-                                  const currentValue = field.value || DEFAULT_PHONE_PREFIX
-                                  const formatted = formatPhoneValue(currentValue + pastedText, true)
-                                  field.onChange(formatted)
-                                }}
-                                onChange={(e) => {
-                                  const formatted = formatPhoneValue(e.target.value, true)
-                                  field.onChange(formatted)
-                                }}
-                                className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Lien de parenté */}
-                  <FormField
-                    control={form.control}
-                    name="urgentRelationship"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-bold text-blue-800">
-                          Lien de parenté
-                        </FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500 z-10 pointer-events-none" />
-                            <SelectApp
-                              options={relationshipOptions}
-                              value={field.value || ''}
-                              onChange={(value) => field.onChange(value)}
-                              placeholder="Sélectionner le lien de parenté"
-                              className="pl-10 border-blue-300"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Type de document et Numéro */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="urgentTypeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-bold text-blue-800">
-                            Type de document
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500 z-10 pointer-events-none" />
-                              <SelectApp
-                                options={DOCUMENT_TYPE_OPTIONS}
-                                value={field.value || ''}
-                                onChange={(value) => field.onChange(value)}
-                                placeholder="Type de pièce"
-                                className="pl-10 border-blue-300"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="urgentIdNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-bold text-blue-800">
-                            Numéro de document
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500" />
-                              <Input
-                                {...field}
-                                placeholder="Ex: 123456789"
-                                maxLength={50}
-                                className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Photo du document */}
-                  <FormItem>
-                    <FormLabel className="text-sm font-bold text-blue-800">
-                      Photo du document
-                    </FormLabel>
-                    <FormControl>
-                      {!form.watch('urgentDocumentUrl') ? (
-                        <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 text-center transition-colors hover:border-blue-400">
-                          <input
-                            ref={(el) => {
-                              if (el) {
-                                const fileInput = el as HTMLInputElement
-                                fileInput.type = 'file'
-                                fileInput.accept = 'image/jpeg,image/jpg,image/png,image/webp'
-                                fileInput.onchange = async (e) => {
-                                  const file = (e.target as HTMLInputElement).files?.[0]
-                                  if (!file) return
-                                  if (!ImageCompressionService.isValidImageFile(file)) {
-                                    toast.error('Le fichier doit être une image (JPG, PNG ou WEBP)')
-                                    return
-                                  }
-                                  if (file.size > 10 * 1024 * 1024) {
-                                    toast.error('La taille de l\'image ne doit pas dépasser 10 MB')
-                                    return
-                                  }
-                                  setIsUploadingUrgentDoc(true)
-                                  try {
-                                    const compressedFile = await ImageCompressionService.compressDocumentImage(file)
-                                    const storage = getStorageInstance()
-                                    const timestamp = Date.now()
-                                    const fileName = `placement-emergency-contact-${timestamp}-${file.name}`
-                                    const filePath = `placement-emergency-contacts/${fileName}`
-                                    const storageRef = ref(storage, filePath)
-                                    await uploadBytes(storageRef, compressedFile)
-                                    const downloadURL = await getDownloadURL(storageRef)
-                                    form.setValue('urgentDocumentUrl', downloadURL)
-                                    toast.success('Photo uploadée avec succès!')
-                                  } catch (error) {
-                                    toast.error('Erreur lors de l\'upload de la photo')
-                                  } finally {
-                                    setIsUploadingUrgentDoc(false)
-                                  }
-                                }
-                              }
-                            }}
-                            className="hidden"
-                            disabled={isUploadingUrgentDoc}
-                          />
-                          <div className="space-y-2">
-                            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                              {isUploadingUrgentDoc ? (
-                                <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                              ) : (
-                                <Upload className="w-6 h-6 text-blue-600" />
-                              )}
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                const input = document.querySelector('input[type="file"]') as HTMLInputElement
-                                input?.click()
-                              }}
-                              disabled={isUploadingUrgentDoc}
-                              className="bg-blue-500 hover:bg-blue-600 text-white"
-                            >
-                              {isUploadingUrgentDoc ? 'Upload en cours...' : 'Choisir une photo'}
-                            </Button>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              PNG, JPG, JPEG, WEBP jusqu&apos;à 10 MB
-                            </p>
-                            <p className="text-xs text-blue-600 mt-1">
-                              ✨ Compression automatique activée
-                            </p>
-                          </div>
-                        </div>
-                      ) : (() => {
-                        const documentUrl = form.watch('urgentDocumentUrl')
-                        if (!documentUrl) return null
-                        return (
-                          <div className="relative border-2 border-green-300 rounded-lg p-4 bg-green-50/50">
-                            <div className="flex items-start gap-4">
-                              <div className="relative w-32 h-40 flex-shrink-0 rounded-lg overflow-hidden border-2 border-green-400">
-                                <Image
-                                  src={documentUrl}
-                                  alt="Document"
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle className="w-5 h-5 text-green-600" />
-                                    <span className="text-sm font-medium text-green-800">Photo uploadée</span>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      form.setValue('urgentDocumentUrl', '')
-                                      const input = document.querySelector('input[type="file"]') as HTMLInputElement
-                                      if (input) input.value = ''
-                                    }}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-100"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                                <p className="text-xs text-green-700 break-all">
-                                  {documentUrl.split('/').pop()?.split('?')[0] || 'document'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })()}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                </CardContent>
-              </Card>
+              {/* Contact d'urgence (optionnel) — même saisie que la Caisse Imprévue :
+                  recherche de membre, auto-remplissage de la pièce, bouton « Contact inconnu ». */}
+              <EmergencyContactMemberSelector
+                memberId={urgentMemberId}
+                lastName={form.watch('urgentName')}
+                firstName={form.watch('urgentFirstName')}
+                phone1={form.watch('urgentPhone')}
+                phone2={form.watch('urgentPhone2')}
+                relationship={form.watch('urgentRelationship')}
+                typeId={form.watch('urgentTypeId')}
+                idNumber={form.watch('urgentIdNumber')}
+                documentPhotoUrl={form.watch('urgentDocumentUrl')}
+                onUpdate={(field, value) => {
+                  if (field === 'memberId') setUrgentMemberId(value || undefined)
+                  else if (field === 'lastName') form.setValue('urgentName', value)
+                  else if (field === 'firstName') form.setValue('urgentFirstName', value)
+                  else if (field === 'phone1') form.setValue('urgentPhone', value)
+                  else if (field === 'phone2') form.setValue('urgentPhone2', value)
+                  else if (field === 'relationship') form.setValue('urgentRelationship', value)
+                  else if (field === 'typeId') form.setValue('urgentTypeId', value)
+                  else if (field === 'idNumber') form.setValue('urgentIdNumber', value)
+                  else if (field === 'documentPhotoUrl') form.setValue('urgentDocumentUrl', value)
+                }}
+                excludeMemberIds={form.watch('benefactorId') ? [form.watch('benefactorId')] : []}
+              />
 
               </ModalBody>
               <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
