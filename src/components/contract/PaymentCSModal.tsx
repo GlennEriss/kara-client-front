@@ -92,9 +92,14 @@ export default function PaymentCSModal({
   const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
   const [modificationReason, setModificationReason] = useState<string>('')
 
-  // Réinitialiser / préremplir le formulaire quand le modal s'ouvre
+  // Réinitialiser / préremplir le formulaire UNIQUEMENT à l'ouverture du modal.
+  // Les parents recréent `initialData` inline à chaque re-render (synchro temps
+  // réel) : resynchroniser sur sa référence écrasait la saisie en cours.
+  const wasOpenRef = React.useRef(false)
   useEffect(() => {
-    if (isOpen) {
+    const justOpened = isOpen && !wasOpenRef.current
+    wasOpenRef.current = isOpen
+    if (justOpened) {
       if (initialData) {
         setFormData({
           date: initialData.date,

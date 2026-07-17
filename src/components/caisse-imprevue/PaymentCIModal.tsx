@@ -113,9 +113,14 @@ export default function PaymentCIModal({
   // Récupérer le support actif
   const { data: activeSupport } = useActiveSupport(contractId)
 
-  // Réinitialiser / préremplir quand le modal s'ouvre
+  // Réinitialiser / préremplir UNIQUEMENT à l'ouverture du modal (les parents
+  // recréent `initialData` inline à chaque re-render : resynchroniser sur sa
+  // référence écrasait la saisie en cours, montant y compris).
+  const wasOpenRef = React.useRef(false)
   useEffect(() => {
-    if (isOpen) {
+    const justOpened = isOpen && !wasOpenRef.current
+    wasOpenRef.current = isOpen
+    if (justOpened) {
       if (initialData) {
         setPaymentDate(initialData.date)
         setPaymentTime(initialData.time)

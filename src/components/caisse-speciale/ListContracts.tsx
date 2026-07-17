@@ -980,6 +980,8 @@ function ContractCSGridCard({
     contract.caisseType === 'LIBRE_CHARITABLE' ||
     contract.caisseType === 'JOURNALIERE' ||
     contract.caisseType === 'JOURNALIERE_CHARITABLE'
+  // Libre : pas de mensualité du tout (le membre verse ce qu'il veut) → tiret.
+  const isLibreType = contract.caisseType === 'LIBRE' || contract.caisseType === 'LIBRE_CHARITABLE'
 
   const statusMeta = STATUS_META_CS[contract.status] ?? { label: contract.status, dot: 'bg-gray-400', text: 'text-gray-500' }
   const typeLabel  = CAISSE_TYPE_SHORT[contract.caisseType] ?? contract.caisseType ?? 'CS'
@@ -1024,8 +1026,14 @@ function ContractCSGridCard({
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
             <p className="font-bold text-[#234D65] tabular-nums text-sm">
-              {(contract.monthlyAmount || 0).toLocaleString('fr-FR')}{' '}
-              <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+              {isLibreType ? (
+                '—'
+              ) : (
+                <>
+                  {(contract.monthlyAmount || 0).toLocaleString('fr-FR')}{' '}
+                  <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+                </>
+              )}
             </p>
           </div>
           <div>
@@ -2415,7 +2423,7 @@ const ListContracts = () => {
                           <div>{emergency?.lastName || '—'} {emergency?.firstName || ''}</div>
                           <div>{emergency?.phone1 || '—'}</div>
                         </td>
-                        <td className="px-4 py-3 text-right">{(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</td>
+                        <td className="px-4 py-3 text-right">{(contract.caisseType === 'LIBRE' || contract.caisseType === 'LIBRE_CHARITABLE') ? '—' : `${(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`}</td>
                         <td className="px-4 py-3 text-right">{contract.monthsPlanned} mois</td>
                         <td className="px-4 py-3 text-right">{contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}</td>
                         <td className="px-4 py-3 text-right">{contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}</td>
@@ -2638,7 +2646,9 @@ const ListContracts = () => {
               const memberEmail = member?.email || '—'
               const firstPaymentDate = contract?.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'
               const nextDueDate = contract?.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'
-              const monthlyAmount = (contract?.monthlyAmount || 0).toLocaleString('fr-FR')
+              // Libre : pas de mensualité (versements libres) → tiret.
+              const isLibreContract = contract?.caisseType === 'LIBRE' || contract?.caisseType === 'LIBRE_CHARITABLE'
+              const monthlyAmount = isLibreContract ? '—' : (contract?.monthlyAmount || 0).toLocaleString('fr-FR')
               const paidAmount = (contract?.nominalPaid || 0).toLocaleString('fr-FR')
               const durationMonths = contract?.monthsPlanned || 0
 
@@ -2766,7 +2776,7 @@ const ListContracts = () => {
                           <div className="grid grid-cols-1 gap-3">
                             <div className="rounded-xl bg-gradient-to-r from-[#234D65]/10 to-[#234D65]/5 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-[#234D65]/80">Mensualité</p>
-                              <p className="text-lg font-semibold text-[#234D65]">{monthlyAmount} FCFA</p>
+                              <p className="text-lg font-semibold text-[#234D65]">{isLibreContract ? '—' : `${monthlyAmount} FCFA`}</p>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Total versé</p>
