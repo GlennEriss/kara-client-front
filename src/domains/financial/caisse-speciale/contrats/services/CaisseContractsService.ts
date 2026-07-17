@@ -122,7 +122,28 @@ export class CaisseContractsService {
         })
       }
     } else {
-      await this.repo.deletePayment(contractId, paymentId)
+      // JOURNALIÈRE : les paiements sont créés au fil de l'eau → on supprime le doc.
+      // STANDARD / LIBRE : l'échéancier est pré-créé → on REMET le mois à DUE
+      // (supprimer le doc ferait disparaître l'échéance de la grille).
+      const isDaily = contract.caisseType === 'JOURNALIERE' || contract.caisseType === 'JOURNALIERE_CHARITABLE'
+      if (isDaily) {
+        await this.repo.deletePayment(contractId, paymentId)
+      } else {
+        await updatePayment(contractId, paymentId, {
+          status: 'DUE',
+          amount: 0,
+          accumulatedAmount: 0,
+          contribs: [],
+          paidAt: null,
+          time: null,
+          mode: null,
+          proofUrl: null,
+          bonusApplied: 0,
+          penaltyApplied: 0,
+          agentRecouvrementId: null,
+          updatedBy: adminId,
+        } as any)
+      }
     }
 
     const remaining = await this.repo.getContractPayments(contractId)

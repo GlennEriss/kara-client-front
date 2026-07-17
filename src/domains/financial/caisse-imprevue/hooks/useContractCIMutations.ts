@@ -40,8 +40,9 @@ export function useContractCIMutations() {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.replaceContractDocument(contractId, file, user.uid)
     },
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      log({ action: 'update', ...CI_MODULE, targetType: 'contrat', targetId: variables.contractId, description: 'Remplacement du document d\'un contrat de caisse imprévue' })
       queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
       queryClient.invalidateQueries({ queryKey: ['contractCI'] })
       queryClient.invalidateQueries({ queryKey: ['documents'] })
@@ -57,8 +58,9 @@ export function useContractCIMutations() {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.updateContractSubscription(contractId, subscriptionId, user.uid)
     },
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      log({ action: 'update', ...CI_MODULE, targetType: 'contrat', targetId: variables.contractId, description: 'Changement de forfait d\'un contrat de caisse imprévue' })
       queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
       queryClient.invalidateQueries({ queryKey: ['contractCI'] })
       toast.success('Catégorie du contrat mise à jour')

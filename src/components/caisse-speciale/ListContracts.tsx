@@ -973,6 +973,13 @@ function ContractCSGridCard({
   const total    = contract.monthsPlanned     ?? 0
   const paidAmt  = contract.nominalPaid       ?? 0
   const progress = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
+  // Libre / journalière : versements variables → la progression par mensualité
+  // n'a pas de sens, on ne l'affiche pas.
+  const isVariableAmountType =
+    contract.caisseType === 'LIBRE' ||
+    contract.caisseType === 'LIBRE_CHARITABLE' ||
+    contract.caisseType === 'JOURNALIERE' ||
+    contract.caisseType === 'JOURNALIERE_CHARITABLE'
 
   const statusMeta = STATUS_META_CS[contract.status] ?? { label: contract.status, dot: 'bg-gray-400', text: 'text-gray-500' }
   const typeLabel  = CAISSE_TYPE_SHORT[contract.caisseType] ?? contract.caisseType ?? 'CS'
@@ -1040,19 +1047,21 @@ function ContractCSGridCard({
           </div>
         </div>
 
-        {/* Progression */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px] text-gray-400">
-            <span>Progression</span>
-            <span className="font-semibold text-[#234D65] tabular-nums">{progress}%</span>
+        {/* Progression (masquée pour libre/journalière : pas de mensualité fixe) */}
+        {!isVariableAmountType && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-gray-400">
+              <span>Progression</span>
+              <span className="font-semibold text-[#234D65] tabular-nums">{progress}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#234D65] transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-[#234D65] transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
+        )}
 
         {/* Statut de signature */}
         <div>

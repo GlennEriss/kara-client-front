@@ -1,5 +1,6 @@
 'use client'
 
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 import ContractCIMemberInfoDialog from '@/components/caisse-imprevue/ContractCIMemberInfoDialog'
@@ -151,6 +152,8 @@ const PaymentStatsGrid = ({ contract, paymentStats }: { contract: ContractCI; pa
 export default function DailyCIContract({ contract, document: _document, isLoadingDocument: _isLoadingDocument }: DailyCIContractProps) {
   const { openDocument } = useDocumentViewer()
   const router = useRouter()
+  // Actions sensibles (modifier/supprimer un versement) : SuperAdmin uniquement.
+  const isSuperAdmin = useIsSuperAdmin()
   const { user } = useAuth()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -1327,7 +1330,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             contract={contract}
             payment={getSelectedPaymentWithVersement()!}
             isMonthly={false}
-            onEditClick={!isContractTerminated ? () => {
+            onEditClick={!isContractTerminated && isSuperAdmin ? () => {
               if (!selectedDate) return
               const mi = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
               const payment = payments.find((p: any) => p.monthIndex === mi)
@@ -1339,7 +1342,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 setShowPaymentModal(true)
               }
             } : undefined}
-            onDeleteClick={!isContractTerminated ? async () => {
+            onDeleteClick={!isContractTerminated && isSuperAdmin ? async () => {
               if (!selectedDate) return
               const payment = getSelectedPaymentWithVersement()
               if (!payment) return

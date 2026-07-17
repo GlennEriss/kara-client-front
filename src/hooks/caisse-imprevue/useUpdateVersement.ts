@@ -1,3 +1,4 @@
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
@@ -18,6 +19,7 @@ interface UpdateVersementParams {
  */
 export const useUpdateVersement = () => {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: async (params: UpdateVersementParams) => {
@@ -33,6 +35,7 @@ export const useUpdateVersement = () => {
       )
     },
     onSuccess: (data, variables) => {
+      log({ action: 'update', module: 'caisseImprevue', moduleLabel: 'Caisse Imprévue', targetType: 'versement', targetId: variables.contractId, description: 'Modification d\'un versement de caisse imprévue' })
       queryClient.invalidateQueries({ queryKey: ['paymentsCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })

@@ -1,5 +1,6 @@
 "use client"
 
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import { ContractCalendarGrid, useContractCalendar } from '@/components/contract/calendar'
@@ -88,6 +89,8 @@ type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
   const router = useRouter()
+  // Actions sensibles (modifier/supprimer un versement) : SuperAdmin uniquement.
+  const isSuperAdmin = useIsSuperAdmin()
   const queryClient = useQueryClient()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [hasInitializedCalendarMonth, setHasInitializedCalendarMonth] = useState(false)
@@ -2019,6 +2022,7 @@ export default function DailyContract({ id }: Props) {
                 return contribDate.getTime() === selected.getTime()
               }) || payment.contribs[0]
 
+              if (!isSuperAdmin) return null
               return (
                 <Button
                   onClick={() => {
@@ -2045,7 +2049,7 @@ export default function DailyContract({ id }: Props) {
             })()}
 
             {/* Bouton Supprimer le versement (après Modifier) : autorisé seulement si contrat actif */}
-            {!isGroupContract && paymentDetails?.status === 'PAID' && paymentDetails?.id && canDeletePayment(data ?? null) && (
+            {isSuperAdmin && !isGroupContract && paymentDetails?.status === 'PAID' && paymentDetails?.id && canDeletePayment(data ?? null) && (
               <Button
                 variant="outline"
                 onClick={() => {

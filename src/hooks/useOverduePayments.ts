@@ -15,7 +15,7 @@ import { getUserById } from '@/db/user.db'
 import { getGroupById } from '@/db/group.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CaisseContract, CaissePayment, CaisseType } from '@/services/caisse/types'
-import type { ContractCI, CreditContract, CreditInstallment, CreditType, PaymentCI } from '@/types/types'
+import type { ContractCI, CreditContract, CreditInstallment, CreditType, PaymentCI, Placement } from '@/types/types'
 
 export type OverdueProduct =
   | 'Caisse Spéciale'
@@ -23,6 +23,7 @@ export type OverdueProduct =
   | 'Crédit Spéciale'
   | 'Crédit Fixe'
   | 'Crédit Aide'
+  | 'Placement'
 
 export interface OverduePayment {
   key: string
@@ -289,12 +290,72 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
   return perContract.flat()
 }
 
+/* ---------- Placement (commissions dues aux bienfaiteurs) ---------- */
+
+async function fetchOverduePlacement(today: Date): Promise<OverduePayment[]> {
+  const service = ServiceFactory.getPlacementService()
+  const placements: Placement[] = await service.listPlacements({ statuses: ['Active'] })
+
+  const getUser = makeUserCache()
+
+  const perPlacement = await Promise.all(
+    placements.map(async (pl): Promise<OverduePayment[]> => {
+      try {
+        const commissions = await service.listCommissions(pl.id)
+        const overdue = commissions.filter((c) => {
+          if (c.status !== 'Due' && c.status !== 'Partial') return false
+          const due = c.dueDate instanceof Date ? c.dueDate : new Date(c.dueDate)
+          return startOfDay(due) < today
+        })
+        if (overdue.length === 0) return []
+
+        let matricule: string | undefined
+        let whatsappNumber: string | undefined
+        let name = pl.benefactorName || '—'
+        let phone: string | undefined = pl.benefactorPhone || undefined
+        try {
+          const member = await getUser(pl.benefactorId)
+          if (member) {
+            matricule = member.matricule
+            whatsappNumber = member.whatsappNumber || undefined
+            if (!pl.benefactorName) name = `${member.firstName || ''} ${member.lastName || ''}`.trim() || name
+            phone = phone ?? extractPhone(member.contacts)
+          }
+        } catch { /* ignore */ }
+
+        return overdue.map((c) => {
+          const due = c.dueDate instanceof Date ? c.dueDate : new Date(c.dueDate)
+          return {
+            key: `pl-${pl.id}-${c.id}`,
+            product: 'Placement' as const,
+            matricule,
+            name,
+            isGroup: false,
+            phone,
+            whatsappNumber,
+            typeLabel: 'Commission',
+            amount: c.amount || 0,
+            dueAt: due,
+            daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
+          }
+        })
+      } catch (error) {
+        console.error(`[overdue][Placement] ${pl.id}:`, error)
+        return []
+      }
+    }),
+  )
+
+  return perPlacement.flat()
+}
+
 const ALL_PRODUCTS: OverdueProduct[] = [
   'Caisse Spéciale',
   'Caisse Imprévue',
   'Crédit Spéciale',
   'Crédit Fixe',
   'Crédit Aide',
+  'Placement',
 ]
 
 /**
@@ -313,6 +374,7 @@ export function useOverduePayments(products: OverdueProduct[] = ALL_PRODUCTS) {
       for (const credit of ['Crédit Spéciale', 'Crédit Fixe', 'Crédit Aide'] as OverdueProduct[]) {
         if (products.includes(credit)) tasks.push(fetchOverdueCredit(credit, today))
       }
+      if (products.includes('Placement')) tasks.push(fetchOverduePlacement(today))
       const results = await Promise.all(tasks)
       // Plus en retard d'abord
       return results.flat().sort((a, b) => b.daysOverdue - a.daysOverdue)

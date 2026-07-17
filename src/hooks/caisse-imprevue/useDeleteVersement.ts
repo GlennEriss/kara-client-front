@@ -1,3 +1,4 @@
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
@@ -15,6 +16,7 @@ interface DeleteVersementParams {
  */
 export const useDeleteVersement = () => {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
   const { user } = useAuth()
 
   return useMutation({
@@ -24,6 +26,7 @@ export const useDeleteVersement = () => {
       return await service.deleteVersement(params.contractId, params.monthIndex, params.versementId, user.uid)
     },
     onSuccess: (_data, variables) => {
+      log({ action: 'delete', module: 'caisseImprevue', moduleLabel: 'Caisse Imprévue', targetType: 'versement', targetId: variables.contractId, description: 'Suppression d\'un versement de caisse imprévue' })
       queryClient.invalidateQueries({ queryKey: ['paymentsCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractCI', variables.contractId] })
       queryClient.invalidateQueries({ queryKey: ['contractsCI'] })

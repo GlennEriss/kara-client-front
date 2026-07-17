@@ -1,5 +1,7 @@
 "use client"
 
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+import { useDeleteContractPayment } from '@/domains/financial/caisse-speciale/contrats/hooks'
 import { backOr } from '@/lib/backNavigation'
 import { Badge, Badge as BadgeShadcn } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -106,6 +108,9 @@ type Props = { id: string }
 
 export default function StandardContract({ id }: Props) {
   const router = useRouter()
+  // Actions sensibles (modifier/supprimer un versement) : SuperAdmin uniquement.
+  const isSuperAdmin = useIsSuperAdmin()
+  const deletePaymentMutation = useDeleteContractPayment()
   const queryClient = useQueryClient()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
@@ -380,6 +385,27 @@ export default function StandardContract({ id }: Props) {
     } catch (error) {
       console.error('Erreur lors du paiement:', error)
       throw error
+    }
+  }
+
+
+  /** Suppression d'un versement (SuperAdmin) : le mois repasse « À payer ». */
+  const handleDeletePayment = async (e: React.MouseEvent, payment: any) => {
+    e.stopPropagation()
+    const contribs = Array.isArray(payment?.contribs) ? payment.contribs : []
+    const msg = contribs.length > 1
+      ? 'Supprimer le DERNIER versement de ce mois ? Les totaux du contrat seront recalculés. Action irréversible.'
+      : 'Supprimer ce versement ? Le mois repassera « À payer » et les totaux du contrat seront recalculés. Action irréversible.'
+    if (!window.confirm(msg)) return
+    try {
+      await deletePaymentMutation.mutateAsync({
+        contractId: id,
+        paymentId: payment.id,
+        contributionId: contribs.length > 1 ? contribs[contribs.length - 1]?.id : contribs[0]?.id,
+      })
+      await refetch()
+    } catch {
+      // Erreur gérée par le hook (toast)
     }
   }
 
@@ -680,7 +706,7 @@ export default function StandardContract({ id }: Props) {
                                   <Eye className="h-3 w-3 mr-1" />
                                   Voir la facture
                                 </Button>
-                                {!isClosed && (
+                                {!isClosed && isSuperAdmin && (
                                   <Button
                                     type="button"
                                     size="sm"
@@ -689,6 +715,18 @@ export default function StandardContract({ id }: Props) {
                                     onClick={(e) => openEditPaymentModal(e, p)}
                                   >
                                     Modifier
+                                  </Button>
+                                )}
+                                {!isClosed && isSuperAdmin && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full text-red-700 border-red-300 hover:bg-red-50"
+                                    disabled={deletePaymentMutation.isPending}
+                                    onClick={(e) => handleDeletePayment(e, p)}
+                                  >
+                                    {deletePaymentMutation.isPending ? 'Suppression…' : 'Supprimer'}
                                   </Button>
                                 )}
                               </div>

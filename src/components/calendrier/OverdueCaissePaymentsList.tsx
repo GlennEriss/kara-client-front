@@ -104,6 +104,22 @@ function groupOverdue(items: OverduePayment[]): OverdueGroup[] {
 function buildReminderMessage(group: OverdueGroup): string {
   const name = group.name?.trim() || 'cher membre'
 
+  // Placement : c'est KARA qui doit la commission au bienfaiteur — le message
+  // l'informe (au lieu de lui réclamer un paiement).
+  if (group.product === 'Placement') {
+    const detail = group.payments
+      .map((p) => `• Commission de ${fmtAmount(p.amount)} FCFA (échéance du ${format(p.dueAt, 'dd/MM/yyyy', { locale: fr })})`)
+      .join('\n')
+    return `Bonjour ${name},
+
+L'équipe KARA vous informe qu'une ou plusieurs commissions de votre placement sont arrivées à échéance :
+${detail}
+
+Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci de votre confiance 🙏
+
+— L'équipe KARA`
+  }
+
   if (group.count === 1) {
     const p = group.payments[0]
     const due = format(p.dueAt, 'dd/MM/yyyy', { locale: fr })
