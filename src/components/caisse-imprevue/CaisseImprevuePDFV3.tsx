@@ -201,6 +201,15 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: '#f8fafc',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: TEXT_MUTED,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
@@ -310,6 +319,10 @@ const CaisseImprevuePDFV3 = ({
   }
 
   const memberAge = contract?.member?.age || calculateAge(contract?.member?.birthDate) || '—'
+  const memberFullName = [contract?.member?.lastName, contract?.member?.firstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || contract?.memberId || 'Membre'
   const paymentDueDayLabel = resolvedFillData.paymentDueDay?.trim() || '________________'
 
   return (
@@ -696,7 +709,9 @@ const CaisseImprevuePDFV3 = ({
           {resolvedFillData.memberSignature ? (
             <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
           ) : (
-            <View style={styles.signaturePlaceholder} />
+            <View style={styles.signaturePlaceholder}>
+              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+            </View>
           )}
           <Text style={[styles.paragraph, { marginTop: 40 }]}>Signature du Secrétaire Exécutif</Text>
           {resolvedFillData.secretarySignature ? (

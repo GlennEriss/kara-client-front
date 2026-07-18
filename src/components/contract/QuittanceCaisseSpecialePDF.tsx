@@ -121,6 +121,15 @@ const styles = StyleSheet.create({
     border: '1px dashed #94a3b8',
     backgroundColor: '#ffffff',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: TEXT_MUTED,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 8,
@@ -282,6 +291,10 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
     (contract?.refundDelayDays != null ? String(contract.refundDelayDays) : '.......')
   const secretaryDateLabel = formatInputDate(resolvedFillData.secretaryDate)
   const memberDateLabel = formatInputDate(resolvedFillData.memberDate)
+  const memberFullName = [contract?.member?.lastName, contract?.member?.firstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || contract?.memberId || 'Membre'
 
   const memberRows: QuittanceCoverRow[] = [
     {
@@ -406,7 +419,9 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
               {resolvedFillData.memberSignature ? (
                 <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
               ) : (
-                <View style={styles.signaturePlaceholder} />
+                <View style={styles.signaturePlaceholder}>
+                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+                </View>
               )}
               <Text style={styles.dateText}>Date : {memberDateLabel}</Text>
             </View>

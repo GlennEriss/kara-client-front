@@ -129,6 +129,7 @@ export function PlacementDemandForm({
                         placeholder="Ex: 1000000"
                         min={1000}
                         {...field}
+                        value={field.value ?? ''}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>

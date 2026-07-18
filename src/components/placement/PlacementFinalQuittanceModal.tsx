@@ -259,6 +259,8 @@ export default function PlacementFinalQuittanceModal({
       doc.setFontSize(9)
       doc.text('_________________', 15, yPos)
       doc.text('_________________', pageWidth - 60, yPos)
+      doc.setFontSize(8)
+      doc.text(memberName, pageWidth - 60, yPos + 5, { maxWidth: 50 })
 
       // Sauvegarder le PDF
       const firstName = memberData?.firstName || 'Bienfaiteur'
@@ -411,4 +413,3 @@ export default function PlacementFinalQuittanceModal({
     </Dialog>
   )
 }
-

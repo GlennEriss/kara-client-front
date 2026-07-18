@@ -163,6 +163,10 @@ export const convertDemandToPlacementSchema = z.object({
 export type ConvertDemandToPlacementInput = z.infer<typeof convertDemandToPlacementSchema>
 
 export const placementDemandDefaultValues: Partial<PlacementDemandFormInput> = {
+  // Tous les champs texte sont initialisés : un champ absent rend son input
+  // non contrôlé, puis contrôlé à la première saisie (warning React).
+  benefactorId: '',
+  cause: '',
   payoutMode: 'MonthlyCommission_CapitalEnd',
   periodMonths: 1,
   rate: 0,

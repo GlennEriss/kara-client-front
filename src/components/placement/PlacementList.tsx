@@ -254,7 +254,7 @@ export default function PlacementList() {
   // Permissions fines : les actions ne sont proposées que si l'admin les détient.
   const { can } = useMyAccess()
   const { create, update, requestEarlyExit, payCommission, remove } = usePlacementMutations()
-  const { user, loading: authLoading } = useAuth()
+  const { user } = useAuth()
   const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null)
   const editingPlacementIdRef = useRef<string | null>(null)
   const pieChartContainerRef = useRef<HTMLDivElement>(null)
@@ -1054,15 +1054,12 @@ export default function PlacementList() {
                 {can('placements.create') && (
                 <Button
                   size="sm"
-                  onClick={() => {
-                    setEditingPlacementId(null)
-                    editingPlacementIdRef.current = null
-                    setIsCreateOpen(true)
-                  }}
-                  className="h-10 w-full cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md disabled:opacity-50 sm:w-auto"
-                  disabled={!user?.uid || authLoading}
+                  asChild
+                  className="h-10 w-full cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md sm:w-auto"
                 >
-                  <Plus className="mr-2 h-4 w-4" /> Nouveau Placement
+                  <Link href={routes.admin.placementDemandAdd}>
+                    <Plus className="mr-2 h-4 w-4" /> Nouvelle Demande
+                  </Link>
                 </Button>
                 )}
               </div>

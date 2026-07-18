@@ -15,6 +15,7 @@ import { CreateDemandFormV2 } from '@/domains/financial/caisse-imprevue/componen
 import { useDemandDetail, useDemandForm, useUpdateDemand } from '@/domains/financial/caisse-imprevue/hooks'
 import type { CaisseImprevueDemandFormInput } from '@/domains/financial/caisse-imprevue/hooks/useDemandForm'
 import { ArrowLeft, Edit, FileText } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
@@ -133,9 +134,9 @@ export default function EditDemandPage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Demande non trouvée</h2>
           <p className="text-gray-500 mb-6">Cette demande n'existe pas ou a été supprimée.</p>
-          <Button onClick={() => router.push('/caisse-imprevue/demandes')}>
+          <Button onClick={() => backOr(router, '/caisse-imprevue/demandes')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour à la liste
+            Retour
           </Button>
         </div>
       </div>

@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { CaisseSpecialeDemandFormInput } from '@/schemas/caisse-speciale.schema'
 import type { CaisseSpecialeDemand } from '@/types/types'
 import { AlertCircle, ArrowLeft, FileText } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useLayoutEffect } from 'react'
 import { toast } from 'sonner'
@@ -192,8 +193,8 @@ export default function EditDemandPage({ params }: EditDemandPageProps) {
             Cette demande ne peut pas être modifiée. Seules les demandes en attente peuvent être modifiées.
           </AlertDescription>
         </Alert>
-        <Button onClick={() => router.push(routes.admin.caisseSpecialeDemandDetails(demandId))} className="mt-4">
-          Retour aux détails
+        <Button onClick={() => backOr(router, routes.admin.caisseSpecialeDemandDetails(demandId))} className="mt-4">
+          Retour
         </Button>
       </div>
     )
@@ -208,7 +209,7 @@ export default function EditDemandPage({ params }: EditDemandPageProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => router.push(routes.admin.caisseSpecialeDemandDetails(demandId))}
+                onClick={() => backOr(router, routes.admin.caisseSpecialeDemandDetails(demandId))}
                 className="text-white hover:bg-white/20 hover:text-white shrink-0 mt-1"
               >
                 <ArrowLeft className="w-5 h-5" />

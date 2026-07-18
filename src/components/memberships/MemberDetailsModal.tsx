@@ -218,6 +218,15 @@ const styles = StyleSheet.create({
     height: 40,
     alignSelf: 'center',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 1,
+    left: 0,
+    right: 0,
+    fontSize: 9,
+    textAlign: 'center',
+    color: '#334155',
+  },
   italic: {
     fontStyle: 'italic',
     marginBottom: 8,
@@ -483,6 +492,11 @@ const MutuelleKaraPDF = ({
   request: MembershipRequest
   fillData: AdhesionPdfFillData
 }) => {
+  const memberFullName = [request.identity?.lastName, request.identity?.firstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || request.id || 'Membre'
+
   const getPhotoURL = () => {
     if (fillData.headerPhotoDataUrl) return fillData.headerPhotoDataUrl
     if (request.identity?.photoURL) return request.identity.photoURL
@@ -714,7 +728,9 @@ const MutuelleKaraPDF = ({
               {fillData.page1MemberSignature ? (
                 <Image src={fillData.page1MemberSignature} style={styles.signatureImageLarge} cache={false} />
               ) : (
-                <View style={styles.signaturePlaceholderLarge} />
+                <View style={styles.signaturePlaceholderLarge}>
+                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+                </View>
               )}
               <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1MemberDate)}</Text>
             </View>
@@ -840,7 +856,9 @@ const MutuelleKaraPDF = ({
               {fillData.article5BeneficiarySignature ? (
                 <Image src={fillData.article5BeneficiarySignature} style={styles.signatureImageSmall} cache={false} />
               ) : (
-                <View style={styles.signaturePlaceholderSmall} />
+                <View style={styles.signaturePlaceholderSmall}>
+                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+                </View>
               )}
             </View>
             <View style={styles.signatureCell}>

@@ -276,9 +276,9 @@ const handleGenerateGlobalFacture = async () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Erreur de chargement</h2>
             <p className="text-gray-600">{error instanceof Error ? error.message : 'Impossible de charger le placement'}</p>
-            <Button onClick={() => router.push('/placements')} className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
+            <Button onClick={() => backOr(router, '/placements')} className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour à la liste
+              Retour
             </Button>
           </CardContent>
         </Card>

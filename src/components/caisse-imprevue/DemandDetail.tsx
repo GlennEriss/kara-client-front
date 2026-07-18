@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { useCaisseImprevueDemand, useCaisseImprevueDemandMutations } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
+import { backOr } from '@/lib/backNavigation'
 import { cn } from '@/lib/utils'
 import { CaisseImprevueDemandStatus } from '@/types/types'
 import {
@@ -85,11 +86,11 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
       <div className="space-y-6">
         <Button
           variant="outline"
-          onClick={() => router.push(routes.admin.caisseImprevueDemandes)}
+          onClick={() => backOr(router, routes.admin.caisseImprevueDemandes)}
           className="mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à la liste
+          Retour
         </Button>
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -107,7 +108,7 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
-            onClick={() => router.push(routes.admin.caisseImprevueDemandes)}
+            onClick={() => backOr(router, routes.admin.caisseImprevueDemandes)}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour

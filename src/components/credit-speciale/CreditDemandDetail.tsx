@@ -41,6 +41,7 @@ import {
     XCircle
 } from 'lucide-react'
 import Image from 'next/image'
+import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import ContractCreationModal from './ContractCreationModal'
@@ -338,11 +339,11 @@ export default function CreditDemandDetail({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button
               variant="secondary"
-              onClick={() => router.push(listPath)}
+              onClick={() => backOr(router, listPath)}
               className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour aux demandes
+              Retour
             </Button>
 
             <Badge className={cn('border px-3 py-1 text-sm font-semibold backdrop-blur-sm', statusBadgeStyle)}>

@@ -28,7 +28,7 @@ export const caisseSpecialeDemandSchema = z.object({
     .max(10000000, 'Le montant mensuel maximum est de 10 000 000 FCFA'),
   monthsPlanned: z.number()
     .min(1, 'La durée doit être d\'au moins 1 mois')
-    .max(120, 'La durée ne peut pas dépasser 120 mois'),
+    .max(12, 'La durée ne peut pas dépasser 12 mois'),
   desiredDate: z.string().min(1, 'La date souhaitée est requise'),
   cause: z.string()
     .max(500, 'La cause ne peut pas dépasser 500 caractères')
@@ -65,7 +65,7 @@ export const caisseSpecialeDemandFormSchema = z.object({
     .max(10000000, 'Le montant mensuel maximum est de 10 000 000 FCFA'),
   monthsPlanned: z.number()
     .min(1, 'La durée doit être d\'au moins 1 mois')
-    .max(120, 'La durée ne peut pas dépasser 120 mois'),
+    .max(12, 'La durée ne peut pas dépasser 12 mois'),
   desiredDate: z.string().min(1, 'La date souhaitée est requise'),
   cause: z.string()
     .max(500, 'La cause ne peut pas dépasser 500 caractères')

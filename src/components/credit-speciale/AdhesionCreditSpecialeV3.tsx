@@ -278,6 +278,15 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: '#f8fafc',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: '#334155',
+  },
   signatureStack: {
     marginTop: 6,
   },
@@ -508,6 +517,14 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     identityDocument: getIdentityDocumentLabel(guarantorData?.identityDocument),
     identityDocumentNumber: guarantorData?.identityDocumentNumber || '—',
   }
+  const memberFullName = [memberData?.lastName || contract.clientLastName, memberData?.firstName || contract.clientFirstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || member.matricule || 'Membre'
+  const guarantorFullName = [guarantorData?.lastName || contract.guarantorLastName, guarantorData?.firstName || contract.guarantorFirstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || 'Caution'
 
   const firstPaymentDate = contract.firstPaymentDate
     ? (contract.firstPaymentDate as any)?.toDate
@@ -564,11 +581,13 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     return value ? value : placeholder
   }
 
-  const renderSignatureCapture = (signature: string | null) =>
+  const renderSignatureCapture = (signature: string | null, signerName?: string) =>
     signature ? (
       <Image src={signature} style={styles.signatureImage} cache={false} />
     ) : (
-      <View style={styles.signaturePlaceholder} />
+      <View style={styles.signaturePlaceholder}>
+        {signerName ? <Text style={styles.unsignedSignerName}>{signerName}</Text> : null}
+      </View>
     )
 
   const renderPageNumber = (page: number) => (
@@ -753,7 +772,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             {renderSignatureCapture(resolvedFillData.secretarySignature)}
           </View>
           <View style={styles.signatureCaptureSlotRight}>
-            {renderSignatureCapture(resolvedFillData.memberSignature)}
+            {renderSignatureCapture(resolvedFillData.memberSignature, memberFullName)}
           </View>
         </View>
         <View style={styles.signatureRow}>
@@ -900,11 +919,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           </View>
           <View style={styles.signatureStackItem}>
             <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.memberSignature)}
+            {renderSignatureCapture(resolvedFillData.memberSignature, memberFullName)}
           </View>
           <View style={styles.signatureStackItem}>
             <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.guarantorSignature)}
+            {renderSignatureCapture(resolvedFillData.guarantorSignature, guarantorFullName)}
           </View>
         </View>
         {renderPageNumber(5)}
@@ -1010,11 +1029,11 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           </View>
           <View style={styles.signatureStackItem}>
             <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.memberSignature)}
+            {renderSignatureCapture(resolvedFillData.memberSignature, memberFullName)}
           </View>
           <View style={styles.signatureStackItem}>
             <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.guarantorSignature)}
+            {renderSignatureCapture(resolvedFillData.guarantorSignature, guarantorFullName)}
           </View>
         </View>
         {renderPageNumber(7)}

@@ -1215,6 +1215,16 @@ service cloud.firestore {
       }
     }
 
+    // Requêtes de groupe de collections sur `participants` (app membre, onglet
+    // "Mes contributions"). Les règles nichées sous /charity-events ne
+    // s'appliquent PAS aux collectionGroup : il faut ce match dédié.
+    // Restreint à ses propres participations — la requête filtre déjà sur
+    // memberId, la règle est donc satisfaisable.
+    match /{path=**}/participants/{participantId} {
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.memberId == request.auth.uid);
+    }
+
     // Déclarations d'intention de contribution des MEMBRES (app membre).
     // Le membre déclare (status "pending") ; un gestionnaire confirme ou refuse
     // depuis la fiche évènement admin (la contribution réelle est alors créée
