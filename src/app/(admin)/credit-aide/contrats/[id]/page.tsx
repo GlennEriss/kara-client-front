@@ -6,6 +6,7 @@ import { CreditAideContractDetailSection } from '@/domains/financial/credit-spec
 import { useCreditContractRealtimeSync } from '@/hooks/credit-speciale/useCreditContractRealtimeSync'
 import { useCreditContract } from '@/hooks/useCreditSpeciale'
 import { Loader2 } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useParams, useRouter } from 'next/navigation'
 
 export default function CreditAideContractDetailPage() {
@@ -30,8 +31,8 @@ export default function CreditAideContractDetailPage() {
         <div className="text-center space-y-3">
           <p className="text-red-600">Erreur lors du chargement du contrat</p>
           <p className="text-gray-500">{error?.message || 'Contrat introuvable'}</p>
-          <Button onClick={() => router.push(routes.admin.creditAideContrats)} variant="outline">
-            Retour aux contrats crédit aide
+          <Button onClick={() => backOr(router, routes.admin.creditAideContrats)} variant="outline">
+            Retour
           </Button>
         </div>
       </div>
@@ -43,8 +44,8 @@ export default function CreditAideContractDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-3">
           <p className="text-red-600">Ce contrat ne correspond pas à un crédit aide.</p>
-          <Button onClick={() => router.push(routes.admin.creditAideContrats)} variant="outline">
-            Retour aux contrats crédit aide
+          <Button onClick={() => backOr(router, routes.admin.creditAideContrats)} variant="outline">
+            Retour
           </Button>
         </div>
       </div>

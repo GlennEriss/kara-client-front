@@ -138,6 +138,11 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     marginBottom: 8,
   },
+  signerName: {
+    fontSize: 10,
+    textAlign: 'left',
+    marginTop: 42,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
@@ -608,6 +613,7 @@ export default function PlacementContractPDF({
           <View style={styles.signatureColRight}>
             <Text style={styles.signatureText}>Signature du Bienfaiteur</Text>
             <Text style={styles.signatureText}>Précédée de la mention Lu et approuvé</Text>
+            <Text style={styles.signerName}>{memberFullName}</Text>
           </View>
         </View>
       </Page>

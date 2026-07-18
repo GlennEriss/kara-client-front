@@ -37,6 +37,7 @@ import {
   User,
   XCircle,
 } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -227,11 +228,11 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
           </div>
           <Button
             variant="outline"
-            onClick={() => router.push(routes.admin.caisseSpecialeDemandes)}
+            onClick={() => backOr(router, routes.admin.caisseSpecialeDemandes)}
             className="border-red-300 text-red-700 hover:bg-red-100"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la liste
+            Retour
           </Button>
         </CardContent>
       </Card>
@@ -248,7 +249,7 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button
               variant="secondary"
-              onClick={() => router.push(routes.admin.caisseSpecialeDemandes)}
+              onClick={() => backOr(router, routes.admin.caisseSpecialeDemandes)}
               className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />

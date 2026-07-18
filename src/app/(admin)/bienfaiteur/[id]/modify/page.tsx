@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import { Edit } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useParams, useRouter } from 'next/navigation'
 
 export default function ModifyCharityEventPage() {
@@ -30,10 +31,10 @@ export default function ModifyCharityEventPage() {
         <div className="text-center">
           <p className="text-gray-500 mb-4">Évènement non trouvé</p>
           <button
-            onClick={() => router.push(routes.admin.bienfaiteur)}
+            onClick={() => backOr(router, routes.admin.bienfaiteur)}
             className="text-blue-600 hover:underline"
           >
-            Retour à la liste
+            Retour
           </button>
         </div>
       </div>

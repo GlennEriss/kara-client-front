@@ -264,12 +264,14 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
                         <FormControl>
                           <Input
                             type="number"
+                            min={1}
+                            max={12}
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormDescription>
-                          Nombre de mois du contrat (max 24)
+                          Nombre de mois du contrat (max 12)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

@@ -236,6 +236,15 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: '#f8fafc',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: TEXT_MUTED,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
@@ -686,7 +695,9 @@ const CaisseSpecialePDFV3 = ({
           {resolvedFillData.page3MemberSignature ? (
             <Image src={resolvedFillData.page3MemberSignature} style={styles.signatureImageRight} cache={false} />
           ) : (
-            <View style={styles.signaturePlaceholderRight} />
+            <View style={styles.signaturePlaceholderRight}>
+              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+            </View>
           )}
           <Text style={[styles.paragraph, styles.rightAlign, { marginTop: 6 }]}>
             [Signature de l’épargnant précédée de la mention « lu et approuvé »]
@@ -778,7 +789,9 @@ const CaisseSpecialePDFV3 = ({
         {resolvedFillData.page5MemberSignature ? (
           <Image src={resolvedFillData.page5MemberSignature} style={styles.signatureImageWide} cache={false} />
         ) : (
-          <View style={styles.signaturePlaceholderWide} />
+          <View style={styles.signaturePlaceholderWide}>
+            <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+          </View>
         )}
       </Page>
     </Document>

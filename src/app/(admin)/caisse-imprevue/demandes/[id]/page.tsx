@@ -31,6 +31,7 @@ import {
 } from '@/domains/financial/caisse-imprevue/hooks'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, CheckCircle2, Clock, FileSignature, FileText, Loader2, RotateCcw, User, XCircle } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -201,9 +202,9 @@ export default function DemandDetailPage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Demande non trouvée</h2>
           <p className="text-gray-500 mb-6">Cette demande n'existe pas ou a été supprimée.</p>
-          <Button onClick={() => router.push('/caisse-imprevue/demandes')}>
+          <Button onClick={() => backOr(router, '/caisse-imprevue/demandes')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour à la liste
+            Retour
           </Button>
         </div>
       </div>

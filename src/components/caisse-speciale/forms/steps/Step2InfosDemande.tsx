@@ -5,7 +5,7 @@
 
 'use client'
 
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -131,10 +131,13 @@ export function Step2InfosDemande({ form }: Step2InfosDemandeProps) {
                 <Input
                   type="number"
                   placeholder="Ex: 12"
+                  min={1}
+                  max={12}
                   {...field}
                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                 />
               </FormControl>
+              <FormDescription>Entre 1 et 12 mois</FormDescription>
               <FormMessage />
             </FormItem>
           )}

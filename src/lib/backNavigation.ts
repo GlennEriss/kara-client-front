@@ -9,7 +9,20 @@ type AppRouter = ReturnType<typeof useRouter>
  * notification, nouvel onglet).
  */
 export function backOr(router: AppRouter, fallback: string): void {
-  if (typeof window !== 'undefined' && window.history.length > 1) {
+  if (typeof window === 'undefined') {
+    router.push(fallback)
+    return
+  }
+
+  // `history.length` compte aussi les pages d'autres sites visitées dans l'onglet :
+  // il peut être > 1 sans qu'il existe d'entrée précédente DANS l'application.
+  // Le routeur de Next.js numérote ses propres entrées dans `history.state.idx`,
+  // qui est donc le signal fiable quand il est disponible.
+  const idx = (window.history.state as { idx?: number } | null)?.idx
+  const hasPrevious =
+    typeof idx === 'number' ? idx > 0 : window.history.length > 1
+
+  if (hasPrevious) {
     router.back()
   } else {
     router.push(fallback)

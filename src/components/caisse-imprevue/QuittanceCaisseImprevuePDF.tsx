@@ -141,6 +141,15 @@ const styles = StyleSheet.create({
     border: `1px dashed ${BORDER_MEDIUM}`,
     backgroundColor: '#ffffff',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: TEXT_MUTED,
+  },
   pageNumber: {
     position: 'absolute',
     bottom: 10,
@@ -330,6 +339,10 @@ const QuittanceCaisseImprevuePDF = ({
     profession: memberData?.profession || contract?.memberProfession || '—',
     membershipType: (memberData?.membershipType && typeof memberData.membershipType === 'string' ? memberData.membershipType.toUpperCase() : null) || '—',
   }
+  const memberFullName = [memberData?.lastName || contract?.memberLastName, memberData?.firstName || contract?.memberFirstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || member.matricule || 'Membre'
 
   const emergencyContact = contract?.emergencyContact || {}
   // Utiliser le montant nominal du remboursement actif, sinon le montant total versé (somme des targetAmount)
@@ -454,7 +467,9 @@ const QuittanceCaisseImprevuePDF = ({
               {resolvedFillData.memberSignature ? (
                 <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
               ) : (
-                <View style={styles.signaturePlaceholder} />
+                <View style={styles.signaturePlaceholder}>
+                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+                </View>
               )}
             </View>
           </View>

@@ -2040,7 +2040,7 @@ export default function CreditContractDetail({
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Retour aux contrats
+            Retour
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
             <EmergencyContact emergencyContact={contract.emergencyContact} />

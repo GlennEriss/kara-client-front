@@ -136,7 +136,7 @@ export const subscriptionCISchema = z.object({
     })
     .int('La durée doit être un nombre entier')
     .positive('La durée doit être positive')
-    .max(24, 'La durée ne peut pas dépasser 24 mois'),
+    .max(12, 'La durée ne peut pas dépasser 12 mois'),
 
   // Taux de pénalité en pourcentage
   penaltyRate: z

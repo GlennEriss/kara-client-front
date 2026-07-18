@@ -24,6 +24,7 @@ import {
     User,
     XCircle
 } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
@@ -116,11 +117,11 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
       <div className="space-y-6">
         <Button
           variant="outline"
-          onClick={() => router.push(routes.admin.placementDemandes)}
+          onClick={() => backOr(router, routes.admin.placementDemandes)}
           className="mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à la liste
+          Retour
         </Button>
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -138,10 +139,10 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
-          onClick={() => router.push(routes.admin.placementDemandes)}
+          onClick={() => backOr(router, routes.admin.placementDemandes)}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à la liste
+          Retour
         </Button>
         <Badge className={cn('px-3 py-1', getStatusColor(demand.status))}>
           {getStatusLabel(demand.status)}

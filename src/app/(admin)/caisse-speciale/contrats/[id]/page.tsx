@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from 'react'
+import { backOr } from '@/lib/backNavigation'
 import { useParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -76,9 +77,9 @@ export default function AdminCaisseContractDetailsPage() {
 						<p className="text-gray-600 mb-6">
 							{error instanceof Error ? error.message : 'Une erreur est survenue'}
 						</p>
-						<Button onClick={() => router.push(routes.admin.caisseSpeciale)} className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
+						<Button onClick={() => backOr(router, routes.admin.caisseSpeciale)} className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
 							<ArrowLeft className="h-5 w-5 mr-2" />
-							Retour à la liste
+							Retour
 						</Button>
 					</CardContent>
 				</Card>
@@ -98,9 +99,9 @@ export default function AdminCaisseContractDetailsPage() {
 						<p className="text-gray-600 mb-6">
 							Le contrat avec l'ID <span className="font-mono font-semibold">{id}</span> n'existe pas.
 						</p>
-						<Button onClick={() => router.push(routes.admin.caisseSpeciale)} className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
+						<Button onClick={() => backOr(router, routes.admin.caisseSpeciale)} className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
 							<ArrowLeft className="h-5 w-5 mr-2" />
-							Retour à la liste
+							Retour
 						</Button>
 					</CardContent>
 				</Card>
@@ -147,11 +148,11 @@ export default function AdminCaisseContractDetailsPage() {
 							</Button>
 							<Button
 								variant="ghost"
-								onClick={() => router.push(routes.admin.caisseSpeciale)}
+								onClick={() => backOr(router, routes.admin.caisseSpeciale)}
 								className="text-gray-500 text-sm"
 							>
 								<ArrowLeft className="h-4 w-4 mr-1" />
-								Retour à la liste
+								Retour
 							</Button>
 						</div>
 					</div>
@@ -201,9 +202,9 @@ export default function AdminCaisseContractDetailsPage() {
 									<CheckCircle2 className="h-5 w-5" />
 									Valider la signature
 								</Button>
-								<Button variant="ghost" onClick={() => router.push(routes.admin.caisseSpeciale)} className="text-gray-500">
+								<Button variant="ghost" onClick={() => backOr(router, routes.admin.caisseSpeciale)} className="text-gray-500">
 									<ArrowLeft className="h-4 w-4 mr-2" />
-									Retour à la liste
+									Retour
 								</Button>
 							</div>
 						</CardContent>

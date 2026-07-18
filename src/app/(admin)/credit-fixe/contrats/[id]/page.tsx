@@ -6,6 +6,7 @@ import { CreditFixeContractDetailSection } from '@/domains/financial/credit-spec
 import { useCreditContractRealtimeSync } from '@/hooks/credit-speciale/useCreditContractRealtimeSync'
 import { useCreditContract } from '@/hooks/useCreditSpeciale'
 import { AlertCircle, Loader2 } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useParams, useRouter } from 'next/navigation'
 
 export default function CreditFixeContractDetailPage() {
@@ -30,8 +31,8 @@ export default function CreditFixeContractDetailPage() {
         <div className="text-center space-y-3">
           <p className="text-red-600">Erreur lors du chargement du contrat</p>
           <p className="text-gray-500">{error?.message || 'Contrat introuvable'}</p>
-          <Button onClick={() => router.push(routes.admin.creditFixeContrats)} variant="outline">
-            Retour aux contrats crédit fixe
+          <Button onClick={() => backOr(router, routes.admin.creditFixeContrats)} variant="outline">
+            Retour
           </Button>
         </div>
       </div>
@@ -43,8 +44,8 @@ export default function CreditFixeContractDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-3">
           <p className="text-red-600">Ce contrat ne correspond pas à un crédit fixe.</p>
-          <Button onClick={() => router.push(routes.admin.creditFixeContrats)} variant="outline">
-            Retour aux contrats crédit fixe
+          <Button onClick={() => backOr(router, routes.admin.creditFixeContrats)} variant="outline">
+            Retour
           </Button>
         </div>
       </div>
@@ -69,7 +70,7 @@ export default function CreditFixeContractDetailPage() {
             <span className="font-medium">Téléverser contrat signé</span>.
           </p>
           <Button
-            onClick={() => router.push(routes.admin.creditFixeContrats)}
+            onClick={() => backOr(router, routes.admin.creditFixeContrats)}
             className="mt-5 bg-[#234D65] hover:bg-[#1b3b4d]"
           >
             Retourner à la liste des contrats

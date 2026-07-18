@@ -3,8 +3,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CharityContributionService } from '@/services/bienfaiteur/CharityContributionService'
 import { CharityContribution, CharityContributionInput } from '@/types/types'
+import { getUserById } from '@/db/user.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuditLogger } from '@/hooks/useAuditLog'
+
+/** Message de notification adapté au type de contribution. */
+function buildContributionMessage(contribution: CharityContributionInput): string {
+  const amount = contribution.payment?.amount
+  if (contribution.contributionType === 'money' && amount) {
+    return `Une contribution de ${amount.toLocaleString('fr-FR')} FCFA a été enregistrée à votre nom. Merci pour votre générosité !`
+  }
+  return 'Une contribution en nature a été enregistrée à votre nom. Merci pour votre générosité !'
+}
 
 /**
  * Hook pour récupérer les contributions d'un évènement
@@ -112,25 +123,48 @@ export function useAddParticipantWithContribution() {
   const { log } = useAuditLogger()
 
   return useMutation({
-    mutationFn: ({ 
-      eventId, 
-      memberId, 
-      groupId, 
-      contribution 
-    }: { 
+    mutationFn: async ({
+      eventId,
+      memberId,
+      groupId,
+      contribution
+    }: {
       eventId: string
       memberId?: string
       groupId?: string
       contribution: CharityContributionInput
     }) => {
       if (!user?.uid) throw new Error('User not authenticated')
-      return CharityContributionService.addParticipantWithContribution(
-        eventId, 
-        memberId, 
-        groupId, 
-        contribution, 
+      const result = await CharityContributionService.addParticipantWithContribution(
+        eventId,
+        memberId,
+        groupId,
+        contribution,
         user.uid
       )
+
+      // Prévenir le membre de la contribution enregistrée pour lui (best-effort).
+      // Rien à notifier pour une contribution de groupe : pas de destinataire.
+      if (memberId) {
+        // Le portail membre accepte matricule OU uid comme recipientId ; on
+        // privilégie le matricule, comme le fait le parcours "déclaration".
+        const member = await getUserById(memberId)
+        await ServiceFactory.getNotificationService().notifyMember({
+          recipientId: member?.matricule || memberId,
+          module: 'bienfaiteur',
+          entityId: eventId,
+          type: 'status_update',
+          title: 'Contribution enregistrée',
+          message: buildContributionMessage(contribution),
+          metadata: {
+            eventId,
+            contributionId: result.contributionId,
+            status: contribution.status,
+          },
+        })
+      }
+
+      return result
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['charity-contributions', variables.eventId] })

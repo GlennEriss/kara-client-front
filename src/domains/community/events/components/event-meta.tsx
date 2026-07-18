@@ -5,11 +5,21 @@
 import { Badge } from '@/components/ui/badge'
 import type { EventStatus, EventType } from '../entities/event.types'
 
+/**
+ * Libellés alignés sur ceux de la charité (CHARITY_EVENT_STATUS_LABELS) pour
+ * que les deux modules parlent la même langue : Brouillon / À venir / En cours
+ * / Terminé.
+ *
+ * Deux statuts n'ont pas d'équivalent côté charité et gardent un libellé
+ * propre : `poll_open` doit rester distinct de `published` (c'est lui qui
+ * autorise le vote), et `cancelled` ne doit pas être confondu avec un
+ * événement terminé normalement.
+ */
 export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
   draft: 'Brouillon',
-  published: 'Publié',
+  published: 'À venir',
   poll_open: 'Sondage en cours',
-  location_confirmed: 'Lieu confirmé',
+  location_confirmed: 'En cours',
   completed: 'Terminé',
   cancelled: 'Annulé',
 }
@@ -22,10 +32,11 @@ export const EVENT_TYPE_LABEL: Record<EventType, string> = {
   other: 'Autre',
 }
 
+/** Couleurs alignées sur la charité : à venir = ambre, en cours = émeraude. */
 const STATUS_BADGE_CLASS: Record<EventStatus, string> = {
   draft: 'bg-slate-100 text-slate-700 border-slate-200',
-  published: 'bg-blue-100 text-blue-800 border-blue-200',
-  poll_open: 'bg-amber-100 text-amber-800 border-amber-200',
+  published: 'bg-amber-100 text-amber-800 border-amber-200',
+  poll_open: 'bg-blue-100 text-blue-800 border-blue-200',
   location_confirmed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   completed: 'bg-gray-100 text-gray-700 border-gray-200',
   cancelled: 'bg-red-100 text-red-800 border-red-200',

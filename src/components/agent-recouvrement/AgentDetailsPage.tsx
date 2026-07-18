@@ -9,6 +9,7 @@ import { useAgentRecouvrement, useDeactivateAgentRecouvrement, useDeleteAgentRec
 import { useAuth } from '@/hooks/useAuth'
 import { formatAgentDate, getAgentAge, toAgentDate } from '@/utils/agentDateUtils'
 import { ArrowLeft, Pause, Pencil, Play, Trash2 } from 'lucide-react'
+import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -98,9 +99,9 @@ export function AgentDetailsPage({ agentId }: AgentDetailsPageProps) {
   if (error || !agent) {
     return (
       <div className="space-y-6">
-        <Button variant="outline" onClick={() => router.push(routes.admin.agentsRecouvrement)}>
+        <Button variant="outline" onClick={() => backOr(router, routes.admin.agentsRecouvrement)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à la liste
+          Retour
         </Button>
         <div className="text-center py-12 text-destructive">Agent non trouvé</div>
       </div>
@@ -113,9 +114,9 @@ export function AgentDetailsPage({ agentId }: AgentDetailsPageProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <Button variant="outline" onClick={() => router.push(routes.admin.agentsRecouvrement)}>
+        <Button variant="outline" onClick={() => backOr(router, routes.admin.agentsRecouvrement)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à la liste
+          Retour
         </Button>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEditOpen(true)}>

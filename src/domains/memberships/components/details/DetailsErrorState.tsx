@@ -6,6 +6,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import routes from '@/constantes/routes'
+import { backOr } from '@/lib/backNavigation'
 import { AlertCircle, ArrowLeft } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,13 +46,13 @@ export function DetailsErrorState({ error, onRetry }: DetailsErrorStateProps) {
               </Button>
             )}
             <Button
-              onClick={() => router.back()}
+              onClick={() => backOr(router, routes.admin.membershipRequests)}
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8"
               data-testid="details-error-back-button"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour à la liste
+              Retour
             </Button>
           </div>
         </CardContent>

@@ -91,6 +91,15 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: '#f8fafc',
   },
+  unsignedSignerName: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: '#334155',
+  },
   // Footer
   footer: {
     position: 'absolute',
@@ -342,11 +351,13 @@ const QuittanceCreditSpecialePDF = ({
   const place = 'Libreville'
   const resolvedFillData = { ...EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA, ...fillData }
 
-  const renderSignatureCapture = (signature: string | null) =>
+  const renderSignatureCapture = (signature: string | null, signerName?: string) =>
     signature ? (
       <Image src={signature} style={styles.signatureImage} cache={false} />
     ) : (
-      <View style={styles.signaturePlaceholder} />
+      <View style={styles.signaturePlaceholder}>
+        {signerName ? <Text style={styles.unsignedSignerName}>{signerName}</Text> : null}
+      </View>
     )
 
   return (
@@ -398,7 +409,7 @@ const QuittanceCreditSpecialePDF = ({
               Signature de l'épargnant (Précédée de la mention Lu et Approuvé)
             </Text>
             <View style={{ alignItems: 'flex-end' }}>
-              {renderSignatureCapture(resolvedFillData.memberSignature)}
+              {renderSignatureCapture(resolvedFillData.memberSignature, clientName)}
             </View>
           </View>
         </View>
