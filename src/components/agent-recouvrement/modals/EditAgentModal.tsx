@@ -1,5 +1,6 @@
 'use client'
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
@@ -339,7 +340,7 @@ export function EditAgentModal({ agent, open, onOpenChange, onSuccess, mutation 
                   <FormItem>
                     <FormLabel>Téléphone *</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <GabonPhoneInput value={field.value ?? ''} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -352,7 +353,7 @@ export function EditAgentModal({ agent, open, onOpenChange, onSuccess, mutation 
                   <FormItem>
                     <FormLabel>Téléphone 2 (opt.)</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <GabonPhoneInput value={field.value ?? ''} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

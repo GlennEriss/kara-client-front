@@ -23,6 +23,7 @@ import {
   createEventSchema,
   type CreateEventFormValues,
 } from '../schemas/event.schema'
+import { useAllCharityEvents } from '@/hooks/bienfaiteur/useCharityEvents'
 import { EVENT_TYPE_LABEL } from './event-meta'
 import type { Event } from '../entities/event.types'
 
@@ -35,6 +36,9 @@ function toLocalInputValue(d: Date | undefined): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+/** Radix n'accepte pas de valeur vide : sentinelle pour "aucune collecte". */
+const NO_CHARITY = '__none__'
 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5 MB
@@ -68,6 +72,7 @@ export function EventForm({
     description: initialEvent?.description ?? '',
     imageURL: initialEvent?.imageURL ?? '',
     type: initialEvent?.type,
+    charityEventId: initialEvent?.charityEventId ?? '',
     startDate: toLocalInputValue(initialEvent?.startDate),
     endDate: toLocalInputValue(initialEvent?.endDate),
     pollEnabled: initialEvent?.pollEnabled ?? false,
@@ -99,6 +104,9 @@ export function EventForm({
 
   const pollEnabled = watch('pollEnabled')
   const imageURL = watch('imageURL')
+
+  const { data: charityEvents = [], isLoading: charityEventsLoading } =
+    useAllCharityEvents()
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -243,6 +251,35 @@ export function EventForm({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Collecte associée : l'argent reste géré par le module bienfaiteur */}
+            <div>
+              <Label htmlFor="event-charity">Collecte associée</Label>
+              <Select
+                value={watch('charityEventId') || NO_CHARITY}
+                onValueChange={(v) =>
+                  setValue('charityEventId', v === NO_CHARITY ? '' : v, {
+                    shouldValidate: true,
+                  })
+                }
+                disabled={charityEventsLoading}
+              >
+                <SelectTrigger id="event-charity" className="mt-1.5">
+                  <SelectValue placeholder="Aucune" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_CHARITY}>Aucune</SelectItem>
+                  {charityEvents.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1.5 text-xs text-gray-500">
+                Les contributions financières restent gérées dans Bienfaiteur.
+              </p>
             </div>
 
             {/* Image upload */}

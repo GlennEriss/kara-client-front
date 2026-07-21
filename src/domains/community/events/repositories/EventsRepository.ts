@@ -114,6 +114,7 @@ export class EventsRepository implements IEventsRepository {
       pollClosesAt: this.toDate(data.pollClosesAt),
       pollClosedAt: this.toDate(data.pollClosedAt),
       finalLocation: data.finalLocation,
+      charityEventId: data.charityEventId,
       totalVotes: data.totalVotes ?? 0,
       votesByOptionId: data.votesByOptionId ?? {},
       createdBy: data.createdBy ?? '',
@@ -252,6 +253,7 @@ export class EventsRepository implements IEventsRepository {
       proposedLocations: data.pollEnabled ? data.proposedLocations : undefined,
       pollClosesAt: data.pollEnabled ? this.toTimestamp(data.pollClosesAt) : undefined,
       finalLocation: !data.pollEnabled ? data.finalLocation : undefined,
+      charityEventId: data.charityEventId,
       totalVotes: 0,
       votesByOptionId: {},
       createdBy,
@@ -281,6 +283,7 @@ export class EventsRepository implements IEventsRepository {
     if (data.proposedLocations !== undefined) payload.proposedLocations = data.proposedLocations
     if (data.pollClosesAt !== undefined) payload.pollClosesAt = this.toTimestamp(data.pollClosesAt)
     if (data.finalLocation !== undefined) payload.finalLocation = data.finalLocation
+    if (data.charityEventId !== undefined) payload.charityEventId = data.charityEventId
     if (data.status !== undefined) payload.status = data.status
 
     await updateDoc(doc(db, this.collectionName, id), this.stripUndefined(payload) as any)

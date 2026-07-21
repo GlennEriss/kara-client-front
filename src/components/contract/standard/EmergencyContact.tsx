@@ -1,5 +1,6 @@
 "use client"
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import {
     Dialog,
     DialogContent,
@@ -185,11 +186,11 @@ export default function EmergencyContact({ emergencyContact, contractKind, contr
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500">Téléphone principal</Label>
-                <Input value={form.phone1} onChange={(e) => setField('phone1', e.target.value)} />
+                <GabonPhoneInput value={form.phone1} onChange={(v) => setField('phone1', v)} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500">Téléphone secondaire</Label>
-                <Input value={form.phone2 ?? ''} onChange={(e) => setField('phone2', e.target.value)} />
+                <GabonPhoneInput value={form.phone2 ?? ''} onChange={(v) => setField('phone2', v)} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500">Type de document</Label>

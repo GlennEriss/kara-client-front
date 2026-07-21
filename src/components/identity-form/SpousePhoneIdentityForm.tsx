@@ -1,7 +1,6 @@
-import InputApp from '@/components/forms/InputApp'
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import useStep1Form from '@/hooks/register/useStep1Form'
-import { CheckCircle, Phone } from 'lucide-react'
 
 export default function SpousePhoneIdentityForm() {
   const { mediator } = useStep1Form()
@@ -18,25 +17,11 @@ export default function SpousePhoneIdentityForm() {
               </FormLabel>
               
               <FormControl>
-                <div className="relative">
-                  <InputApp
-                    value={field.value}
-                    onChange={(value) => {
-                      mediator.updateSpousePhone(value)
-                    }}
-                    placeholder="Ex: +24165671734"
-                    icon={Phone}
-                    type="tel"
-                  />
-                  {field.value && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
-                  )}
-                </div>
+                <GabonPhoneInput
+                  value={field.value ?? ''}
+                  onChange={(value) => mediator.updateSpousePhone(value)}
+                />
               </FormControl>
-              
-              <div className="text-xs text-gray-600 mt-1">
-                Format gabonais: +241 + 8 chiffres (Libertis: 62/66, Moov: 65, Airtel: 74/77)
-              </div>
               
               <FormMessage className="animate-in slide-in-from-left-2 duration-300 break-words text-xs" />
             </FormItem>

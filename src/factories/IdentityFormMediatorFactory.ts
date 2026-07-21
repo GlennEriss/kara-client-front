@@ -7,6 +7,12 @@ export class IdentityFormMediatorFactory {
     static create(form: UseFormReturn<RegisterFormData>) {
         if (!this.instance) {
             this.instance = new IdentityFormMediator(form)
+        } else {
+            // Rebrancher sur le formulaire courant : à chaque remontage de la
+            // page, `useForm` crée une nouvelle instance. Sans ce rebind, le
+            // singleton resterait lié au formulaire du premier montage (mort),
+            // et setValue (photo, contacts…) n'atteindrait plus l'UI.
+            this.instance.setForm(form)
         }
         return this.instance
     }

@@ -1,5 +1,6 @@
 'use client'
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
@@ -277,7 +278,7 @@ export function CreateAgentModal({ open, onOpenChange, onSuccess, mutation }: Cr
                   <FormItem>
                     <FormLabel>Téléphone *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="06 12 34 56 78" />
+                      <GabonPhoneInput value={field.value ?? ''} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -290,7 +291,7 @@ export function CreateAgentModal({ open, onOpenChange, onSuccess, mutation }: Cr
                   <FormItem>
                     <FormLabel>Téléphone 2 (opt.)</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="07 98 76 54 32" />
+                      <GabonPhoneInput value={field.value ?? ''} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

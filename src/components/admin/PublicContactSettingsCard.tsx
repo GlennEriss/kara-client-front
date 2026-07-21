@@ -1,5 +1,6 @@
 'use client'
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { useEffect, useState } from 'react'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
@@ -115,28 +116,26 @@ export default function PublicContactSettingsCard() {
           <label className="text-sm font-medium text-gray-700">
             WhatsApp — Membre <span className="text-gray-400">(bulle + accompagnement, une fois connecté)</span>
           </label>
-          <Input
-            value={loading ? '' : memberNumber}
-            onChange={(e) => setMemberNumber(e.target.value)}
-            placeholder={loading ? 'Chargement…' : '+24174369729'}
-            disabled={loading || saving}
-            className="max-w-xs font-mono"
-            inputMode="tel"
-          />
+          <div className="max-w-xs">
+            <GabonPhoneInput
+              value={loading ? '' : memberNumber}
+              onChange={setMemberNumber}
+              disabled={loading || saving}
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">
             WhatsApp — Invité <span className="text-gray-400">(page d&apos;accueil : bulle + contact)</span>
           </label>
-          <Input
-            value={loading ? '' : guestNumber}
-            onChange={(e) => setGuestNumber(e.target.value)}
-            placeholder={loading ? 'Chargement…' : '+24174369729'}
-            disabled={loading || saving}
-            className="max-w-xs font-mono"
-            inputMode="tel"
-          />
+          <div className="max-w-xs">
+            <GabonPhoneInput
+              value={loading ? '' : guestNumber}
+              onChange={setGuestNumber}
+              disabled={loading || saving}
+            />
+          </div>
         </div>
 
         <Button onClick={handleSave} disabled={loading || saving} className="bg-[#234D65] hover:bg-[#234D65]/90">
