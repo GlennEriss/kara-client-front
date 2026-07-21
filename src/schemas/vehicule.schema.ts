@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-const GABON_PHONE_REGEX = /^\+2416\d{7}$/
+// Préfixes réels : Libertis 60/62/66, Moov 65, Airtel 74/76/77.
+const GABON_PHONE_REGEX = /^\+241(60|62|65|66|74|76|77)\d{6}$/
 
 const normalizePhone = (value?: string | null) => (value || '').replace(/\s+/g, '')
 const hasCompletePhone = (value?: string | null) => {
@@ -16,7 +17,7 @@ const optionalGabonPhoneSchema = z
     if (!hasCompletePhone(value)) return true
     return GABON_PHONE_REGEX.test(normalizePhone(value))
   }, {
-    message: 'Format attendu: +241 6X XX XX XX',
+    message: 'Numéro gabonais invalide (8 chiffres, ex : 65 34 56 78)',
   })
 
 export const vehicleInsuranceFormSchema = z.object({

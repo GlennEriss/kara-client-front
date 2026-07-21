@@ -10,7 +10,8 @@ import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
 import { getStorageInstance } from '@/firebase/storage'
 import { cn } from '@/lib/utils'
-import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
+import { EmergencyContact, isValidGabonEmergencyPhone } from '@/schemas/emergency-contact.schema'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { AlertTriangle, CheckCircle, FileText, IdCard, Image as ImageIcon, Loader2, Phone, Upload, User, Users, X } from 'lucide-react'
@@ -105,8 +106,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
         const normalizedValue = value || ''
         if (!normalizedValue || normalizedValue.trim() === '') {
           newErrors.phone1 = 'Le numéro de téléphone principal est obligatoire'
-        } else if (!/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(normalizedValue.replace(/\s/g, ''))) {
-          newErrors.phone1 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'
+        } else if (!isValidGabonEmergencyPhone(normalizedValue)) {
+          newErrors.phone1 = 'Numéro gabonais invalide (8 chiffres, ex : 65 34 56 78)'
         } else {
           delete newErrors.phone1
         }
@@ -116,8 +117,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
       case 'phone2': {
         const normalizedValue = value || ''
         const cleaned = normalizedValue.replace(/\s/g, '')
-        if (cleaned && cleaned !== '+241' && !/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(normalizedValue.replace(/\s/g, ''))) {
-          newErrors.phone2 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'
+        if (cleaned && cleaned !== '+241' && !isValidGabonEmergencyPhone(normalizedValue)) {
+          newErrors.phone2 = 'Numéro gabonais invalide (8 chiffres, ex : 65 34 56 78)'
         } else {
           delete newErrors.phone2
         }
@@ -255,8 +256,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                      idNumber.trim() !== '' &&
                      documentPhotoUrl.trim() !== '' &&
                      Object.keys(errors).length === 0 &&
-                     (!phone1 || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone1.replace(/\s/g, ''))) &&
-                     (!phone2 || phone2 === '' || phone2 === DEFAULT_PHONE_PREFIX || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone2.replace(/\s/g, '')))
+                     (!phone1 || isValidGabonEmergencyPhone(phone1)) &&
+                     (!phone2 || phone2 === '' || phone2 === DEFAULT_PHONE_PREFIX || isValidGabonEmergencyPhone(phone2))
 
   return (
     <Card className={`border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${
@@ -343,26 +344,11 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
             <label className="text-sm font-bold text-orange-800">
               Téléphone principal <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500" />
-              <Input
-                value={phone1}
-                onChange={(e) => handleChange('phone1', e.target.value)}
-                placeholder="+241 65 34 56 78"
-                maxLength={17}
-                pattern="[0-9+\s]*"
-                inputMode="tel"
-                className={cn(
-                  "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-300",
-                  errors.phone1 && "border-red-300 focus:border-red-500 bg-red-50/50"
-                )}
-              />
-            </div>
-            {errors.phone1 && (
-              <p className="text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words font-medium">
-                {errors.phone1}
-              </p>
-            )}
+            <GabonPhoneInput
+              value={phone1}
+              onChange={(v) => handleChange('phone1', v)}
+              error={errors.phone1}
+            />
           </div>
 
           {/* Téléphone 2 (optionnel) */}
@@ -373,26 +359,11 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                 Optionnel
               </Badge>
             </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500" />
-              <Input
-                value={phone2}
-                onChange={(e) => handleChange('phone2', e.target.value)}
-                placeholder="+241 66 78 90 12"
-                maxLength={17}
-                pattern="[0-9+\s]*"
-                inputMode="tel"
-                className={cn(
-                  "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-300",
-                  errors.phone2 && "border-red-300 focus:border-red-500 bg-red-50/50"
-                )}
-              />
-            </div>
-            {errors.phone2 && (
-              <p className="text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words font-medium">
-                {errors.phone2}
-              </p>
-            )}
+            <GabonPhoneInput
+              value={phone2}
+              onChange={(v) => handleChange('phone2', v)}
+              error={errors.phone2}
+            />
           </div>
         </div>
 

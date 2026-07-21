@@ -67,6 +67,8 @@ export const eventStep1Schema = z.object({
     .max(2000, 'La description ne peut pas dépasser 2000 caractères'),
   imageURL: z.string().url('URL invalide').optional().or(z.literal('')),
   type: eventTypeSchema.optional(),
+  /** Collecte associée : l'argent reste géré par le module bienfaiteur. */
+  charityEventId: z.string().optional().or(z.literal('')),
   startDate: z.string().min(1, 'La date de début est requise'),
   endDate: z.string().optional().or(z.literal('')),
 })
@@ -170,6 +172,7 @@ export const createEventSchema = z
     description: eventStep1Schema.shape.description,
     imageURL: eventStep1Schema.shape.imageURL,
     type: eventStep1Schema.shape.type,
+    charityEventId: eventStep1Schema.shape.charityEventId,
     startDate: eventStep1Schema.shape.startDate,
     endDate: eventStep1Schema.shape.endDate,
     pollEnabled: z.boolean(),

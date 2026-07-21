@@ -15,6 +15,17 @@ export class IdentityFormMediator {
     }
 
     /**
+     * Relie le médiateur au formulaire courant. Indispensable car la factory est
+     * un singleton : sans ça, après un remontage de la page, le médiateur écrit
+     * (setValue) dans une instance de formulaire morte tandis que l'UI lit
+     * (watch) le formulaire courant — la photo et les contacts ne s'affichent
+     * alors jamais.
+     */
+    setForm(form: UseFormReturn<RegisterFormData>): void {
+        this.form = form
+    }
+
+    /**
      * Gère l'upload et la compression de la photo
      * @param file - Le fichier image à compresser
      * @returns Promise avec les informations de compression
@@ -149,7 +160,13 @@ export class IdentityFormMediator {
      */
     updateContact(index: number, value: string): void {
         const cleanedValue = this.cleanPhoneNumber(value)
-        this.form.setValue(`identity.contacts.${index}`, cleanedValue)
+        // Remplacer tout le tableau (nouvelle référence) plutôt qu'un chemin
+        // imbriqué : sinon `watch('identity.contacts')` ne se redéclenche pas et
+        // l'input contrôlé (GabonPhoneInput) n'affiche pas la saisie.
+        const currentContacts = this.form.getValues('identity.contacts') || []
+        const newContacts = [...currentContacts]
+        newContacts[index] = cleanedValue
+        this.form.setValue('identity.contacts', newContacts, { shouldValidate: true })
     }
 
     /**

@@ -1,5 +1,6 @@
 'use client'
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -156,11 +157,11 @@ export default function ContractCIMemberInfoDialog({ contract }: Props) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-slate-500">Téléphone 1</Label>
-              <Input value={form.phone1} onChange={(e) => set('phone1', e.target.value)} />
+              <GabonPhoneInput value={form.phone1} onChange={(v) => set('phone1', v)} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-slate-500">Téléphone 2</Label>
-              <Input value={form.phone2} onChange={(e) => set('phone2', e.target.value)} />
+              <GabonPhoneInput value={form.phone2} onChange={(v) => set('phone2', v)} />
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs text-slate-500">Quartier / Adresse</Label>

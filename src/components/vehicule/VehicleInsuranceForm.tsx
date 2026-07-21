@@ -1,5 +1,6 @@
 'use client'
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -357,14 +358,9 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                           Téléphone 1 <span className="text-red-500">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            ref={field.ref}
-                            name={field.name}
+                          <GabonPhoneInput
                             value={field.value || ''}
-                            onBlur={field.onBlur}
-                            onChange={event => handlePhoneChange('nonMemberPhone1', event.target.value)}
-                            placeholder="+241 65 67 17 34"
-                            className="h-11"
+                            onChange={value => handlePhoneChange('nonMemberPhone1', value)}
                             disabled={mode === 'edit'}
                           />
                         </FormControl>
@@ -379,14 +375,9 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                       <FormItem>
                         <FormLabel className="text-sm font-semibold">Téléphone 2 (optionnel)</FormLabel>
                         <FormControl>
-                          <Input
-                            ref={field.ref}
-                            name={field.name}
+                          <GabonPhoneInput
                             value={field.value || ''}
-                            onBlur={field.onBlur}
-                            onChange={event => handlePhoneChange('nonMemberPhone2', event.target.value)}
-                            placeholder="+241 74 XX XX XX"
-                            className="h-11"
+                            onChange={value => handlePhoneChange('nonMemberPhone2', value)}
                             disabled={mode === 'edit'}
                           />
                         </FormControl>

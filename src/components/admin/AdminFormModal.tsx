@@ -1,4 +1,5 @@
 "use client"
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -37,10 +38,10 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
   // Aligné sur les règles Firestore : seule l'écriture SuperAdmin est autorisée
   // sur la collection admins — l'UI ne propose donc la gestion qu'aux SuperAdmins.
   const canManageAdmins = iAmSuperAdmin
-  // Schéma dynamique pour le téléphone selon l'environnement
-  const phoneSchema = process.env.NODE_ENV === 'production'
-    ? z.string().regex(/^\d{9}$/, 'Le numéro gabonais doit contenir exactement 9 chiffres')
-    : z.string().min(1, 'Le numéro est requis')
+  // Numéro gabonais strict : GabonPhoneInput émet toujours +241 suivi de 8 chiffres.
+  const phoneSchema = z
+    .string()
+    .regex(/^\+241\d{8}$/, 'Numéro gabonais invalide (8 chiffres, ex : 65 34 56 78)')
 
   const schema = adminCreateSchema.extend({
     // Autoriser l'email vide ('') en plus d'un email valide
@@ -451,16 +452,13 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                 <FormItem>
                   <FormLabel>Numéro de téléphone</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder={process.env.NODE_ENV === 'production' ? '9 chiffres (Gabon)' : 'ex: +33 6 12 34 56 78'}
-                      {...field}
-                      inputMode={process.env.NODE_ENV === 'production' ? 'numeric' : undefined}
-                      pattern={process.env.NODE_ENV === 'production' ? '\\d{9}' : undefined}
-                      maxLength={process.env.NODE_ENV === 'production' ? 9 as any : undefined}
+                    <GabonPhoneInput
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
                     />
                   </FormControl>
                   <FormDescription>
-                    {process.env.NODE_ENV === 'production' ? 'Doit contenir exactement 9 chiffres (Gabon)' : 'Un seul numéro est enregistré'}
+                    Un seul numéro est enregistré
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

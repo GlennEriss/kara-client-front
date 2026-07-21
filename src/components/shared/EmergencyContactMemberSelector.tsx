@@ -1,5 +1,6 @@
 'use client'
 
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import SelectApp from '@/components/forms/SelectApp'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -632,22 +633,11 @@ export default function EmergencyContactMemberSelector({
             <label className="text-sm font-bold text-orange-800">
               Téléphone principal <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500" />
-              <Input
-                value={phone1 || DEFAULT_PHONE_PREFIX}
-                onChange={(e) => handleChange('phone1', e.target.value)}
-                placeholder="+241 65 34 56 78"
-                maxLength={17}
-                className={cn(
-                  "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20",
-                  errors.phone1 && "border-red-300 focus:border-red-500 bg-red-50/50"
-                )}
-              />
-            </div>
-            {errors.phone1 && (
-              <p className="text-red-500 text-xs">{errors.phone1}</p>
-            )}
+            <GabonPhoneInput
+              value={phone1 || ''}
+              onChange={(v) => handleChange('phone1', v)}
+              error={errors.phone1}
+            />
           </div>
 
           <div className="space-y-2">
@@ -657,19 +647,11 @@ export default function EmergencyContactMemberSelector({
                 Optionnel
               </Badge>
             </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500" />
-              <Input
-                value={phone2 || ''}
-                onChange={(e) => handleChange('phone2', e.target.value)}
-                placeholder="+241 66 78 90 12"
-                maxLength={17}
-                className={cn(
-                  "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20",
-                  errors.phone2 && "border-red-300 focus:border-red-500 bg-red-50/50"
-                )}
-              />
-            </div>
+            <GabonPhoneInput
+              value={phone2 || ''}
+              onChange={(v) => handleChange('phone2', v)}
+              error={errors.phone2}
+            />
             {errors.phone2 && (
               <p className="text-red-500 text-xs">{errors.phone2}</p>
             )}

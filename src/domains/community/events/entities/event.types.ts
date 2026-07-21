@@ -91,6 +91,14 @@ export interface Event {
    */
   finalLocation?: EventFinalLocation
 
+  // ===== Lien vers la collecte =====
+  /**
+   * Événement caritatif (`charity-events`) associé, quand cet événement donne
+   * lieu à une collecte. L'argent — participants, contributions, validations,
+   * reçus — reste géré par le module bienfaiteur : on ne fait qu'y renvoyer.
+   */
+  charityEventId?: string
+
   // ===== Stats dénormalisées (mises à jour à chaque vote) =====
   /** Nombre total de votants (= nombre de docs dans la sous-collection votes) */
   totalVotes?: number
@@ -148,6 +156,7 @@ export type UpdateEventInput = Partial<
     | 'proposedLocations'
     | 'pollClosesAt'
     | 'finalLocation'
+    | 'charityEventId'
     | 'status'
   >
 >

@@ -14,6 +14,7 @@ import { createSubscription } from '@/db/subscription.db'
 import { createFile } from '@/db/upload-image.db'
 import { useAuth } from '@/hooks/useAuth'
 import { useMemberSubscriptions, useMemberWithSubscription } from '@/hooks/useMembers'
+import { useQueryClient } from '@tanstack/react-query'
 import type { MembershipRequest, Subscription } from '@/types/types'
 import { ArrowLeft, Calendar, Clock, CreditCard, FileText, Loader2, UploadCloud, User } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
@@ -43,6 +44,7 @@ export default function SubscriptionList() {
     const { data: subscriptions, isLoading } = useMemberSubscriptions(memberId)
     const { data: member } = useMemberWithSubscription(memberId)
     const { user } = useAuth()
+    const queryClient = useQueryClient()
 
     const [renewOpen, setRenewOpen] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
@@ -198,7 +200,7 @@ export default function SubscriptionList() {
                     </div>
                 </div>
             ) : (
-                <Card className="border-0 bg-gradient-to-br from-gray-50 to-gray-100 "><CardContent className="text-center py-16 px-6"><div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6"><Calendar className="h-10 w-10 text-gray-400" /></div><div className="space-y-4"><div><h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun abonnement trouvé</h3><p className="text-gray-600 max-w-md mx-auto">Ce membre n'a pas encore d'abonnement enregistré.</p></div></div></CardContent></Card>
+                <Card className="border-0 bg-gradient-to-br from-gray-50 to-gray-100 "><CardContent className="text-center py-16 px-6"><div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6"><Calendar className="h-10 w-10 text-gray-400" /></div><div className="space-y-4"><div><h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun abonnement trouvé</h3><p className="text-gray-600 max-w-md mx-auto">Ce membre n'a pas encore d'abonnement enregistré.</p></div><Button onClick={() => setRenewOpen(true)} className="bg-[#234D65] hover:bg-[#234D65] text-white"><UploadCloud className="w-4 h-4 mr-2" /> Attribuer un abonnement</Button></div></CardContent></Card>
             )}
 
             {/* Modal Renouvellement */}
@@ -297,7 +299,12 @@ export default function SubscriptionList() {
                                             withFees: withFees === 'yes',
                                         } as any)
                                     }
-                                    toast.success("Abonnement renouvelé")
+                                    // Rafraîchir la liste sans rechargement manuel :
+                                    // la mutation passe par le db direct, il faut donc
+                                    // invalider explicitement la requête React Query.
+                                    await queryClient.invalidateQueries({ queryKey: ['member', memberId, 'subscriptions'] })
+                                    await queryClient.invalidateQueries({ queryKey: ['member', memberId, 'with-subscription'] })
+                                    toast.success("Abonnement enregistré")
                                     setRenewOpen(false)
                                 } catch (e: any) {
                                     toast.error('Erreur lors du renouvellement')
