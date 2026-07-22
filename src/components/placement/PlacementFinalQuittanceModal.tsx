@@ -6,23 +6,16 @@ import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
 import { useMember } from '@/hooks/useMembers'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { Placement } from '@/types/types'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import {
     Download,
     FileText,
     Loader2,
     Smartphone
 } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-
-// Helper pour formater les montants
-const formatAmount = (amount: number): string => {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-}
+import PlacementFinalQuittancePDF from './PlacementFinalQuittancePDF'
 
 // Fonction pour convertir un nombre en lettres (simplifiée)
 const numberToWords = (num: number): string => {
@@ -87,196 +80,54 @@ export default function PlacementFinalQuittanceModal({
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
+  const totalCommissions = commissions.reduce((sum, c) => sum + c.amount, 0)
+  const totalPaid = placement.amount + totalCommissions
+
+  const fileName = useMemo(() => {
+    const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
+    const firstName = memberData?.firstName || 'Bienfaiteur'
+    const lastName = memberData?.lastName || 'Inconnu'
+    return `QUITTANCE_FINALE_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
+  }, [memberData?.firstName, memberData?.lastName])
+
+  const pdfDocument = useMemo(
+    () => (
+      <PlacementFinalQuittancePDF
+        placement={placement}
+        member={memberData}
+        commissions={commissions}
+        amountInWords={numberToWords(Math.floor(totalPaid))}
+      />
+    ),
+    [placement, memberData, commissions, totalPaid],
+  )
+
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
 
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      let yPos = 20
-
-      // En-tête
-      doc.setFillColor(35, 77, 101) // #234D65
-      doc.rect(0, 0, pageWidth, 40, 'F')
-      
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('QUITTANCE FINALE', pageWidth / 2, 20, { align: 'center' })
-      
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Placement - KARA', pageWidth / 2, 30, { align: 'center' })
-
-      yPos = 50
-
-      // Informations du placement
-      doc.setTextColor(0, 0, 0)
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 50, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('INFORMATIONS DU PLACEMENT', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      const memberName = memberData 
-        ? `${memberData.firstName} ${memberData.lastName}`
-        : `Bienfaiteur #${placement.benefactorId.slice(0, 8)}`
-      doc.text(`Bienfaiteur: ${memberName}`, 15, yPos)
-      doc.text(`N° Placement: ${placement.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Montant placé: ${formatAmount(placement.amount)} FCFA`, 15, yPos)
-      doc.text(`Taux: ${placement.rate}%`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      const startDate = placement.startDate 
-        ? format(new Date(placement.startDate), 'dd/MM/yyyy', { locale: fr })
-        : format(new Date(placement.createdAt), 'dd/MM/yyyy', { locale: fr })
-      const endDate = placement.endDate
-        ? format(new Date(placement.endDate), 'dd/MM/yyyy', { locale: fr })
-        : 'N/A'
-      doc.text(`Date de début: ${startDate}`, 15, yPos)
-      doc.text(`Date de fin: ${endDate}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Période: ${placement.periodMonths} mois`, 15, yPos)
-      const payoutModeLabel = placement.payoutMode === 'MonthlyCommission_CapitalEnd' 
-        ? 'Commission mensuelle + Capital à la fin'
-        : 'Capital + Commissions à la fin'
-      doc.text(`Mode: ${payoutModeLabel}`, pageWidth / 2 + 5, yPos)
-
-      yPos += 15
-
-      // Statut de complétion
-      doc.setFillColor(34, 197, 94) // green-600
-      doc.rect(10, yPos, pageWidth - 20, 12, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('✓ PLACEMENT TERMINÉ', 15, yPos + 8)
-      
-      const totalCommissions = commissions.reduce((sum, c) => sum + c.amount, 0)
-      const totalPaid = placement.amount + totalCommissions
-      doc.text(`${formatAmount(totalPaid)} FCFA`, pageWidth - 15, yPos + 8, { align: 'right' })
-
-      yPos += 20
-      doc.setTextColor(0, 0, 0)
-
-      // Détails des commissions
-      if (commissions.length > 0) {
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.text('DÉTAILS DES COMMISSIONS', 15, yPos)
-        
-        yPos += 5
-
-        const tableData = commissions.map((commission, index) => {
-          const dueDate = format(new Date(commission.dueDate), 'dd/MM/yyyy', { locale: fr })
-          const status = commission.status === 'Paid' ? 'Payée' : 'Due'
-          const paidDate = commission.paidAt 
-            ? format(new Date(commission.paidAt), 'dd/MM/yyyy', { locale: fr })
-            : '-'
-          return [
-            `#${index + 1}`,
-            dueDate,
-            `${formatAmount(commission.amount)} FCFA`,
-            status,
-            paidDate,
-          ]
-        })
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [['#', 'Date d\'échéance', 'Montant', 'Statut', 'Date de paiement']],
-          body: tableData,
-          theme: 'striped',
-          headStyles: {
-            fillColor: [35, 77, 101],
-            textColor: [255, 255, 255],
-            fontSize: 10,
-            fontStyle: 'bold',
-            halign: 'center'
-          },
-          bodyStyles: {
-            fontSize: 9,
-            halign: 'center'
-          },
-          columnStyles: {
-            0: { cellWidth: 15, halign: 'center' },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 50, halign: 'right', fontStyle: 'bold' },
-            3: { cellWidth: 30, halign: 'center' },
-            4: { cellWidth: 40 },
-          },
-          margin: { left: 10, right: 10 },
-        })
-
-        yPos = (doc as any).lastAutoTable.finalY + 10
-      }
-
-      // Récapitulatif
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('RÉCAPITULATIF', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(10)
-      doc.text(`Capital placé: ${formatAmount(placement.amount)} FCFA`, 15, yPos)
-      
-      yPos += 6
-      doc.text(`Total commissions: ${formatAmount(totalCommissions)} FCFA`, 15, yPos)
-      
-      yPos += 6
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Montant total restitué: ${formatAmount(totalPaid)} FCFA`, 15, yPos)
-      
-      yPos += 8
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text(`Montant en lettres: ${numberToWords(Math.floor(totalPaid))} francs CFA`, 15, yPos)
-
-      yPos += 15
-
-      // Date et signature
-      const today = format(new Date(), 'dd MMMM yyyy', { locale: fr })
-      doc.setFontSize(10)
-      doc.text(`Fait à Ouagadougou, le ${today}`, 15, yPos)
-      
-      yPos += 20
-      doc.setFont('helvetica', 'bold')
-      doc.text('Pour KARA', 15, yPos)
-      doc.text('Le Bienfaiteur', pageWidth - 60, yPos)
-
-      yPos += 15
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text('_________________', 15, yPos)
-      doc.text('_________________', pageWidth - 60, yPos)
-      doc.setFontSize(8)
-      doc.text(memberName, pageWidth - 60, yPos + 5, { maxWidth: 50 })
-
-      // Sauvegarder le PDF
-      const firstName = memberData?.firstName || 'Bienfaiteur'
-      const lastName = memberData?.lastName || 'Inconnu'
-      const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
-      const fileName = `QUITTANCE_FINALE_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
-      
-      doc.save(fileName)
+      const blob = await pdf(pdfDocument).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
 
       if (onGenerated) {
         try {
-          const blob = doc.output('blob')
           const file = new File([blob], fileName, { type: 'application/pdf' })
           const { ServiceFactory } = await import('@/factories/ServiceFactory')
           const service = ServiceFactory.getPlacementService()
-          const res = await service.uploadFinalQuittance(file, placement.id, placement.benefactorId, placement.updatedBy || placement.createdBy)
+          const res = await service.uploadFinalQuittance(
+            file,
+            placement.id,
+            placement.benefactorId,
+            placement.updatedBy || placement.createdBy,
+          )
           onGenerated(res.documentId)
         } catch (err) {
           console.error('Erreur lors de l\'attachement de la quittance finale', err)
@@ -287,7 +138,6 @@ export default function PlacementFinalQuittanceModal({
         description: 'La quittance finale a été générée et téléchargée.',
         duration: 3000,
       })
-
     } catch (error) {
       console.error('Erreur lors du téléchargement du PDF:', error)
       toast.error('❌ Erreur de téléchargement', {
@@ -298,6 +148,7 @@ export default function PlacementFinalQuittanceModal({
       setIsGeneratingPDF(false)
     }
   }
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -366,6 +217,31 @@ export default function PlacementFinalQuittanceModal({
                 </div>
               </div>
             </div>
+
+            {/* Aperçu du document (desktop) / ouverture navigateur (mobile) */}
+            {isMobile ? (
+              <BlobProvider document={pdfDocument}>
+                {({ url, loading }) => (
+                  <Button
+                    asChild
+                    disabled={loading || !url}
+                    variant="outline"
+                    className="w-full h-11 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
+                  >
+                    <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                      <FileText className="w-4 h-4 mr-2" />
+                      {loading ? 'Préparation...' : 'Ouvrir dans le navigateur'}
+                    </a>
+                  </Button>
+                )}
+              </BlobProvider>
+            ) : (
+              <div className="h-[60vh] w-full overflow-hidden rounded-lg border border-gray-200">
+                <PDFViewer width="100%" height="100%" style={{ border: 'none' }} showToolbar={false}>
+                  {pdfDocument}
+                </PDFViewer>
+              </div>
+            )}
 
             {/* Avertissement mobile */}
             {isMobile && (

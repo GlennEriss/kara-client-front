@@ -7,6 +7,8 @@ export interface OverviewRawRecord {
   createdAt?: unknown
   desiredDate?: unknown
   contractId?: string
+  /** Libellé lisible (ex. titre de l'événement caritatif). */
+  label?: string
   [key: string]: unknown
 }
 
@@ -20,5 +22,7 @@ export interface IMemberOverviewRepository {
   getCreditContracts(memberId: string, creditType: 'SPECIALE' | 'FIXE' | 'AIDE', limitPerSection: number): Promise<OverviewRawRecord[]>
   getPlacementDemands(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]>
   getPlacements(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]>
+  getCharityDeclarations(matricule: string, limitPerSection: number): Promise<OverviewRawRecord[]>
+  getCharityContributions(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]>
 }
 

@@ -9,6 +9,20 @@ export class PlacementRepository implements IRepository {
 
   private collectionName = firebaseCollectionNames.placements || 'placements'
 
+  /**
+   * Retire les clés à valeur `undefined` : Firestore les rejette
+   * (« Unsupported field value: undefined »). Les champs optionnels comme
+   * `paymentMethodOther` ou `withFees` ne sont renseignés que selon le moyen
+   * de paiement choisi.
+   */
+  private stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) out[k] = v
+    }
+    return out as Partial<T>
+  }
+
   async create(data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<Placement> {
     const { doc, setDoc, db, serverTimestamp, getDoc } = await getFirestore()
     
@@ -17,7 +31,7 @@ export class PlacementRepository implements IRepository {
     const docRef = doc(db, this.collectionName, placementId)
     
     await setDoc(docRef, {
-      ...data,
+      ...this.stripUndefined(data as Record<string, unknown>),
       amount: Number((data as any).amount) || 0,
       rate: Number((data as any).rate) || 0,
       periodMonths: Number((data as any).periodMonths) || 0,
@@ -97,7 +111,7 @@ export class PlacementRepository implements IRepository {
   async update(id: string, data: Partial<Omit<Placement, 'id' | 'createdAt'>>): Promise<Placement> {
     const { doc, updateDoc, db, serverTimestamp } = await getFirestore()
     const ref = doc(db, this.collectionName, id)
-    await updateDoc(ref, { ...data, updatedAt: serverTimestamp() })
+    await updateDoc(ref, { ...this.stripUndefined(data as Record<string, unknown>), updatedAt: serverTimestamp() })
     const updated = await this.getById(id)
     if (!updated) throw new Error('Placement introuvable après mise à jour')
     return updated
@@ -113,7 +127,7 @@ export class PlacementRepository implements IRepository {
     const { collection, addDoc, db, serverTimestamp, getDoc } = await getFirestore()
     const colRef = collection(db, `${this.collectionName}/${placementId}/commissions`)
     const docRef = await addDoc(colRef, {
-      ...data,
+      ...this.stripUndefined(data as Record<string, unknown>),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
@@ -157,7 +171,7 @@ export class PlacementRepository implements IRepository {
   async updateCommission(placementId: string, commissionId: string, data: Partial<CommissionPaymentPlacement>): Promise<CommissionPaymentPlacement> {
     const { doc, updateDoc, db, serverTimestamp, getDoc } = await getFirestore()
     const ref = doc(db, `${this.collectionName}/${placementId}/commissions`, commissionId)
-    await updateDoc(ref, { ...data, updatedAt: serverTimestamp() })
+    await updateDoc(ref, { ...this.stripUndefined(data as Record<string, unknown>), updatedAt: serverTimestamp() })
     const snap = await getDoc(ref)
     if (!snap.exists()) throw new Error('Commission introuvable')
     const d = snap.data()
@@ -194,7 +208,7 @@ export class PlacementRepository implements IRepository {
     const { doc, setDoc, db, serverTimestamp, getDoc } = await getFirestore()
     const ref = doc(db, `${this.collectionName}/${placementId}/earlyExit`, 'current')
     await setDoc(ref, {
-      ...data,
+      ...this.stripUndefined(data as Record<string, unknown>),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })

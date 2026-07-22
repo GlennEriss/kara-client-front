@@ -695,13 +695,22 @@ export function PlacementDemandesSection() {
           const startDate = new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0)
           const handoverDate = new Date(year, (month || 1) - 1, day || 1, 0, 0, 0)
 
+          // Firestore rejette `undefined` : on n'ajoute les champs
+          // conditionnels que lorsqu'ils sont réellement renseignés.
+          const isMobileMoney =
+            formData.paymentMode === 'airtel_money' || formData.paymentMode === 'mobicash'
+          const paymentMethodOther =
+            formData.paymentMode === 'other' ? formData.paymentMethodOther?.trim() : undefined
+
           const result = await convert.mutateAsync({
             demandId,
             placementData: {
               startDate,
               paymentMode: formData.paymentMode,
-              withFees: formData.paymentMode === 'airtel_money' || formData.paymentMode === 'mobicash' ? formData.withFees : undefined,
-              paymentMethodOther: formData.paymentMode === 'other' ? formData.paymentMethodOther?.trim() : undefined,
+              ...(isMobileMoney && formData.withFees !== undefined
+                ? { withFees: formData.withFees }
+                : {}),
+              ...(paymentMethodOther ? { paymentMethodOther } : {}),
               handoverLocation: formData.handoverLocation.trim(),
               handoverDate,
               handoverTime: formData.handoverTime,

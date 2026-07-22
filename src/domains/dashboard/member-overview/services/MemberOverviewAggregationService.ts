@@ -40,6 +40,7 @@ export class MemberOverviewAggregationService {
       createdAt: coerceDate(record.createdAt),
       desiredDate: coerceDate(record.desiredDate),
       contractId: typeof record.contractId === 'string' ? record.contractId : undefined,
+      label: typeof record.label === 'string' ? record.label : undefined,
       kind,
       module,
     }
@@ -89,6 +90,8 @@ export class MemberOverviewAggregationService {
       creditAideContractsRaw,
       placementDemandsRaw,
       placementsRaw,
+      charityDeclarationsRaw,
+      charityContributionsRaw,
     ] = await Promise.all([
       this.safeSection('caisseSpecialeDemands', () =>
         this.repository.getCaisseSpecialeDemands(memberId, safeLimit),
@@ -124,6 +127,12 @@ export class MemberOverviewAggregationService {
         this.repository.getPlacementDemands(memberId, safeLimit),
       ),
       this.safeSection('placements', () => this.repository.getPlacements(memberId, safeLimit)),
+      this.safeSection('charityDeclarations', () =>
+        this.repository.getCharityDeclarations(member?.matricule ?? '', safeLimit),
+      ),
+      this.safeSection('charityContributions', () =>
+        this.repository.getCharityContributions(memberId, safeLimit),
+      ),
     ])
 
     const modules: MemberOverviewData['modules'] = {
@@ -134,6 +143,7 @@ export class MemberOverviewAggregationService {
         contrats: (caisseSpecialeContractsRaw || [])
           .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.caisseSpeciale.contratsExcluded.includes((c.status || '') as 'CLOSED'))
           .map((c) => this.buildItem(c, 'caisseSpeciale', 'contrat')),
+        hasError: caisseSpecialeDemandsRaw === null || caisseSpecialeContractsRaw === null,
       },
       caisseImprevue: {
         demandes: (caisseImprevueDemandsRaw || [])
@@ -142,6 +152,7 @@ export class MemberOverviewAggregationService {
         contrats: (caisseImprevueContractsRaw || [])
           .filter((c) => MEMBER_OVERVIEW_STATUS_FILTERS.caisseImprevue.contratsIncluded.includes((c.status || '') as 'ACTIVE'))
           .map((c) => this.buildItem(c, 'caisseImprevue', 'contrat')),
+        hasError: caisseImprevueDemandsRaw === null || caisseImprevueContractsRaw === null,
       },
       creditSpeciale: {
         demandes: (creditSpecialeDemandsRaw || [])
@@ -154,6 +165,7 @@ export class MemberOverviewAggregationService {
         contrats: (creditSpecialeContractsRaw || [])
           .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditSpeciale.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED'))
           .map((c) => this.buildItem(c, 'creditSpeciale', 'contrat')),
+        hasError: creditSpecialeDemandsRaw === null || creditSpecialeContractsRaw === null,
       },
       creditFixe: {
         demandes: (creditFixeDemandsRaw || [])
@@ -166,6 +178,7 @@ export class MemberOverviewAggregationService {
         contrats: (creditFixeContractsRaw || [])
           .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditFixe.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED'))
           .map((c) => this.buildItem(c, 'creditFixe', 'contrat')),
+        hasError: creditFixeDemandsRaw === null || creditFixeContractsRaw === null,
       },
       creditAide: {
         demandes: (creditAideDemandsRaw || [])
@@ -178,6 +191,7 @@ export class MemberOverviewAggregationService {
         contrats: (creditAideContractsRaw || [])
           .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditAide.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED'))
           .map((c) => this.buildItem(c, 'creditAide', 'contrat')),
+        hasError: creditAideDemandsRaw === null || creditAideContractsRaw === null,
       },
       placement: {
         demandes: (placementDemandsRaw || [])
@@ -186,6 +200,18 @@ export class MemberOverviewAggregationService {
         contrats: (placementsRaw || [])
           .filter((c) => MEMBER_OVERVIEW_STATUS_FILTERS.placement.contratsIncluded.includes((c.status || '') as 'Draft' | 'Active'))
           .map((c) => this.buildItem(c, 'placement', 'contrat')),
+        hasError: placementDemandsRaw === null || placementsRaw === null,
+      },
+      charite: {
+        // Seules les déclarations encore en attente : une fois confirmée, une
+        // déclaration a donné lieu à une contribution réelle, qui ferait doublon.
+        demandes: (charityDeclarationsRaw || [])
+          .filter((d) => MEMBER_OVERVIEW_STATUS_FILTERS.charite.demandesIncluded.includes((d.status || '') as 'pending'))
+          .map((d) => this.buildItem(d, 'charite', 'demande')),
+        // Les contributions réellement enregistrées font foi (y compris celles
+        // saisies directement par un gestionnaire).
+        contrats: (charityContributionsRaw || []).map((c) => this.buildItem(c, 'charite', 'contrat')),
+        hasError: charityDeclarationsRaw === null || charityContributionsRaw === null,
       },
     }
 
@@ -205,6 +231,7 @@ export class MemberOverviewAggregationService {
       creditFixe: { demandes: routes.admin.creditFixeDemandes, contrats: routes.admin.creditFixeContrats },
       creditAide: { demandes: routes.admin.creditAideDemandes, contrats: routes.admin.creditAideContrats },
       placement: { demandes: routes.admin.placementDemandes, contrats: routes.admin.placements },
+      charite: { demandes: routes.admin.bienfaiteur, contrats: routes.admin.bienfaiteur },
     } as const
   }
 }

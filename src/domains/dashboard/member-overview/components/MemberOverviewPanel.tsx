@@ -11,16 +11,14 @@ import {
   FileSearch,
   FolderOpen,
   HandCoins,
+  HeartHandshake,
   Landmark,
   PiggyBank,
+  UserRound,
   Wallet,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { ModalBody, ModalContent, ModalHeader } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -87,6 +85,12 @@ const MODULE_META: Record<
     accent: "text-cyan-700",
     bg: "bg-cyan-50",
   },
+  charite: {
+    label: "Charité",
+    icon: HeartHandshake,
+    accent: "text-emerald-700",
+    bg: "bg-emerald-50",
+  },
 };
 
 function statusTone(status: string) {
@@ -123,16 +127,22 @@ function formatDate(iso?: string) {
 function ModuleRecordCard({
   item,
   detailRoute,
+  onNavigate,
 }: {
   item: MemberOverviewListItem;
   detailRoute: string | null;
+  /** Ferme le panneau : sans ça il resterait ouvert par-dessus la page ouverte. */
+  onNavigate: () => void;
 }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
       <div className="space-y-2">
         <p className="break-all text-sm font-semibold text-gray-900">
-          {item.id}
+          {item.label ?? item.id}
         </p>
+        {item.label ? (
+          <p className="break-all text-[11px] text-gray-400">{item.id}</p>
+        ) : null}
 
         {detailRoute ? (
           <div>
@@ -142,7 +152,7 @@ function ModuleRecordCard({
               size="sm"
               className="h-8 rounded-lg text-xs"
             >
-              <Link href={detailRoute}>
+              <Link href={detailRoute} onClick={onNavigate}>
                 <FolderOpen className="mr-1 h-3.5 w-3.5" />
                 Ouvrir
               </Link>
@@ -241,50 +251,27 @@ export function MemberOverviewPanel({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton
-        className="h-[88vh] max-h-[88vh] w-[94vw] max-w-[1240px] gap-0 overflow-y-auto border border-gray-100 p-0 shadow-md sm:max-w-[1240px]"
-      >
-        <DialogHeader className="sr-only">
-          <DialogTitle>Vue consolidée du membre</DialogTitle>
-        </DialogHeader>
-        <div className="flex min-h-full flex-col bg-gray-50">
-          <div className="border-b border-gray-100 bg-white px-6 py-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase text-gray-500">
-                  Lecture consolidée multi-modules
-                </p>
-                <h2 className="mt-1 text-2xl font-bold text-[#234D65]">
-                  Vue consolidée du membre
-                </h2>
-                {data?.member ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                    <Badge className="bg-[#234D65] text-white hover:bg-[#234D65]">
-                      {data.member.firstName} {data.member.lastName}
-                    </Badge>
-                    {data.member.matricule ? (
-                      <Badge variant="outline">{data.member.matricule}</Badge>
-                    ) : null}
-                    <Badge
-                      variant={data.member.isActive ? "default" : "secondary"}
-                    >
-                      {data.member.isActive ? "Actif" : "Inactif"}
-                    </Badge>
-                  </div>
-                ) : null}
-              </div>
-              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-2 text-sm text-gray-600">
-                <p className="font-semibold text-gray-700">Objectif admin</p>
-                <p className="text-xs">
-                  Identifier rapidement les dossiers en cours et ouvrir le bon
-                  écran en 1 clic.
-                </p>
-              </div>
-            </div>
+      <ModalContent size="4xl" className="max-h-[88vh] w-[94vw]">
+        <ModalHeader
+          icon={UserRound}
+          title="Vue consolidée du membre"
+          description="Lecture consolidée multi-modules"
+        />
+        {data?.member ? (
+          <div className="flex flex-wrap items-center gap-2 px-6 pb-2 text-sm">
+            <Badge className="bg-[#234D65] text-white hover:bg-[#234D65]">
+              {data.member.firstName} {data.member.lastName}
+            </Badge>
+            {data.member.matricule ? (
+              <Badge variant="outline">{data.member.matricule}</Badge>
+            ) : null}
+            <Badge variant={data.member.isActive ? "default" : "secondary"}>
+              {data.member.isActive ? "Actif" : "Inactif"}
+            </Badge>
           </div>
-
-          <div className="flex-1 px-6 py-5">
+        ) : null}
+        <ModalBody className="bg-gray-50">
+          <div className="flex-1">
             {isLoading ? (
               <div className="space-y-4">
                 <Skeleton className="h-24 w-full rounded-xl" />
@@ -323,9 +310,20 @@ export function MemberOverviewPanel({
                               <div className={cn("rounded-lg p-2", meta.bg)}>
                                 <Icon className={cn("h-5 w-5", meta.accent)} />
                               </div>
-                              <Badge variant="outline" className="text-xs">
-                                {total} en cours
-                              </Badge>
+                              {module.hasError ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-200 bg-amber-50 text-xs text-amber-700"
+                                  title="Certaines données n'ont pas pu être chargées : le total affiché est incomplet."
+                                >
+                                  <AlertCircle className="mr-1 h-3.5 w-3.5" />
+                                  Indisponible
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  {total} en cours
+                                </Badge>
+                              )}
                             </div>
                             <p className="mt-3 text-sm font-semibold text-gray-900">
                               {meta.label}
@@ -410,7 +408,7 @@ export function MemberOverviewPanel({
                                       size="sm"
                                       className="h-8 rounded-lg text-xs"
                                     >
-                                      <Link href={moduleLinks.demandes}>
+                                      <Link href={moduleLinks.demandes} onClick={() => onOpenChange(false)}>
                                         Voir toutes
                                       </Link>
                                     </Button>
@@ -427,6 +425,7 @@ export function MemberOverviewPanel({
                                           <ModuleRecordCard
                                             item={item}
                                             detailRoute={getDetailRoute(item)}
+                                            onNavigate={() => onOpenChange(false)}
                                           />
                                           {index <
                                           module.demandes.slice(0, 6).length -
@@ -451,7 +450,7 @@ export function MemberOverviewPanel({
                                       size="sm"
                                       className="h-8 rounded-lg text-xs"
                                     >
-                                      <Link href={moduleLinks.contrats}>
+                                      <Link href={moduleLinks.contrats} onClick={() => onOpenChange(false)}>
                                         Voir tous
                                       </Link>
                                     </Button>
@@ -468,6 +467,7 @@ export function MemberOverviewPanel({
                                           <ModuleRecordCard
                                             item={item}
                                             detailRoute={getDetailRoute(item)}
+                                            onNavigate={() => onOpenChange(false)}
                                           />
                                           {index <
                                           module.contrats.slice(0, 6).length -
@@ -489,8 +489,8 @@ export function MemberOverviewPanel({
               </div>
             )}
           </div>
-        </div>
-      </DialogContent>
+        </ModalBody>
+      </ModalContent>
     </Dialog>
   );
 }

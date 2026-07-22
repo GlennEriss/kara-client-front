@@ -47,6 +47,7 @@ export default function SubscriptionList() {
     const queryClient = useQueryClient()
 
     const [renewOpen, setRenewOpen] = React.useState(false)
+
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
     const [pdfFile, setPdfFile] = React.useState<File | null>(null)
@@ -59,6 +60,44 @@ export default function SubscriptionList() {
     const [detailsOpen, setDetailsOpen] = React.useState(false)
     const [detailsRequest, setDetailsRequest] = React.useState<MembershipRequest | null>(null)
     const [isLoadingDetails, setIsLoadingDetails] = React.useState(false)
+
+    // Ouverture de la fiche d'adhésion : partagée entre l'état "aucun
+    // abonnement" et la liste, pour éviter que les deux divergent.
+    const openAdhesionForm = async () => {
+        if (!member?.dossier) {
+            toast.info('Dossier non disponible')
+            return
+        }
+        try {
+            setIsLoadingDetails(true)
+            const req = await getMembershipRequestById(member.dossier)
+            if (!req) {
+                toast.error('Dossier introuvable')
+                return
+            }
+            setDetailsRequest(req as any)
+            setDetailsOpen(true)
+        } catch {
+            toast.error('Erreur au chargement du dossier')
+        } finally {
+            setIsLoadingDetails(false)
+        }
+    }
+
+    const adhesionFormButton = (
+        <Button
+            variant="outline"
+            onClick={openAdhesionForm}
+            disabled={isLoadingDetails}
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+        >
+            {isLoadingDetails ? (
+                <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Ouverture...</span>
+            ) : (
+                <span className="inline-flex items-center"><FileText className="w-4 h-4 mr-2" /> Fiche d&apos;adhésion</span>
+            )}
+        </Button>
+    )
 
     if (isLoading) {
         return (
@@ -111,37 +150,7 @@ export default function SubscriptionList() {
 
                     {/* Actions: fiche d'adhésion + renouvellement - empilés en mobile, côte à côte en desktop */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={async () => {
-                            if (!member?.dossier) {
-                              toast.info('Dossier non disponible')
-                              return
-                            }
-                            try {
-                              setIsLoadingDetails(true)
-                              const req = await getMembershipRequestById(member.dossier)
-                              if (!req) {
-                                toast.error('Dossier introuvable')
-                                return
-                              }
-                              setDetailsRequest(req as any)
-                              setDetailsOpen(true)
-                            } catch (e) {
-                              toast.error('Erreur au chargement du dossier')
-                            } finally {
-                              setIsLoadingDetails(false)
-                            }
-                          }}
-                          disabled={isLoadingDetails}
-                          className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
-                        >
-                          {isLoadingDetails ? (
-                            <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Ouverture...</span>
-                          ) : (
-                            <span className="inline-flex items-center"><FileText className="w-4 h-4 mr-2" /> Fiche d'adhésion</span>
-                          )}
-                        </Button>
+                        {adhesionFormButton}
                         <Button onClick={() => setRenewOpen(true)} className="bg-[#234D65] hover:bg-[#234D65] text-white">
                             <UploadCloud className="w-4 h-4 mr-2" /> Renouveler l'abonnement
                         </Button>
@@ -200,7 +209,7 @@ export default function SubscriptionList() {
                     </div>
                 </div>
             ) : (
-                <Card className="border-0 bg-gradient-to-br from-gray-50 to-gray-100 "><CardContent className="text-center py-16 px-6"><div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6"><Calendar className="h-10 w-10 text-gray-400" /></div><div className="space-y-4"><div><h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun abonnement trouvé</h3><p className="text-gray-600 max-w-md mx-auto">Ce membre n'a pas encore d'abonnement enregistré.</p></div><Button onClick={() => setRenewOpen(true)} className="bg-[#234D65] hover:bg-[#234D65] text-white"><UploadCloud className="w-4 h-4 mr-2" /> Attribuer un abonnement</Button></div></CardContent></Card>
+                <Card className="border-0 bg-gradient-to-br from-gray-50 to-gray-100 "><CardContent className="text-center py-16 px-6"><div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6"><Calendar className="h-10 w-10 text-gray-400" /></div><div className="space-y-4"><div><h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun abonnement trouvé</h3><p className="text-gray-600 max-w-md mx-auto">Ce membre n'a pas encore d'abonnement enregistré.</p></div><div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">{adhesionFormButton}<Button onClick={() => setRenewOpen(true)} className="bg-[#234D65] hover:bg-[#234D65] text-white"><UploadCloud className="w-4 h-4 mr-2" /> Attribuer un abonnement</Button></div></div></CardContent></Card>
             )}
 
             {/* Modal Renouvellement */}

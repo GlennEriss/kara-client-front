@@ -202,10 +202,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   unsignedSignerName: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    right: 4,
+    // Aligné sur le cadre de signature (même width/marginLeft) : sans largeur
+    // explicite, le texte s'étire sur toute la page et `textAlign:'center'`
+    // le centre sur la page au lieu du cadre.
+    width: 220,
+    marginLeft: 18,
+    marginTop: 4,
     fontSize: 9,
     textAlign: 'center',
     color: TEXT_MUTED,
@@ -709,10 +711,9 @@ const CaisseImprevuePDFV3 = ({
           {resolvedFillData.memberSignature ? (
             <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
           ) : (
-            <View style={styles.signaturePlaceholder}>
-              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-            </View>
+            <View style={styles.signaturePlaceholder} />
           )}
+          <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
           <Text style={[styles.paragraph, { marginTop: 40 }]}>Signature du Secrétaire Exécutif</Text>
           {resolvedFillData.secretarySignature ? (
             <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />

@@ -237,10 +237,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   unsignedSignerName: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    right: 4,
+    // Cadre de 180 aligné à droite : on reprend largeur et alignement pour
+    // que le nom soit centré exactement sous lui.
+    width: 180,
+    alignSelf: 'flex-end',
+    marginTop: 4,
     fontSize: 9,
     textAlign: 'center',
     color: TEXT_MUTED,
@@ -695,10 +696,9 @@ const CaisseSpecialePDFV3 = ({
           {resolvedFillData.page3MemberSignature ? (
             <Image src={resolvedFillData.page3MemberSignature} style={styles.signatureImageRight} cache={false} />
           ) : (
-            <View style={styles.signaturePlaceholderRight}>
-              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-            </View>
+            <View style={styles.signaturePlaceholderRight} />
           )}
+          <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
           <Text style={[styles.paragraph, styles.rightAlign, { marginTop: 6 }]}>
             [Signature de l’épargnant précédée de la mention « lu et approuvé »]
           </Text>
@@ -786,12 +786,11 @@ const CaisseSpecialePDFV3 = ({
         <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 28 }]}>
           Signature de l’épargnant précédée de la mention « lu et approuvé »
         </Text>
+        <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
         {resolvedFillData.page5MemberSignature ? (
           <Image src={resolvedFillData.page5MemberSignature} style={styles.signatureImageWide} cache={false} />
         ) : (
-          <View style={styles.signaturePlaceholderWide}>
-            <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-          </View>
+          <View style={styles.signaturePlaceholderWide} />
         )}
       </Page>
     </Document>
