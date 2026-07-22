@@ -2,6 +2,7 @@ import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import {
   db,
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -43,11 +44,19 @@ function coerceDate(value: unknown): string | undefined {
 }
 
 function normalizeRecord(id: string, data: Record<string, unknown>): OverviewRawRecord {
+  // Les contributions caritatives portent le montant dans `payment.amount`
+  // (ou `estimatedValue` pour une contribution en nature), pas au 1er niveau.
+  const nestedPaymentAmount = (data.payment as { amount?: unknown } | undefined)?.amount
+
   const amount =
     typeof data.amount === 'number'
       ? data.amount
       : typeof data.monthlyAmount === 'number'
       ? data.monthlyAmount
+      : typeof nestedPaymentAmount === 'number'
+      ? nestedPaymentAmount
+      : typeof data.estimatedValue === 'number'
+      ? data.estimatedValue
       : undefined
 
   return {
@@ -55,6 +64,7 @@ function normalizeRecord(id: string, data: Record<string, unknown>): OverviewRaw
     status: typeof data.status === 'string' ? data.status : undefined,
     amount,
     contractId: typeof data.contractId === 'string' ? data.contractId : undefined,
+    label: typeof data.label === 'string' ? data.label : undefined,
     createdAt: data.createdAt,
     desiredDate: data.desiredDate,
     ...data,
@@ -215,6 +225,93 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
       memberId,
       limitPerSection,
     )
+  }
+
+  /**
+   * Déclarations de contribution caritative du membre.
+   *
+   * Indexées par MATRICULE (et non par l'id du document membre) : c'est
+   * l'identifiant que l'app membre écrit dans `participantId`.
+   */
+  /** Titre d'un événement caritatif, mis en cache par requête. */
+  private async getCharityEventTitles(eventIds: string[]): Promise<Map<string, string>> {
+    const titles = new Map<string, string>()
+    const unique = Array.from(new Set(eventIds.filter(Boolean)))
+    await Promise.all(
+      unique.map(async (id) => {
+        const snap = await getDoc(doc(db, 'charity-events', id))
+        const title = snap.exists() ? (snap.data() as { title?: unknown }).title : undefined
+        if (typeof title === 'string' && title) titles.set(id, title)
+      }),
+    )
+    return titles
+  }
+
+  async getCharityDeclarations(matricule: string, limitPerSection: number): Promise<OverviewRawRecord[]> {
+    if (!matricule) return []
+    const records = await this.getByMemberField(
+      'charityContributions',
+      'participantId',
+      matricule,
+      limitPerSection,
+    )
+    const titles = await this.getCharityEventTitles(
+      records.map((r) => (typeof r.eventId === 'string' ? r.eventId : '')),
+    )
+    return records.map((r) => ({
+      ...r,
+      label: typeof r.eventId === 'string' ? titles.get(r.eventId) : undefined,
+    }))
+  }
+
+  /**
+   * Contributions caritatives RÉELLEMENT enregistrées (y compris celles
+   * saisies directement par un gestionnaire, sans déclaration préalable).
+   *
+   * La contribution ne porte pas l'identité du membre mais l'id du document
+   * participant : il faut donc passer par
+   *   participants (memberId == X) -> contributions (participantId == participant.id)
+   */
+  async getCharityContributions(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]> {
+    if (!memberId) return []
+
+    const participantsSnap = await getDocs(
+      query(
+        collectionGroup(db, 'participants'),
+        where('memberId', '==', memberId),
+        where('participantType', '==', 'member'),
+      ),
+    )
+    if (participantsSnap.empty) return []
+
+    const perParticipant = await Promise.all(
+      participantsSnap.docs.map(async (participantDoc) => {
+        const eventRef = participantDoc.ref.parent.parent
+        if (!eventRef) return []
+        const snap = await getDocs(
+          query(
+            collection(eventRef, 'contributions'),
+            where('participantId', '==', participantDoc.id),
+          ),
+        )
+        const eventSnap = await getDoc(eventRef)
+        const rawTitle = eventSnap.exists() ? (eventSnap.data() as { title?: unknown }).title : undefined
+        const label = typeof rawTitle === 'string' && rawTitle ? rawTitle : undefined
+
+        return snap.docs.map((d) =>
+          normalizeRecord(d.id, {
+            ...(d.data() as Record<string, unknown>),
+            eventId: eventRef.id,
+            label,
+          }),
+        )
+      }),
+    )
+
+    return perParticipant
+      .flat()
+      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+      .slice(0, limitPerSection)
   }
 }
 

@@ -7,6 +7,7 @@ export type MemberOverviewModuleKey =
   | 'creditFixe'
   | 'creditAide'
   | 'placement'
+  | 'charite'
 
 export type MemberOverviewRecordKind = 'demande' | 'contrat'
 
@@ -29,6 +30,8 @@ export interface MemberOverviewListItem {
   createdAt?: string
   desiredDate?: string
   contractId?: string
+  /** Libellé lisible affiché à la place de l'id brut (ex. titre d'événement). */
+  label?: string
   kind: MemberOverviewRecordKind
   module: MemberOverviewModuleKey
 }
@@ -36,6 +39,12 @@ export interface MemberOverviewListItem {
 export interface MemberOverviewModuleData {
   demandes: MemberOverviewListItem[]
   contrats: MemberOverviewListItem[]
+  /**
+   * Vrai si au moins une requête du module a échoué (index manquant, droits,
+   * réseau…). Sans ce drapeau, une section en erreur est indiscernable d'une
+   * section réellement vide : l'admin lit « 0 » et croit la donnée absente.
+   */
+  hasError?: boolean
 }
 
 export interface MemberOverviewData {
