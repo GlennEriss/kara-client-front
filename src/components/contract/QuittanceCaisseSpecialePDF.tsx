@@ -122,10 +122,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   unsignedSignerName: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    right: 4,
+    // Même largeur que le cadre pour être centré dessous.
+    width: 185,
+    marginTop: 4,
     fontSize: 9,
     textAlign: 'center',
     color: TEXT_MUTED,
@@ -419,10 +418,9 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
               {resolvedFillData.memberSignature ? (
                 <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
               ) : (
-                <View style={styles.signaturePlaceholder}>
-                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-                </View>
+                <View style={styles.signaturePlaceholder} />
               )}
+              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
               <Text style={styles.dateText}>Date : {memberDateLabel}</Text>
             </View>
           </View>

@@ -279,10 +279,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   unsignedSignerName: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    right: 4,
+    // Même largeur que le cadre pour être centré dessous.
+    width: 170,
+    marginTop: 4,
     fontSize: 9,
     textAlign: 'center',
     color: '#334155',
@@ -581,14 +580,16 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     return value ? value : placeholder
   }
 
-  const renderSignatureCapture = (signature: string | null, signerName?: string) =>
-    signature ? (
-      <Image src={signature} style={styles.signatureImage} cache={false} />
-    ) : (
-      <View style={styles.signaturePlaceholder}>
-        {signerName ? <Text style={styles.unsignedSignerName}>{signerName}</Text> : null}
-      </View>
-    )
+  const renderSignatureCapture = (signature: string | null, signerName?: string) => (
+    <>
+      {signature ? (
+        <Image src={signature} style={styles.signatureImage} cache={false} />
+      ) : (
+        <View style={styles.signaturePlaceholder} />
+      )}
+      {signerName ? <Text style={styles.unsignedSignerName}>{signerName}</Text> : null}
+    </>
+  )
 
   const renderPageNumber = (page: number) => (
     <Text style={styles.pageNumber}>{`Page ${page} / 7`}</Text>

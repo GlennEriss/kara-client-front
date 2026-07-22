@@ -142,10 +142,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   unsignedSignerName: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    right: 4,
+    // Légende sous le cadre : même largeur que la zone de signature (185)
+    // pour être réellement centrée sous elle malgré alignItems:'flex-end'.
+    width: 185,
+    marginTop: 4,
     fontSize: 9,
     textAlign: 'center',
     color: TEXT_MUTED,
@@ -467,10 +467,9 @@ const QuittanceCaisseImprevuePDF = ({
               {resolvedFillData.memberSignature ? (
                 <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
               ) : (
-                <View style={styles.signaturePlaceholder}>
-                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-                </View>
+                <View style={styles.signaturePlaceholder} />
               )}
+              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
             </View>
           </View>
         </View>
