@@ -7,6 +7,7 @@ import {
   Eye,
   Loader2,
   MessageSquare,
+  RefreshCw,
   RotateCcw,
   Save,
 } from 'lucide-react'
@@ -190,7 +191,7 @@ export default function MessageTemplatesSettings() {
   const { can, isSuperAdmin } = useMyAccess()
   const canManage = isSuperAdmin || can('messageTemplates.manage')
 
-  const { data: overrides, isLoading, isError } = useMessageTemplateOverrides()
+  const { data: overrides, isLoading, isError, errorCode, refetch } = useMessageTemplateOverrides()
   const { save, isPending: isSaving } = useSaveMessageTemplates()
 
   // Corps courants de tous les modèles (défaut + personnalisations chargées).
@@ -243,8 +244,17 @@ export default function MessageTemplatesSettings() {
       setInitialBodies({ ...bodies })
       toast.success('Modèles de messages enregistrés')
     } catch (error) {
+      const code =
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code: unknown }).code)
+          : undefined
+      // Même cause que l'échec de lecture : les règles Firestore ne sont pas déployées.
       toast.error(
-        error instanceof Error ? error.message : 'Impossible d’enregistrer les modèles de messages'
+        code === 'permission-denied'
+          ? 'Enregistrement refusé par Firestore : déployez les règles (firebase deploy --only firestore:rules).'
+          : error instanceof Error
+            ? error.message
+            : 'Impossible d’enregistrer les modèles de messages'
       )
     }
   }
@@ -263,8 +273,27 @@ export default function MessageTemplatesSettings() {
       {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Impossible de charger les modèles enregistrés. Les textes par défaut sont affichés.
+          <AlertDescription className="space-y-2">
+            {errorCode === 'permission-denied' ? (
+              <p>
+                <span className="font-semibold">Accès refusé par Firestore.</span> Les règles de
+                sécurité autorisant <code className="font-mono">settings/messageTemplates</code>{' '}
+                ne sont pas encore déployées : lancez{' '}
+                <code className="font-mono">firebase deploy --only firestore:rules</code>.
+                L&apos;enregistrement échouera tant que ce n&apos;est pas fait.
+              </p>
+            ) : (
+              <p>
+                Impossible de charger les modèles enregistrés
+                {errorCode ? ` (${errorCode})` : ''}. Vérifiez votre connexion avant
+                d&apos;enregistrer, sous peine de perdre vos modifications.
+              </p>
+            )}
+            <p>Les textes par défaut sont affichés en attendant.</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réessayer
+            </Button>
           </AlertDescription>
         </Alert>
       )}

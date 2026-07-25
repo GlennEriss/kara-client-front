@@ -20,6 +20,8 @@ import { renderTemplate, type TemplateVariables } from '../utils/renderTemplate'
 type State = {
   overrides: MessageTemplateOverrides
   status: 'idle' | 'loading' | 'ready' | 'error'
+  /** Code Firestore de l'échec ('permission-denied', 'unavailable', ...). */
+  errorCode?: string
 }
 
 let state: State = { overrides: {}, status: 'idle' }
@@ -58,10 +60,14 @@ function loadOverrides(force = false): Promise<void> {
     .then((overrides) => {
       setState({ overrides, status: 'ready' })
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.error('[messageTemplates] chargement impossible', error)
+      const code =
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code: unknown }).code)
+          : undefined
       // On reste sur les textes par défaut plutôt que de bloquer un envoi.
-      setState({ overrides: {}, status: 'error' })
+      setState({ overrides: {}, status: 'error', errorCode: code })
     })
     .finally(() => {
       inflight = null
@@ -88,6 +94,7 @@ export function useMessageTemplateOverrides() {
     data: snapshot.overrides,
     isLoading: snapshot.status === 'idle' || snapshot.status === 'loading',
     isError: snapshot.status === 'error',
+    errorCode: snapshot.errorCode,
     refetch: () => loadOverrides(true),
   }
 }
