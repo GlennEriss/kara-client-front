@@ -21,7 +21,13 @@ import {
     History,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import ContractsHistoryFiltersBar, {
+  applyContractsHistoryFilters,
+  countActiveContractsFilters,
+  DEFAULT_CONTRACTS_HISTORY_FILTERS,
+  type ContractsHistoryFilters,
+} from './ContractsHistoryFilters'
 
 interface MemberContractsCIListProps {
   memberId: string
@@ -33,25 +39,48 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELED: 'bg-red-100 text-red-700 border-red-200',
 }
 
+// Libellés déjà traduits côté types : on les réutilise pour le filtre.
+const CI_STATUS_OPTIONS = Object.entries(CONTRACT_CI_STATUS_LABELS).map(([value, label]) => ({
+  value,
+  label: String(label),
+}))
+
 export default function MemberContractsCIList({ memberId }: MemberContractsCIListProps) {
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
+  const [filters, setFilters] = useState<ContractsHistoryFilters>(DEFAULT_CONTRACTS_HISTORY_FILTERS)
   const pageSize = 10
 
   const { data: contracts = [], isLoading, error } = useMemberContractsCI(memberId)
 
+  const filteredContracts = useMemo(
+    () =>
+      applyContractsHistoryFilters(contracts, filters, {
+        id: (c) => String(c.id ?? ''),
+        status: (c) => String(c.status ?? ''),
+        createdAt: (c) => (c.createdAt ? new Date(c.createdAt) : null),
+        amount: (c) => Number(c.subscriptionCINominal ?? 0),
+        searchable: (c) => [c.subscriptionCILabel, c.subscriptionCICode].filter(Boolean).join(' '),
+      }),
+    [contracts, filters]
+  )
+
   // Pagination côté client
-  const totalPages = Math.ceil(contracts.length / pageSize)
+  const totalPages = Math.ceil(filteredContracts.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const paginatedContracts = contracts.slice(startIndex, endIndex)
+  const paginatedContracts = filteredContracts.slice(startIndex, endIndex)
 
-  // Réinitialiser la page si le nombre de contrats change
+  // Revenir en page 1 quand le jeu filtré change.
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1)
     }
-  }, [contracts.length, currentPage, totalPages])
+  }, [filteredContracts.length, currentPage, totalPages])
 
   if (isLoading) {
     return (
@@ -92,10 +121,35 @@ export default function MemberContractsCIList({ memberId }: MemberContractsCILis
       <CardHeader>
         <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Contrats Caisse Imprévue ({contracts.length})
+          Contrats Caisse Imprévue ({filteredContracts.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <ContractsHistoryFiltersBar
+          filters={filters}
+          onFiltersChange={setFilters}
+          onReset={() => setFilters(DEFAULT_CONTRACTS_HISTORY_FILTERS)}
+          statusOptions={CI_STATUS_OPTIONS}
+          resultCount={filteredContracts.length}
+          totalCount={contracts.length}
+        />
+
+        {filteredContracts.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 py-10 text-center">
+            <FileText className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+            <p className="text-sm font-medium text-gray-500">Aucun contrat ne correspond aux filtres</p>
+            {countActiveContractsFilters(filters) > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => setFilters(DEFAULT_CONTRACTS_HISTORY_FILTERS)}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
+          </div>
+        ) : (
         <div className="space-y-4">
           {paginatedContracts.map((contract) => (
         <Card key={contract.id} className="hover:shadow-md transition-shadow">
@@ -198,12 +252,13 @@ export default function MemberContractsCIList({ memberId }: MemberContractsCILis
         </Card>
       ))}
     </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between border-t pt-4">
             <div className="text-sm text-gray-600">
-              Affichage de {startIndex + 1} à {Math.min(endIndex, contracts.length)} sur {contracts.length} contrats
+              Affichage de {startIndex + 1} à {Math.min(endIndex, filteredContracts.length)} sur {filteredContracts.length} contrats
             </div>
 
             <div className="flex items-center gap-2">

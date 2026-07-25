@@ -17,10 +17,37 @@ import {
     FileText,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import ContractsHistoryFiltersBar, {
+  applyContractsHistoryFilters,
+  countActiveContractsFilters,
+  DEFAULT_CONTRACTS_HISTORY_FILTERS,
+  type ContractsHistoryFilters,
+} from './ContractsHistoryFilters'
 
 interface MemberContractsCSListProps {
   memberId: string
+}
+
+// Statuts écrits par le back-office (`CaisseContractStatus`).
+const CS_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: 'Brouillon' },
+  { value: 'ACTIVE', label: 'Actif' },
+  { value: 'LATE_NO_PENALTY', label: 'Retard (sans pénalité)' },
+  { value: 'LATE_WITH_PENALTY', label: 'Retard (avec pénalité)' },
+  { value: 'DEFAULTED_AFTER_J12', label: 'Défaut de paiement' },
+  { value: 'EARLY_WITHDRAW_REQUESTED', label: 'Retrait anticipé demandé' },
+  { value: 'FINAL_REFUND_PENDING', label: 'Remboursement final en attente' },
+  { value: 'EARLY_REFUND_PENDING', label: 'Remboursement anticipé en attente' },
+  { value: 'RESCINDED', label: 'Résilié' },
+  { value: 'CLOSED', label: 'Clos' },
+]
+
+/** Normalise une date Firestore (Timestamp | Date | string) pour le tri/filtrage. */
+const toDateOrNull = (value: any): Date | null => {
+  if (!value) return null
+  const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value)
+  return isNaN(date.getTime()) ? null : date
 }
 
 // Fonction pour convertir et formater une date en toute sécurité
@@ -58,22 +85,39 @@ const safeFormatDate = (dateValue: any, formatPattern: string = 'dd/MM/yyyy'): s
 
 export default function MemberContractsCSList({ memberId }: MemberContractsCSListProps) {
   const [currentPage, setCurrentPage] = useState(1)
+  const [filters, setFilters] = useState<ContractsHistoryFilters>(DEFAULT_CONTRACTS_HISTORY_FILTERS)
   const pageSize = 10
 
   const { data: memberContracts = [], isLoading, error } = useContractsByMember(memberId)
 
+  const filteredContracts = useMemo(
+    () =>
+      applyContractsHistoryFilters(memberContracts as any[], filters, {
+        id: (c) => String(c.id ?? ''),
+        status: (c) => String(c.status ?? ''),
+        createdAt: (c) => toDateOrNull(c.contractStartAt ?? c.createdAt),
+        amount: (c) => Number(c.monthlyAmount ?? 0),
+        searchable: (c) => [c.caisseType, c.contractType].filter(Boolean).join(' '),
+      }),
+    [memberContracts, filters]
+  )
+
   // Pagination côté client
-  const totalPages = Math.ceil(memberContracts.length / pageSize)
+  const totalPages = Math.ceil(filteredContracts.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const paginatedContracts = memberContracts.slice(startIndex, endIndex)
+  const paginatedContracts = filteredContracts.slice(startIndex, endIndex)
 
-  // Réinitialiser la page si le nombre de contrats change
+  // Revenir en page 1 quand le jeu filtré change de taille.
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1)
     }
-  }, [memberContracts.length, currentPage, totalPages])
+  }, [filteredContracts.length, currentPage, totalPages])
 
   if (isLoading) {
     return (
@@ -114,10 +158,35 @@ export default function MemberContractsCSList({ memberId }: MemberContractsCSLis
       <CardHeader>
         <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Contrats Caisse Spéciale ({memberContracts.length})
+          Contrats Caisse Spéciale ({filteredContracts.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <ContractsHistoryFiltersBar
+          filters={filters}
+          onFiltersChange={setFilters}
+          onReset={() => setFilters(DEFAULT_CONTRACTS_HISTORY_FILTERS)}
+          statusOptions={CS_STATUS_OPTIONS}
+          resultCount={filteredContracts.length}
+          totalCount={memberContracts.length}
+        />
+
+        {filteredContracts.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 py-10 text-center">
+            <FileText className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+            <p className="text-sm font-medium text-gray-500">Aucun contrat ne correspond aux filtres</p>
+            {countActiveContractsFilters(filters) > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => setFilters(DEFAULT_CONTRACTS_HISTORY_FILTERS)}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
+          </div>
+        ) : (
         <div className="space-y-4">
           {paginatedContracts.map((contract: any) => (
             <div key={contract.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -213,12 +282,13 @@ export default function MemberContractsCSList({ memberId }: MemberContractsCSLis
             </div>
           ))}
         </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between border-t pt-4">
             <div className="text-sm text-gray-600">
-              Affichage de {startIndex + 1} à {Math.min(endIndex, memberContracts.length)} sur {memberContracts.length} contrats
+              Affichage de {startIndex + 1} à {Math.min(endIndex, filteredContracts.length)} sur {filteredContracts.length} contrats
             </div>
 
             <div className="flex items-center gap-2">

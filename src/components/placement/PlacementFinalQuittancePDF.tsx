@@ -6,69 +6,87 @@ import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-const ACCENT = '#234D65'
+// Charte des quittances KARA — mêmes jetons que QuittanceCaisseSpecialePDF.
+const ACCENT_BLUE = '#1f4f68'
+const BORDER_SOFT = '#cbd5e1'
+const TEXT_PRIMARY = '#1f2937'
+const TEXT_MUTED = '#475569'
 const SUCCESS = '#16a34a'
-const BORDER = '#cfd8e3'
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    padding: 40,
-    color: '#1f2937',
-    lineHeight: 1.4,
+    fontFamily: 'Times-Roman',
+    fontSize: 11,
+    paddingLeft: 30,
+    paddingRight: 30,
+    paddingTop: 50,
+    paddingBottom: 40,
+    color: TEXT_PRIMARY,
+  },
+  // Cadre de page : signature visuelle des quittances de l'association.
+  pageContainer: {
+    width: '100%',
+    height: '100%',
+    border: '1px solid #94a3b8',
+    borderRadius: 2,
+    position: 'relative',
+    padding: 16,
   },
   title: {
-    fontSize: 16,
-    fontFamily: 'Helvetica-Bold',
+    fontSize: 15,
+    fontWeight: 'bold',
     textAlign: 'center',
+    border: `1px solid ${ACCENT_BLUE}`,
+    backgroundColor: ACCENT_BLUE,
     color: '#ffffff',
-    backgroundColor: ACCENT,
-    paddingVertical: 8,
+    paddingVertical: 5,
   },
   subtitle: {
     fontSize: 11,
     textAlign: 'center',
     color: '#ffffff',
-    backgroundColor: ACCENT,
-    paddingBottom: 8,
-    marginBottom: 18,
+    backgroundColor: ACCENT_BLUE,
+    borderLeft: `1px solid ${ACCENT_BLUE}`,
+    borderRight: `1px solid ${ACCENT_BLUE}`,
+    borderBottom: `1px solid ${ACCENT_BLUE}`,
+    paddingBottom: 6,
+    marginBottom: 16,
   },
   statusBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: SUCCESS,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 12,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   statusText: {
     color: '#ffffff',
     fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
+    fontWeight: 'bold',
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: 'Helvetica-Bold',
-    color: ACCENT,
+    fontWeight: 'bold',
+    color: ACCENT_BLUE,
     marginBottom: 6,
   },
-  // Tableau des commissions : React-PDF n'a pas de primitive de tableau,
+  // Tableau des reversements : React-PDF n'a pas de primitive de tableau,
   // on le reconstruit en flexbox (l'équivalent de jspdf-autotable).
-  table: { marginBottom: 18 },
-  tableHeadRow: { flexDirection: 'row', backgroundColor: ACCENT },
+  table: { marginBottom: 16 },
+  tableHeadRow: { flexDirection: 'row', backgroundColor: ACCENT_BLUE },
   tableHeadCell: {
     color: '#ffffff',
     fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
+    fontWeight: 'bold',
     padding: 6,
     textAlign: 'center',
   },
-  tableRow: { flexDirection: 'row', borderBottom: `1px solid ${BORDER}` },
-  tableRowAlt: { backgroundColor: '#f7f9fc' },
-  tableCell: { fontSize: 9, padding: 6, textAlign: 'center' },
-  cellRight: { textAlign: 'right', fontFamily: 'Helvetica-Bold' },
+  tableRow: { flexDirection: 'row', borderBottom: `1px solid ${BORDER_SOFT}` },
+  tableRowAlt: { backgroundColor: '#f8fafc' },
+  tableCell: { fontSize: 9, padding: 6, textAlign: 'center', color: TEXT_PRIMARY },
+  cellRight: { textAlign: 'right', fontWeight: 'bold' },
   colIndex: { width: '10%' },
   colDue: { width: '25%' },
   colAmount: { width: '27%' },
@@ -79,32 +97,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 3,
+    lineHeight: 1.45,
   },
   recapTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: 6,
     marginTop: 4,
-    borderTop: `1px solid ${BORDER}`,
+    borderTop: `1px solid ${BORDER_SOFT}`,
   },
-  bold: { fontFamily: 'Helvetica-Bold' },
-  words: { fontSize: 9, marginTop: 6, fontStyle: 'italic' },
+  bold: { fontWeight: 'bold' },
+  words: { fontSize: 9, marginTop: 6, fontStyle: 'italic', color: TEXT_MUTED },
+  // Panneau de signatures encadré, comme la quittance caisse spéciale.
   signatures: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 40,
+    marginTop: 26,
+    minHeight: 120,
+    border: `1px solid ${BORDER_SOFT}`,
+    backgroundColor: '#f8fafc',
+    padding: 15,
   },
-  signatureBlock: { width: '45%' },
+  signatureBlock: { width: '48%', justifyContent: 'space-between' },
+  signatureBlockRight: { width: '48%', justifyContent: 'space-between', alignItems: 'flex-end' },
+  signatureTitle: { fontWeight: 'bold', color: TEXT_PRIMARY },
+  signatureTitleRight: { fontWeight: 'bold', color: TEXT_PRIMARY, textAlign: 'right' },
+  signatureSubtitle: { fontSize: 8, color: TEXT_MUTED },
   signaturePlaceholder: {
-    width: 170,
-    height: 48,
-    marginTop: 6,
+    width: 185,
+    height: 56,
+    marginTop: 12,
     border: '1px dashed #94a3b8',
+    backgroundColor: '#ffffff',
   },
   // Même largeur que le cadre pour être centré dessous.
-  unsignedSignerName: { width: 170, marginTop: 4, fontSize: 9, textAlign: 'center', color: '#475569' },
-  signatureSubtitle: { fontSize: 8, color: '#475569' },
-  dateLine: { marginTop: 24 },
+  unsignedSignerName: {
+    width: 185,
+    marginTop: 4,
+    fontSize: 9,
+    textAlign: 'center',
+    color: TEXT_MUTED,
+  },
+  dateText: { fontSize: 9, marginTop: 12, color: TEXT_MUTED },
+  dateLine: { marginTop: 20, lineHeight: 1.45 },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: TEXT_MUTED,
+  },
 })
 
 const formatAmount = (amount: number): string =>
@@ -174,6 +218,7 @@ export default function PlacementFinalQuittancePDF({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <View style={styles.pageContainer}>
         <Text style={styles.title}>QUITTANCE FINALE</Text>
         <Text style={styles.subtitle}>Placement — KARA</Text>
 
@@ -239,17 +284,22 @@ export default function PlacementFinalQuittancePDF({
 
           <View style={styles.signatures}>
             <View style={styles.signatureBlock}>
-              <Text style={styles.bold}>Signature du Secrétaire exécutif</Text>
+              <Text style={styles.signatureTitle}>Signature du Secrétaire exécutif</Text>
               <View style={styles.signaturePlaceholder} />
+              <Text style={styles.dateText}>Date : ____________________</Text>
             </View>
-            <View style={styles.signatureBlock}>
-              <Text style={styles.bold}>Signature du Bienfaiteur</Text>
-              <Text style={styles.signatureSubtitle}>(Précédée de la mention Lu et approuvé)</Text>
+            <View style={styles.signatureBlockRight}>
+              <Text style={styles.signatureTitleRight}>
+                Signature du Bienfaiteur (Précédée de la mention Lu et Approuvé)
+              </Text>
               <View style={styles.signaturePlaceholder} />
               <Text style={styles.unsignedSignerName}>{memberName}</Text>
+              <Text style={styles.dateText}>Date : ____________________</Text>
             </View>
           </View>
         </View>
+        </View>
+        <Text style={styles.pageNumber} fixed render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`} />
       </Page>
     </Document>
   )
