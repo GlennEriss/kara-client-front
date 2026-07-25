@@ -1606,6 +1606,9 @@ const ListContrats = ({
               const initials = `${(contract.clientFirstName || '')[0] || ''}${(contract.clientLastName || '')[0] || ''}`.toUpperCase() || 'CS'
               const hasSignedContract = Boolean(contract.signedContractUrl)
               const scoreValue = contract.score
+              const repaymentProgress = contract.totalAmount > 0
+                ? Math.min(100, Math.round(((contract.amountPaid || 0) / contract.totalAmount) * 100))
+                : 0
 
               return (
                 <div
@@ -1617,12 +1620,12 @@ const ListContrats = ({
                     'group relative h-full flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md',
                     isContractOverdue(contract) && 'border-red-200'
                   )}>
-                    <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
+                    <CardContent className="relative z-10 flex flex-1 flex-col gap-3 p-4 pt-5">
                       {/* Header : avatar + nom pleine largeur, statut sur sa propre ligne
                           (un statut long à droite tronquait le nom). */}
                       <div className="flex items-start gap-3">
                         <Avatar className="size-9 shrink-0 rounded-xl">
-                          <AvatarFallback className="rounded-xl bg-[#234D65] text-white font-semibold text-xs">
+                          <AvatarFallback className="rounded-xl bg-[#234D65] text-xs font-semibold text-white">
                             {initials}
                           </AvatarFallback>
                         </Avatar>
@@ -1632,7 +1635,7 @@ const ListContrats = ({
                           <p className="truncate font-mono text-[10px] text-gray-400">{contract.id}</p>
                         </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                         <span className={`flex items-center gap-1.5 text-xs font-semibold ${getStatusDot(contract.status).text}`}>
                           <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(contract.status).dot}`} />
                           {getStatusLabel(contract.status)}
@@ -1645,115 +1648,115 @@ const ListContrats = ({
                         <span className="text-[10px] font-medium text-gray-400">{getCreditTypeLabel(contract.creditType)}</span>
                       </div>
 
-                      <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm">
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                          <div className="min-w-0">
-                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Montant emprunté</p>
-                            <p className="font-extrabold text-[#234D65] whitespace-nowrap">{(contract.amount || 0).toLocaleString('fr-FR')} FCFA</p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
-                            <p className="font-semibold leading-tight text-slate-900 break-words">{(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')} FCFA</p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Durée</p>
-                            <p className="font-semibold text-slate-900">{contract.duration} mois</p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Prochaine échéance</p>
-                            <p className="font-medium text-slate-900">
-                              {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
-                            </p>
-                          </div>
+                      {/* Stats 2×2 — même grille que les cartes de caisse */}
+                      <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
+                          <p className="font-bold text-[#234D65] tabular-nums text-sm">
+                            {(contract.amount || 0).toLocaleString('fr-FR')}{' '}
+                            <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+                          </p>
                         </div>
-
-                        <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
-                          <div className="flex items-center gap-1.5">
-                            {hasSignedContract ? (
-                              <>
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                <span className="text-xs font-medium text-emerald-700">Contrat signé disponible</span>
-                              </>
-                            ) : (
-                              <>
-                                <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
-                                <span className="text-xs font-medium text-orange-600">Contrat signé à téléverser</span>
-                              </>
-                            )}
-                          </div>
-                          <span className="text-xs font-semibold text-slate-700">
-                            Score: {scoreValue !== undefined ? `${scoreValue}/10` : 'N/A'}
-                          </span>
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
+                          <p className="font-bold text-gray-900 tabular-nums text-sm">
+                            {(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')}{' '}
+                            <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+                          </p>
                         </div>
-
-                        <div className="mt-2 text-xs text-slate-600">
-                          Versé: {(contract.amountPaid || 0).toLocaleString('fr-FR')} FCFA • Reste: {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Prochaine échéance</p>
+                          <p className="font-bold text-gray-900 tabular-nums text-sm">
+                            {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total versé</p>
+                          <p className="font-bold text-gray-900 tabular-nums text-sm">
+                            {(contract.amountPaid || 0).toLocaleString('fr-FR')}{' '}
+                            <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+                          </p>
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-200 mt-auto">
-                        <div className="space-y-2">
+                      {/* Progression du remboursement (équivalent des mois payés en caisse) */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-gray-400">
+                          <span>Progression</span>
+                          <span className="font-semibold text-[#234D65] tabular-nums">{repaymentProgress}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#234D65] transition-all"
+                            style={{ width: `${repaymentProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-gray-400 tabular-nums">
+                          Reste {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
+                          {scoreValue !== undefined && <> · Score {scoreValue}/10</>}
+                        </p>
+                      </div>
+
+                      {/* Statut du document, en pastille — comme les cartes de caisse */}
+                      <div>
+                        {hasSignedContract ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                            <CheckCircle2 className="h-3 w-3" /> Contrat signé
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-600">
+                            <AlertCircle className="h-3 w-3" /> Contrat signé à téléverser
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions : « Ouvrir » en primaire, secondaires en rangée compacte */}
+                      <div className="mt-auto space-y-2 border-t border-gray-100 pt-3">
+                        <Button
+                          onClick={() => {
+                            if (!canOpenContractDetail(contract)) return
+                            router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
+                          }}
+                          disabled={!canOpenContractDetail(contract)}
+                          className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-xs font-semibold"
+                        >
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          Ouvrir
+                        </Button>
+
+                        <div className="flex flex-wrap gap-1.5">
                           {hasSignedContract ? (
-                            <>
-                              <Button
-                                onClick={() => {
-                                  if (!canOpenContractDetail(contract)) return
-                                  router.push(`${normalizedContractDetailsBasePath}/${contract.id}`)
-                                }}
-                                disabled={!canOpenContractDetail(contract)}
-                                className="w-full h-9 bg-[#234D65] hover:bg-[#2c5a73] text-white text-sm font-semibold"
-                              >
-                                <Eye className="h-4 w-4" />
-                                Ouvrir
-                              </Button>
-                              <Button
-                                onClick={() => setSelectedContractForOverview(contract)}
-                                variant="outline"
-                                className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                              >
-                                <User className="h-4 w-4" />
-                                Voir toutes les infos
-                              </Button>
-                              <Button
-                                onClick={() => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')}
-                                variant="outline"
-                                className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                              >
-                                <FileText className="h-4 w-4" />
-                                Voir contrat
-                              </Button>
-                              {canReplaceSignedContract(contract) && (
-                                <Button
-                                  onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
-                                  variant="outline"
-                                  className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  Modifier contrat signé
-                                </Button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {canUploadSignedContract(contract) && (
-                                <Button
-                                  onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
-                                  variant="outline"
-                                  className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  {contract.status === 'PENDING' ? 'Téléverser contrat signé' : 'Téléverser nouveau contrat signé'}
-                                </Button>
-                              )}
-                              <Button
-                                onClick={() => setSelectedContractForOverview(contract)}
-                                variant="outline"
-                                className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
-                              >
-                                <User className="h-4 w-4" />
-                                Voir toutes les infos
-                              </Button>
-                            </>
+                            <Button
+                              onClick={() => openCreditDocument(contract, contract.signedContractUrl, 'CONTRAT_SIGNE', 'Contrat signé')}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                            >
+                              <FileText className="mr-1.5 h-3.5 w-3.5" />
+                              Voir
+                            </Button>
+                          ) : canUploadSignedContract(contract) ? (
+                            <Button
+                              onClick={() => { setSelectedContractForUpload(contract); setShowUploadModal(true) }}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                            >
+                              <Upload className="mr-1.5 h-3.5 w-3.5" />
+                              Téléverser
+                            </Button>
+                          ) : null}
+
+                          {hasSignedContract && canReplaceSignedContract(contract) && (
+                            <Button
+                              onClick={() => { setSelectedContractForReplace(contract); setReplaceFile(undefined); setShowReplaceModal(true) }}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 cursor-pointer rounded-lg border-amber-300 px-3 text-xs text-amber-700 hover:bg-amber-500 hover:text-white"
+                            >
+                              <FileText className="mr-1.5 h-3.5 w-3.5" />
+                              Remplacer
+                            </Button>
                           )}
 
                           {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
@@ -1762,28 +1765,43 @@ const ListContrats = ({
                                 ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
                                 : () => { setSelectedContractForPDF(contract); setShowContractPDFModal(true) }}
                               variant="outline"
-                              className="w-full h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
+                              size="sm"
+                              className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
                             >
-                              <Download className="h-4 w-4" />
-                              Télécharger contrat
+                              <Download className="mr-1.5 h-3.5 w-3.5" />
+                              Contrat
                             </Button>
                           )}
+
                           {canViewRepaymentContract(contract) && (
                             <Button
                               onClick={() => openCreditDocument(contract, contract.signedQuittanceUrl, 'QUITTANCE', 'Contrat de remboursement')}
                               variant="outline"
-                              className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                              size="sm"
+                              className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white"
                             >
-                              <Eye className="h-4 w-4" />
-                              Contrat de remboursement
+                              <Eye className="mr-1.5 h-3.5 w-3.5" />
+                              Remboursement
                             </Button>
                           )}
+
+                          <Button
+                            onClick={() => setSelectedContractForOverview(contract)}
+                            variant="outline"
+                            size="sm"
+                            className="h-8 cursor-pointer rounded-lg border-gray-200 px-3 text-xs text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
+                          >
+                            <User className="mr-1.5 h-3.5 w-3.5" />
+                            Infos
+                          </Button>
+
                           <Button
                             onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
                             variant="outline"
-                            className="w-full h-9 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                            size="sm"
+                            className="h-8 cursor-pointer rounded-lg border-red-300 px-3 text-xs text-red-600 hover:bg-red-500 hover:text-white"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                             Supprimer
                           </Button>
                         </div>

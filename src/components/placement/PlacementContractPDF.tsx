@@ -9,15 +9,22 @@ const colWidths = [0.269, 0.307, 0.152, 0.272]
 const sumCols = (start: number, span: number) =>
   colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
 
+// Charte des contrats KARA — identique à CaisseSpecialePDFV3 : les documents
+// remis aux membres doivent former une même famille visuelle.
+const ACCENT_BLUE = '#1f4f68'
+const BORDER_SOFT = '#cbd5e1'
+const TEXT_PRIMARY = '#1f2937'
+const TEXT_MUTED = '#334155'
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 12,
-    paddingTop: 34,
-    paddingRight: 52,
-    paddingBottom: 28,
-    paddingLeft: 52,
-    color: '#000000',
+    fontSize: 11,
+    paddingTop: 30,
+    paddingRight: 50,
+    paddingBottom: 14,
+    paddingLeft: 50,
+    color: TEXT_PRIMARY,
   },
   logo: {
     width: 201,
@@ -28,7 +35,7 @@ const styles = StyleSheet.create({
   },
   table: {
     borderWidth: 0.5,
-    borderColor: '#999999',
+    borderColor: BORDER_SOFT,
   },
   tableRow: {
     flexDirection: 'row',
@@ -40,88 +47,116 @@ const styles = StyleSheet.create({
   },
   tableCellRightBorder: {
     borderRightWidth: 0.5,
-    borderRightColor: '#999999',
+    borderRightColor: BORDER_SOFT,
   },
   tableCellBottomBorder: {
     borderBottomWidth: 0.5,
-    borderBottomColor: '#999999',
+    borderBottomColor: BORDER_SOFT,
   },
   tableHeaderText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableSectionText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   tableLabelText: {
-    fontSize: 12,
+    fontSize: 11,
+    color: TEXT_MUTED,
   },
   tableValueText: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
+    color: TEXT_PRIMARY,
   },
+  // Titre de page : bleu accent, souligné, comme `title1` de la caisse spéciale.
   heading: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
     textDecoration: 'underline',
-    marginBottom: 20,
+    marginTop: 5,
+    marginBottom: 12,
+    color: ACCENT_BLUE,
   },
+  // Bandeau blanc sur bleu : signature visuelle des sections de contrat.
   headingSecondary: {
-    fontSize: 22,
+    fontSize: 14,
     fontWeight: 'bold',
-    textAlign: 'center',
     textDecoration: 'underline',
-    marginBottom: 24,
-  },
-  paragraph: {
-    fontSize: 12,
-    lineHeight: 1.55,
-    textAlign: 'justify',
-    marginBottom: 8,
-  },
-  bulletRow: {
-    flexDirection: 'row',
-    marginBottom: 9,
-  },
-  bulletSymbol: {
-    width: 14,
-    fontSize: 12,
-    marginTop: 1,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 1.55,
-    textAlign: 'justify',
+    marginTop: 12,
+    marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: ACCENT_BLUE,
   },
   sectionTitleUnderline: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    textAlign: 'center',
     textDecoration: 'underline',
-    marginTop: 16,
-    marginBottom: 10,
+    marginTop: 12,
+    marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: ACCENT_BLUE,
   },
   articleTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginTop: 14,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 6,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    backgroundColor: ACCENT_BLUE,
+  },
+  paragraph: {
+    fontSize: 11,
+    lineHeight: 1.35,
+    textAlign: 'justify',
+    marginBottom: 6,
+    color: TEXT_PRIMARY,
+  },
+  // Alinéa de première ligne : présentation contractuelle de la caisse spéciale.
+  paragraphIndented: {
+    fontSize: 11,
+    lineHeight: 1.35,
+    textAlign: 'justify',
+    textIndent: 36,
+    marginBottom: 6,
+    color: TEXT_PRIMARY,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+    marginLeft: 24,
+  },
+  bulletSymbol: {
+    width: 14,
+    fontSize: 11,
+    marginTop: 1,
+    color: TEXT_PRIMARY,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 1.35,
+    textAlign: 'justify',
+    color: TEXT_PRIMARY,
   },
   italicText: {
-    fontSize: 12,
+    fontSize: 11,
     fontStyle: 'italic',
-    lineHeight: 1.55,
-    marginTop: 20,
+    lineHeight: 1.35,
+    marginTop: 16,
+    color: TEXT_MUTED,
   },
   signatureRow: {
-    marginTop: 80,
+    marginTop: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -134,21 +169,31 @@ const styles = StyleSheet.create({
     width: '46%',
   },
   signatureText: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'left',
     marginBottom: 8,
+    color: TEXT_PRIMARY,
+  },
+  // Cadre d'apposition de signature — même repère que la caisse spéciale.
+  signaturePlaceholder: {
+    height: 54,
+    borderWidth: 0.5,
+    borderColor: '#94a3b8',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
   },
   signerName: {
-    fontSize: 10,
-    textAlign: 'left',
-    marginTop: 42,
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 4,
+    color: TEXT_MUTED,
   },
   pageNumber: {
     position: 'absolute',
     bottom: 16,
     right: 24,
     fontSize: 10,
-    color: '#4B5563',
+    color: '#475569',
   },
 })
 
@@ -318,7 +363,7 @@ export default function PlacementContractPDF({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Image src={logoUrl} style={styles.logo} />
         <View style={styles.table}>
@@ -329,7 +374,7 @@ export default function PlacementContractPDF({
                 content: 'Informations Personnelles du Membre :',
                 span: 4,
                 textStyle: styles.tableHeaderText,
-                backgroundColor: '#224d62',
+                backgroundColor: ACCENT_BLUE,
               },
             ]}
           />
@@ -406,7 +451,7 @@ export default function PlacementContractPDF({
                 content: 'Informations Concernant Le Contact Urgent :',
                 span: 4,
                 textStyle: styles.tableSectionText,
-                backgroundColor: '#224d62',
+                backgroundColor: ACCENT_BLUE,
               },
             ]}
           />
@@ -453,19 +498,19 @@ export default function PlacementContractPDF({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.heading}>BIENFAITEUR</Text>
 
-        <Text style={styles.paragraph}>
+        <Text style={styles.paragraphIndented}>
           Dans le cadre de sa mission sociale et de son engagement en faveur de la solidarité, l’Association LE KARA met en place
           le volet « Bienfaiteur », un dispositif fondé sur l’entraide, la confiance et la responsabilité collective.
         </Text>
-        <Text style={styles.paragraph}>
+        <Text style={styles.paragraphIndented}>
           Ce mécanisme permet aux membres Bienfaiteurs de contribuer volontairement au développement et à la pérennité des actions
           sociales de l’Association, par des soutiens financiers consentis sans intérêts dans un esprit non lucratif et profondément solidaire.
         </Text>
-        <Text style={styles.paragraph}>
+        <Text style={styles.paragraphIndented}>
           La présente fiche concerne spécifiquement les soutiens financiers à taux nul, accordés librement par les Bienfaiteurs à
           l’Association, dans le respect des valeurs de transparence, d’éthique et de coopération qui fondent l’action associative.
         </Text>
@@ -499,7 +544,7 @@ export default function PlacementContractPDF({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.headingSecondary}>Les Clauses</Text>
 
@@ -558,7 +603,7 @@ export default function PlacementContractPDF({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.headingSecondary}>FICHE D’ADHÉSION – VOLET BIENFAITEUR</Text>
 
@@ -593,7 +638,7 @@ export default function PlacementContractPDF({
         <Text
           style={styles.pageNumber}
           fixed
-          render={({ pageNumber }) => `${pageNumber}`}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
         />
         <Text style={styles.articleTitle}>Article 4 – Restitution du nominal</Text>
         <Text style={styles.paragraph}>
@@ -609,10 +654,12 @@ export default function PlacementContractPDF({
         <View style={styles.signatureRow}>
           <View style={styles.signatureColLeft}>
             <Text style={styles.signatureText}>Signature du Secrétaire Exécutif</Text>
+            <View style={styles.signaturePlaceholder} />
           </View>
           <View style={styles.signatureColRight}>
             <Text style={styles.signatureText}>Signature du Bienfaiteur</Text>
-            <Text style={styles.signatureText}>Précédée de la mention Lu et approuvé</Text>
+            <Text style={styles.signatureText}>Précédée de la mention « lu et approuvé »</Text>
+            <View style={styles.signaturePlaceholder} />
             <Text style={styles.signerName}>{memberFullName}</Text>
           </View>
         </View>
