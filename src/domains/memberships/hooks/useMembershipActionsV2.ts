@@ -7,7 +7,7 @@
 'use client'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useAuditLogger } from '@/hooks/useAuditLog'
 import { MembershipServiceV2 } from '../services/MembershipServiceV2'
@@ -16,6 +16,7 @@ const MEMBER_REQ_MODULE = { module: 'memberRequests', moduleLabel: "Demandes d'a
 import { MEMBERSHIP_REQUEST_CACHE } from '@/constantes/membership-requests'
 import { generateCorrectionLink, generateWhatsAppMessage } from '../utils/correctionUtils'
 import { generateWhatsAppUrl } from '../utils/whatsappUrl'
+import { useMessageTemplateOverrides } from '@/domains/messaging/hooks/useMessageTemplates'
 import type {
   ApproveMembershipRequestParams,
   RejectMembershipRequestParams,
@@ -30,6 +31,14 @@ export function useMembershipActionsV2() {
   const queryClient = useQueryClient()
   const service = MembershipServiceV2.getInstance()
   const { log } = useAuditLogger()
+
+  // Corps personnalisé du modèle « Adhésion — corrections demandées ».
+  // Passé par ref pour garder `sendWhatsApp` stable entre deux rendus.
+  const { data: templateOverrides } = useMessageTemplateOverrides()
+  const correctionsTemplateRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    correctionsTemplateRef.current = templateOverrides?.membershipCorrections
+  }, [templateOverrides])
 
   const approveMutation = useMutation({
     mutationFn: (params: ApproveMembershipRequestParams) =>
@@ -220,6 +229,7 @@ export function useMembershipActionsV2() {
         securityCode: params.securityCode,
         expiryDate: params.expiryDate,
         baseUrl: window.location.origin,
+        templateBody: correctionsTemplateRef.current,
       })
 
       // Générer l'URL WhatsApp

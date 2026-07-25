@@ -16,6 +16,7 @@ import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { generateWhatsAppUrl, resolveWhatsappNumber } from '../../utils/whatsappUrl'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 import type { BirthdayMember } from '../../types/birthdays'
 
 export interface BirthdayCardProps {
@@ -23,22 +24,9 @@ export interface BirthdayCardProps {
   isHighlighted?: boolean
 }
 
-/**
- * Message d'anniversaire personnalisé et chaleureux envoyé via WhatsApp.
- */
-function buildBirthdayMessage(firstName: string): string {
-  const name = firstName?.trim() || 'cher membre'
-  return `Joyeux anniversaire ${name} ! 🎉🎂
-
-En ce jour si spécial, toute la famille KARA pense à toi et te souhaite une merveilleuse journée entourée de tes proches.
-
-Que cette nouvelle année t'apporte santé, bonheur et réussite. Tu comptes énormément pour nous ❤️
-
-Avec toute notre affection,
-— L'équipe KARA`
-}
-
 export function BirthdayCard({ member, isHighlighted }: BirthdayCardProps) {
+  // Le texte vient de Système → Modèles de messages (« Souhait d'anniversaire »).
+  const renderTemplate = useRenderMessageTemplate()
   const initials = `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()
 
   const countdown = member.isToday
@@ -55,7 +43,12 @@ export function BirthdayCard({ member, isHighlighted }: BirthdayCardProps) {
       return
     }
     try {
-      const url = generateWhatsAppUrl(whatsappNumber, buildBirthdayMessage(member.firstName))
+      const message = renderTemplate('birthday', {
+        prenom: member.firstName?.trim() || 'cher membre',
+        nom: `${member.lastName ?? ''} ${member.firstName ?? ''}`.trim(),
+        age: member.age,
+      })
+      const url = generateWhatsAppUrl(whatsappNumber, message)
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       toast.error('Numéro de téléphone invalide pour ce membre.')

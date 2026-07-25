@@ -19,28 +19,31 @@ export function daysUntilExpiry(ins: VehicleInsurance, now: Date = new Date()): 
 }
 
 /**
- * Construit le message de rappel WhatsApp adapté à l'état de l'assurance
- * (bientôt expirée vs déjà expirée). Inclut nom, plaque, compagnie et échéance.
+ * Modèle et variables du rappel d'assurance, selon l'état de la couverture
+ * (bientôt expirée vs déjà expirée). Le texte est édité par l'administrateur
+ * dans Système → Modèles de messages ; ici on ne fournit que les données.
  */
-export function buildInsuranceReminderMessage(ins: VehicleInsurance, now: Date = new Date()): string {
-  const name = getInsuranceHolderName(ins) || 'cher membre'
+export function insuranceReminderTemplate(
+  ins: VehicleInsurance,
+  now: Date = new Date()
+): { key: 'insuranceExpiring' | 'insuranceExpired'; variables: Record<string, string> } {
   const end = ins.endDate instanceof Date ? ins.endDate : new Date(ins.endDate)
   const endStr = end.toLocaleDateString('fr-FR')
-  const plate = ins.plateNumber ? ` (plaque ${ins.plateNumber})` : ''
-  const company = ins.insuranceCompany ? `, ${ins.insuranceCompany}` : ''
   const days = daysUntilExpiry(ins, now)
 
+  const common = {
+    nom: getInsuranceHolderName(ins) || 'cher membre',
+    // Ponctuation incluse : la variable disparaît proprement si l'info manque.
+    plaque: ins.plateNumber ? ` (plaque ${ins.plateNumber})` : '',
+    compagnie: ins.insuranceCompany ? `, ${ins.insuranceCompany}` : '',
+    dateFin: endStr,
+  }
+
   if (days < 0) {
-    return (
-      `Bonjour ${name}, nous vous informons que votre assurance véhicule${plate}${company} ` +
-      `a expiré le ${endStr}. Merci de la renouveler dans les meilleurs délais. — Association KARA`
-    )
+    return { key: 'insuranceExpired', variables: common }
   }
 
   const echeance =
     days === 0 ? "aujourd'hui" : days === 1 ? 'demain' : `dans ${days} jours (le ${endStr})`
-  return (
-    `Bonjour ${name}, votre assurance véhicule${plate}${company} arrive à expiration ${echeance}. ` +
-    `Pensez à la renouveler à temps pour rester couvert. — Association KARA`
-  )
+  return { key: 'insuranceExpiring', variables: { ...common, echeance } }
 }

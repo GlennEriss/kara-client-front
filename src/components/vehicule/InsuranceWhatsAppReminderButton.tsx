@@ -4,7 +4,8 @@ import { MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { generateWhatsAppUrl } from '@/domains/memberships/utils/whatsappUrl'
-import { buildInsuranceReminderMessage, getInsuranceHolderPhone } from '@/utils/vehicule/insuranceReminder'
+import { getInsuranceHolderPhone, insuranceReminderTemplate } from '@/utils/vehicule/insuranceReminder'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 import type { VehicleInsurance } from '@/types/types'
 
 interface Props {
@@ -22,6 +23,8 @@ interface Props {
 export function InsuranceWhatsAppReminderButton({ insurance, iconOnly = false, className }: Props) {
   const phone = getInsuranceHolderPhone(insurance)
   const disabled = !phone
+  // Texte personnalisable dans Système → Modèles de messages.
+  const renderMessage = useRenderMessageTemplate()
 
   const handleClick = () => {
     if (!phone) {
@@ -29,7 +32,8 @@ export function InsuranceWhatsAppReminderButton({ insurance, iconOnly = false, c
       return
     }
     try {
-      const url = generateWhatsAppUrl(phone, buildInsuranceReminderMessage(insurance))
+      const { key, variables } = insuranceReminderTemplate(insurance)
+      const url = generateWhatsAppUrl(phone, renderMessage(key, variables))
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       toast.error('Numéro de téléphone invalide')

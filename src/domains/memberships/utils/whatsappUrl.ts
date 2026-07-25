@@ -6,6 +6,8 @@
  */
 
 import { MEMBERSHIP_REQUEST_VALIDATION } from '@/constantes/membership-requests'
+import { defaultTemplateBody } from '@/domains/messaging/constants/message-templates'
+import { renderTemplate } from '@/domains/messaging/utils/renderTemplate'
 
 const PHONE_PREFIX = '+241'
 
@@ -105,32 +107,43 @@ export function generateWhatsAppUrl(phoneNum: string, message: string = ''): str
 }
 
 /**
- * Génère une URL WhatsApp avec un message template de rejet
+ * Message de rejet d'une demande d'adhésion.
+ *
+ * `templateBody` provient de Système → Modèles de messages (clé
+ * `membershipRejected`) ; s'il est absent, le texte livré par défaut s'applique.
+ */
+export function buildRejectionMessage(
+  firstName: string,
+  matricule: string,
+  motifReject: string,
+  templateBody?: string
+): string {
+  const body = templateBody?.trim() || defaultTemplateBody('membershipRejected')
+  return renderTemplate(body, {
+    prenom: firstName,
+    matricule,
+    motif: motifReject,
+  })
+}
+
+/**
+ * Génère une URL WhatsApp avec le message de rejet
  * @param phoneNumber Numéro de téléphone (sera normalisé)
  * @param firstName Prénom du demandeur
  * @param matricule Matricule de la demande
  * @param motifReject Motif de rejet
- * @returns URL WhatsApp avec message template prérempli
+ * @param templateBody Corps personnalisé du modèle (optionnel)
+ * @returns URL WhatsApp avec message prérempli
  */
 export function generateRejectionWhatsAppUrl(
   phoneNumber: string,
   firstName: string,
   matricule: string,
-  motifReject: string
+  motifReject: string,
+  templateBody?: string
 ): string {
-  // Générer le message template
-  const message = `Bonjour ${firstName},
-
-Votre demande d'adhésion KARA (matricule: ${matricule}) a été rejetée.
-
-Motif de rejet:
-${motifReject}
-
-Pour toute question, veuillez contacter notre service client.
-
-Cordialement,
-KARA Association`
-
-  // Utiliser la fonction existante pour générer l'URL
-  return generateWhatsAppUrl(phoneNumber, message)
+  return generateWhatsAppUrl(
+    phoneNumber,
+    buildRejectionMessage(firstName, matricule, motifReject, templateBody)
+  )
 }

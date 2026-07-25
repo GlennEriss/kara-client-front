@@ -21,6 +21,7 @@ import {
 import { MessageSquare, Loader2, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { generateWhatsAppUrl } from '../../utils/whatsappUrl'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 
 interface SendWhatsAppModalV2Props {
   isOpen: boolean
@@ -74,34 +75,6 @@ function formatExpiryDate(expiryDate: Date | string): string {
   })
 }
 
-/**
- * Génère le message WhatsApp avec le lien, le code et l'expiration
- */
-function generateWhatsAppMessage(
-  correctionLink: string,
-  securityCode: string,
-  securityCodeExpiry: Date | string
-): string {
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const fullLink = `${baseUrl}${correctionLink}`
-  const formattedCode = formatSecurityCode(securityCode)
-  const expiryDate = formatExpiryDate(securityCodeExpiry)
-  const timeRemaining = getTimeRemaining(securityCodeExpiry)
-  
-  return `Bonjour,
-
-Vous avez reçu une demande de correction pour votre demande d'adhésion.
-
-Lien de correction : ${fullLink}
-Code de sécurité : ${formattedCode}
-Expire le : ${expiryDate} (reste ${timeRemaining})
-
-Veuillez utiliser ce lien et ce code pour accéder à votre formulaire et apporter les corrections demandées.
-
-Cordialement,
-Équipe KARA`
-}
-
 export function SendWhatsAppModalV2({
   isOpen,
   onClose,
@@ -113,6 +86,18 @@ export function SendWhatsAppModalV2({
   isLoading = false,
 }: SendWhatsAppModalV2Props) {
   const [selectedPhone, setSelectedPhone] = useState<string>('')
+  // Modèle « Adhésion — corrections demandées » (Système → Modèles de messages).
+  const renderMessage = useRenderMessageTemplate()
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const message = renderMessage('membershipCorrections', {
+    prenom: memberName?.trim().split(/\s+/)[0] ?? '',
+    // Ce modal n'affiche pas le détail des corrections : le lien y donne accès.
+    corrections: 'Vous avez reçu une demande de correction pour votre demande d’adhésion.',
+    lien: `${baseUrl}${correctionLink}`,
+    code: formatSecurityCode(securityCode),
+    dateExpiration: formatExpiryDate(securityCodeExpiry),
+    tempsRestant: getTimeRemaining(securityCodeExpiry),
+  })
   
   // Initialiser avec le premier numéro si un seul disponible
   useEffect(() => {
@@ -130,11 +115,6 @@ export function SendWhatsAppModalV2({
     if (!canSend || !selectedPhone) return
 
     try {
-      const message = generateWhatsAppMessage(
-        correctionLink,
-        securityCode,
-        securityCodeExpiry
-      )
       const whatsappUrl = generateWhatsAppUrl(selectedPhone, message)
       
       // Ouvrir WhatsApp dans un nouvel onglet
@@ -223,7 +203,7 @@ export function SendWhatsAppModalV2({
               className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto"
               data-testid="whatsapp-modal-message-preview"
             >
-              {generateWhatsAppMessage(correctionLink, securityCode, securityCodeExpiry)}
+              {message}
             </div>
           </div>
         </ModalBody>

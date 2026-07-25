@@ -37,6 +37,7 @@ import {
   Home,
   LogOut,
   MapPin,
+  MessageSquare,
   ScrollText,
   Settings,
   Shield,
@@ -280,6 +281,11 @@ const systemMenuItems: any[] = [
     title: "Géographie",
     url: routes.admin.geographie,
     icon: MapPin,
+  },
+  {
+    title: "Modèles de messages",
+    url: routes.admin.messageTemplates,
+    icon: MessageSquare,
   },
   {
     title: "Paramètres Caisse",

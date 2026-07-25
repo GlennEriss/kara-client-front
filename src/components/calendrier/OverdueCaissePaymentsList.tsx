@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/hooks/useOverduePayments'
 import { generateWhatsAppUrl, resolveWhatsappNumber } from '@/domains/memberships/utils/whatsappUrl'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { AlertTriangle, Building2, Calendar, ChevronDown, ChevronRight, Download, MessageCircle, Phone, RefreshCw, User } from 'lucide-react'
@@ -100,59 +101,68 @@ function groupOverdue(items: OverduePayment[]): OverdueGroup[] {
   return groups
 }
 
-/** Message de rappel de paiement amical envoyé via WhatsApp au retardataire. */
-function buildReminderMessage(group: OverdueGroup): string {
+/** « 3 jours » / « 1 jour » — accord du pluriel réutilisé par les modèles. */
+function daysLabel(days: number): string {
+  return `${days} jour${days > 1 ? 's' : ''}`
+}
+
+/**
+ * Choisit le modèle de rappel adapté au retardataire et fournit ses variables.
+ * Le texte lui-même est édité dans Système → Modèles de messages.
+ */
+function reminderTemplateFor(group: OverdueGroup): { key: string; variables: Record<string, string | number> } {
   const name = group.name?.trim() || 'cher membre'
+  const fmtDue = (d: Date) => format(d, 'dd/MM/yyyy', { locale: fr })
 
   // Placement : c'est KARA qui doit la commission au bienfaiteur — le message
   // l'informe (au lieu de lui réclamer un paiement).
   if (group.product === 'Placement') {
-    const detail = group.payments
-      .map((p) => `• Commission de ${fmtAmount(p.amount)} FCFA (échéance du ${format(p.dueAt, 'dd/MM/yyyy', { locale: fr })})`)
-      .join('\n')
-    return `Bonjour ${name},
-
-L'équipe KARA vous informe qu'une ou plusieurs commissions de votre placement sont arrivées à échéance :
-${detail}
-
-Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci de votre confiance 🙏
-
-— L'équipe KARA`
+    return {
+      key: 'placementCommissionDue',
+      variables: {
+        nom: name,
+        detail: group.payments
+          .map((p) => `• Commission de ${fmtAmount(p.amount)} FCFA (échéance du ${fmtDue(p.dueAt)})`)
+          .join('\n'),
+      },
+    }
   }
 
   if (group.count === 1) {
     const p = group.payments[0]
-    const due = format(p.dueAt, 'dd/MM/yyyy', { locale: fr })
-    return `Bonjour ${name},
-
-Petit rappel amical de la part de la famille KARA 🙏
-
-Un versement ${p.typeLabel} de ${fmtAmount(p.amount)} FCFA pour ta ${group.product} est en retard depuis le ${due} (${p.daysOverdue} jour${p.daysOverdue > 1 ? 's' : ''}).
-
-Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
-
-— L'équipe KARA`
+    return {
+      key: 'paymentReminderSingle',
+      variables: {
+        nom: name,
+        produit: group.product,
+        typeVersement: p.typeLabel,
+        montant: fmtAmount(p.amount),
+        dateEcheance: fmtDue(p.dueAt),
+        joursRetard: daysLabel(p.daysOverdue),
+      },
+    }
   }
 
-  const earliest = format(group.earliestDueAt, 'dd/MM/yyyy', { locale: fr })
-  const detail = group.payments
-    .map((p) => `• ${p.typeLabel} — ${fmtAmount(p.amount)} FCFA (échéance du ${format(p.dueAt, 'dd/MM/yyyy', { locale: fr })})`)
-    .join('\n')
-
-  return `Bonjour ${name},
-
-Petit rappel amical de la part de la famille KARA 🙏
-
-Tu as ${group.count} versements en retard pour ta ${group.product}, pour un total de ${fmtAmount(group.totalAmount)} FCFA (le plus ancien depuis le ${earliest}, soit ${group.maxDaysOverdue} jour${group.maxDaysOverdue > 1 ? 's' : ''}) :
-${detail}
-
-Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
-
-— L'équipe KARA`
+  return {
+    key: 'paymentReminderMultiple',
+    variables: {
+      nom: name,
+      produit: group.product,
+      nombre: group.count,
+      montantTotal: fmtAmount(group.totalAmount),
+      dateEcheance: fmtDue(group.earliestDueAt),
+      joursRetard: daysLabel(group.maxDaysOverdue),
+      detail: group.payments
+        .map((p) => `• ${p.typeLabel} — ${fmtAmount(p.amount)} FCFA (échéance du ${fmtDue(p.dueAt)})`)
+        .join('\n'),
+    },
+  }
 }
 
 export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsListProps) {
   const { data: items = [], isLoading, isError, refetch, isFetching } = useOverduePayments([product])
+  // Textes de relance personnalisables (Système → Modèles de messages).
+  const renderMessage = useRenderMessageTemplate()
 
   const groups = useMemo(() => groupOverdue(items), [items])
   const totalAmount = items.reduce((sum, i) => sum + (i.amount || 0), 0)
@@ -278,7 +288,8 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       return
     }
     try {
-      const url = generateWhatsAppUrl(whatsapp, buildReminderMessage(group))
+      const { key, variables } = reminderTemplateFor(group)
+      const url = generateWhatsAppUrl(whatsapp, renderMessage(key, variables))
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       toast.error('Numéro de téléphone invalide.')
