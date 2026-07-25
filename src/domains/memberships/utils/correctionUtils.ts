@@ -6,6 +6,8 @@
  */
 
 import { MEMBERSHIP_REQUEST_ROUTES } from '@/constantes/membership-requests'
+import { defaultTemplateBody } from '@/domains/messaging/constants/message-templates'
+import { renderTemplate } from '@/domains/messaging/utils/renderTemplate'
 
 /**
  * Formate un code de sécurité à 6 chiffres avec des tirets
@@ -83,6 +85,8 @@ export interface GenerateWhatsAppMessageParams {
   expiryDate: Date
   /** URL de base de l'application (optionnel, pour générer le lien complet) */
   baseUrl?: string
+  /** Corps personnalisé du modèle « Adhésion — corrections demandées » (optionnel). */
+  templateBody?: string
 }
 
 /**
@@ -91,7 +95,7 @@ export interface GenerateWhatsAppMessageParams {
  * @returns Message formaté pour WhatsApp
  */
 export function generateWhatsAppMessage(params: GenerateWhatsAppMessageParams): string {
-  const { requestId, firstName, corrections, securityCode, expiryDate, baseUrl } = params
+  const { requestId, firstName, corrections, securityCode, expiryDate, baseUrl, templateBody } = params
 
   if (!requestId || !firstName || !corrections || corrections.length === 0 || !securityCode || !expiryDate) {
     throw new Error('Tous les paramètres sont requis pour générer le message WhatsApp')
@@ -123,21 +127,15 @@ export function generateWhatsAppMessage(params: GenerateWhatsAppMessageParams): 
     .map(c => `- ${c.trim()}`)
     .join('\n')
 
-  // Générer le message
-  const message = `Bonjour ${firstName},
+  // Le texte vient de Système → Modèles de messages ; à défaut, le texte livré.
+  const body = templateBody?.trim() || defaultTemplateBody('membershipCorrections')
 
-Votre demande d'adhésion nécessite des corrections :
-
-${correctionsText}
-
-Pour effectuer les corrections, veuillez :
-1. Cliquer sur ce lien : ${link}
-2. Entrer le code de sécurité : ${formattedCode}
-
-⚠️ Le code expire le ${expiryDateStr} (dans ${timeRemaining})
-
-Cordialement,
-KARA Association`
-
-  return message
+  return renderTemplate(body, {
+    prenom: firstName,
+    corrections: correctionsText,
+    lien: link,
+    code: formattedCode,
+    dateExpiration: expiryDateStr,
+    tempsRestant: timeRemaining,
+  })
 }

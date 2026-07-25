@@ -57,7 +57,16 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
       );
     }
-    
+
+    // Les versements d'adhésion sont rattachés à la DEMANDE d'adhésion
+    // (`users.dossier`), pas au matricule : sans ce contrôle, un membre ne peut
+    // pas lire ses propres paiements d'adhésion.
+    function isMemberDossier(value) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('dossier', '') == value;
+    }
+
     // Note: Chaque environnement (dev, preprod, prod) utilise sa propre base de données Firebase,
     // donc les noms de collections sont identiques dans tous les environnements.
     
@@ -335,9 +344,16 @@ service cloud.firestore {
     // ==========================================
     
     match /documents/{documentId} {
-      // Lecture : Admin ou propriétaire (via memberId)
-      allow read: if isAdmin() ||
-                     (isAuthenticated() && resource.data.memberId == request.auth.uid);
+      // Lecture : Admin ou propriétaire. `memberId` vaut tantôt l'UID Firebase,
+      // tantôt le matricule selon l'origine du document — on accepte les deux,
+      // sinon le membre ne peut pas ouvrir ses propres reçus.
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.memberId == request.auth.uid ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('matricule', '') == resource.data.memberId)
+        )
+      );
       // Création : Admin ou membre déposant son contrat signé CI ou CS
       allow create: if isAdmin() || (
         isAuthenticated() &&
@@ -439,7 +455,10 @@ service cloud.firestore {
         isAuthenticated() && (
           (resource.data.get('memberId', '') != '' && isMemberOwner(resource.data.memberId)) ||
           (resource.data.get('beneficiaryId', '') != '' && isMemberOwner(resource.data.beneficiaryId)) ||
-          (resource.data.get('sourceId', '') != '' && isMemberOwner(resource.data.sourceId))
+          (resource.data.get('sourceId', '') != '' && isMemberOwner(resource.data.sourceId)) ||
+          // Adhésion : ces champs portent l'identifiant de la demande d'adhésion.
+          (resource.data.get('beneficiaryId', '') != '' && isMemberDossier(resource.data.beneficiaryId)) ||
+          (resource.data.get('sourceId', '') != '' && isMemberDossier(resource.data.sourceId))
         )
       );
       
@@ -492,7 +511,9 @@ service cloud.firestore {
     // ==========================================
     // Lecture par subscribe() lors de la création de contrat depuis une demande
     match /caisseSettings/{settingsId} {
-      allow read: if isAdmin();
+      // Le barème bonus/pénalités est une condition du contrat : le membre doit
+      // pouvoir le consulter depuis son historique de versements.
+      allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin();
     }
     
@@ -1161,7 +1182,16 @@ service cloud.firestore {
     // ==========================================
 
     match /creditPayments/{paymentId} {
-      allow read, write: if isAdmin();
+      // Lecture : admin, ou le membre titulaire du contrat rattaché — nécessaire
+      // pour que l'espace membre affiche l'historique de ses propres versements.
+      allow read: if isAdmin() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/creditContracts/$(resource.data.creditId)) &&
+        isCaisseImprevueMember(
+          get(/databases/$(database)/documents/creditContracts/$(resource.data.creditId)).data.clientId
+        )
+      );
+      allow write: if isAdmin();
     }
     
     // ==========================================
@@ -1246,8 +1276,16 @@ service cloud.firestore {
       allow read: if isAdmin() || isAuthenticated();
       allow write: if isAdmin();
       
+      // Commissions : lisibles par le bienfaiteur concerné (historique de ses
+      // reversements dans l'espace membre) et par les admins.
       match /commissions/{commissionId} {
-        allow read, write: if isAdmin();
+        allow read: if isAdmin() || (
+          isAuthenticated() &&
+          isCaisseImprevueMember(
+            get(/databases/$(database)/documents/placements/$(placementId)).data.benefactorId
+          )
+        );
+        allow write: if isAdmin();
       }
     }
     
@@ -1353,6 +1391,14 @@ service cloud.firestore {
     match /settings/publicContact {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // MODÈLES DE MESSAGES (rappels, anniversaire, adhésion, assurance)
+    // ==========================================
+    // Réservés au back-office : les messages sont composés côté admin.
+    match /settings/messageTemplates {
+      allow read, write: if isAdmin();
     }
 
     // ==========================================

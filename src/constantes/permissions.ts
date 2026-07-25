@@ -187,6 +187,13 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     actions: actions('imports', [['use', 'Importer']]),
   },
   {
+    key: 'messageTemplates',
+    label: 'Modèles de messages',
+    pathPrefixes: ['/parametres-messages'],
+    system: true,
+    actions: actions('messageTemplates', [VIEW, MANAGE]),
+  },
+  {
     key: 'settings',
     label: 'Paramètres (caisses)',
     // Chemins réels des pages de paramètres (le préfixe le plus spécifique gagne

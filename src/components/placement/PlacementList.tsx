@@ -42,7 +42,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import CommissionReceiptModal from './CommissionReceiptModal'
 import EarlyExitForm from './EarlyExitForm'
-import FiltersPlacement, { PlacementFilters } from './FiltersPlacement'
+import FiltersPlacement, { countActivePlacementFilters, DEFAULT_PLACEMENT_FILTERS, PlacementFilters } from './FiltersPlacement'
 import PayCommissionModal, { CommissionPaymentFormData } from './PayCommissionModal'
 import PlacementCard from './PlacementCard'
 import PlacementContractPDFModal from './PlacementContractPDFModal'
@@ -187,12 +187,8 @@ export default function PlacementList() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
   const [filters, setFilters] = useState<PlacementFilters>({
+    ...DEFAULT_PLACEMENT_FILTERS,
     search: searchParams.get('q') || '',
-    status: 'all',
-    payoutMode: 'all',
-    periodMonths: 'all',
-    monthOnly: false,
-    lateOnly: false,
   })
   const [earlyExitPlacementId, setEarlyExitPlacementId] = useState<string | null>(null)
   const [detailState, setDetailState] = useState<PlacementDetailState>({ placementId: null })
@@ -335,58 +331,88 @@ export default function PlacementList() {
   }, [editingPlacement, isCreateOpen, editingPlacementId, form])
 
   const filtered = useMemo(() => {
+    // Normalise une valeur Firestore (Timestamp | Date | string) en Date.
+    const asDate = (value: any): Date | null => {
+      if (!value) return null
+      const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value)
+      return Number.isNaN(date.getTime()) ? null : date
+    }
+
     let result = [...placements]
 
-    // Filtre par recherche textuelle
+    // Recherche textuelle : n° de placement, matricule/id du bienfaiteur, nom, téléphone.
     if (filters.search.trim()) {
-      const q = filters.search.toLowerCase()
+      const q = filters.search.trim().toLowerCase()
+      // Les chiffres seuls permettent de retrouver un téléphone saisi avec des espaces.
+      const digits = q.replace(/\D/g, '')
       result = result.filter(p => {
-        const name = (p as any).benefactorName?.toLowerCase?.() || ''
-        const phone = (p as any).benefactorPhone?.toLowerCase?.() || ''
+        const name = (p.benefactorName || '').toLowerCase()
+        const phone = (p.benefactorPhone || '').toLowerCase()
+        const phoneDigits = phone.replace(/\D/g, '')
         return (
           p.id.toLowerCase().includes(q) ||
           p.benefactorId.toLowerCase().includes(q) ||
           name.includes(q) ||
-          phone.includes(q)
+          phone.includes(q) ||
+          (digits.length >= 3 && phoneDigits.includes(digits))
         )
       })
     }
 
-    // Filtre par statut
-    if (filters.status !== 'all') {
-      result = result.filter(p => p.status === filters.status)
+    // Durée du placement
+    if (filters.periodMonths === '1-3') {
+      result = result.filter(p => p.periodMonths >= 1 && p.periodMonths <= 3)
+    } else if (filters.periodMonths === '4-7') {
+      result = result.filter(p => p.periodMonths >= 4 && p.periodMonths <= 7)
     }
 
-    // Filtre par mode de paiement
-    if (filters.payoutMode !== 'all') {
-      result = result.filter(p => p.payoutMode === filters.payoutMode)
-    }
+    // Fourchette de montants
+    const amountMin = filters.amountMin ? Number(filters.amountMin) : null
+    const amountMax = filters.amountMax ? Number(filters.amountMax) : null
+    if (amountMin !== null) result = result.filter(p => (p.amount || 0) >= amountMin)
+    if (amountMax !== null) result = result.filter(p => (p.amount || 0) <= amountMax)
 
-    // Filtre par période
-    if (filters.periodMonths !== 'all') {
-      if (filters.periodMonths === '1-3') {
-        result = result.filter(p => p.periodMonths >= 1 && p.periodMonths <= 3)
-      } else if (filters.periodMonths === '4-7') {
-        result = result.filter(p => p.periodMonths >= 4 && p.periodMonths <= 7)
-      }
-    }
-
-    // Filtrage commissions du mois / en retard basé sur les champs persistés (nextCommissionDate / hasOverdueCommission)
-    if (filters.monthOnly || filters.lateOnly) {
-      const now = new Date()
-      const sameMonth = (d?: any) => {
-        if (!d) return false
-        const date = typeof d === 'string' ? new Date(d) : d
-        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
-      }
-
+    // Fenêtre de prochaine échéance
+    if (filters.dueFrom || filters.dueTo) {
+      const from = filters.dueFrom ? new Date(`${filters.dueFrom}T00:00:00`) : null
+      const to = filters.dueTo ? new Date(`${filters.dueTo}T23:59:59`) : null
       result = result.filter(p => {
-        if (p.status !== 'Active') return false
-        const matchMonth = filters.monthOnly ? sameMonth((p as any).nextCommissionDate) : true
-        const matchLate = filters.lateOnly ? !!(p as any).hasOverdueCommission : true
-        return matchMonth && matchLate
+        const next = asDate(p.nextCommissionDate)
+        if (!next) return false
+        if (from && next < from) return false
+        if (to && next > to) return false
+        return true
       })
     }
+
+    // Présence du contrat signé (suivi administratif)
+    if (filters.contractDoc === 'with') {
+      result = result.filter(p => !!p.contractDocumentId)
+    } else if (filters.contractDoc === 'without') {
+      result = result.filter(p => !p.contractDocumentId)
+    }
+
+    // Tri
+    const time = (value: any) => asDate(value)?.getTime() ?? null
+    result.sort((a, b) => {
+      switch (filters.sort) {
+        case 'amountDesc':
+          return (b.amount || 0) - (a.amount || 0)
+        case 'amountAsc':
+          return (a.amount || 0) - (b.amount || 0)
+        case 'dueAsc': {
+          // Les placements sans échéance passent en fin de liste.
+          const da = time(a.nextCommissionDate)
+          const db = time(b.nextCommissionDate)
+          if (da === null && db === null) return 0
+          if (da === null) return 1
+          if (db === null) return -1
+          return da - db
+        }
+        default:
+          return (time(b.createdAt) ?? 0) - (time(a.createdAt) ?? 0)
+      }
+    })
 
     return result
   }, [placements, filters])
@@ -435,11 +461,20 @@ export default function PlacementList() {
   }, [filtered, activeTab])
 
   const totalPages = Math.max(1, Math.ceil(filteredByTab.length / pageSize))
-  const paginated = filteredByTab.slice((page - 1) * pageSize, page * pageSize)
+  // La page restaurée depuis l'URL peut dépasser le nombre de pages du jeu filtré.
+  const currentPage = Math.min(page, totalPages)
+  const paginated = filteredByTab.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
+  // Changer de filtre ou d'onglet ramène en page 1 — mais pas au montage, sinon
+  // la page restaurée depuis l'URL (`?page=3`) serait immédiatement écrasée.
+  const isFirstRenderRef = useRef(true)
   React.useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      return
+    }
     setPage(1)
-  }, [filteredByTab, filters, activeTab])
+  }, [filters, activeTab])
 
   const stats = useMemo(() => {
     const total = filteredByTab.length
@@ -803,19 +838,15 @@ export default function PlacementList() {
 
   const topBenefactors = useMemo(() => placementStats?.topBenefactors || [], [placementStats])
 
+  const hasActiveFilters = countActivePlacementFilters(filters) > 0
+
   const handleFiltersChange = (newFilters: PlacementFilters) => {
     setFilters(newFilters)
   }
 
   const handleResetFilters = () => {
-    setFilters({
-      search: '',
-      status: 'all',
-      payoutMode: 'all',
-      periodMonths: 'all',
-      monthOnly: false,
-      lateOnly: false,
-    })
+    setFilters({ ...DEFAULT_PLACEMENT_FILTERS })
+    setPage(1)
   }
 
   const submitPlacement = async (values: PlacementFormData) => {
@@ -1216,10 +1247,11 @@ export default function PlacementList() {
 
           <TabsContent value={activeTab} className="space-y-4">
             {/* Filtres */}
-            <FiltersPlacement 
+            <FiltersPlacement
               filters={filters}
               onFiltersChange={handleFiltersChange}
               onReset={handleResetFilters}
+              resultCount={filteredByTab.length}
             />
 
             {/* Liste des placements */}
@@ -1253,7 +1285,19 @@ export default function PlacementList() {
                 <CardContent className="py-16 text-center">
                   <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                   <p className="text-gray-500 text-lg font-medium">Aucun placement trouvé</p>
-                  <p className="text-gray-400 text-sm mt-2">Commencez par créer votre premier placement</p>
+                  {hasActiveFilters ? (
+                    <>
+                      <p className="text-gray-400 text-sm mt-2">
+                        Aucun placement ne correspond aux critères sélectionnés.
+                      </p>
+                      <Button variant="outline" size="sm" className="mt-4" onClick={handleResetFilters}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Réinitialiser les filtres
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-sm mt-2">Commencez par créer votre premier placement</p>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -1286,7 +1330,7 @@ export default function PlacementList() {
                 {totalPages > 1 && (
                   <div className="px-1">
                     <ListPagination
-                      currentPage={page}
+                      currentPage={currentPage}
                       totalPages={totalPages}
                       onPrev={() => setPage((p) => Math.max(1, p - 1))}
                       onNext={() => setPage((p) => Math.min(totalPages, p + 1))}

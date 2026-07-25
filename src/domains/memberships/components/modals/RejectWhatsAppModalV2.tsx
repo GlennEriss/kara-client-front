@@ -21,7 +21,8 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { MessageSquare, Loader2, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { generateRejectionWhatsAppUrl, generateWhatsAppUrl } from '../../utils/whatsappUrl'
+import { generateWhatsAppUrl } from '../../utils/whatsappUrl'
+import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 
 interface RejectWhatsAppModalV2Props {
   isOpen: boolean
@@ -33,27 +34,6 @@ interface RejectWhatsAppModalV2Props {
   motifReject: string // Motif de rejet (prérempli dans le template)
   requestId: string // ID de la demande
   isLoading?: boolean
-}
-
-/**
- * Génère le message template initial pour le rejet
- */
-function generateTemplateMessage(
-  firstName: string,
-  matricule: string,
-  motifReject: string
-): string {
-  return `Bonjour ${firstName},
-
-Votre demande d'adhésion KARA (matricule: ${matricule}) a été rejetée.
-
-Motif de rejet:
-${motifReject}
-
-Pour toute question, veuillez contacter notre service client.
-
-Cordialement,
-KARA Association`
 }
 
 export function RejectWhatsAppModalV2({
@@ -69,6 +49,13 @@ export function RejectWhatsAppModalV2({
 }: RejectWhatsAppModalV2Props) {
   const [selectedPhone, setSelectedPhone] = useState<string>('')
   const [message, setMessage] = useState<string>('')
+  // Modèle « Adhésion — demande rejetée » (Système → Modèles de messages).
+  const renderMessage = useRenderMessageTemplate()
+  const templateMessage = renderMessage('membershipRejected', {
+    prenom: firstName,
+    matricule,
+    motif: motifReject,
+  })
 
   // Initialiser avec le premier numéro et le message template
   useEffect(() => {
@@ -76,9 +63,9 @@ export function RejectWhatsAppModalV2({
       setSelectedPhone(phoneNumbers[0])
     }
     if (!message) {
-      setMessage(generateTemplateMessage(firstName, matricule, motifReject))
+      setMessage(templateMessage)
     }
-  }, [phoneNumbers, firstName, matricule, motifReject])
+  }, [phoneNumbers, templateMessage])
 
   const hasMultiplePhones = phoneNumbers.length > 1
   const canSend = selectedPhone.trim().length > 0 && message.trim().length > 0 && !isLoading
@@ -87,17 +74,8 @@ export function RejectWhatsAppModalV2({
     if (!canSend || !selectedPhone) return
 
     try {
-      // Utiliser le message modifié si fourni, sinon utiliser le template
-      const finalMessage = message.trim() || generateTemplateMessage(firstName, matricule, motifReject)
-      
-      // Si le message a été modifié par rapport au template, utiliser generateWhatsAppUrl
-      // Sinon utiliser generateRejectionWhatsAppUrl pour le template
-      const templateMessage = generateTemplateMessage(firstName, matricule, motifReject)
-      const isModified = message.trim() !== templateMessage
-      
-      const url = isModified
-        ? generateWhatsAppUrl(selectedPhone, finalMessage)
-        : generateRejectionWhatsAppUrl(selectedPhone, firstName, matricule, motifReject)
+      // Le message affiché est éditable : on envoie ce que l'admin a sous les yeux.
+      const url = generateWhatsAppUrl(selectedPhone, message.trim() || templateMessage)
       
       // Ouvrir WhatsApp dans un nouvel onglet
       window.open(url, '_blank', 'noopener,noreferrer')
