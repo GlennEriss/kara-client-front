@@ -80,9 +80,13 @@ export async function generateSingleVersementCIPDF(
     return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   }
 
-  const formatMode = (mode?: string, versement?: VersementCI): string => {
+  /**
+   * Moyen de paiement sur 1 ou 2 lignes : le qualificatif passe en dessous pour
+   * ne plus déborder de la colonne MOYEN /TRANS.
+   */
+  const formatMode = (mode?: string, versement?: VersementCI): string | string[] => {
     if (mode === 'other' && versement?.paymentMethodOther?.trim()) {
-      return `AUTRE (${versement.paymentMethodOther.trim().toUpperCase()})`
+      return ['AUTRE', `(${versement.paymentMethodOther.trim().toUpperCase()})`]
     }
 
     const modeMap: Record<string, string> = {
@@ -95,11 +99,49 @@ export async function generateSingleVersementCIPDF(
     const base = mode ? modeMap[mode] || String(mode).toUpperCase() : '-'
 
     if ((mode === 'airtel_money' || mode === 'mobicash') && versement?.withFees !== undefined) {
-      return `${base} (${versement.withFees ? 'AVEC FRAIS' : 'SANS FRAIS'})`
+      return [base, versement.withFees ? '(AVEC FRAIS)' : '(SANS FRAIS)']
     }
 
     return base
   }
+
+  /**
+   * Dessine la valeur d'une cellule, sur une ou deux lignes. La seconde ligne
+   * est en corps réduit et rognée à la largeur de colonne : deux lignes tiennent
+   * dans la hauteur de ligne existante, une troisième déborderait.
+   */
+  const drawCellValue = (
+    value: string | string[],
+    centerX: number,
+    rowTopY: number,
+    columnWidth: number,
+    fontSize = 8.9
+  ) => {
+    const lines = Array.isArray(value) ? value : [String(value ?? '')]
+    doc.setFont('times', 'normal')
+    doc.setTextColor(18, 18, 18)
+
+    if (lines.length < 2) {
+      doc.setFontSize(fontSize)
+      doc.text(String(lines[0] ?? ''), centerX, rowTopY + 5.3, { align: 'center' })
+      return
+    }
+
+    doc.setFontSize(fontSize)
+    doc.text(String(lines[0]), centerX, rowTopY + 3.6, { align: 'center' })
+    doc.setFontSize(fontSize - 1.5)
+    // Une seule ligne de qualificatif tient : au-delà on tronque avec une
+    // ellipsis, en refermant la parenthèse pour rester lisible.
+    const raw = String(lines[1])
+    const parts = doc.splitTextToSize(raw, columnWidth - 3)
+    const second =
+      parts.length > 1
+        ? `${String(parts[0]).trimEnd()}…${raw.endsWith(')') ? ')' : ''}`
+        : String(parts[0] ?? raw)
+    doc.text(second, centerX, rowTopY + 7, { align: 'center' })
+    doc.setFontSize(fontSize)
+  }
+
 
   const getAge = (birthDate?: string): string => {
     if (!birthDate) return '-'
@@ -379,10 +421,7 @@ export async function generateSingleVersementCIPDF(
         cursorX = marginX
         rowValues.forEach((value, colIndex) => {
           const width = columns[colIndex]
-          doc.setFont('times', 'normal')
-          doc.setFontSize(8.9)
-          doc.setTextColor(18, 18, 18)
-          doc.text(String(value), cursorX + width / 2, rowY + 5.3, { align: 'center' })
+          drawCellValue(value, cursorX + width / 2, rowY, width)
           cursorX += width
         })
       })
@@ -496,12 +535,9 @@ export async function generateSingleVersementCIPDF(
         remark,
       ]
       cursorX = marginX
-      rowValues.forEach((value: string, colIndex: number) => {
+      rowValues.forEach((value: string | string[], colIndex: number) => {
         const width = columns[colIndex]
-        doc.setFont('times', 'normal')
-        doc.setFontSize(8.9)
-        doc.setTextColor(18, 18, 18)
-        doc.text(String(value), cursorX + width / 2, rowY + 5.3, { align: 'center' })
+        drawCellValue(value, cursorX + width / 2, rowY, width)
         cursorX += width
       })
     })

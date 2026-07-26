@@ -348,9 +348,66 @@ export default function ContractPaymentsPage() {
       if (!date) return '-'
       return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     }
-    const formatMode = (mode?: string): string => {
-      const modeMap: Record<string, string> = { airtel_money: 'AIRTEL-MONEY', mobicash: 'MOBICASH', cash: 'CASH', bank_transfer: 'VIREMENT' }
-      return !mode ? '-' : modeMap[mode] || String(mode).toUpperCase()
+    /**
+     * Moyen de paiement sur 1 ou 2 lignes. Le qualificatif (« avec frais »,
+     * libellé libre d'un mode « autre ») est renvoyé sur une seconde ligne :
+     * la colonne MOYEN /TRANS est trop étroite pour tout tenir sur une seule.
+     */
+    const formatMode = (mode?: string, source?: any): string | string[] => {
+      const modeMap: Record<string, string> = {
+        airtel_money: 'AIRTEL-MONEY',
+        mobicash: 'MOBICASH',
+        cash: 'CASH',
+        bank_transfer: 'VIREMENT',
+        other: 'AUTRE',
+      }
+      if (!mode) return '-'
+      const base = modeMap[mode] || String(mode).toUpperCase()
+
+      if (mode === 'other' && source?.paymentMethodOther?.trim()) {
+        return [base, `(${source.paymentMethodOther.trim().toUpperCase()})`]
+      }
+      if ((mode === 'airtel_money' || mode === 'mobicash') && source?.withFees !== undefined) {
+        return [base, source.withFees ? '(AVEC FRAIS)' : '(SANS FRAIS)']
+      }
+      return base
+    }
+
+    /**
+     * Dessine la valeur d'une cellule, sur une ou deux lignes. La seconde ligne
+     * est en corps réduit et rognée à la largeur de colonne : deux lignes
+     * tiennent dans la hauteur de ligne existante, une troisième déborderait.
+     */
+    const drawCellValue = (
+      value: string | string[],
+      centerX: number,
+      rowTopY: number,
+      columnWidth: number,
+      fontSize = 8.9
+    ) => {
+      const lines = Array.isArray(value) ? value : [String(value ?? '')]
+      doc.setFont('times', 'normal')
+      doc.setTextColor(18, 18, 18)
+
+      if (lines.length < 2) {
+        doc.setFontSize(fontSize)
+        doc.text(String(lines[0] ?? ''), centerX, rowTopY + 5.3, { align: 'center' })
+        return
+      }
+
+      doc.setFontSize(fontSize)
+      doc.text(String(lines[0]), centerX, rowTopY + 3.6, { align: 'center' })
+      doc.setFontSize(fontSize - 1.5)
+      // Une seule ligne de qualificatif tient : au-delà on tronque avec une
+      // ellipsis, en refermant la parenthèse pour rester lisible.
+      const raw = String(lines[1])
+      const parts = doc.splitTextToSize(raw, columnWidth - 3)
+      const second =
+        parts.length > 1
+          ? `${String(parts[0]).trimEnd()}…${raw.endsWith(')') ? ')' : ''}`
+          : String(parts[0] ?? raw)
+      doc.text(second, centerX, rowTopY + 7, { align: 'center' })
+      doc.setFontSize(fontSize)
     }
     const getAge = (birthDate?: string): string => {
       if (!birthDate) return '-'
@@ -542,7 +599,7 @@ export default function ContractPaymentsPage() {
       })
       doc.line(marginX, tableY + headerHeight, marginX + contentWidth, tableY + headerHeight)
 
-      let rowValues: string[]
+      let rowValues: (string | string[])[]
       if (isJournalierType) {
         const bounds = getJournalierPeriodBounds(payment)
         const contribs = Array.isArray(payment.contribs) ? payment.contribs : []
@@ -571,7 +628,7 @@ export default function ContractPaymentsPage() {
           dateRemise,
           `${formatAmountForPDF(totalAmount)} FCFA`,
           lastContrib?.time ?? '-',
-          lastContrib ? formatMode(lastContrib.mode) : '-',
+          lastContrib ? formatMode(lastContrib.mode, lastContrib) : '-',
           agentDisplay,
           totalAmount > 0 ? 'CONFORME' : 'NON CONFORME',
         ]
@@ -600,7 +657,7 @@ export default function ContractPaymentsPage() {
           formatLongDate(paidAt),
           `${formatAmountForPDF(displayedAmount)} FCFA`,
           time || '-',
-          formatMode(mode),
+          formatMode(mode, lastContrib ?? payment),
           getAdminNameForExport({
             updatedBy: payment.updatedBy ?? lastContrib?.updatedBy ?? lastContrib?.createdBy,
           }),
@@ -610,10 +667,7 @@ export default function ContractPaymentsPage() {
       cursorX = marginX
       rowValues.forEach((value, index) => {
         const width = columns[index]
-        doc.setFont('times', 'normal')
-        doc.setFontSize(8.9)
-        doc.setTextColor(18, 18, 18)
-        doc.text(value, cursorX + width / 2, tableY + headerHeight + 5.3, { align: 'center' })
+        drawCellValue(value, cursorX + width / 2, tableY + headerHeight, width)
         cursorX += width
       })
       return startY + totalHeight
