@@ -112,17 +112,17 @@ Merci de bien vouloir régulariser dès que possible. Pour toute question, nous 
   },
   {
     key: 'placementCommissionDue',
-    label: 'Information — commission de placement échue',
+    label: 'Information — échéance de placement échue',
     description:
-      'Envoyé au bienfaiteur : c’est KARA qui doit la commission, le message informe au lieu de réclamer.',
+      'Envoyé au bienfaiteur : c’est KARA qui doit la commission ou la restitution du capital, le message informe au lieu de réclamer.',
     category: 'relance',
     variables: [
       V('nom', 'Nom du bienfaiteur'),
-      V('detail', 'Liste des commissions échues (une ligne par échéance)'),
+      V('detail', 'Liste des échéances échues — commissions et restitution du capital (une ligne chacune)'),
     ],
     defaultBody: `Bonjour {{nom}},
 
-L'équipe KARA vous informe qu'une ou plusieurs commissions de votre placement sont arrivées à échéance :
+L'équipe KARA vous informe qu'une ou plusieurs échéances de votre placement sont arrivées à terme :
 {{detail}}
 
 Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci de votre confiance 🙏

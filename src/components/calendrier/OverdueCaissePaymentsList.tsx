@@ -121,8 +121,10 @@ function reminderTemplateFor(group: OverdueGroup): { key: string; variables: Rec
       key: 'placementCommissionDue',
       variables: {
         nom: name,
+        // `typeLabel` distingue une commission d'une restitution de capital :
+        // l'écrire en dur donnerait « Commission de 1 000 000 FCFA ».
         detail: group.payments
-          .map((p) => `• Commission de ${fmtAmount(p.amount)} FCFA (échéance du ${fmtDue(p.dueAt)})`)
+          .map((p) => `• ${p.typeLabel} : ${fmtAmount(p.amount)} FCFA (échéance du ${fmtDue(p.dueAt)})`)
           .join('\n'),
       },
     }
