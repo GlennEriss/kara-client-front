@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DetailHero, DetailHeroSkeleton, DetailNotFound } from '@/components/ui/detail-hero'
 import {
   Table,
   TableBody,
@@ -23,7 +23,6 @@ import { cn } from '@/lib/utils'
 import { CaisseSpecialeDemandStatus } from '@/types/types'
 import {
   AlertCircle,
-  ArrowLeft,
   CheckCircle,
   Clock,
   FileDown,
@@ -183,111 +182,37 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6 shadow-lg">
-          <Skeleton className="h-5 w-36 bg-white/20" />
-          <Skeleton className="mt-4 h-10 w-72 bg-white/20" />
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-20 rounded-xl bg-white/20" />
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index} className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="space-y-3">
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-10/12" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    )
+    return <DetailHeroSkeleton />
   }
 
   if (error || !demand) {
     return (
-      <Card className="border-red-200 bg-red-50/40 shadow-lg">
-        <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
-            <AlertCircle className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold text-red-900">Demande introuvable</h2>
-            <p className="max-w-md text-sm text-red-700">
-              {error instanceof Error ? error.message : 'La demande n’a pas pu être chargée.'}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => backOr(router, routes.admin.caisseSpecialeDemandes)}
-            className="border-red-300 text-red-700 hover:bg-red-100"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
-          </Button>
-        </CardContent>
-      </Card>
+      <DetailNotFound
+        title="Demande introuvable"
+        message={error instanceof Error ? error.message : 'La demande n’a pas pu être chargée.'}
+        onBack={() => backOr(router, routes.admin.caisseSpecialeDemandes)}
+      />
     )
   }
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <section className="relative overflow-hidden rounded-3xl border border-[#234D65]/20 bg-gradient-to-br from-[#1f455b] via-[#234D65] to-[#2c5a73] p-5 text-white shadow-xl md:p-7">
-        <div className="absolute inset-0 opacity-35 [background:radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.35),transparent_45%),radial-gradient(circle_at_90%_10%,rgba(255,255,255,0.2),transparent_40%)]" />
-        <div className="absolute inset-0 opacity-10 [background-image:linear-gradient(135deg,#ffffff_1px,transparent_1px)] [background-size:22px_22px]" />
-
-        <div className="relative z-10 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => backOr(router, routes.admin.caisseSpecialeDemandes)}
-              className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour
-            </Button>
-
-            <Badge className={cn('border px-3 py-1 text-sm font-semibold', getStatusColor(demand.status))}>
-              {getStatusLabel(demand.status)}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-white/80">Demande Caisse Spéciale</p>
-              <h1 className="text-2xl font-black tracking-tight md:text-3xl">Détails de la demande</h1>
-              <div className="inline-flex max-w-full items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
-                <FileText className="h-4 w-4 shrink-0 text-white/80" />
-                <span className="truncate font-mono text-xs text-white md:text-sm">#{demand.id}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
-              <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
-                <p className="text-[11px] uppercase tracking-wide text-white/70">Mensuel</p>
-                <p className="mt-1 text-sm font-bold md:text-base">{demand.monthlyAmount.toLocaleString('fr-FR')} FCFA</p>
-              </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
-                <p className="text-[11px] uppercase tracking-wide text-white/70">Durée</p>
-                <p className="mt-1 text-sm font-bold md:text-base">{demand.monthsPlanned} mois</p>
-              </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm col-span-2 sm:col-span-1">
-                <p className="text-[11px] uppercase tracking-wide text-white/70">Total visé</p>
-                <p className="mt-1 text-sm font-bold md:text-base">{totalPlannedAmount.toLocaleString('fr-FR')} FCFA</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <DetailHero
+        eyebrow="Demande Caisse Spéciale"
+        title="Détails de la demande"
+        reference={demand.id}
+        onBack={() => backOr(router, routes.admin.caisseSpecialeDemandes)}
+        badge={
+          <Badge className={cn('border px-3 py-1 text-sm font-semibold', getStatusColor(demand.status))}>
+            {getStatusLabel(demand.status)}
+          </Badge>
+        }
+        stats={[
+          { label: 'Mensuel', value: `${demand.monthlyAmount.toLocaleString('fr-FR')} FCFA` },
+          { label: 'Durée', value: `${demand.monthsPlanned} mois` },
+          { label: 'Total visé', value: `${totalPlannedAmount.toLocaleString('fr-FR')} FCFA`, wide: true },
+        ]}
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,1fr)]">
         <div className="space-y-6">

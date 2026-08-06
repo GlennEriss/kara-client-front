@@ -1,10 +1,15 @@
 'use client'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import {
+    DetailField,
+    DetailHero,
+    DetailHeroSkeleton,
+    DetailNotFound,
+    DetailTextBlock,
+} from '@/components/ui/detail-hero'
 import routes from '@/constantes/routes'
 import { usePlacementDemand, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
 import { usePlacementDemandesRealtimeSync } from '@/hooks/placement/usePlacementDemandesRealtimeSync'
@@ -13,19 +18,17 @@ import { cn } from '@/lib/utils'
 import { PlacementDemandStatus } from '@/types/types'
 import {
     AlertCircle,
-    ArrowLeft,
-    Calendar,
     CheckCircle,
     Clock,
     CreditCard,
     DollarSign,
-    FileText,
     RotateCcw,
     User,
     XCircle
 } from 'lucide-react'
 import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
+import * as React from 'react'
 import { useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
@@ -34,6 +37,25 @@ import ReopenDemandModal from './ReopenDemandModal'
 interface PlacementDemandDetailProps {
   demandId: string
 }
+
+const Field = DetailField
+const TextBlock = DetailTextBlock
+
+const formatDateTime = (value: Date | string) =>
+  new Date(value).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+const formatDay = (value: Date | string) =>
+  new Date(value).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
 
 export default function PlacementDemandDetail({ demandId }: PlacementDemandDetailProps) {
   const router = useRouter()
@@ -95,408 +117,280 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
     }
   }
 
+  const hasActions =
+    demand?.status === 'PENDING' ||
+    demand?.status === 'REJECTED' ||
+    (demand?.status === 'APPROVED' && !demand.placementId)
+
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-12 w-64" />
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return <DetailHeroSkeleton />
   }
 
   if (error || !demand) {
     return (
-      <div className="space-y-6">
-        <Button
-          variant="outline"
-          onClick={() => backOr(router, routes.admin.placementDemandes)}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
-        </Button>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error instanceof Error ? error.message : 'Demande introuvable'}
-          </AlertDescription>
-        </Alert>
-      </div>
+      <DetailNotFound
+        title="Demande introuvable"
+        message={error instanceof Error ? error.message : 'La demande n’a pas pu être chargée.'}
+        onBack={() => backOr(router, routes.admin.placementDemandes)}
+      />
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={() => backOr(router, routes.admin.placementDemandes)}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
-        </Button>
-        <Badge className={cn('px-3 py-1', getStatusColor(demand.status))}>
-          {getStatusLabel(demand.status)}
-        </Badge>
-      </div>
+    <div className="space-y-6 md:space-y-8">
+      <DetailHero
+        eyebrow="Demande de placement"
+        title="Détails de la demande"
+        reference={demand.id}
+        onBack={() => backOr(router, routes.admin.placementDemandes)}
+        badge={
+          <Badge className={cn('border px-3 py-1 text-sm font-semibold', getStatusColor(demand.status))}>
+            {getStatusLabel(demand.status)}
+          </Badge>
+        }
+        stats={[
+          { label: 'Capital', value: `${demand.amount.toLocaleString('fr-FR')} FCFA` },
+          { label: 'Taux', value: `${demand.rate}% / mois` },
+          { label: 'Durée', value: `${demand.periodMonths} mois`, wide: true },
+        ]}
+      />
 
-      {/* Informations générales */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Informations générales
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">ID de la demande:</span>
-              <span className="font-mono font-medium">{demand.id}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Date de création:</span>
-              <span className="font-medium">
-                {new Date(demand.createdAt).toLocaleDateString('fr-FR', {
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Informations du bienfaiteur */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Bienfaiteur
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Nom:</span>
-              <span className="font-medium">{demand.benefactorName || 'Non renseigné'}</span>
-            </div>
-            {demand.benefactorPhone && (
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Téléphone:</span>
-                <span className="font-medium">{demand.benefactorPhone}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Informations de la demande */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Informations de la demande
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Montant:</span>
-              <span className="font-semibold text-green-600">
-                {demand.amount.toLocaleString('fr-FR')} FCFA
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Taux de commission:</span>
-              <span className="font-medium">{demand.rate}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Durée prévue:</span>
-              <span className="font-medium">{demand.periodMonths} mois</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Moyen de paiement:</span>
-              <span className="font-medium">{getPayoutModeLabel(demand.payoutMode)}</span>
-            </div>
-            {demand.desiredDate && (
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  Date souhaitée:
-                </span>
-                <span className="font-medium">
-                  {new Date(demand.desiredDate).toLocaleDateString('fr-FR', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
-            )}
-            {demand.cause && (
-              <div className="col-span-2">
-                <span className="text-gray-600 block mb-2">Cause / Motif:</span>
-                <p className="text-gray-700 whitespace-pre-wrap">{demand.cause}</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contact d'urgence */}
-      {demand.urgentContact && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact d'urgence</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Nom:</span>
-                <span className="font-medium">
-                  {demand.urgentContact.name} {demand.urgentContact.firstName || ''}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Téléphone:</span>
-                <span className="font-medium">{demand.urgentContact.phone}</span>
-              </div>
-              {demand.urgentContact.relationship && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Relation:</span>
-                  <span className="font-medium">{demand.urgentContact.relationship}</span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Informations de décision */}
-      {demand.decisionMadeAt && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {demand.status === 'APPROVED' ? (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : (
-                <XCircle className="h-5 w-5 text-red-600" />
-              )}
-              Décision
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Date de la décision:</span>
-                <span className="font-medium">
-                  {new Date(demand.decisionMadeAt).toLocaleDateString('fr-FR', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              {demand.decisionMadeByName && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Décision par:</span>
-                  <span className="font-medium">{demand.decisionMadeByName}</span>
-                </div>
-              )}
-              {demand.decisionReason && (
-                <div className="col-span-2">
-                  <span className="text-gray-600 block mb-2">Raison:</span>
-                  <p className="text-gray-700 whitespace-pre-wrap">{demand.decisionReason}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Informations de réouverture */}
-      {demand.reopenedAt && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-blue-600" />
-              Réouverture
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Réouverte le:</span>
-                <span className="font-medium">
-                  {new Date(demand.reopenedAt).toLocaleDateString('fr-FR', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              {demand.reopenedByName && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Réouverte par:</span>
-                  <span className="font-medium">{demand.reopenedByName}</span>
-                </div>
-              )}
-              {demand.reopenReason && (
-                <div className="col-span-2">
-                  <span className="text-gray-600 block mb-2">Motif de réouverture:</span>
-                  <p className="text-gray-700 whitespace-pre-wrap">{demand.reopenReason}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Lien vers le placement */}
-      {demand.placementId && (
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 mb-1">Placement créé:</p>
-                <p className="font-mono font-medium">{demand.placementId}</p>
-              </div>
-              <Button
-                onClick={() => router.push(`/placements/${demand.placementId}`)}
-                className="bg-[#234D65] hover:bg-[#2c5a73]"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Voir le placement
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Informations de remise (issues du formulaire de conversion) */}
-      {demand.placementId && linkedPlacement && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-[#234D65]" />
-              Informations de remise des fonds
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Moyen de paiement:</span>
-                <span className="font-medium">
-                  {getPaymentModeLabel(linkedPlacement.paymentMode, linkedPlacement.paymentMethodOther)}
-                </span>
-              </div>
-
-              {(linkedPlacement.paymentMode === 'airtel_money' || linkedPlacement.paymentMode === 'mobicash') && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Frais mobile money:</span>
-                  <span className="font-medium">
-                    {linkedPlacement.withFees === true ? 'Avec frais' : linkedPlacement.withFees === false ? 'Sans frais' : '—'}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Lieu de remise:</span>
-                <span className="font-medium">{linkedPlacement.handoverLocation || '—'}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Date de remise:</span>
-                <span className="font-medium">
-                  {linkedPlacement.handoverDate
-                    ? new Date(linkedPlacement.handoverDate).toLocaleDateString('fr-FR', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    : '—'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Heure de remise:</span>
-                <span className="font-medium">{linkedPlacement.handoverTime || '—'}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Actions */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-wrap gap-3">
-            {demand.status === 'PENDING' && (
-              <>
-                <Button
-                  onClick={() => setAcceptModalOpen(true)}
-                  className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Accepter la demande
-                </Button>
-                <Button
-                  onClick={() => setRejectModalOpen(true)}
-                  variant="destructive"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Refuser la demande
-                </Button>
-              </>
-            )}
-            {demand.status === 'REJECTED' && (
-              <Button
-                onClick={() => setReopenModalOpen(true)}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Réouvrir la demande
-              </Button>
-            )}
-            {demand.status === 'APPROVED' && !demand.placementId && (
-              <Button
-                onClick={handleConvertToPlacement}
-                disabled={convert.isPending}
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-              >
-                {convert.isPending ? (
-                  <>
-                    <Clock className="h-4 w-4 mr-2 animate-spin" />
-                    Conversion...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Créer le placement
-                  </>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,1fr)]">
+        <div className="space-y-6">
+          <Card className="border-0 bg-white/95 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                <DollarSign className="h-5 w-5" />
+                Informations de la demande
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field
+                  label="Capital"
+                  value={`${demand.amount.toLocaleString('fr-FR')} FCFA`}
+                  valueClassName="text-emerald-700"
+                />
+                <Field label="Taux de commission" value={`${demand.rate}% / mois`} />
+                <Field label="Durée prévue" value={`${demand.periodMonths} mois`} />
+                <Field label="Mode de règlement" value={getPayoutModeLabel(demand.payoutMode)} />
+                {demand.desiredDate && (
+                  <Field label="Date souhaitée" value={formatDay(demand.desiredDate)} />
                 )}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                <Field label="Créée le" value={formatDateTime(demand.createdAt)} />
+              </div>
+
+              {demand.cause && <TextBlock label="Cause / Motif" value={demand.cause} />}
+            </CardContent>
+          </Card>
+
+          {demand.decisionMadeAt && (
+            <Card className="border-0 bg-white/95 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                  {demand.status === 'APPROVED' ? (
+                    <CheckCircle className="h-5 w-5 text-emerald-600" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-red-600" />
+                  )}
+                  Décision
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Date de la décision" value={formatDateTime(demand.decisionMadeAt)} />
+                  {demand.decisionMadeByName && (
+                    <Field label="Décision par" value={demand.decisionMadeByName} />
+                  )}
+                </div>
+                {demand.decisionReason && <TextBlock label="Raison" value={demand.decisionReason} />}
+              </CardContent>
+            </Card>
+          )}
+
+          {demand.reopenedAt && (
+            <Card className="border-0 bg-white/95 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                  <RotateCcw className="h-5 w-5 text-blue-600" />
+                  Réouverture
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Réouverte le" value={formatDateTime(demand.reopenedAt)} />
+                  {demand.reopenedByName && (
+                    <Field label="Réouverte par" value={demand.reopenedByName} />
+                  )}
+                </div>
+                {demand.reopenReason && (
+                  <TextBlock label="Motif de réouverture" value={demand.reopenReason} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {demand.placementId && linkedPlacement && (
+            <Card className="border-0 bg-white/95 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                  <CreditCard className="h-5 w-5" />
+                  Informations de remise des fonds
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Moyen de paiement"
+                    value={getPaymentModeLabel(linkedPlacement.paymentMode, linkedPlacement.paymentMethodOther)}
+                  />
+                  {(linkedPlacement.paymentMode === 'airtel_money' || linkedPlacement.paymentMode === 'mobicash') && (
+                    <Field
+                      label="Frais mobile money"
+                      value={
+                        linkedPlacement.withFees === true
+                          ? 'Avec frais'
+                          : linkedPlacement.withFees === false
+                            ? 'Sans frais'
+                            : '—'
+                      }
+                    />
+                  )}
+                  <Field label="Lieu de remise" value={linkedPlacement.handoverLocation || '—'} />
+                  <Field
+                    label="Date de remise"
+                    value={linkedPlacement.handoverDate ? formatDay(linkedPlacement.handoverDate) : '—'}
+                  />
+                  <Field label="Heure de remise" value={linkedPlacement.handoverTime || '—'} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <Card className="border-0 bg-white/95 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                <User className="h-5 w-5" />
+                Bienfaiteur
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3">
+                <Field label="Nom" value={demand.benefactorName || 'Non renseigné'} />
+                {demand.benefactorPhone && (
+                  <Field label="Téléphone" value={demand.benefactorPhone} />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {demand.urgentContact && (
+            <Card className="border-0 bg-white/95 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                  <AlertCircle className="h-5 w-5" />
+                  Contact d&apos;urgence
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-3">
+                  <Field
+                    label="Nom"
+                    value={`${demand.urgentContact.name} ${demand.urgentContact.firstName || ''}`.trim()}
+                  />
+                  <Field label="Téléphone" value={demand.urgentContact.phone} />
+                  {demand.urgentContact.relationship && (
+                    <Field label="Relation" value={demand.urgentContact.relationship} />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {demand.placementId && (
+            <Card className="border-0 bg-white/95 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-[#234D65]">
+                  <CreditCard className="h-5 w-5" />
+                  Placement créé
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Référence</p>
+                  <p className="mt-1 break-all font-mono text-sm font-semibold text-emerald-900">
+                    {demand.placementId}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => router.push(routes.admin.placementDetails(demand.placementId!))}
+                  className="w-full bg-[#234D65] hover:bg-[#2c5a73]"
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Voir le placement
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasActions && (
+            <Card className="border-0 bg-white/95 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[#234D65]">Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  {demand.status === 'PENDING' && (
+                    <>
+                      <Button
+                        onClick={() => setAcceptModalOpen(true)}
+                        className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Accepter la demande
+                      </Button>
+                      <Button onClick={() => setRejectModalOpen(true)} variant="destructive">
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Refuser la demande
+                      </Button>
+                    </>
+                  )}
+                  {demand.status === 'REJECTED' && (
+                    <Button
+                      onClick={() => setReopenModalOpen(true)}
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Réouvrir la demande
+                    </Button>
+                  )}
+                  {demand.status === 'APPROVED' && !demand.placementId && (
+                    <Button
+                      onClick={handleConvertToPlacement}
+                      disabled={convert.isPending}
+                      className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                    >
+                      {convert.isPending ? (
+                        <>
+                          <Clock className="mr-2 h-4 w-4 animate-spin" />
+                          Conversion...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Créer le placement
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Modals */}
       <AcceptDemandModal

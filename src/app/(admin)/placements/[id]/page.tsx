@@ -9,14 +9,16 @@ import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQ
 import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocumentModal'
 import EarlyWithdrawalRequestModal from '@/components/shared/EarlyWithdrawalRequestModal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DetailField, DetailHero, DetailHeroSkeleton } from '@/components/ui/detail-hero'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import routes from '@/constantes/routes'
 import { useAuth } from '@/hooks/useAuth'
 import { useMember } from '@/hooks/useMembers'
 import { useCalculateEarlyExit, useEarlyExit, usePlacement, usePlacementCommissions, usePlacementMutations } from '@/hooks/usePlacements'
@@ -32,9 +34,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     ArrowLeft,
-    Calendar,
     CheckCircle2,
-    Clock,
     DollarSign,
     FileDown,
     FileText,
@@ -156,15 +156,15 @@ const [closingReason, setClosingReason] = useState('')
   const statusColor = useMemo(() => {
     switch (placement?.status) {
       case 'Active':
-        return 'bg-green-100 text-green-700'
+        return 'bg-green-100 text-green-700 border-green-200'
       case 'Draft':
-        return 'bg-amber-100 text-amber-700'
+        return 'bg-amber-100 text-amber-700 border-amber-200'
       case 'Closed':
-        return 'bg-blue-100 text-blue-700'
+        return 'bg-blue-100 text-blue-700 border-blue-200'
       case 'EarlyExit':
-        return 'bg-red-100 text-red-700'
+        return 'bg-red-100 text-red-700 border-red-200'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-gray-100 text-gray-700 border-gray-200'
     }
   }, [placement?.status])
 
@@ -273,13 +273,9 @@ const handleGenerateGlobalFacture = async () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <Skeleton className="h-12 w-64" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Skeleton className="h-72" />
-            <Skeleton className="h-72 lg:col-span-2" />
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+          <DetailHeroSkeleton cards={2} />
         </div>
       </div>
     )
@@ -318,52 +314,61 @@ const handleGenerateGlobalFacture = async () => {
   const canClosePlacement = placement.status === 'Active' && allCommissionsPaid
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-xs uppercase text-gray-500 font-semibold tracking-wide">Placement #{placement.id}</p>
-            <h1 className="text-3xl font-black text-gray-900">Détails du placement</h1>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColor}`}>{statusLabel}</span>
-              <Separator orientation="vertical" className="h-4" />
-              <span className="font-medium text-gray-700">{payoutLabel}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <DetailHero
+          eyebrow="Placement"
+          title="Détails du placement"
+          reference={placement.id}
+          onBack={() => backOr(router, routes.admin.placements)}
+          badge={
+            <Badge className={cn('border px-3 py-1 text-sm font-semibold', statusColor)}>
+              {statusLabel}
+            </Badge>
+          }
+          actions={
+            <>
               {placement.urgentContact && (
-                <>
-                  <Separator orientation="vertical" className="h-4" />
-                  <Button size="sm" variant="outline" onClick={() => setShowUrgentModal(true)}>
-                    Contact urgent
-                  </Button>
-                </>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowUrgentModal(true)}
+                  className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Contact urgent
+                </Button>
               )}
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => backOr(router, '/placements')} className="bg-white">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
-            </Button>
-            {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
-              <Button
-                onClick={() => setIsUploadOpen(true)}
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white"
-                disabled={!user?.uid}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Téléverser le contrat
-              </Button>
-            )}
-            {hasContract && (
-              <Button variant="secondary" onClick={() => setIsViewOpen(true)}>
-                <FileText className="h-4 w-4 mr-2" />
-                Voir le contrat
-              </Button>
-            )}
-          </div>
-        </div>
+              {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
+                <Button
+                  onClick={() => setIsUploadOpen(true)}
+                  className="h-10 bg-white text-[#234D65] hover:bg-white/90"
+                  disabled={!user?.uid}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Téléverser le contrat
+                </Button>
+              )}
+              {hasContract && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsViewOpen(true)}
+                  className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Voir le contrat
+                </Button>
+              )}
+            </>
+          }
+          stats={[
+            { label: 'Capital placé', value: `${roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA` },
+            { label: 'Taux', value: `${placement.rate}% / mois` },
+            { label: 'Règlement', value: payoutLabel, wide: true },
+          ]}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="border-0 shadow-md">
+          <Card className="border-0 bg-white/95 shadow-lg">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 text-[#234D65]">
@@ -376,24 +381,21 @@ const handleGenerateGlobalFacture = async () => {
                 </div>
               </div>
               <Separator />
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>Début: {derivedStart ? new Date(derivedStart).toLocaleDateString('fr-FR') : '-'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>Fin: {derivedEnd ? new Date(derivedEnd).toLocaleDateString('fr-FR') : '-'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span>Prochaine commission: {nextDate}</span>
-                </div>
+              <div className="grid grid-cols-1 gap-3">
+                <DetailField
+                  label="Début"
+                  value={derivedStart ? new Date(derivedStart).toLocaleDateString('fr-FR') : '—'}
+                />
+                <DetailField
+                  label="Fin"
+                  value={derivedEnd ? new Date(derivedEnd).toLocaleDateString('fr-FR') : '—'}
+                />
+                <DetailField label="Prochaine commission" value={nextDate} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-md">
+          <Card className="border-0 bg-white/95 shadow-lg">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 text-emerald-700">
@@ -413,8 +415,8 @@ const handleGenerateGlobalFacture = async () => {
                 </div>
               </div>
               {placement.urgentContact && (
-                <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50 p-3 space-y-1">
-                  <div className="text-xs font-semibold text-amber-700 flex items-center gap-1">
+                <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
                     Contact urgent
                   </div>
@@ -440,7 +442,7 @@ const handleGenerateGlobalFacture = async () => {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-md">
+          <Card className="border-0 bg-white/95 shadow-lg">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -478,9 +480,9 @@ const handleGenerateGlobalFacture = async () => {
         </div>
 
         {/* Capital / sortie anticipée */}
-        <Card className="border-0 shadow-md">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-gray-900">Capital / Sortie anticipée</CardTitle>
+        <Card className="border-0 bg-white/95 shadow-lg">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Capital / Sortie anticipée</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-3">
@@ -540,32 +542,37 @@ const handleGenerateGlobalFacture = async () => {
               <p className="text-xs text-gray-500">Aucune sortie anticipée enregistrée.</p>
             )}
             {earlyExit && (
-              <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-slate-700">
-                <p className="font-semibold text-[#234D65]">Retrait anticipé enregistré</p>
-                <div className="mt-1 grid grid-cols-1 gap-1 md:grid-cols-2">
-                  <p>
-                    <span className="text-gray-500">Montant à verser:</span>{' '}
-                    {roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA
-                  </p>
-                  <p>
-                    <span className="text-gray-500">Date du versement:</span>{' '}
-                    {earlyExit.paymentDate
-                      ? new Date(earlyExit.paymentDate).toLocaleDateString('fr-FR')
-                      : '-'}
-                  </p>
-                  <p>
-                    <span className="text-gray-500">Moyen:</span>{' '}
-                    {paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther)}
-                  </p>
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-[#234D65]">Retrait anticipé enregistré</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <DetailField
+                    label="Montant à verser"
+                    value={`${roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA`}
+                    valueClassName="text-emerald-700"
+                  />
+                  <DetailField
+                    label="Date du versement"
+                    value={
+                      earlyExit.paymentDate
+                        ? new Date(earlyExit.paymentDate).toLocaleDateString('fr-FR')
+                        : '—'
+                    }
+                  />
+                  <DetailField
+                    label="Moyen de paiement"
+                    value={paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther)}
+                  />
                   {(earlyExit.paymentMode === 'airtel_money' || earlyExit.paymentMode === 'mobicash') && (
-                    <p>
-                      <span className="text-gray-500">Frais:</span>{' '}
-                      {earlyExit.withFees === true
-                        ? 'Avec frais'
-                        : earlyExit.withFees === false
-                        ? 'Sans frais'
-                        : '-'}
-                    </p>
+                    <DetailField
+                      label="Frais mobile money"
+                      value={
+                        earlyExit.withFees === true
+                          ? 'Avec frais'
+                          : earlyExit.withFees === false
+                            ? 'Sans frais'
+                            : '—'
+                      }
+                    />
                   )}
                 </div>
               </div>
@@ -574,9 +581,9 @@ const handleGenerateGlobalFacture = async () => {
         </Card>
 
         {/* Documents liés */}
-        <Card className="border-0 shadow-md">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-gray-900">Documents liés</CardTitle>
+        <Card className="border-0 bg-white/95 shadow-lg">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Documents liés</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2 text-sm">
             {placement.contractDocumentId && (
@@ -607,7 +614,7 @@ const handleGenerateGlobalFacture = async () => {
 
         {/* Stats contrat */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="border-0 shadow-md">
+          <Card className="border-0 bg-white/95 shadow-lg">
             <CardContent className="p-4">
               <p className="text-xs uppercase text-gray-500 font-semibold">Montants commissions</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
@@ -624,7 +631,7 @@ const handleGenerateGlobalFacture = async () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="border-0 shadow-md">
+          <Card className="border-0 bg-white/95 shadow-lg">
             <CardContent className="p-4">
               <p className="text-xs uppercase text-gray-500 font-semibold">Prochaine échéance</p>
               <p className="text-lg font-semibold text-gray-900 mt-1">
@@ -642,7 +649,7 @@ const handleGenerateGlobalFacture = async () => {
               )}
             </CardContent>
           </Card>
-          <Card className="border-0 shadow-md">
+          <Card className="border-0 bg-white/95 shadow-lg">
             <CardContent className="p-4 space-y-2">
               <p className="text-xs uppercase text-gray-500 font-semibold">Actions</p>
               <div className="flex flex-wrap gap-2">
@@ -663,7 +670,7 @@ const handleGenerateGlobalFacture = async () => {
           </Card>
         </div>
 
-        <Card className="border-0 shadow-md">
+        <Card className="border-0 bg-white/95 shadow-lg">
           <Tabs
             value={contractTab}
             onValueChange={(value) => setContractTab(value as 'versements' | 'historique')}
@@ -671,7 +678,7 @@ const handleGenerateGlobalFacture = async () => {
           >
             <CardHeader className="space-y-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <CardTitle className="text-lg font-bold text-gray-900">Contrat et versements</CardTitle>
+                <CardTitle className="text-[#234D65]">Contrat et versements</CardTitle>
                 {contractTab === 'historique' && paidCommissions.length > 0 && (
                   <Button
                     size="sm"
