@@ -1,8 +1,12 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import routes from "@/constantes/routes"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
-import { CreditCard, Download, Eye, FileText, Loader2 } from "lucide-react"
+import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
+import { roundFcfa } from "@/utils/placementMoney"
+import { CreditCard, Download, ExternalLink, Eye, FileText, Info, Loader2 } from "lucide-react"
+import Link from "next/link"
 
 interface CommissionSidebarActionsPlacementProps {
   commission: CalendarCommissionItem
@@ -20,6 +24,33 @@ export function CommissionSidebarActionsPlacement({
   isGeneratingReceipt = false,
 }: CommissionSidebarActionsPlacementProps) {
   const isPaid = commission.status === "Paid"
+
+  // La restitution du capital n'est pas une commission : elle se solde à la
+  // clôture du placement, avec motif et quittance finale signée. Aucun
+  // paiement ne peut donc être enregistré depuis le calendrier.
+  if (isCapitalRestitution(commission)) {
+    return (
+      <div className="p-5 bg-gradient-to-t from-gray-50 to-white space-y-3">
+        <div className="flex gap-3 rounded-xl border-2 border-indigo-100 bg-indigo-50 p-4">
+          <Info className="h-5 w-5 flex-shrink-0 text-indigo-600" />
+          <div className="text-sm text-indigo-900">
+            <p className="font-semibold">Restitution du capital</p>
+            <p className="mt-1 text-indigo-800">
+              {roundFcfa(commission.amount).toLocaleString("fr-FR")} FCFA à remettre au bienfaiteur.
+              Elle s&apos;enregistre depuis la fiche du placement, à la clôture, avec le motif et la
+              quittance finale signée.
+            </p>
+          </div>
+        </div>
+        <Button asChild variant="outline" className="w-full h-12 rounded-xl border-2">
+          <Link href={routes.admin.placementDetails(commission.placement.id)}>
+            <ExternalLink className="h-5 w-5 mr-2" />
+            Ouvrir le placement
+          </Link>
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="p-5 bg-gradient-to-t from-gray-50 to-white">
@@ -60,7 +91,7 @@ export function CommissionSidebarActionsPlacement({
             <CreditCard className="h-5 w-5 mr-2" />
             <div className="text-left">
               <div className="font-semibold">Enregistrer le paiement</div>
-              <div className="text-xs text-white/80">{commission.amount.toLocaleString("fr-FR")} FCFA</div>
+              <div className="text-xs text-white/80">{roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA</div>
             </div>
           </Button>
           

@@ -4,6 +4,7 @@ import PayCommissionModal, { CommissionPaymentFormData } from "@/components/plac
 import { ServiceFactory } from "@/factories/ServiceFactory"
 import { useAuth } from "@/hooks/useAuth"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { useCommissionReceiptPlacement } from "@/hooks/useCommissionReceiptPlacement"
 import { useQueryClient } from "@tanstack/react-query"
 import { X } from "lucide-react"
@@ -35,6 +36,12 @@ export function CommissionSidebarPlacement({
   } = useCommissionReceiptPlacement(commission)
 
   const handleRecordPayment = () => {
+    // Garde-fou : une restitution de capital n'a pas de document commission en
+    // base, la payer via cette voie écrirait sur un id inexistant.
+    if (isCapitalRestitution(commission)) {
+      toast.error("La restitution du capital s'enregistre à la clôture du placement")
+      return
+    }
     setShowPayModal(true)
   }
 
@@ -60,6 +67,7 @@ export function CommissionSidebarPlacement({
         paidDate,
         user.uid,
         {
+          paidAmount: data.amount,
           paymentMode: data.mode,
           withFees: data.withFees,
           paymentMethodOther: data.paymentMethodOther,

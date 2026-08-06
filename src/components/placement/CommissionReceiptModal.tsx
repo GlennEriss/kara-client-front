@@ -20,6 +20,7 @@ import {
   mapCommissionToPlacementVersement,
 } from '@/services/placement/facturePlacementPdfExport'
 import { CommissionPaymentPlacement, Placement } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -153,7 +154,7 @@ export default function CommissionReceiptModal({
                     <span className="font-medium">Montant du placement</span>
                   </div>
                   <p className="font-semibold text-gray-900">
-                    {placement.amount.toLocaleString('fr-FR')} FCFA
+                    {roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA
                   </p>
                 </div>
 
@@ -192,7 +193,7 @@ export default function CommissionReceiptModal({
               </div>
             </div>
             <Badge className="bg-green-600 text-white text-lg px-4 py-2">
-              {commission.amount.toLocaleString('fr-FR')} FCFA
+              {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString('fr-FR')} FCFA
             </Badge>
           </div>
 
@@ -203,7 +204,7 @@ export default function CommissionReceiptModal({
                 <div className="flex items-center justify-between text-lg">
                   <span className="text-gray-700">Montant de la commission:</span>
                   <span className="font-semibold text-gray-900">
-                    {commission.amount.toLocaleString('fr-FR')} FCFA
+                    {roundFcfa(commission.amount).toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
                 
@@ -219,7 +220,7 @@ export default function CommissionReceiptModal({
                 <div className="flex items-center justify-between text-2xl">
                   <span className="font-bold text-gray-900">TOTAL:</span>
                   <span className="font-black text-[#224D62]">
-                    {commission.amount.toLocaleString('fr-FR')} FCFA
+                    {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
               </div>

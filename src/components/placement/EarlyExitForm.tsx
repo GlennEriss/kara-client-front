@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/useAuth'
 import { useCalculateEarlyExit, usePlacement, usePlacementMutations } from '@/hooks/usePlacements'
 import type { PaymentMode } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 import { Calculator, Calendar, FileText, Info, Loader2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -41,12 +42,12 @@ interface EarlyExitFormProps {
 export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormProps) {
   const { user } = useAuth()
   const { data: placement } = usePlacement(placementId)
-  const { data: calculatedAmounts, isLoading: isCalculating } = useCalculateEarlyExit(placementId)
   const { requestEarlyExit } = usePlacementMutations()
-  
+  const capitalAmount = roundFcfa(placement?.amount ?? 0)
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
-  
+
   const form = useForm<EarlyExitFormData>({
     defaultValues: {
       commissionDue: 0,
@@ -60,13 +61,28 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
     },
   })
 
+  // La commission se calcule sur la date de versement saisie, pas sur le jour
+  // courant : c'est cette date que le service utilise pour recalculer.
+  const paymentDateValue = form.watch('paymentDate')
+  const effectiveDate = useMemo(() => {
+    if (!paymentDateValue) return null
+    const parsed = new Date(`${paymentDateValue}T00:00:00`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }, [paymentDateValue])
+
+  const { data: calculatedAmounts, isLoading: isCalculating } = useCalculateEarlyExit(
+    placementId,
+    effectiveDate,
+  )
+
   // Pré-remplir avec les valeurs calculées
   useEffect(() => {
     if (calculatedAmounts) {
-      form.setValue('commissionDue', calculatedAmounts.commissionDue)
-      form.setValue('payoutAmount', calculatedAmounts.payoutAmount)
+      const commissionDue = roundFcfa(calculatedAmounts.commissionDue)
+      form.setValue('commissionDue', commissionDue)
+      form.setValue('payoutAmount', roundFcfa(capitalAmount + commissionDue))
     }
-  }, [calculatedAmounts, form])
+  }, [calculatedAmounts, capitalAmount, form])
 
   const onSubmit = async (values: EarlyExitFormData) => {
     if (!user?.uid || !placement) return
@@ -99,12 +115,20 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
       toast.error('Veuillez préciser le moyen de paiement utilisé')
       return
     }
+
+    if (!calculatedAmounts) {
+      toast.error('Le calcul des montants est en cours, veuillez patienter')
+      return
+    }
+
+    const commissionDue = roundFcfa(calculatedAmounts.commissionDue)
+    const payoutAmount = roundFcfa(capitalAmount + commissionDue)
     
     try {
       await requestEarlyExit.mutateAsync({
         placementId,
-        commissionDue: values.commissionDue,
-        payoutAmount: values.payoutAmount,
+        commissionDue,
+        payoutAmount,
         paymentMode: values.paymentMode,
         withFees: isMobileMoney ? values.withFees : undefined,
         paymentMethodOther: values.paymentMode === 'other' ? values.paymentMethodOther?.trim() : undefined,
@@ -137,9 +161,10 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
     try {
       const { ServiceFactory } = await import('@/factories/ServiceFactory')
       const service = ServiceFactory.getPlacementService()
-      const amounts = await service.calculateEarlyExitAmounts(placementId)
-      form.setValue('commissionDue', amounts.commissionDue)
-      form.setValue('payoutAmount', amounts.payoutAmount)
+      const amounts = await service.calculateEarlyExitAmounts(placementId, effectiveDate ?? undefined)
+      const commissionDue = roundFcfa(amounts.commissionDue)
+      form.setValue('commissionDue', commissionDue)
+      form.setValue('payoutAmount', roundFcfa(capitalAmount + commissionDue))
       toast.success('Montants recalculés')
     } catch (error: any) {
       toast.error(`Erreur lors du calcul: ${error.message}`)
@@ -164,6 +189,8 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
               <AlertDescription className="text-blue-700 text-sm">
                 <strong>Règle de calcul :</strong> Si au moins 1 mois s'est écoulé depuis le début du placement, 
                 la commission d'un mois est due. Sinon, aucune commission n'est due.
+                <br />
+                <strong>Capital contractuel verrouillé :</strong> {capitalAmount.toLocaleString('fr-FR')} FCFA.
               </AlertDescription>
             </Alert>
 
@@ -181,19 +208,14 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
                     <Input 
                       type="number" 
                       min={0} 
-                      step="0.01" 
+                      step="1"
                       {...field}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0
-                        field.onChange(value)
-                        // Recalculer le montant à verser : capital + commission due
-                        if (placement) {
-                          const newPayoutAmount = placement.amount + value
-                          form.setValue('payoutAmount', newPayoutAmount)
-                        }
-                      }}
+                      readOnly
+                      aria-readonly="true"
+                      className="bg-slate-50"
                     />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">Montant calculé automatiquement, non modifiable.</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -210,14 +232,14 @@ export default function EarlyExitForm({ placementId, onClose }: EarlyExitFormPro
                     <Input 
                       type="number" 
                       min={0} 
-                      step="0.01" 
+                      step="1"
                       {...field}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0
-                        field.onChange(value)
-                      }}
+                      readOnly
+                      aria-readonly="true"
+                      className="bg-slate-50"
                     />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">Capital contractuel + commission due, non modifiable.</p>
                   <FormMessage />
                 </FormItem>
               )}

@@ -7,6 +7,7 @@ import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
 import type { Placement } from '@/types/types'
+import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
 import { AlertCircle, CheckCircle, DollarSign, Edit, ExternalLink, Eye, FileText, Trash2, Upload } from 'lucide-react'
 
 interface PlacementCardProps {
@@ -47,11 +48,11 @@ export default function PlacementCard({
   const { data: member } = useMember(placement.benefactorId)
 
   const nextDueCommission = commissions.find(c => c.status === 'Due')
-  const paidCommissions = commissions.filter(c => c.status === 'Paid').length
-  const totalCommissions = commissions.length
-  const paidAmount = commissions
-    .filter(c => c.status === 'Paid')
-    .reduce((sum, c) => sum + (c.amount || 0), 0)
+  const payableCommissions = commissions.filter(c => c.status !== 'Canceled')
+  const paidCommissionsList = payableCommissions.filter(c => c.status === 'Paid')
+  const paidCommissions = paidCommissionsList.length
+  const totalCommissions = payableCommissions.length
+  const paidAmount = sumCommissionAmounts(paidCommissionsList)
   const nextDate = placement.nextCommissionDate || nextDueCommission?.dueDate
   const progress = totalCommissions > 0
     ? Math.min(100, Math.round((paidCommissions / totalCommissions) * 100))
@@ -118,7 +119,7 @@ export default function PlacementCard({
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Montant</p>
             <p className="font-bold text-[#234D65] tabular-nums text-sm">
-              {(placement.amount || 0).toLocaleString('fr-FR')}{' '}
+              {roundFcfa(placement.amount || 0).toLocaleString('fr-FR')}{' '}
               <span className="text-[10px] font-normal text-gray-400">FCFA</span>
             </p>
           </div>
@@ -135,7 +136,7 @@ export default function PlacementCard({
             <p className="font-bold text-gray-900 tabular-nums text-sm">{formatShortDate(nextDate)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total versé</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Commissions versées</p>
             <p className="font-bold text-gray-900 tabular-nums text-sm">
               {paidAmount.toLocaleString('fr-FR')}{' '}
               <span className="text-[10px] font-normal text-gray-400">FCFA</span>

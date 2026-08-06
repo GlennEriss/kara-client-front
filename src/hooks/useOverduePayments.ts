@@ -317,7 +317,19 @@ async function fetchOverduePlacement(today: Date): Promise<OverduePayment[]> {
           const due = c.dueDate instanceof Date ? c.dueDate : new Date(c.dueDate)
           return startOfDay(due) < today
         })
-        if (overdue.length === 0) return []
+
+        // Restitution du capital : due à la fin du placement. Le placement étant
+        // filtré sur « Active », le capital n'a pas encore été restitué — la
+        // clôture le solde et bascule le statut en « Closed ».
+        const capitalDueRaw = pl.endDate ?? null
+        const capitalDue = capitalDueRaw
+          ? (capitalDueRaw instanceof Date ? capitalDueRaw : new Date(capitalDueRaw))
+          : null
+        const isCapitalOverdue = Boolean(
+          capitalDue && !Number.isNaN(capitalDue.getTime()) && startOfDay(capitalDue) < today
+        )
+
+        if (overdue.length === 0 && !isCapitalOverdue) return []
 
         let matricule: string | undefined
         let whatsappNumber: string | undefined
@@ -333,22 +345,36 @@ async function fetchOverduePlacement(today: Date): Promise<OverduePayment[]> {
           }
         } catch { /* ignore */ }
 
-        return overdue.map((c) => {
+        const identity = { matricule, name, phone, whatsappNumber }
+
+        const overdueItems: OverduePayment[] = overdue.map((c) => {
           const due = c.dueDate instanceof Date ? c.dueDate : new Date(c.dueDate)
           return {
             key: `pl-${pl.id}-${c.id}`,
             product: 'Placement' as const,
-            matricule,
-            name,
+            ...identity,
             isGroup: false,
-            phone,
-            whatsappNumber,
             typeLabel: 'Commission',
             amount: c.amount || 0,
             dueAt: due,
             daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
           }
         })
+
+        if (isCapitalOverdue && capitalDue) {
+          overdueItems.push({
+            key: `pl-${pl.id}-capital`,
+            product: 'Placement' as const,
+            ...identity,
+            isGroup: false,
+            typeLabel: 'Restitution du capital',
+            amount: pl.amount || 0,
+            dueAt: capitalDue,
+            daysOverdue: differenceInCalendarDays(today, startOfDay(capitalDue)),
+          })
+        }
+
+        return overdueItems
       } catch (error) {
         console.error(`[overdue][Placement] ${pl.id}:`, error)
         return []

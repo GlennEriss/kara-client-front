@@ -2,9 +2,11 @@
 
 import { Button } from "@/components/ui/button"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
-import { Calendar, Clock, Percent, Phone, TrendingUp, Wallet, X } from "lucide-react"
+import { roundFcfa } from "@/utils/placementMoney"
+import { Calendar, Clock, Percent, Phone, PiggyBank, TrendingUp, Wallet, X } from "lucide-react"
 
 interface CommissionSidebarHeaderPlacementProps {
   commission: CalendarCommissionItem
@@ -33,6 +35,7 @@ export function CommissionSidebarHeaderPlacement({
   const benefactorPhone = placement.benefactorPhone
   const payoutConfig = PAYOUT_MODE_CONFIG[placement.payoutMode]
   const statusConfig = PLACEMENT_STATUS_CONFIG[placement.status]
+  const isCapital = isCapitalRestitution(commission)
 
   return (
     <div className="relative overflow-hidden">
@@ -55,10 +58,12 @@ export function CommissionSidebarHeaderPlacement({
         {/* En-tête */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-lg">
-            <Wallet className="h-7 w-7 text-white" />
+            {isCapital ? <PiggyBank className="h-7 w-7 text-white" /> : <Wallet className="h-7 w-7 text-white" />}
           </div>
           <div>
-            <h2 className="text-xl font-bold">Détails de la commission</h2>
+            <h2 className="text-xl font-bold">
+              {isCapital ? "Restitution du capital" : "Détails de la commission"}
+            </h2>
             <p className="text-white/70 text-sm">Placement #{placement.id.slice(-8)}</p>
           </div>
         </div>
@@ -124,7 +129,7 @@ export function CommissionSidebarHeaderPlacement({
             <div>
               <div className="text-xs text-blue-600 font-medium">Capital</div>
               <div className="text-sm font-bold text-blue-900">
-                {placement.amount.toLocaleString("fr-FR")} F
+                {roundFcfa(placement.amount).toLocaleString("fr-FR")} F
               </div>
             </div>
           </div>

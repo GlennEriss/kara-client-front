@@ -5,6 +5,7 @@ import {
   loadFactureCreditSpecialLogoDataUrl,
   type FactureCreditSpecialPage1Data,
 } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
+import { roundFcfa } from '@/utils/placementMoney'
 import jsPDF from 'jspdf'
 
 const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
@@ -78,7 +79,7 @@ const getAgeFromBirthDate = (birthDate?: string): string => {
 }
 
 const formatAmount = (amount: number) => {
-  const safe = Number.isFinite(amount) ? Math.round(amount) : 0
+  const safe = roundFcfa(amount)
   const grouped = String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   return `${grouped} FCFA`
 }
@@ -245,8 +246,8 @@ export const mapCommissionToPlacementVersement = (params: {
     reference: `${placement.id.slice(-8).toUpperCase()}-${commission.id.slice(-6).toUpperCase()}`,
     dueDate: commission.dueDate,
     paidAt: commission.paidAt,
-    amount: commission.amount,
-    placementAmount: placement.amount,
+    amount: roundFcfa(commission.paidAmount ?? commission.amount),
+    placementAmount: roundFcfa(placement.amount),
     rate: placement.rate,
     paymentMode: commission.paymentMode,
     withFees: commission.withFees,

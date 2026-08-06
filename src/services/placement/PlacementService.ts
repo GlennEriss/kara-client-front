@@ -8,6 +8,13 @@ import { NotificationService } from '@/services/notifications/NotificationServic
 import { IPlacementDemandRepository } from '@/repositories/placement/IPlacementDemandRepository'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
+import {
+  calculateMonthlyCommission,
+  calculateTotalCommissions,
+  roundFcfa,
+  sumCommissionAmounts,
+  sumPaidCommissionAmounts,
+} from '@/utils/placementMoney'
 
 export class PlacementService {
   private notificationService: NotificationService
@@ -65,9 +72,34 @@ export class PlacementService {
     return String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   }
 
-  private toFiniteNumber(value: unknown): number {
-    const parsed = typeof value === 'number' ? value : Number(value)
-    return Number.isFinite(parsed) ? parsed : 0
+  private validatePlacementAmount(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error('Le capital doit être un montant entier en FCFA')
+    }
+    if (value < 1_000 || value > 100_000_000) {
+      throw new Error('Le capital doit être compris entre 1 000 et 100 000 000 FCFA')
+    }
+    return value
+  }
+
+  private validatePlacementRate(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error('Le taux mensuel doit être un nombre fini')
+    }
+    if (value < 0 || value > 10) {
+      throw new Error('Le taux mensuel doit être compris entre 0 et 10 %')
+    }
+    return value
+  }
+
+  private validatePlacementPeriod(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error('La durée doit être un nombre entier de mois')
+    }
+    if (value < 1 || value > 7) {
+      throw new Error('La durée doit être comprise entre 1 et 7 mois')
+    }
+    return value
   }
 
   /**
@@ -88,9 +120,12 @@ export class PlacementService {
   }
 
   async createPlacement(data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt' | 'status'>, adminId: string): Promise<Placement> {
+    const amount = this.validatePlacementAmount(data.amount)
+    const rate = this.validatePlacementRate(data.rate)
+    const periodMonths = this.validatePlacementPeriod(data.periodMonths)
     const dates = this.computeDates({
       startDate: data.startDate,
-      periodMonths: data.periodMonths,
+      periodMonths,
       payoutMode: data.payoutMode,
     })
     const memberInfo = await this.enrichMemberInfo(data.benefactorId)
@@ -125,9 +160,9 @@ export class PlacementService {
       startDate: dates.startDate,
       endDate: dates.endDate,
       nextCommissionDate: dates.nextCommissionDate,
-      amount: this.toFiniteNumber(data.amount),
-      rate: this.toFiniteNumber(data.rate),
-      periodMonths: this.toFiniteNumber(data.periodMonths),
+      amount,
+      rate,
+      periodMonths,
       status: 'Draft',
       createdBy: adminId,
       updatedBy: adminId,
@@ -157,7 +192,7 @@ export class PlacementService {
     const commissions: Omit<CommissionPaymentPlacement, 'id' | 'createdAt' | 'updatedAt'>[] = []
 
     // Calcul du montant de commission mensuel
-    const monthlyCommissionAmount = (placement.amount * placement.rate) / 100
+    const monthlyCommissionAmount = calculateMonthlyCommission(placement.amount, placement.rate)
 
     if (placement.payoutMode === 'MonthlyCommission_CapitalEnd') {
       // Mode 1 : Commission mensuelle + capital à la fin
@@ -189,7 +224,7 @@ export class PlacementService {
       commissions.push({
         placementId: placement.id,
         dueDate: endDate,
-        amount: monthlyCommissionAmount * placement.periodMonths,
+        amount: calculateTotalCommissions(placement.amount, placement.rate, placement.periodMonths),
         status: 'Due',
         createdBy: adminId,
         updatedBy: adminId,
@@ -204,13 +239,18 @@ export class PlacementService {
   }
 
   async updatePlacement(id: string, data: Partial<Placement>, adminId: string): Promise<Placement> {
+    const amount = data.amount !== undefined ? this.validatePlacementAmount(data.amount) : undefined
+    const rate = data.rate !== undefined ? this.validatePlacementRate(data.rate) : undefined
+    const periodMonths = data.periodMonths !== undefined
+      ? this.validatePlacementPeriod(data.periodMonths)
+      : undefined
     let computed = {}
     if (data.startDate || data.periodMonths || data.payoutMode) {
       const existing = await this.placementRepository.getById(id)
       const base = existing || {} as Placement
       const dates = this.computeDates({
         startDate: data.startDate ?? base.startDate,
-        periodMonths: data.periodMonths ?? base.periodMonths,
+        periodMonths: periodMonths ?? base.periodMonths,
         payoutMode: data.payoutMode ?? base.payoutMode,
       })
       computed = {
@@ -223,9 +263,9 @@ export class PlacementService {
     return this.placementRepository.update(id, { 
       ...data,
       ...computed,
-      amount: data.amount !== undefined ? this.toFiniteNumber(data.amount) : undefined,
-      rate: data.rate !== undefined ? this.toFiniteNumber(data.rate) : undefined,
-      periodMonths: data.periodMonths !== undefined ? this.toFiniteNumber(data.periodMonths) : undefined,
+      amount,
+      rate,
+      periodMonths,
       updatedBy: adminId 
     })
   }
@@ -247,30 +287,24 @@ export class PlacementService {
   }
 
   async payCommission(placementId: string, commissionId: string, data: Partial<CommissionPaymentPlacement>, adminId: string): Promise<CommissionPaymentPlacement> {
+    const existing = (await this.placementRepository.listCommissions(placementId)).find(c => c.id === commissionId)
+    if (!existing) throw new Error('Commission introuvable')
+
+    const nextStatus = data.status ?? 'Paid'
+    const paidAmount = nextStatus === 'Paid'
+      ? roundFcfa(data.paidAmount ?? existing.amount)
+      : data.paidAmount
+
     const commission = await this.placementRepository.updateCommission(placementId, commissionId, {
       ...data,
-      status: data.status ?? 'Paid',
+      amount: roundFcfa(existing.amount),
+      paidAmount,
+      status: nextStatus,
       paidAt: data.paidAt ?? new Date(),
       updatedBy: adminId,
     })
 
-    // Vérifier si toutes les commissions sont payées
-    const allCommissions = await this.placementRepository.listCommissions(placementId)
-    const allPaid = allCommissions.every(c => c.status === 'Paid')
-    
-    if (allPaid) {
-      const placement = await this.placementRepository.getById(placementId)
-      if (placement && placement.status === 'Active') {
-        // Marquer le placement comme terminé
-        await this.placementRepository.update(placementId, {
-          status: 'Closed',
-          updatedBy: adminId,
-        } as any)
-        
-        // Notifier la complétion du placement
-        await this.notifyPlacementCompleted(placement, adminId)
-      }
-    }
+    await this.recalculatePlacementCommissionStatus(placementId)
     
     return commission
   }
@@ -279,36 +313,42 @@ export class PlacementService {
    * Calcule automatiquement la commission due et le montant à verser en cas de retrait anticipé
    * Règle : Si la remise se fait après un mois, commission d'un mois, sinon 0 commission
    */
-  async calculateEarlyExitAmounts(placementId: string): Promise<{ commissionDue: number; payoutAmount: number }> {
+  private calculateEarlyExitAmountsForPlacement(
+    placement: Placement,
+    effectiveDate: Date
+  ): { commissionDue: number; payoutAmount: number } {
+    if (Number.isNaN(effectiveDate.getTime())) {
+      throw new Error('La date effective du retrait est invalide')
+    }
+
+    const startDate = new Date(placement.startDate || placement.createdAt)
+    if (Number.isNaN(startDate.getTime())) {
+      throw new Error('La date de début du placement est invalide')
+    }
+
+    const yearsDiff = effectiveDate.getFullYear() - startDate.getFullYear()
+    const monthsDiff = effectiveDate.getMonth() - startDate.getMonth()
+    const daysDiff = effectiveDate.getDate() - startDate.getDate()
+
+    let monthsElapsed = yearsDiff * 12 + monthsDiff
+    if (daysDiff < 0) monthsElapsed--
+
+    const monthlyCommissionAmount = calculateMonthlyCommission(placement.amount, placement.rate)
+    const commissionDue = monthsElapsed >= 1 ? monthlyCommissionAmount : 0
+    const payoutAmount = roundFcfa(placement.amount) + commissionDue
+
+    return { commissionDue, payoutAmount: roundFcfa(payoutAmount) }
+  }
+
+  async calculateEarlyExitAmounts(
+    placementId: string,
+    effectiveDate: Date = new Date()
+  ): Promise<{ commissionDue: number; payoutAmount: number }> {
     const placement = await this.placementRepository.getById(placementId)
     if (!placement) {
       throw new Error('Placement introuvable')
     }
-
-    const startDate = new Date(placement.startDate || placement.createdAt)
-    const requestDate = new Date()
-    
-    // Calculer le nombre de mois écoulés de manière plus précise
-    const yearsDiff = requestDate.getFullYear() - startDate.getFullYear()
-    const monthsDiff = requestDate.getMonth() - startDate.getMonth()
-    const daysDiff = requestDate.getDate() - startDate.getDate()
-    
-    // Nombre total de mois écoulés (en tenant compte des années et des jours)
-    let monthsElapsed = yearsDiff * 12 + monthsDiff
-    if (daysDiff < 0) {
-      monthsElapsed-- // Si on n'a pas encore atteint le jour du mois, on ne compte pas ce mois
-    }
-
-    // Calcul de la commission mensuelle
-    const monthlyCommissionAmount = (placement.amount * placement.rate) / 100
-
-    // Règle : commission d'un mois si au moins 1 mois écoulé, sinon 0
-    const commissionDue = monthsElapsed >= 1 ? monthlyCommissionAmount : 0
-
-    // Montant à verser = capital + commission due
-    const payoutAmount = placement.amount + commissionDue
-
-    return { commissionDue, payoutAmount }
+    return this.calculateEarlyExitAmountsForPlacement(placement, effectiveDate)
   }
 
   async requestEarlyExit(
@@ -328,6 +368,32 @@ export class PlacementService {
     benefactorId: string,
     adminId: string
   ): Promise<EarlyExitPlacement> {
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+    if (placement.status !== 'Active') {
+      throw new Error('Seul un placement actif peut faire l’objet d’une sortie anticipée')
+    }
+
+    const effectiveDate = payload.withdrawalDate
+      ? new Date(`${payload.withdrawalDate}T${payload.withdrawalTime || '00:00'}`)
+      : payload.paymentDate
+        ? new Date(payload.paymentDate)
+        : new Date()
+    if (Number.isNaN(effectiveDate.getTime())) {
+      throw new Error('La date effective du retrait est invalide')
+    }
+
+    const placementStartDate = new Date(placement.startDate || placement.createdAt)
+    if (effectiveDate.getTime() < placementStartDate.getTime()) {
+      throw new Error('La date effective du retrait ne peut pas précéder le début du placement')
+    }
+
+    // Les montants soumis sont indicatifs : seuls ceux recalculés ici à la date
+    // effective font foi et sont persistés. Le client ne peut donc pas imposer
+    // une commission ou une restitution partielle, et un écart d'affichage (date
+    // saisie ≠ date du jour, valeur en cache) ne bloque pas l'enregistrement.
+    const calculatedAmounts = this.calculateEarlyExitAmountsForPlacement(placement, effectiveDate)
+
     let withdrawalProofDocumentId: string | undefined
     let documentPdfId: string | undefined
 
@@ -417,20 +483,13 @@ export class PlacementService {
       documentPdfId = document.id
     }
 
-    const effectiveWithdrawalAmount =
-      payload.withdrawalAmount && payload.withdrawalAmount > 0
-        ? Math.round(payload.withdrawalAmount)
-        : Math.round(payload.payoutAmount)
-    const effectiveWithdrawalDate = payload.withdrawalDate ? new Date(payload.withdrawalDate) : undefined
-    const effectivePaymentDate =
-      payload.paymentDate ||
-      (payload.withdrawalDate
-        ? new Date(`${payload.withdrawalDate}T${payload.withdrawalTime || '00:00'}`)
-        : undefined)
+    const effectiveWithdrawalAmount = calculatedAmounts.payoutAmount
+    const effectiveWithdrawalDate = payload.withdrawalDate ? effectiveDate : undefined
+    const effectivePaymentDate = payload.paymentDate ? new Date(payload.paymentDate) : effectiveDate
 
     const earlyExit = await this.placementRepository.saveEarlyExit(placementId, {
       placementId,
-      commissionDue: payload.commissionDue,
+      commissionDue: calculatedAmounts.commissionDue,
       payoutAmount: effectiveWithdrawalAmount,
       withdrawalAmount: effectiveWithdrawalAmount,
       withdrawalDate: effectiveWithdrawalDate,
@@ -446,6 +505,18 @@ export class PlacementService {
       createdBy: adminId,
     })
     await this.placementRepository.update(placementId, { status: 'EarlyExit', updatedBy: adminId } as any)
+
+    const dueCommissions = (await this.placementRepository.listCommissions(placementId))
+      .filter(commission => commission.status === 'Due')
+    await Promise.all(
+      dueCommissions.map(commission =>
+        this.placementRepository.updateCommission(placementId, commission.id, {
+          status: 'Canceled',
+          updatedBy: adminId,
+        })
+      )
+    )
+    await this.recalculatePlacementCommissionStatus(placementId)
 
     // Notifier la demande de retrait anticipé
     await this.notifyEarlyExitRequest(placementId, earlyExit, adminId)
@@ -620,16 +691,42 @@ export class PlacementService {
     benefactorId: string,
     paidDate: Date,
     adminId: string,
-    paymentMeta?: {
+    paymentMeta: {
+      paidAmount: number
       paymentMode?: import('@/types/types').PaymentMode
       withFees?: boolean
       paymentMethodOther?: string
     }
   ): Promise<{ documentId: string; commission: CommissionPaymentPlacement }> {
+    if (paymentMeta?.paidAmount === undefined) {
+      throw new Error('Le montant payé est requis')
+    }
+
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+    if (placement.status !== 'Active') {
+      throw new Error('Les commissions ne peuvent être payées que sur un placement actif')
+    }
+
+    const existingCommission = (await this.placementRepository.listCommissions(placementId))
+      .find(item => item.id === commissionId)
+    if (!existingCommission) throw new Error('Commission introuvable')
+    if (existingCommission.status !== 'Due') {
+      throw new Error('Cette commission n’est plus à payer')
+    }
+
+    const dueAmount = roundFcfa(existingCommission.amount)
+    const paidAmount = roundFcfa(paymentMeta.paidAmount)
+    if (paidAmount !== dueAmount) {
+      throw new Error(`Le montant payé doit être exactement de ${dueAmount} FCFA`)
+    }
+
     // Upload de la preuve
     const { documentId } = await this.uploadCommissionProof(proofFile, placementId, commissionId, benefactorId, adminId)
 
     const commissionUpdate: Partial<CommissionPaymentPlacement> = {
+      amount: dueAmount,
+      paidAmount,
       status: 'Paid',
       paidAt: paidDate,
       paymentRecordedBy: adminId,
@@ -639,7 +736,7 @@ export class PlacementService {
       updatedBy: adminId,
     }
 
-    if (paymentMeta?.paymentMode) {
+    if (paymentMeta.paymentMode) {
       commissionUpdate.paymentMode = paymentMeta.paymentMode
     }
     if (
@@ -656,24 +753,6 @@ export class PlacementService {
     const commission = await this.placementRepository.updateCommission(placementId, commissionId, commissionUpdate)
 
     await this.recalculatePlacementCommissionStatus(placementId)
-
-    // Vérifier si toutes les commissions sont payées
-    const allCommissions = await this.placementRepository.listCommissions(placementId)
-    const allPaid = allCommissions.every(c => c.status === 'Paid')
-    
-    if (allPaid) {
-      const placement = await this.placementRepository.getById(placementId)
-      if (placement && placement.status === 'Active') {
-        // Marquer le placement comme terminé
-        await this.placementRepository.update(placementId, {
-          status: 'Closed',
-          updatedBy: adminId,
-        } as any)
-        
-        // Notifier la complétion du placement
-        await this.notifyPlacementCompleted(placement, adminId)
-      }
-    }
 
     return { documentId, commission }
   }
@@ -867,6 +946,15 @@ export class PlacementService {
   ): Promise<Placement> {
     const placement = await this.placementRepository.getById(placementId)
     if (!placement) throw new Error('Placement introuvable')
+    if (placement.status !== 'Active') {
+      throw new Error('Seul un placement actif peut être clôturé normalement')
+    }
+
+    const commissions = await this.placementRepository.listCommissions(placementId)
+    const unpaidCommissions = commissions.filter(commission => commission.status !== 'Paid')
+    if (unpaidCommissions.length > 0) {
+      throw new Error('Toutes les commissions doivent être payées avant la clôture')
+    }
 
     // Valider le motif de clôture
     if (!closingReason || closingReason.trim().length < 10) {
@@ -891,13 +979,18 @@ export class PlacementService {
     // Téléverser la quittance finale
     const { documentId } = await this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
 
+    const capitalRepaidAt = new Date()
     const updated = await this.placementRepository.update(placementId, {
       status: 'Closed',
       finalQuittanceDocumentId: documentId,
       closingReason: closingReason.trim(),
+      capitalRepaidAmount: roundFcfa(placement.amount),
+      capitalRepaidAt,
       updatedBy: adminId,
       updatedAt: new Date(),
     })
+
+    await this.notifyPlacementCompleted(updated, adminId)
 
     return updated
   }
@@ -995,8 +1088,8 @@ export class PlacementService {
 
     // Calculer les statistiques de base
     for (const placement of placements) {
-      const amount = this.toFiniteNumber(placement.amount)
-      stats.totalAmount += amount
+      const amount = roundFcfa(placement.amount)
+      stats.totalAmount = roundFcfa(stats.totalAmount + amount)
       
       if (placement.status === 'Draft') stats.draft++
       else if (placement.status === 'Active') stats.active++
@@ -1023,13 +1116,18 @@ export class PlacementService {
       })
     )
     for (const commissions of commissionsPerPlacement) {
-      stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + this.toFiniteNumber(c.amount), 0)
+      stats.totalCommissionsAmount = roundFcfa(
+        stats.totalCommissionsAmount +
+        sumCommissionAmounts(commissions, ['Due', 'Paid', 'Partial'])
+      )
+      stats.paidCommissionsAmount = roundFcfa(
+        stats.paidCommissionsAmount + sumPaidCommissionAmounts(commissions)
+      )
       for (const commission of commissions) {
         if (commission.status === 'Due') {
           stats.commissionsDue++
         } else if (commission.status === 'Paid') {
           stats.commissionsPaid++
-          stats.paidCommissionsAmount += this.toFiniteNumber(commission.amount)
         }
       }
     }
@@ -1037,10 +1135,10 @@ export class PlacementService {
     // Calculer les top bienfaiteurs
     const benefactorMap = new Map<string, { totalAmount: number; placementCount: number }>()
     for (const placement of placements) {
-      const amount = this.toFiniteNumber(placement.amount)
+      const amount = roundFcfa(placement.amount)
       const existing = benefactorMap.get(placement.benefactorId) || { totalAmount: 0, placementCount: 0 }
       benefactorMap.set(placement.benefactorId, {
-        totalAmount: existing.totalAmount + amount,
+        totalAmount: roundFcfa(existing.totalAmount + amount),
         placementCount: existing.placementCount + 1,
       })
     }
@@ -1079,17 +1177,18 @@ export class PlacementService {
       const memberName = member 
         ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
         : placement.benefactorName || placement.benefactorId
+      const amount = roundFcfa(placement.amount)
 
       await this.notificationService.createNotification({
         module: 'placement',
         entityId: placement.id,
         type: 'placement_activated',
         title: 'Placement activé',
-        message: `Le placement #${placement.id.slice(0, 8)} de ${memberName} a été activé. Montant : ${placement.amount.toLocaleString('fr-FR')} FCFA, Taux : ${placement.rate}%, Période : ${placement.periodMonths} mois.`,
+        message: `Le placement #${placement.id.slice(0, 8)} de ${memberName} a été activé. Montant : ${amount.toLocaleString('fr-FR')} FCFA, Taux : ${placement.rate}%, Période : ${placement.periodMonths} mois.`,
         metadata: {
           placementId: placement.id,
           benefactorId: placement.benefactorId,
-          amount: placement.amount,
+          amount,
           rate: placement.rate,
           periodMonths: placement.periodMonths,
           payoutMode: placement.payoutMode,
@@ -1112,6 +1211,7 @@ export class PlacementService {
         : placement.benefactorName || placement.benefactorId
 
       for (const commission of commissions) {
+        const commissionAmount = roundFcfa(commission.amount)
         // Créer une notification programmée pour J-3 (3 jours avant l'échéance)
         const reminderDate = new Date(commission.dueDate)
         reminderDate.setDate(reminderDate.getDate() - 3)
@@ -1123,13 +1223,13 @@ export class PlacementService {
             entityId: placement.id,
             type: 'commission_due_reminder',
             title: 'Rappel : Échéance de commission',
-            message: `Échéance de commission pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Montant : ${commission.amount.toLocaleString('fr-FR')} FCFA. Date d'échéance : ${commission.dueDate.toLocaleDateString('fr-FR')}.`,
+            message: `Échéance de commission pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Montant : ${commissionAmount.toLocaleString('fr-FR')} FCFA. Date d'échéance : ${commission.dueDate.toLocaleDateString('fr-FR')}.`,
             metadata: {
               placementId: placement.id,
               commissionId: commission.id,
               benefactorId: placement.benefactorId,
               dueDate: commission.dueDate.toISOString(),
-              amount: commission.amount,
+              amount: commissionAmount,
               daysBefore: 3,
             },
             scheduledAt: reminderDate,
@@ -1146,13 +1246,13 @@ export class PlacementService {
             entityId: placement.id,
             type: 'commission_due_reminder',
             title: 'Échéance de commission aujourd\'hui',
-            message: `Échéance de commission aujourd'hui pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Montant : ${commission.amount.toLocaleString('fr-FR')} FCFA.`,
+            message: `Échéance de commission aujourd'hui pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Montant : ${commissionAmount.toLocaleString('fr-FR')} FCFA.`,
             metadata: {
               placementId: placement.id,
               commissionId: commission.id,
               benefactorId: placement.benefactorId,
               dueDate: commission.dueDate.toISOString(),
-              amount: commission.amount,
+              amount: commissionAmount,
               daysBefore: 0,
             },
             scheduledAt: dueDate,
@@ -1180,19 +1280,21 @@ export class PlacementService {
       const memberName = member 
         ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
         : placement.benefactorName || placement.benefactorId
+      const commissionDue = roundFcfa(earlyExit.commissionDue)
+      const payoutAmount = roundFcfa(earlyExit.payoutAmount)
 
       await this.notificationService.createNotification({
         module: 'placement',
         entityId: placementId,
         type: 'early_exit_request',
         title: 'Demande de retrait anticipé',
-        message: `Demande de retrait anticipé pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Commission due : ${earlyExit.commissionDue.toLocaleString('fr-FR')} FCFA, Montant à verser : ${earlyExit.payoutAmount.toLocaleString('fr-FR')} FCFA.`,
+        message: `Demande de retrait anticipé pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Commission due : ${commissionDue.toLocaleString('fr-FR')} FCFA, Montant à verser : ${payoutAmount.toLocaleString('fr-FR')} FCFA.`,
         metadata: {
           placementId: placement.id,
           earlyExitId: earlyExit.id,
           benefactorId: placement.benefactorId,
-          commissionDue: earlyExit.commissionDue,
-          payoutAmount: earlyExit.payoutAmount,
+          commissionDue,
+          payoutAmount,
           requestedAt: earlyExit.requestedAt.toISOString(),
         },
       })
@@ -1210,17 +1312,24 @@ export class PlacementService {
       const memberName = member 
         ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
         : placement.benefactorName || placement.benefactorId
+      const commissions = await this.placementRepository.listCommissions(placement.id)
+      const capitalRepaidAmount = roundFcfa(placement.capitalRepaidAmount ?? placement.amount)
+      const paidCommissionsAmount = sumPaidCommissionAmounts(commissions)
+      const totalPaidAmount = roundFcfa(capitalRepaidAmount + paidCommissionsAmount)
 
       await this.notificationService.createNotification({
         module: 'placement',
         entityId: placement.id,
         type: 'placement_completed',
         title: 'Placement terminé',
-        message: `Le placement #${placement.id.slice(0, 8)} de ${memberName} est terminé. Toutes les commissions ont été payées. Montant total : ${placement.amount.toLocaleString('fr-FR')} FCFA.`,
+        message: `Le placement #${placement.id.slice(0, 8)} de ${memberName} est terminé. Capital restitué : ${capitalRepaidAmount.toLocaleString('fr-FR')} FCFA. Commissions versées : ${paidCommissionsAmount.toLocaleString('fr-FR')} FCFA. Total cumulé versé : ${totalPaidAmount.toLocaleString('fr-FR')} FCFA.`,
         metadata: {
           placementId: placement.id,
           benefactorId: placement.benefactorId,
-          amount: placement.amount,
+          capitalRepaidAmount,
+          paidCommissionsAmount,
+          totalPaidAmount,
+          completedBy: adminId,
           completedAt: new Date().toISOString(),
         },
       })

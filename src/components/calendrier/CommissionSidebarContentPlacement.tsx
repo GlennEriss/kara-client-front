@@ -1,8 +1,10 @@
 "use client"
 
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { usePlacementCommissions } from "@/hooks/usePlacements"
 import { cn } from "@/lib/utils"
+import { roundFcfa } from "@/utils/placementMoney"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AlertCircle, BarChart3, Calendar, CheckCircle2, Clock, History, TrendingUp } from "lucide-react"
@@ -86,6 +88,7 @@ export function CommissionSidebarContentPlacement({
 
   const colorConfig = COLOR_CONFIG[commission.color]
   const StatusIcon = colorConfig.icon
+  const isCapital = isCapitalRestitution(commission)
 
   return (
     <div className="p-5 space-y-5">
@@ -103,9 +106,11 @@ export function CommissionSidebarContentPlacement({
             <StatusIcon className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900">Commission sélectionnée</h3>
+            <h3 className="font-bold text-gray-900">
+              {isCapital ? "Capital à restituer" : "Commission sélectionnée"}
+            </h3>
             <p className={cn("text-sm font-medium", colorConfig.text)}>
-              {STATUS_LABELS[commission.status]}
+              {isCapital ? "À remettre au bienfaiteur" : STATUS_LABELS[commission.status]}
             </p>
           </div>
         </div>
@@ -124,10 +129,10 @@ export function CommissionSidebarContentPlacement({
           <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl">
             <div className="flex items-center gap-2 text-gray-600">
               <TrendingUp className="h-4 w-4" />
-              <span className="text-sm">Montant</span>
+              <span className="text-sm">{isCapital ? "Capital à restituer" : "Montant"}</span>
             </div>
             <span className={cn("text-lg font-bold", colorConfig.text)}>
-              {commission.amount.toLocaleString("fr-FR")} FCFA
+              {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
             </span>
           </div>
 
@@ -218,7 +223,7 @@ export function CommissionSidebarContentPlacement({
                             {format(c.dueDate, "dd MMM yyyy", { locale: fr })}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {c.amount.toLocaleString("fr-FR")} FCFA
+                            {roundFcfa(c.paidAmount ?? c.amount).toLocaleString("fr-FR")} FCFA
                           </div>
                         </div>
                         <span className={cn(
@@ -253,7 +258,7 @@ export function CommissionSidebarContentPlacement({
                             {format(c.dueDate, "dd MMM yyyy", { locale: fr })}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {c.amount.toLocaleString("fr-FR")} FCFA
+                            {roundFcfa(c.paidAmount ?? c.amount).toLocaleString("fr-FR")} FCFA
                           </div>
                         </div>
                         <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-100 text-blue-700">

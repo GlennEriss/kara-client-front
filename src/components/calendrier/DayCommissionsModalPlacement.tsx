@@ -7,11 +7,13 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
+import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
+import { roundFcfa } from "@/utils/placementMoney"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { AlertCircle, Calendar, CheckCircle2, ChevronRight, Clock, TrendingUp, Wallet } from "lucide-react"
+import { AlertCircle, Calendar, CheckCircle2, ChevronRight, Clock, PiggyBank, TrendingUp, Wallet } from "lucide-react"
 
 interface DayCommissionsModalPlacementProps {
   isOpen: boolean
@@ -108,7 +110,10 @@ export function DayCommissionsModalPlacement({
                   {format(dayCommissions.date, "EEEE d MMMM yyyy", { locale: fr })}
                 </div>
                 <div className="text-sm text-white/70 font-normal mt-0.5">
-                  {dayCommissions.count} commission{dayCommissions.count > 1 ? 's' : ''} à traiter
+                  {dayCommissions.count} échéance{dayCommissions.count > 1 ? 's' : ''} à traiter
+                  {dayCommissions.capitalAmount > 0 && (
+                    <> · dont {roundFcfa(dayCommissions.capitalAmount).toLocaleString("fr-FR")} F de capital</>
+                  )}
                 </div>
               </div>
             </DialogTitle>
@@ -185,7 +190,8 @@ export function DayCommissionsModalPlacement({
                     {groupedByMode[mode].map((commission) => {
                       const colorConfig = COLOR_CONFIG[commission.color]
                       const StatusIcon = colorConfig.icon
-                      
+                      const isCapital = isCapitalRestitution(commission)
+
                       return (
                         <button
                           key={commission.id}
@@ -204,9 +210,9 @@ export function DayCommissionsModalPlacement({
                                 "flex items-center justify-center w-10 h-10 rounded-full text-white shadow-lg",
                                 colorConfig.badge
                               )}>
-                                <Wallet className="h-5 w-5" />
+                                {isCapital ? <PiggyBank className="h-5 w-5" /> : <Wallet className="h-5 w-5" />}
                               </div>
-                              
+
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold text-gray-900 truncate">
@@ -221,9 +227,19 @@ export function DayCommissionsModalPlacement({
                                     {STATUS_LABELS[commission.status]}
                                   </span>
                                 </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={cn(
+                                    "inline-flex items-center text-[11px] px-2 py-0.5 rounded-full font-semibold",
+                                    isCapital
+                                      ? "bg-indigo-100 text-indigo-700"
+                                      : "bg-slate-100 text-slate-600"
+                                  )}>
+                                    {isCapital ? "Restitution du capital" : "Commission"}
+                                  </span>
+                                </div>
                                 <div className="flex items-center gap-3 mt-1 text-sm">
                                   <span className={cn("font-bold", colorConfig.text)}>
-                                    {commission.amount.toLocaleString("fr-FR")} FCFA
+                                    {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
                                   </span>
                                   <span className="text-gray-400">•</span>
                                   <span className="text-gray-500 text-xs">

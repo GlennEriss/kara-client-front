@@ -27,6 +27,7 @@ import {
   mapCommissionToPlacementVersement,
 } from '@/services/placement/facturePlacementPdfExport'
 import type { CommissionPaymentPlacement } from '@/types/types'
+import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
@@ -78,6 +79,7 @@ function PayCommissionWrapper({
       const paidDate = new Date(`${data.date}T${data.time}`)
       if (!benefactorId || !adminId) throw new Error('Utilisateur non authentifié')
       await service.payCommissionWithProof(placementId, commissionId, data.proofFile, benefactorId, paidDate, adminId, {
+        paidAmount: data.amount,
         paymentMode: data.mode,
         withFees: data.withFees,
         paymentMethodOther: data.paymentMethodOther,
@@ -110,7 +112,15 @@ export default function PlacementDetailsPage() {
   const { data: placement, isLoading, isError, error } = usePlacement(id)
   const { data: commissions = [], refetch: refetchCommissions } = usePlacementCommissions(id)
   const { data: earlyExit } = useEarlyExit(id)
-  const { data: calculatedEarlyExit } = useCalculateEarlyExit(id)
+  // Date de retrait saisie dans le modal : le service recalcule la commission
+  // sur cette date, l'affichage doit donc suivre la même base.
+  const [earlyExitDate, setEarlyExitDate] = useState<string | null>(null)
+  const earlyExitEffectiveDate = useMemo(() => {
+    if (!earlyExitDate) return null
+    const parsed = new Date(`${earlyExitDate}T00:00:00`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }, [earlyExitDate])
+  const { data: calculatedEarlyExit } = useCalculateEarlyExit(id, earlyExitEffectiveDate)
   const { requestEarlyExit } = usePlacementMutations()
   const { data: member } = useMember(placement?.benefactorId)
   const qc = useQueryClient()
@@ -169,10 +179,17 @@ const [closingReason, setClosingReason] = useState('')
   }, [placement?.status])
 
 const commissionStats = useMemo(() => {
-  const totalAmount = commissions.reduce((s, c) => s + (c.amount || 0), 0)
+  const totalAmount = sumCommissionAmounts(commissions, ['Due', 'Paid', 'Partial'])
   const paid = commissions.filter(c => c.status === 'Paid')
-  const paidAmount = paid.reduce((s, c) => s + (c.amount || 0), 0)
-  const due = commissions.filter(c => c.status === 'Due')
+  const paidAmount = sumCommissionAmounts(
+    paid.map((commission) => ({
+      ...commission,
+      amount: roundFcfa(commission.paidAmount ?? commission.amount),
+    })),
+  )
+  const due = commissions
+    .filter(c => c.status === 'Due' || c.status === 'Partial')
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
   const nextDue = due[0]
   const progress = totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0
   const overdueCount = due.filter(c => new Date(c.dueDate).getTime() < Date.now()).length
@@ -195,6 +212,8 @@ const paidCommissions = useMemo(
 const commissionStatusLabel = (status: string) => {
   if (status === 'Paid') return 'Payée'
   if (status === 'Due') return 'À payer'
+  if (status === 'Partial') return 'Partielle'
+  if (status === 'Canceled') return 'Annulée'
   return status
 }
 
@@ -289,9 +308,14 @@ const handleGenerateGlobalFacture = async () => {
   const dueSorted = [...commissions].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
   const derivedStart = placement.startDate || dueSorted[0]?.dueDate
   const derivedEnd = placement.endDate || dueSorted[dueSorted.length - 1]?.dueDate
-  const derivedNext = placement.nextCommissionDate || dueSorted.find(c => c.status === 'Due')?.dueDate
+  const derivedNext = placement.nextCommissionDate || dueSorted.find(
+    c => c.status === 'Due' || c.status === 'Partial',
+  )?.dueDate
   const nextDate = derivedNext ? new Date(derivedNext).toLocaleDateString('fr-FR') : '-'
   const hasContract = !!placement.contractDocumentId
+  const unpaidCommissions = commissions.filter((commission) => commission.status !== 'Paid')
+  const allCommissionsPaid = commissions.length > 0 && unpaidCommissions.length === 0
+  const canClosePlacement = placement.status === 'Active' && allCommissionsPaid
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
@@ -346,8 +370,8 @@ const handleGenerateGlobalFacture = async () => {
                   <DollarSign className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Montant</p>
-                  <p className="text-2xl font-black text-gray-900">{placement.amount.toLocaleString()} FCFA</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Capital placé</p>
+                  <p className="text-2xl font-black text-gray-900">{roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA</p>
                   <p className="text-sm text-gray-600">Taux: {placement.rate}% — {placement.periodMonths} mois</p>
                 </div>
               </div>
@@ -463,13 +487,13 @@ const handleGenerateGlobalFacture = async () => {
               <Button
                 variant="outline"
                 onClick={() => setShowFinalQuittance(true)}
-                disabled={placement.status !== 'Closed' && placement.status !== 'Active'}
+                disabled={placement.status !== 'Closed' && !canClosePlacement}
               >
                 Quittance finale
               </Button>
               <Button
                 variant="default"
-                disabled={placement.status === 'Closed'}
+                disabled={!canClosePlacement}
                 onClick={() => setShowCloseModal(true)}
                 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
               >
@@ -500,6 +524,18 @@ const handleGenerateGlobalFacture = async () => {
                 </Button>
               )}
             </div>
+            {placement.status !== 'Closed' && !canClosePlacement && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-sm text-amber-800">
+                  {placement.status !== 'Active'
+                    ? 'Clôture indisponible : le placement doit être actif.'
+                    : commissions.length === 0
+                    ? 'Clôture indisponible : aucune commission n’a encore été générée.'
+                    : `Clôture indisponible : ${unpaidCommissions.length} commission${unpaidCommissions.length > 1 ? 's ne sont' : " n’est"} pas encore au statut payé.`}
+                </AlertDescription>
+              </Alert>
+            )}
             {!earlyExit && (
               <p className="text-xs text-gray-500">Aucune sortie anticipée enregistrée.</p>
             )}
@@ -509,7 +545,7 @@ const handleGenerateGlobalFacture = async () => {
                 <div className="mt-1 grid grid-cols-1 gap-1 md:grid-cols-2">
                   <p>
                     <span className="text-gray-500">Montant à verser:</span>{' '}
-                    {earlyExit.payoutAmount.toLocaleString()} FCFA
+                    {roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA
                   </p>
                   <p>
                     <span className="text-gray-500">Date du versement:</span>{' '}
@@ -575,7 +611,7 @@ const handleGenerateGlobalFacture = async () => {
             <CardContent className="p-4">
               <p className="text-xs uppercase text-gray-500 font-semibold">Montants commissions</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {commissionStats.paidAmount.toLocaleString()} / {commissionStats.totalAmount.toLocaleString()} FCFA
+                {commissionStats.paidAmount.toLocaleString('fr-FR')} / {commissionStats.totalAmount.toLocaleString('fr-FR')} FCFA
               </p>
               <div className="mt-3">
                 <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
@@ -597,7 +633,7 @@ const handleGenerateGlobalFacture = async () => {
                   : 'Aucune'}
               </p>
               <p className="text-sm text-gray-600">
-                {commissionStats.nextDue ? `${commissionStats.nextDue.amount.toLocaleString()} FCFA` : 'Toutes payées'}
+                {commissionStats.nextDue ? `${roundFcfa(commissionStats.nextDue.amount).toLocaleString('fr-FR')} FCFA` : 'Toutes payées'}
               </p>
               {commissionStats.overdueCount > 0 && (
                 <p className="text-xs text-red-600 font-semibold mt-2">
@@ -722,7 +758,9 @@ const handleGenerateGlobalFacture = async () => {
                                     {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
                                   </span>
                                 </div>
-                                <p className="text-sm font-semibold text-gray-700">{c.amount.toLocaleString()} FCFA</p>
+                                <p className="text-sm font-semibold text-gray-700">
+                                  Commission : {roundFcfa(c.amount).toLocaleString('fr-FR')} FCFA
+                                </p>
                                 <div className="flex flex-wrap items-center gap-2">
                                   {isPaid && c.proofDocumentId && (
                                     <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewProofId(c.proofDocumentId!)}>
@@ -781,7 +819,9 @@ const handleGenerateGlobalFacture = async () => {
                                     <p className="text-sm font-semibold text-gray-900">
                                       {new Date(c.dueDate).toLocaleDateString('fr-FR')}
                                     </p>
-                                    <p className="text-xs text-gray-500">Montant: {c.amount.toLocaleString()} FCFA</p>
+                                    <p className="text-xs text-gray-500">
+                                      Commission : {roundFcfa(c.amount).toLocaleString('fr-FR')} FCFA
+                                    </p>
                                   </div>
                                   <span
                                     className={cn(
@@ -838,7 +878,7 @@ const handleGenerateGlobalFacture = async () => {
                           <thead className="bg-gray-50 text-gray-600">
                             <tr>
                               <th className="px-4 py-3 text-left font-semibold">Échéance</th>
-                              <th className="px-4 py-3 text-left font-semibold">Montant</th>
+                              <th className="px-4 py-3 text-left font-semibold">Commission</th>
                               <th className="px-4 py-3 text-left font-semibold">Statut</th>
                               <th className="px-4 py-3 text-left font-semibold">Preuve</th>
                               <th className="px-4 py-3 text-left font-semibold">Reçu/Quittance</th>
@@ -849,7 +889,7 @@ const handleGenerateGlobalFacture = async () => {
                             {commissions.map((c) => (
                               <tr key={c.id} className="hover:bg-slate-50">
                                 <td className="px-4 py-3 text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</td>
-                                <td className="px-4 py-3 font-semibold text-gray-900">{c.amount.toLocaleString()} FCFA</td>
+                                <td className="px-4 py-3 font-semibold text-gray-900">{roundFcfa(c.amount).toLocaleString('fr-FR')} FCFA</td>
                                 <td className="px-4 py-3">
                                   <span
                                     className={`rounded-full px-2 py-1 text-xs ${
@@ -915,7 +955,7 @@ const handleGenerateGlobalFacture = async () => {
                         <tr>
                           <th className="px-4 py-3 text-left font-semibold">Date échéance</th>
                           <th className="px-4 py-3 text-left font-semibold">Date versement</th>
-                          <th className="px-4 py-3 text-left font-semibold">Montant</th>
+                          <th className="px-4 py-3 text-left font-semibold">Commission payée</th>
                           <th className="px-4 py-3 text-left font-semibold">Preuve</th>
                           <th className="px-4 py-3 text-left font-semibold">Reçu</th>
                           <th className="px-4 py-3 text-left font-semibold">Facture</th>
@@ -931,7 +971,7 @@ const handleGenerateGlobalFacture = async () => {
                               {commission.paidAt ? new Date(commission.paidAt).toLocaleDateString('fr-FR') : '-'}
                             </td>
                             <td className="px-4 py-3 font-semibold text-gray-900">
-                              {commission.amount.toLocaleString()} FCFA
+                              {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString('fr-FR')} FCFA
                             </td>
                             <td className="px-4 py-3">
                               {commission.proofDocumentId ? (
@@ -1084,9 +1124,14 @@ const handleGenerateGlobalFacture = async () => {
             'Bienfaiteur'
           }
           contractDisplayLabel={`Placement #${placement.id}`}
-          monthlyAmountLabel={`Montant du placement : ${placement.amount.toLocaleString('fr-FR')} FCFA`}
-          maxAmount={Math.max(0, Math.round(calculatedEarlyExit?.payoutAmount ?? placement.amount))}
+          monthlyAmountLabel={`Capital placé : ${roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA`}
+          // Pas de repli sur le capital seul : tant que le calcul n'a pas
+          // abouti, le montant reste à 0 et la soumission est bloquée, plutôt
+          // que de verrouiller un montant sans la commission de sortie.
+          maxAmount={Math.max(0, roundFcfa(calculatedEarlyExit?.payoutAmount ?? 0))}
           maxAmountLabel="Montant à verser"
+          lockAmount
+          onWithdrawalDateChange={setEarlyExitDate}
           onSubmit={async (formData) => {
             if (!user?.uid) {
               toast.error('Utilisateur non authentifié')
@@ -1095,7 +1140,7 @@ const handleGenerateGlobalFacture = async () => {
 
             await requestEarlyExit.mutateAsync({
               placementId: placement.id,
-              commissionDue: Math.max(0, Number(calculatedEarlyExit?.commissionDue || 0)),
+              commissionDue: Math.max(0, roundFcfa(calculatedEarlyExit?.commissionDue ?? 0)),
               payoutAmount: formData.withdrawalAmount,
               withdrawalAmount: formData.withdrawalAmount,
               withdrawalDate: formData.withdrawalDate,
@@ -1216,6 +1261,10 @@ const handleGenerateGlobalFacture = async () => {
               <Button
                 onClick={async () => {
                   if (!user?.uid) return
+                  if (!canClosePlacement) {
+                    toast.error('Toutes les commissions doivent être payées avant la clôture')
+                    return
+                  }
                   if (!closingReason || closingReason.trim().length < 10) {
                     toast.error('Le motif de clôture est requis (minimum 10 caractères)')
                     return
@@ -1253,7 +1302,7 @@ const handleGenerateGlobalFacture = async () => {
                     setIsClosing(false)
                   }
                 }}
-                disabled={isClosing || !closeFile}
+                disabled={isClosing || !closeFile || !canClosePlacement}
                 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
               >
                 {isClosing ? 'Clôture...' : 'Clôturer'}

@@ -20,6 +20,7 @@ import {
   WITHDRAWAL_MODES,
   type EarlyRefundCIFormData,
 } from '@/schemas/caisse-imprevue/early-refund-ci.schema'
+import { roundFcfa } from '@/utils/placementMoney'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   AlertTriangle,
@@ -37,7 +38,7 @@ import {
   TrendingUp,
   Upload,
 } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -53,6 +54,12 @@ interface EarlyWithdrawalRequestModalProps {
   monthlyAmountLabel?: string
   maxAmount: number
   maxAmountLabel?: string
+  lockAmount?: boolean
+  /**
+   * Notifie la date de retrait saisie, pour que l'appelant puisse recalculer
+   * `maxAmount` sur cette date plutôt que sur le jour courant.
+   */
+  onWithdrawalDateChange?: (withdrawalDate: string) => void
   title?: string
   description?: string
   submitLabel?: string
@@ -68,10 +75,13 @@ export default function EarlyWithdrawalRequestModal({
   monthlyAmountLabel,
   maxAmount,
   maxAmountLabel = 'Montant total versé',
+  lockAmount = false,
+  onWithdrawalDateChange,
   title = 'Demande de retrait anticipé',
   description = 'Remplissez tous les champs ci-dessous pour effectuer votre demande de retrait anticipé',
   submitLabel = 'Soumettre la demande',
 }: EarlyWithdrawalRequestModalProps) {
+  const normalizedMaxAmount = Math.max(0, roundFcfa(maxAmount))
   const {
     register,
     handleSubmit,
@@ -90,18 +100,29 @@ export default function EarlyWithdrawalRequestModal({
   const requiresFeesChoice = withdrawalMode === 'airtel_money' || withdrawalMode === 'mobicash'
   const requiresOtherModeLabel = withdrawalMode === 'other'
 
+  const latestMaxAmountRef = useRef(normalizedMaxAmount)
+  latestMaxAmountRef.current = normalizedMaxAmount
+
+  // Réinitialisation à l'ouverture uniquement : `normalizedMaxAmount` peut
+  // changer en cours de saisie (recalcul sur la date de retrait), et un reset
+  // à ce moment-là effacerait les champs déjà remplis.
   useEffect(() => {
-    if (isOpen) {
-      const defaultValues = {
-        ...defaultEarlyRefundCIValues,
-        withdrawalAmount: maxAmount > 0 ? Math.round(maxAmount) : 0,
-      }
-      reset(defaultValues)
-      setValue('withdrawalAmount', maxAmount > 0 ? Math.round(maxAmount) : 0)
-      setWithdrawalProofFile(null)
-      setDocumentPdfFile(null)
-    }
-  }, [isOpen, maxAmount, reset, setValue])
+    if (!isOpen) return
+    reset({
+      ...defaultEarlyRefundCIValues,
+      withdrawalAmount: latestMaxAmountRef.current,
+    })
+    setWithdrawalProofFile(null)
+    setDocumentPdfFile(null)
+  }, [isOpen, reset])
+
+  // Montant verrouillé : il doit suivre le recalcul (la commission dépend de la
+  // date de retrait saisie) sans toucher au reste du formulaire. Montant libre :
+  // simple pré-remplissage à l'ouverture, la saisie de l'utilisateur prime.
+  useEffect(() => {
+    if (!isOpen || !lockAmount) return
+    setValue('withdrawalAmount', normalizedMaxAmount)
+  }, [isOpen, lockAmount, normalizedMaxAmount, setValue])
 
   const handleWithdrawalProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -146,8 +167,20 @@ export default function EarlyWithdrawalRequestModal({
     setValue('documentPdf', undefined as any, { shouldValidate: true })
   }
 
+  const withdrawalDate = watch('withdrawalDate')
+  useEffect(() => {
+    if (!isOpen || !withdrawalDate) return
+    onWithdrawalDateChange?.(withdrawalDate)
+  }, [isOpen, withdrawalDate, onWithdrawalDateChange])
+
   const withdrawalAmount = watch('withdrawalAmount')
-  const isAmountValid = withdrawalAmount && withdrawalAmount > 0 && withdrawalAmount <= maxAmount
+  const isAmountValid = Boolean(
+    withdrawalAmount
+    && withdrawalAmount > 0
+    && (lockAmount
+      ? roundFcfa(withdrawalAmount) === normalizedMaxAmount
+      : withdrawalAmount <= normalizedMaxAmount),
+  )
 
   const handleFormSubmit = async (data: EarlyRefundCIFormData) => {
     if (!withdrawalProofFile) {
@@ -158,13 +191,18 @@ export default function EarlyWithdrawalRequestModal({
       toast.error('Veuillez téléverser le document PDF signé')
       return
     }
-    if (data.withdrawalAmount > maxAmount) {
-      toast.error(`Le montant ne peut pas dépasser ${maxAmount.toLocaleString('fr-FR')} FCFA`)
+    const submittedWithdrawalAmount = lockAmount
+      ? normalizedMaxAmount
+      : data.withdrawalAmount
+
+    if (submittedWithdrawalAmount > normalizedMaxAmount) {
+      toast.error(`Le montant ne peut pas dépasser ${normalizedMaxAmount.toLocaleString('fr-FR')} FCFA`)
       return
     }
 
     await onSubmit({
       ...data,
+      withdrawalAmount: submittedWithdrawalAmount,
       withdrawalProof: withdrawalProofFile,
       documentPdf: documentPdfFile,
     })
@@ -208,7 +246,7 @@ export default function EarlyWithdrawalRequestModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-blue-700">
                   {monthlyAmountLabel ? <p>{monthlyAmountLabel}</p> : null}
                   <p>
-                    {maxAmountLabel} : {maxAmount.toLocaleString('fr-FR')} FCFA
+                    {maxAmountLabel} : {normalizedMaxAmount.toLocaleString('fr-FR')} FCFA
                   </p>
                 </div>
               </div>
@@ -282,18 +320,22 @@ export default function EarlyWithdrawalRequestModal({
                   placeholder="Montant en FCFA"
                   {...register('withdrawalAmount', { valueAsNumber: true })}
                   disabled={isSubmitting}
-                  className={errors.withdrawalAmount ? 'border-red-500' : ''}
+                  readOnly={lockAmount}
+                  aria-readonly={lockAmount}
+                  className={`${errors.withdrawalAmount ? 'border-red-500' : ''} ${lockAmount ? 'bg-slate-50' : ''}`}
                   min={0}
-                  max={maxAmount}
+                  max={normalizedMaxAmount}
                 />
                 {errors.withdrawalAmount ? <p className="text-xs text-red-500 mt-1">{errors.withdrawalAmount.message}</p> : null}
-                {!errors.withdrawalAmount && withdrawalAmount && withdrawalAmount > maxAmount ? (
+                {!errors.withdrawalAmount && withdrawalAmount && withdrawalAmount > normalizedMaxAmount ? (
                   <p className="text-xs text-red-500 mt-1">
-                    Le montant ne peut pas dépasser {maxAmount.toLocaleString('fr-FR')} FCFA
+                    Le montant ne peut pas dépasser {normalizedMaxAmount.toLocaleString('fr-FR')} FCFA
                   </p>
                 ) : null}
                 <p className="text-xs text-muted-foreground mt-1">
-                  Maximum disponible : {maxAmount.toLocaleString('fr-FR')} FCFA
+                  {lockAmount
+                    ? 'Montant calculé pour le placement et verrouillé.'
+                    : `Maximum disponible : ${normalizedMaxAmount.toLocaleString('fr-FR')} FCFA`}
                 </p>
               </div>
 
@@ -440,24 +482,24 @@ export default function EarlyWithdrawalRequestModal({
             </div>
           </div>
 
-          {maxAmount > 0 ? (
+          {normalizedMaxAmount > 0 ? (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Récapitulatif</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">{maxAmountLabel} :</span>
-                  <span className="font-semibold text-gray-900">{maxAmount.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="font-semibold text-gray-900">{normalizedMaxAmount.toLocaleString('fr-FR')} FCFA</span>
                 </div>
                 {withdrawalAmount && withdrawalAmount > 0 ? (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Montant retiré :</span>
+                    <span className="text-gray-600">{lockAmount ? 'Montant à verser' : 'Montant retiré'} :</span>
                     <span className="font-semibold text-blue-600">{withdrawalAmount.toLocaleString('fr-FR')} FCFA</span>
                   </div>
                 ) : null}
-                {withdrawalAmount && withdrawalAmount > 0 && maxAmount > 0 ? (
+                {!lockAmount && withdrawalAmount && withdrawalAmount > 0 && normalizedMaxAmount > 0 ? (
                   <div className="flex justify-between border-t pt-2 mt-2">
                     <span className="text-gray-600">Solde restant :</span>
-                    <span className="font-semibold text-green-600">{(maxAmount - withdrawalAmount).toLocaleString('fr-FR')} FCFA</span>
+                    <span className="font-semibold text-green-600">{(normalizedMaxAmount - withdrawalAmount).toLocaleString('fr-FR')} FCFA</span>
                   </div>
                 ) : null}
               </div>

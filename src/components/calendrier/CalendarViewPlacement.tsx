@@ -45,10 +45,11 @@ export function CalendarViewPlacement({
   const monthStats = useMemo(() => {
     const totalAmount = daysCommissions.reduce((sum, day) => sum + day.totalAmount, 0)
     const paidAmount = daysCommissions.reduce((sum, day) => sum + day.paidAmount, 0)
+    const capitalAmount = daysCommissions.reduce((sum, day) => sum + day.capitalAmount, 0)
     const totalCount = daysCommissions.reduce((sum, day) => sum + day.count, 0)
-    const paidCount = daysCommissions.reduce((sum, day) => 
+    const paidCount = daysCommissions.reduce((sum, day) =>
       sum + day.commissions.filter(c => c.status === 'Paid').length, 0)
-    return { totalAmount, paidAmount, totalCount, paidCount }
+    return { totalAmount, paidAmount, capitalAmount, totalCount, paidCount }
   }, [daysCommissions])
 
   const handlePreviousMonth = () => {
@@ -101,10 +102,15 @@ export function CalendarViewPlacement({
       {/* Statistiques du mois */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-          <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">Total du mois</div>
+          <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">À remettre ce mois</div>
           <div className="text-xl font-bold text-blue-900 mt-1">
             {monthStats.totalAmount.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
           </div>
+          {monthStats.capitalAmount > 0 && (
+            <div className="text-[11px] text-blue-700/80 mt-1">
+              dont {monthStats.capitalAmount.toLocaleString("fr-FR")} F de capital
+            </div>
+          )}
         </div>
         <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100">
           <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Montant payé</div>
@@ -113,7 +119,7 @@ export function CalendarViewPlacement({
           </div>
         </div>
         <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-100">
-          <div className="text-xs font-medium text-purple-600 uppercase tracking-wide">Commissions</div>
+          <div className="text-xs font-medium text-purple-600 uppercase tracking-wide">Échéances</div>
           <div className="text-xl font-bold text-purple-900 mt-1">
             {monthStats.totalCount}
           </div>
