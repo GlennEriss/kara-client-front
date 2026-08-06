@@ -193,13 +193,29 @@ export function usePlacementDocumentMutations() {
 }
 
 /**
- * Hook pour calculer automatiquement les montants de retrait anticipé
+ * Hook pour calculer automatiquement les montants de retrait anticipé.
+ *
+ * `effectiveDate` doit être la date de retrait réellement saisie : le service
+ * recalcule sur cette date au moment de l'enregistrement, donc calculer ici sur
+ * `new Date()` afficherait une commission différente de celle qui sera persistée
+ * dès que la saisie franchit un anniversaire mensuel (antidatage compris).
  */
-export function useCalculateEarlyExit(placementId: string | null | undefined) {
+export function useCalculateEarlyExit(
+  placementId: string | null | undefined,
+  effectiveDate?: Date | null,
+) {
   const service = ServiceFactory.getPlacementService()
+  // La commission ne dépend que du jour calendaire : clé stable à la journée
+  // pour éviter un refetch à chaque rendu.
+  const effectiveDay = effectiveDate && !Number.isNaN(effectiveDate.getTime())
+    ? effectiveDate.toISOString().slice(0, 10)
+    : null
+
   return useQuery({
-    queryKey: ['calculateEarlyExit', placementId],
-    queryFn: () => (placementId ? service.calculateEarlyExitAmounts(placementId) : Promise.resolve({ commissionDue: 0, payoutAmount: 0 })),
+    queryKey: ['calculateEarlyExit', placementId, effectiveDay],
+    queryFn: () => (placementId
+      ? service.calculateEarlyExitAmounts(placementId, effectiveDate ?? undefined)
+      : Promise.resolve({ commissionDue: 0, payoutAmount: 0 })),
     enabled: !!placementId,
     staleTime: 1000 * 60, // 1 minute
   })

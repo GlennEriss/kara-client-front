@@ -9,6 +9,7 @@ import {
 import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
 import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
+import { roundFcfa } from "@/utils/placementMoney"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AlertCircle, Calendar, CheckCircle2, ChevronRight, Clock, TrendingUp, Wallet } from "lucide-react"
@@ -223,7 +224,7 @@ export function DayCommissionsModalPlacement({
                                 </div>
                                 <div className="flex items-center gap-3 mt-1 text-sm">
                                   <span className={cn("font-bold", colorConfig.text)}>
-                                    {commission.amount.toLocaleString("fr-FR")} FCFA
+                                    {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
                                   </span>
                                   <span className="text-gray-400">•</span>
                                   <span className="text-gray-500 text-xs">

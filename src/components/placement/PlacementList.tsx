@@ -25,6 +25,11 @@ import { cn } from '@/lib/utils'
 import { RelationshipEnum } from '@/schemas/emergency-contact.schema'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import type { CommissionPaymentPlacement, CommissionStatus, PayoutMode, Placement, User } from '@/types/types'
+import {
+  calculateMonthlyCommission,
+  calculateTotalCommissions,
+  roundFcfa,
+} from '@/utils/placementMoney'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
@@ -121,8 +126,15 @@ const relationshipOptions: SelectOption[] = RelationshipEnum.options.map(rel => 
 }))
 const placementSchema = z.object({
   benefactorId: z.string().min(1, 'Le bienfaiteur est requis'),
-  amount: z.coerce.number().positive('Le montant doit être > 0'),
-  rate: z.coerce.number().min(0, 'Le taux doit être >= 0'),
+  amount: z.coerce
+    .number()
+    .int('Le capital doit être un montant entier en FCFA')
+    .min(1000, 'Le capital minimum est de 1 000 FCFA')
+    .max(100000000, 'Le capital maximum est de 100 000 000 FCFA'),
+  rate: z.coerce
+    .number()
+    .min(0, 'Le taux doit être >= 0')
+    .max(10, 'Le taux doit être <= 10'),
   periodMonths: z.coerce.number().int().min(1, 'Minimum 1 mois').max(7, 'Maximum 7 mois'),
   payoutMode: z.enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End']),
   firstCommissionDate: z.string().min(1, 'La date est requise'),
@@ -177,6 +189,156 @@ type PayCommissionFormData = {
 const payoutLabels: Record<PayoutMode, string> = {
   MonthlyCommission_CapitalEnd: 'Commission mensuelle + capital à la fin',
   CapitalPlusCommission_End: 'Capital + commissions à la fin',
+}
+
+type PlacementFinancialExportRow = {
+  placement: Placement
+  commissions: CommissionPaymentPlacement[]
+  capital: number
+  monthlyCommission: number
+  plannedCommissions: number
+  paidCommissions: number
+  remainingCommissions: number
+  contractualTotal: number
+}
+
+type BenefactorFinancialExportRow = {
+  benefactorId: string
+  benefactorName: string
+  benefactorPhone: string
+  placementCount: number
+  capital: number
+  monthlyCommission: number
+  plannedCommissions: number
+  paidCommissions: number
+  remainingCommissions: number
+  contractualTotal: number
+}
+
+type FinancialTotals = Pick<
+  PlacementFinancialExportRow,
+  | 'capital'
+  | 'monthlyCommission'
+  | 'plannedCommissions'
+  | 'paidCommissions'
+  | 'remainingCommissions'
+  | 'contractualTotal'
+>
+
+const sumFinancialRows = (rows: readonly FinancialTotals[]): FinancialTotals =>
+  rows.reduce<FinancialTotals>(
+    (total, row) => ({
+      capital: total.capital + row.capital,
+      monthlyCommission: total.monthlyCommission + row.monthlyCommission,
+      plannedCommissions: total.plannedCommissions + row.plannedCommissions,
+      paidCommissions: total.paidCommissions + row.paidCommissions,
+      remainingCommissions: total.remainingCommissions + row.remainingCommissions,
+      contractualTotal: total.contractualTotal + row.contractualTotal,
+    }),
+    {
+      capital: 0,
+      monthlyCommission: 0,
+      plannedCommissions: 0,
+      paidCommissions: 0,
+      remainingCommissions: 0,
+      contractualTotal: 0,
+    },
+  )
+
+const sumPaidCommissions = (commissions: readonly CommissionPaymentPlacement[]): number =>
+  commissions.reduce((total, commission) => {
+    if (commission.status !== 'Paid') return total
+    return total + roundFcfa(commission.paidAmount ?? commission.amount)
+  }, 0)
+
+const sumRemainingCommissions = (commissions: readonly CommissionPaymentPlacement[]): number =>
+  commissions.reduce((total, commission) => {
+    const dueAmount = roundFcfa(commission.amount)
+    if (commission.status === 'Due') return total + dueAmount
+    if (commission.status === 'Partial') {
+      return total + Math.max(0, dueAmount - roundFcfa(commission.paidAmount ?? 0))
+    }
+    return total
+  }, 0)
+
+const csvCell = (value: unknown): string => {
+  const normalized = value == null ? '' : String(value)
+  return `"${normalized.replace(/"/g, '""')}"`
+}
+
+const buildCsv = (rows: readonly (readonly unknown[])[]): string =>
+  `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`
+
+const downloadCsv = (filename: string, rows: readonly (readonly unknown[])[]) => {
+  const blob = new Blob([buildCsv(rows)], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+
+const formatFcfa = (value: unknown): string =>
+  `${roundFcfa(Number(value)).toLocaleString('fr-FR')} FCFA`
+
+const writePrintableTable = ({
+  win,
+  title,
+  headers,
+  rows,
+  footer,
+}: {
+  win: Window
+  title: string
+  headers: string[]
+  rows: unknown[][]
+  footer: unknown[]
+}) => {
+  const headerHtml = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')
+  const rowsHtml = rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('')
+  const footerHtml = footer.map((cell) => `<th>${escapeHtml(cell)}</th>`).join('')
+
+  win.document.write(`
+    <!doctype html>
+    <html lang="fr">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(title)}</title>
+        <style>
+          @page { size: landscape; margin: 10mm; }
+          body { font-family: Arial, sans-serif; color: #1f2937; }
+          h1 { color: #234D65; font-size: 20px; }
+          table { border-collapse: collapse; width: 100%; font-size: 9px; }
+          th, td { border: 1px solid #cbd5e1; padding: 5px; text-align: right; vertical-align: top; }
+          th { background: #e8eef2; color: #234D65; }
+          th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+          tfoot th { background: #dbe7ed; font-weight: 700; }
+        </style>
+      </head>
+      <body>
+        <h1>${escapeHtml(title)}</h1>
+        <table>
+          <thead><tr>${headerHtml}</tr></thead>
+          <tbody>${rowsHtml}</tbody>
+          <tfoot><tr>${footerHtml}</tr></tfoot>
+        </table>
+      </body>
+    </html>
+  `)
+  win.document.close()
+  win.focus()
+  win.print()
 }
 
 const TYPE_ID_OPTIONS = ['CNI', 'Passeport', 'Carte consulaire', 'Carte étudiant', 'Autre']
@@ -478,7 +640,7 @@ export default function PlacementList() {
 
   const stats = useMemo(() => {
     const total = filteredByTab.length
-    const totalAmount = filteredByTab.reduce((sum, p) => sum + (p.amount || 0), 0)
+    const totalAmount = filteredByTab.reduce((sum, p) => sum + roundFcfa(p.amount), 0)
     const draft = filteredByTab.filter(p => p.status === 'Draft').length
     const active = filteredByTab.filter(p => p.status === 'Active').length
     const closed = filteredByTab.filter(p => p.status === 'Closed').length
@@ -486,204 +648,383 @@ export default function PlacementList() {
     return { total, totalAmount, draft, active, closed, early }
   }, [filteredByTab])
 
-  const uniqueBenefactors = useMemo(() => {
-    const ids = Array.from(new Set(filteredByTab.map(p => p.benefactorId)))
-    return ids
-  }, [filteredByTab])
+  const loadFinancialExportRows = async (): Promise<PlacementFinancialExportRow[]> => {
+    const service = ServiceFactory.getPlacementService()
+    const commissionsByPlacement = await Promise.all(
+      filteredByTab.map((placement) => service.listCommissions(placement.id)),
+    )
 
-  const exportCSV = () => {
-    const rows = filteredByTab.map(p => ({
-      id: p.id,
-      benefactorId: p.benefactorId,
-      amount: p.amount,
-      rate: p.rate,
-      periodMonths: p.periodMonths,
-      payoutMode: payoutLabels[p.payoutMode],
-      status: p.status,
-    }))
-    const header = Object.keys(rows[0] || {}).join(',')
-    const csv = [header, ...rows.map(r => Object.values(r).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'placements.csv'
-    link.click()
-    URL.revokeObjectURL(url)
+    return filteredByTab.map((placement, index) => {
+      const placementCommissions = commissionsByPlacement[index] ?? []
+      const capital = roundFcfa(placement.amount)
+      const monthlyCommission = calculateMonthlyCommission(placement.amount, placement.rate)
+      const plannedCommissions = calculateTotalCommissions(
+        placement.amount,
+        placement.rate,
+        placement.periodMonths,
+      )
+      const paidCommissions = sumPaidCommissions(placementCommissions)
+      const remainingCommissions =
+        placement.status === 'EarlyExit' || placement.status === 'Canceled'
+          ? 0
+          : placementCommissions.length === 0
+            ? plannedCommissions
+            : sumRemainingCommissions(placementCommissions)
+
+      return {
+        placement,
+        commissions: placementCommissions,
+        capital,
+        monthlyCommission,
+        plannedCommissions,
+        paidCommissions,
+        remainingCommissions,
+        contractualTotal: roundFcfa(capital + plannedCommissions),
+      }
+    })
   }
 
-  const exportBenefactorsCSV = () => {
-    const rows = uniqueBenefactors.map((id) => ({ benefactorId: id }))
-    const header = 'benefactorId'
-    const csv = [header, ...rows.map(r => r.benefactorId)].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'bienfaiteurs.csv'
-    link.click()
-    URL.revokeObjectURL(url)
+  const aggregateBenefactorRows = (
+    rows: PlacementFinancialExportRow[],
+  ): BenefactorFinancialExportRow[] => {
+    const byBenefactor = new Map<string, BenefactorFinancialExportRow>()
+
+    rows.forEach((row) => {
+      const current = byBenefactor.get(row.placement.benefactorId) ?? {
+        benefactorId: row.placement.benefactorId,
+        benefactorName: row.placement.benefactorName || row.placement.benefactorId,
+        benefactorPhone: row.placement.benefactorPhone || '',
+        placementCount: 0,
+        capital: 0,
+        monthlyCommission: 0,
+        plannedCommissions: 0,
+        paidCommissions: 0,
+        remainingCommissions: 0,
+        contractualTotal: 0,
+      }
+
+      current.placementCount += 1
+      current.capital += row.capital
+      current.monthlyCommission += row.monthlyCommission
+      current.plannedCommissions += row.plannedCommissions
+      current.paidCommissions += row.paidCommissions
+      current.remainingCommissions += row.remainingCommissions
+      current.contractualTotal += row.contractualTotal
+      byBenefactor.set(row.placement.benefactorId, current)
+    })
+
+    return Array.from(byBenefactor.values()).sort((a, b) =>
+      a.benefactorName.localeCompare(b.benefactorName, 'fr'),
+    )
   }
+
+  const placementExportHeaders = [
+    'ID placement',
+    'ID bienfaiteur',
+    'Bienfaiteur',
+    'Statut',
+    'Mode de règlement',
+    'Taux (%)',
+    'Période (mois)',
+    'Capital (FCFA)',
+    'Commission mensuelle (FCFA)',
+    'Commissions prévues (FCFA)',
+    'Commissions payées (FCFA)',
+    'Commissions restantes (FCFA)',
+    'Total contractuel capital + commissions (FCFA)',
+  ]
+
+  const placementExportValues = (row: PlacementFinancialExportRow): unknown[] => [
+    row.placement.id,
+    row.placement.benefactorId,
+    row.placement.benefactorName || '',
+    row.placement.status,
+    payoutLabels[row.placement.payoutMode],
+    row.placement.rate,
+    row.placement.periodMonths,
+    row.capital,
+    row.monthlyCommission,
+    row.plannedCommissions,
+    row.paidCommissions,
+    row.remainingCommissions,
+    row.contractualTotal,
+  ]
+
+  const exportCSV = async () => {
+    try {
+      const rows = await loadFinancialExportRows()
+      if (rows.length === 0) {
+        toast.info('Aucun placement à exporter')
+        return
+      }
+      const totals = sumFinancialRows(rows)
+      downloadCsv('placements.csv', [
+        placementExportHeaders,
+        ...rows.map(placementExportValues),
+        [
+          `TOTAL (${rows.length} placements)`, '', '', '', '', '', '',
+          totals.capital,
+          totals.monthlyCommission,
+          totals.plannedCommissions,
+          totals.paidCommissions,
+          totals.remainingCommissions,
+          totals.contractualTotal,
+        ],
+      ])
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de l’export des placements')
+    }
+  }
+
+  const exportPDF = async () => {
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Autorisez les fenêtres contextuelles pour générer le PDF')
+      return
+    }
+
+    try {
+      const rows = await loadFinancialExportRows()
+      if (rows.length === 0) {
+        win.close()
+        toast.info('Aucun placement à exporter')
+        return
+      }
+      const totals = sumFinancialRows(rows)
+      writePrintableTable({
+        win,
+        title: 'Liste financière des placements',
+        headers: placementExportHeaders,
+        rows: rows.map((row) => {
+          const values = placementExportValues(row)
+          return values.map((value, index) => index >= 7 ? formatFcfa(value) : value)
+        }),
+        footer: [
+          `TOTAL (${rows.length} placements)`, '', '', '', '', '', '',
+          formatFcfa(totals.capital),
+          formatFcfa(totals.monthlyCommission),
+          formatFcfa(totals.plannedCommissions),
+          formatFcfa(totals.paidCommissions),
+          formatFcfa(totals.remainingCommissions),
+          formatFcfa(totals.contractualTotal),
+        ],
+      })
+    } catch (error: any) {
+      win.close()
+      toast.error(error?.message || 'Erreur lors de l’export PDF des placements')
+    }
+  }
+
+  const benefactorExportHeaders = [
+    'ID bienfaiteur',
+    'Bienfaiteur',
+    'Téléphone',
+    'Nombre de placements',
+    'Capital (FCFA)',
+    'Commission mensuelle cumulée (FCFA)',
+    'Commissions prévues (FCFA)',
+    'Commissions payées (FCFA)',
+    'Commissions restantes (FCFA)',
+    'Total contractuel capital + commissions (FCFA)',
+  ]
+
+  const benefactorExportValues = (row: BenefactorFinancialExportRow): unknown[] => [
+    row.benefactorId,
+    row.benefactorName,
+    row.benefactorPhone,
+    row.placementCount,
+    row.capital,
+    row.monthlyCommission,
+    row.plannedCommissions,
+    row.paidCommissions,
+    row.remainingCommissions,
+    row.contractualTotal,
+  ]
+
+  const exportBenefactorsCSV = async () => {
+    try {
+      const rows = aggregateBenefactorRows(await loadFinancialExportRows())
+      if (rows.length === 0) {
+        toast.info('Aucun bienfaiteur à exporter')
+        return
+      }
+      const totals = sumFinancialRows(rows)
+      downloadCsv('bienfaiteurs.csv', [
+        benefactorExportHeaders,
+        ...rows.map(benefactorExportValues),
+        [
+          `TOTAL (${rows.length} bienfaiteurs)`, '', '',
+          rows.reduce((sum, row) => sum + row.placementCount, 0),
+          totals.capital,
+          totals.monthlyCommission,
+          totals.plannedCommissions,
+          totals.paidCommissions,
+          totals.remainingCommissions,
+          totals.contractualTotal,
+        ],
+      ])
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de l’export des bienfaiteurs')
+    }
+  }
+
+  const exportBenefactorsPDF = async () => {
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Autorisez les fenêtres contextuelles pour générer le PDF')
+      return
+    }
+
+    try {
+      const rows = aggregateBenefactorRows(await loadFinancialExportRows())
+      if (rows.length === 0) {
+        win.close()
+        toast.info('Aucun bienfaiteur à exporter')
+        return
+      }
+      const totals = sumFinancialRows(rows)
+      writePrintableTable({
+        win,
+        title: 'Synthèse financière des bienfaiteurs',
+        headers: benefactorExportHeaders,
+        rows: rows.map((row) => {
+          const values = benefactorExportValues(row)
+          return values.map((value, index) => index >= 4 ? formatFcfa(value) : value)
+        }),
+        footer: [
+          `TOTAL (${rows.length} bienfaiteurs)`, '', '',
+          rows.reduce((sum, row) => sum + row.placementCount, 0),
+          formatFcfa(totals.capital),
+          formatFcfa(totals.monthlyCommission),
+          formatFcfa(totals.plannedCommissions),
+          formatFcfa(totals.paidCommissions),
+          formatFcfa(totals.remainingCommissions),
+          formatFcfa(totals.contractualTotal),
+        ],
+      })
+    } catch (error: any) {
+      win.close()
+      toast.error(error?.message || 'Erreur lors de l’export PDF des bienfaiteurs')
+    }
+  }
+
+  const receiptExportHeaders = [
+    'ID placement',
+    'Bienfaiteur',
+    'IDs commissions',
+    'Échéances',
+    'Références reçus',
+    'Nombre de reçus',
+    'Montant des reçus (FCFA)',
+    'Capital (FCFA)',
+    'Commission mensuelle (FCFA)',
+    'Commissions prévues (FCFA)',
+    'Commissions payées (FCFA)',
+    'Commissions restantes (FCFA)',
+    'Total contractuel capital + commissions (FCFA)',
+  ]
+
+  const buildReceiptRows = (rows: PlacementFinancialExportRow[]) =>
+    rows
+      .map((row) => {
+        const receipts = row.commissions.filter(
+          (commission) => commission.status === 'Paid' && commission.receiptDocumentId,
+        )
+        return {
+          ...row,
+          receipts,
+          receiptAmount: sumPaidCommissions(receipts),
+        }
+      })
+      .filter((row) => row.receipts.length > 0)
+
+  const receiptExportValues = (
+    row: ReturnType<typeof buildReceiptRows>[number],
+  ): unknown[] => [
+    row.placement.id,
+    row.placement.benefactorName || row.placement.benefactorId,
+    row.receipts.map((commission) => commission.id).join(' | '),
+    row.receipts
+      .map((commission) => new Date(commission.dueDate).toLocaleDateString('fr-FR'))
+      .join(' | '),
+    row.receipts.map((commission) => commission.receiptDocumentId).join(' | '),
+    row.receipts.length,
+    row.receiptAmount,
+    row.capital,
+    row.monthlyCommission,
+    row.plannedCommissions,
+    row.paidCommissions,
+    row.remainingCommissions,
+    row.contractualTotal,
+  ]
 
   const exportReceiptsCSV = async () => {
     try {
-      const service = ServiceFactory.getPlacementService()
-      const rows: { placementId: string; commissionId: string; dueDate: string; amount: number; receiptDocumentId: string }[] = []
-      for (const p of filteredByTab) {
-        const comms = await service.listCommissions(p.id)
-        comms.filter(c => c.receiptDocumentId).forEach(c => {
-          rows.push({
-            placementId: p.id,
-            commissionId: c.id,
-            dueDate: c.dueDate.toISOString(),
-            amount: c.amount,
-            receiptDocumentId: c.receiptDocumentId!,
-          })
-        })
-      }
+      const rows = buildReceiptRows(await loadFinancialExportRows())
       if (rows.length === 0) {
         toast.info('Aucun reçu disponible sur la sélection')
         return
       }
-      const header = ['placementId', 'commissionId', 'dueDate', 'amount', 'receiptDocumentId'].join(',')
-      const csv = [header, ...rows.map(r => [r.placementId, r.commissionId, r.dueDate, r.amount, r.receiptDocumentId].join(','))].join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'receipts.csv'
-      link.click()
-      URL.revokeObjectURL(url)
+      const totals = sumFinancialRows(rows)
+      downloadCsv('receipts.csv', [
+        receiptExportHeaders,
+        ...rows.map(receiptExportValues),
+        [
+          `TOTAL (${rows.reduce((sum, row) => sum + row.receipts.length, 0)} reçus)`, '', '', '', '',
+          rows.reduce((sum, row) => sum + row.receipts.length, 0),
+          rows.reduce((sum, row) => sum + row.receiptAmount, 0),
+          totals.capital,
+          totals.monthlyCommission,
+          totals.plannedCommissions,
+          totals.paidCommissions,
+          totals.remainingCommissions,
+          totals.contractualTotal,
+        ],
+      ])
     } catch (error: any) {
       toast.error(error?.message || 'Erreur lors de l’export des reçus')
     }
   }
 
   const exportReceiptsPDF = async () => {
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Autorisez les fenêtres contextuelles pour générer le PDF')
+      return
+    }
+
     try {
-      const service = ServiceFactory.getPlacementService()
-      const rows: { placementId: string; commissionId: string; dueDate: string; amount: number; receiptDocumentId: string }[] = []
-      for (const p of filteredByTab) {
-        const comms = await service.listCommissions(p.id)
-        comms.filter(c => c.receiptDocumentId).forEach(c => {
-          rows.push({
-            placementId: p.id,
-            commissionId: c.id,
-            dueDate: c.dueDate.toLocaleDateString('fr-FR'),
-            amount: c.amount,
-            receiptDocumentId: c.receiptDocumentId!,
-          })
-        })
-      }
+      const rows = buildReceiptRows(await loadFinancialExportRows())
       if (rows.length === 0) {
+        win.close()
         toast.info('Aucun reçu disponible sur la sélection')
         return
       }
-
-      const win = window.open('', '_blank')
-      if (!win) return
-
-      const tableRows = rows.map(
-        (r) => `
-          <tr>
-            <td>${r.placementId}</td>
-            <td>${r.commissionId}</td>
-            <td>${r.dueDate}</td>
-            <td>${r.amount.toLocaleString()}</td>
-            <td><a href="${r.receiptDocumentId}" target="_blank" rel="noopener noreferrer">${r.receiptDocumentId}</a></td>
-          </tr>
-        `
-      ).join('')
-
-      win.document.write(`
-        <html>
-          <head><title>Reçus de commissions</title></head>
-          <body>
-            <h1>Reçus de commissions (sélection)</h1>
-            <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
-              <thead>
-                <tr>
-                  <th>ID Placement</th>
-                  <th>ID Commission</th>
-                  <th>Échéance</th>
-                  <th>Montant</th>
-                  <th>Reçu</th>
-                </tr>
-              </thead>
-              <tbody>${tableRows}</tbody>
-            </table>
-          </body>
-        </html>
-      `)
-      win.document.close()
-      win.print()
+      const totals = sumFinancialRows(rows)
+      const receiptCount = rows.reduce((sum, row) => sum + row.receipts.length, 0)
+      writePrintableTable({
+        win,
+        title: 'Synthèse financière des reçus de commissions',
+        headers: receiptExportHeaders,
+        rows: rows.map((row) => {
+          const values = receiptExportValues(row)
+          return values.map((value, index) => index >= 6 ? formatFcfa(value) : value)
+        }),
+        footer: [
+          `TOTAL (${receiptCount} reçus)`, '', '', '', '', receiptCount,
+          formatFcfa(rows.reduce((sum, row) => sum + row.receiptAmount, 0)),
+          formatFcfa(totals.capital),
+          formatFcfa(totals.monthlyCommission),
+          formatFcfa(totals.plannedCommissions),
+          formatFcfa(totals.paidCommissions),
+          formatFcfa(totals.remainingCommissions),
+          formatFcfa(totals.contractualTotal),
+        ],
+      })
     } catch (error: any) {
-      toast.error(error?.message || 'Erreur lors de l’export des reçus PDF')
+      win.close()
+      toast.error(error?.message || 'Erreur lors de l’export PDF des reçus')
     }
-  }
-
-  const exportPDF = () => {
-    const win = window.open('', '_blank')
-    if (!win) return
-    const rows = filteredByTab.map(
-      (p) =>
-        `<tr>
-          <td>${p.id}</td>
-          <td>${p.benefactorId}</td>
-          <td>${p.amount.toLocaleString()}</td>
-          <td>${p.rate}%</td>
-          <td>${p.periodMonths}</td>
-          <td>${payoutLabels[p.payoutMode]}</td>
-          <td>${p.status}</td>
-        </tr>`
-    ).join('')
-    win.document.write(`
-      <html>
-        <head><title>Placements</title></head>
-        <body>
-          <h1>Liste des placements</h1>
-          <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
-            <thead>
-              <tr>
-                <th>ID</th><th>Bienfaiteur</th><th>Montant</th><th>Taux</th><th>Période</th><th>Mode</th><th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </body>
-      </html>
-    `)
-    win.document.close()
-    win.print()
-  }
-
-  const exportBenefactorsPDF = () => {
-    const win = window.open('', '_blank')
-    if (!win) return
-    const rows = uniqueBenefactors.map(
-      (id) =>
-        `<tr>
-          <td>${id}</td>
-        </tr>`
-    ).join('')
-    win.document.write(`
-      <html>
-        <head><title>Bienfaiteurs</title></head>
-        <body>
-          <h1>Liste des bienfaiteurs (filtrés)</h1>
-          <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
-            <thead>
-              <tr>
-                <th>ID Bienfaiteur</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </body>
-      </html>
-    `)
-    win.document.close()
-    win.print()
   }
 
   const statsItems = useMemo(() => {
@@ -719,13 +1060,13 @@ export default function PlacementList() {
         icon: FileText,
       },
       {
-        title: 'Montant',
+        title: 'Capital',
         value: new Intl.NumberFormat('fr-FR', { 
           style: 'decimal',
           minimumFractionDigits: 0,
           maximumFractionDigits: 0 
         }).format(stats.totalAmount),
-        subtitle: 'Total engagé (FCFA)',
+        subtitle: 'Capital nominal sélectionné (FCFA)',
         percentage: 100,
         color: '#CBB171',
         icon: DollarSign,
@@ -773,7 +1114,7 @@ export default function PlacementList() {
       {
         title: 'Mode final',
         value: statsData.payoutModeDistribution.CapitalPlusCommission_End,
-        subtitle: 'Capital + commissions fin',
+        subtitle: 'Commissions regroupées à la fin',
         percentage: pct(statsData.payoutModeDistribution.CapitalPlusCommission_End),
         color: '#8b5cf6',
         icon: CheckCircle,
@@ -901,9 +1242,9 @@ export default function PlacementList() {
       const placementData = {
         ...rest,
         urgentContact,
-        amount: Number(rest.amount) || 0,
-        rate: Number(rest.rate) || 0,
-        periodMonths: Number(rest.periodMonths) || 0,
+        amount: Number(rest.amount),
+        rate: Number(rest.rate),
+        periodMonths: Number(rest.periodMonths),
         // Date du 1er versement de commission = startDate du placement
         startDate: firstCommissionDate ? new Date(firstCommissionDate) : undefined,
         updatedBy: user.uid,
@@ -985,6 +1326,7 @@ export default function PlacementList() {
           paymentMode: data.mode,
           withFees: data.withFees,
           paymentMethodOther: data.paymentMethodOther,
+          paidAmount: data.amount,
         }
       )
       
@@ -1221,7 +1563,7 @@ export default function PlacementList() {
                       <div>
                         <p className="text-sm font-semibold text-gray-800">{(b as any).name || (b as any).benefactorId || 'Bienfaiteur'}</p>
                         <p className="text-xs text-gray-500">
-                          Montant: {new Intl.NumberFormat('fr-FR').format((b as any).totalAmount || (b as any).amount || 0)} FCFA
+                          Capital nominal: {formatFcfa((b as any).totalAmount ?? (b as any).amount ?? 0)}
                         </p>
                       </div>
                     </div>
@@ -1460,21 +1802,25 @@ export default function PlacementList() {
                 <FormField
                   control={form.control}
                   name="amount"
-                rules={{ 
-                  required: 'Montant requis',
-                  min: { value: 1, message: 'Le montant doit être > 0' }
-                }}
+                  rules={{
+                    required: 'Capital requis',
+                    min: { value: 1000, message: 'Le capital minimum est de 1 000 FCFA' },
+                    max: { value: 100000000, message: 'Le capital maximum est de 100 000 000 FCFA' },
+                  }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-semibold text-gray-700">Montant (FCFA) *</FormLabel>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Capital (FCFA) *</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                        {...field}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/^0+(?=\d)/, '')
-                          field.onChange(v ? Number(v) : '')
-                        }}
+                        <Input
+                          type="number"
+                          min={1000}
+                          max={100000000}
+                          step={1}
+                          {...field}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/^0+(?=\d)/, '')
+                            field.onChange(v ? Number(v) : '')
+                          }}
                           className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]"
                           placeholder="ex: 500000"
                         />
@@ -1487,22 +1833,25 @@ export default function PlacementList() {
                 <FormField
                   control={form.control}
                   name="rate"
-                rules={{ 
-                  required: 'Taux requis',
-                  min: { value: 0, message: 'Le taux doit être >= 0' }
-                }}
+                  rules={{
+                    required: 'Taux requis',
+                    min: { value: 0, message: 'Le taux doit être >= 0' },
+                    max: { value: 10, message: 'Le taux doit être <= 10' },
+                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-semibold text-gray-700">Taux (%) *</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
-                          step="0.1" 
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/^0+(?=\d)/, '')
-                          field.onChange(v ? Number(v) : '')
-                        }}
+                        <Input
+                          type="number"
+                          min={0}
+                          max={10}
+                          step="0.1"
+                          {...field}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/^0+(?=\d)/, '')
+                            field.onChange(v ? Number(v) : '')
+                          }}
                           className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]"
                           placeholder="ex: 5.5"
                         />
@@ -1530,6 +1879,7 @@ export default function PlacementList() {
                         {...field} 
                         min={1} 
                         max={7} 
+                        step={1}
                         onChange={(e) => {
                           const v = e.target.value.replace(/^0+(?=\d)/, '')
                           field.onChange(v ? Number(v) : '')
@@ -1858,8 +2208,8 @@ export default function PlacementList() {
                           </Badge>
                         </div>
                         <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                          <span className="text-sm text-gray-600">Montant</span>
-                          <span className="font-bold text-lg text-[#234D65]">{currentPlacement.amount.toLocaleString()} FCFA</span>
+                          <span className="text-sm text-gray-600">Capital placé</span>
+                          <span className="font-bold text-lg text-[#234D65]">{formatFcfa(currentPlacement.amount)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2 border-b border-gray-100">
                           <span className="text-sm text-gray-600">Taux</span>
@@ -1984,7 +2334,10 @@ export default function PlacementList() {
                   }
                   
                   // Pour les placements de type "Final", générer un tableau des commissions mensuelles même si elles ne sont pas encore créées
-                  const monthlyCommissionAmount = (currentPlacement.amount * currentPlacement.rate) / 100
+                  const monthlyCommissionAmount = calculateMonthlyCommission(
+                    currentPlacement.amount,
+                    currentPlacement.rate,
+                  )
                   const startDate = currentPlacement.startDate || currentPlacement.createdAt
                   const isFinalType = currentPlacement.payoutMode === 'CapitalPlusCommission_End'
                   
@@ -2092,7 +2445,7 @@ export default function PlacementList() {
                                 <span className="font-semibold text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</span>
                               </div>
                               <div className="flex justify-between items-center mb-3">
-                                <span className="text-gray-900 font-bold text-base">{c.amount.toLocaleString()} FCFA</span>
+                                <span className="text-gray-900 font-bold text-base">{formatFcfa(c.amount)}</span>
                                 <span className={cn(
                                   "text-xs px-3 py-1.5 rounded-full border font-medium",
                                   c.status === 'Paid' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -2148,7 +2501,7 @@ export default function PlacementList() {
                           <span className="font-semibold text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</span>
                         </div>
                         <div className="flex justify-between items-center mb-3">
-                          <span className="text-gray-900 font-bold text-base">{c.amount.toLocaleString()} FCFA</span>
+                          <span className="text-gray-900 font-bold text-base">{formatFcfa(c.amount)}</span>
                           <span className={cn(
                             "text-xs px-3 py-1.5 rounded-full border font-medium",
                             c.status === 'Paid' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -2201,7 +2554,7 @@ export default function PlacementList() {
                         )}
                         {isFinalType && c.isFinal && (
                           <p className="text-xs text-blue-600 mt-2 font-medium">
-                            Commission finale (toutes les commissions mensuelles + capital)
+                            Commission finale (somme des commissions ; capital restitué séparément)
                           </p>
                         )}
                       </div>
@@ -2221,11 +2574,11 @@ export default function PlacementList() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-600 text-sm font-medium">Commission due</span>
-                      <span className="font-bold text-gray-900 text-base">{earlyExitInfo.commissionDue.toLocaleString()} FCFA</span>
+                      <span className="font-bold text-gray-900 text-base">{formatFcfa(earlyExitInfo.commissionDue)}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-600 text-sm font-medium">Montant à verser</span>
-                      <span className="font-bold text-gray-900 text-base">{earlyExitInfo.payoutAmount.toLocaleString()} FCFA</span>
+                      <span className="font-bold text-gray-900 text-base">{formatFcfa(earlyExitInfo.payoutAmount)}</span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-gray-600 text-sm font-medium">Demandé le</span>

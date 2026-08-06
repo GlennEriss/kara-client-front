@@ -5,6 +5,7 @@ import { useMemo } from 'react'
 import { startOfMonth, endOfMonth, startOfDay, format } from 'date-fns'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { Placement, CommissionPaymentPlacement, PayoutMode } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 
 export interface CalendarCommissionItem extends CommissionPaymentPlacement {
   placement: Placement
@@ -201,11 +202,16 @@ export function useCalendarPlacement(
           }
 
           acc[dayKey].commissions.push(commission)
-          acc[dayKey].totalAmount += commission.amount
+          const dueAmount = roundFcfa(commission.amount)
+          const paidAmount = roundFcfa(commission.paidAmount ?? (commission.status === 'Paid' ? dueAmount : 0))
+          acc[dayKey].totalAmount = roundFcfa(acc[dayKey].totalAmount + dueAmount)
           if (commission.status === 'Paid') {
-            acc[dayKey].paidAmount += commission.amount
-          } else if (commission.status === 'Due' || commission.status === 'Partial') {
-            acc[dayKey].remainingAmount += commission.amount
+            acc[dayKey].paidAmount = roundFcfa(acc[dayKey].paidAmount + paidAmount)
+          } else if (commission.status === 'Partial') {
+            acc[dayKey].paidAmount = roundFcfa(acc[dayKey].paidAmount + paidAmount)
+            acc[dayKey].remainingAmount = roundFcfa(acc[dayKey].remainingAmount + Math.max(0, dueAmount - paidAmount))
+          } else if (commission.status === 'Due') {
+            acc[dayKey].remainingAmount = roundFcfa(acc[dayKey].remainingAmount + dueAmount)
           }
           acc[dayKey].count++
           acc[dayKey].statuses.push(commission.status)

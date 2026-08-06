@@ -60,6 +60,7 @@ export function CommissionSidebarPlacement({
         paidDate,
         user.uid,
         {
+          paidAmount: data.amount,
           paymentMode: data.mode,
           withFees: data.withFees,
           paymentMethodOther: data.paymentMethodOther,

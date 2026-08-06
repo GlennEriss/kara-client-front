@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { roundFcfa } from "@/utils/placementMoney"
 import { CreditCard, Download, Eye, FileText, Loader2 } from "lucide-react"
 
 interface CommissionSidebarActionsPlacementProps {
@@ -60,7 +61,7 @@ export function CommissionSidebarActionsPlacement({
             <CreditCard className="h-5 w-5 mr-2" />
             <div className="text-left">
               <div className="font-semibold">Enregistrer le paiement</div>
-              <div className="text-xs text-white/80">{commission.amount.toLocaleString("fr-FR")} FCFA</div>
+              <div className="text-xs text-white/80">{roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA</div>
             </div>
           </Button>
           

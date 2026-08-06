@@ -2283,6 +2283,8 @@ export interface Placement {
   earlyExitQuittanceDocumentId?: string
   earlyExitAddendumDocumentId?: string
   closingReason?: string // Motif de clôture du placement
+  capitalRepaidAmount?: number // Capital intégral restitué à la clôture (FCFA)
+  capitalRepaidAt?: Date // Date d'enregistrement de la restitution du capital
   createdAt: Date
   updatedAt: Date
   createdBy: string // User.id (Admin)
@@ -2302,6 +2304,7 @@ export interface CommissionPaymentPlacement {
   paymentRecordedAt?: Date // Date/heure d'enregistrement du paiement
   proofDocumentId?: string // Document.id
   receiptDocumentId?: string // Reçu / quittance payée
+  paidAmount?: number // Montant réellement soumis et contrôlé lors du paiement (FCFA)
   paidAt?: Date
   createdAt: Date
   updatedAt: Date

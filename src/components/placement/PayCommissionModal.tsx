@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import type { CommissionPaymentPlacement, PaymentMode } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 import {
     Banknote,
     Building2,
@@ -65,20 +66,12 @@ export default function PayCommissionModal({
     const now = new Date()
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
   })
-  const [paymentAmount, setPaymentAmount] = useState(commission ? String(commission.amount) : '')
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money')
   const [withFees, setWithFees] = useState<'with' | 'without' | ''>('')
   const [paymentMethodOther, setPaymentMethodOther] = useState('')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Mettre à jour le montant si la commission change
-  useEffect(() => {
-    if (commission) {
-      setPaymentAmount(String(commission.amount))
-    }
-  }, [commission])
 
   // Réinitialiser le formulaire quand le modal s'ouvre
   useEffect(() => {
@@ -87,7 +80,6 @@ export default function PayCommissionModal({
       setPaymentDate(today.toISOString().split('T')[0])
       const now = new Date()
       setPaymentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
-      setPaymentAmount(String(commission.amount))
       setPaymentMode('airtel_money')
       setWithFees('')
       setPaymentMethodOther('')
@@ -150,8 +142,9 @@ export default function PayCommissionModal({
       return
     }
 
-    if (!paymentAmount || Number(paymentAmount) <= 0) {
-      toast.error('Veuillez saisir un montant valide')
+    const amountDue = roundFcfa(commission?.amount ?? 0)
+    if (amountDue <= 0) {
+      toast.error('Le montant dû de la commission est invalide')
       return
     }
 
@@ -182,7 +175,7 @@ export default function PayCommissionModal({
       const formData: CommissionPaymentFormData = {
         date: paymentDate,
         time: paymentTime,
-        amount: Number(paymentAmount),
+        amount: amountDue,
         mode: paymentMode,
         withFees: isMobileMoney ? withFees === 'with' : undefined,
         paymentMethodOther: paymentMode === 'other' ? paymentMethodOther.trim() : undefined,
@@ -197,7 +190,6 @@ export default function PayCommissionModal({
         const now = new Date()
         return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
       })
-      setPaymentAmount('')
       setPaymentMode('airtel_money')
       setWithFees('')
       setPaymentMethodOther('')
@@ -218,6 +210,7 @@ export default function PayCommissionModal({
   if (!commission) return null
 
   const isLoading = isSubmitting || isPaying || isCompressing
+  const amountDue = roundFcfa(commission.amount)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -233,7 +226,7 @@ export default function PayCommissionModal({
           <Alert className="border-blue-200 bg-blue-50">
             <DollarSign className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-700">
-              <strong>Montant dû :</strong> {commission.amount.toLocaleString('fr-FR')} FCFA
+              <strong>Montant dû :</strong> {amountDue.toLocaleString('fr-FR')} FCFA
               <br />
               <strong>Échéance :</strong> {new Date(commission.dueDate).toLocaleDateString('fr-FR')}
             </AlertDescription>
@@ -276,21 +269,19 @@ export default function PayCommissionModal({
           <div>
             <Label htmlFor="payment-amount" className="flex items-center gap-2 mb-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
-              Montant payé (FCFA) *
+              Montant dû (FCFA)
             </Label>
             <Input
               id="payment-amount"
               type="number"
-              placeholder="Ex: 10000"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              min="100"
-              step="100"
-              required
+              value={amountDue}
+              readOnly
+              aria-readonly="true"
               disabled={isLoading}
+              className="bg-slate-50"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Montant minimum: 100 FCFA
+              Montant contractuel de la commission, non modifiable.
             </p>
           </div>
 

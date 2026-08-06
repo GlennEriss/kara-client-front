@@ -6,6 +6,7 @@ import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
 import { useMember } from '@/hooks/useMembers'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { Placement } from '@/types/types'
+import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import {
     Download,
@@ -80,8 +81,21 @@ export default function PlacementFinalQuittanceModal({
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
-  const totalCommissions = commissions.reduce((sum, c) => sum + c.amount, 0)
-  const totalPaid = placement.amount + totalCommissions
+  const paidCommissions = useMemo(
+    () => commissions
+      .filter((commission) => commission.status === 'Paid')
+      .map((commission) => ({
+        ...commission,
+        amount: roundFcfa(commission.paidAmount ?? commission.amount),
+      })),
+    [commissions],
+  )
+  const unpaidCommissionCount = commissions.filter(
+    (commission) => commission.status === 'Due' || commission.status === 'Partial',
+  ).length
+  const capitalRestituted = roundFcfa(placement.amount)
+  const paidCommissionsTotal = sumCommissionAmounts(paidCommissions)
+  const historicalTotalPaid = roundFcfa(capitalRestituted + paidCommissionsTotal)
 
   const fileName = useMemo(() => {
     const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
@@ -95,11 +109,11 @@ export default function PlacementFinalQuittanceModal({
       <PlacementFinalQuittancePDF
         placement={placement}
         member={memberData}
-        commissions={commissions}
-        amountInWords={numberToWords(Math.floor(totalPaid))}
+        commissions={paidCommissions}
+        amountInWords={numberToWords(historicalTotalPaid)}
       />
     ),
-    [placement, memberData, commissions, totalPaid],
+    [placement, memberData, paidCommissions, historicalTotalPaid],
   )
 
   const handleDownloadPDF = async () => {
@@ -182,7 +196,7 @@ export default function PlacementFinalQuittanceModal({
                 </div>
                 <div>
                   <span className="text-gray-600">Montant placé:</span>
-                  <p className="font-semibold text-gray-900">{placement.amount.toLocaleString()} FCFA</p>
+                  <p className="font-semibold text-gray-900">{capitalRestituted.toLocaleString('fr-FR')} FCFA</p>
                 </div>
                 <div>
                   <span className="text-gray-600">Taux:</span>
@@ -200,22 +214,32 @@ export default function PlacementFinalQuittanceModal({
               <h3 className="font-bold text-lg text-green-800">Récapitulatif</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Capital placé:</span>
-                  <span className="font-semibold">{placement.amount.toLocaleString()} FCFA</span>
+                  <span className="text-gray-600">Capital restitué:</span>
+                  <span className="font-semibold">{capitalRestituted.toLocaleString('fr-FR')} FCFA</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total commissions:</span>
+                  <span className="text-gray-600">Commissions payées cumulées:</span>
                   <span className="font-semibold">
-                    {commissions.reduce((sum, c) => sum + c.amount, 0).toLocaleString()} FCFA
+                    {paidCommissionsTotal.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-green-300">
-                  <span className="font-bold text-lg text-green-800">Montant total restitué:</span>
+                  <span className="font-bold text-lg text-green-800">Cumul historique versé:</span>
                   <span className="font-bold text-lg text-green-800">
-                    {(placement.amount + commissions.reduce((sum, c) => sum + c.amount, 0)).toLocaleString()} FCFA
+                    {historicalTotalPaid.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
               </div>
+              <p className="rounded-md border border-green-200 bg-white/70 p-3 text-xs text-green-900">
+                Ce cumul additionne le capital restitué et les commissions déjà payées pendant la vie du placement.
+                Il ne représente pas le seul versement final.
+              </p>
+              {unpaidCommissionCount > 0 && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  {unpaidCommissionCount} commission{unpaidCommissionCount > 1 ? 's' : ''} non payée{unpaidCommissionCount > 1 ? 's' : ''}
+                  {unpaidCommissionCount > 1 ? ' ne sont pas incluses' : " n'est pas incluse"} dans ce cumul.
+                </p>
+              )}
             </div>
 
             {/* Aperçu du document (desktop) / ouverture navigateur (mobile) */}

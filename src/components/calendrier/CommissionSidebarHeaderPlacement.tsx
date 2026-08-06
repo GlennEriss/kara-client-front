@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
 import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
+import { roundFcfa } from "@/utils/placementMoney"
 import { Calendar, Clock, Percent, Phone, TrendingUp, Wallet, X } from "lucide-react"
 
 interface CommissionSidebarHeaderPlacementProps {
@@ -124,7 +125,7 @@ export function CommissionSidebarHeaderPlacement({
             <div>
               <div className="text-xs text-blue-600 font-medium">Capital</div>
               <div className="text-sm font-bold text-blue-900">
-                {placement.amount.toLocaleString("fr-FR")} F
+                {roundFcfa(placement.amount).toLocaleString("fr-FR")} F
               </div>
             </div>
           </div>

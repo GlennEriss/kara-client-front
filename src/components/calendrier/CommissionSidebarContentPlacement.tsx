@@ -3,6 +3,7 @@
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
 import { usePlacementCommissions } from "@/hooks/usePlacements"
 import { cn } from "@/lib/utils"
+import { roundFcfa } from "@/utils/placementMoney"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AlertCircle, BarChart3, Calendar, CheckCircle2, Clock, History, TrendingUp } from "lucide-react"
@@ -127,7 +128,7 @@ export function CommissionSidebarContentPlacement({
               <span className="text-sm">Montant</span>
             </div>
             <span className={cn("text-lg font-bold", colorConfig.text)}>
-              {commission.amount.toLocaleString("fr-FR")} FCFA
+              {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
             </span>
           </div>
 
@@ -218,7 +219,7 @@ export function CommissionSidebarContentPlacement({
                             {format(c.dueDate, "dd MMM yyyy", { locale: fr })}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {c.amount.toLocaleString("fr-FR")} FCFA
+                            {roundFcfa(c.paidAmount ?? c.amount).toLocaleString("fr-FR")} FCFA
                           </div>
                         </div>
                         <span className={cn(
@@ -253,7 +254,7 @@ export function CommissionSidebarContentPlacement({
                             {format(c.dueDate, "dd MMM yyyy", { locale: fr })}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {c.amount.toLocaleString("fr-FR")} FCFA
+                            {roundFcfa(c.paidAmount ?? c.amount).toLocaleString("fr-FR")} FCFA
                           </div>
                         </div>
                         <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-100 text-blue-700">

@@ -2,6 +2,7 @@
 
 import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
 import type { CommissionPaymentPlacement, Placement, User } from '@/types/types'
+import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -108,6 +109,14 @@ const styles = StyleSheet.create({
   },
   bold: { fontWeight: 'bold' },
   words: { fontSize: 9, marginTop: 6, fontStyle: 'italic', color: TEXT_MUTED },
+  historicalNote: {
+    fontSize: 8,
+    marginTop: 7,
+    padding: 6,
+    color: TEXT_MUTED,
+    backgroundColor: '#f8fafc',
+    border: `1px solid ${BORDER_SOFT}`,
+  },
   // Panneau de signatures encadré, comme la quittance caisse spéciale.
   signatures: {
     flexDirection: 'row',
@@ -152,7 +161,7 @@ const styles = StyleSheet.create({
 })
 
 const formatAmount = (amount: number): string =>
-  amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  roundFcfa(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 
 const formatDate = (value?: Date | string | null): string => {
   if (!value) return '—'
@@ -164,7 +173,7 @@ export type PlacementFinalQuittancePdfProps = {
   placement: Placement
   member?: User | null
   commissions: CommissionPaymentPlacement[]
-  /** Montant total en toutes lettres (calculé par l'appelant). */
+  /** Cumul historique (capital restitué + commissions payées) en toutes lettres. */
   amountInWords: string
   /** Ville d'émission. */
   city?: string
@@ -181,8 +190,15 @@ export default function PlacementFinalQuittancePDF({
     ? `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim()
     : `Bienfaiteur #${placement.benefactorId.slice(0, 8)}`
 
-  const totalCommissions = commissions.reduce((sum, c) => sum + c.amount, 0)
-  const totalPaid = placement.amount + totalCommissions
+  const paidCommissions = commissions.filter((commission) => commission.status === 'Paid')
+  const capitalRestituted = roundFcfa(placement.amount)
+  const paidCommissionsTotal = sumCommissionAmounts(
+    paidCommissions.map((commission) => ({
+      ...commission,
+      amount: roundFcfa(commission.paidAmount ?? commission.amount),
+    })),
+  )
+  const historicalTotalPaid = roundFcfa(capitalRestituted + paidCommissionsTotal)
 
   const payoutModeLabel =
     placement.payoutMode === 'MonthlyCommission_CapitalEnd'
@@ -200,7 +216,7 @@ export default function PlacementFinalQuittancePDF({
     },
     {
       kind: 'pair',
-      left: { label: 'Montant placé', value: `${formatAmount(placement.amount)} FCFA` },
+      left: { label: 'Capital placé', value: `${formatAmount(capitalRestituted)} FCFA` },
       right: { label: 'Taux', value: `${placement.rate}%` },
     },
     {
@@ -228,13 +244,13 @@ export default function PlacementFinalQuittancePDF({
         />
 
         <View style={styles.statusBanner}>
-          <Text style={styles.statusText}>PLACEMENT TERMINÉ</Text>
-          <Text style={styles.statusText}>{formatAmount(totalPaid)} FCFA</Text>
+          <Text style={styles.statusText}>CAPITAL RESTITUÉ</Text>
+          <Text style={styles.statusText}>{formatAmount(capitalRestituted)} FCFA</Text>
         </View>
 
-        {commissions.length > 0 && (
+        {paidCommissions.length > 0 && (
           <View style={styles.table}>
-            <Text style={styles.sectionTitle}>DÉTAILS DES COMMISSIONS</Text>
+            <Text style={styles.sectionTitle}>COMMISSIONS PAYÉES — CUMUL HISTORIQUE</Text>
             <View style={styles.tableHeadRow}>
               <Text style={[styles.tableHeadCell, styles.colIndex]}>#</Text>
               <Text style={[styles.tableHeadCell, styles.colDue]}>Échéance</Text>
@@ -242,7 +258,7 @@ export default function PlacementFinalQuittancePDF({
               <Text style={[styles.tableHeadCell, styles.colStatus]}>Statut</Text>
               <Text style={[styles.tableHeadCell, styles.colPaid]}>Payée le</Text>
             </View>
-            {commissions.map((commission, index) => (
+            {paidCommissions.map((commission, index) => (
               <View
                 key={commission.id ?? index}
                 style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
@@ -251,11 +267,9 @@ export default function PlacementFinalQuittancePDF({
                 <Text style={[styles.tableCell, styles.colIndex]}>{index + 1}</Text>
                 <Text style={[styles.tableCell, styles.colDue]}>{formatDate(commission.dueDate)}</Text>
                 <Text style={[styles.tableCell, styles.colAmount, styles.cellRight]}>
-                  {formatAmount(commission.amount)} FCFA
+                  {formatAmount(commission.paidAmount ?? commission.amount)} FCFA
                 </Text>
-                <Text style={[styles.tableCell, styles.colStatus]}>
-                  {commission.status === 'Paid' ? 'Payée' : 'Due'}
-                </Text>
+                <Text style={[styles.tableCell, styles.colStatus]}>Payée</Text>
                 <Text style={[styles.tableCell, styles.colPaid]}>{formatDate(commission.paidAt)}</Text>
               </View>
             ))}
@@ -265,18 +279,22 @@ export default function PlacementFinalQuittancePDF({
         <View wrap={false}>
           <Text style={styles.sectionTitle}>RÉCAPITULATIF</Text>
           <View style={styles.recapRow}>
-            <Text>Capital placé</Text>
-            <Text>{formatAmount(placement.amount)} FCFA</Text>
+            <Text>Capital restitué</Text>
+            <Text>{formatAmount(capitalRestituted)} FCFA</Text>
           </View>
           <View style={styles.recapRow}>
-            <Text>Total commissions</Text>
-            <Text>{formatAmount(totalCommissions)} FCFA</Text>
+            <Text>Commissions payées cumulées</Text>
+            <Text>{formatAmount(paidCommissionsTotal)} FCFA</Text>
           </View>
           <View style={styles.recapTotal}>
-            <Text style={styles.bold}>Montant total restitué</Text>
-            <Text style={styles.bold}>{formatAmount(totalPaid)} FCFA</Text>
+            <Text style={styles.bold}>Cumul historique versé</Text>
+            <Text style={styles.bold}>{formatAmount(historicalTotalPaid)} FCFA</Text>
           </View>
           <Text style={styles.words}>Montant en lettres : {amountInWords} francs CFA</Text>
+          <Text style={styles.historicalNote}>
+            Ce cumul historique additionne le capital restitué et les commissions payées antérieurement.
+            Il ne correspond pas au seul versement final.
+          </Text>
 
           <Text style={styles.dateLine}>
             Fait à {city}, le {format(new Date(), 'dd MMMM yyyy', { locale: fr })}

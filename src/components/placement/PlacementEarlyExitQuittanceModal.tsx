@@ -6,6 +6,7 @@ import { ModalBody, ModalContent, ModalHeader } from '@/components/ui/modal'
 import { useMember } from '@/hooks/useMembers'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { EarlyExitPlacement, Placement } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import jsPDF from 'jspdf'
@@ -22,7 +23,7 @@ import { toast } from 'sonner'
 
 // Helper pour formater les montants
 const formatAmount = (amount: number): string => {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return roundFcfa(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
 // Fonction pour convertir un nombre en lettres (simplifiée)
@@ -79,6 +80,9 @@ export default function PlacementEarlyExitQuittanceModal({
   
   const { data: memberData, isLoading: memberLoading } = useMember(placement.benefactorId)
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
+  const capitalToReturn = roundFcfa(placement.amount)
+  const commissionDue = roundFcfa(earlyExit.commissionDue)
+  const payoutAmount = roundFcfa(capitalToReturn + commissionDue)
 
   // Détecter si on est sur mobile
   React.useEffect(() => {
@@ -134,7 +138,7 @@ export default function PlacementEarlyExitQuittanceModal({
       doc.text(`N° Placement: ${placement.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos)
       
       yPos += 7
-      doc.text(`Montant placé: ${formatAmount(placement.amount)} FCFA`, 15, yPos)
+      doc.text(`Capital placé: ${formatAmount(capitalToReturn)} FCFA`, 15, yPos)
       doc.text(`Taux: ${placement.rate}%`, pageWidth / 2 + 5, yPos)
       
       yPos += 7
@@ -178,19 +182,19 @@ export default function PlacementEarlyExitQuittanceModal({
       
       yPos += 7
       doc.setFont('helvetica', 'normal')
-      doc.text(`Capital à restituer: ${formatAmount(placement.amount)} FCFA`, 15, yPos)
+      doc.text(`Capital à restituer: ${formatAmount(capitalToReturn)} FCFA`, 15, yPos)
       
       yPos += 6
-      doc.text(`Commission due: ${formatAmount(earlyExit.commissionDue)} FCFA`, 15, yPos)
+      doc.text(`Commission due: ${formatAmount(commissionDue)} FCFA`, 15, yPos)
       
       yPos += 6
       doc.setFont('helvetica', 'bold')
-      doc.text(`Montant total à verser: ${formatAmount(earlyExit.payoutAmount)} FCFA`, 15, yPos)
+      doc.text(`Montant total à verser: ${formatAmount(payoutAmount)} FCFA`, 15, yPos)
       
       yPos += 8
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(9)
-      doc.text(`Montant en lettres: ${numberToWords(Math.floor(earlyExit.payoutAmount))} francs CFA`, 15, yPos)
+      doc.text(`Montant en lettres: ${numberToWords(payoutAmount)} francs CFA`, 15, yPos)
 
       yPos += 15
 
@@ -368,7 +372,7 @@ export default function PlacementEarlyExitQuittanceModal({
                 </div>
                 <div>
                   <span className="text-gray-600">Montant placé:</span>
-                  <p className="font-semibold text-gray-900">{placement.amount.toLocaleString()} FCFA</p>
+                  <p className="font-semibold text-gray-900">{capitalToReturn.toLocaleString('fr-FR')} FCFA</p>
                 </div>
                 <div>
                   <span className="text-gray-600">Date de demande:</span>
@@ -389,16 +393,16 @@ export default function PlacementEarlyExitQuittanceModal({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Capital à restituer:</span>
-                  <span className="font-semibold">{placement.amount.toLocaleString()} FCFA</span>
+                  <span className="font-semibold">{capitalToReturn.toLocaleString('fr-FR')} FCFA</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Commission due:</span>
-                  <span className="font-semibold">{earlyExit.commissionDue.toLocaleString()} FCFA</span>
+                  <span className="font-semibold">{commissionDue.toLocaleString('fr-FR')} FCFA</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-orange-300">
                   <span className="font-bold text-lg text-orange-800">Montant total à verser:</span>
                   <span className="font-bold text-lg text-orange-800">
-                    {earlyExit.payoutAmount.toLocaleString()} FCFA
+                    {payoutAmount.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
               </div>
