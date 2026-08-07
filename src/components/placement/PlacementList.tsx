@@ -137,7 +137,7 @@ const placementSchema = z.object({
     .max(10, 'Le taux doit être <= 10'),
   periodMonths: z.coerce.number().int().min(1, 'Minimum 1 mois').max(7, 'Maximum 7 mois'),
   payoutMode: z.enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End']),
-  firstCommissionDate: z.string().min(1, 'La date est requise'),
+  startDate: z.string().min(1, 'La date de début du placement est requise'),
   urgentName: z.string().trim().min(2, 'Nom requis').optional(),
   urgentFirstName: z.string().trim().min(2, 'Prénom requis').optional().or(z.literal('')),
   urgentPhone: z
@@ -415,7 +415,6 @@ export default function PlacementList() {
   const { user } = useAuth()
   const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null)
   const editingPlacementIdRef = useRef<string | null>(null)
-  const pieChartContainerRef = useRef<HTMLDivElement>(null)
 
   const openPlacementContractModal = (placement: Placement) => {
     setContractPdfPlacementId(placement.id)
@@ -450,7 +449,7 @@ export default function PlacementList() {
       rate: 0,
       periodMonths: 1,
       payoutMode: 'MonthlyCommission_CapitalEnd',
-      firstCommissionDate: new Date().toISOString().slice(0, 10),
+      startDate: new Date().toISOString().slice(0, 10),
       urgentName: '',
       urgentFirstName: '',
       urgentPhone: DEFAULT_PHONE_PREFIX,
@@ -474,7 +473,7 @@ export default function PlacementList() {
         rate: placement.rate,
         periodMonths: placement.periodMonths,
         payoutMode: placement.payoutMode,
-        firstCommissionDate: placement.startDate ? new Date(placement.startDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+        startDate: placement.startDate ? new Date(placement.startDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
         urgentName: placement.urgentContact?.name || '',
         urgentFirstName: placement.urgentContact?.firstName || '',
         urgentPhone: placement.urgentContact?.phone || DEFAULT_PHONE_PREFIX,
@@ -1122,60 +1121,15 @@ export default function PlacementList() {
     ]
   }, [stats, placementStats])
 
-  const payoutPieData = useMemo(() => {
+  // Seules les parts non nulles sont tracées : un camembert vide n'apporte rien
+  // et laissait une carte de 288 px de haut sans contenu.
+  const payoutChartData = useMemo(() => {
     const data = placementStats?.payoutModeDistribution || { MonthlyCommission_CapitalEnd: 0, CapitalPlusCommission_End: 0 }
     return [
       { name: 'Mensuel', value: data.MonthlyCommission_CapitalEnd, fill: '#2563eb' },
       { name: 'Final', value: data.CapitalPlusCommission_End, fill: '#7c3aed' },
-    ]
+    ].filter((entry) => entry.value > 0)
   }, [placementStats])
-
-  const statusPieData = useMemo(() => {
-    const data = placementStats || { draft: stats.draft, active: stats.active, closed: stats.closed, earlyExit: stats.early, canceled: 0 }
-    return [
-      { name: 'Actifs', value: data.active || 0, fill: '#10b981' },
-      { name: 'Brouillons', value: data.draft || 0, fill: '#f59e0b' },
-      { name: 'Clos', value: data.closed || 0, fill: '#3b82f6' },
-      { name: 'Sortie anticipée', value: data.earlyExit || 0, fill: '#ef4444' },
-    ]
-  }, [placementStats, stats])
-
-  // #region agent log
-  // Instrumentation pour déboguer le problème de texte tronqué
-  React.useEffect(() => {
-    if (!pieChartContainerRef.current) return
-    
-    const measureChart = () => {
-      const container = pieChartContainerRef.current
-      if (!container) return
-      
-      const cardContent = container.closest('.h-64')
-      const responsiveContainer = container.querySelector('.recharts-responsive-container')
-      const svg = container.querySelector('svg.recharts-surface')
-      const labels = container.querySelectorAll('text.recharts-pie-label-text')
-      
-      // Si le SVG n'est pas encore rendu, réessayer plus tard
-      if (!svg || labels.length === 0) {
-        setTimeout(measureChart, 100)
-        return
-      }
-      
-      const containerRect = container.getBoundingClientRect()
-      const cardContentRect = cardContent?.getBoundingClientRect()
-      const responsiveContainerRect = responsiveContainer?.getBoundingClientRect()
-      const svgRect = svg?.getBoundingClientRect()
-      
-      const containerStyles = window.getComputedStyle(container)
-      const cardContentStyles = cardContent ? window.getComputedStyle(cardContent as Element) : null
-      const svgStyles = window.getComputedStyle(svg as Element)
-      
-      // Appels fetch de débogage supprimés pour éviter les erreurs
-    }
-    
-    // Attendre que le graphique soit rendu
-    setTimeout(measureChart, 200)
-  }, [statusPieData, placementStats])
-  // #endregion
 
   const topBenefactors = useMemo(() => placementStats?.topBenefactors || [], [placementStats])
 
@@ -1194,7 +1148,7 @@ export default function PlacementList() {
     if (!user?.uid) return
     try {
       const {
-        firstCommissionDate,
+        startDate,
         urgentName,
         urgentFirstName,
         urgentPhone,
@@ -1245,8 +1199,9 @@ export default function PlacementList() {
         amount: Number(rest.amount),
         rate: Number(rest.rate),
         periodMonths: Number(rest.periodMonths),
-        // Date du 1er versement de commission = startDate du placement
-        startDate: firstCommissionDate ? new Date(firstCommissionDate) : undefined,
+        // Début du placement : base de l'échéancier (la remise des fonds
+        // est un événement distinct, saisi à la conversion d'une demande).
+        startDate: startDate ? new Date(startDate) : undefined,
         updatedBy: user.uid,
       }
 
@@ -1464,71 +1419,35 @@ export default function PlacementList() {
           </div>
         </div>
 
-        {/* Répartition et top bienfaiteurs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="col-span-1 bg-white border-0 shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-gray-700">Répartition par mode</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 12, bottom: 12 }}>
-                  <Pie 
-                    data={payoutPieData.filter(d => d.value > 0)} 
-                    dataKey="value" 
-                    nameKey="name" 
-                    cx="50%" 
-                    cy="50%" 
-                    outerRadius={isMobile ? 55 : 70}
-                    label={isMobile ? false : ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-                    labelLine={false}
-                  >
-                    {payoutPieData.filter(d => d.value > 0).map((entry, index) => (
-                      <Cell key={`payout-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36}
-                    formatter={(value, entry: any) => (
-                      <span style={{ color: entry.color, fontSize: '12px' }}>
-                        {value}: {entry.payload.value}
-                      </span>
-                    )}
-                  />
-                  <Tooltip 
-                    formatter={(value: number, name: string) => [`${value}`, name]}
-                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-1 bg-white border-0 shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-gray-700">Répartition par statut</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <div ref={pieChartContainerRef} className="w-full h-full">
+        {/* Répartition et top bienfaiteurs.
+            La répartition par statut a été retirée : les tuiles ci-dessus
+            donnent déjà les mêmes compteurs. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Rendu seulement s'il y a de quoi tracer, comme sur Caisse Imprévue. */}
+          {payoutChartData.length > 0 && (
+            <Card className="col-span-1 bg-white border-0 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-gray-700">Répartition par mode</CardTitle>
+              </CardHeader>
+              <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart margin={{ top: 10, bottom: 10, left: 100, right: 10 }}>
-                    <Pie 
-                      data={statusPieData.filter(d => d.value > 0)} 
-                      dataKey="value" 
-                      nameKey="name" 
-                      cx="50%" 
-                      cy="50%" 
+                  <PieChart margin={{ top: 12, bottom: 12 }}>
+                    <Pie
+                      data={payoutChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
                       outerRadius={isMobile ? 55 : 70}
                       label={isMobile ? false : ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
                       labelLine={false}
                     >
-                      {statusPieData.filter(d => d.value > 0).map((entry, index) => (
-                        <Cell key={`status-${index}`} fill={entry.fill} />
+                      {payoutChartData.map((entry, index) => (
+                        <Cell key={`payout-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <Legend 
-                      verticalAlign="bottom" 
+                    <Legend
+                      verticalAlign="bottom"
                       height={36}
                       formatter={(value, entry: any) => (
                         <span style={{ color: entry.color, fontSize: '12px' }}>
@@ -1536,15 +1455,15 @@ export default function PlacementList() {
                         </span>
                       )}
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: number, name: string) => [`${value}`, name]}
                       contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '6px' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="col-span-1 bg-white border-0 shadow-md">
             <CardHeader className="pb-2">
@@ -1915,15 +1834,15 @@ export default function PlacementList() {
                 )}
               />
 
-              {/* Date du premier versement de commission */}
+              {/* Début du placement (équivalent de la date souhaitée d'une demande) */}
               <FormField
                 control={form.control}
-                name="firstCommissionDate"
-                rules={{ required: 'Date du premier versement requise' }}
+                name="startDate"
+                rules={{ required: 'Date de début du placement requise' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-semibold text-gray-700">
-                      {isMonthlyPayout ? 'Date du 1er versement de commission *' : 'Date de début de contrat *'}
+                      Date de début du placement *
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -1934,8 +1853,8 @@ export default function PlacementList() {
                     </FormControl>
                     <p className="text-xs text-gray-500 mt-1">
                       {isMonthlyPayout
-                        ? 'Utilisée pour calculer les échéances mensuelles.'
-                        : 'Utilisée pour calculer la date de fin (début + durée en mois).'}
+                        ? 'La 1re commission tombe un mois après cette date. La remise des fonds se saisit séparément.'
+                        : 'Capital et commissions sont versés à la fin (début + durée).'}
                     </p>
                     <FormMessage />
                   </FormItem>
@@ -2333,15 +2252,12 @@ export default function PlacementList() {
                     )
                   }
                   
-                  // Pour les placements de type "Final", générer un tableau des commissions mensuelles même si elles ne sont pas encore créées
-                  const monthlyCommissionAmount = calculateMonthlyCommission(
-                    currentPlacement.amount,
-                    currentPlacement.rate,
-                  )
-                  const startDate = currentPlacement.startDate || currentPlacement.createdAt
                   const isFinalType = currentPlacement.payoutMode === 'CapitalPlusCommission_End'
-                  
-                  // Créer un tableau de commissions mensuelles pour l'affichage
+
+                  // L'échéancier affiché est celui réellement enregistré, jamais
+                  // recalculé côté écran : le reconstruire à partir de la date de
+                  // début supposerait une convention (1re commission au jour du
+                  // début, ou un mois après) et se décalerait dès qu'elle change.
                   const monthlyCommissions: Array<{
                     month: number | string
                     dueDate: Date
@@ -2350,73 +2266,18 @@ export default function PlacementList() {
                     commissionId?: string
                     proofDocumentId?: string
                     isFinal?: boolean
-                  }> = []
-                  
-                  // Pour le type Final, on affiche d'abord les commissions mensuelles calculées
-                  for (let i = 0; i < currentPlacement.periodMonths; i++) {
-                    const dueDate = new Date(startDate)
-                    dueDate.setMonth(dueDate.getMonth() + i)
-                    
-                    // Pour le type Final, les commissions mensuelles ne sont pas dans la base, on les calcule
-                    monthlyCommissions.push({
-                      month: i + 1,
-                      dueDate,
-                      amount: monthlyCommissionAmount,
-                      status: 'Due',
-                    })
-                  }
-                  
-                  // Pour le type Final, ajouter la commission finale réelle à la fin
-                  if (isFinalType) {
-                    const finalCommission = commissions.find(c => {
-                      // La commission finale correspond à la date de fin
-                      const commissionDate = new Date(c.dueDate)
-                      const endDate = currentPlacement.endDate || (() => {
-                        const date = new Date(startDate)
-                        date.setMonth(date.getMonth() + currentPlacement.periodMonths - 1)
-                        return date
-                      })()
-                      return Math.abs(commissionDate.getTime() - endDate.getTime()) < 86400000 // 1 jour de tolérance
-                    })
-                    
-                    if (finalCommission) {
-                      const endDate = currentPlacement.endDate || (() => {
-                        const date = new Date(startDate)
-                        date.setMonth(date.getMonth() + currentPlacement.periodMonths - 1)
-                        return date
-                      })()
-                      
-                      monthlyCommissions.push({
-                        month: 'Final',
-                        dueDate: new Date(finalCommission.dueDate),
-                        amount: finalCommission.amount,
-                        status: finalCommission.status,
-                        commissionId: finalCommission.id,
-                        proofDocumentId: finalCommission.proofDocumentId,
-                        isFinal: true,
-                      })
-                    }
-                  } else {
-                    // Pour le type mensuel, chercher les commissions existantes
-                    for (let i = 0; i < monthlyCommissions.length; i++) {
-                      const dueDate = monthlyCommissions[i].dueDate
-                      const existingCommission = commissions.find(c => {
-                        const commissionDate = new Date(c.dueDate)
-                        return Math.abs(commissionDate.getTime() - dueDate.getTime()) < 86400000 // 1 jour de tolérance
-                      })
-                      
-                      if (existingCommission) {
-                        monthlyCommissions[i] = {
-                          ...monthlyCommissions[i],
-                          amount: existingCommission.amount,
-                          status: existingCommission.status,
-                          commissionId: existingCommission.id,
-                          proofDocumentId: existingCommission.proofDocumentId,
-                        }
-                      }
-                    }
-                  }
-                  
+                  }> = [...commissions]
+                    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                    .map((commission, index) => ({
+                      month: isFinalType ? 'Final' : index + 1,
+                      dueDate: new Date(commission.dueDate),
+                      amount: roundFcfa(commission.paidAmount ?? commission.amount),
+                      status: commission.status,
+                      commissionId: commission.id,
+                      proofDocumentId: commission.proofDocumentId,
+                      isFinal: isFinalType,
+                    }))
+
                   if (allCommissionsPaid && currentPlacement) {
                     return (
                       <>
@@ -2476,9 +2337,9 @@ export default function PlacementList() {
                                   </Button>
                                 )
                               })()}
-                              {isFinalType && c.month === currentPlacement.periodMonths && (
+                              {isFinalType && (
                                 <p className="text-xs text-gray-500 mt-2 italic">
-                                  Toutes les commissions seront payées ensemble à la fin
+                                  Capital et commissions cumulées versés en une fois à cette date.
                                 </p>
                               )}
                             </div>
@@ -2547,9 +2408,9 @@ export default function PlacementList() {
                             )
                           })()}
                         </div>
-                        {isFinalType && !c.isFinal && c.month === currentPlacement.periodMonths && (
+                        {isFinalType && (
                           <p className="text-xs text-gray-500 mt-2 italic">
-                            Toutes les commissions mensuelles seront payées ensemble à la fin
+                            Capital et commissions cumulées sont versés en une fois à cette date.
                           </p>
                         )}
                         {isFinalType && c.isFinal && (

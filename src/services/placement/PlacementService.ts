@@ -1,4 +1,4 @@
-import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementDocumentType, User, PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
+import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementCommissionConvention, PlacementDocumentType, User, PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { DocumentService } from '@/domains/infrastructure/documents/services/DocumentService'
@@ -15,6 +15,8 @@ import {
   sumCommissionAmounts,
   sumPaidCommissionAmounts,
 } from '@/utils/placementMoney'
+import { logAdminAction, type AuditAction } from '@/services/audit/auditLog'
+import { PLACEMENT_AUDIT_MODULE } from '@/constantes/audit-modules'
 
 export class PlacementService {
   private notificationService: NotificationService
@@ -54,15 +56,48 @@ export class PlacementService {
   }
 
   /**
-   * Calcule les champs dérivés (endDate, nextCommissionDate) selon le mode et la période
+   * Convention d'échéancier d'un placement. Les documents créés avant le
+   * passage à terme échu ne portent pas la clé : ils restent en `advance`.
    */
-  private computeDates(payload: { startDate?: Date; periodMonths: number; payoutMode: PayoutMode }) {
+  private conventionOf(placement?: Pick<Placement, 'commissionConvention'> | null): PlacementCommissionConvention {
+    return placement?.commissionConvention ?? 'advance'
+  }
+
+  private addMonths(date: Date, months: number): Date {
+    const next = new Date(date)
+    next.setMonth(next.getMonth() + months)
+    return next
+  }
+
+  /**
+   * Calcule les champs dérivés (endDate, nextCommissionDate) selon le mode, la
+   * période et la convention d'échéancier.
+   *
+   * `startDate` est le début du placement convenu à la demande, pas la remise
+   * des fonds. En `arrears`, la 1re commission tombe un mois après ce début et
+   * le placement court sur `periodMonths` mois pleins. En `advance`, la 1re
+   * commission tombe le jour du début et la fin coïncide avec la dernière —
+   * comportement conservé pour les placements existants.
+   */
+  private computeDates(payload: {
+    startDate?: Date
+    periodMonths: number
+    payoutMode: PayoutMode
+    convention: PlacementCommissionConvention
+  }) {
     const start = payload.startDate ? new Date(payload.startDate) : new Date()
-    const end = new Date(start)
-    end.setMonth(end.getMonth() + (payload.periodMonths > 0 ? payload.periodMonths - 1 : 0))
+    const months = payload.periodMonths > 0 ? payload.periodMonths : 0
+
+    const end = payload.convention === 'arrears'
+      ? this.addMonths(start, months)
+      : this.addMonths(start, months > 0 ? months - 1 : 0)
+
+    const firstCommissionDate = payload.convention === 'arrears'
+      ? this.addMonths(start, 1)
+      : start
 
     const nextCommissionDate =
-      payload.payoutMode === 'MonthlyCommission_CapitalEnd' ? start : end
+      payload.payoutMode === 'MonthlyCommission_CapitalEnd' ? firstCommissionDate : end
 
     return { startDate: start, endDate: end, nextCommissionDate }
   }
@@ -103,6 +138,50 @@ export class PlacementService {
   }
 
   /**
+   * Journalise une action de placement (best-effort, n'attend pas la promesse).
+   *
+   * Posé au niveau du service — et non des hooks React — parce que plusieurs
+   * écrans appellent ces méthodes directement : journaliser côté hook laisserait
+   * passer le paiement de commission, la clôture et le téléversement de contrat.
+   * L'admin vient du paramètre `adminId` déjà exigé par ces méthodes, complété
+   * par le profil s'il est disponible.
+   */
+  private logAction(params: {
+    action: AuditAction
+    adminId: string
+    targetType: string
+    targetId: string
+    description: string
+    metadata?: Record<string, unknown>
+  }): void {
+    void (async () => {
+      let adminName = 'Administrateur'
+      let adminEmail: string | undefined
+      try {
+        const admin = await this.adminRepository.getAdminById(params.adminId)
+        const named = `${(admin as any)?.firstName ?? ''} ${(admin as any)?.lastName ?? ''}`.trim()
+        adminName = named || (admin as any)?.email || adminName
+        adminEmail = (admin as any)?.email || undefined
+      } catch {
+        // Profil indisponible : le log part quand même avec l'identifiant.
+      }
+
+      await logAdminAction({
+        adminId: params.adminId || 'inconnu',
+        adminName,
+        adminEmail,
+        action: params.action,
+        module: PLACEMENT_AUDIT_MODULE.module,
+        moduleLabel: PLACEMENT_AUDIT_MODULE.moduleLabel,
+        targetType: params.targetType,
+        targetId: params.targetId,
+        description: params.description,
+        metadata: params.metadata,
+      })
+    })()
+  }
+
+  /**
    * Récupère les informations du membre pour préremplir nom et téléphone
    */
   private async enrichMemberInfo(benefactorId: string): Promise<Pick<Placement, 'benefactorName' | 'benefactorPhone'>> {
@@ -123,10 +202,14 @@ export class PlacementService {
     const amount = this.validatePlacementAmount(data.amount)
     const rate = this.validatePlacementRate(data.rate)
     const periodMonths = this.validatePlacementPeriod(data.periodMonths)
+    // Tout nouveau placement est à terme échu. La convention est figée sur le
+    // document : les placements antérieurs conservent leur échéancier.
+    const convention: PlacementCommissionConvention = 'arrears'
     const dates = this.computeDates({
       startDate: data.startDate,
       periodMonths,
       payoutMode: data.payoutMode,
+      convention,
     })
     const memberInfo = await this.enrichMemberInfo(data.benefactorId)
 
@@ -160,6 +243,7 @@ export class PlacementService {
       startDate: dates.startDate,
       endDate: dates.endDate,
       nextCommissionDate: dates.nextCommissionDate,
+      commissionConvention: convention,
       amount,
       rate,
       periodMonths,
@@ -189,22 +273,22 @@ export class PlacementService {
    */
   private async generateCommissions(placement: Placement, adminId: string): Promise<void> {
     const startDate = placement.startDate || placement.createdAt
+    const convention = this.conventionOf(placement)
     const commissions: Omit<CommissionPaymentPlacement, 'id' | 'createdAt' | 'updatedAt'>[] = []
 
     // Calcul du montant de commission mensuel
     const monthlyCommissionAmount = calculateMonthlyCommission(placement.amount, placement.rate)
 
     if (placement.payoutMode === 'MonthlyCommission_CapitalEnd') {
-      // Mode 1 : Commission mensuelle + capital à la fin
-      // Créer une commission pour chaque mois
-      // La date saisie (startDate) est la date du 1er versement
+      // Mode 1 : Commission mensuelle + capital à la fin.
+      // `arrears` : la 1re commission tombe un mois après le début du placement
+      // (aucune commission n'est due pour zéro jour de détention).
+      // `advance` : la date de début est celle du 1er versement (legacy).
+      const firstOffset = convention === 'arrears' ? 1 : 0
       for (let i = 0; i < placement.periodMonths; i++) {
-        const dueDate = new Date(startDate)
-        dueDate.setMonth(dueDate.getMonth() + i)
-        
         commissions.push({
           placementId: placement.id,
-          dueDate,
+          dueDate: this.addMonths(startDate, i + firstOffset),
           amount: monthlyCommissionAmount,
           status: 'Due',
           createdBy: adminId,
@@ -214,12 +298,10 @@ export class PlacementService {
     } else if (placement.payoutMode === 'CapitalPlusCommission_End') {
       // Mode 2 : Capital + commissions à la fin
       // Créer une seule commission à la fin avec le total des commissions
-      const endDate = placement.endDate || (() => {
-        const date = new Date(startDate)
-        // Fin = après la dernière commission mensuelle
-        date.setMonth(date.getMonth() + placement.periodMonths - 1)
-        return date
-      })()
+      const endDate = placement.endDate || this.addMonths(
+        startDate,
+        convention === 'arrears' ? placement.periodMonths : placement.periodMonths - 1
+      )
 
       commissions.push({
         placementId: placement.id,
@@ -252,6 +334,9 @@ export class PlacementService {
         startDate: data.startDate ?? base.startDate,
         periodMonths: periodMonths ?? base.periodMonths,
         payoutMode: data.payoutMode ?? base.payoutMode,
+        // La convention est figée à la création : modifier un placement
+        // existant ne doit jamais basculer son échéancier.
+        convention: this.conventionOf(existing),
       })
       computed = {
         startDate: dates.startDate,
@@ -624,12 +709,30 @@ export class PlacementService {
     // Si on vient d'activer un placement (passage de Draft -> Active), générer les commissions
     if (documentType === 'PLACEMENT_CONTRACT' && existingPlacement?.status === 'Draft') {
       await this.generateCommissions(updatedPlacement, adminId)
-      
+
       // Notifier l'activation du placement
       await this.notifyPlacementActivated(updatedPlacement, adminId)
-      
+
       // Planifier les notifications d'échéance de commissions
       await this.scheduleCommissionReminders(updatedPlacement, adminId)
+
+      this.logAction({
+        action: 'validate',
+        adminId,
+        targetType: 'placement',
+        targetId: placementId,
+        description: 'Activation d’un placement par téléversement du contrat signé',
+        metadata: { documentId: document.id, periodMonths: updatedPlacement.periodMonths },
+      })
+    } else {
+      this.logAction({
+        action: 'update',
+        adminId,
+        targetType: 'placement',
+        targetId: placementId,
+        description: `Téléversement d’un document de placement (${documentType})`,
+        metadata: { documentId: document.id, documentType },
+      })
     }
 
     return {
@@ -754,6 +857,20 @@ export class PlacementService {
 
     await this.recalculatePlacementCommissionStatus(placementId)
 
+    this.logAction({
+      action: 'payment',
+      adminId,
+      targetType: 'commission',
+      targetId: commissionId,
+      description: `Paiement d’une commission de placement : ${paidAmount.toLocaleString('fr-FR')} FCFA`,
+      metadata: {
+        placementId,
+        amount: paidAmount,
+        paymentMode: paymentMeta.paymentMode,
+        proofDocumentId: documentId,
+      },
+    })
+
     return { documentId, commission }
   }
 
@@ -813,6 +930,15 @@ export class PlacementService {
       earlyExitQuittanceDocumentId: document.id,
       updatedBy: adminId,
     } as any)
+
+    this.logAction({
+      action: 'update',
+      adminId,
+      targetType: 'placement',
+      targetId: placementId,
+      description: 'Téléversement de la quittance de sortie anticipée',
+      metadata: { documentId: document.id },
+    })
 
     return { documentId: document.id, earlyExit }
   }
@@ -991,6 +1117,19 @@ export class PlacementService {
     })
 
     await this.notifyPlacementCompleted(updated, adminId)
+
+    this.logAction({
+      action: 'validate',
+      adminId,
+      targetType: 'placement',
+      targetId: placementId,
+      description: `Clôture d’un placement : capital de ${roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA restitué`,
+      metadata: {
+        closingReason: closingReason.trim(),
+        capitalRepaidAmount: roundFcfa(placement.amount),
+        finalQuittanceDocumentId: documentId,
+      },
+    })
 
     return updated
   }
@@ -1676,7 +1815,11 @@ export class PlacementService {
       rate: placementData?.rate || demand.rate,
       periodMonths: placementData?.periodMonths || demand.periodMonths,
       payoutMode: placementData?.payoutMode || demand.payoutMode,
-      startDate: placementData?.startDate || new Date(demand.desiredDate),
+      // Le début du placement est la date souhaitée de la demande, et rien
+      // d'autre : aucun override par l'appelant. La remise des fonds est un
+      // événement opérationnel distinct, conservé dans `handoverDate`, et ne
+      // fait pas courir l'échéancier.
+      startDate: new Date(demand.desiredDate),
       // Champs optionnels : n'ajouter la clé que si la valeur existe, sinon
       // Firestore rejette l'écriture (« Unsupported field value: undefined »).
       ...(placementData?.paymentMode !== undefined ? { paymentMode: placementData.paymentMode } : {}),

@@ -17,6 +17,11 @@ vi.mock('@/factories/ServiceFactory', () => ({
   },
 }))
 
+const logAdminAction = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/services/audit/auditLog', () => ({
+  logAdminAction: (...args: unknown[]) => logAdminAction(...args),
+}))
+
 import { PlacementService } from '@/services/placement/PlacementService'
 
 const activePlacement = {
@@ -90,6 +95,7 @@ describe('PlacementService - noyau financier', () => {
     notificationService = {
       createNotification: vi.fn(),
     }
+    logAdminAction.mockClear()
 
     service = new PlacementService(
       placementRepository as any,
@@ -152,6 +158,151 @@ describe('PlacementService - noyau financier', () => {
       activePlacement.id,
       expect.objectContaining({ amount: 100_000_000, rate: 10, periodMonths: 7 })
     )
+  })
+
+  describe('convention d’échéancier', () => {
+    const createArrearsPlacement = async (payoutMode: Placement['payoutMode']) => {
+      memberRepository.getMemberById.mockResolvedValue({ id: 'member-1', matricule: '0001', roles: ['Bienfaiteur'] })
+      placementRepository.create.mockImplementation(async (data: any) => ({ ...data, id: 'placement-new' }))
+
+      return service.createPlacement({
+        benefactorId: 'member-1',
+        amount: 1_000_000,
+        rate: 5,
+        periodMonths: 3,
+        payoutMode,
+        startDate: new Date('2026-08-06T00:00:00'),
+        createdBy: 'admin-1',
+      } as any, 'admin-1')
+    }
+
+    it('estampille les nouveaux placements à terme échu', async () => {
+      await createArrearsPlacement('MonthlyCommission_CapitalEnd')
+
+      expect(placementRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ commissionConvention: 'arrears' }),
+        expect.any(String)
+      )
+    })
+
+    it('fait courir un placement à terme échu sur la durée pleine', async () => {
+      const created = await createArrearsPlacement('MonthlyCommission_CapitalEnd')
+
+      // Remise le 06/08, 3 mois pleins : fin le 06/11 et non le 06/10.
+      expect(created.startDate).toEqual(new Date('2026-08-06T00:00:00'))
+      expect(created.endDate).toEqual(new Date('2026-11-06T00:00:00'))
+      expect(created.nextCommissionDate).toEqual(new Date('2026-09-06T00:00:00'))
+    })
+
+    it('génère la 1re commission un mois après la remise en terme échu', async () => {
+      const placement = {
+        ...activePlacement,
+        commissionConvention: 'arrears' as const,
+        startDate: new Date('2026-08-06T00:00:00'),
+        endDate: new Date('2026-11-06T00:00:00'),
+      }
+      placementRepository.createCommissions.mockResolvedValue([])
+      placementRepository.listCommissions.mockResolvedValue([])
+      placementRepository.update.mockResolvedValue(placement)
+
+      await (service as any).generateCommissions(placement, 'admin-1')
+
+      const [, commissions] = placementRepository.createCommissions.mock.calls[0]
+      expect(commissions.map((c: any) => c.dueDate)).toEqual([
+        new Date('2026-09-06T00:00:00'),
+        new Date('2026-10-06T00:00:00'),
+        new Date('2026-11-06T00:00:00'),
+      ])
+    })
+
+    it('conserve l’échéancier historique des placements sans convention', async () => {
+      // Aucun `commissionConvention` : document créé avant le changement.
+      const legacy = {
+        ...activePlacement,
+        startDate: new Date('2026-08-06T00:00:00'),
+        endDate: new Date('2026-10-06T00:00:00'),
+      }
+      placementRepository.createCommissions.mockResolvedValue([])
+      placementRepository.listCommissions.mockResolvedValue([])
+      placementRepository.update.mockResolvedValue(legacy)
+
+      await (service as any).generateCommissions(legacy, 'admin-1')
+
+      const [, commissions] = placementRepository.createCommissions.mock.calls[0]
+      expect(commissions.map((c: any) => c.dueDate)).toEqual([
+        new Date('2026-08-06T00:00:00'),
+        new Date('2026-09-06T00:00:00'),
+        new Date('2026-10-06T00:00:00'),
+      ])
+    })
+
+    it('ne bascule pas la convention d’un placement existant lors d’une mise à jour', async () => {
+      placementRepository.getById.mockResolvedValue({
+        ...activePlacement,
+        startDate: new Date('2026-08-06T00:00:00'),
+      })
+      placementRepository.update.mockResolvedValue(activePlacement)
+
+      await service.updatePlacement(activePlacement.id, { periodMonths: 3 }, 'admin-1')
+
+      // Convention legacy conservée : fin = début + (durée - 1).
+      expect(placementRepository.update).toHaveBeenCalledWith(
+        activePlacement.id,
+        expect.objectContaining({ endDate: new Date('2026-10-06T00:00:00') })
+      )
+    })
+
+    it('fait courir le placement depuis la date de la demande, pas depuis la remise des fonds', async () => {
+      const demand = {
+        id: 'demand-1',
+        benefactorId: 'member-1',
+        amount: 1_000_000,
+        rate: 5,
+        periodMonths: 3,
+        payoutMode: 'MonthlyCommission_CapitalEnd' as const,
+        desiredDate: '2026-08-06',
+        status: 'APPROVED' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'admin-1',
+      }
+      memberRepository.getMemberById.mockResolvedValue({ id: 'member-1', matricule: '0001', roles: ['Bienfaiteur'] })
+      placementRepository.create.mockImplementation(async (data: any) => ({ ...data, id: 'placement-new' }))
+      const demandRepository = {
+        getDemandById: vi.fn().mockResolvedValue(demand),
+        updateDemand: vi.fn().mockResolvedValue({ ...demand, status: 'CONVERTED' }),
+      }
+      const localService = new PlacementService(
+        placementRepository as any,
+        {} as any,
+        documentRepository as any,
+        memberRepository as any,
+        notificationService as any,
+        demandRepository as any
+      )
+
+      await localService.convertDemandToPlacement('demand-1', 'admin-1', {
+        // Remise effectuée bien plus tard : elle ne doit pas décaler l'échéancier.
+        handoverDate: new Date('2026-09-20T00:00:00'),
+        // Un appelant qui dériverait `startDate` de la remise doit être ignoré :
+        // c'est précisément la régression corrigée ici.
+        startDate: new Date('2026-09-20T10:30:00'),
+      } as any)
+
+      // `desiredDate` est une date nue « YYYY-MM-DD » : on compare à son propre
+      // parsing plutôt qu'à un littéral, pour ne pas dépendre du fuseau du CI.
+      expect(placementRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: new Date(demand.desiredDate) }),
+        expect.any(String)
+      )
+    })
+
+    it('place l’unique échéance du mode « tout à la fin » au terme du placement', async () => {
+      const created = await createArrearsPlacement('CapitalPlusCommission_End')
+
+      expect(created.endDate).toEqual(new Date('2026-11-06T00:00:00'))
+      expect(created.nextCommissionDate).toEqual(new Date('2026-11-06T00:00:00'))
+    })
   })
 
   it('refuse un paiement dont le montant soumis diffère du montant dû avant tout upload', async () => {
@@ -263,6 +414,67 @@ describe('PlacementService - noyau financier', () => {
         }),
       })
     )
+  })
+
+  describe('journalisation', () => {
+    it('journalise la clôture, chemin appelé directement par l’écran', async () => {
+      const paidCommission = { ...dueCommission, status: 'Paid' as const, paidAmount: 50_000 }
+      placementRepository.getById.mockResolvedValue(activePlacement)
+      placementRepository.listCommissions.mockResolvedValue([paidCommission])
+      documentRepository.uploadDocumentFile.mockResolvedValue({ url: 'url', path: 'path', size: 5 })
+      documentRepository.createDocument.mockResolvedValue({ id: 'final-1' })
+      placementRepository.update.mockResolvedValue({ ...activePlacement, status: 'Closed' as const })
+
+      await service.closePlacement(
+        activePlacement.id,
+        new File(['pdf'], 'quittance.pdf', { type: 'application/pdf' }),
+        'Remboursement intégral du capital',
+        'admin-1'
+      )
+      // La journalisation est « best-effort » : elle part sans être attendue.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(logAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'validate',
+          module: 'placements',
+          targetType: 'placement',
+          targetId: activePlacement.id,
+          adminId: 'admin-1',
+        })
+      )
+    })
+
+    it('journalise le paiement d’une commission en ciblant l’échéance', async () => {
+      placementRepository.getById.mockResolvedValue(activePlacement)
+      placementRepository.listCommissions.mockResolvedValue([dueCommission])
+      placementRepository.updateCommission.mockResolvedValue({ ...dueCommission, status: 'Paid' })
+      placementRepository.update.mockResolvedValue(activePlacement)
+      documentRepository.uploadDocumentFile.mockResolvedValue({ url: 'url', path: 'path', size: 5 })
+      documentRepository.createDocument.mockResolvedValue({ id: 'proof-1' })
+
+      await service.payCommissionWithProof(
+        activePlacement.id,
+        dueCommission.id,
+        new File(['img'], 'preuve.jpg', { type: 'image/jpeg' }),
+        activePlacement.benefactorId,
+        new Date('2026-02-01T10:00:00'),
+        'admin-1',
+        { paidAmount: 50_000, paymentMode: 'cash' }
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(logAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'payment',
+          module: 'placements',
+          targetType: 'commission',
+          // L'échéance, pas le placement : c'est ce qui manquait au journal.
+          targetId: dueCommission.id,
+          metadata: expect.objectContaining({ placementId: activePlacement.id, amount: 50_000 }),
+        })
+      )
+    })
   })
 
   it('ignore les montants soumis et persiste ceux recalculés à la date effective', async () => {

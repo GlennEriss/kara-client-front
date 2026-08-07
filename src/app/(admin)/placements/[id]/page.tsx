@@ -12,10 +12,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DetailField, DetailHero, DetailHeroSkeleton } from '@/components/ui/detail-hero'
+import { DetailHeroSkeleton } from '@/components/ui/detail-hero'
+import { StatStrip } from '@/components/ui/stat-strip'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import routes from '@/constantes/routes'
@@ -34,15 +34,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     ArrowLeft,
-    CheckCircle2,
     DollarSign,
     FileDown,
     FileText,
     History,
-    Phone,
     Receipt,
     Upload,
-    User,
     X,
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
@@ -193,7 +190,7 @@ const commissionStats = useMemo(() => {
   const nextDue = due[0]
   const progress = totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0
   const overdueCount = due.filter(c => new Date(c.dueDate).getTime() < Date.now()).length
-  return { totalAmount, paidAmount, progress, nextDue, overdueCount }
+  return { totalAmount, paidAmount, progress, nextDue, overdueCount, paidCount: paid.length }
 }, [commissions])
 
 const sortedCommissions = useMemo(
@@ -307,180 +304,169 @@ const handleGenerateGlobalFacture = async () => {
   const derivedNext = placement.nextCommissionDate || dueSorted.find(
     c => c.status === 'Due' || c.status === 'Partial',
   )?.dueDate
-  const nextDate = derivedNext ? new Date(derivedNext).toLocaleDateString('fr-FR') : '-'
+  const nextDate = derivedNext ? new Date(derivedNext).toLocaleDateString('fr-FR') : '—'
+  // Une échéance dont la date est passée n'est pas « prochaine » : elle est en
+  // retard. Sans commission générée (brouillon), il n'y a rien à annoncer.
+  const hasGeneratedCommissions = commissions.length > 0
+  const isNextOverdue = Boolean(
+    derivedNext && hasGeneratedCommissions && new Date(derivedNext).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
+  )
+  const nextCommissionLabel = !hasGeneratedCommissions
+    ? 'Commissions non générées'
+    : isNextOverdue
+      ? 'Échéance en retard'
+      : 'Prochaine commission'
   const hasContract = !!placement.contractDocumentId
   const unpaidCommissions = commissions.filter((commission) => commission.status !== 'Paid')
   const allCommissionsPaid = commissions.length > 0 && unpaidCommissions.length === 0
   const canClosePlacement = placement.status === 'Active' && allCommissionsPaid
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        <DetailHero
-          eyebrow="Placement"
-          title="Détails du placement"
-          reference={placement.id}
-          onBack={() => backOr(router, routes.admin.placements)}
-          badge={
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Barre d'actions + badges — gabarit commun aux fiches contrat */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => backOr(router, routes.admin.placements)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </Button>
+
+            {hasContract && (
+              <Button
+                variant="outline"
+                onClick={() => setIsViewOpen(true)}
+                className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <FileText className="h-4 w-4" />
+                Voir le contrat
+              </Button>
+            )}
+
+            {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
+              <Button
+                variant="outline"
+                onClick={() => setIsUploadOpen(true)}
+                disabled={!user?.uid}
+                className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+              >
+                <Upload className="h-4 w-4" />
+                Téléverser le contrat
+              </Button>
+            )}
+
+            {placement.urgentContact && (
+              <Button
+                variant="outline"
+                onClick={() => setShowUrgentModal(true)}
+                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+              >
+                <AlertCircle className="h-4 w-4" />
+                Contact urgent
+              </Button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <Badge className={cn('border px-3 py-1 text-sm font-semibold', statusColor)}>
               {statusLabel}
             </Badge>
-          }
-          actions={
-            <>
-              {placement.urgentContact && (
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowUrgentModal(true)}
-                  className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
-                >
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Contact urgent
-                </Button>
+            <Badge variant="outline" className="border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700">
+              {payoutLabel}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Titre principal */}
+        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+          <CardHeader className="overflow-hidden">
+            <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
+              <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
+              <span className="break-words">{placement.benefactorName || placement.benefactorId}</span>
+            </CardTitle>
+            <div className="space-y-1 text-blue-100 break-words">
+              <p className="text-sm sm:text-base break-words">
+                Placement <span className="font-mono text-xs sm:text-sm break-all">#{placement.id}</span>
+              </p>
+              {placement.benefactorPhone && (
+                <p className="text-sm break-words">{placement.benefactorPhone}</p>
               )}
-              {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
-                <Button
-                  onClick={() => setIsUploadOpen(true)}
-                  className="h-10 bg-white text-[#234D65] hover:bg-white/90"
-                  disabled={!user?.uid}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Téléverser le contrat
-                </Button>
-              )}
-              {hasContract && (
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsViewOpen(true)}
-                  className="h-10 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Voir le contrat
-                </Button>
-              )}
-            </>
-          }
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Chiffres clés — bande plate, même gabarit que les fiches contrat */}
+        <StatStrip
           stats={[
-            { label: 'Capital placé', value: `${roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA` },
-            { label: 'Taux', value: `${placement.rate}% / mois` },
-            { label: 'Règlement', value: payoutLabel, wide: true },
+            {
+              title: 'Capital placé',
+              value: `${roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA`,
+              accent: true,
+            },
+            { title: 'Taux', value: `${placement.rate}% / mois` },
+            { title: 'Durée', value: `${placement.periodMonths} mois` },
+            {
+              title: 'Commissions versées',
+              value: `${commissionStats.paidAmount.toLocaleString('fr-FR')} FCFA`,
+              subtitle: `${commissionStats.progress}% de ${commissionStats.totalAmount.toLocaleString('fr-FR')}`,
+              accent: true,
+            },
+            {
+              title: 'Échéances payées',
+              value: `${commissionStats.paidCount} / ${commissions.length || '—'}`,
+              subtitle: commissionStats.overdueCount > 0
+                ? `${commissionStats.overdueCount} en retard`
+                : undefined,
+            },
+            {
+              title: 'Contrat',
+              value: hasContract ? 'Téléversé' : 'En attente',
+            },
           ]}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 text-[#234D65]">
-                  <DollarSign className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Capital placé</p>
-                  <p className="text-2xl font-black text-gray-900">{roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA</p>
-                  <p className="text-sm text-gray-600">Taux: {placement.rate}% — {placement.periodMonths} mois</p>
-                </div>
-              </div>
-              <Separator />
-              <div className="grid grid-cols-1 gap-3">
-                <DetailField
-                  label="Début"
-                  value={derivedStart ? new Date(derivedStart).toLocaleDateString('fr-FR') : '—'}
-                />
-                <DetailField
-                  label="Fin"
-                  value={derivedEnd ? new Date(derivedEnd).toLocaleDateString('fr-FR') : '—'}
-                />
-                <DetailField label="Prochaine commission" value={nextDate} />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Dates — même bande plate, pour ne pas empiler des cartes */}
+        <StatStrip
+          className="sm:grid-cols-2 lg:grid-cols-4"
+          stats={[
+            {
+              title: 'Début du placement',
+              value: derivedStart ? new Date(derivedStart).toLocaleDateString('fr-FR') : '—',
+            },
+            {
+              title: 'Fin du placement',
+              value: derivedEnd ? new Date(derivedEnd).toLocaleDateString('fr-FR') : '—',
+            },
+            {
+              // Événement distinct du début : n'entre pas dans l'échéancier.
+              title: 'Remise des fonds',
+              value: placement.handoverDate
+                ? `${new Date(placement.handoverDate).toLocaleDateString('fr-FR')}${placement.handoverTime ? ` à ${placement.handoverTime}` : ''}`
+                : '—',
+            },
+            {
+              title: nextCommissionLabel,
+              value: hasGeneratedCommissions ? nextDate : '—',
+              accent: isNextOverdue,
+              danger: isNextOverdue,
+            },
+          ]}
+        />
 
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 text-emerald-700">
-                  <User className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Bienfaiteur</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {placement.benefactorName || placement.benefactorId}
-                  </p>
-                  {placement.benefactorPhone && (
-                    <p className="text-sm text-gray-600 flex items-center gap-1">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      {placement.benefactorPhone}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {placement.urgentContact && (
-                <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-1">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 flex items-center gap-1">
-                    <AlertCircle className="h-4 w-4" />
-                    Contact urgent
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {placement.urgentContact.name}
-                    {placement.urgentContact.firstName ? ` ${placement.urgentContact.firstName}` : ''}
-                  </p>
-                  <p className="text-sm text-gray-700">{placement.urgentContact.phone}</p>
-                  {placement.urgentContact.phone2 && (
-                    <p className="text-xs text-gray-600">{placement.urgentContact.phone2}</p>
-                  )}
-                  {placement.urgentContact.relationship && (
-                    <p className="text-xs text-gray-500">{placement.urgentContact.relationship}</p>
-                  )}
-                  {(placement.urgentContact.typeId || placement.urgentContact.idNumber) && (
-                    <p className="text-[11px] text-gray-500">
-                      {placement.urgentContact.typeId ? `${placement.urgentContact.typeId} ` : ''}
-                      {placement.urgentContact.idNumber || ''}
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-slate-50 to-gray-100 text-gray-700">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Contrat</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {hasContract ? 'Contrat téléversé' : 'En attente de contrat'}
-                    </p>
-                  </div>
-                </div>
-                {hasContract ? (
-                  <Button size="sm" variant="secondary" onClick={() => setIsViewOpen(true)}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Ouvrir
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => setIsUploadOpen(true)} disabled={!user?.uid}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Téléverser
-                  </Button>
-                )}
-              </div>
-              {!hasContract && (
-                <Alert className="border-amber-200 bg-amber-50">
-                  <AlertDescription className="text-sm text-amber-700">
-                    Téléversez le contrat signé pour activer le placement.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertDescription className="text-sm text-amber-800">
+              Téléversez le contrat signé pour activer le placement et générer les commissions.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Capital / sortie anticipée */}
-        <Card className="border-0 bg-white/95 shadow-lg">
+        <Card className="border-0 shadow-md">
           <CardHeader className="pb-3">
             <CardTitle className="text-[#234D65]">Capital / Sortie anticipée</CardTitle>
           </CardHeader>
@@ -544,44 +530,43 @@ const handleGenerateGlobalFacture = async () => {
             {earlyExit && (
               <div className="space-y-3">
                 <p className="text-sm font-semibold text-[#234D65]">Retrait anticipé enregistré</p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <DetailField
-                    label="Montant à verser"
-                    value={`${roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA`}
-                    valueClassName="text-emerald-700"
-                  />
-                  <DetailField
-                    label="Date du versement"
-                    value={
-                      earlyExit.paymentDate
+                <StatStrip
+                  className="sm:grid-cols-2 lg:grid-cols-4"
+                  stats={[
+                    {
+                      title: 'Montant à verser',
+                      value: `${roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA`,
+                      accent: true,
+                    },
+                    {
+                      title: 'Date du versement',
+                      value: earlyExit.paymentDate
                         ? new Date(earlyExit.paymentDate).toLocaleDateString('fr-FR')
-                        : '—'
-                    }
-                  />
-                  <DetailField
-                    label="Moyen de paiement"
-                    value={paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther)}
-                  />
-                  {(earlyExit.paymentMode === 'airtel_money' || earlyExit.paymentMode === 'mobicash') && (
-                    <DetailField
-                      label="Frais mobile money"
-                      value={
-                        earlyExit.withFees === true
-                          ? 'Avec frais'
-                          : earlyExit.withFees === false
-                            ? 'Sans frais'
-                            : '—'
-                      }
-                    />
-                  )}
-                </div>
+                        : '—',
+                    },
+                    {
+                      title: 'Moyen de paiement',
+                      value: paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther),
+                    },
+                    ...(earlyExit.paymentMode === 'airtel_money' || earlyExit.paymentMode === 'mobicash'
+                      ? [{
+                          title: 'Frais mobile money',
+                          value: earlyExit.withFees === true
+                            ? 'Avec frais'
+                            : earlyExit.withFees === false
+                              ? 'Sans frais'
+                              : '—',
+                        }]
+                      : []),
+                  ]}
+                />
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Documents liés */}
-        <Card className="border-0 bg-white/95 shadow-lg">
+        <Card className="border-0 shadow-md">
           <CardHeader className="pb-3">
             <CardTitle className="text-[#234D65]">Documents liés</CardTitle>
           </CardHeader>
@@ -612,65 +597,35 @@ const handleGenerateGlobalFacture = async () => {
           </CardContent>
         </Card>
 
-        {/* Stats contrat */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardContent className="p-4">
-              <p className="text-xs uppercase text-gray-500 font-semibold">Montants commissions</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {commissionStats.paidAmount.toLocaleString('fr-FR')} / {commissionStats.totalAmount.toLocaleString('fr-FR')} FCFA
-              </p>
-              <div className="mt-3">
-                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#234D65] to-[#2c5a73]"
-                    style={{ width: `${commissionStats.progress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{commissionStats.progress}% payés</p>
+        {/* Progression des commissions — les montants et actions sont déjà dans
+            la bande de chiffres clés et la barre d'actions. */}
+        {hasGeneratedCommissions && (
+          <Card className="border-0 shadow-md">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-slate-700">
+                <span>
+                  Commissions payées&nbsp;: <b>{commissionStats.paidCount}</b> / {commissions.length}
+                </span>
+                <span className="tabular-nums text-slate-500">
+                  {commissionStats.paidAmount.toLocaleString('fr-FR')} / {commissionStats.totalAmount.toLocaleString('fr-FR')} FCFA
+                </span>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardContent className="p-4">
-              <p className="text-xs uppercase text-gray-500 font-semibold">Prochaine échéance</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">
-                {commissionStats.nextDue
-                  ? new Date(commissionStats.nextDue.dueDate).toLocaleDateString('fr-FR')
-                  : 'Aucune'}
-              </p>
-              <p className="text-sm text-gray-600">
-                {commissionStats.nextDue ? `${roundFcfa(commissionStats.nextDue.amount).toLocaleString('fr-FR')} FCFA` : 'Toutes payées'}
-              </p>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full bg-gradient-to-r from-[#234D65] to-[#2c5a73]"
+                  style={{ width: `${commissionStats.progress}%` }}
+                />
+              </div>
               {commissionStats.overdueCount > 0 && (
-                <p className="text-xs text-red-600 font-semibold mt-2">
-                  {commissionStats.overdueCount} échéance(s) en retard
+                <p className="text-xs font-semibold text-red-600">
+                  {commissionStats.overdueCount} échéance{commissionStats.overdueCount > 1 ? 's' : ''} en retard
                 </p>
               )}
             </CardContent>
           </Card>
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardContent className="p-4 space-y-2">
-              <p className="text-xs uppercase text-gray-500 font-semibold">Actions</p>
-              <div className="flex flex-wrap gap-2">
-                {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
-                  <Button size="sm" variant="outline" onClick={() => setIsUploadOpen(true)} disabled={!user?.uid}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Téléverser contrat
-                  </Button>
-                )}
-                {placement.contractDocumentId && (
-                  <Button size="sm" variant="secondary" onClick={() => setIsViewOpen(true)}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Voir contrat
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        )}
 
-        <Card className="border-0 bg-white/95 shadow-lg">
+        <Card className="border-0 shadow-md">
           <Tabs
             value={contractTab}
             onValueChange={(value) => setContractTab(value as 'versements' | 'historique')}

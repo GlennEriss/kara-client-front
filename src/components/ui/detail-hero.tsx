@@ -6,13 +6,14 @@ import { AlertCircle, ArrowLeft, FileText } from 'lucide-react'
 import * as React from 'react'
 
 /**
- * Primitives communes aux fiches de détail (demande, contrat, placement…).
+ * En-tête des fiches de détail au gabarit Caisse Spéciale.
  *
- * `DetailHero` fixe le gabarit d'en-tête — bandeau dégradé, bouton retour, badge
- * de statut, référence en monospace et tuiles de chiffres clés — et
- * `DetailField` / `DetailTextBlock` celui des blocs d'information, pour que les
- * modules ne réinventent pas chacun leur mise en page. `DetailHeroSkeleton` et
- * `DetailNotFound` fournissent les états de chargement et d'erreur assortis.
+ * `DetailHero` fixe le bandeau dégradé — bouton retour, badge de statut,
+ * référence en monospace et tuiles de chiffres clés — et `DetailHeroSkeleton` /
+ * `DetailNotFound` les états de chargement et d'erreur assortis.
+ *
+ * Les fiches **contrat** suivent un autre gabarit : barre d'actions, carte titre
+ * dégradée et `StatStrip` (voir `@/components/ui/stat-strip`).
  */
 
 export type DetailHeroStat = {
@@ -141,34 +142,6 @@ export function DetailHeroSkeleton({ cards = 4 }: { cards?: number }) {
           </Card>
         ))}
       </div>
-    </div>
-  )
-}
-
-/** Tuile libellé/valeur, gabarit commun aux blocs d'information des fiches. */
-export function DetailField({
-  label,
-  value,
-  valueClassName,
-}: {
-  label: string
-  value: React.ReactNode
-  valueClassName?: string
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <div className={cn('mt-1 text-sm font-semibold text-slate-900', valueClassName)}>{value}</div>
-    </div>
-  )
-}
-
-/** Bloc de texte libre (motif, raison…), sur toute la largeur. */
-export function DetailTextBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{value}</p>
     </div>
   )
 }

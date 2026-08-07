@@ -2239,6 +2239,20 @@ export const VEHICLE_INSURANCE_STATUS_LABELS: Record<VehicleInsuranceStatus, str
 
 // ================== TYPES PLACEMENT ==================
 
+/**
+ * Convention d'échéancier du placement.
+ *
+ * - `advance` : 1re commission le jour même du début, fin = début + (durée - 1).
+ *   Comportement historique, conservé sur les placements créés avant le
+ *   passage à terme échu.
+ * - `arrears` : 1re commission un mois après le début, fin = début + durée.
+ *   Convention des nouveaux placements, cohérente avec la règle de sortie
+ *   anticipée (aucune commission tant qu'un mois complet n'est pas écoulé).
+ *
+ * Champ absent = `advance` : les documents antérieurs ne portent pas la clé.
+ */
+export type PlacementCommissionConvention = 'advance' | 'arrears'
+
 export type PlacementStatus = 'Draft' | 'Active' | 'Closed' | 'EarlyExit' | 'Canceled'
 export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
 export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
@@ -2267,6 +2281,9 @@ export interface Placement {
   periodMonths: number // 1..7
   payoutMode: PayoutMode
   status: PlacementStatus
+  /** Convention d'échéancier figée à la création. Absent = 'advance' (legacy). */
+  commissionConvention?: PlacementCommissionConvention
+  /** Début du placement, convenu à la demande. Distinct de `handoverDate`. */
   startDate?: Date
   endDate?: Date
   nextCommissionDate?: Date

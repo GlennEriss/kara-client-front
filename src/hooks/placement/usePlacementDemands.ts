@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { PLACEMENT_AUDIT_MODULE } from '@/constantes/audit-modules'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { useAuth } from '../useAuth'
 import { toast } from 'sonner'
 import { PlacementDemandFilters } from '@/types/types'
@@ -48,15 +50,17 @@ export function usePlacementDemandsStats(filters?: PlacementDemandFilters) {
 export function usePlacementDemandMutations() {
     const qc = useQueryClient()
     const { user } = useAuth()
+    const { log } = useAuditLogger()
 
     const create = useMutation({
         mutationFn: (data: PlacementDemandFormInput) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.createDemand(data as any, user.uid)
         },
-        onSuccess: () => {
+        onSuccess: (result: any) => {
             qc.invalidateQueries({ queryKey: ['placementDemands'] })
             qc.invalidateQueries({ queryKey: ['placementDemandsStats'] })
+            log({ action: 'create', ...PLACEMENT_AUDIT_MODULE, targetType: 'demande', targetId: result?.id, description: 'Création d\'une demande de placement' })
             toast.success('Demande créée avec succès')
         },
         onError: (error: any) => {
@@ -71,10 +75,11 @@ export function usePlacementDemandMutations() {
             approveDemandSchema.parse({ reason })
             return service.approveDemand(demandId, user.uid, reason)
         },
-        onSuccess: () => {
+        onSuccess: (_result, variables) => {
             qc.invalidateQueries({ queryKey: ['placementDemands'] })
             qc.invalidateQueries({ queryKey: ['placementDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['placementDemand'] })
+            log({ action: 'validate', ...PLACEMENT_AUDIT_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Acceptation d\'une demande de placement' })
             toast.success('Demande acceptée avec succès')
         },
         onError: (error: any) => {
@@ -93,10 +98,11 @@ export function usePlacementDemandMutations() {
             rejectDemandSchema.parse({ reason })
             return service.rejectDemand(demandId, user.uid, reason)
         },
-        onSuccess: () => {
+        onSuccess: (_result, variables) => {
             qc.invalidateQueries({ queryKey: ['placementDemands'] })
             qc.invalidateQueries({ queryKey: ['placementDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['placementDemand'] })
+            log({ action: 'reject', ...PLACEMENT_AUDIT_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Refus d\'une demande de placement' })
             toast.success('Demande refusée')
         },
         onError: (error: any) => {
@@ -115,10 +121,11 @@ export function usePlacementDemandMutations() {
             reopenDemandSchema.parse({ reason })
             return service.reopenDemand(demandId, user.uid, reason)
         },
-        onSuccess: () => {
+        onSuccess: (_result, variables) => {
             qc.invalidateQueries({ queryKey: ['placementDemands'] })
             qc.invalidateQueries({ queryKey: ['placementDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['placementDemand'] })
+            log({ action: 'update', ...PLACEMENT_AUDIT_MODULE, targetType: 'demande', targetId: variables.demandId, description: 'Réouverture d\'une demande de placement' })
         },
         onError: (error: any) => {
             if (error instanceof z.ZodError) {
@@ -134,13 +141,21 @@ export function usePlacementDemandMutations() {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.convertDemandToPlacement(demandId, user.uid, placementData)
         },
-        onSuccess: (result) => {
+        onSuccess: (result, variables) => {
             qc.invalidateQueries({ queryKey: ['placementDemands'] })
             qc.invalidateQueries({ queryKey: ['placementDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['placementDemand'] })
             if (result?.placement) {
                 qc.invalidateQueries({ queryKey: ['placements'] })
             }
+            log({
+                action: 'validate',
+                ...PLACEMENT_AUDIT_MODULE,
+                targetType: 'demande',
+                targetId: variables.demandId,
+                description: 'Conversion d\'une demande en placement',
+                metadata: { placementId: result?.placement?.id },
+            })
             toast.success('Placement créé avec succès')
         },
         onError: (error: any) => {

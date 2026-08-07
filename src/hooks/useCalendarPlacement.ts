@@ -172,7 +172,17 @@ export function groupPlacementScheduleByDay(
 
       const dueAmount = roundFcfa(item.amount)
       const paidAmount = roundFcfa(item.paidAmount ?? (item.status === 'Paid' ? dueAmount : 0))
-      day.totalAmount = roundFcfa(day.totalAmount + dueAmount)
+
+      // Une échéance annulée (commission soldée par une sortie anticipée) ne
+      // représente plus aucun engagement : elle reste listée dans le jour mais
+      // sort des totaux, comme dans les statistiques, la fiche et les exports.
+      if (item.status !== 'Canceled') {
+        day.totalAmount = roundFcfa(day.totalAmount + dueAmount)
+
+        if (item.kind === 'capital') {
+          day.capitalAmount = roundFcfa(day.capitalAmount + dueAmount)
+        }
+      }
 
       if (item.status === 'Paid') {
         day.paidAmount = roundFcfa(day.paidAmount + paidAmount)
@@ -181,10 +191,6 @@ export function groupPlacementScheduleByDay(
         day.remainingAmount = roundFcfa(day.remainingAmount + Math.max(0, dueAmount - paidAmount))
       } else if (item.status === 'Due') {
         day.remainingAmount = roundFcfa(day.remainingAmount + dueAmount)
-      }
-
-      if (item.kind === 'capital') {
-        day.capitalAmount = roundFcfa(day.capitalAmount + dueAmount)
       }
 
       day.count++

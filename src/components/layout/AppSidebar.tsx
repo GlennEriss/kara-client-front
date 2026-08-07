@@ -223,7 +223,7 @@ const adminMenuItems: SidebarItem[] = [
         icon: FileText,
       },
       {
-        title: "Placements",
+        title: "Contrats",
         url: routes.admin.placements,
         icon: CreditCard,
       },
