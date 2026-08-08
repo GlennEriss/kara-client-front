@@ -1,6 +1,11 @@
 'use client'
 
 import { getNationalityName } from '@/constantes/nationality'
+import {
+  MemberInfoRows,
+  calculateAgeFromBirthDate,
+  getIdentityDocumentLabel as getSharedIdentityDocumentLabel,
+} from '@/components/pdf/MemberInfoRows'
 import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { calculateSchedule, formatNumberWithSpaces } from '@/utils/credit-speciale-calculations'
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
@@ -480,15 +485,6 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     return gender
   }
 
-  const getIdentityDocumentLabel = (doc?: string) => {
-    if (!doc) return '—'
-    const d = String(doc).toUpperCase()
-    if (d.includes('CNI')) return 'CNI'
-    if (d.includes('PASS') || d.includes('PASSEPORT')) return 'Passeport'
-    if (d.includes('CS')) return 'Carte de séjour'
-    return doc
-  }
-
   const member = {
     matricule: memberData?.matricule || memberData?.id || contract.clientId || '—',
     membershipType: memberData?.membershipType
@@ -498,13 +494,19 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     firstName: memberData?.firstName || contract.clientFirstName || '—',
     birthPlace: memberData?.birthPlace || '—',
     birthDate: memberData?.birthDate ? formatDate(memberData.birthDate) : '—',
-    identityDocument: getIdentityDocumentLabel(memberData?.identityDocument),
+    identityDocument: getSharedIdentityDocumentLabel(memberData?.identityDocument),
     identityDocumentNumber: memberData?.identityDocumentNumber || '—',
     phone1: memberData?.contacts?.[0] || contract.clientContacts?.[0] || '—',
     phone2: memberData?.contacts?.[1] || contract.clientContacts?.[1] || '—',
     gender: getGenderLabel(memberData?.gender),
-    quarter: formatAddress(memberData?.address) || (memberData?.address?.arrondissement || memberData?.address?.district) || '—',
+    // Le quartier seul : `formatAddress` concatène district, ville,
+    // arrondissement et province, ce qui débordait de la cellule QUARTIER.
+    quarter: memberData?.address?.district || memberData?.address?.arrondissement || '—',
     nationality: getNationalityName(memberData?.nationality || '') || '—',
+    // Âge et profession : présents sur le contrat Caisse Spéciale, ils manquaient
+    // ici alors que la donnée membre est la même.
+    age: calculateAgeFromBirthDate(memberData?.birthDate),
+    profession: memberData?.profession || '—',
     association: 'LE KARA',
   }
 
@@ -513,7 +515,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     firstName: guarantorData?.firstName || contract.guarantorFirstName || '—',
     phone: guarantorData?.contacts?.[0] || '—',
     address: formatAddress(guarantorData?.address),
-    identityDocument: getIdentityDocumentLabel(guarantorData?.identityDocument),
+    identityDocument: getSharedIdentityDocumentLabel(guarantorData?.identityDocument),
     identityDocumentNumber: guarantorData?.identityDocumentNumber || '—',
   }
   const memberFullName = [memberData?.lastName || contract.clientLastName, memberData?.firstName || contract.clientFirstName]
@@ -601,86 +603,33 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
-          <TableRow
-            height={43.35}
-            cells={[
-              {
-                content: 'Informations Personnelles du Membre',
-                span: 4,
-                textStyle: styles.tableHeaderText,
-                backgroundColor: '#224d62',
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'MATRICULE :', textStyle: styles.tableLabelText },
-              { content: member.matricule, textStyle: styles.tableValueText },
-              { content: 'MEMBRE :', textStyle: styles.tableLabelText },
-              //{ content: String(member.membershipType).toUpperCase(), textStyle: styles.tableValueText },
-              { content: '', textStyle: styles.tableValueText },
-            ], true)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'NOM :', textStyle: styles.tableLabelText },
-              { content: String(member.lastName).toUpperCase(), span: 3, textStyle: styles.tableValueText },
-            ], false)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'PRÉNOM :', textStyle: styles.tableLabelText },
-              { content: member.firstName, span: 3, textStyle: styles.tableValueText },
-            ], true)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'LIEU / NAISSANCE :', textStyle: styles.tableLabelText },
-              { content: member.birthPlace, textStyle: styles.tableValueText },
-              { content: 'DATE / NAISSANCE :', textStyle: styles.tableLabelText },
-              { content: member.birthDate, textStyle: styles.tableValueText },
-            ], false)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'TYPE DE PIÈCE :', textStyle: styles.tableLabelText },
-              { content: member.identityDocument, textStyle: styles.tableValueText },
-              { content: 'N° DE PIÈCE :', textStyle: styles.tableLabelText },
-              { content: member.identityDocumentNumber, textStyle: styles.tableValueText },
-            ], true)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'TÉLÉPHONE 1 :', textStyle: styles.tableLabelText },
-              { content: member.phone1, textStyle: styles.tableValueText },
-              { content: 'TÉLÉPHONE 2 :', textStyle: styles.tableLabelText },
-              { content: member.phone2, textStyle: styles.tableValueText },
-            ], false)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'SEXE :', textStyle: styles.tableLabelText },
-              { content: member.gender, textStyle: styles.tableValueText },
-              { content: 'QUARTIER :', textStyle: styles.tableLabelText },
-              { content: member.quarter, textStyle: styles.tableValueText },
-            ], true)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'NATIONALITÉ :', textStyle: styles.tableLabelText },
-              { content: member.nationality, textStyle: styles.tableValueText },
-              //{ content: 'ASSOCIATION', textStyle: styles.tableLabelText },
-              //{ content: member.association, textStyle: styles.tableValueText },
-              { content: '', textStyle: styles.tableValueText },
-            ], false)}
+          <MemberInfoRows
+            isLastRow
+            // Le reste du contrat est en Times New Roman : on conserve sa
+            // typographie, seule la structure du bloc est partagée.
+            theme={{
+              fontFamily: 'Times New Roman',
+              headerFontSize: 15,
+              labelFontSize: 10,
+              valueFontSize: 10,
+              borderColor: COLORS.border,
+              cellPaddingHorizontal: 6,
+            }}
+            member={{
+              matricule: member.matricule,
+              lastName: member.lastName,
+              firstName: member.firstName,
+              birthPlace: member.birthPlace,
+              birthDate: member.birthDate,
+              nationality: member.nationality,
+              identityDocumentLabel: member.identityDocument,
+              identityDocumentNumber: member.identityDocumentNumber,
+              phones: [member.phone1, member.phone2],
+              gender: member.gender,
+              age: member.age,
+              district: member.quarter,
+              profession: member.profession,
+            }}
           />
         </View>
 

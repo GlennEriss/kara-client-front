@@ -346,7 +346,9 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
     phone1: memberData?.contacts?.[0] || contract.clientContacts?.[0] || '—',
     phone2: memberData?.contacts?.[1] || contract.clientContacts?.[1] || '—',
     gender: getGenderLabel(memberData?.gender),
-    quarter: formatAddress(memberData?.address) || (memberData?.address?.arrondissement || memberData?.address?.district) || '—',
+    // Le quartier seul : `formatAddress` concatène district, ville,
+    // arrondissement et province, ce qui déborde de la cellule QUARTIER.
+    quarter: memberData?.address?.district || memberData?.address?.arrondissement || '—',
     nationality: getNationalityName(memberData?.nationality || '') || '—',
     association: 'LE KARA',
   }
