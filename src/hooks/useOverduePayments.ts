@@ -302,7 +302,8 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
 
 /* ---------- Placement (commissions dues aux bienfaiteurs) ---------- */
 
-async function fetchOverduePlacement(today: Date): Promise<OverduePayment[]> {
+/** Exporté pour être testable : c'est ici que se décide ce qui est réclamé. */
+export async function fetchOverduePlacement(today: Date): Promise<OverduePayment[]> {
   const service = ServiceFactory.getPlacementService()
   const placements: Placement[] = await service.listPlacements({ statuses: ['Active'] })
 
@@ -349,13 +350,18 @@ async function fetchOverduePlacement(today: Date): Promise<OverduePayment[]> {
 
         const overdueItems: OverduePayment[] = overdue.map((c) => {
           const due = c.dueDate instanceof Date ? c.dueDate : new Date(c.dueDate)
+          // Reste à verser, pas montant dû : sur une commission partiellement
+          // réglée, le calendrier affiche le reliquat — les deux écrans doivent
+          // annoncer le même chiffre.
+          const dueAmount = Math.round(c.amount || 0)
+          const alreadyPaid = c.status === 'Partial' ? Math.round(c.paidAmount || 0) : 0
           return {
             key: `pl-${pl.id}-${c.id}`,
             product: 'Placement' as const,
             ...identity,
             isGroup: false,
             typeLabel: 'Commission',
-            amount: c.amount || 0,
+            amount: Math.max(0, dueAmount - alreadyPaid),
             dueAt: due,
             daysOverdue: differenceInCalendarDays(today, startOfDay(due)),
           }

@@ -229,21 +229,6 @@ const QuittanceCreditSpecialePDF = ({
   const guarantorName = `${contract.guarantorLastName || ''} ${contract.guarantorFirstName || ''}`.trim() || '—'
   const guarantorPhone = guarantorPhoneProp || '—'
 
-  const formatAddress = (address: any): string => {
-    if (!address) return '—'
-    if (typeof address === 'string') return address
-    if (typeof address === 'object') {
-      const parts: string[] = []
-      if (address.district) parts.push(address.district)
-      if (address.city) parts.push(address.city)
-      if (address.arrondissement) parts.push(address.arrondissement)
-      if (address.province) parts.push(address.province)
-      if (address.additionalInfo) parts.push(address.additionalInfo)
-      return parts.length > 0 ? parts.join(', ') : '—'
-    }
-    return '—'
-  }
-
   const getGenderLabel = (gender?: string) => {
     if (!gender) return '—'
     const g = String(gender).toLowerCase()
@@ -275,7 +260,9 @@ const QuittanceCreditSpecialePDF = ({
     phone1: memberData?.contacts?.[0] || contract.clientContacts?.[0] || '—',
     phone2: memberData?.contacts?.[1] || contract.clientContacts?.[1] || '—',
     gender: getGenderLabel(memberData?.gender),
-    quarter: formatAddress(memberData?.address) || '—',
+    // Le quartier seul : `formatAddress` concatène district, ville,
+    // arrondissement et province, ce qui déborde de la cellule QUARTIER.
+    quarter: memberData?.address?.district || memberData?.address?.arrondissement || '—',
     nationality: getNationalityName(memberData?.nationality || '') || '—',
     association: 'LE KARA',
   }

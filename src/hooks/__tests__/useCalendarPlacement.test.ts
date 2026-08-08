@@ -95,6 +95,32 @@ describe('groupPlacementScheduleByDay', () => {
     expect(day.capitalAmount).toBe(0)
   })
 
+  it('exclut des totaux une commission annulée sans la masquer', () => {
+    const [day] = groupPlacementScheduleByDay(
+      [
+        commission({ id: 'commission-1', status: 'Due' }),
+        commission({ id: 'commission-2', status: 'Canceled', amount: 50_000 }),
+      ],
+      today
+    )
+
+    // Seule la commission encore due engage KARA ; l'annulée reste listée.
+    expect(day.totalAmount).toBe(50_000)
+    expect(day.remainingAmount).toBe(50_000)
+    expect(day.count).toBe(2)
+    expect(day.commissions).toHaveLength(2)
+  })
+
+  it('exclut du cumul de capital une restitution annulée', () => {
+    const [day] = groupPlacementScheduleByDay(
+      [capitalRestitution({ status: 'Canceled' })],
+      today
+    )
+
+    expect(day.totalAmount).toBe(0)
+    expect(day.capitalAmount).toBe(0)
+  })
+
   it('marque en retard un jour dont le capital est échu', () => {
     const [day] = groupPlacementScheduleByDay(
       [capitalRestitution({ dueDate: new Date('2026-09-10T00:00:00') })],

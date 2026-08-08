@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { PLACEMENT_AUDIT_MODULE } from '@/constantes/audit-modules'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAuditLogger } from '@/hooks/useAuditLog'
 import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement } from '@/types/types'
@@ -49,7 +50,7 @@ export function usePlacementMutations() {
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       log({
-        action: 'create', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: result?.id,
+        action: 'create', ...PLACEMENT_AUDIT_MODULE, targetType: 'placement', targetId: result?.id,
         description: `Création d'un placement${result?.benefactorName ? ` — ${result.benefactorName}` : ''}`,
       })
     },
@@ -60,7 +61,7 @@ export function usePlacementMutations() {
       service.updatePlacement(id, data, adminId),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
-      log({ action: 'update', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: variables.id, description: 'Modification d\'un placement' })
+      log({ action: 'update', ...PLACEMENT_AUDIT_MODULE, targetType: 'placement', targetId: variables.id, description: 'Modification d\'un placement' })
     },
   })
 
@@ -68,7 +69,7 @@ export function usePlacementMutations() {
     mutationFn: (id: string) => service.deletePlacement(id),
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
-      log({ action: 'delete', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: id, description: 'Suppression d\'un placement' })
+      log({ action: 'delete', ...PLACEMENT_AUDIT_MODULE, targetType: 'placement', targetId: id, description: 'Suppression d\'un placement' })
     },
   })
 
@@ -129,7 +130,7 @@ export function usePlacementMutations() {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId, 'early-exit'] })
-      log({ action: 'other', module: 'placements', moduleLabel: 'Placements', targetType: 'placement', targetId: variables.placementId, description: 'Demande de sortie anticipée d\'un placement' })
+      log({ action: 'other', ...PLACEMENT_AUDIT_MODULE, targetType: 'placement', targetId: variables.placementId, description: 'Demande de sortie anticipée d\'un placement' })
     },
   })
 
@@ -139,7 +140,9 @@ export function usePlacementMutations() {
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId, 'commissions'] })
-      log({ action: 'payment', module: 'placements', moduleLabel: 'Placements', targetType: 'commission', targetId: variables.placementId, description: 'Paiement d\'une commission de placement' })
+      // `targetId` = la commission, pas le placement : sans ça on ne peut pas
+      // remonter à l'échéance concernée depuis le journal.
+      log({ action: 'payment', ...PLACEMENT_AUDIT_MODULE, targetType: 'commission', targetId: variables.commissionId, description: 'Paiement d\'une commission de placement', metadata: { placementId: variables.placementId } })
     },
   })
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { getNationalityName } from '@/constantes/nationality'
+import { MemberInfoRows, getIdentityDocumentLabel } from '@/components/pdf/MemberInfoRows'
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -437,82 +438,23 @@ const CaisseSpecialePDFV3 = ({
         <Image src={logoUrl} style={styles.logo} />
 
         <View style={styles.table}>
-          <TableRow
-            height={43.35}
-            cells={[
-              {
-                content: 'Informations Personnelles du Membre :',
-                span: 4,
-                textStyle: styles.tableHeaderText,
-                backgroundColor: ACCENT_BLUE,
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'MATRICULE', textStyle: styles.tableLabelText },
-              { content: contract?.memberId || '—', textStyle: styles.tableValueText },
-              { content: 'MEMBRE', textStyle: styles.tableLabelText },
-              { content: '', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'NOM', textStyle: styles.tableLabelText },
-              { content: contract?.member?.lastName?.toUpperCase() || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'PRÉNOM', textStyle: styles.tableLabelText },
-              { content: contract?.member?.firstName || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'LIEU / NAISSANCE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.birthPlace || '—', textStyle: styles.tableValueText },
-              { content: 'DATE / NAISSANCE', textStyle: styles.tableLabelText },
-              { content: formatDate(contract?.member?.birthDate), textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'NATIONALITÉ', textStyle: styles.tableLabelText },
-              { content: getNationalityName(contract?.member?.nationality), textStyle: styles.tableValueText },
-              { content: 'N°CNI/PASS/CS', textStyle: styles.tableLabelText },
-              { content: contract?.member?.identityDocumentNumber || '—', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'TÉLÉPHONES', textStyle: styles.tableLabelText },
-              { content: memberPhones, span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'SEXE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
-              { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.age+' ans' || '—', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'QUARTIER', textStyle: styles.tableLabelText },
-              { content: contract?.member?.address?.district || '—', textStyle: styles.tableValueText },
-              { content: 'PROFESSION', textStyle: styles.tableLabelText },
-              { content: contract?.member?.profession || '—', textStyle: styles.tableValueText },
-            ]}
+          <MemberInfoRows
+            member={{
+              // Le matricule métier, pas l'identifiant technique du document.
+              matricule: contract?.member?.matricule || contract?.memberId,
+              lastName: contract?.member?.lastName,
+              firstName: contract?.member?.firstName,
+              birthPlace: contract?.member?.birthPlace,
+              birthDate: formatDate(contract?.member?.birthDate),
+              nationality: getNationalityName(contract?.member?.nationality),
+              identityDocumentLabel: getIdentityDocumentLabel(contract?.member?.identityDocument),
+              identityDocumentNumber: contract?.member?.identityDocumentNumber,
+              phones: memberPhones,
+              gender: contract?.member?.gender,
+              age: contract?.member?.age,
+              district: contract?.member?.address?.district,
+              profession: contract?.member?.profession,
+            }}
           />
           <TableRow
             height={41.9}

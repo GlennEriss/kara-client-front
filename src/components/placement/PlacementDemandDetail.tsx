@@ -3,32 +3,27 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-    DetailField,
-    DetailHero,
-    DetailHeroSkeleton,
-    DetailNotFound,
-    DetailTextBlock,
-} from '@/components/ui/detail-hero'
+import { DetailHeroSkeleton } from '@/components/ui/detail-hero'
+import { StatStrip } from '@/components/ui/stat-strip'
 import routes from '@/constantes/routes'
 import { usePlacementDemand, usePlacementDemandMutations } from '@/hooks/placement/usePlacementDemands'
 import { usePlacementDemandesRealtimeSync } from '@/hooks/placement/usePlacementDemandesRealtimeSync'
 import { usePlacement } from '@/hooks/usePlacements'
+import { backOr } from '@/lib/backNavigation'
 import { cn } from '@/lib/utils'
 import { PlacementDemandStatus } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 import {
     AlertCircle,
+    ArrowLeft,
     CheckCircle,
     Clock,
     CreditCard,
     DollarSign,
     RotateCcw,
-    User,
-    XCircle
+    XCircle,
 } from 'lucide-react'
-import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
-import * as React from 'react'
 import { useState } from 'react'
 import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
@@ -38,8 +33,19 @@ interface PlacementDemandDetailProps {
   demandId: string
 }
 
-const Field = DetailField
-const TextBlock = DetailTextBlock
+const STATUS_COLORS: Record<PlacementDemandStatus, string> = {
+  PENDING: 'bg-amber-100 text-amber-700 border-amber-200',
+  APPROVED: 'bg-green-100 text-green-700 border-green-200',
+  REJECTED: 'bg-red-100 text-red-700 border-red-200',
+  CONVERTED: 'bg-blue-100 text-blue-700 border-blue-200',
+}
+
+const STATUS_LABELS: Record<PlacementDemandStatus, string> = {
+  PENDING: 'En attente',
+  APPROVED: 'Acceptée',
+  REJECTED: 'Refusée',
+  CONVERTED: 'Convertie',
+}
 
 const formatDateTime = (value: Date | string) =>
   new Date(value).toLocaleDateString('fr-FR', {
@@ -57,42 +63,31 @@ const formatDay = (value: Date | string) =>
     year: 'numeric',
   })
 
+/** Motif cité (raison de décision, de réouverture, cause de la demande). */
+function Quote({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-gray-50 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{value}</p>
+    </div>
+  )
+}
+
 export default function PlacementDemandDetail({ demandId }: PlacementDemandDetailProps) {
   const router = useRouter()
   const { data: demand, isLoading, error } = usePlacementDemand(demandId)
   const { data: linkedPlacement } = usePlacement(demand?.placementId)
   const { convert } = usePlacementDemandMutations()
   usePlacementDemandesRealtimeSync(true)
-  
+
   const [acceptModalOpen, setAcceptModalOpen] = useState(false)
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [reopenModalOpen, setReopenModalOpen] = useState(false)
 
-  const getStatusColor = (status: PlacementDemandStatus) => {
-    const colors = {
-      PENDING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      APPROVED: 'bg-green-100 text-green-700 border-green-200',
-      REJECTED: 'bg-red-100 text-red-700 border-red-200',
-      CONVERTED: 'bg-blue-100 text-blue-700 border-blue-200',
-    }
-    return colors[status] || colors.PENDING
-  }
-
-  const getStatusLabel = (status: PlacementDemandStatus) => {
-    const labels = {
-      PENDING: 'En attente',
-      APPROVED: 'Acceptée',
-      REJECTED: 'Refusée',
-      CONVERTED: 'Convertie',
-    }
-    return labels[status] || status
-  }
-
-  const getPayoutModeLabel = (mode: string) => {
-    return mode === 'MonthlyCommission_CapitalEnd' 
-      ? 'Commission mensuelle + Capital en fin'
-      : 'Capital + Commission en fin'
-  }
+  const getPayoutModeLabel = (mode: string) =>
+    mode === 'MonthlyCommission_CapitalEnd'
+      ? 'Commission mensuelle + capital à la fin'
+      : 'Capital + commissions à la fin'
 
   const getPaymentModeLabel = (mode?: string, methodOther?: string) => {
     if (mode === 'airtel_money') return 'Airtel Money'
@@ -106,319 +101,295 @@ export default function PlacementDemandDetail({ demandId }: PlacementDemandDetai
   const handleConvertToPlacement = async () => {
     if (!demand) return
     try {
-      const result = await convert.mutateAsync({
-        demandId: demand.id,
-      })
+      const result = await convert.mutateAsync({ demandId: demand.id })
       if (result?.placement) {
-        router.push(`/placements/${result.placement.id}`)
+        router.push(routes.admin.placementDetails(result.placement.id))
       }
     } catch (error) {
       console.error('Erreur lors de la conversion:', error)
     }
   }
 
-  const hasActions =
-    demand?.status === 'PENDING' ||
-    demand?.status === 'REJECTED' ||
-    (demand?.status === 'APPROVED' && !demand.placementId)
-
   if (isLoading) {
-    return <DetailHeroSkeleton />
+    return <DetailHeroSkeleton cards={2} />
   }
 
   if (error || !demand) {
     return (
-      <DetailNotFound
-        title="Demande introuvable"
-        message={error instanceof Error ? error.message : 'La demande n’a pas pu être chargée.'}
-        onBack={() => backOr(router, routes.admin.placementDemandes)}
-      />
+      <Card className="mx-auto max-w-md border-0 shadow-2xl">
+        <CardContent className="space-y-4 p-8 text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-10 w-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Demande introuvable</h2>
+          <p className="text-gray-600">
+            {error instanceof Error ? error.message : "Cette demande n'existe pas ou a été supprimée."}
+          </p>
+          <Button
+            onClick={() => backOr(router, routes.admin.placementDemandes)}
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73]"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 
+  const benefactorName = demand.benefactorName || `Bienfaiteur ${demand.benefactorId.slice(0, 8)}`
+  const isDecided = Boolean(demand.decisionMadeAt || demand.reopenedAt)
+
   return (
-    <div className="space-y-6 md:space-y-8">
-      <DetailHero
-        eyebrow="Demande de placement"
-        title="Détails de la demande"
-        reference={demand.id}
-        onBack={() => backOr(router, routes.admin.placementDemandes)}
-        badge={
-          <Badge className={cn('border px-3 py-1 text-sm font-semibold', getStatusColor(demand.status))}>
-            {getStatusLabel(demand.status)}
-          </Badge>
-        }
-        stats={[
-          { label: 'Capital', value: `${demand.amount.toLocaleString('fr-FR')} FCFA` },
-          { label: 'Taux', value: `${demand.rate}% / mois` },
-          { label: 'Durée', value: `${demand.periodMonths} mois`, wide: true },
-        ]}
-      />
+    <>
+      {/* Barre d'actions + badge — gabarit des fiches de détail */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => backOr(router, routes.admin.placementDemandes)}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Button>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,1fr)]">
-        <div className="space-y-6">
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                <DollarSign className="h-5 w-5" />
-                Informations de la demande
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field
-                  label="Capital"
-                  value={`${demand.amount.toLocaleString('fr-FR')} FCFA`}
-                  valueClassName="text-emerald-700"
-                />
-                <Field label="Taux de commission" value={`${demand.rate}% / mois`} />
-                <Field label="Durée prévue" value={`${demand.periodMonths} mois`} />
-                <Field label="Mode de règlement" value={getPayoutModeLabel(demand.payoutMode)} />
-                {demand.desiredDate && (
-                  <Field label="Date souhaitée" value={formatDay(demand.desiredDate)} />
-                )}
-                <Field label="Créée le" value={formatDateTime(demand.createdAt)} />
-              </div>
-
-              {demand.cause && <TextBlock label="Cause / Motif" value={demand.cause} />}
-            </CardContent>
-          </Card>
-
-          {demand.decisionMadeAt && (
-            <Card className="border-0 bg-white/95 shadow-lg">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                  {demand.status === 'APPROVED' ? (
-                    <CheckCircle className="h-5 w-5 text-emerald-600" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-600" />
-                  )}
-                  Décision
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Date de la décision" value={formatDateTime(demand.decisionMadeAt)} />
-                  {demand.decisionMadeByName && (
-                    <Field label="Décision par" value={demand.decisionMadeByName} />
-                  )}
-                </div>
-                {demand.decisionReason && <TextBlock label="Raison" value={demand.decisionReason} />}
-              </CardContent>
-            </Card>
+          {demand.status === 'PENDING' && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setAcceptModalOpen(true)}
+                className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Accepter
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setRejectModalOpen(true)}
+                className="gap-2 border-red-300 text-red-700 hover:bg-red-50"
+              >
+                <XCircle className="h-4 w-4" />
+                Refuser
+              </Button>
+            </>
           )}
 
-          {demand.reopenedAt && (
-            <Card className="border-0 bg-white/95 shadow-lg">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                  <RotateCcw className="h-5 w-5 text-blue-600" />
-                  Réouverture
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Réouverte le" value={formatDateTime(demand.reopenedAt)} />
-                  {demand.reopenedByName && (
-                    <Field label="Réouverte par" value={demand.reopenedByName} />
-                  )}
-                </div>
-                {demand.reopenReason && (
-                  <TextBlock label="Motif de réouverture" value={demand.reopenReason} />
-                )}
-              </CardContent>
-            </Card>
+          {demand.status === 'REJECTED' && (
+            <Button
+              variant="outline"
+              onClick={() => setReopenModalOpen(true)}
+              className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Réouvrir
+            </Button>
           )}
 
-          {demand.placementId && linkedPlacement && (
-            <Card className="border-0 bg-white/95 shadow-lg">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                  <CreditCard className="h-5 w-5" />
-                  Informations de remise des fonds
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field
-                    label="Moyen de paiement"
-                    value={getPaymentModeLabel(linkedPlacement.paymentMode, linkedPlacement.paymentMethodOther)}
-                  />
-                  {(linkedPlacement.paymentMode === 'airtel_money' || linkedPlacement.paymentMode === 'mobicash') && (
-                    <Field
-                      label="Frais mobile money"
-                      value={
-                        linkedPlacement.withFees === true
-                          ? 'Avec frais'
-                          : linkedPlacement.withFees === false
-                            ? 'Sans frais'
-                            : '—'
-                      }
-                    />
-                  )}
-                  <Field label="Lieu de remise" value={linkedPlacement.handoverLocation || '—'} />
-                  <Field
-                    label="Date de remise"
-                    value={linkedPlacement.handoverDate ? formatDay(linkedPlacement.handoverDate) : '—'}
-                  />
-                  <Field label="Heure de remise" value={linkedPlacement.handoverTime || '—'} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          <Card className="border-0 bg-white/95 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                <User className="h-5 w-5" />
-                Bienfaiteur
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-3">
-                <Field label="Nom" value={demand.benefactorName || 'Non renseigné'} />
-                {demand.benefactorPhone && (
-                  <Field label="Téléphone" value={demand.benefactorPhone} />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {demand.urgentContact && (
-            <Card className="border-0 bg-white/95 shadow-lg">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                  <AlertCircle className="h-5 w-5" />
-                  Contact d&apos;urgence
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-3">
-                  <Field
-                    label="Nom"
-                    value={`${demand.urgentContact.name} ${demand.urgentContact.firstName || ''}`.trim()}
-                  />
-                  <Field label="Téléphone" value={demand.urgentContact.phone} />
-                  {demand.urgentContact.relationship && (
-                    <Field label="Relation" value={demand.urgentContact.relationship} />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          {demand.status === 'APPROVED' && !demand.placementId && (
+            <Button
+              onClick={handleConvertToPlacement}
+              disabled={convert.isPending}
+              className="gap-2 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white"
+            >
+              {convert.isPending ? (
+                <>
+                  <Clock className="h-4 w-4 animate-spin" />
+                  Conversion...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4" />
+                  Créer le placement
+                </>
+              )}
+            </Button>
           )}
 
           {demand.placementId && (
-            <Card className="border-0 bg-white/95 shadow-lg">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-[#234D65]">
-                  <CreditCard className="h-5 w-5" />
-                  Placement créé
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Référence</p>
-                  <p className="mt-1 break-all font-mono text-sm font-semibold text-emerald-900">
-                    {demand.placementId}
-                  </p>
-                </div>
-                <Button
-                  onClick={() => router.push(routes.admin.placementDetails(demand.placementId!))}
-                  className="w-full bg-[#234D65] hover:bg-[#2c5a73]"
-                >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Voir le placement
-                </Button>
-              </CardContent>
-            </Card>
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.placementDetails(demand.placementId!))}
+              className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              Voir le placement
+            </Button>
           )}
+        </div>
 
-          {hasActions && (
-            <Card className="border-0 bg-white/95 shadow-lg">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-[#234D65]">Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-3">
-                  {demand.status === 'PENDING' && (
-                    <>
-                      <Button
-                        onClick={() => setAcceptModalOpen(true)}
-                        className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Accepter la demande
-                      </Button>
-                      <Button onClick={() => setRejectModalOpen(true)} variant="destructive">
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Refuser la demande
-                      </Button>
-                    </>
-                  )}
-                  {demand.status === 'REJECTED' && (
-                    <Button
-                      onClick={() => setReopenModalOpen(true)}
-                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-                    >
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      Réouvrir la demande
-                    </Button>
-                  )}
-                  {demand.status === 'APPROVED' && !demand.placementId && (
-                    <Button
-                      onClick={handleConvertToPlacement}
-                      disabled={convert.isPending}
-                      className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-                    >
-                      {convert.isPending ? (
-                        <>
-                          <Clock className="mr-2 h-4 w-4 animate-spin" />
-                          Conversion...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Créer le placement
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className="flex flex-wrap gap-2">
+          <Badge className={cn('border px-3 py-1 text-sm font-semibold', STATUS_COLORS[demand.status])}>
+            {STATUS_LABELS[demand.status]}
+          </Badge>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Titre principal */}
+      <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+        <CardHeader className="overflow-hidden">
+          <CardTitle className="flex items-center gap-3 break-words text-xl font-black text-white sm:text-2xl lg:text-3xl">
+            <DollarSign className="h-6 w-6 shrink-0 sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
+            <span className="break-words">{benefactorName}</span>
+          </CardTitle>
+          <div className="space-y-1 break-words text-blue-100">
+            <p className="break-words text-sm sm:text-base">
+              Demande de placement{' '}
+              <span className="break-all font-mono text-xs sm:text-sm">#{demand.id}</span>
+            </p>
+            {demand.benefactorPhone && <p className="break-words text-sm">{demand.benefactorPhone}</p>}
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Conditions demandées */}
+      <StatStrip
+        stats={[
+          {
+            title: 'Capital demandé',
+            value: `${roundFcfa(demand.amount).toLocaleString('fr-FR')} FCFA`,
+            accent: true,
+          },
+          { title: 'Taux', value: `${demand.rate}% / mois` },
+          { title: 'Durée', value: `${demand.periodMonths} mois` },
+          { title: 'Règlement', value: getPayoutModeLabel(demand.payoutMode) },
+          {
+            title: 'Début souhaité',
+            value: demand.desiredDate ? formatDay(demand.desiredDate) : '—',
+          },
+          { title: 'Créée le', value: formatDateTime(demand.createdAt) },
+        ]}
+      />
+
+      {demand.cause && (
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Cause / Motif</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-gray-700">{demand.cause}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {isDecided && (
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Décision</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <StatStrip
+              className="sm:grid-cols-2 lg:grid-cols-4"
+              stats={[
+                ...(demand.decisionMadeAt
+                  ? [
+                      {
+                        title: demand.status === 'REJECTED' ? 'Refusée le' : 'Acceptée le',
+                        value: formatDateTime(demand.decisionMadeAt),
+                      },
+                      { title: 'Par', value: demand.decisionMadeByName || '—' },
+                    ]
+                  : []),
+                ...(demand.reopenedAt
+                  ? [
+                      { title: 'Réouverte le', value: formatDateTime(demand.reopenedAt) },
+                      { title: 'Réouverte par', value: demand.reopenedByName || '—' },
+                    ]
+                  : []),
+              ]}
+            />
+            {demand.decisionReason && <Quote label="Motif de la décision" value={demand.decisionReason} />}
+            {demand.reopenReason && <Quote label="Motif de réouverture" value={demand.reopenReason} />}
+          </CardContent>
+        </Card>
+      )}
+
+      {demand.urgentContact && (
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Contact d&apos;urgence</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StatStrip
+              className="sm:grid-cols-2 lg:grid-cols-3"
+              stats={[
+                {
+                  title: 'Nom',
+                  value: `${demand.urgentContact.name} ${demand.urgentContact.firstName || ''}`.trim(),
+                },
+                { title: 'Téléphone', value: demand.urgentContact.phone },
+                ...(demand.urgentContact.relationship
+                  ? [{ title: 'Relation', value: demand.urgentContact.relationship }]
+                  : []),
+              ]}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {demand.placementId && linkedPlacement && (
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Remise des fonds</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StatStrip
+              className="sm:grid-cols-2 lg:grid-cols-4"
+              stats={[
+                {
+                  title: 'Moyen de paiement',
+                  value: getPaymentModeLabel(
+                    linkedPlacement.paymentMode,
+                    linkedPlacement.paymentMethodOther
+                  ),
+                },
+                ...(linkedPlacement.paymentMode === 'airtel_money' ||
+                linkedPlacement.paymentMode === 'mobicash'
+                  ? [
+                      {
+                        title: 'Frais mobile money',
+                        value:
+                          linkedPlacement.withFees === true
+                            ? 'Avec frais'
+                            : linkedPlacement.withFees === false
+                              ? 'Sans frais'
+                              : '—',
+                      },
+                    ]
+                  : []),
+                { title: 'Lieu', value: linkedPlacement.handoverLocation || '—' },
+                {
+                  title: 'Date et heure',
+                  value: linkedPlacement.handoverDate
+                    ? `${formatDay(linkedPlacement.handoverDate)}${linkedPlacement.handoverTime ? ` à ${linkedPlacement.handoverTime}` : ''}`
+                    : '—',
+                },
+              ]}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <AcceptDemandModal
         isOpen={acceptModalOpen}
         onClose={() => setAcceptModalOpen(false)}
         demand={demand}
-        onSuccess={() => {
-          setAcceptModalOpen(false)
-        }}
+        onSuccess={() => setAcceptModalOpen(false)}
       />
 
       <RejectDemandModal
         isOpen={rejectModalOpen}
         onClose={() => setRejectModalOpen(false)}
         demand={demand}
-        onSuccess={() => {
-          setRejectModalOpen(false)
-        }}
+        onSuccess={() => setRejectModalOpen(false)}
       />
 
       <ReopenDemandModal
         isOpen={reopenModalOpen}
         onClose={() => setReopenModalOpen(false)}
         demand={demand}
-        onSuccess={() => {
-          setReopenModalOpen(false)
-        }}
+        onSuccess={() => setReopenModalOpen(false)}
       />
-    </div>
+    </>
   )
 }

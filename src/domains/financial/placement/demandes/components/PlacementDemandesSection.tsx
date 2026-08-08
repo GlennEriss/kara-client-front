@@ -691,8 +691,6 @@ export function PlacementDemandesSection() {
           if (!demandId) return
 
           const [year, month, day] = formData.handoverDate.split('-').map(Number)
-          const [hours, minutes] = formData.handoverTime.split(':').map(Number)
-          const startDate = new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0)
           const handoverDate = new Date(year, (month || 1) - 1, day || 1, 0, 0, 0)
 
           // Firestore rejette `undefined` : on n'ajoute les champs
@@ -702,10 +700,11 @@ export function PlacementDemandesSection() {
           const paymentMethodOther =
             formData.paymentMode === 'other' ? formData.paymentMethodOther?.trim() : undefined
 
+          // Pas de `startDate` ici : le début du placement est la date souhaitée
+          // de la demande. La remise des fonds est un événement distinct.
           const result = await convert.mutateAsync({
             demandId,
             placementData: {
-              startDate,
               paymentMode: formData.paymentMode,
               ...(isMobileMoney && formData.withFees !== undefined
                 ? { withFees: formData.withFees }
