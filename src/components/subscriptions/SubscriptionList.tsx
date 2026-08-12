@@ -21,6 +21,8 @@ import { useParams, useRouter } from 'next/navigation'
 import React from 'react'
 import { toast } from 'sonner'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
+import { computeSubscriptionPeriod } from '@/domains/memberships/utils/subscriptionPeriod'
+import { EditSubscriptionPeriodModal } from './EditSubscriptionPeriodModal'
 
 function formatDate(date: Date) {
     try { return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) } catch { return 'Date invalide' }
@@ -52,6 +54,7 @@ export default function SubscriptionList() {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
     const [pdfFile, setPdfFile] = React.useState<File | null>(null)
     const [paymentDate, setPaymentDate] = React.useState('')
+    const [editingSubscription, setEditingSubscription] = React.useState<Subscription | null>(null)
     const [paymentTime, setPaymentTime] = React.useState('')
     const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
     const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
@@ -201,6 +204,13 @@ export default function SubscriptionList() {
                                             >
                                                 <FileText className="h-4 w-4 mr-2" /> Voir fiche d'adhésion
                                             </Button>
+                                            <Button
+                                              variant="outline"
+                                              className="h-9 text-xs border-gray-200 text-gray-600 hover:border-[#234D65] hover:text-[#234D65]"
+                                              onClick={() => setEditingSubscription(subscription)}
+                                            >
+                                                <Calendar className="h-4 w-4 mr-2" /> Corriger la période
+                                            </Button>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -272,11 +282,10 @@ export default function SubscriptionList() {
                                 if (!member) return
                                 try {
                                     setIsSubmitting(true)
-                                    // Upload PDF
-                                    // Créer la souscription (1 an par défaut)
-                                    const start = new Date()
-                                    const end = new Date()
-                                    end.setFullYear(end.getFullYear() + 1)
+                                    // L'abonnement court à partir de la date saisie, pas
+                                    // de la date du jour : sinon la période choisie par
+                                    // l'admin était silencieusement ignorée.
+                                    const { start, end } = computeSubscriptionPeriod(paymentDate)
                                     // Construire un nom de fichier: firstname_lastname_YYYY-YYYY.pdf
                                     const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-\.]/g, '')
                                     const first = safe((member as any).firstName)
@@ -376,6 +385,16 @@ export default function SubscriptionList() {
             request={detailsRequest}
           />
         )}
+        <EditSubscriptionPeriodModal
+          isOpen={!!editingSubscription}
+          onClose={() => setEditingSubscription(null)}
+          subscription={editingSubscription}
+          memberId={memberId}
+          onUpdated={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['member', memberId, 'subscriptions'] })
+            await queryClient.invalidateQueries({ queryKey: ['member', memberId, 'with-subscription'] })
+          }}
+        />
         </>
     )
 }

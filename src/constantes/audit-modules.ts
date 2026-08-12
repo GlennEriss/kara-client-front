@@ -10,3 +10,9 @@ export const PLACEMENT_AUDIT_MODULE = {
   module: 'placements',
   moduleLabel: 'Placements',
 } as const
+
+/** Œuvres de charité, contributions et étoiles des membres. */
+export const CHARITY_AUDIT_MODULE = {
+  module: 'bienfaiteur',
+  moduleLabel: 'Bienfaiteur',
+} as const

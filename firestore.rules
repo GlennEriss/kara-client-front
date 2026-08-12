@@ -139,10 +139,34 @@ service cloud.firestore {
     // CAISSE SPÉCIALE – CACHE ÉLIGIBILITÉ CHARITY
     // ==========================================
     // Lecture : admins (module caisse spéciale)
-    // Écriture : interdite au client (Cloud Function via Admin SDK)
+    // Écriture : les champs calculés (eligible, earnedStars, dernière
+    // contribution) restent réservés à la Cloud Function via l'Admin SDK.
+    // Seul `deductedStars` est ouvert à l'admin, pour retrancher une étoile.
     match /member-charity-summary/{memberId} {
-      allow read: if isAdmin();
-      allow write: if false;
+      // Le membre lit son propre solde d'étoiles depuis l'app membre.
+      allow read: if isAdmin() || isMemberOwner(memberId);
+      allow create: if false;
+      allow delete: if false;
+      // `starDeductions` ne porte que des dates : elle sert au calcul du solde,
+      // que le membre effectue lui-même. Les motifs restent dans la
+      // sous-collection, réservée aux admins.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['starDeductions'])
+        && request.resource.data.starDeductions is list
+        && request.resource.data.starDeductions.size() <= 200;
+
+      // Registre des retraits : ajout seulement, jamais modifiable ni
+      // supprimable — c'est la trace de la décision de l'admin.
+      // Réservé aux admins : le membre ne voit que son solde, pas les motifs.
+      match /star-adjustments/{adjustmentId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin()
+          && request.resource.data.delta is int
+          && request.resource.data.delta < 0
+          && request.resource.data.reason is string
+          && request.resource.data.reason.size() >= 10;
+        allow update, delete: if false;
+      }
     }
     
     // ==========================================
