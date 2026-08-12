@@ -22,6 +22,7 @@ import {
   MemberContractsCard,
   MemberRelationsCard,
 } from './index'
+import { MemberCharityStarsCard } from '@/domains/community/charity-stars'
 import { MemberIdDocumentCard } from './MemberIdDocumentCard'
 import { MemberPersonalInfoCard, MemberPhotoCard } from './MemberIdentityCard'
 
@@ -147,6 +148,12 @@ export function MemberDetailsPage() {
 
           {/* Paiements */}
           <MemberPaymentsCard />
+
+          {/* Étoiles de charité */}
+          <MemberCharityStarsCard
+            memberId={memberId}
+            memberName={`${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || memberId}
+          />
 
           {/* Relations / Autres modules */}
           <MemberRelationsCard

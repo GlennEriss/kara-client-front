@@ -2,6 +2,8 @@
 
 import type { MemberWithSubscription } from '@/db/member.db'
 import MemberCard from '@/components/memberships/MemberCard'
+import { useCharityStarsMany } from '@/domains/community/charity-stars'
+import { useMemo } from 'react'
 import { MembershipsTableView } from '../table/MembershipsTableView'
 
 type ViewMode = 'grid' | 'list'
@@ -27,11 +29,17 @@ export function MembershipsListLayout({
   onGenererIdentifiant,
   isLoading = false,
 }: MembershipsListLayoutProps) {
+  // Une seule requête par lot de 30 pour toute la page, plutôt qu'une lecture
+  // par ligne affichée.
+  const memberIds = useMemo(() => members.map((member) => member.id), [members])
+  const { data: starsByMember } = useCharityStarsMany(memberIds)
+
   // Vue liste : tableau
   if (viewMode === 'list') {
     return (
       <MembershipsTableView
         members={members}
+        starsByMember={starsByMember}
         isLoading={isLoading}
         onViewSubscriptions={onViewSubscriptions}
         onViewDetails={onViewDetails}
@@ -56,6 +64,7 @@ export function MembershipsListLayout({
         >
           <MemberCard
             member={member}
+            charityStars={starsByMember?.get(member.id)?.stars}
             onViewSubscriptions={onViewSubscriptions}
             onViewDetails={onViewDetails}
             onPreviewAdhesion={onPreviewAdhesion}
