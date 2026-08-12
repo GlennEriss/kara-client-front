@@ -15,6 +15,7 @@ import {
 import { getNationalityName } from '@/constantes/nationality'
 import routes from '@/constantes/routes'
 import { MemberWithSubscription } from '@/db/member.db'
+import { CharityStars } from '@/domains/community/charity-stars'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
@@ -49,6 +50,8 @@ interface MemberCardProps {
   /** Appelé quand le membre n'a pas encore de PDF d'adhésion → ouvrir l'upload. */
   onUploadAdhesion?: (member: MemberWithSubscription) => void
   onGenererIdentifiant?: (memberId: string, matricule: string) => void
+  /** Solde d'étoiles de charité, fourni par la liste pour éviter une requête par carte. */
+  charityStars?: number
 }
 
 // Fonction utilitaire pour vérifier si c'est l'anniversaire d'un membre
@@ -67,7 +70,7 @@ const isBirthdayToday = (birthDate: string): boolean => {
   }
 }
 
-const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion, onUploadAdhesion, onGenererIdentifiant }: MemberCardProps) => {
+const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion, onUploadAdhesion, onGenererIdentifiant, charityStars }: MemberCardProps) => {
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
 
@@ -119,6 +122,11 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                 {`${member.firstName || ''} ${member.lastName || ''}`.trim() || '—'}
               </p>
               <p className="truncate text-xs text-gray-400">{member.matricule}</p>
+              {/* Affiché même à zéro : l'absence d'étoile est une information,
+                  pas un vide — le badge passe simplement en gris. */}
+              {charityStars !== undefined && (
+                <CharityStars stars={charityStars} className="mt-1" />
+              )}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">

@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MemberWithSubscription } from '@/db/member.db'
+import { CharityStars, type MemberCharityStars } from '@/domains/community/charity-stars'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -30,6 +31,8 @@ import routes from '@/constantes/routes'
 
 interface MembershipsTableViewProps {
   members: MemberWithSubscription[]
+  /** Étoiles de charité, chargées en un lot par la liste parente. */
+  starsByMember?: Map<string, MemberCharityStars>
   isLoading?: boolean
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
@@ -42,6 +45,7 @@ const TABLE_HEADERS = [
   { label: 'Photo', className: 'w-16' },
   { label: 'Nom complet', className: 'w-48' },
   { label: 'Matricule', className: 'w-32' },
+  { label: 'Étoiles', className: 'w-24' },
   { label: 'Type', className: 'w-32' },
   { label: 'Abonnement', className: 'w-40' },
   { label: 'Contact', className: 'w-48' },
@@ -118,6 +122,9 @@ function TableSkeleton() {
             <Skeleton className="h-4 w-24" />
           </TableCell>
           <TableCell>
+            <Skeleton className="h-5 w-12 rounded-full" />
+          </TableCell>
+          <TableCell>
             <Skeleton className="h-6 w-20" />
           </TableCell>
           <TableCell>
@@ -140,6 +147,7 @@ function TableSkeleton() {
 
 export function MembershipsTableView({
   members,
+  starsByMember,
   isLoading = false,
   onViewSubscriptions,
   onViewDetails,
@@ -231,6 +239,11 @@ export function MembershipsTableView({
                 {/* Matricule */}
                 <TableCell>
                   <div className="text-sm text-gray-600 font-mono">{member.matricule}</div>
+                </TableCell>
+
+                {/* Étoiles de charité */}
+                <TableCell>
+                  <CharityStars stars={starsByMember?.get(member.id)?.stars ?? 0} />
                 </TableCell>
 
                 {/* Type */}

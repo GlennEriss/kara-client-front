@@ -39,6 +39,18 @@ function toDate(val: unknown): Date | null {
   }
 }
 
+/**
+ * Une contribution ouvre droit à une étoile si elle est confirmée. Les documents
+ * antérieurs à l'introduction du statut n'en portent pas : ils sont comptés,
+ * puisque le formulaire a toujours créé les contributions en `confirmed`. Seuls
+ * `pending` et `canceled` sont écartés.
+ */
+function countsTowardStars(data: admin.firestore.DocumentData | undefined): boolean {
+  if (!data) return false
+  const status = data.status
+  return status == null || status === 'confirmed'
+}
+
 async function getMemberIdFromParticipant(eventId: string, participantId: string): Promise<string | null> {
   const ref = db.collection('charity-events').doc(eventId).collection('participants').doc(participantId)
   const snap = await ref.get()
@@ -62,11 +74,13 @@ async function recalculateAndWriteSummary(
   const withContributions: Array<{
     eventId: string
     lastContributionAt: Date
+    /** Premier don confirmé à cette œuvre : c'est là que l'étoile est acquise. */
+    firstContributionAt: Date
     lastAmount: number | null
   }> = []
 
   // Secours : inclure la contribution qui a déclenché la fonction (évite les summary vides si index manquant / en cours)
-  if (triggerContribution) {
+  if (triggerContribution && countsTowardStars(triggerContribution.data)) {
     const d = triggerContribution.data
     const effectiveAt = toDate(d.contributionDate) ?? toDate(d.createdAt)
     if (effectiveAt) {
@@ -76,6 +90,7 @@ async function recalculateAndWriteSummary(
       withContributions.push({
         eventId: triggerContribution.eventId,
         lastContributionAt: effectiveAt,
+        firstContributionAt: effectiveAt,
         lastAmount: amount,
       })
     }
@@ -92,41 +107,85 @@ async function recalculateAndWriteSummary(
     if (!eventId) continue
     const participantId = participantDoc.id
 
+    // Pas de `limit(1)` ni de filtre sur `status` dans la requête : le tri se
+    // fait déjà sur `createdAt` avec l'index existant, et écarter les statuts en
+    // mémoire évite d'exiger un nouvel index composite. Une contribution annulée
+    // ne doit pas masquer une contribution confirmée plus ancienne.
     const contributionsRef = db
       .collection('charity-events')
       .doc(eventId)
       .collection('contributions')
       .where('participantId', '==', participantId)
       .orderBy('createdAt', 'desc')
-      .limit(1)
     const contribSnap = await contributionsRef.get()
     if (contribSnap.empty) continue
 
-    const contribDoc = contribSnap.docs[0]
-    const contribData = contribDoc.data()
+    // Les documents sont triés du plus récent au plus ancien : le premier
+    // confirmé donne la dernière contribution, le dernier donne la première.
+    const confirmedDocs = contribSnap.docs.filter((d) => countsTowardStars(d.data()))
+    if (confirmedDocs.length === 0) continue
+
+    const contribData = confirmedDocs[0].data()
     // Date de référence : contributionDate si présent, sinon createdAt (cf. doc)
     const effectiveContributionAt = toDate(contribData.contributionDate) ?? toDate(contribData.createdAt)
     if (!effectiveContributionAt) continue
+
+    // L'étoile est acquise au premier don à cette œuvre, et expire six ans
+    // après cette date : c'est elle qu'il faut persister, pas la plus récente.
+    const oldestData = confirmedDocs[confirmedDocs.length - 1].data()
+    const firstContributionAt =
+      toDate(oldestData.contributionDate) ?? toDate(oldestData.createdAt) ?? effectiveContributionAt
 
     let lastAmount: number | null = null
     if (contribData.payment?.amount != null) lastAmount = Number(contribData.payment.amount)
     else if (contribData.estimatedValue != null) lastAmount = Number(contribData.estimatedValue)
 
-    withContributions.push({ eventId, lastContributionAt: effectiveContributionAt, lastAmount })
+    withContributions.push({
+      eventId,
+      lastContributionAt: effectiveContributionAt,
+      firstContributionAt,
+      lastAmount,
+    })
   }
 
   const now = admin.firestore.Timestamp.now()
   const summaryRef = db.collection(COLLECTION_SUMMARY).doc(memberId)
 
+  // Une œuvre = une étoile, acquise au premier don confirmé et valable six ans.
+  // On persiste la liste **datée** plutôt qu'un compteur : une étoile expire un
+  // jour où cette fonction ne tourne pas, un total figé deviendrait faux tout
+  // seul. Le solde est donc recalculé à chaque lecture, côté client.
+  // Le secours ci-dessus peut réintroduire un événement déjà parcouru : on
+  // garde la date d'acquisition la plus ancienne pour chaque œuvre.
+  const earnedAtByEvent = new Map<string, Date>()
+  for (const contribution of withContributions) {
+    const known = earnedAtByEvent.get(contribution.eventId)
+    if (!known || contribution.firstContributionAt.getTime() < known.getTime()) {
+      earnedAtByEvent.set(contribution.eventId, contribution.firstContributionAt)
+    }
+  }
+  const starredEvents = Array.from(earnedAtByEvent.entries())
+    .sort((a, b) => a[1].getTime() - b[1].getTime())
+    .map(([eventId, earnedAt]) => ({
+      eventId,
+      earnedAt: admin.firestore.Timestamp.fromDate(earnedAt),
+    }))
+
+  // `merge` obligatoire : `starDeductions` appartient à l'admin, pas à cette
+  // fonction. Un `set()` complet effacerait ses retraits au prochain don.
   if (withContributions.length === 0) {
-    await summaryRef.set({
-      eligible: false,
-      lastContributionAt: null,
-      lastEventId: null,
-      lastEventName: null,
-      lastAmount: null,
-      updatedAt: now,
-    })
+    await summaryRef.set(
+      {
+        eligible: false,
+        lastContributionAt: null,
+        lastEventId: null,
+        lastEventName: null,
+        lastAmount: null,
+        starredEvents: [],
+        updatedAt: now,
+      },
+      { merge: true }
+    )
     return
   }
 
@@ -144,14 +203,18 @@ async function recalculateAndWriteSummary(
     // event supprimé ou inaccessible
   }
 
-  await summaryRef.set({
-    eligible: true,
-    lastContributionAt: admin.firestore.Timestamp.fromDate(best.lastContributionAt),
-    lastEventId: best.eventId,
-    lastEventName,
-    lastAmount: best.lastAmount,
-    updatedAt: now,
-  })
+  await summaryRef.set(
+    {
+      eligible: true,
+      lastContributionAt: admin.firestore.Timestamp.fromDate(best.lastContributionAt),
+      lastEventId: best.eventId,
+      lastEventName,
+      lastAmount: best.lastAmount,
+      starredEvents,
+      updatedAt: now,
+    },
+    { merge: true }
+  )
 }
 
 export const syncMemberCharitySummary = onDocumentWritten(
