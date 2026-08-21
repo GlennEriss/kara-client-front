@@ -16,6 +16,7 @@ import { submitCorrections } from './membership-requests/submitCorrections'
 import { renewSecurityCode } from './membership-requests/renewSecurityCode'
 import { approveMembershipRequest } from './membership-requests/approveMembershipRequest'
 import { updateMembershipRequest } from './membership-requests/updateMembershipRequest'
+import { backfillMemberCharityStars } from './caisse-speciale/backfillMemberCharityStars'
 import { transformMembersAlgoliaPayload } from './algolia/transformMembersAlgoliaPayload'
 import { transformMembershipRequestsAlgoliaPayload } from './algolia/transformMembershipRequestsAlgoliaPayload'
 
@@ -223,6 +224,9 @@ export { deleteMembershipRequest } from './membership-requests/deleteMembershipR
 export { onMembershipRequestWrite } from './membership-requests/detectDuplicates'
 export { onDuplicateGroupResolved } from './membership-requests/onDuplicateGroupResolved'
 export { migrateExistingDuplicates } from './membership-requests/migrateExistingDuplicates'
+
+// Rattrapage ponctuel des étoiles de charité sur les donations antérieures.
+export { backfillMemberCharityStars }
 export { replaceAdhesionPdf } from './membership-requests/replaceAdhesionPdf'
 
 // ✅ ACTIVÉ : Cloud Function pour synchroniser les demandes d'adhésion vers Algolia

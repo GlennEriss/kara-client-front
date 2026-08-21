@@ -18,11 +18,11 @@ import {
   MemberSubscriptionCard,
   MemberDocumentsCard,
   MemberFilleulsCard,
-  MemberPaymentsCard,
   MemberContractsCard,
   MemberRelationsCard,
 } from './index'
 import { MemberCharityStarsCard } from '@/domains/community/charity-stars'
+import { MemberFormCard } from '@/domains/community/member-form'
 import { MemberIdDocumentCard } from './MemberIdDocumentCard'
 import { MemberPersonalInfoCard, MemberPhotoCard } from './MemberIdentityCard'
 
@@ -33,7 +33,6 @@ export function MemberDetailsPage() {
 
   const {
     member,
-    subscriptions,
     lastSubscription,
     isSubscriptionValid,
     contracts,
@@ -146,8 +145,8 @@ export function MemberDetailsPage() {
             onOpenContracts={onOpenContracts}
           />
 
-          {/* Paiements */}
-          <MemberPaymentsCard />
+          {/* Forme récente des paiements, façon historique de résultats sportifs */}
+          <MemberFormCard memberId={memberId} />
 
           {/* Étoiles de charité */}
           <MemberCharityStarsCard
