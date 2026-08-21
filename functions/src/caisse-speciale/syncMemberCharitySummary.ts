@@ -67,7 +67,7 @@ async function getMemberIdFromParticipant(eventId: string, participantId: string
  * Si triggerContribution est fourni, il est utilisé en secours si les requêtes
  * ne retournent rien (index en cours, etc.).
  */
-async function recalculateAndWriteSummary(
+export async function recalculateAndWriteSummary(
   memberId: string,
   triggerContribution?: { eventId: string; participantId: string; data: admin.firestore.DocumentData }
 ): Promise<void> {

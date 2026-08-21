@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MemberFormCard } from "@/domains/community/member-form";
 import { cn } from "@/lib/utils";
 import { useMemberOverview } from "../hooks/useMemberOverview";
 import { MemberOverviewAggregationService } from "../services/MemberOverviewAggregationService";
@@ -294,6 +295,13 @@ export function MemberOverviewPanel({
               </Card>
             ) : (
               <div className="space-y-5">
+                {memberId ? (
+                  <MemberFormCard
+                    memberId={memberId}
+                    onNavigate={() => onOpenChange(false)}
+                  />
+                ) : null}
+
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {(Object.keys(data.modules) as MemberOverviewModuleKey[]).map(
                     (key) => {
