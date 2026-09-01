@@ -15,12 +15,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useMember } from '@/hooks/useMembers'
 import { useQuery } from '@tanstack/react-query'
 import { doc, getDoc } from 'firebase/firestore'
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 import { AlertCircle, AlertTriangle, ArrowLeft, Calendar, CheckCircle, Clock, DollarSign, Download, FileText, TrendingUp, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import React from 'react'
-import * as XLSX from 'xlsx'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -195,7 +194,7 @@ export default function ContractPaymentsPage() {
   }
 
   // Fonction pour exporter les versements en Excel
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!payments.length) return
 
     // Convertit Date | Timestamp | string en Date valide (contribs = Timestamps bruts).
@@ -253,6 +252,7 @@ export default function ContractPaymentsPage() {
     })
 
     // Créer le workbook et la feuille
+    const XLSX = await import('xlsx')
     const ws = XLSX.utils.json_to_sheet(exportData)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Versements')
@@ -755,6 +755,7 @@ export default function ContractPaymentsPage() {
     if (!contract) return
     const logoDataUrl = await loadLogoDataUrl()
     const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
+    const { jsPDF } = await import('jspdf')
     const doc = new jsPDF('l', 'mm', 'a4')
     const { drawPaymentBlock, pageWidth, pageHeight, drawPageBackground, drawMainTitle } = buildVersementPDFFirstTwoPages(doc, {
       contract,

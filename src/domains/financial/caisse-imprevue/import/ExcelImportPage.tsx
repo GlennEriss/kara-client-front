@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import * as XLSX from 'xlsx'
+import type * as XLSX from 'xlsx'
 import {
   AlertCircle,
   CalendarClock,
@@ -194,6 +194,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     setSelectedSheet('')
     try {
       const buf = await file.arrayBuffer()
+      const XLSX = await import('xlsx')
       const wb = XLSX.read(buf, { cellDates: true })
       setWorkbook(wb)
       setSheetNames(wb.SheetNames)
@@ -208,6 +209,7 @@ export function ExcelImportPage({ scope }: { scope?: ImportScope }) {
     setLoading(true)
     resetAnalysis()
     try {
+      const XLSX = await import('xlsx')
       const ws = workbook.Sheets[selectedSheet]
       const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, {
         header: 1,

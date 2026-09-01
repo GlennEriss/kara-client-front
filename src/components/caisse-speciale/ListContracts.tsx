@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -67,7 +68,9 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import React, { useEffect, useRef, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
-import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
+const CaisseSpecialePDFModal = dynamic(() => import('./CaisseSpecialePDFModal'), {
+  ssr: false,
+})
 import ContractPdfUploadModal from './ContractPdfUploadModal'
 import DeleteCaisseSpecialeContractModal from './DeleteCaisseSpecialeContractModal'
 import ReplaceCaisseSpecialeContractPdfModal from './ReplaceCaisseSpecialeContractPdfModal'

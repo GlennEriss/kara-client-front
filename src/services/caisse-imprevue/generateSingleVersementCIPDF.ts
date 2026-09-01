@@ -2,7 +2,6 @@
  * Génère le PDF "single versement" (format historique versement CI) : pages 1 et 2 + bloc VERSEMENT.
  * Utilisé par la page versements (bouton PDF) et par le modal facture (Télécharger en PDF).
  */
-import jsPDF from 'jspdf'
 import { addMonths, format, parseISO } from 'date-fns'
 import type { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { CONTRACT_CI_STATUS_LABELS } from '@/types/types'
@@ -50,6 +49,7 @@ export async function generateSingleVersementCIPDF(
 ): Promise<void> {
   const { contractId, getAdminDisplayName } = options
   const logoDataUrl = await loadLogoDataUrl()
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()

@@ -55,9 +55,15 @@ import {
   PaymentModalV2,
   PaymentDetailsModalV2,
   IdentityDocumentModalV2,
-  ExportMembershipRequestsModalV2,
   ReplaceAdhesionPdfModal,
 } from '../modals'
+const ExportMembershipRequestsModalV2 = dynamic(
+  () =>
+    import('../modals/ExportMembershipRequestsModalV2').then(
+      (m) => m.ExportMembershipRequestsModalV2,
+    ),
+  { ssr: false },
+)
 import { DuplicatesAlert, DuplicatesTab } from '../duplicates'
 import {
   MembershipRequestsFilterBadgesCarousel,

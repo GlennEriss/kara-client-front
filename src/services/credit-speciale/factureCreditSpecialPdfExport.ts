@@ -4,7 +4,7 @@
  * - Page 2 : tableau VERSEMENT (blanc + bleu léger, même style que la page 1).
  */
 import type { FactureCreditSpecialPDFData } from '@/components/credit-speciale/FactureCreditSpecialPDF'
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 
 /** Données pour la page 1 (infos membre + contact urgence), comme le PDF caisse imprévue */
 export interface FactureCreditSpecialPage1Data {
@@ -374,6 +374,7 @@ export async function generateFactureCreditSpecialPDF(
   const page1MainTitle = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).page1MainTitle : undefined
   const titleText = !isLegacyCall ? (options as GenerateFactureCreditSpecialPDFOptions).titleText : undefined
 
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('p', 'mm', 'a4')
 
   if (page1Data) {
@@ -396,6 +397,7 @@ export async function generateGlobalFactureCreditSpecialPDF(
     throw new Error('Aucune facture à générer')
   }
 
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('p', 'mm', 'a4')
   const totalPages = (page1Data ? 1 : 0) + factures.length
   const logoDataUrl = page1Data ? await loadFactureCreditSpecialLogoDataUrl() : null

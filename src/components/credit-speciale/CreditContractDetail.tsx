@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 
 import { backOr } from '@/lib/backNavigation'
 import { Badge } from '@/components/ui/badge'
@@ -77,12 +78,22 @@ import CreditPenaltyPaymentModal from './CreditPenaltyPaymentModal'
 import CreditPenaltyReceiptModal from './CreditPenaltyReceiptModal'
 import CreditExtensionModal from './CreditExtensionModal'
 import CreditPaymentModal from './CreditPaymentModal'
-import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
+const CreditSpecialeContractPDFModal = dynamic(
+  () => import('./CreditSpecialeContractPDFModal'),
+  { ssr: false },
+)
 import FinalRepaymentModal from './FinalRepaymentModal'
 import GuarantorPaymentModal from './GuarantorPaymentModal'
-import PaymentReceiptModal from './PaymentReceiptModal'
-import PaymentSummaryModal from './PaymentSummaryModal'
-import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
+const PaymentReceiptModal = dynamic(() => import('./PaymentReceiptModal'), {
+  ssr: false,
+})
+const PaymentSummaryModal = dynamic(() => import('./PaymentSummaryModal'), {
+  ssr: false,
+})
+const QuittanceCreditSpecialePDFModal = dynamic(
+  () => import('./QuittanceCreditSpecialePDFModal'),
+  { ssr: false },
+)
 import RestMonthModal from './RestMonthModal'
 import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 import SwitchToFixedPhaseModal from './SwitchToFixedPhaseModal'

@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 import React from 'react'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -35,7 +36,13 @@ import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, 
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ExportMembershipModal from '@/components/memberships/ExportMembershipModal'
-import { GenererIdentifiantModal } from '@/domains/memberships/components/modals'
+const GenererIdentifiantModal = dynamic(
+  () =>
+    import('@/domains/memberships/components/modals/GenererIdentifiantModal').then(
+      (m) => m.GenererIdentifiantModal,
+    ),
+  { ssr: false },
+)
 import { UploadMemberAdhesionPdfModal } from '@/domains/memberships/components/modals/UploadMemberAdhesionPdfModal'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'

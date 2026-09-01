@@ -1,9 +1,13 @@
 'use client'
+import dynamic from 'next/dynamic'
 
 import DailyCIContract from '@/components/caisse-imprevue/DailyCIContract'
 import MonthlyCIContract from '@/components/caisse-imprevue/MonthlyCIContract'
 import ContractCIDetailsSkeleton from '@/components/caisse-imprevue/ContractCIDetailsSkeleton'
-import DownloadContractCIModal from '@/components/caisse-imprevue/DownloadContractCIModal'
+const DownloadContractCIModal = dynamic(
+  () => import('@/components/caisse-imprevue/DownloadContractCIModal'),
+  { ssr: false },
+)
 import UploadContractCIModal from '@/components/caisse-imprevue/UploadContractCIModal'
 import ValidateMemberSignedModal from '@/components/caisse-imprevue/ValidateMemberSignedModal'
 import ValidateSupportDocumentModal from '@/components/caisse-imprevue/ValidateSupportDocumentModal'

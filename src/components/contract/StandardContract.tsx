@@ -1,4 +1,5 @@
 "use client"
+import dynamic from 'next/dynamic'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { useDeleteContractPayment } from '@/domains/financial/caisse-speciale/contrats/hooks'
@@ -54,10 +55,15 @@ import ContractDetailsSkeleton from "./ContractDetailsSkeleton"
 import PaymentCSModal, { PaymentCSFormData } from "./PaymentCSModal"
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
-import RemboursementNormalPDFModal from "./RemboursementNormalPDFModal"
+const RemboursementNormalPDFModal = dynamic(
+  () => import('./RemboursementNormalPDFModal'),
+  { ssr: false },
+)
 import TestPaymentTools from "./TestPaymentTools"
 import EmergencyContact from "./standard/EmergencyContact"
-import PaymentInvoiceModal from "./standard/PaymentInvoiceModal"
+const PaymentInvoiceModal = dynamic(() => import('./standard/PaymentInvoiceModal'), {
+  ssr: false,
+})
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {

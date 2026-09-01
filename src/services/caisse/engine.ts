@@ -34,6 +34,20 @@ export function computePenalty(monthlyAmount: number, delayDays: number, setting
   return total
 }
 
+/**
+ * Numéro du mois du contrat (1-based) à une date donnée, compté depuis la date
+ * de début du contrat (= date du premier versement). Le mois 1 court du jour de
+ * démarrage jusqu'à J+1 mois : un contrat démarré le 15/01 est encore en M1 le
+ * 14/02, et passe en M2 le 15/02.
+ */
+export function contractMonthNumberAt(startAt: Date, now: Date = new Date()): number {
+  const start = new Date(startAt)
+  const at = new Date(now)
+  let completed = (at.getFullYear() - start.getFullYear()) * 12 + (at.getMonth() - start.getMonth())
+  if (at.getDate() < start.getDate()) completed -= 1
+  return Math.max(0, completed) + 1
+}
+
 export function computeBonus(monthIndex: number, settings?: CaisseSettings | null): number {
   if (monthIndex < 3) return 0
   const key = `M${monthIndex + 1}`

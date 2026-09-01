@@ -1,11 +1,18 @@
 "use client"
+import dynamic from 'next/dynamic'
 
 import { backOr } from '@/lib/backNavigation'
 import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
 import PayCommissionModal, { CommissionPaymentFormData } from '@/components/placement/PayCommissionModal'
 import PlacementDocumentUploadModal from '@/components/placement/PlacementDocumentUploadModal'
-import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEarlyExitQuittanceModal'
-import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQuittanceModal'
+const PlacementEarlyExitQuittanceModal = dynamic(
+  () => import('@/components/placement/PlacementEarlyExitQuittanceModal'),
+  { ssr: false },
+)
+const PlacementFinalQuittanceModal = dynamic(
+  () => import('@/components/placement/PlacementFinalQuittanceModal'),
+  { ssr: false },
+)
 import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocumentModal'
 import EarlyWithdrawalRequestModal from '@/components/shared/EarlyWithdrawalRequestModal'
 import { Alert, AlertDescription } from '@/components/ui/alert'

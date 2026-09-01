@@ -2,7 +2,7 @@ import { createContract, getContract, updateContract } from '@/db/caisse/contrac
 import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db'
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
-import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt } from './engine'
+import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt, contractMonthNumberAt } from './engine'
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
@@ -620,7 +620,8 @@ export async function requestEarlyRefund(contractId: string, input?: {
   // Nouveau flow: soumission du retrait anticipé = traitement final immédiat
   await updateContract(contractId, { status: 'CLOSED' })
   const amountNominal = c.nominalPaid || 0
-  // Bonus du mois précédent (paidCount-1 => M(paidCount-1)) → index = paidCount-2, à partir de M4
+  // Bonus du mois précédent, à partir de M4. Le numéro de mois est compté de la
+  // date de début du contrat jusqu'à aujourd'hui (voir calcul ci-dessous).
   const settings = await getActiveSettings((c as any).caisseType)
   // Montant global versé (toutes contributions)
   let totalPaid = 0
@@ -640,7 +641,15 @@ export async function requestEarlyRefund(contractId: string, input?: {
   }
   let amountBonus = 0
   if (settings) {
-    const prevIndex = paidCount - 2 // mappe M(paidCount-1)
+    // Le numéro de mois court de la date de début du contrat (premier versement)
+    // jusqu'à aujourd'hui, plafonné au nombre de mois effectivement soldés :
+    // un membre qui cesse de payer fige son taux au lieu de le voir monter
+    // avec le temps qui passe.
+    const elapsedMonthNumber = c.contractStartAt
+      ? contractMonthNumberAt(c.contractStartAt)
+      : paidCount
+    const monthCount = Math.min(elapsedMonthNumber, paidCount)
+    const prevIndex = monthCount - 2 // mappe M(monthCount-1)
     const bonusRate = prevIndex >= 0 ? (computeBonus(prevIndex, settings as any) || 0) : 0
     if (prevIndex + 1 >= 4 && bonusRate > 0) {
       amountBonus = (totalPaid || 0) * (Number(bonusRate) / 100)

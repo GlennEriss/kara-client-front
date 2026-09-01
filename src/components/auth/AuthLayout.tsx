@@ -1,6 +1,6 @@
 'use client'
 
-import { Logo } from '@/components/logo'
+import Logo from '@/components/logo/Logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import routes from '@/constantes/routes'

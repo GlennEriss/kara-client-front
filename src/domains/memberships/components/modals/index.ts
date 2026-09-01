@@ -13,6 +13,8 @@ export * from './RenewSecurityCodeModalV2'
 export * from './PaymentModalV2'
 export * from './PaymentDetailsModalV2'
 export * from './IdentityDocumentModalV2'
-export * from './ExportMembershipRequestsModalV2'
-export * from './GenererIdentifiantModal'
 export * from './ReplaceAdhesionPdfModal'
+
+// Modales lourdes (moteurs PDF/Excel) : volontairement hors du barrel.
+// Elles sont importées dynamiquement par leurs consommateurs pour ne pas
+// embarquer @react-pdf/renderer, jspdf et xlsx dans le bundle initial.

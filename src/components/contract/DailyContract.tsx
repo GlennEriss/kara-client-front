@@ -1,4 +1,5 @@
 "use client"
+import dynamic from 'next/dynamic'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
@@ -38,7 +39,10 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
-import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
+const RemboursementNormalPDFModal = dynamic(
+  () => import('./RemboursementNormalPDFModal'),
+  { ssr: false },
+)
 import EmergencyContact from './standard/EmergencyContact'
 import TestPaymentTools from './TestPaymentTools'
 
