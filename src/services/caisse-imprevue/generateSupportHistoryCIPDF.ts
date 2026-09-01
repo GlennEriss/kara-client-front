@@ -1,5 +1,4 @@
 import { addMonths, format, parseISO } from 'date-fns'
-import jsPDF from 'jspdf'
 import type { ContractCI, SupportCI } from '@/types/types'
 import { CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 
@@ -111,6 +110,7 @@ export async function generateSupportHistoryCIPDF(
     return aDate - bDate
   })
 
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()

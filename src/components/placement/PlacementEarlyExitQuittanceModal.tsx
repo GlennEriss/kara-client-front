@@ -9,8 +9,6 @@ import { EarlyExitPlacement, Placement } from '@/types/types'
 import { roundFcfa } from '@/utils/placementMoney'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import {
     AlertCircle,
     Download,
@@ -99,6 +97,8 @@ export default function PlacementEarlyExitQuittanceModal({
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
 
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const doc = new jsPDF('p', 'mm', 'a4')
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()

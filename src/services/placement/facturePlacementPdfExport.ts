@@ -6,7 +6,7 @@ import {
   type FactureCreditSpecialPage1Data,
 } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import { roundFcfa } from '@/utils/placementMoney'
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 
 const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
   airtel_money: 'Airtel Money',
@@ -223,6 +223,7 @@ export const generatePlacementFacturePDF = async ({
     throw new Error('Aucun versement disponible pour générer la facture')
   }
 
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const logoData = await loadFactureCreditSpecialLogoDataUrl()
   const totalPages = 1 + versements.length

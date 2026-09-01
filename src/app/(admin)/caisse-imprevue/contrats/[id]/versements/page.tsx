@@ -14,7 +14,6 @@ import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generat
 import { CONTRACT_CI_STATUS_LABELS, PaymentCI, VersementCI } from '@/types/types'
 import { addMonths, format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import jsPDF from 'jspdf'
 import {
     AlertCircle,
     AlertTriangle,
@@ -36,7 +35,6 @@ import {
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import * as XLSX from 'xlsx'
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',
@@ -145,7 +143,7 @@ export default function ContractCIPaymentsPage() {
   }
 
   // Fonction pour exporter vers Excel
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!payments.length || !contract) return
 
     const exportData: any[] = []
@@ -172,6 +170,7 @@ export default function ContractCIPaymentsPage() {
       })
     })
 
+    const XLSX = await import('xlsx')
     const ws = XLSX.utils.json_to_sheet(exportData)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Versements')
@@ -241,6 +240,7 @@ export default function ContractCIPaymentsPage() {
 
     const logoDataUrl = await loadLogoDataUrl()
     const sortedPayments = [...payments].sort((a, b) => a.monthIndex - b.monthIndex)
+    const { jsPDF } = await import('jspdf')
     const doc = new jsPDF('l', 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()

@@ -3,7 +3,7 @@
  * Même structure que versementPdfExport (caisse spéciale) : 2 pages (infos membre + contact urgent, puis infos crédit + récap) + bloc ÉCHÉANCE i DU date.
  * Utilisé par PaymentReceiptModal (Télécharger PDF) depuis la page détail contrat crédit spéciale.
  */
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 import { getNationalityNameByGender } from '@/constantes/nationality'
 
 const formatAmountForPDF = (amount: number | undefined | null): string => {
@@ -446,6 +446,7 @@ export async function generateSingleCreditSpecialeVersementPDF(
 ): Promise<void> {
   const { contract, payment, installmentNumber, dueDate, member, schedule = [], payments = [], getAdminDisplayName } = params
   const logoDataUrl = await loadLogoDataUrlCreditSpeciale()
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
   const { drawEcheanceBlock, pageWidth, pageHeight } = buildCreditSpecialeVersementPDFFirstTwoPages(doc, {
     contract,

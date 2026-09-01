@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CharityEvent, EnrichedCharityContribution } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import jsPDF from 'jspdf'
 import { Calendar, DollarSign, Download, FileText, Loader2, Receipt, User } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -56,6 +55,7 @@ export default function CharityContributionReceiptPDF({
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
 
+      const { jsPDF } = await import('jspdf')
       const doc = new jsPDF('p', 'mm', 'a4')
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()

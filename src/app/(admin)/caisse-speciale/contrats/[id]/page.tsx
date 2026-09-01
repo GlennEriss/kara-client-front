@@ -1,4 +1,5 @@
 "use client"
+import dynamic from 'next/dynamic'
 
 import { useMemo, useState } from 'react'
 import { backOr } from '@/lib/backNavigation'
@@ -12,7 +13,10 @@ import StandardContract from '@/components/contract/StandardContract'
 import ValidateMemberSignedCSModal from '@/components/caisse-speciale/ValidateMemberSignedCSModal'
 import ValidateRefundCSModal from '@/components/caisse-speciale/ValidateRefundCSModal'
 import ValidateDeclaredVersementCSModal from '@/components/caisse-speciale/ValidateDeclaredVersementCSModal'
-import CaisseSpecialePDFModal from '@/components/caisse-speciale/CaisseSpecialePDFModal'
+const CaisseSpecialePDFModal = dynamic(
+  () => import('@/components/caisse-speciale/CaisseSpecialePDFModal'),
+  { ssr: false },
+)
 import ContractPdfUploadModal from '@/components/caisse-speciale/ContractPdfUploadModal'
 
 import { Button } from '@/components/ui/button'

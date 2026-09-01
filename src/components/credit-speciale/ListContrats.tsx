@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -49,7 +50,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import DocumentViewerModal from '@/components/documents/DocumentViewerModal'
-import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
+const CreditSpecialeContractPDFModal = dynamic(
+  () => import('./CreditSpecialeContractPDFModal'),
+  { ssr: false },
+)
 import DeleteCreditContractModal from './DeleteCreditContractModal'
 import StatisticsCreditContrats from './StatisticsCreditContrats'
 

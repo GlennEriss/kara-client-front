@@ -2,7 +2,7 @@
  * Exporter PDF "historique versement" (2 pages infos + bloc VERSEMENT i DU date).
  * Utilisé par la page versements (bouton PDF) et par le modal facture (Télécharger PDF).
  */
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 import { getNationalityNameByGender } from '@/constantes/nationality'
 
 const formatAmountForPDF = (amount: number | undefined | null): string => {
@@ -695,6 +695,7 @@ export async function generateSingleVersementPDF(params: GenerateSingleVersement
   const { contract, contractId, member, group, payments, payment, getAdminDisplayName } = params
   const logoDataUrl = await loadLogoDataUrl()
   const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('l', 'mm', 'a4')
   const { drawPaymentBlock, pageWidth, pageHeight } = buildVersementPDFFirstTwoPages(doc, {
     contract,

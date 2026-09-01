@@ -13,8 +13,6 @@ import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CreditContract, CreditPayment } from '@/types/types'
 import { format } from 'date-fns'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { Download, Loader2, Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -155,6 +153,8 @@ export default function PaymentSummaryModal({
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
 
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
       const doc = new jsPDF('p', 'mm', 'a4')
       const pageWidth = doc.internal.pageSize.getWidth()
       let yPos = 20

@@ -2,7 +2,6 @@
  * Utilitaires pour la génération de PDF
  */
 
-import jsPDF from 'jspdf'
 
 /**
  * Données nécessaires pour générer le PDF des identifiants de connexion
@@ -31,6 +30,7 @@ export interface CredentialsPDFData {
  * })
  */
 export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<Blob> {
+  const jsPDF = (await import('jspdf')).default
   const doc = new jsPDF()
   
   // Couleurs KARA

@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 import {
   FactureCreditSpecialPage1Data,
   drawFactureCreditSpecialPage1,
@@ -145,6 +145,7 @@ export async function generateCreditSpecialLossHistoryPDF(
     rows.slice(index * rowsPerPage, (index + 1) * rowsPerPage)
   )
 
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('p', 'mm', 'a4')
   const totalPages = 1 + chunks.length
   const logoDataUrl = await loadFactureCreditSpecialLogoDataUrl()

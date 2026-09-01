@@ -1,4 +1,5 @@
 "use client"
+import dynamic from 'next/dynamic'
 import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -45,15 +46,25 @@ import { useForm } from 'react-hook-form'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import CommissionReceiptModal from './CommissionReceiptModal'
+const CommissionReceiptModal = dynamic(() => import('./CommissionReceiptModal'), {
+  ssr: false,
+})
 import EarlyExitForm from './EarlyExitForm'
 import FiltersPlacement, { countActivePlacementFilters, DEFAULT_PLACEMENT_FILTERS, PlacementFilters } from './FiltersPlacement'
 import PayCommissionModal, { CommissionPaymentFormData } from './PayCommissionModal'
 import PlacementCard from './PlacementCard'
-import PlacementContractPDFModal from './PlacementContractPDFModal'
+const PlacementContractPDFModal = dynamic(() => import('./PlacementContractPDFModal'), {
+  ssr: false,
+})
 import PlacementDocumentUploadModal from './PlacementDocumentUploadModal'
-import PlacementEarlyExitQuittanceModal from './PlacementEarlyExitQuittanceModal'
-import PlacementFinalQuittanceModal from './PlacementFinalQuittanceModal'
+const PlacementEarlyExitQuittanceModal = dynamic(
+  () => import('./PlacementEarlyExitQuittanceModal'),
+  { ssr: false },
+)
+const PlacementFinalQuittanceModal = dynamic(
+  () => import('./PlacementFinalQuittanceModal'),
+  { ssr: false },
+)
 import ViewPlacementDocumentModal from './ViewPlacementDocumentModal'
 
 // Composant wrapper pour le modal de paiement de commission

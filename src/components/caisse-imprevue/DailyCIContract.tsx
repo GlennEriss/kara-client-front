@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
@@ -49,12 +50,16 @@ import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import ValidateRefundCIModal from './ValidateRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
-import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+const RemboursementCIPDFModal = dynamic(() => import('./RemboursementCIPDFModal'), {
+  ssr: false,
+})
 import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistorySection from './SupportHistorySection'
-import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
+const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDFModal'), {
+  ssr: false,
+})
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {

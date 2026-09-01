@@ -20,8 +20,6 @@ import { useDocuments } from '@/domains/infrastructure/documents/hooks'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import {
     AlertCircle,
     Calendar,
@@ -38,7 +36,6 @@ import {
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 
 // Labels pour les types de documents
@@ -257,7 +254,7 @@ export default function ContractsHistoryPage() {
   }
 
   // Exporter Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const exportData = filteredDocuments.map((doc: Document) => {
       const memberInfo = memberInfos[doc.memberId]
       const memberName = memberInfo 
@@ -277,6 +274,7 @@ export default function ContractsHistoryPage() {
       }
     })
 
+    const XLSX = await import('xlsx')
     const worksheet = XLSX.utils.json_to_sheet(exportData)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Contrats')
@@ -286,7 +284,9 @@ export default function ContractsHistoryPage() {
   }
 
   // Exporter PDF
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const { jsPDF } = await import('jspdf')
+    const autoTable = (await import('jspdf-autotable')).default
     const doc = new jsPDF('landscape', 'mm', 'a4')
 
     // En-tête

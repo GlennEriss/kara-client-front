@@ -1,4 +1,5 @@
 "use client"
+import dynamic from 'next/dynamic'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { useDeleteContractPayment } from '@/domains/financial/caisse-speciale/contrats/hooks'
@@ -47,9 +48,14 @@ import { toast } from 'sonner'
 import PaymentCSModal, { PaymentCSFormData } from './PaymentCSModal'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
-import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
+const RemboursementNormalPDFModal = dynamic(
+  () => import('./RemboursementNormalPDFModal'),
+  { ssr: false },
+)
 import EmergencyContact from './standard/EmergencyContact'
-import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
+const PaymentInvoiceModal = dynamic(() => import('./standard/PaymentInvoiceModal'), {
+  ssr: false,
+})
 import TestPaymentTools from './TestPaymentTools'
 
 // Helper pour formater les montants correctement

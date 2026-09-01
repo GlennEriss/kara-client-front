@@ -1,6 +1,6 @@
 'use client'
 
-import { FooterLogo, NavbarLogo } from '@/components/logo'
+import { FooterLogo, NavbarLogo } from '@/components/logo/Logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useHomepage } from '@/hooks/homepage/useHomepage'

@@ -24,7 +24,6 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
 import ValidateSupportDocumentModal from './ValidateSupportDocumentModal'
 
 function formatAmount(value: number): string {
@@ -81,7 +80,7 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
   const { data: supports = [], isLoading, isError } = useSupportHistory(contractId)
   const [validateSupport, setValidateSupport] = useState<SupportCI | null>(null)
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (supports.length === 0) { toast.error('Aucun support à exporter'); return }
     try {
       const exportData = supports.flatMap((support) => {
@@ -108,6 +107,7 @@ export default function SupportHistoryCIModal({ isOpen, onClose, contractId }: P
         }))
         return [mainRow, ...repaymentRows]
       })
+      const XLSX = await import('xlsx')
       const ws = XLSX.utils.json_to_sheet(exportData)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Historique Aides')

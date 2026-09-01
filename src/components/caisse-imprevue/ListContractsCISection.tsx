@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -58,7 +59,9 @@ import ReplaceContractCIModal from './ReplaceContractCIModal'
 import StatisticsCI from './StatisticsCI'
 import UploadContractCIModal from './UploadContractCIModal'
 import ValidateMemberSignedModal from './ValidateMemberSignedModal'
-import ViewContractCIModal from './ViewContractCIModal'
+const ViewContractCIModal = dynamic(() => import('./ViewContractCIModal'), {
+  ssr: false,
+})
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 

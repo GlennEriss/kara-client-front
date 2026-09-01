@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
@@ -45,13 +46,19 @@ import FinalRefundCIModal from './FinalRefundCIModal'
 import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import ValidateRefundCIModal from './ValidateRefundCIModal'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
-import PaymentReceiptCIModal from './PaymentReceiptCIModal'
-import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+const PaymentReceiptCIModal = dynamic(() => import('./PaymentReceiptCIModal'), {
+  ssr: false,
+})
+const RemboursementCIPDFModal = dynamic(() => import('./RemboursementCIPDFModal'), {
+  ssr: false,
+})
 import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistorySection from './SupportHistorySection'
-import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
+const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDFModal'), {
+  ssr: false,
+})
 
 interface MonthlyCIContractProps {
   contract: ContractCI
