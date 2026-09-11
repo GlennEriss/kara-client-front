@@ -97,6 +97,7 @@ const QuittanceCreditSpecialePDFModal = dynamic(
 import RestMonthModal from './RestMonthModal'
 import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 import SwitchToFixedPhaseModal from './SwitchToFixedPhaseModal'
+import { addContractMonths } from '@/utils/contract-months'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -531,8 +532,7 @@ export default function CreditContractDetail({
       let nextDueAssigned = false
 
       for (let month = 1; month <= lastRecordedMonth; month++) {
-        const date = new Date(cycle.firstPaymentDate)
-        date.setMonth(date.getMonth() + month - 1)
+        const date = addContractMonths(cycle.firstPaymentDate, month - 1)
 
         const amountDue = Math.max(0, customRound(capital))
         const expectedPayment = Math.min(
@@ -739,8 +739,7 @@ export default function CreditContractDetail({
 
       let cumulativePlanned = 0
       for (let month = 1; month <= plannedDuration; month++) {
-        const date = new Date(firstDate)
-        date.setMonth(date.getMonth() + (month - 1))
+        const date = addContractMonths(firstDate, (month - 1))
 
         const plannedPayment = plannedPaymentByMonth.get(month) ?? 0
         const principalAtStart = Math.max(0, customRound(totalAmount - cumulativePlanned))
@@ -851,8 +850,7 @@ export default function CreditContractDetail({
 
       while (currentRemaining > 0 && monthIndex < 20) {
         const currentMonth = monthIndex + 1
-        const date = new Date(firstDate)
-        date.setMonth(date.getMonth() + monthIndex)
+        const date = addContractMonths(firstDate, monthIndex)
 
         let plannedPayment = hasCustomSchedule
           ? (customPaymentByMonth.get(currentMonth) ?? defaultMonthlyPayment)

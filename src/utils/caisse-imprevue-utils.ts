@@ -1,3 +1,7 @@
+import { addContractMonths } from '@/utils/contract-months'
+
+export { addContractMonths }
+
 /**
  * Fonctions utilitaires pour la gestion de la caisse imprévue
  */
@@ -84,3 +88,67 @@ export function isDateInMonthIndex(date: Date, monthIndex: number, firstPaymentD
   return targetDate >= startDate && targetDate <= endDate
 }
 
+
+const toFirstPaymentDate = (value: unknown): string | null => {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  if (typeof (value as { toDate?: () => Date })?.toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString()
+  }
+  return null
+}
+
+/**
+ * Date limite d'une échéance, quelle que soit la fréquence du contrat.
+ *
+ * DAILY : dernier jour de la période de 30 jours (`getMonthPeriod`), comme en
+ * Caisse Spéciale où le `dueAt` stocké vaut `début + (i+1)×30 − 1`.
+ * MONTHLY : `monthIndex` mois après la première échéance.
+ *
+ * Cette fonction existe pour qu'il n'y ait plus qu'une définition de « date
+ * d'échéance » côté CI : plusieurs chemins ajoutaient `monthIndex` jours au
+ * lieu de `monthIndex × 30` pour les contrats journaliers.
+ */
+export function getPaymentDueDate(
+  contract: { firstPaymentDate?: unknown; paymentFrequency?: string | null },
+  monthIndex: number
+): Date | null {
+  const firstPaymentDate = toFirstPaymentDate(contract?.firstPaymentDate)
+  if (!firstPaymentDate) return null
+
+  const first = new Date(firstPaymentDate)
+  if (Number.isNaN(first.getTime())) return null
+
+  if (contract.paymentFrequency === 'MONTHLY') {
+    first.setHours(0, 0, 0, 0)
+    return addContractMonths(first, monthIndex)
+  }
+  return getMonthPeriod(monthIndex, firstPaymentDate).endDate
+}
+
+/**
+ * Fin théorique d'un contrat : date limite de sa dernière échéance.
+ *
+ * En quotidien, `subscriptionCIDuration` compte des périodes de 30 jours, pas
+ * des mois calendaires — les écrans qui faisaient `+ duration mois` affichaient
+ * environ 5 jours de trop sur un contrat de 12 périodes.
+ */
+export function getContractEndDate(contract: {
+  firstPaymentDate?: unknown
+  paymentFrequency?: string | null
+  subscriptionCIDuration?: number | null
+}): Date | null {
+  const duration = Number(contract?.subscriptionCIDuration ?? 0)
+  if (!duration || duration <= 0) return null
+
+  if (contract.paymentFrequency === 'MONTHLY') {
+    const firstPaymentDate = toFirstPaymentDate(contract?.firstPaymentDate)
+    if (!firstPaymentDate) return null
+    const first = new Date(firstPaymentDate)
+    if (Number.isNaN(first.getTime())) return null
+    first.setHours(0, 0, 0, 0)
+    return addContractMonths(first, duration)
+  }
+  return getPaymentDueDate(contract, duration - 1)
+}

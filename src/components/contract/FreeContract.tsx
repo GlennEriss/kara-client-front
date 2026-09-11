@@ -57,6 +57,7 @@ const PaymentInvoiceModal = dynamic(() => import('./standard/PaymentInvoiceModal
   ssr: false,
 })
 import TestPaymentTools from './TestPaymentTools'
+import { addContractMonths } from '@/utils/contract-months'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -482,10 +483,8 @@ export default function FreeContract({ id }: Props) {
     if (!raw) return null
     const startRef = typeof raw?.toDate === 'function' ? raw.toDate() : new Date(raw)
     if (isNaN(startRef.getTime())) return null
-    const start = new Date(startRef)
-    start.setMonth(start.getMonth() + dueMonthIndex)
-    const end = new Date(startRef)
-    end.setMonth(end.getMonth() + dueMonthIndex + 1)
+    const start = addContractMonths(startRef, dueMonthIndex)
+    const end = addContractMonths(startRef, dueMonthIndex + 1)
     end.setDate(end.getDate() - 1)
     return { start, end }
   }, [data])

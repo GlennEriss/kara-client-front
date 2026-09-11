@@ -27,6 +27,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { toast } from 'sonner'
+import { addContractMonths } from '@/utils/contract-months'
 
 const CAISSE_TYPE_OPTIONS = [
   { value: 'STANDARD', label: 'Standard' },
@@ -38,9 +39,7 @@ function formatDateFr(d: Date): string {
 }
 
 function getWithdrawalDate(dueAt: Date): Date {
-  const withdrawalDate = new Date(dueAt)
-  withdrawalDate.setMonth(withdrawalDate.getMonth() + 1)
-  return withdrawalDate
+  return addContractMonths(dueAt, 1)
 }
 
 function formatAmount(n: number): string {

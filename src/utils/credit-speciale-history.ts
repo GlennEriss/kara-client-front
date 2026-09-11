@@ -1,6 +1,7 @@
 import { CreditContract, CreditContractCycle, CreditPayment } from '@/types/types'
 import { customRound } from './credit-speciale-calculations'
 import { getLogicalMonthIndex } from './credit-speciale-rest-months'
+import { addContractMonths } from '@/utils/contract-months'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
 export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 60
@@ -388,8 +389,7 @@ export function buildCreditSpecialeHistory(
       break
     }
 
-    const date = new Date(firstDate)
-    date.setMonth(date.getMonth() + month - 1)
+    const date = addContractMonths(firstDate, month - 1)
 
     const restEntry = restMonths.find((restMonth) => restMonth.monthNumber === month)
     const logicalMonth = getLogicalMonthIndex(month, restMonths)

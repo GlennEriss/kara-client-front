@@ -51,6 +51,7 @@ import EditCreditDemandModal from './EditCreditDemandModal'
 import MemberActivitySummary from './MemberActivitySummary'
 import ReopenDemandModal from './ReopenDemandModal'
 import ValidateDemandModal from './ValidateDemandModal'
+import { addContractMonths } from '@/utils/contract-months'
 
 interface CreditDemandDetailProps {
   demand: CreditDemand
@@ -230,8 +231,7 @@ export default function CreditDemandDetail({
     }> = []
 
     for (let i = 0; i < 7; i++) {
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(firstDate, i)
 
       items.push({
         month: i + 1,

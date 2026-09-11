@@ -11,6 +11,7 @@ import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import QuittanceCaisseSpecialePDF, { type QuittanceCaisseSpecialePdfFillData } from './QuittanceCaisseSpecialePDF'
+import { addContractMonths } from '@/utils/contract-months'
 
 interface RemboursementNormalPDFModalProps {
   isOpen: boolean
@@ -242,10 +243,8 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     if (contractData.firstPaymentDate && contractData.monthsPlanned) {
       try {
         const firstDate = new Date(contractData.firstPaymentDate)
-        const lastDate = new Date(firstDate)
         // Le dernier paiement est monthsPlanned mois après le premier
-        lastDate.setMonth(lastDate.getMonth() + contractData.monthsPlanned)
-        lastPaymentDate = lastDate
+        lastPaymentDate = addContractMonths(firstDate, contractData.monthsPlanned)
       } catch (error) {
         console.error('Erreur lors du calcul de la dernière date de paiement:', error)
       }

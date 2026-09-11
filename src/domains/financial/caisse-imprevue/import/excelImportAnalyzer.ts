@@ -14,6 +14,7 @@
  *  - "GESTION ENTRAIDE ACTIF"  -> contrats CI ACTIFS (+ versements + supports)
  *  - "ADHESION VOLET ENTRAIDE" -> contrats CI CLÔTURÉS (INACTIF uniquement)
  */
+import { addContractMonths } from '@/utils/caisse-imprevue-utils'
 
 export type ImportSheetType = 'CI_ACTIVE' | 'CI_CLOSED' | 'CS_ACTIVE' | 'CS_CLOSED' | 'MEMBERS' | 'UNKNOWN'
 export type MembershipTypeValue = 'adherant' | 'bienfaiteur' | 'sympathisant'
@@ -765,9 +766,9 @@ const CLOSED_IMPREVU_STARTS = [52, 67, 82, 97, 112, 127, 142, 157, 172]
 /** Ajoute n mois à une date ISO (YYYY-MM-DD). */
 function addMonthsIso(iso: string | null, n: number): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  d.setMonth(d.getMonth() + n)
+  const parsed = new Date(iso)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const d = addContractMonths(parsed, n)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')

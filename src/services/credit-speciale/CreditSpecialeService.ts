@@ -29,6 +29,7 @@ import {
     getCreditPaymentMonthNumber,
     getNextDueFromCreditSpecialeHistory,
 } from "@/utils/credit-speciale-history";
+import { addContractMonths } from '@/utils/contract-months'
 
 export class CreditSpecialeService implements ICreditSpecialeService {
     readonly name = "CreditSpecialeService";
@@ -1107,8 +1108,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         for (let i = 0; i < duration; i++) {
             if (remaining <= 0 && contract.creditType !== 'SPECIALE') break;
 
-            const dueDate = new Date(firstDate);
-            dueDate.setMonth(dueDate.getMonth() + i);
+            const dueDate = addContractMonths(firstDate, i);
             dueDate.setHours(0, 0, 0, 0);
             
             const interest = remaining * monthlyRate;
@@ -1356,9 +1356,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     const lastPaymentDate = recalculatedPayments.length > 0 
                         ? new Date(recalculatedPayments[recalculatedPayments.length - 1].paymentDate)
                         : new Date(contract.firstPaymentDate);
-                    const nextDue = new Date(lastPaymentDate);
-                    nextDue.setMonth(nextDue.getMonth() + 1);
-                    return nextDue;
+                    return addContractMonths(lastPaymentDate, 1);
                 })()
                 : undefined;
         } else {
@@ -1920,8 +1918,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // Calculer la date prévue de l'échéance pour ce mois
         const firstPaymentDate = new Date(cycleContract.firstPaymentDate);
-        const dueDate = new Date(firstPaymentDate);
-        dueDate.setMonth(dueDate.getMonth() + monthNumber - 1);
+        const dueDate = addContractMonths(firstPaymentDate, monthNumber - 1);
         dueDate.setHours(0, 0, 0, 0);
 
         // Date de paiement

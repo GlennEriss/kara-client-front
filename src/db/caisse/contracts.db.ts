@@ -1,4 +1,5 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import { addContractMonths } from '@/services/caisse/contractDates'
 import { listRefunds, updateRefund } from './refunds.db'
 const getFirestore = () => import('@/firebase/firestore')
 
@@ -50,7 +51,7 @@ function computeNextDueAtFallback(data: any): Date | undefined {
   if (data.caisseType && JOURNALIER_TYPES.includes(data.caisseType)) {
     next.setDate(next.getDate() + (m + 1) * PERIOD_DAYS - 1)
   } else {
-    next.setMonth(next.getMonth() + m)
+    return addContractMonths(next, m)
   }
   return next
 }

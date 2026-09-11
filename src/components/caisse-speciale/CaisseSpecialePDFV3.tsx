@@ -4,6 +4,7 @@ import { getNationalityName } from '@/constantes/nationality'
 import { MemberInfoRows, getIdentityDocumentLabel } from '@/components/pdf/MemberInfoRows'
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
+import { addContractMonths } from '@/utils/contract-months'
 
 const colWidths = [0.269, 0.307, 0.152, 0.272]
 const sumCols = (start: number, span: number) =>
@@ -405,9 +406,7 @@ const CaisseSpecialePDFV3 = ({
     try {
       const baseDate = date?.toDate ? date.toDate() : new Date(date)
       if (isNaN(baseDate.getTime())) return date
-      const shifted = new Date(baseDate)
-      shifted.setMonth(shifted.getMonth() + 1)
-      return shifted
+      return addContractMonths(baseDate, 1)
     } catch {
       return date
     }

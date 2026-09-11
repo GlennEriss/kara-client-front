@@ -20,6 +20,7 @@ import { AlertCircle, AlertTriangle, ArrowLeft, Calendar, CheckCircle, Clock, Do
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import React from 'react'
+import { resolveContractEndAt } from '@/services/caisse/contractDates'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -709,7 +710,7 @@ export default function ContractPaymentsPage() {
     const typesWithEmptyAmount = ['LIBRE', 'LIBRE_CHARITABLE', 'JOURNALIERE', 'JOURNALIERE_CHARITABLE']
     const hideAmountAndObservation = typesWithEmptyAmount.includes(contract.caisseType || '')
     const contractRows = [
-      { leftLabel: 'DEBUT CAISSE.S', leftValue: formatLongDate(contract.contractStartAt), rightLabel: 'FIN CAISSE.S', rightValue: formatLongDate(contract.contractEndAt) },
+      { leftLabel: 'DEBUT CAISSE.S', leftValue: formatLongDate(contract.contractStartAt), rightLabel: 'FIN CAISSE.S', rightValue: formatLongDate(resolveContractEndAt(contract)) },
       { leftLabel: 'STATUT', leftValue: translateContractStatus(contract.status || ''), rightLabel: 'CONTRAT', rightValue: contract.id || contractId },
       { leftLabel: 'TYPE CAISSE.S', leftValue: caisseTypeLabel, rightLabel: 'MONTANT', rightValue: hideAmountAndObservation ? '' : `${formatAmountForPDF(contract.monthlyAmount || 0)} FCFA` },
       { leftLabel: 'ANNEE INSCRIT', leftValue: String(toDateSafe(contract.createdAt)?.getFullYear() || new Date().getFullYear()), rightLabel: 'DUREE', rightValue: `${contract.monthsPlanned || 0} MOIS` },

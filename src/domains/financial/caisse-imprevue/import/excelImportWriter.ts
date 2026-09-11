@@ -46,6 +46,7 @@ import {
   UNKNOWN_USER_MATRICULE,
   buildUnknownUserBase,
 } from './unknownUser'
+import { addContractMonths } from '@/utils/caisse-imprevue-utils'
 
 const CONTRACTS = firebaseCollectionNames.contractsCI || 'contractsCI'
 const SUBSCRIPTIONS = firebaseCollectionNames.subscriptionsCI || 'subscriptionsCI'
@@ -848,11 +849,8 @@ async function writeRow(row: AnalyzedRow, ctx: ImportContext): Promise<ImportRow
   }
 }
 
-function addMonths(d: Date, n: number): Date {
-  const x = new Date(d)
-  x.setMonth(x.getMonth() + n)
-  return x
-}
+// Même règle que le reste du module : plafonnement au dernier jour du mois.
+const addMonths = (d: Date, n: number): Date => addContractMonths(d, n)
 
 /** Combine une date "YYYY-MM-DD" et une heure "HH:mm" en Date. */
 function combineDateTime(dateStr: string, time?: string): Date {

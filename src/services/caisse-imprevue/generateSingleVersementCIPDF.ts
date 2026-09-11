@@ -3,6 +3,7 @@
  * Utilisé par la page versements (bouton PDF) et par le modal facture (Télécharger en PDF).
  */
 import { addMonths, format, parseISO } from 'date-fns'
+import { getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import type { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 
@@ -173,13 +174,15 @@ export async function generateSingleVersementCIPDF(
 
   const isQuotidien = contract.paymentFrequency !== 'MONTHLY'
   const PERIOD_DAYS_CI = 30
+  /**
+   * Bornes d'une échéance quotidienne, déléguées à `getMonthPeriod` — la même
+   * référence que le calendrier du contrat et que l'export PDF global. Une
+   * période vaut 30 jours pleins, pas un mois calendaire.
+   */
   const getQuotidienPeriodBounds = (p: PaymentCI): { start: Date; end: Date } | null => {
-    const first = toDateSafe(contract.firstPaymentDate)
-    if (!first) return null
-    const start = addMonths(first, p.monthIndex)
-    const end = new Date(start)
-    end.setDate(end.getDate() + PERIOD_DAYS_CI - 1)
-    return { start, end }
+    if (!contract.firstPaymentDate) return null
+    const { startDate, endDate } = getMonthPeriod(p.monthIndex, contract.firstPaymentDate)
+    return { start: startDate, end: endDate }
   }
 
   const memberLastName = contract.memberLastName || 'INCONNU'
@@ -215,9 +218,16 @@ export async function generateSingleVersementCIPDF(
   const totalPenalties = (payment.versements || []).reduce((sum, v) => sum + (v.penalty || 0), 0)
 
   const endDate = (() => {
+    const duration = contract.subscriptionCIDuration || 0
+    // Quotidien : fin de la dernière période de 30 jours.
+    if (isQuotidien) {
+      return duration > 0 && contract.firstPaymentDate
+        ? getMonthPeriod(duration - 1, contract.firstPaymentDate).endDate
+        : null
+    }
     const start = toDateSafe(contract.firstPaymentDate)
     if (!start) return null
-    return addMonths(start, contract.subscriptionCIDuration || 0)
+    return addMonths(start, duration)
   })()
 
   const drawPageBackground = () => {

@@ -4,6 +4,7 @@ import { getNationalityName } from '@/constantes/nationality'
 import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { addContractMonths } from '@/utils/contract-months'
 
 // Styles conformes au document ADHESION_CREDIT_SPECIALE.docx
 const styles = StyleSheet.create({
@@ -293,8 +294,7 @@ const AdhesionCreditSpecialeV2 = ({ contract, memberData, guarantorData }: Adhes
     maxDuration: contract.duration,
   })
 
-  const endDate = new Date(contract.firstPaymentDate)
-  endDate.setMonth(endDate.getMonth() + contract.duration - 1)
+  const endDate = addContractMonths(contract.firstPaymentDate, contract.duration - 1)
   const disbursementDate = contract.disbursementDate
     ? formatDate(contract.disbursementDate)
     : '....................'

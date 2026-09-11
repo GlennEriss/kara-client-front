@@ -43,6 +43,7 @@ import { toast } from 'sonner'
 import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
+import { addContractMonths } from '@/utils/contract-months'
 
 interface DemandDetailProps {
   demandId: string
@@ -74,8 +75,7 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
     let cumule = 0
 
     for (let i = 0; i < demand.monthsPlanned; i++) {
-      const currentDate = new Date(startDate)
-      currentDate.setMonth(currentDate.getMonth() + i)
+      const currentDate = addContractMonths(startDate, i)
       cumule += demand.monthlyAmount
 
       rows.push({

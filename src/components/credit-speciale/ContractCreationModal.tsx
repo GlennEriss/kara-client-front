@@ -38,6 +38,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { toast } from 'sonner'
+import { addContractMonths } from '@/utils/contract-months'
 
 interface ContractCreationModalProps {
   isOpen: boolean
@@ -194,8 +195,7 @@ export default function ContractCreationModal({
       if (isCustom) {
         for (let i = 0; i < result.duration; i++) {
           const monthNum = i + 1
-          const date = new Date(firstDate)
-          date.setMonth(date.getMonth() + i)
+          const date = addContractMonths(firstDate, i)
 
           const planned = result.monthlyPayments.find((p) => p.month === monthNum) ?? result.monthlyPayments[i]
           const payment = Math.max(0, customRound(planned?.amount ?? 0))
@@ -218,8 +218,7 @@ export default function ContractCreationModal({
 
       for (let i = 0; i < duration; i++) {
         const monthNum = i + 1
-        const date = new Date(firstDate)
-        date.setMonth(date.getMonth() + i)
+        const date = addContractMonths(firstDate, i)
 
         const isLastMonth = monthNum === duration
         const payment = isLastMonth
@@ -246,8 +245,7 @@ export default function ContractCreationModal({
     for (let i = 0; i < result.duration; i++) {
       if (remaining <= 0) break
 
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(firstDate, i)
       const monthNum = i + 1
 
       const interest = remaining * monthlyRate
@@ -322,8 +320,7 @@ export default function ContractCreationModal({
     }> = []
 
     for (let i = 0; i < 7; i++) {
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(firstDate, i)
       
       referenceSchedule.push({
         month: i + 1,

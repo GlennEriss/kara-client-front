@@ -6,6 +6,7 @@
 import type { CaisseSpecialeDemand } from '@/types/types'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import { addContractMonths } from '@/utils/contract-months'
 
 export interface PaymentScheduleItem {
   mois: number
@@ -44,8 +45,7 @@ export class CaisseSpecialeDemandExportService {
     let cumule = 0
 
     for (let i = 0; i < demand.monthsPlanned; i++) {
-      const d = new Date(startDate)
-      d.setMonth(d.getMonth() + i)
+      const d = addContractMonths(startDate, i)
       cumule += demand.monthlyAmount
       items.push({
         mois: i + 1,

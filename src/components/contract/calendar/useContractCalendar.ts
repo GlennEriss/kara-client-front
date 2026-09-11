@@ -4,6 +4,7 @@ import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useCallback, useMemo } from 'react'
 import { getMonthDays, toDateSafe } from './calendar-utils'
 import type { CalendarDayStatus, DayWithStatus } from './types'
+import { addContractMonths } from '@/utils/contract-months'
 
 export interface UseContractCalendarResult {
   /** Données du contrat (contrat + payments + refunds) */
@@ -115,22 +116,21 @@ export function useContractCalendar(
       let diffMonths =
         (normalizedTarget.getFullYear() - contractStartDate.getFullYear()) * 12 +
         (normalizedTarget.getMonth() - contractStartDate.getMonth())
-      let boundaryStart = new Date(contractStartDate)
-      boundaryStart.setMonth(boundaryStart.getMonth() + diffMonths)
+      // Chaque borne se calcule depuis le début du contrat, jamais depuis la
+      // borne précédente : enchaîner les décalages perdrait le quantième
+      // d'origine dès qu'un mois court a plafonné la date (31 → 28 → 28...).
+      let boundaryStart = addContractMonths(contractStartDate, diffMonths)
 
       while (boundaryStart > normalizedTarget && diffMonths > 0) {
         diffMonths -= 1
-        boundaryStart = new Date(contractStartDate)
-        boundaryStart.setMonth(boundaryStart.getMonth() + diffMonths)
+        boundaryStart = addContractMonths(contractStartDate, diffMonths)
       }
 
-      let nextBoundary = new Date(boundaryStart)
-      nextBoundary.setMonth(nextBoundary.getMonth() + 1)
+      let nextBoundary = addContractMonths(contractStartDate, diffMonths + 1)
       while (normalizedTarget >= nextBoundary) {
         diffMonths += 1
         boundaryStart = nextBoundary
-        nextBoundary = new Date(boundaryStart)
-        nextBoundary.setMonth(nextBoundary.getMonth() + 1)
+        nextBoundary = addContractMonths(contractStartDate, diffMonths + 1)
       }
       return diffMonths
     },
@@ -152,19 +152,20 @@ export function useContractCalendar(
     (monthIndex: number): { start: Date; end: Date } | null => {
       if (!contractStartDate) return null
 
-      const start = new Date(contractStartDate)
-      const end = new Date(contractStartDate)
       const isJournalier =
         caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
 
       if (isJournalier) {
+        const start = new Date(contractStartDate)
+        const end = new Date(contractStartDate)
         start.setDate(start.getDate() + monthIndex * 30)
         end.setDate(end.getDate() + (monthIndex + 1) * 30 - 1)
-      } else {
-        start.setMonth(start.getMonth() + monthIndex)
-        end.setMonth(end.getMonth() + monthIndex + 1)
+        return { start, end }
       }
-      return { start, end }
+      return {
+        start: addContractMonths(contractStartDate, monthIndex),
+        end: addContractMonths(contractStartDate, monthIndex + 1),
+      }
     },
     [contractStartDate, caisseType]
   )

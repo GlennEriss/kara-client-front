@@ -5,6 +5,7 @@
  */
 
 import type { CaisseImprevueDemand } from '../entities/demand.types'
+import { addContractMonths } from '@/utils/caisse-imprevue-utils'
 
 export interface PaymentScheduleItem {
   monthIndex: number
@@ -65,8 +66,7 @@ export class DemandSimulationService {
     if (paymentFrequency === 'MONTHLY') {
       // Versements mensuels
       for (let monthIndex = 0; monthIndex < subscriptionCIDuration; monthIndex++) {
-        const paymentDate = new Date(startDate)
-        paymentDate.setMonth(paymentDate.getMonth() + monthIndex)
+        const paymentDate = addContractMonths(startDate, monthIndex)
 
         cumulative += subscriptionCIAmountPerMonth
 
