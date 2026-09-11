@@ -14,6 +14,7 @@ import {
     TrendingUp,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { addContractMonths } from '@/utils/contract-months'
 
 export function Step3PaymentPlan() {
   const { state, updateFormData, validateCurrentStep } = useContractForm()
@@ -56,8 +57,7 @@ export function Step3PaymentPlan() {
     const currentDate = new Date(startDate)
 
     for (let month = 0; month < formData.monthsPlanned; month++) {
-      const paymentDate = new Date(currentDate)
-      paymentDate.setMonth(currentDate.getMonth() + month)
+      const paymentDate = addContractMonths(currentDate, month)
       
       schedule.push({
         month: month + 1,

@@ -17,6 +17,7 @@ import {
 } from '@/utils/placementMoney'
 import { logAdminAction, type AuditAction } from '@/services/audit/auditLog'
 import { PLACEMENT_AUDIT_MODULE } from '@/constantes/audit-modules'
+import { addContractMonths } from '@/utils/contract-months'
 
 export class PlacementService {
   private notificationService: NotificationService
@@ -63,10 +64,12 @@ export class PlacementService {
     return placement?.commissionConvention ?? 'advance'
   }
 
+  /**
+   * Règle commune aux quatre produits : plafonnement au dernier jour du mois
+   * d'arrivée (31 janv + 1 mois → 28 févr, et non 3 mars).
+   */
   private addMonths(date: Date, months: number): Date {
-    const next = new Date(date)
-    next.setMonth(next.getMonth() + months)
-    return next
+    return addContractMonths(date, months)
   }
 
   /**

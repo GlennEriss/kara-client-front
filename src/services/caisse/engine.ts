@@ -1,4 +1,5 @@
 import { CaisseContract, CaisseSettings } from './types'
+import { addContractMonths } from './contractDates'
 
 export function daysBetween(a: Date, b: Date): number {
   const ms = new Date(b).getTime() - new Date(a).getTime()
@@ -68,7 +69,7 @@ export function computeNextDueAt(contract: CaisseContract): Date | undefined {
     // Prochaine échéance = dernier jour de la période currentMonthIndex (période de 30 jours)
     next.setDate(next.getDate() + (m + 1) * PERIOD_DAYS - 1)
   } else {
-    next.setMonth(next.getMonth() + m)
+    return addContractMonths(next, m)
   }
   return next
 }

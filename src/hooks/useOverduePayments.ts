@@ -8,7 +8,8 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { addDays, addMonths, differenceInCalendarDays, startOfDay } from 'date-fns'
+import { differenceInCalendarDays, startOfDay } from 'date-fns'
+import { getPaymentDueDate } from '@/utils/caisse-imprevue-utils'
 import { getAllContracts } from '@/db/caisse/contracts.db'
 import { listPayments } from '@/db/caisse/payments.db'
 import { getUserById } from '@/db/user.db'
@@ -145,11 +146,10 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
 }
 
 /* ---------- Caisse Imprévue ---------- */
-function ciDueDate(contract: ContractCI, payment: PaymentCI): Date {
-  const first = new Date(contract.firstPaymentDate)
-  return contract.paymentFrequency === 'DAILY'
-    ? addDays(first, payment.monthIndex)
-    : addMonths(first, payment.monthIndex)
+// Une période journalière couvre 30 jours : la date limite est la fin de
+// période, pas `monthIndex` jours après le début du contrat.
+function ciDueDate(contract: ContractCI, payment: PaymentCI): Date | null {
+  return getPaymentDueDate(contract, payment.monthIndex)
 }
 
 async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]> {
@@ -181,7 +181,7 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
           const isPaid = p?.status === 'PAID' || (p?.status === 'PARTIAL' && accumulated >= target)
           if (isPaid) continue
           const due = ciDueDate(contract, { monthIndex: mi } as PaymentCI)
-          if (startOfDay(due) >= today) continue // échéance encore à venir
+          if (!due || startOfDay(due) >= today) continue // échéance inconnue ou encore à venir
           overdueMonths.push({ monthIndex: mi, due, remaining: Math.max(0, target - accumulated) })
         }
         if (overdueMonths.length === 0) return []

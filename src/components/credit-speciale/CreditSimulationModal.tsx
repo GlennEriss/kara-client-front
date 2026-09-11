@@ -39,6 +39,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { addContractMonths } from '@/utils/contract-months'
 
 interface CreditSimulationModalProps {
   isOpen: boolean
@@ -843,8 +844,7 @@ function StandardSimulationResults({
     }> = []
 
     for (let i = 0; i < 7; i++) {
-      const date = new Date(refFirstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(refFirstDate, i)
       
       // Toutes les mensualités sont identiques (315 812 FCFA)
       referenceSchedule.push({
@@ -1105,8 +1105,7 @@ function CustomSimulationResults({
   const firstDate = new Date(result.firstPaymentDate)
 
   result.monthlyPayments.forEach((payment, index) => {
-    const date = new Date(firstDate)
-    date.setMonth(date.getMonth() + index)
+    const date = addContractMonths(firstDate, index)
     
     // 1. Calcul des intérêts sur le solde actuel
     const interest = remaining * monthlyRate
@@ -1159,8 +1158,7 @@ function CustomSimulationResults({
     
     // Générer l'échéancier avec cette mensualité (identique pour tous les mois)
     for (let i = 0; i < maxDuration; i++) {
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(firstDate, i)
       
       referenceSchedule.push({
         month: i + 1,

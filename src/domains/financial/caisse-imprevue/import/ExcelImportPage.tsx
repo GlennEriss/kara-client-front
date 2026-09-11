@@ -73,6 +73,7 @@ import {
 } from './excelImportWriter'
 import { ChangeAdminUidModal } from './ChangeAdminUidModal'
 import { invalidateAppStats } from '@/lib/invalidateAppStats'
+import { addContractMonths } from '@/utils/caisse-imprevue-utils'
 
 interface RowView extends AnalyzedRow {
   memberFound: boolean
@@ -117,9 +118,9 @@ function fmtDate(s: string | null | undefined): string {
 function contractEndDate(r: AnalyzedRow): string {
   if (r.entraide.contractEndDate) return fmtDate(r.entraide.contractEndDate)
   if (!r.startDate) return '—'
-  const d = new Date(r.startDate)
-  if (Number.isNaN(d.getTime())) return '—'
-  d.setMonth(d.getMonth() + (r.durationMonths || 0))
+  const parsed = new Date(r.startDate)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  const d = addContractMonths(parsed, r.durationMonths || 0)
   return fmtDate(d.toISOString().slice(0, 10))
 }
 

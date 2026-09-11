@@ -7,6 +7,7 @@ import type {
   FixedSimulationScheduleRow,
   FixedStandardSimulationInput,
 } from '../entities/fixed-simulation.types'
+import { addContractMonths } from '@/utils/contract-months'
 
 const MAX_FIXED_DURATION = 14
 const MAX_FIXED_INTEREST_RATE = 50
@@ -141,9 +142,7 @@ export class CreditFixeSimulationService {
   }
 
   private getScheduleDate(firstPaymentDate: Date, month: number): Date {
-    const date = new Date(firstPaymentDate)
-    date.setMonth(date.getMonth() + (month - 1))
-    return date
+    return addContractMonths(firstPaymentDate, month - 1)
   }
 
   private normalizeMonthlyPayments(

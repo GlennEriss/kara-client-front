@@ -1,6 +1,7 @@
 /**
  * Utilitaires pour les calculs de crédit spéciale
  */
+import { addContractMonths } from '@/utils/contract-months'
 
 export interface ScheduleItem {
   month: number
@@ -62,8 +63,7 @@ export function calculateSchedule(params: CalculateScheduleParams): ScheduleItem
   let remaining = amount
 
   for (let i = 0; i < maxDuration; i++) {
-    const date = new Date(firstPaymentDate)
-    date.setMonth(date.getMonth() + i)
+    const date = addContractMonths(firstPaymentDate, i)
     
     // Si le solde est déjà à 0 (ou très proche de 0), ne pas ajouter de ligne
     if (remaining <= 0.01) {

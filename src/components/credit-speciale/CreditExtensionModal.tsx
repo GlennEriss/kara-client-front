@@ -59,6 +59,7 @@ import {
 import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { addContractMonths } from '@/utils/contract-months'
 
 // Composant pour saisir les paiements personnalisés
 function CustomPaymentsInput({ 
@@ -416,8 +417,7 @@ export default function CreditExtensionModal({
       return Array.from({ length: duration }, (_, index) => {
         const month = index + 1
         const isLastMonth = month === duration
-        const date = new Date(simulation.firstPaymentDate)
-        date.setMonth(date.getMonth() + index)
+        const date = addContractMonths(simulation.firstPaymentDate, index)
 
         const payment = isLastMonth ? totalAmount - cumulativePaid : paymentFloor
         const interest = isLastMonth ? totalInterest - cumulativeInterest : interestFloor

@@ -50,6 +50,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { toast } from 'sonner'
+import { addContractMonths } from '@/utils/contract-months'
 
 type SimulationTabValue = 'standard' | 'custom' | 'proposed'
 
@@ -1002,8 +1003,7 @@ function StandardSimulationResults({
 
     let remaining = result.amount
     for (let i = 0; i < 7; i++) {
-      const date = new Date(refFirstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(refFirstDate, i)
       
       const interest = remaining * monthlyRate
       const balanceWithInterest = remaining + interest
@@ -1645,8 +1645,7 @@ function CustomSimulationResults({
   const firstDate = new Date(result.firstPaymentDate)
 
   result.monthlyPayments.forEach((payment, index) => {
-    const date = new Date(firstDate)
-    date.setMonth(date.getMonth() + index)
+    const date = addContractMonths(firstDate, index)
     
     const interest = remaining * monthlyRate
     const balanceWithInterest = remaining + interest
@@ -1684,8 +1683,7 @@ function CustomSimulationResults({
     
     let remaining = result.amount
     for (let i = 0; i < maxDuration; i++) {
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
+      const date = addContractMonths(firstDate, i)
       
       const interest = remaining * monthlyRate
       const balanceWithInterest = remaining + interest

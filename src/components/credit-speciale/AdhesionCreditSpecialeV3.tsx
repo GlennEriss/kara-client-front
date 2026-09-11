@@ -10,6 +10,7 @@ import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { calculateSchedule, formatNumberWithSpaces } from '@/utils/credit-speciale-calculations'
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
+import { addContractMonths } from '@/utils/contract-months'
 
 Font.register({
   family: 'Times New Roman',
@@ -537,8 +538,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
   const schedule = firstPaymentDate
     ? customSchedule
       ? customSchedule.map(({ month, amount }) => {
-          const date = new Date(firstPaymentDate)
-          date.setMonth(date.getMonth() + month - 1)
+          const date = addContractMonths(firstPaymentDate, month - 1)
           return { month, date, payment: amount, interest: 0, principal: amount, remaining: 0 }
         })
       : calculateSchedule({
@@ -551,8 +551,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
     : []
 
   const endDate = firstPaymentDate ? (() => {
-    const d = new Date(firstPaymentDate)
-    d.setMonth(d.getMonth() + (contract.duration || 0) - 1)
+    const d = addContractMonths(firstPaymentDate, (contract.duration || 0) - 1)
     return d
   })() : null
   const disbursementDate = contract.disbursementDate

@@ -20,6 +20,7 @@ import {
   type MemberFormProduct,
   type MemberFormSummary,
 } from '../entities/member-form.types'
+import { addContractMonths } from '@/utils/contract-months'
 
 type DateLike = Date | string | number | { toDate?: () => Date } | null | undefined
 
@@ -72,11 +73,8 @@ function addDays(value: Date, days: number): Date {
   return result
 }
 
-function addMonths(value: Date, months: number): Date {
-  const result = new Date(value)
-  result.setMonth(result.getMonth() + months)
-  return result
-}
+// Règle commune : plafonnement au dernier jour du mois d'arrivée.
+const addMonths = (value: Date, months: number): Date => addContractMonths(value, months)
 
 function latestDate(values: DateLike[]): Date | null {
   return values.reduce<Date | null>((latest, value) => {

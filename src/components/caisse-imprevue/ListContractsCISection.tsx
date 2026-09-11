@@ -30,6 +30,7 @@ import { useMembers } from '@/hooks/useMembers'
 import { useCaisseImprevueContractsRealtimeSync } from '@/hooks/caisse-imprevue/useCaisseImprevueContractsRealtimeSync'
 import { cn } from '@/lib/utils'
 import { CONTRACT_CI_STATUS_LABELS, ContractCI, ContractCIStatus } from '@/types/types'
+import { getContractEndDate as computeContractEndDate } from '@/utils/caisse-imprevue-utils'
 import {
     AlertCircle,
     Ban,
@@ -704,10 +705,8 @@ export default function ListContractsCISection() {
       const statusLabel = CONTRACT_CI_STATUS_LABELS[contract.status]
       
       const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
-      const endDate = startDate && !isNaN(startDate.getTime()) ? new Date(startDate) : null
-      if (endDate) {
-        endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
-      }
+      // Quotidien : la durée compte des périodes de 30 jours, pas des mois.
+      const endDate = computeContractEndDate(contract)
       
       return [
         contract.id,
@@ -935,11 +934,8 @@ export default function ListContractsCISection() {
   const hasValidContractPdf = (contract: ContractCI) => Boolean(contract.contractStartId)
 
   const getContractEndDate = (contract: ContractCI) => {
-    if (!contract.firstPaymentDate) return '—'
-    const start = new Date(contract.firstPaymentDate)
-    if (Number.isNaN(start.getTime())) return '—'
-    const end = new Date(start)
-    end.setMonth(end.getMonth() + (contract.subscriptionCIDuration || 0))
+    const end = computeContractEndDate(contract)
+    if (!end) return '—'
     return end.toLocaleDateString('fr-FR')
   }
 

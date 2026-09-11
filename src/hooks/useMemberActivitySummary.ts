@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { listPayments } from '@/db/caisse/payments.db'
 import { getContractWithComputedState } from '@/services/caisse/readers'
+import { getPaymentDueDate } from '@/utils/caisse-imprevue-utils'
 
 export interface ContractSummary {
   id: string
@@ -228,15 +229,10 @@ async function fetchCaisseImprevueContracts(memberId: string): Promise<ContractS
           // Le prochain mois à payer est totalMonthsPaid (0-indexed)
           const nextMonthIndex = contract.totalMonthsPaid || 0
           
-          if (contract.paymentFrequency === 'MONTHLY') {
-            // Pour les contrats mensuels, ajouter le nombre de mois
-            const nextDate = new Date(firstDate)
-            nextDate.setMonth(nextDate.getMonth() + nextMonthIndex)
-            nextPaymentDate = nextDate
-          } else if (contract.paymentFrequency === 'DAILY') {
-            // Pour les contrats journaliers, ajouter le nombre de jours (30 jours par mois)
-            const nextDate = new Date(firstDate)
-            nextDate.setDate(nextDate.getDate() + (nextMonthIndex * 30))
+          // Mensuel comme quotidien : une seule définition de la date
+          // d'échéance, partagée avec la page contrat et les exports.
+          const nextDate = getPaymentDueDate(contract, nextMonthIndex)
+          if (nextDate) {
             nextPaymentDate = nextDate
           }
         }

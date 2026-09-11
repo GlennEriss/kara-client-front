@@ -6,6 +6,7 @@ import type {
   CaisseSpecialeSimulationResult,
   CaisseSpecialeSimulationRow,
 } from './simulation/types'
+import { addContractMonths } from '@/utils/contract-months'
 
 /**
  * Calcule l'échéancier de simulation pour Caisse Spéciale (Standard / Standard Charitable).
@@ -22,8 +23,7 @@ export async function runCaisseSpecialeSimulation(
   const start = new Date(startDate)
 
   for (let i = 0; i < durationMonths; i++) {
-    const dueAt = new Date(start)
-    dueAt.setMonth(start.getMonth() + i)
+    const dueAt = addContractMonths(start, i)
 
     const bonusRatePercent = computeBonus(i, settings ?? undefined)
     // Règle métier: bonus = total cotisé à l'échéance × taux bonus

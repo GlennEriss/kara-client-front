@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { buildPaymentsCISchedule } from '@/domains/financial/caisse-imprevue/services/buildPaymentsCISchedule'
 import { useAgentsActifs } from '@/hooks/agent-recouvrement'
 import { useContractCI, usePaymentsCI, usePaymentsCIStats } from '@/hooks/caisse-imprevue'
 import { useMember } from '@/hooks/useMembers'
 import { generateSingleVersementCIPDF } from '@/services/caisse-imprevue/generateSingleVersementCIPDF'
 import { CONTRACT_CI_STATUS_LABELS, PaymentCI, VersementCI } from '@/types/types'
+import { getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { addMonths, format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -34,7 +36,7 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',
@@ -69,6 +71,11 @@ export default function ContractCIPaymentsPage() {
   const { data: agents = [] } = useAgentsActifs()
   const agentsMap = Object.fromEntries(agents.map((a) => [a.id, a]))
   
+  // Échéancier complet : la CI ne crée un document de paiement qu'au premier
+  // versement du mois, donc `payments` ne contient pas les mois impayés. On les
+  // reconstruit ici pour l'affichage et les exports (aucune écriture en base).
+  const schedule = useMemo(() => buildPaymentsCISchedule(contract, payments), [contract, payments])
+
   // Calcul des statistiques
   const stats = usePaymentsCIStats(contract || null, payments)
 
@@ -144,12 +151,35 @@ export default function ContractCIPaymentsPage() {
 
   // Fonction pour exporter vers Excel
   const exportToExcel = async () => {
-    if (!payments.length || !contract) return
+    if (!schedule.length || !contract) return
 
     const exportData: any[] = []
 
-    payments.forEach((payment) => {
-      payment.versements?.forEach((versement, vIndex) => {
+    schedule.forEach((payment) => {
+      const versements = payment.versements || []
+
+      // Mois sans aucun versement : on émet quand même une ligne, sinon les
+      // impayés seraient absents du fichier.
+      if (!versements.length) {
+        exportData.push({
+          'Mois': `M${payment.monthIndex + 1}`,
+          'N° Versement': '-',
+          'Date': '-',
+          'Heure': '-',
+          'Montant': 0,
+          'Moyen de paiement': '-',
+          'Pénalité': 0,
+          'Jours de retard': 0,
+          'Créé par': '-',
+          'Agent de recouvrement': '-',
+          'Statut du mois': PAYMENT_STATUS_LABELS[payment.status],
+          'Cumulé du mois': payment.accumulatedAmount,
+          'Objectif du mois': payment.targetAmount,
+        })
+        return
+      }
+
+      versements.forEach((versement, vIndex) => {
         exportData.push({
           'Mois': `M${payment.monthIndex + 1}`,
           'N° Versement': vIndex + 1,
@@ -198,7 +228,7 @@ export default function ContractCIPaymentsPage() {
 
   // Fonction pour exporter vers PDF (global)
   const exportToPDF = async () => {
-    if (!payments.length || !contract) return
+    if (!schedule.length || !contract) return
 
     const loadLogoDataUrl = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
       try {
@@ -239,7 +269,7 @@ export default function ContractCIPaymentsPage() {
     }
 
     const logoDataUrl = await loadLogoDataUrl()
-    const sortedPayments = [...payments].sort((a, b) => a.monthIndex - b.monthIndex)
+    const sortedPayments = [...schedule].sort((a, b) => a.monthIndex - b.monthIndex)
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF('l', 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
@@ -355,10 +385,31 @@ export default function ContractCIPaymentsPage() {
       return age > 0 ? `${age} ANS` : '-'
     }
 
+    const isQuotidien = contract.paymentFrequency !== 'MONTHLY'
+
+    /**
+     * Bornes d'une échéance quotidienne. On délègue à `getMonthPeriod`, qui est
+     * la référence utilisée par le calendrier du contrat : une période vaut
+     * 30 jours pleins, pas un mois calendaire. Recalculer avec `addMonths`
+     * décalait le PDF de plusieurs jours sur les dernières échéances.
+     */
+    const getQuotidienPeriodBounds = (p: PaymentCI): { start: Date; end: Date } | null => {
+      if (!contract.firstPaymentDate) return null
+      const { startDate, endDate } = getMonthPeriod(p.monthIndex, contract.firstPaymentDate)
+      return { start: startDate, end: endDate }
+    }
+
+    /** Échéance mensuelle : un mois calendaire après le premier versement. */
     const getPaymentDueAt = (payment: PaymentCI): Date | null => {
       const first = toDateSafe(contract.firstPaymentDate)
       if (!first) return null
       return addMonths(first, payment.monthIndex)
+    }
+
+    /** Date limite réelle de l'échéance, tous types de contrats confondus. */
+    const getPaymentDeadline = (payment: PaymentCI): Date | null => {
+      if (isQuotidien) return getQuotidienPeriodBounds(payment)?.end ?? null
+      return getPaymentDueAt(payment)
     }
 
     const getPaymentPaidAt = (payment: PaymentCI): Date | null => {
@@ -392,7 +443,7 @@ export default function ContractCIPaymentsPage() {
         return 'CONFORME'
       }
       if (payment.status === 'PARTIAL') return 'PARTIEL'
-      const dueAt = getPaymentDueAt(payment)
+      const dueAt = getPaymentDeadline(payment)
       if (dueAt && new Date() > dueAt) return 'IMPAYE'
       return 'EN ATTENTE'
     }
@@ -401,17 +452,6 @@ export default function ContractCIPaymentsPage() {
       const label = getAdminDisplayName(payment.updatedBy)
       if (!label || label === 'Chargement...') return payment.updatedBy || '-'
       return label
-    }
-
-    const isQuotidien = contract.paymentFrequency !== 'MONTHLY'
-    const PERIOD_DAYS = 30
-    const getQuotidienPeriodBounds = (p: PaymentCI): { start: Date; end: Date } | null => {
-      const first = toDateSafe(contract.firstPaymentDate)
-      if (!first) return null
-      const start = addMonths(first, p.monthIndex)
-      const end = new Date(start)
-      end.setDate(end.getDate() + PERIOD_DAYS - 1)
-      return { start, end }
     }
 
     const memberLastName = member?.lastName || contract.memberLastName || 'INCONNU'
@@ -663,9 +703,17 @@ export default function ContractCIPaymentsPage() {
     drawMainTitle()
     drawSectionTitle('Informations concernant la Caisse Imprévue', 30)
     const endDate = (() => {
+      const duration = contract.subscriptionCIDuration || 0
+      // Quotidien : la fin du contrat est la fin de la dernière période de
+      // 30 jours, pas `duration` mois calendaires après le début.
+      if (isQuotidien) {
+        return duration > 0 && contract.firstPaymentDate
+          ? getMonthPeriod(duration - 1, contract.firstPaymentDate).endDate
+          : null
+      }
       const start = toDateSafe(contract.firstPaymentDate)
       if (!start) return null
-      return addMonths(start, contract.subscriptionCIDuration || 0)
+      return addMonths(start, duration)
     })()
     const contractRows = [
       {
@@ -782,7 +830,7 @@ export default function ContractCIPaymentsPage() {
 
   // Fonction pour exporter un paiement individuel en PDF (même PDF que « Télécharger en PDF » du modal reçu / page contrat)
   const exportSinglePaymentToPDF = async (payment: PaymentCI) => {
-    if (!payments.length || !contract) return
+    if (!contract) return
     await generateSingleVersementCIPDF(contract, payment, {
       contractId,
       getAdminDisplayName,
@@ -1007,9 +1055,9 @@ export default function ContractCIPaymentsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
-                Liste des Paiements ({payments.length} mois)
+                Liste des Paiements ({schedule.length} mois)
               </CardTitle>
-              {payments.length > 0 && (
+              {schedule.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={exportToPDF}
@@ -1036,9 +1084,9 @@ export default function ContractCIPaymentsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {payments.length > 0 ? (
+            {schedule.length > 0 ? (
               <div className="space-y-6">
-                {payments.map((payment) => (
+                {schedule.map((payment) => (
                   <Card key={payment.id} className="border-2 hover:border-[#224D62] transition-colors">
                     <CardContent className="p-5">
                       <div className="flex items-center justify-between mb-4">
@@ -1055,15 +1103,17 @@ export default function ContractCIPaymentsPage() {
                           </Badge>
                         </div>
                         
-                        <Button
-                          onClick={() => exportSinglePaymentToPDF(payment)}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
-                        >
-                          <Download className="h-3 w-3" />
-                          PDF
-                        </Button>
+                        {payment.versements.length > 0 && (
+                          <Button
+                            onClick={() => exportSinglePaymentToPDF(payment)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                          >
+                            <Download className="h-3 w-3" />
+                            PDF
+                          </Button>
+                        )}
                       </div>
 
                       {/* Résumé du mois */}
@@ -1086,7 +1136,7 @@ export default function ContractCIPaymentsPage() {
                       </div>
 
                       {/* Modifié le / Motif (si le paiement a été modifié) */}
-                      {(payment.modificationReason ?? payment.updatedAt) && (
+                      {!payment.isVirtual && (payment.modificationReason ?? payment.updatedAt) && (
                         <div className="mb-4 p-4 rounded-lg border border-amber-200 bg-amber-50 space-y-1 text-sm text-gray-600">
                           {payment.updatedAt && (() => {
                             const u = payment.updatedAt
@@ -1109,6 +1159,12 @@ export default function ContractCIPaymentsPage() {
                       )}
 
                       {/* Liste des versements */}
+                      {payment.versements.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-red-200 bg-red-50/60 p-4 text-sm text-red-700 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          Aucun versement enregistré pour ce mois.
+                        </div>
+                      ) : (
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                           <DollarSign className="h-4 w-4" />
@@ -1202,6 +1258,7 @@ export default function ContractCIPaymentsPage() {
                           </div>
                         ))}
                       </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}

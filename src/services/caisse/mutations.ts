@@ -3,6 +3,7 @@ import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
 import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt, contractMonthNumberAt } from './engine'
+import { addContractMonths, computeContractEndAt, PERIOD_DAYS_JOURNALIER } from './contractDates'
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
@@ -155,6 +156,7 @@ export async function subscribe(input: {
   const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
   // Pour un nouveau contrat (currentMonthIndex=0), nextDueAt = première échéance = startDate
   const nextDueAt = new Date(startDate)
+  const contractEndAt = computeContractEndAt(startDate, input.monthsPlanned, input.caisseType)
 
   // Attributs de recherche : utiliser ceux fournis (ex. demande convertie) ou les générer depuis le membre/groupe
   const searchableTexts =
@@ -189,6 +191,7 @@ export async function subscribe(input: {
     memberMatricule, // Ajouter le matricule pour la génération d'ID
     contractStartAt: startDate, // Requis pour computeNextDueAt et affichage "Prochaine échéance"
     nextDueAt, // Prochaine date d'échéance (premier versement pour un contrat neuf)
+    ...(contractEndAt ? { contractEndAt } : {}), // Connue dès la création : début + durée
     ...searchableTexts,
     ...(settingsVersion ? { settingsVersion } : {}),
     ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {}),
@@ -238,14 +241,15 @@ export async function subscribe(input: {
   const PERIOD_DAYS = 30 // Une échéance journalière = 30 jours ; la suivante commence le lendemain de la fin
 
   for (let i = 0; i < input.monthsPlanned; i++) {
-    const dueDate = new Date(startDate)
+    let dueDate: Date
     if (isDailyType) {
       // Échéance i : période de 30 jours ; dueAt = dernier jour de la période (jour 30)
       // Période 0 : startDate..startDate+29 → dueAt = startDate + 29
       // Période 1 : startDate+30..startDate+59 → dueAt = startDate + 59 (échéance 2 commence à startDate+30)
+      dueDate = new Date(startDate)
       dueDate.setDate(dueDate.getDate() + (i + 1) * PERIOD_DAYS - 1)
     } else {
-      dueDate.setMonth(dueDate.getMonth() + i)
+      dueDate = addContractMonths(startDate, i)
     }
     await addPayment(id, { 
       dueMonthIndex: i, 
@@ -266,8 +270,6 @@ export async function subscribe(input: {
   
   return id
 }
-
-const PERIOD_DAYS_JOURNALIER = 30
 
 function getContractStartDate(contract: any): Date | null {
   const raw = contract?.contractStartAt ?? contract?.firstPaymentDate
@@ -487,11 +489,12 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Backfill des dueAt si premier paiement
   if (isFirstPayment) {
     for (let i = 0; i < payments.length; i++) {
-      const due = new Date(contractStartAt)
+      let due: Date
       if (isDailyType) {
+        due = new Date(contractStartAt)
         due.setDate(due.getDate() + (i + 1) * 30 - 1)
       } else {
-        due.setMonth(due.getMonth() + i)
+        due = addContractMonths(new Date(contractStartAt), i)
       }
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
@@ -512,16 +515,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
   } as any
 
-  // Si on connaît le start, calculer fin
-  if (contractStartAt && contract.monthsPlanned) {
-    const end = new Date(contractStartAt)
-    if (type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE') {
-      end.setDate(end.getDate() + contract.monthsPlanned * 30 - 1)
-    } else {
-      end.setMonth(end.getMonth() + contract.monthsPlanned)
-    }
-    updated.contractEndAt = end
-  }
+  // Si on connaît le start, (re)calculer la fin
+  const recomputedEndAt = computeContractEndAt(contractStartAt, contract.monthsPlanned, type)
+  if (recomputedEndAt) updated.contractEndAt = recomputedEndAt
 
   // Avancer le mois courant si on paye l’échéance courante
   const newCurrentIdx = Math.max(contract.currentMonthIndex || 0, payment.dueMonthIndex + 1)
@@ -1273,11 +1269,12 @@ export async function payGroup(input: {
   const isDailyTypePayGroup = type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE'
   if (isFirstPayment) {
     for (let i = 0; i < payments.length; i++) {
-      const due = new Date(contractStartAt)
+      let due: Date
       if (isDailyTypePayGroup) {
+        due = new Date(contractStartAt)
         due.setDate(due.getDate() + (i + 1) * 30 - 1)
       } else {
-        due.setMonth(due.getMonth() + i)
+        due = addContractMonths(new Date(contractStartAt), i)
       }
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }

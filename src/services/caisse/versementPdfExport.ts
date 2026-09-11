@@ -4,6 +4,7 @@
  */
 import type jsPDF from 'jspdf'
 import { getNationalityNameByGender } from '@/constantes/nationality'
+import { resolveContractEndAt } from './contractDates'
 
 const formatAmountForPDF = (amount: number | undefined | null): string => {
   if (!amount && amount !== 0) return '0'
@@ -629,7 +630,7 @@ export function buildVersementPDFFirstTwoPages(
         leftLabel: 'DEBUT CAISSE.S',
         leftValue: formatLongDate(contract.contractStartAt),
         rightLabel: 'FIN CAISSE.S',
-        rightValue: formatLongDate(contract.contractEndAt),
+        rightValue: formatLongDate(resolveContractEndAt(contract)),
       },
       {
         leftLabel: 'STATUT',

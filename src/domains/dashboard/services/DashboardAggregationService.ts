@@ -13,6 +13,7 @@ import type {
     DashboardSnapshot,
     DashboardTabPayload,
 } from '../entities/dashboard.types'
+import { addContractMonths } from '@/utils/contract-months'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
 
@@ -463,11 +464,8 @@ function addDays(base: Date, days: number): Date {
   return next
 }
 
-function addMonths(base: Date, months: number): Date {
-  const next = new Date(base)
-  next.setMonth(next.getMonth() + months)
-  return next
-}
+// Règle commune : plafonnement au dernier jour du mois d'arrivée.
+const addMonths = (base: Date, months: number): Date => addContractMonths(base, months)
 
 function extractRestMonthEvents(record: FirestoreRecord): Array<{ contractId: string; memberId: string | null; restDate: Date | null; monthlyAmount: number }> {
   const contractId = typeof record.id === 'string' ? record.id : ''

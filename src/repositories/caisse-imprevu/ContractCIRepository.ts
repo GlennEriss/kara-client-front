@@ -1,6 +1,7 @@
 import { IContractCIRepository, ContractsCIFilters, ContractsCIStats } from "./IContractCIRepository";
 import { ContractCI } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
+import { getPaymentDueDate } from "@/utils/caisse-imprevue-utils";
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -44,21 +45,7 @@ export class ContractCIRepository implements IContractCIRepository {
      * DAILY: cycles de 30 jours (cohérent avec les utilitaires CI existants).
      */
     private computeDueDateByMonthIndex(contract: ContractCI, monthIndex: number): Date | null {
-        if (!contract.firstPaymentDate) return null;
-
-        const firstPaymentDate = new Date(contract.firstPaymentDate);
-        if (isNaN(firstPaymentDate.getTime())) return null;
-        firstPaymentDate.setHours(0, 0, 0, 0);
-
-        const dueDate = new Date(firstPaymentDate);
-        if (contract.paymentFrequency === 'MONTHLY') {
-            dueDate.setMonth(dueDate.getMonth() + monthIndex);
-        } else {
-            dueDate.setDate(dueDate.getDate() + (monthIndex * 30));
-        }
-        dueDate.setHours(0, 0, 0, 0);
-
-        return dueDate;
+        return getPaymentDueDate(contract, monthIndex);
     }
 
     /**
@@ -672,22 +659,10 @@ export class ContractCIRepository implements IContractCIRepository {
                     
                     // Calculer la date d'échéance à partir de firstPaymentDate et monthIndex
                     if (contract.firstPaymentDate) {
-                        const firstPaymentDate = new Date(contract.firstPaymentDate);
-                        firstPaymentDate.setHours(0, 0, 0, 0);
-                        
-                        // Calculer la date d'échéance pour ce mois
-                        const dueDate = new Date(firstPaymentDate);
-                        if (contract.paymentFrequency === 'MONTHLY') {
-                            // Pour les contrats mensuels, ajouter le nombre de mois
-                            dueDate.setMonth(dueDate.getMonth() + (payment.monthIndex || 0));
-                        } else if (contract.paymentFrequency === 'DAILY') {
-                            // Pour les contrats journaliers, ajouter le nombre de jours
-                            dueDate.setDate(dueDate.getDate() + (payment.monthIndex || 0));
-                        }
-                        dueDate.setHours(0, 0, 0, 0);
+                        const dueDate = getPaymentDueDate(contract, payment.monthIndex || 0);
 
                         // Si la date d'échéance est passée, le versement est en retard
-                        if (dueDate < today) {
+                        if (dueDate && dueDate < today) {
                             hasOverdue = true;
                             break;
                         }

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
 import { ContractCI, PaymentCI, VersementCI } from '@/types/types'
 import { getContractStatusConfig } from '@/utils/contract-status'
+import { addContractMonths } from '@/utils/caisse-imprevue-utils'
 import { useDocumentViewer } from '@/components/documents/DocumentViewerProvider'
 import {
     AlertCircle,
@@ -298,8 +299,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     for (let monthIndex = 0; monthIndex < (contract.subscriptionCIDuration ?? 12); monthIndex++) {
-      const due = new Date(first)
-      due.setMonth(due.getMonth() + monthIndex)
+      const due = addContractMonths(first, monthIndex)
       due.setHours(0, 0, 0, 0)
       if (due >= today && getMonthStatus(monthIndex) === 'DUE') return due
     }
@@ -759,10 +759,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                             {/* Date d'échéance */}
                             {(() => {
                               const firstPaymentDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
-                              const dueDate = firstPaymentDate ? new Date(firstPaymentDate) : null
-                              if (dueDate) {
-                                dueDate.setMonth(dueDate.getMonth() + monthIndex)
-                              }
+                              const dueDate = firstPaymentDate ? addContractMonths(firstPaymentDate, monthIndex) : null
                               return dueDate ? (
                                 <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-200">
                                   <span className="text-gray-600 flex items-center gap-1">
