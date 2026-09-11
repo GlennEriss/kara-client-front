@@ -17,6 +17,34 @@ const isJournalier = (caisseType: string | null | undefined): boolean =>
   caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
 
 /**
+ * Date d'échéance du versement d'index `dueMonthIndex`.
+ *
+ * Journalier : dernier jour de la période de 30 jours qui commence à
+ * `startAt + dueMonthIndex × 30`. Autres types : `dueMonthIndex` mois après le
+ * début, selon la règle du dernier jour du mois.
+ *
+ * Définition unique, partagée par la pré-génération de l'échéancier, les
+ * reprises de `dueAt` et la création à la volée dans `pay()` — les trois
+ * recopiaient la même formule.
+ */
+export function computeDueAt(
+  startAt: Date | string | number | null | undefined,
+  dueMonthIndex: number,
+  caisseType: string | null | undefined
+): Date | null {
+  if (startAt == null) return null
+  const start = startAt instanceof Date ? new Date(startAt) : new Date(startAt)
+  if (Number.isNaN(start.getTime())) return null
+
+  if (isJournalier(caisseType)) {
+    const due = new Date(start)
+    due.setDate(due.getDate() + (dueMonthIndex + 1) * PERIOD_DAYS_JOURNALIER - 1)
+    return due
+  }
+  return addContractMonths(start, dueMonthIndex)
+}
+
+/**
  * Fin théorique d'un contrat.
  *
  * Journalier : `monthsPlanned` périodes de 30 jours, donc dernier jour de la

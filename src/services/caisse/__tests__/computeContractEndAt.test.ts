@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addContractMonths, computeContractEndAt, resolveContractEndAt } from '@/services/caisse/contractDates'
+import { addContractMonths, computeContractEndAt, computeDueAt, resolveContractEndAt } from '@/services/caisse/contractDates'
 
 const start = new Date(2025, 0, 15) // 15 janvier 2025
 // Formatage en heure locale : `toISOString()` repasse en UTC et décalerait
@@ -117,5 +117,46 @@ describe('addContractMonths — règle « dernier jour du mois »', () => {
   it('applique la règle à la fin de contrat mensuelle', () => {
     expect(iso(computeContractEndAt(jan31, 1, 'STANDARD'))).toBe('2025-02-28')
     expect(iso(computeContractEndAt(jan31, 12, 'LIBRE'))).toBe('2026-01-31')
+  })
+})
+
+describe('computeDueAt', () => {
+  const start = new Date(2025, 0, 15)
+
+  it('journalier : dernier jour de la période de 30 jours', () => {
+    expect(iso(computeDueAt(start, 0, 'JOURNALIERE'))).toBe('2025-02-13')
+    expect(iso(computeDueAt(start, 1, 'JOURNALIERE'))).toBe('2025-03-15')
+    expect(iso(computeDueAt(start, 0, 'JOURNALIERE_CHARITABLE'))).toBe('2025-02-13')
+  })
+
+  it('mensuel et libre : règle du dernier jour du mois', () => {
+    expect(iso(computeDueAt(start, 1, 'STANDARD'))).toBe('2025-02-15')
+    expect(iso(computeDueAt(new Date(2025, 0, 31), 1, 'LIBRE'))).toBe('2025-02-28')
+    expect(iso(computeDueAt(new Date(2025, 0, 31), 3, 'STANDARD_CHARITABLE'))).toBe('2025-04-30')
+  })
+
+  it('reproduit la formule de pré-génération de l’échéancier', () => {
+    // createContract écrivait dueAt = start + (i+1)*30 - 1 en journalier.
+    for (const i of [0, 1, 5, 11]) {
+      const expected = new Date(start)
+      expected.setDate(expected.getDate() + (i + 1) * 30 - 1)
+      expect(iso(computeDueAt(start, i, 'JOURNALIERE'))).toBe(iso(expected))
+    }
+  })
+
+  it('accepte une chaîne et un Timestamp Firestore', () => {
+    expect(iso(computeDueAt('2025-01-15T00:00:00', 1, 'STANDARD'))).toBe('2025-02-15')
+  })
+
+  it('retourne null sans date de début exploitable', () => {
+    expect(computeDueAt(null, 0, 'STANDARD')).toBeNull()
+    expect(computeDueAt(undefined, 0, 'STANDARD')).toBeNull()
+    expect(computeDueAt(new Date('invalide'), 0, 'STANDARD')).toBeNull()
+  })
+
+  it('ne modifie pas la date de début passée en argument', () => {
+    const original = start.getTime()
+    computeDueAt(start, 5, 'JOURNALIERE')
+    expect(start.getTime()).toBe(original)
   })
 })

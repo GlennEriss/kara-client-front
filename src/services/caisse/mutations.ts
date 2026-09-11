@@ -3,7 +3,7 @@ import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
 import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt, contractMonthNumberAt } from './engine'
-import { addContractMonths, computeContractEndAt, PERIOD_DAYS_JOURNALIER } from './contractDates'
+import { addContractMonths, computeContractEndAt, computeDueAt, PERIOD_DAYS_JOURNALIER } from './contractDates'
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
@@ -238,19 +238,11 @@ export async function subscribe(input: {
   
   // Pré-générer les paiements DUE avec dueAt calculé (startDate déjà calculé ci-dessus)
   const isDailyType = input.caisseType === 'JOURNALIERE' || input.caisseType === 'JOURNALIERE_CHARITABLE'
-  const PERIOD_DAYS = 30 // Une échéance journalière = 30 jours ; la suivante commence le lendemain de la fin
 
   for (let i = 0; i < input.monthsPlanned; i++) {
-    let dueDate: Date
-    if (isDailyType) {
-      // Échéance i : période de 30 jours ; dueAt = dernier jour de la période (jour 30)
-      // Période 0 : startDate..startDate+29 → dueAt = startDate + 29
-      // Période 1 : startDate+30..startDate+59 → dueAt = startDate + 59 (échéance 2 commence à startDate+30)
-      dueDate = new Date(startDate)
-      dueDate.setDate(dueDate.getDate() + (i + 1) * PERIOD_DAYS - 1)
-    } else {
-      dueDate = addContractMonths(startDate, i)
-    }
+    // Journalier : dueAt = dernier jour de la période de 30 jours (période 0 =
+    // startDate..startDate+29). Sinon : i mois après le début.
+    const dueDate = computeDueAt(startDate, i, input.caisseType) as Date
     await addPayment(id, { 
       dueMonthIndex: i, 
       amount: input.monthlyAmount, 
@@ -288,12 +280,15 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
   const isDailyType = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
 
-  if (!payment && isDailyType) {
+  // Les contrats importés ou créés avant la pré-génération de l'échéancier
+  // n'ont un document que pour les mois déjà payés. Les écrans reconstituent
+  // les mois manquants ; on crée donc l'échéance à la volée au moment du
+  // paiement, quel que soit le type de caisse.
+  if (!payment) {
     const startDate = getContractStartDate(contract)
     const monthsPlanned = (contract as any).monthsPlanned ?? 12
-    if (startDate && input.dueMonthIndex >= 0 && input.dueMonthIndex < monthsPlanned) {
-      const dueDate = new Date(startDate)
-      dueDate.setDate(dueDate.getDate() + (input.dueMonthIndex + 1) * PERIOD_DAYS_JOURNALIER - 1)
+    const dueDate = computeDueAt(startDate, input.dueMonthIndex, (contract as any).caisseType)
+    if (dueDate && input.dueMonthIndex >= 0 && input.dueMonthIndex < monthsPlanned) {
       const newPaymentId = await addPayment(input.contractId, {
         dueMonthIndex: input.dueMonthIndex,
         amount: contract.monthlyAmount,
@@ -489,13 +484,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Backfill des dueAt si premier paiement
   if (isFirstPayment) {
     for (let i = 0; i < payments.length; i++) {
-      let due: Date
-      if (isDailyType) {
-        due = new Date(contractStartAt)
-        due.setDate(due.getDate() + (i + 1) * 30 - 1)
-      } else {
-        due = addContractMonths(new Date(contractStartAt), i)
-      }
+      const due = computeDueAt(contractStartAt, i, type) as Date
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
   }
@@ -1090,14 +1079,14 @@ export async function payGroup(input: {
     getActiveSettings((contract as any).caisseType),
   ])
   let payment = payments.find((p: any) => Number(p.dueMonthIndex) === Number(input.dueMonthIndex))
-  const isDailyTypeGroup = (contract as any).caisseType === 'JOURNALIERE' || (contract as any).caisseType === 'JOURNALIERE_CHARITABLE'
 
-  if (!payment && isDailyTypeGroup) {
+  // Même reprise que pour les paiements individuels : l'échéance manquante
+  // est créée à la volée, tous types de caisse confondus.
+  if (!payment) {
     const startDate = getContractStartDate(contract)
     const monthsPlanned = (contract as any).monthsPlanned ?? 12
-    if (startDate && input.dueMonthIndex >= 0 && input.dueMonthIndex < monthsPlanned) {
-      const dueDate = new Date(startDate)
-      dueDate.setDate(dueDate.getDate() + (input.dueMonthIndex + 1) * PERIOD_DAYS_JOURNALIER - 1)
+    const dueDate = computeDueAt(startDate, input.dueMonthIndex, (contract as any).caisseType)
+    if (dueDate && input.dueMonthIndex >= 0 && input.dueMonthIndex < monthsPlanned) {
       const newPaymentId = await addPayment(input.contractId, {
         dueMonthIndex: input.dueMonthIndex,
         amount: contract.monthlyAmount,
@@ -1266,16 +1255,9 @@ export async function payGroup(input: {
   // Mettre à jour le contrat
   const isFirstPayment = !contract.contractStartAt
   const contractStartAt = isFirstPayment ? now : contract.contractStartAt
-  const isDailyTypePayGroup = type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE'
   if (isFirstPayment) {
     for (let i = 0; i < payments.length; i++) {
-      let due: Date
-      if (isDailyTypePayGroup) {
-        due = new Date(contractStartAt)
-        due.setDate(due.getDate() + (i + 1) * 30 - 1)
-      } else {
-        due = addContractMonths(new Date(contractStartAt), i)
-      }
+      const due = computeDueAt(contractStartAt, i, type) as Date
       await updatePayment(input.contractId, payments[i].id, { dueAt: due })
     }
   }
