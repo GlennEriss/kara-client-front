@@ -100,6 +100,8 @@ const routes = {
         journalisation: '/admin/journalisation',
         // Modèles de messages envoyés aux membres (rappels, anniversaire, ...)
         messageTemplates: '/parametres-messages',
+        // Documents de l'association (statuts, mise en conformité)
+        statuts: '/statuts',
         // Événements
         events: '/events',
         eventNew: '/events/nouveau',

@@ -38,6 +38,7 @@ import {
   LogOut,
   MapPin,
   MessageSquare,
+  Scale,
   ScrollText,
   Settings,
   Shield,
@@ -256,6 +257,11 @@ const systemMenuItems: any[] = [
     title: "Administration",
     url: routes.admin.admin,
     icon: Shield,
+  },
+  {
+    title: "Documents de l'association",
+    url: routes.admin.statuts,
+    icon: Scale,
   },
   {
     title: "Agents de recouvrement",
