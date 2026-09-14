@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { beneficiarySchema, beneficiaryDefaultValues } from './beneficiary.schema'
 
 // Énumérations pour les options fixes (valeurs en français)
 export const CivilityEnum = z.enum(['Monsieur', 'Madame', 'Mademoiselle'])
@@ -308,6 +309,10 @@ export const identitySchema = z.object({
     // Nouvelle question simple pour la voiture
     hasCar: z.boolean().default(false),
 
+    // Bénéficiaire désigné (ayant-droit) en cas de décès — section 3 de
+    // l'engagement d'adhésion et de prévoyance sociale
+    beneficiary: beneficiarySchema,
+
     photo: z.union([
         z.string().startsWith('data:image/', 'Format de photo invalide'),
         z.string().url('URL invalide'), // Accepter les URLs Firebase Storage
@@ -427,5 +432,6 @@ export const identityDefaultValues: Partial<IdentityFormData> = {
     spousePhone: '',
     intermediaryCode: '',
     hasCar: false,
+    beneficiary: beneficiaryDefaultValues,
     photo: undefined,
 }

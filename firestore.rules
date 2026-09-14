@@ -117,6 +117,18 @@ service cloud.firestore {
     // UTILISATEURS (USERS)
     // ==========================================
     
+    // ==========================================
+    // TEXTES INSTITUTIONNELS (STATUTS, RÈGLEMENT INTÉRIEUR)
+    // ==========================================
+    // Lecture : tout membre connecté — il doit pouvoir consulter les textes
+    // qu'il s'engage à respecter.
+    // Écriture : admin uniquement — publier un texte, c'est constater son
+    // adoption en Assemblée Générale.
+    match /association-documents/{documentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     match /users/{userId} {
       // Lecture : Publique (nécessaire pour la connexion)
       allow read: if true;

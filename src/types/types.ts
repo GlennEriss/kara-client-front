@@ -36,6 +36,18 @@ export interface RegisterFormData {
     /** Numéro WhatsApp (facultatif). Si vide, on utilise le 1er numéro de `contacts`. */
     whatsappNumber?: string;
     hasCar: boolean;
+    /**
+     * Bénéficiaire désigné (ayant-droit) en cas de décès — section 3 de
+     * l'engagement d'adhésion. Optionnel : les dossiers créés avant
+     * l'introduction de ce champ n'en ont pas.
+     */
+    beneficiary?: {
+      lastName: string;
+      firstName?: string;
+      relationship: string;
+      phone: string;
+      idNumber?: string;
+    };
     photo?: string | File;
     // Champs ajoutés après upload (pour MembershipRequest)
     photoURL?: string | null;

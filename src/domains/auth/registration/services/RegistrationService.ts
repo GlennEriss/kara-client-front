@@ -249,6 +249,7 @@ export class RegistrationService implements IRegistrationService {
           spousePhone: request.identity.spousePhone,
           intermediaryCode: request.identity.intermediaryCode,
           hasCar: request.identity.hasCar,
+          beneficiary: request.identity.beneficiary,
           photo: photo,
           photoURL: request.identity.photoURL,
           photoPath: request.identity.photoPath,

@@ -3,47 +3,50 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { SignaturePad } from '@/components/shared/SignaturePad'
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { getNationalityName } from '@/constantes/nationality'
 import type { MembershipRequest } from '@/types/types'
 import { BlobProvider, Document, Image, PDFViewer, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
-import { ClipboardList, Download, Eye, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
+import { ClipboardList, Download, Eye, FileText, Loader2, Monitor, PenLine, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+
+// Hauteur d'une page A4 en points (utilisée pour caler le numéro de page)
+const A4_HEIGHT = 841.89
 
 // Styles optimisés pour tenir sur une page
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 11,
+    fontSize: 10,
     paddingTop: 15,
-    paddingBottom: 20,
+    paddingBottom: 14,
     paddingHorizontal: 25,
-    lineHeight: 1.35,
+    lineHeight: 1.25,
     color: '#1f2937',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 4,
     width: '100%',
   },
   logo: {
-    width: 70,
-    height: 70,
+    width: 52,
+    height: 52,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoId: {
-    width: 60,
-    height: 60,
+    width: 52,
+    height: 52,
     border: '1px solid #94a3b8',
     display: 'flex',
     alignItems: 'center',
@@ -51,19 +54,40 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   titleListe: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#1f4f68',
     textDecoration: 'underline',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: 2,
+    marginTop: 2,
+  },
+  docSubtitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#1f4f68',
+  },
+  docDevise: {
+    fontSize: 9,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    color: '#475569',
+    marginBottom: 4,
+  },
+  preamble: {
+    fontSize: 9,
+    fontStyle: 'italic',
+    textAlign: 'justify',
+    color: '#334155',
+    lineHeight: 1.25,
+    marginBottom: 3,
   },
   infoType: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 10,
-    fontSize: 12,
+    marginBottom: 3,
+    fontSize: 10,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -97,16 +121,51 @@ const styles = StyleSheet.create({
   },
   section: {
     border: '1px solid #cbd5e1',
-    marginBottom: 8,
+    marginBottom: 3,
     borderRadius: 2,
   },
   sectionHeader: {
     backgroundColor: '#1f4f68',
     color: 'white',
     textAlign: 'center',
-    padding: 5,
-    fontSize: 14,
+    padding: 2.5,
+    fontSize: 10,
     fontWeight: 'bold',
+  },
+  sectionBody: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  sectionParagraph: {
+    fontSize: 9.5,
+    textAlign: 'justify',
+    lineHeight: 1.3,
+    marginBottom: 2,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    marginBottom: 2,
+  },
+  bulletDot: {
+    width: 10,
+    fontSize: 9.5,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 9.5,
+    textAlign: 'justify',
+    lineHeight: 1.3,
+  },
+  handwrittenNote: {
+    fontSize: 9,
+    fontStyle: 'italic',
+    color: '#9f1239',
+    marginBottom: 2,
+  },
+  faitA: {
+    fontSize: 10,
+    marginTop: 2,
+    marginBottom: 1,
   },
   stripedTable: {
     width: '100%',
@@ -114,19 +173,19 @@ const styles = StyleSheet.create({
   },
   stripedRow: {
     flexDirection: 'row',
-    padding: 5,
+    padding: 2,
     backgroundColor: '#f8fafc',
-    minHeight: 20,
+    minHeight: 12,
   },
   stripedRowEven: {
     flexDirection: 'row',
-    padding: 5,
+    padding: 2,
     backgroundColor: 'white',
-    minHeight: 20,
+    minHeight: 12,
   },
   stripedCell: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 9.5,
     paddingRight: 5,
   },
   modeReglementTable: {
@@ -134,25 +193,25 @@ const styles = StyleSheet.create({
   },
   modeReglementRow: {
     flexDirection: 'row',
-    height: 50,
+    height: 36,
     border: '1px solid #cbd5e1',
   },
   modeReglementCell: {
     flex: 1,
     borderRight: '1px solid #cbd5e1',
-    padding: 8,
+    padding: 4,
     justifyContent: 'space-around',
     alignItems: 'flex-start',
   },
   modeReglementCellLast: {
     flex: 1,
-    padding: 8,
+    padding: 4,
     justifyContent: 'space-around',
     alignItems: 'flex-start',
   },
   rectangle: {
-    width: 15,
-    height: 15,
+    width: 12,
+    height: 12,
     border: '1px solid #64748b',
     marginRight: 5,
     justifyContent: 'center',
@@ -162,60 +221,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f4f68',
   },
   rectangleFill: {
-    width: 11,
-    height: 11,
+    width: 8,
+    height: 8,
     backgroundColor: '#1f4f68',
   },
   rectangleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
-
+    marginBottom: 2,
   },
   signatureTable: {
-    width: '100%',
-    border: '1px solid #cbd5e1',
-    marginBottom: 8,
-  },
-  signatureTableB: {
     width: '100%',
     border: '1px solid #cbd5e1',
     marginBottom: 0,
   },
   signatureRow: {
     flexDirection: 'row',
-    height: 180,
-  },
-  signatureRowB: {
-    flexDirection: 'row',
-    height: 86,
+    height: 135,
   },
   signatureCell: {
     flex: 1,
     border: '1px solid #cbd5e1',
-    padding: 12,
+    padding: 5,
     justifyContent: 'space-between',
   },
+  signatureCellTitle: {
+    fontSize: 9.5,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  signatureCellHint: {
+    fontSize: 8,
+    fontStyle: 'italic',
+    color: '#64748b',
+    textAlign: 'center',
+  },
   signatureImageLarge: {
-    width: 150,
-    height: 56,
+    width: 190,
+    height: 88,
     objectFit: 'contain',
     alignSelf: 'center',
   },
   signaturePlaceholderLarge: {
-    width: 150,
-    height: 56,
-    alignSelf: 'center',
-  },
-  signatureImageSmall: {
-    width: 130,
-    height: 40,
-    objectFit: 'contain',
-    alignSelf: 'center',
-  },
-  signaturePlaceholderSmall: {
-    width: 130,
-    height: 40,
+    width: 190,
+    height: 88,
     alignSelf: 'center',
   },
   unsignedSignerName: {
@@ -227,60 +276,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#334155',
   },
-  italic: {
-    fontStyle: 'italic',
-    marginBottom: 8,
-    fontSize: 10,
-    lineHeight: 1.45,
-    color: '#334155',
-  },
   footer: {
-    marginTop: 10,
-    fontSize: 9,
-    lineHeight: 1.35,
+    marginTop: 3,
+    fontSize: 7.5,
+    lineHeight: 1.2,
     color: '#475569',
   },
   boldText: {
     fontWeight: 'bold',
   },
-  confidentialityTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 15,
-    marginTop: 10,
-    color: '#1f4f68',
-  },
-  articleHeader: {
-    backgroundColor: '#1f4f68',
-    color: 'white',
-    textAlign: 'center',
-    padding: 5,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  articleText: {
-    marginBottom: 8,
-    fontSize: 10,
-    lineHeight: 1.45,
-    color: '#1f2937',
-  },
-  redText: {
-    color: '#9f1239',
-  },
-  contractSignatureDate: {
-    marginTop: 10,
-    marginBottom: 6,
-    fontSize: 11,
-    color: '#1f2937',
-  },
+  // Le numéro de page est positionné depuis le haut : avec un `lineHeight`
+  // hérité de la Page, react-pdf résout mal `bottom` et l'élément absolu sort
+  // de la page (le numéro disparaît alors du PDF).
   pageNumber: {
     position: 'absolute',
-    bottom: 8,
+    top: A4_HEIGHT - 18,
     left: 0,
     right: 0,
     textAlign: 'center',
     fontSize: 9,
+    lineHeight: 1,
     color: '#475569',
   },
 })
@@ -295,6 +310,39 @@ const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
   </View>
 )
 
+// Pointillés imprimés quand la donnée n'est pas connue : la ligne reste
+// remplissable à la main. Calibrés pour une demi-largeur de tableau.
+const FIELD_PLACEHOLDER = '..............................'
+
+const hasValue = (value?: string | null): boolean => !!value && value.trim().length > 0
+
+// Pointillés plus courts pour une valeur insérée au milieu d'une ligne
+// (ex. « ....... à ....... » pour la date et le lieu de naissance)
+const INLINE_PLACEHOLDER = '................'
+const inlineValue = (value?: string | null): string =>
+  hasValue(value) ? (value as string) : INLINE_PLACEHOLDER
+
+// Cellule « Libellé : valeur » des tableaux d'identification
+const InfoCell = ({ label, value }: { label: string; value?: string | null }) => (
+  <Text style={styles.stripedCell}>
+    <Text style={styles.boldText}>{label} </Text>
+    {hasValue(value) ? value : FIELD_PLACEHOLDER}
+  </Text>
+)
+
+// Ligne à deux colonnes des sections 1 et 3
+const InfoRow = ({ children, even }: { children: React.ReactNode; even?: boolean }) => (
+  <View style={even ? styles.stripedRowEven : styles.stripedRow}>{children}</View>
+)
+
+// Puce des engagements financiers
+const Bullet = ({ children }: { children: React.ReactNode }) => (
+  <View style={styles.bulletRow}>
+    <Text style={styles.bulletDot}>•</Text>
+    <Text style={styles.bulletText}>{children}</Text>
+  </View>
+)
+
 const PAYMENT_MODE_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'X'] as const
 type PaymentModeOption = typeof PAYMENT_MODE_OPTIONS[number]
 
@@ -304,15 +352,146 @@ interface AdhesionPdfFillData {
   paymentMode: PaymentModeOption | null
   quality: MembershipQualityOption | null
   headerPhotoDataUrl: string | null
+  page1Location: string
   page1MemberDate: string
   page1SecretaryDate: string
-  article5Date: string
-  article5Location: string
   page1MemberSignature: string | null
   page1SecretarySignature: string | null
-  article5BeneficiarySignature: string | null
-  article5SecretarySignature: string | null
+  // Lignes imprimées dans les sections 1 et 3 : pré-remplies depuis le dossier
+  // et modifiables, pour compléter ce qui manque (sinon la ligne sort en
+  // pointillés, à remplir à la main sur le papier).
+  memberFullName: string
+  birthDate: string
+  birthPlace: string
+  identityDocumentNumber: string
+  identityDocumentIssuingDate: string
+  addressLine: string
+  phoneLine: string
+  email: string
+  professionLine: string
+  beneficiaryFullName: string
+  beneficiaryRelationship: string
+  beneficiaryPhone: string
+  beneficiaryIdNumber: string
 }
+
+// Champs du document déduits du dossier : servent de valeurs de départ au
+// panneau de remplissage.
+type AdhesionDocumentFields = Pick<
+  AdhesionPdfFillData,
+  | 'memberFullName'
+  | 'birthDate'
+  | 'birthPlace'
+  | 'identityDocumentNumber'
+  | 'identityDocumentIssuingDate'
+  | 'addressLine'
+  | 'phoneLine'
+  | 'email'
+  | 'professionLine'
+  | 'beneficiaryFullName'
+  | 'beneficiaryRelationship'
+  | 'beneficiaryPhone'
+  | 'beneficiaryIdNumber'
+>
+
+const formatDate = (date: Date | string | any): string => {
+  if (!date) return ''
+
+  try {
+    let dateObj: Date
+
+    if (date instanceof Date) {
+      dateObj = date
+    } else if (typeof date === 'string') {
+      dateObj = new Date(date)
+    } else if (date.toDate && typeof date.toDate === 'function') {
+      dateObj = date.toDate()
+    } else {
+      dateObj = new Date(date)
+    }
+
+    return new Intl.DateTimeFormat('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(dateObj)
+  } catch {
+    return ''
+  }
+}
+
+const buildDocumentFields = (request: MembershipRequest): AdhesionDocumentFields => {
+  const address = request.address || ({} as MembershipRequest['address'])
+  const contacts = (request.identity?.contacts || []).filter(Boolean)
+  const whatsapp = request.identity?.whatsappNumber
+  const phones = whatsapp && !contacts.includes(whatsapp) ? [...contacts, whatsapp] : contacts
+  const beneficiary = request.identity?.beneficiary
+
+  return {
+    memberFullName: [request.identity?.lastName?.toUpperCase(), request.identity?.firstName]
+      .filter(Boolean)
+      .join(' ')
+      .trim(),
+    birthDate: formatDate(request.identity?.birthDate),
+    birthPlace: request.identity?.birthPlace?.toUpperCase() || '',
+    identityDocumentNumber: request.documents?.identityDocumentNumber || '',
+    identityDocumentIssuingDate: formatDate(request.documents?.issuingDate),
+    addressLine: [address.district, address.arrondissement, address.city, address.province]
+      .filter(Boolean)
+      .join(', '),
+    phoneLine: phones.join(' / '),
+    email: request.identity?.email || '',
+    professionLine: [request.company?.profession, request.company?.companyName]
+      .filter(Boolean)
+      .join(' / '),
+    beneficiaryFullName: [beneficiary?.lastName?.toUpperCase(), beneficiary?.firstName]
+      .filter(Boolean)
+      .join(' ')
+      .trim(),
+    beneficiaryRelationship: beneficiary?.relationship || '',
+    beneficiaryPhone: beneficiary?.phone || '',
+    beneficiaryIdNumber: beneficiary?.idNumber || '',
+  }
+}
+
+const buildInitialFillData = (request: MembershipRequest): AdhesionPdfFillData => {
+  const today = new Date().toISOString().split('T')[0]
+  return {
+    paymentMode: null,
+    quality: null,
+    headerPhotoDataUrl: null,
+    page1Location: request.address?.city || 'Owendo',
+    page1MemberDate: today,
+    page1SecretaryDate: today,
+    page1MemberSignature: null,
+    page1SecretarySignature: null,
+    ...buildDocumentFields(request),
+  }
+}
+
+// Champ texte du panneau de remplissage : vide => la ligne sort en pointillés
+const FillField = ({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string
+  value: string
+  placeholder?: string
+  onChange: (value: string) => void
+}) => (
+  <div className="space-y-1">
+    <p className="text-[11px] text-gray-600">{label}</p>
+    <Input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-9"
+    />
+  </div>
+)
 
 const qualityLabels: Record<MembershipQualityOption, string> = {
   adherent: 'Membre Adhérent',
@@ -327,175 +506,21 @@ const formatDateForPdf = (value: string): string => {
   return `${day}/${month}/${year}`
 }
 
-const SignaturePad = ({
-  title,
-  value,
-  onChange,
-}: {
-  title: string
-  value: string | null
-  onChange: (value: string | null) => void
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [isDrawing, setIsDrawing] = useState(false)
-
-  const setupCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return null
-
-    const rect = canvas.getBoundingClientRect()
-    const ratio = Math.max(window.devicePixelRatio || 1, 1)
-    canvas.width = Math.floor(rect.width * ratio)
-    canvas.height = Math.floor(rect.height * ratio)
-
-    const context = canvas.getContext('2d')
-    if (!context) return null
-    context.scale(ratio, ratio)
-    context.lineWidth = 2
-    context.lineCap = 'round'
-    context.strokeStyle = '#1f2937'
-    return context
-  }
-
-  useEffect(() => {
-    const context = setupCanvas()
-    if (!context) return
-
-    // Ligne de base de signature
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    context.strokeStyle = '#d1d5db'
-    context.lineWidth = 1
-    context.beginPath()
-    context.moveTo(12, rect.height - 18)
-    context.lineTo(rect.width - 12, rect.height - 18)
-    context.stroke()
-    context.strokeStyle = '#1f2937'
-    context.lineWidth = 2
-
-    if (value) {
-      const image = new window.Image()
-      image.onload = () => {
-        context.drawImage(image, 0, 0, rect.width, rect.height)
-      }
-      image.src = value
-    }
-  }, [value])
-
-  const getCanvasPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas) return null
-    const rect = canvas.getBoundingClientRect()
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-      rect,
-    }
-  }
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
-    const position = getCanvasPosition(event)
-    if (!canvas || !context || !position) return
-
-    canvas.setPointerCapture(event.pointerId)
-    setIsDrawing(true)
-    context.beginPath()
-    context.moveTo(position.x, position.y)
-  }
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
-    const context = canvasRef.current?.getContext('2d')
-    const position = getCanvasPosition(event)
-    if (!context || !position) return
-    context.lineTo(position.x, position.y)
-    context.stroke()
-  }
-
-  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas || !isDrawing) return
-    canvas.releasePointerCapture(event.pointerId)
-    setIsDrawing(false)
-    onChange(canvas.toDataURL('image/png'))
-  }
-
-  const handleClear = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const context = canvas.getContext('2d')
-    if (!context) return
-    const rect = canvas.getBoundingClientRect()
-    context.clearRect(0, 0, rect.width, rect.height)
-    context.strokeStyle = '#d1d5db'
-    context.lineWidth = 1
-    context.beginPath()
-    context.moveTo(12, rect.height - 18)
-    context.lineTo(rect.width - 12, rect.height - 18)
-    context.stroke()
-    context.strokeStyle = '#1f2937'
-    context.lineWidth = 2
-    onChange(null)
-  }
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold text-kara-primary-dark">{title}</p>
-        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleClear}>
-          <RotateCcw className="mr-1 h-3 w-3" />
-          Effacer
-        </Button>
-      </div>
-      <canvas
-        ref={canvasRef}
-        className="h-24 w-full cursor-crosshair rounded-md border border-dashed border-gray-300 bg-white touch-none"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-      />
-    </div>
-  )
-}
-
-/**
- * Formate les contacts par paires pour l'affichage
- * - 2 numéros : num1/num2 sur une ligne
- * - 3 numéros : num1/num2 sur une ligne, num3 en dessous
- * - 4 numéros : num1/num2 sur une ligne, num3/num4 en dessous
- */
-const formatContactsByPairs = (contacts: string[]): string[] => {
-  if (!contacts || contacts.length === 0) return []
-  
-  const pairs: string[] = []
-  for (let i = 0; i < contacts.length; i += 2) {
-    if (i + 1 < contacts.length) {
-      // Paire complète : num1/num2
-      pairs.push(`${contacts[i]}/${contacts[i + 1]}`)
-    } else {
-      // Numéro seul (impair) : num3
-      pairs.push(contacts[i])
-    }
-  }
-  return pairs
-}
-
 // Composant principal du document PDF
-const MutuelleKaraPDF = ({
+export const MutuelleKaraPDF = ({
   request,
   fillData,
 }: {
   request: MembershipRequest
   fillData: AdhesionPdfFillData
 }) => {
-  const memberFullName = [request.identity?.lastName, request.identity?.firstName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || request.id || 'Membre'
+  // Suit le nom saisi dans le panneau de remplissage, pour que le rappel sous
+  // le cadre de signature reste cohérent avec la section 1.
+  const memberFullName =
+    fillData.memberFullName?.trim() ||
+    [request.identity?.lastName, request.identity?.firstName].filter(Boolean).join(' ').trim() ||
+    request.id ||
+    'Membre'
 
   const getPhotoURL = () => {
     if (fillData.headerPhotoDataUrl) return fillData.headerPhotoDataUrl
@@ -509,56 +534,26 @@ const MutuelleKaraPDF = ({
     return null
   }
 
-  const formatDate = (date: Date | string | any) => {
-    if (!date) return 'Non défini'
-
-    try {
-      let dateObj: Date
-
-      if (date instanceof Date) {
-        dateObj = date
-      } else if (typeof date === 'string') {
-        dateObj = new Date(date)
-      } else if (date.toDate && typeof date.toDate === 'function') {
-        dateObj = date.toDate()
-      } else {
-        dateObj = new Date(date)
-      }
-
-      return new Intl.DateTimeFormat('fr-FR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).format(dateObj)
-    } catch {
-      return 'Date invalide'
-    }
-  }
-
-  const formatFullAddress = () => {
-    const { address } = request
-    const parts = [
-      address.district,
-      address.arrondissement,
-      address.city,
-      address.province
-    ].filter(Boolean)
-    return parts.join(', ') || 'Non renseignée'
-  }
-
   const isQualityChecked = (quality: MembershipQualityOption) => fillData.quality === quality
   const isModeChecked = (mode: PaymentModeOption) => fillData.paymentMode === mode
 
+  const engagementLocation = fillData.page1Location?.trim() || 'Owendo'
+
   return (
     <Document>
-      {/* Page 1 - Fiche d'Adhésion */}
+      {/* Page 1 - Engagement d'adhésion et de prévoyance sociale */}
       <Page size="A4" style={styles.page}>
+        <Text
+          fixed
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+        />
         {/* En-tête avec logo et photo */}
         <View style={styles.header}>
           <View style={styles.logo}>
             <Image
               src={window.location.origin + '/Logo-Kara.jpg'}
-              style={{ width: 70, height: 70, objectFit: 'cover' }}
+              style={{ width: 52, height: 52, objectFit: 'cover' }}
               cache={false}
             />
           </View>
@@ -566,13 +561,13 @@ const MutuelleKaraPDF = ({
             {getPhotoURL() ? (
               <Image
                 src={getPhotoURL()!}
-                style={{ width: 60, height: 60, objectFit: 'cover' }}
+                style={{ width: 52, height: 52, objectFit: 'cover' }}
                 cache={false}
               />
             ) : (
               <View style={{
-                width: 60,
-                height: 60,
+                width: 52,
+                height: 52,
                 border: '1px solid #94a3b8',
                 display: 'flex',
                 alignItems: 'center',
@@ -580,7 +575,7 @@ const MutuelleKaraPDF = ({
                 backgroundColor: '#f8fafc'
               }}>
                 <Text style={{
-                  fontSize: 9, // Augmenté de 7 à 9
+                  fontSize: 9,
                   textAlign: 'center',
                   color: '#64748b'
                 }}>
@@ -591,86 +586,79 @@ const MutuelleKaraPDF = ({
           </View>
         </View>
 
-        {/* Titre principal */}
+        {/* Titre, entité et devise */}
         <Text style={styles.titleListe}>
-          FICHE D'ADHÉSION CONTRACTUELLE INDIVIDUELLE
+          ENGAGEMENT D'ADHÉSION ET DE PRÉVOYANCE SOCIALE
+        </Text>
+        <Text style={styles.docSubtitle}>ASSOCIATION DE SECOURS MUTUEL KARA</Text>
+        <Text style={styles.docDevise}>Devise : Intégrité – Solidarité – Dynamisme</Text>
+
+        {/* Préambule */}
+        <Text style={styles.preamble}>
+          Cet acte constitue un contrat synallagmatique d'adhésion souscrit conformément à la Loi n° 35/62
+          régissant les associations au Gabon et au Règlement Intérieur de KARA. Il formalise les droits et
+          devoirs du membre adhérent et confirme la nature non financière (absence de crédit/prêt) des
+          secours apportés.
         </Text>
 
-        {/* Type de membre */}
+        {/* Qualité du membre */}
         <View style={styles.infoType}>
           <Checkbox checked={isQualityChecked('adherent')} label="Membre Adhérent" />
           <Checkbox checked={isQualityChecked('sympathisant')} label="Membre Sympathisant" />
           <Checkbox checked={isQualityChecked('bienfaiteur')} label="Membre Bienfaiteur" />
         </View>
 
-        {/* Section Informations Personnelles */}
+        {/* 1. Identification du membre adhérent */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>Informations Personnelles du Membre :</Text>
+          <Text style={styles.sectionHeader}>1. IDENTIFICATION DU MEMBRE ADHÉRENT</Text>
           <View style={styles.stripedTable}>
-            <View style={styles.stripedRow}>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Nom(s):</Text> {request.identity?.lastName?.toUpperCase() || 'Non renseigné'}</Text>
-              </View>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Prénom(s):</Text> {request.identity?.firstName?.toUpperCase() || 'Non renseigné'}</Text>
-              </View>
-            </View>
-            <View style={styles.stripedRowEven}>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Lieu de Naissance:</Text> {request.identity?.birthPlace?.toUpperCase() || 'Non renseigné'}</Text>
-              </View>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Date de Naissance:</Text> {formatDate(request.identity?.birthDate) || 'Non renseigné'}</Text>
-              </View>
-            </View>
-            <View style={styles.stripedRow}>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Nationalité:</Text> {getNationalityName(request.identity?.nationality)}</Text>
-              </View>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>N°CNI/PASS/CS:</Text> {request.documents?.identityDocumentNumber || 'Non renseigné'}</Text>
-              </View>
-            </View>
-            <View style={styles.stripedRowEven}>
-              <View style={styles.stripedCell}>
-                <View style={{ flexDirection: 'row' }}>
-                  <Text style={styles.boldText}>Téléphone: </Text>
-                  <View style={{ flexDirection: 'column' }}>
-                    {(request.identity.contacts && request.identity.contacts.length > 0) ? (
-                      formatContactsByPairs(request.identity.contacts).map((formattedContact: string, index: number) => (
-                        <Text key={index}>{formattedContact}</Text>
-                      ))
-                    ) : (
-                      <Text>-</Text>
-                    )}
-                  </View>
-                </View>
-              </View>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Adresse:</Text> {formatFullAddress()}</Text>
-              </View>
-            </View>
-            <View style={styles.stripedRow}>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Profession:</Text> {request.company?.profession || 'Non renseigné'}</Text>
-              </View>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Matricule:</Text> {request.id || 'Non renseigné'}</Text>
-              </View>
-            </View>
-            <View style={styles.stripedRowEven}>
-              <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Employeur:</Text> {request.company?.companyName || 'Non renseigné'}</Text>
-              </View>
-              <View style={styles.stripedCell}>
-                <Text></Text>
-              </View>
-            </View>
+            <InfoRow>
+              <InfoCell label="Nom(s) et Prénom(s) :" value={fillData.memberFullName} />
+              <InfoCell
+                label="Date et Lieu de Naissance :"
+                value={`${inlineValue(fillData.birthDate)} à ${inlineValue(fillData.birthPlace)}`}
+              />
+            </InfoRow>
+            <InfoRow even>
+              <InfoCell label="N° CNI/Passeport :" value={fillData.identityDocumentNumber} />
+              <InfoCell label="Délivré(e) le :" value={fillData.identityDocumentIssuingDate} />
+            </InfoRow>
+            <InfoRow>
+              <InfoCell label="Adresse / Quartier :" value={fillData.addressLine} />
+              <InfoCell label="Téléphone / WhatsApp :" value={fillData.phoneLine} />
+            </InfoRow>
+            <InfoRow even>
+              <InfoCell label="Email :" value={fillData.email} />
+              <InfoCell label="Profession / Employeur :" value={fillData.professionLine} />
+            </InfoRow>
           </View>
         </View>
 
-        {/* Section Mode de Règlement */}
+        {/* 2. Engagements et obligations financières */}
         <View style={styles.section}>
+          <Text style={styles.sectionHeader}>2. ENGAGEMENTS ET OBLIGATIONS FINANCIÈRES</Text>
+          <View style={styles.sectionBody}>
+            <Text style={styles.sectionParagraph}>
+              Je soussigné(e), nommé(e) ci-dessus, déclare adhérer librement à l'Association de Secours
+              Mutuel KARA et m'engage formellement à :
+            </Text>
+            <Bullet>
+              Verser le droit d'entrée unique et non remboursable de{' '}
+              <Text style={styles.boldText}>10 000 FCFA</Text> lors de ma souscription ;
+            </Bullet>
+            <Bullet>
+              S'acquitter régulièrement de la cotisation mensuelle ordinaire de{' '}
+              <Text style={styles.boldText}>5 000 FCFA</Text> (fonctionnement) au plus tard le 5 de chaque mois ;
+            </Bullet>
+            <Bullet>
+              S'acquitter de la cotisation mensuelle obligatoire de{' '}
+              <Text style={styles.boldText}>5 000 FCFA</Text> destinée au Fonds de Secours Mutuel ;
+            </Bullet>
+            <Bullet>
+              Respecter la <Text style={styles.boldText}>période de carence de trois (3) mois</Text> à compter
+              de la date de signature des présentes avant de pouvoir solliciter une allocation de secours.
+            </Bullet>
+          </View>
           <Text style={styles.sectionHeader}>Mode de Règlement</Text>
           <View style={styles.modeReglementTable}>
             <View style={styles.modeReglementRow}>
@@ -720,160 +708,81 @@ const MutuelleKaraPDF = ({
           </View>
         </View>
 
-        {/* Table des signatures */}
-        <View style={styles.signatureTable}>
-          <View style={styles.signatureRow}>
-            <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11 }}>Signature de l'adhérent suivi de la mention "lu et approuvé"</Text>
-              {fillData.page1MemberSignature ? (
-                <Image src={fillData.page1MemberSignature} style={styles.signatureImageLarge} cache={false} />
-              ) : (
-                <View style={styles.signaturePlaceholderLarge}>
-                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-                </View>
-              )}
-              <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1MemberDate)}</Text>
-            </View>
-            <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11, textAlign: 'center' }}>Signature et cachet du Secrétariat Exécutif</Text>
-              {fillData.page1SecretarySignature ? (
-                <Image src={fillData.page1SecretarySignature} style={styles.signatureImageLarge} cache={false} />
-              ) : (
-                <View style={styles.signaturePlaceholderLarge} />
-              )}
-              <Text style={{ fontSize: 11 }}>Date : {formatDateForPdf(fillData.page1SecretaryDate)}</Text>
-            </View>
+        {/* 3. Déclaration du bénéficiaire désigné */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>3. DÉCLARATION DU BÉNÉFICIAIRE DÉSIGNÉ (EN CAS DE DÉCÈS)</Text>
+          <View style={styles.sectionBody}>
+            <Text style={styles.sectionParagraph}>
+              En cas de décès du membre soussigné, l'allocation de secours prévue à l'Article 5 du Règlement
+              Intérieur (<Text style={styles.boldText}>30 000 FCFA</Text>) sera versée à l'ayant droit désigné
+              ci-après :
+            </Text>
+          </View>
+          <View style={styles.stripedTable}>
+            <InfoRow>
+              <InfoCell label="Nom & Prénom de l'Ayant-Droit :" value={fillData.beneficiaryFullName} />
+              <InfoCell label="Lien de Parenté :" value={fillData.beneficiaryRelationship} />
+            </InfoRow>
+            <InfoRow even>
+              <InfoCell label="Téléphone :" value={fillData.beneficiaryPhone} />
+              <InfoCell label="N° CNI de l'Ayant-Droit :" value={fillData.beneficiaryIdNumber} />
+            </InfoRow>
           </View>
         </View>
 
-        {/* Texte d'engagement */}
-        <Text style={styles.italic}>
-          J'adhère contractuellement à l'Association LE KARA conformément aux dispositions y afférentes,{' '}
-          <Text style={styles.boldText}>
-            je m'engage à respecter l'intégralité des dispositions règlementaires et statuaires qui la structurent
-            et pour lesquelles je confirme avoir pris connaissance avant d'apposer ma signature.
-          </Text>
-        </Text>
+        {/* 4. Acceptation du règlement et signature */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>4. ACCEPTATION DU RÈGLEMENT ET SIGNATURE</Text>
+          <View style={styles.sectionBody}>
+            <Text style={styles.sectionParagraph}>
+              Je reconnais avoir pris connaissance des Statuts et du Règlement Intérieur de l'Association KARA
+              et m'engage à m'y conformer strictement.
+            </Text>
+            <Text style={styles.faitA}>
+              Fait à {engagementLocation}, le {formatDateForPdf(fillData.page1MemberDate)}
+            </Text>
+            <Text style={styles.handwrittenNote}>
+              (Inscrire la mention manuscrite « Lu et approuvé, bon pour engagement »)
+            </Text>
+          </View>
+          <View style={styles.signatureTable}>
+            <View style={styles.signatureRow}>
+              <View style={styles.signatureCell}>
+                <Text style={styles.signatureCellTitle}>Le Membre Adhérent</Text>
+                {fillData.page1MemberSignature ? (
+                  <Image src={fillData.page1MemberSignature} style={styles.signatureImageLarge} cache={false} />
+                ) : (
+                  <View style={styles.signaturePlaceholderLarge}>
+                    <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
+                  </View>
+                )}
+                <Text style={styles.signatureCellHint}>(Signature)</Text>
+              </View>
+              <View style={styles.signatureCell}>
+                <Text style={styles.signatureCellTitle}>Pour le Comité Exécutif</Text>
+                {fillData.page1SecretarySignature ? (
+                  <Image src={fillData.page1SecretarySignature} style={styles.signatureImageLarge} cache={false} />
+                ) : (
+                  <View style={styles.signaturePlaceholderLarge} />
+                )}
+                <Text style={styles.signatureCellHint}>
+                  (Signature et Cachet) — {formatDateForPdf(fillData.page1SecretaryDate)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
 
         {/* Pied de page */}
         <View style={styles.footer}>
-          <Text>L'ASSOCIATION LE KARA. <Text style={styles.boldText}>Intégrité - Solidarité - Dynamisme</Text></Text>
+          <Text>ASSOCIATION DE SECOURS MUTUEL KARA. <Text style={styles.boldText}>Intégrité - Solidarité - Dynamisme</Text></Text>
           <Text>Siège : Awougou, Owendo</Text>
           <Text>R.D N°: 0650 /MIS/SG/DGELP/DPPALC/KMOG-</Text>
           <Text>Tél : 066-95-13-14 / 074-36-97-29</Text>
-          <Text>E-mail :</Text>
         </View>
 
-        <Text fixed style={styles.pageNumber}>Page 1 / 2</Text>
       </Page>
 
-      {/* Page 2 - Contrat de Confidentialité */}
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.confidentialityTitle}>CONTRAT DE CONFIDENTIALITÉ</Text>
-
-        <View style={styles.stripedTable}>
-          <View style={styles.stripedRow}>
-            <Text >Entre L'ASSOCIATION LE KARA</Text>
-          </View>
-          <View style={styles.stripedRowEven}>
-            <Text>ET</Text>
-          </View>
-          <View style={styles.stripedRow}>
-            <Text>Nom : {request.identity?.lastName?.toUpperCase() || 'Non renseigné'}</Text>
-          </View>
-          <View style={styles.stripedRowEven}>
-            <Text>Prénom : {request.identity?.firstName?.toUpperCase() || 'Non renseigné'}</Text>
-          </View>
-          <View style={styles.stripedRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text>Qualité : </Text>
-              <Checkbox checked={isQualityChecked('adherent')} label="Membre Adhérent" />
-              <Checkbox checked={isQualityChecked('sympathisant')} label="Membre Sympathisant" />
-              <Checkbox checked={isQualityChecked('bienfaiteur')} label="Membre Bienfaiteur" />
-            </View>
-          </View>
-          <View style={styles.stripedRowEven}>
-            <View style={{ flexDirection: 'column' }}>
-              {(request.identity.contacts && request.identity.contacts.length > 0) ? (
-                formatContactsByPairs(request.identity.contacts).map((formattedContact: string, index: number) => (
-                  <Text key={index}>N° de téléphone : {formattedContact}</Text>
-                ))
-              ) : (
-                <Text>N° de téléphone : Non renseigné</Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        <Text style={styles.articleHeader}>Article 1</Text>
-        <Text style={styles.articleText}> </Text>
-        <Text style={styles.articleText}>
-          Il est préalablement établi l'obligation de réserve d'un membre de KARA
-          exerçant ou pas une fonction au sein du bureau et le respect des différents codes
-          qui s'imposent à son statut.
-        </Text>
-
-        <Text style={styles.articleHeader}>Article 2</Text>
-        <Text style={styles.articleText}> </Text>
-        <Text style={styles.articleText}>
-          Le bénéficiaire des informations reconnaît que tous les droits relatifs à l'information
-          obtenue existent et ne peuvent être divulgué et communiquer que par le donneur.
-        </Text>
-
-        <Text style={styles.articleHeader}>Article 3</Text>
-        <Text style={styles.articleText}> </Text>
-        <Text style={styles.articleText}>
-          Le bénéficiaire accepte les conditions de confidentialité des informations reçues
-          et s'engage à les respecter.
-        </Text>
-
-        <Text style={styles.articleHeader}>Article 4</Text>
-        <Text style={styles.articleText}> </Text>
-        <Text style={styles.articleText}>
-          Cet engagement dans l'hypothèse d'une vulgarisation d'informations avérées ou à des fins
-          diffamatoires faites par le receveur est passible d'une sanction pénale et vaut radiation
-          de KARA.
-        </Text>
-
-        <Text style={styles.articleHeader}>Article 5</Text>
-        <Text style={styles.articleText}> </Text>
-        <Text style={[styles.articleText, styles.redText]}>
-          Il est interdit à tout bénéficiaire des services de l'Association LE KARA de contracter un service
-          supplémentaire qui ne lui est pas accessible par un prête-nom ou toute autre personne qui
-          accepterait une telle manœuvre. Le coupable perdra son Épargne en cours, s'exposera à la
-          radiation au sein de KARA et s'exposera aux poursuites judiciaires.
-        </Text>
-
-        <Text style={styles.contractSignatureDate}>
-          Fait à {fillData.article5Location || '..............................'} le {formatDateForPdf(fillData.article5Date)}
-        </Text>
-
-        {/* Table des signatures pour le contrat */}
-        <View style={styles.signatureTableB}>
-          <View style={styles.signatureRowB}>
-            <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
-              {fillData.article5BeneficiarySignature ? (
-                <Image src={fillData.article5BeneficiarySignature} style={styles.signatureImageSmall} cache={false} />
-              ) : (
-                <View style={styles.signaturePlaceholderSmall}>
-                  <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11, textAlign: 'center' }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
-              {fillData.article5SecretarySignature ? (
-                <Image src={fillData.article5SecretarySignature} style={styles.signatureImageSmall} cache={false} />
-              ) : (
-                <View style={styles.signaturePlaceholderSmall} />
-              )}
-            </View>
-          </View>
-        </View>
-
-        <Text fixed style={styles.pageNumber}>Page 2 / 2</Text>
-      </Page>
     </Document>
   )
 }
@@ -890,45 +799,22 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   request
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [fillData, setFillData] = useState<AdhesionPdfFillData>({
-    paymentMode: null,
-    quality: null,
-    headerPhotoDataUrl: null,
-    page1MemberDate: '',
-    page1SecretaryDate: '',
-    article5Date: '',
-    article5Location: '',
-    page1MemberSignature: null,
-    page1SecretarySignature: null,
-    article5BeneficiarySignature: null,
-    article5SecretarySignature: null,
-  })
+  const [fillData, setFillData] = useState<AdhesionPdfFillData>(() => buildInitialFillData(request))
   const [previewFillData, setPreviewFillData] = useState<AdhesionPdfFillData>(fillData)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
   const skipDebouncePreviewRef = useRef(false)
 
+  // Réinitialise le remplissage à chaque ouverture / changement de dossier :
+  // les champs du document repartent des données du membre.
   useEffect(() => {
     if (!isOpen) return
 
-    const today = new Date().toISOString().split('T')[0]
-    const initialData: AdhesionPdfFillData = {
-      paymentMode: null,
-      quality: null,
-      headerPhotoDataUrl: null,
-      page1MemberDate: today,
-      page1SecretaryDate: today,
-      article5Date: today,
-      article5Location: request.address?.city || request.address?.province || '',
-      page1MemberSignature: null,
-      page1SecretarySignature: null,
-      article5BeneficiarySignature: null,
-      article5SecretarySignature: null,
-    }
-
+    const initialData = buildInitialFillData(request)
     setFillData(initialData)
     setPreviewFillData(initialData)
     setIsPreviewRefreshing(false)
-  }, [isOpen, request.id, request.address?.city, request.address?.province])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, request.id])
 
   useEffect(() => {
     if (!isOpen) return
@@ -1144,7 +1030,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Pages:</span>
-                    <span className="font-medium text-gray-900">2 pages</span>
+                    <span className="font-medium text-gray-900">1 page</span>
                   </div>
                 </div>
 
@@ -1278,7 +1164,131 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                 </div>
 
                 <div className="space-y-3">
+                  <p className="text-xs font-semibold text-kara-primary-dark">
+                    1. Identification du membre adhérent
+                  </p>
+                  <p className="text-[10px] text-gray-500 leading-snug">
+                    Pré-rempli avec le dossier du membre. Un champ laissé vide s&apos;imprime en
+                    pointillés, à compléter à la main sur le document.
+                  </p>
+                  <FillField
+                    label="Nom(s) et Prénom(s)"
+                    value={fillData.memberFullName}
+                    placeholder="NDONG OBAME Jean Baptiste"
+                    onChange={(value) => setFillData((prev) => ({ ...prev, memberFullName: value }))}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <FillField
+                      label="Date de naissance"
+                      value={fillData.birthDate}
+                      placeholder="12/04/1988"
+                      onChange={(value) => setFillData((prev) => ({ ...prev, birthDate: value }))}
+                    />
+                    <FillField
+                      label="Lieu de naissance"
+                      value={fillData.birthPlace}
+                      placeholder="LIBREVILLE"
+                      onChange={(value) => setFillData((prev) => ({ ...prev, birthPlace: value }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FillField
+                      label="N° CNI / Passeport"
+                      value={fillData.identityDocumentNumber}
+                      placeholder="CNI-123456"
+                      onChange={(value) =>
+                        setFillData((prev) => ({ ...prev, identityDocumentNumber: value }))
+                      }
+                    />
+                    <FillField
+                      label="Délivré(e) le"
+                      value={fillData.identityDocumentIssuingDate}
+                      placeholder="30/09/2021"
+                      onChange={(value) =>
+                        setFillData((prev) => ({ ...prev, identityDocumentIssuingDate: value }))
+                      }
+                    />
+                  </div>
+                  <FillField
+                    label="Adresse / Quartier"
+                    value={fillData.addressLine}
+                    placeholder="Owendo, Quartier Awougou"
+                    onChange={(value) => setFillData((prev) => ({ ...prev, addressLine: value }))}
+                  />
+                  <FillField
+                    label="Téléphone / WhatsApp"
+                    value={fillData.phoneLine}
+                    placeholder="+241 77 12 34 56"
+                    onChange={(value) => setFillData((prev) => ({ ...prev, phoneLine: value }))}
+                  />
+                  <FillField
+                    label="Email"
+                    value={fillData.email}
+                    placeholder="membre@example.ga"
+                    onChange={(value) => setFillData((prev) => ({ ...prev, email: value }))}
+                  />
+                  <FillField
+                    label="Profession / Employeur"
+                    value={fillData.professionLine}
+                    placeholder="Technicien réseau / SEEG"
+                    onChange={(value) => setFillData((prev) => ({ ...prev, professionLine: value }))}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-kara-primary-dark">
+                    3. Bénéficiaire désigné (ayant-droit)
+                  </p>
+                  <FillField
+                    label="Nom & Prénom de l'ayant-droit"
+                    value={fillData.beneficiaryFullName}
+                    placeholder="NDONG Marie Claire"
+                    onChange={(value) =>
+                      setFillData((prev) => ({ ...prev, beneficiaryFullName: value }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <FillField
+                      label="Lien de parenté"
+                      value={fillData.beneficiaryRelationship}
+                      placeholder="Épouse"
+                      onChange={(value) =>
+                        setFillData((prev) => ({ ...prev, beneficiaryRelationship: value }))
+                      }
+                    />
+                    <FillField
+                      label="Téléphone"
+                      value={fillData.beneficiaryPhone}
+                      placeholder="+241 74 55 66 77"
+                      onChange={(value) =>
+                        setFillData((prev) => ({ ...prev, beneficiaryPhone: value }))
+                      }
+                    />
+                  </div>
+                  <FillField
+                    label="N° CNI de l'ayant-droit"
+                    value={fillData.beneficiaryIdNumber}
+                    placeholder="CNI-998877"
+                    onChange={(value) =>
+                      setFillData((prev) => ({ ...prev, beneficiaryIdNumber: value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-3">
                   <p className="text-xs font-semibold text-kara-primary-dark">Dates et lieu</p>
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-gray-600">Lieu de l&apos;engagement (section 4)</p>
+                    <Input
+                      type="text"
+                      value={fillData.page1Location}
+                      placeholder="Owendo"
+                      onChange={(event) =>
+                        setFillData((prev) => ({ ...prev, page1Location: event.target.value }))
+                      }
+                      className="h-9"
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <p className="text-[11px] text-gray-600">Date signature adhérent</p>
@@ -1298,31 +1308,6 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                         value={fillData.page1SecretaryDate}
                         onChange={(event) =>
                           setFillData((prev) => ({ ...prev, page1SecretaryDate: event.target.value }))
-                        }
-                        className="h-9"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <p className="text-[11px] text-gray-600">Lieu (Article 5)</p>
-                      <Input
-                        type="text"
-                        value={fillData.article5Location}
-                        placeholder="Libreville"
-                        onChange={(event) =>
-                          setFillData((prev) => ({ ...prev, article5Location: event.target.value }))
-                        }
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[11px] text-gray-600">Date (Article 5)</p>
-                      <Input
-                        type="date"
-                        value={fillData.article5Date}
-                        onChange={(event) =>
-                          setFillData((prev) => ({ ...prev, article5Date: event.target.value }))
                         }
                         className="h-9"
                       />
@@ -1365,24 +1350,14 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
                   <SignaturePad
-                    title="Signature adhérent (page 1)"
+                    title="Signature du Membre Adhérent"
                     value={fillData.page1MemberSignature}
                     onChange={(value) => setFillData((prev) => ({ ...prev, page1MemberSignature: value }))}
                   />
                   <SignaturePad
-                    title="Signature secrétariat (page 1)"
+                    title="Signature et cachet du Comité Exécutif"
                     value={fillData.page1SecretarySignature}
                     onChange={(value) => setFillData((prev) => ({ ...prev, page1SecretarySignature: value }))}
-                  />
-                  <SignaturePad
-                    title="Signature bénéficiaire (Article 5)"
-                    value={fillData.article5BeneficiarySignature}
-                    onChange={(value) => setFillData((prev) => ({ ...prev, article5BeneficiarySignature: value }))}
-                  />
-                  <SignaturePad
-                    title="Signature secrétariat (Article 5)"
-                    value={fillData.article5SecretarySignature}
-                    onChange={(value) => setFillData((prev) => ({ ...prev, article5SecretarySignature: value }))}
                   />
                 </div>
               </CardContent>

@@ -12,6 +12,7 @@ import {
     Mail,
     MessageCircle,
     Phone,
+    ShieldCheck,
     Sparkles,
     User,
     Users
@@ -28,6 +29,7 @@ import { SelectCountry } from '@/components/ui/select-country'
 import { Switch } from '@/components/ui/switch'
 import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
 import { cn } from '@/lib/utils'
+import { RelationshipEnum } from '@/schemas/emergency-contact.schema'
 import type { RegisterFormData } from '@/schemas/schemas'
 
 const CIVILITIES = ['Monsieur', 'Madame', 'Mademoiselle'] as const
@@ -35,6 +37,8 @@ const GENDERS = ['Homme', 'Femme'] as const
 const MARITAL_STATUS = ['Célibataire', 'Marié(e)', 'Veuf/Veuve', 'Divorcé(e)', 'Concubinage'] as const
 // Aligné sur les autres formulaires d'inscription (adhésion membre + Register admin).
 const RELIGIONS = ['Chrétien', 'Musulman', 'Animiste', 'Sans religion', 'Autre'] as const
+// Liens de parenté proposés pour l'ayant-droit (partagés avec les contacts d'urgence)
+const RELATIONSHIPS = RelationshipEnum.options
 
 
 
@@ -685,6 +689,117 @@ export default function IdentityStepV2() {
           </div>
         </div>
       )}
+
+      {/* Bénéficiaire désigné (ayant-droit en cas de décès) */}
+      <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-2xl p-6 border border-violet-200 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-350">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800">Bénéficiaire désigné (ayant-droit)</h3>
+            <p className="text-xs text-violet-600 font-medium">
+              Personne à qui l&apos;allocation de secours sera versée en cas de décès du membre
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Nom et Prénom de l'ayant-droit */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold text-sm">Nom de l&apos;ayant-droit *</Label>
+              <Input
+                {...register('identity.beneficiary.lastName')}
+                placeholder="MBOUMBA"
+                className={cn(
+                  "h-12 rounded-xl border-2 border-violet-200 hover:border-violet-400 focus:border-violet-500 transition-all bg-white font-medium uppercase",
+                  errors.identity?.beneficiary?.lastName && "border-red-300"
+                )}
+              />
+              {errors.identity?.beneficiary?.lastName && (isSubmitted || touchedFields.identity?.beneficiary?.lastName || watch('identity.beneficiary.lastName')) && (
+                <p className="text-xs text-red-500 mt-1">{errors.identity.beneficiary.lastName.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold text-sm">Prénom de l&apos;ayant-droit</Label>
+              <Input
+                {...register('identity.beneficiary.firstName')}
+                placeholder="Marie"
+                className={cn(
+                  "h-12 rounded-xl border-2 border-violet-200 hover:border-violet-400 focus:border-violet-500 transition-all bg-white font-medium capitalize",
+                  errors.identity?.beneficiary?.firstName && "border-red-300"
+                )}
+              />
+              {errors.identity?.beneficiary?.firstName && (isSubmitted || touchedFields.identity?.beneficiary?.firstName || watch('identity.beneficiary.firstName')) && (
+                <p className="text-xs text-red-500 mt-1">{errors.identity.beneficiary.firstName.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Lien de parenté et N° CNI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
+                <Heart className="w-4 h-4 text-violet-600" />
+                Lien de parenté *
+              </Label>
+              <Select
+                onValueChange={(v) => setValue('identity.beneficiary.relationship', v, { shouldValidate: true })}
+                value={watch('identity.beneficiary.relationship') || ''}
+              >
+                <SelectTrigger className={cn(
+                  "h-12 rounded-xl border-2 border-violet-200 hover:border-violet-400 focus:border-violet-500 transition-all bg-white",
+                  errors.identity?.beneficiary?.relationship && "border-red-300"
+                )}>
+                  <SelectValue placeholder="Choisir..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {RELATIONSHIPS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.identity?.beneficiary?.relationship && (
+                <p className="text-xs text-red-500 mt-1">{errors.identity.beneficiary.relationship.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-violet-600" />
+                N° CNI de l&apos;ayant-droit
+              </Label>
+              <Input
+                {...register('identity.beneficiary.idNumber')}
+                placeholder="Ex: 1234567890"
+                className={cn(
+                  "h-12 rounded-xl border-2 border-violet-200 hover:border-violet-400 focus:border-violet-500 transition-all bg-white font-medium",
+                  errors.identity?.beneficiary?.idNumber && "border-red-300"
+                )}
+              />
+              {errors.identity?.beneficiary?.idNumber && (isSubmitted || touchedFields.identity?.beneficiary?.idNumber || watch('identity.beneficiary.idNumber')) && (
+                <p className="text-xs text-red-500 mt-1">{errors.identity.beneficiary.idNumber.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Téléphone de l'ayant-droit */}
+          <div className="space-y-2">
+            <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
+              <Phone className="w-4 h-4 text-violet-600" />
+              Téléphone de l&apos;ayant-droit *
+            </Label>
+            <GabonPhoneInput
+              value={watch('identity.beneficiary.phone') || ''}
+              onChange={(value) => setValue('identity.beneficiary.phone', value, { shouldValidate: true })}
+              error={errors.identity?.beneficiary?.phone?.message}
+              placeholder="XX XX XX XX"
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Question voiture */}
       <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-300">
