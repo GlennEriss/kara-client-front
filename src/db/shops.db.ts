@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
-import type { Shop } from '@/types/types'
+import type { Shop, ShopPhoto } from '@/types/types'
 
 const COL = firebaseCollectionNames.shops
 
@@ -47,6 +47,11 @@ function mapShop(id: string, data: any): Shop {
     address: data.address ?? '',
     photoURL: data.photoURL ?? '',
     photoPath: data.photoPath ?? '',
+    // Documents créés avant la galerie n'ont pas le champ : on normalise en
+    // tableau vide, et on ignore les entrées sans URL exploitable.
+    gallery: Array.isArray(data.gallery)
+      ? (data.gallery as ShopPhoto[]).filter((p) => p && typeof p.url === 'string' && p.url)
+      : [],
     openingHours: Array.isArray(data.openingHours) ? data.openingHours : [],
     isActive: data.isActive ?? true,
     createdAt: toDate(data.createdAt) ?? new Date(),

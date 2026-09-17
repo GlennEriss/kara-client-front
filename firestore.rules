@@ -350,6 +350,17 @@ service cloud.firestore {
     }
 
     // ==========================================
+    // RELANCES (comptes rendus d'appels) — append-only
+    // ==========================================
+    match /callLogs/{logId} {
+      // Lecture réservée aux administrateurs
+      allow read: if isAdmin();
+      // Création uniquement : un compte rendu d'appel ne se réécrit pas
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ==========================================
     // BOUTIQUES (annuaire des commerces des membres)
     // ==========================================
     match /shops/{shopId} {

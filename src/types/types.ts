@@ -2807,6 +2807,15 @@ export interface ShopDayHours {
 }
 
 /**
+ * Photo de la galerie d'une boutique (contenu proposé : produits, vitrine…).
+ * `path` est conservé pour pouvoir supprimer le fichier dans Storage.
+ */
+export interface ShopPhoto {
+  url: string
+  path: string
+}
+
+/**
  * Boutique / commerce d'un membre (annuaire « Boutiques »).
  * Créée et gérée par l'admin, consultable par tous les membres.
  */
@@ -2832,6 +2841,8 @@ export interface Shop {
   // Médias & horaires
   photoURL?: string
   photoPath?: string
+  /** Photos du contenu de la boutique, en complément de la photo principale. */
+  gallery?: ShopPhoto[]
   /** Horaires structurés par jour (7 entrées Lundi→Dimanche). */
   openingHours?: ShopDayHours[]
   /** Visible dans l'annuaire membre si true. */

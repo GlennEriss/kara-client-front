@@ -207,6 +207,16 @@ export class IdentityFormMediator {
     }
 
     /**
+     * Met à jour le téléphone de l'ayant-droit (même nettoyage/préfixe +241).
+     * `shouldValidate` : le schéma exige un +241 complet, l'erreur doit donc
+     * disparaître dès que la saisie devient valide.
+     */
+    updateBeneficiaryPhone(value: string): void {
+        const cleanedValue = this.cleanPhoneNumber(value)
+        this.form.setValue('identity.beneficiary.phone', cleanedValue, { shouldValidate: true })
+    }
+
+    /**
      * Met à jour le genre basé sur la civilité sélectionnée
      * @param civility - La civilité sélectionnée
      */

@@ -29,6 +29,13 @@ export type OverdueProduct =
 export interface OverduePayment {
   key: string
   product: OverdueProduct
+  /**
+   * Identifiant stable du membre (ou du groupe). Sert à rattacher les comptes
+   * rendus d'appel : le matricule peut manquer et le nom n'est pas fiable
+   * (homonymes, renommage).
+   */
+  memberId?: string
+  groupId?: string
   matricule?: string
   name: string
   isGroup: boolean
@@ -100,14 +107,18 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
         let whatsappNumber: string | undefined
         let matricule: string | undefined
         let isGroup = false
+        let memberId: string | undefined
+        let groupId: string | undefined
 
         if (contract.contractType === 'GROUP' && contract.groupeId) {
           isGroup = true
+          groupId = contract.groupeId
           try {
             const group = await getGroupById(contract.groupeId)
             if (group) name = group.name
           } catch { /* ignore */ }
         } else if (contract.memberId) {
+          memberId = contract.memberId
           try {
             const member = await getUser(contract.memberId)
             if (member) {
@@ -124,6 +135,8 @@ async function fetchOverdueCaisseSpeciale(today: Date): Promise<OverduePayment[]
           return {
             key: `cs-${contract.id}-${p.id}`,
             product: 'Caisse Spéciale' as const,
+            memberId,
+            groupId,
             matricule,
             name,
             isGroup,
@@ -202,6 +215,7 @@ async function fetchOverdueCaisseImprevue(today: Date): Promise<OverduePayment[]
         return overdueMonths.map(({ monthIndex, due, remaining }) => ({
           key: `ci-${contract.id}-${monthIndex}`,
           product: 'Caisse Imprévue' as const,
+          memberId: contract.memberId || undefined,
           matricule,
           name,
           isGroup: false,
@@ -279,6 +293,7 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
           return {
             key: `credit-${contract.id}-${inst.dueDate}`,
             product,
+            memberId: contract.clientId || undefined,
             matricule,
             name,
             isGroup: false,
@@ -346,7 +361,7 @@ export async function fetchOverduePlacement(today: Date): Promise<OverduePayment
           }
         } catch { /* ignore */ }
 
-        const identity = { matricule, name, phone, whatsappNumber }
+        const identity = { memberId: pl.benefactorId || undefined, matricule, name, phone, whatsappNumber }
 
         const overdueItems: OverduePayment[] = overdue.map((c) => {
           const due = c.dueDate instanceof Date ? c.dueDate : new Date(c.dueDate)

@@ -16,12 +16,17 @@ const MEMBERS: BreadcrumbSegment = { label: 'Membres', href: '/memberships' }
 const MEMBERSHIP_REQUESTS: BreadcrumbSegment = { label: "Demandes d'adhésion", href: '/membership-requests' }
 const ADMINS: BreadcrumbSegment = { label: 'Administrateurs', href: '/admin' }
 const AGENTS: BreadcrumbSegment = { label: 'Agents de recouvrement', href: '/admin/agents-recouvrement' }
-const CS: BreadcrumbSegment = { label: 'Caisse spéciale', href: '/caisse-speciale' }
-const CI: BreadcrumbSegment = { label: 'Caisse imprévue', href: '/caisse-imprevue' }
-// /credit-* n'ont pas de page racine, on pointe vers la première sous-page
-const CREDIT_SP: BreadcrumbSegment = { label: 'Crédit spéciale', href: '/credit-speciale/simulations' }
-const CREDIT_FX: BreadcrumbSegment = { label: 'Crédit fixe', href: '/credit-fixe/simulation' }
-const CREDIT_AD: BreadcrumbSegment = { label: 'Caisse aide', href: '/credit-aide/simulation' }
+// Les cinq sections produit sont des regroupements du menu, pas des pages : on
+// les affiche sans lien. Leurs pages réelles (Contrats, Demandes, Simulation)
+// portent les liens — `/caisse-speciale` et `/caisse-imprevue` SONT les listes
+// de contrats, d'où les ancres ci-dessous.
+const CS: BreadcrumbSegment = { label: 'Caisse spéciale' }
+const CI: BreadcrumbSegment = { label: 'Caisse imprévue' }
+const CREDIT_SP: BreadcrumbSegment = { label: 'Crédit spéciale' }
+const CREDIT_FX: BreadcrumbSegment = { label: 'Crédit fixe' }
+const CREDIT_AD: BreadcrumbSegment = { label: 'Caisse aide' }
+const CS_CONTRATS: BreadcrumbSegment = { label: 'Contrats', href: '/caisse-speciale' }
+const CI_CONTRATS: BreadcrumbSegment = { label: 'Contrats', href: '/caisse-imprevue' }
 const PLACEMENTS: BreadcrumbSegment = { label: 'Placements', href: '/placements' }
 const EVENTS: BreadcrumbSegment = { label: 'Événements', href: '/events' }
 const BIENFAITEUR: BreadcrumbSegment = { label: 'Bienfaiteur', href: '/bienfaiteur' }
@@ -29,13 +34,23 @@ const VEHICULES: BreadcrumbSegment = { label: 'Véhicules', href: '/vehicules' }
 const PAYMENTS_HISTORY: BreadcrumbSegment = { label: 'Historique des paiements', href: '/payments-history' }
 const CONTRACTS_HISTORY: BreadcrumbSegment = { label: 'Historique des contrats', href: '/contracts-history' }
 
-// Extrait l'id membre (format XXXX.MK.jjmmyy) à l'intérieur d'un id de contrat
-function extractMemberIdFromContractId(contractId: string): string | null {
-  const match = contractId.match(/(\d+\.MK\.\d{6})/)
-  return match ? match[1] : null
+/**
+ * Un parent ne doit jamais pointer vers la page affichée : les sections crédit
+ * n'ayant pas de page racine, leur ancre vise une sous-page (ex. Simulations),
+ * et le fil produisait « Crédit spéciale → /credit-speciale/simulations » alors
+ * qu'on y était déjà. On retire le lien dans ce cas, on garde le libellé.
+ */
+function stripSelfLinks(segments: BreadcrumbSegment[], pathname: string): BreadcrumbSegment[] {
+  return segments.map((segment) =>
+    segment.href === pathname ? { label: segment.label } : segment,
+  )
 }
 
 export function getBreadcrumbs(pathname: string): BreadcrumbSegment[] {
+  return stripSelfLinks(resolveBreadcrumbs(pathname), pathname)
+}
+
+function resolveBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   // ── Dashboard ────────────────────────────────────────────────────────────
   if (pathname === '/dashboard') return [{ label: 'Tableau de bord' }]
 
@@ -77,6 +92,8 @@ export function getBreadcrumbs(pathname: string): BreadcrumbSegment[] {
     return [TB, ADMINS, AGENTS, { label: 'Détails' }]
   }
   if (pathname === '/admin/agents-recouvrement') return [TB, ADMINS, { label: 'Agents de recouvrement' }]
+  if (pathname === '/admin/relances') return [TB, ADMINS, { label: 'Journal des relances' }]
+  if (pathname === '/admin/journalisation') return [TB, ADMINS, { label: 'Journalisation' }]
   if (pathname === '/admin') return [TB, { label: 'Administrateurs' }]
 
   // ── Caisse spéciale ──────────────────────────────────────────────────────
@@ -97,28 +114,22 @@ export function getBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   if (pathname === '/caisse-speciale/demandes') return [TB, CS, { label: 'Demandes' }]
 
   if (pathname === '/caisse-speciale/contrats/nouveau') {
-    return [TB, CS, { label: 'Contrats', href: '/contracts-history' }, { label: 'Nouveau contrat' }]
+    return [TB, CS, CS_CONTRATS, { label: 'Nouveau contrat' }]
   }
   if (/^\/caisse-speciale\/contrats\/[^/]+\/(versements|remboursements)$/.test(pathname)) {
     const [, , , contractId, sub] = pathname.split('/')
-    const memberId = extractMemberIdFromContractId(contractId)
-    const contractsHref = memberId ? `/contracts-history/${memberId}` : '/contracts-history'
-    return [TB, CS,
-      { label: 'Contrats', href: contractsHref },
+    return [TB, CS, CS_CONTRATS,
       { label: 'Détails', href: `/caisse-speciale/contrats/${contractId}` },
       { label: sub === 'versements' ? 'Versements' : 'Remboursements' },
     ]
   }
   if (/^\/caisse-speciale\/contrats\/[^/]+$/.test(pathname)) {
-    const contractId = pathname.split('/')[3]
-    const memberId = extractMemberIdFromContractId(contractId)
-    const contractsHref = memberId ? `/contracts-history/${memberId}` : '/contracts-history'
-    return [TB, CS, { label: 'Contrats', href: contractsHref }, { label: 'Détails' }]
+    return [TB, CS, CS_CONTRATS, { label: 'Détails' }]
   }
   if (pathname === '/caisse-speciale/create') return [TB, CS, { label: 'Créer' }]
   if (pathname === '/caisse-speciale/simulation') return [TB, CS, { label: 'Simulation' }]
   if (pathname === '/caisse-speciale/settings') return [TB, CS, { label: 'Paramètres' }]
-  if (pathname === '/caisse-speciale') return [TB, { label: 'Caisse spéciale' }]
+  if (pathname === '/caisse-speciale') return [TB, CS, { label: 'Contrats' }]
 
   // ── Caisse imprévue ──────────────────────────────────────────────────────
   if (pathname === '/caisse-imprevue/demandes/add') {
@@ -139,24 +150,18 @@ export function getBreadcrumbs(pathname: string): BreadcrumbSegment[] {
 
   if (/^\/caisse-imprevue\/contrats\/[^/]+\/(versements|aides|remboursements)$/.test(pathname)) {
     const [, , , contractId, sub] = pathname.split('/')
-    const memberId = extractMemberIdFromContractId(contractId)
-    const contractsHref = memberId ? `/contracts-history/${memberId}` : '/contracts-history'
     const subLabel = sub === 'versements' ? 'Versements' : sub === 'aides' ? 'Aides' : 'Remboursements'
-    return [TB, CI,
-      { label: 'Contrats', href: contractsHref },
+    return [TB, CI, CI_CONTRATS,
       { label: 'Détails', href: `/caisse-imprevue/contrats/${contractId}` },
       { label: subLabel },
     ]
   }
   if (/^\/caisse-imprevue\/contrats\/[^/]+$/.test(pathname)) {
-    const contractId = pathname.split('/')[3]
-    const memberId = extractMemberIdFromContractId(contractId)
-    const contractsHref = memberId ? `/contracts-history/${memberId}` : '/contracts-history'
-    return [TB, CI, { label: 'Contrats', href: contractsHref }, { label: 'Détails' }]
+    return [TB, CI, CI_CONTRATS, { label: 'Détails' }]
   }
   if (pathname === '/caisse-imprevue/create') return [TB, CI, { label: 'Créer' }]
   if (pathname === '/caisse-imprevue/settings') return [TB, CI, { label: 'Paramètres' }]
-  if (pathname === '/caisse-imprevue') return [TB, { label: 'Caisse imprévue' }]
+  if (pathname === '/caisse-imprevue') return [TB, CI, { label: 'Contrats' }]
 
   // ── Crédit spéciale ──────────────────────────────────────────────────────
   if (pathname === '/credit-speciale/demandes/add') {
@@ -263,6 +268,13 @@ export function getBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   if (pathname === '/jobs') return [TB, { label: 'Métiers' }]
   if (pathname === '/metiers') return [TB, { label: 'Métiers' }]
   if (pathname === '/settings') return [TB, { label: 'Paramètres' }]
+  if (pathname === '/boutiques') return [TB, { label: 'Boutiques' }]
+  if (pathname === '/statuts') return [TB, { label: "Documents de l'association" }]
+  if (pathname === '/parametres-messages') return [TB, { label: 'Modèles de messages' }]
+  if (pathname === '/reinitialisation') return [TB, { label: 'Réinitialisation de la base' }]
+  if (pathname === '/import-membres') return [TB, { label: 'Import membres' }]
+  if (pathname === '/import-caisse-imprevue') return [TB, { label: 'Import Caisse Imprévue' }]
+  if (pathname === '/import-caisse-speciale') return [TB, { label: 'Import Caisse Spéciale' }]
 
   // ── Fallback : reconstruction naïve à partir du pathname ────────────────
   const segments = pathname.split('/').filter(Boolean)
