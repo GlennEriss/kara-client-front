@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { Store, Camera, Loader2 } from 'lucide-react'
+import { Store, Camera, Images, Loader2, X } from 'lucide-react'
 
 import {
   Dialog,
@@ -22,16 +22,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import ShopHoursEditor, { makeDefaultHours, normalizeHours } from './ShopHoursEditor'
-import { createFile } from '@/db/upload-image.db'
+import { createFile, deleteFile } from '@/db/upload-image.db'
 import { useShopMutations } from '@/hooks/useShops'
 import { useProvinces, useDepartments, useCommunes } from '@/domains/infrastructure/geography/hooks/useGeographie'
-import type { Shop } from '@/types/types'
+import type { Shop, ShopPhoto } from '@/types/types'
 
 interface Props {
   open: boolean
   onClose: () => void
   shop?: Shop | null
 }
+
+/** Aligné sur storage.rules : `isImageSizeValid()` refuse au-delà de 5 Mo. */
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024
+/** Garde-fou : au-delà, la fiche devient illisible et l'upload interminable. */
+const MAX_GALLERY_PHOTOS = 12
 
 const empty = {
   name: '',
@@ -51,6 +56,37 @@ const empty = {
   isActive: true,
   photoURL: '',
   photoPath: '',
+  gallery: [] as ShopPhoto[],
+}
+
+/** Vignette de galerie avec bouton de retrait. */
+function GalleryThumb({
+  src,
+  onRemove,
+  isPending = false,
+}: {
+  src: string
+  onRemove: () => void
+  isPending?: boolean
+}) {
+  return (
+    <div className="group relative aspect-square overflow-hidden rounded-lg border bg-gray-50">
+      <Image src={src} alt="" fill className="object-cover" unoptimized sizes="120px" />
+      {isPending && (
+        <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          À envoyer
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Retirer cette photo"
+        className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  )
 }
 
 export default function ShopFormModal({ open, onClose, shop }: Props) {
@@ -60,6 +96,13 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
   const [selectedProvinceId, setSelectedProvinceId] = useState('')
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
+  // Galerie : photos déjà en ligne (dans `form.gallery`) + nouvelles en attente.
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([])
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([])
+  // Photos retirées d'une boutique existante : supprimées de Storage à
+  // l'enregistrement seulement, pour qu'un « Annuler » ne détruise rien.
+  const [removedPaths, setRemovedPaths] = useState<string[]>([])
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -102,6 +145,7 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
         isActive: shop.isActive ?? true,
         photoURL: shop.photoURL || '',
         photoPath: shop.photoPath || '',
+        gallery: shop.gallery ? [...shop.gallery] : [],
       })
       setSelectedProvinceId(provinces.find((p) => p.name === shop.province)?.id || '')
     } else {
@@ -110,11 +154,50 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
     }
     setPhotoFile(null)
     setPhotoPreview('')
+    setGalleryFiles([])
+    setGalleryPreviews([])
+    setRemovedPaths([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, shop])
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
+
+  const galleryCount = form.gallery.length + galleryFiles.length
+
+  /** Ajoute des fichiers à la galerie après contrôle du poids et du quota. */
+  const addGalleryFiles = (files: File[]) => {
+    const remaining = MAX_GALLERY_PHOTOS - galleryCount
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_GALLERY_PHOTOS} photos par boutique`)
+      return
+    }
+    const tooBig = files.filter((f) => f.size > MAX_PHOTO_SIZE)
+    if (tooBig.length > 0) {
+      toast.error(`Photo trop lourde (max 5 Mo) : ${tooBig.map((f) => f.name).join(', ')}`)
+    }
+    const accepted = files.filter((f) => f.size <= MAX_PHOTO_SIZE).slice(0, remaining)
+    if (accepted.length < files.length - tooBig.length) {
+      toast.info(`Seules ${remaining} photo(s) supplémentaires sont possibles`)
+    }
+    if (accepted.length === 0) return
+    setGalleryFiles((prev) => [...prev, ...accepted])
+    setGalleryPreviews((prev) => [...prev, ...accepted.map((f) => URL.createObjectURL(f))])
+  }
+
+  /** Retire une photo déjà en ligne (suppression Storage différée au submit). */
+  const removeExistingPhoto = (index: number) => {
+    const photo = form.gallery[index]
+    if (photo?.path) setRemovedPaths((prev) => [...prev, photo.path])
+    set('gallery', form.gallery.filter((_, i) => i !== index))
+  }
+
+  /** Retire une photo pas encore envoyée. */
+  const removePendingPhoto = (index: number) => {
+    URL.revokeObjectURL(galleryPreviews[index])
+    setGalleryFiles((prev) => prev.filter((_, i) => i !== index))
+    setGalleryPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return toast.error('Le nom de la boutique est obligatoire')
@@ -129,6 +212,16 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
         const res = await createFile(photoFile, uploadId, `shops/${uploadId}`)
         photoURL = res.url
         photoPath = res.path
+      }
+
+      // Upload des nouvelles photos de galerie, puis fusion avec celles conservées.
+      let gallery = form.gallery
+      if (galleryFiles.length > 0) {
+        const uploadId = shop?.id || `new_${Date.now()}`
+        const uploaded = await Promise.all(
+          galleryFiles.map((file) => createFile(file, uploadId, `shops/${uploadId}/gallery`)),
+        )
+        gallery = [...gallery, ...uploaded.map(({ url, path }) => ({ url, path }))]
       }
 
       const payload = {
@@ -149,6 +242,7 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
         isActive: form.isActive,
         photoURL,
         photoPath,
+        gallery,
       }
 
       if (isEdit && shop) {
@@ -158,6 +252,17 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
         await create.mutateAsync(payload)
         toast.success('Boutique créée')
       }
+
+      // Nettoyage Storage une fois la fiche enregistrée : si la sauvegarde a
+      // échoué, les fichiers sont toujours référencés et ne doivent pas partir.
+      await Promise.all(
+        removedPaths.map((path) =>
+          deleteFile(path).catch((error) => {
+            // Un fichier orphelin est moins grave qu'un enregistrement bloqué.
+            console.error('[shops] suppression photo impossible:', path, error)
+          }),
+        ),
+      )
       onClose()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement")
@@ -326,6 +431,63 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
                 <Camera className="mr-1 h-3.5 w-3.5" /> {form.photoURL || photoPreview ? 'Changer' : 'Ajouter'}
               </Button>
             </div>
+          </div>
+
+          {/* Galerie : ce que propose la boutique */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-xs text-gray-500">
+                Photos du contenu de la boutique
+                <span className="ml-1 text-gray-400">
+                  ({galleryCount}/{MAX_GALLERY_PHOTOS})
+                </span>
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={galleryCount >= MAX_GALLERY_PHOTOS}
+              >
+                <Images className="mr-1 h-3.5 w-3.5" /> Ajouter des photos
+              </Button>
+            </div>
+
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addGalleryFiles(Array.from(e.target.files || []))
+                e.target.value = ''
+              }}
+            />
+
+            {galleryCount === 0 ? (
+              <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-center text-xs text-gray-400">
+                Aucune photo. Ajoutez des vues des produits ou de la vitrine.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {form.gallery.map((photo, index) => (
+                  <GalleryThumb
+                    key={photo.path || photo.url}
+                    src={photo.url}
+                    onRemove={() => removeExistingPhoto(index)}
+                  />
+                ))}
+                {galleryPreviews.map((preview, index) => (
+                  <GalleryThumb
+                    key={`pending-${preview}`}
+                    src={preview}
+                    isPending
+                    onRemove={() => removePendingPhoto(index)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </ModalBody>
 

@@ -121,6 +121,29 @@ export default function ShopsList() {
                     )}
                   </div>
                 </div>
+                {/* Aperçu de la galerie : montre d'un coup d'œil les fiches
+                    déjà illustrées et celles qui restent à compléter. */}
+                {shop.gallery && shop.gallery.length > 0 && (
+                  <div className="mt-3 flex items-center gap-1.5">
+                    {shop.gallery.slice(0, 4).map((photo) => (
+                      <Image
+                        key={photo.path || photo.url}
+                        src={photo.url}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded border object-cover"
+                        unoptimized
+                      />
+                    ))}
+                    {shop.gallery.length > 4 && (
+                      <span className="text-xs font-medium text-gray-500">
+                        +{shop.gallery.length - 4}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-3 flex justify-end gap-1">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(shop)} title="Modifier">
                     <Pencil className="h-4 w-4" />
