@@ -20,7 +20,9 @@ function AddMemberContent() {
 
   useEffect(() => {
     if (isSubmitted && !correctionRequest) {
-      router.replace(routes.admin.memberships)
+      // Une création admin produit une demande d'adhésion à traiter, pas un
+      // membre déjà actif : on renvoie donc vers la liste des demandes.
+      router.replace(routes.admin.membershipRequests)
     }
   }, [isSubmitted, correctionRequest, router])
 

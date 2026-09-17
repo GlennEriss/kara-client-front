@@ -7,9 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/hooks/useOverduePayments'
 import { generateWhatsAppUrl, resolveWhatsappNumber } from '@/domains/memberships/utils/whatsappUrl'
 import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
+import { useLastContactByPerson, useRecordCall } from '@/hooks/useCallLogs'
+import { CALL_OUTCOME_COLORS, CALL_OUTCOME_LABELS, type ContactChannel } from '@/services/call-logs/callLog'
+import { CallHistorySheet } from '@/components/calendrier/CallHistorySheet'
+import { LogCallModal, type CallTarget } from '@/components/calendrier/LogCallModal'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { AlertTriangle, Building2, Calendar, ChevronDown, ChevronRight, Download, MessageCircle, Phone, RefreshCw, User } from 'lucide-react'
+import { AlertTriangle, Building2, Calendar, ChevronDown, ChevronRight, Download, History, MessageCircle, Phone, PhoneCall, RefreshCw, User } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -21,6 +25,8 @@ interface OverdueCaissePaymentsListProps {
 /** Retardataire regroupé : une personne (ou un groupe) et l'ensemble de ses versements en retard. */
 interface OverdueGroup {
   personKey: string
+  memberId?: string
+  groupId?: string
   matricule?: string
   name: string
   isGroup: boolean
@@ -47,8 +53,14 @@ function fmtAmount(n: number): string {
   return n.toLocaleString('fr-FR').replace(/\s/g, ' ')
 }
 
-/** Clé d'identité d'un retardataire : le matricule si disponible, sinon le nom (+ type). */
+/**
+ * Clé d'identité d'un retardataire, par ordre de fiabilité décroissante :
+ * identifiant Firestore, puis matricule, puis nom. Cette clé rattache aussi les
+ * comptes rendus d'appel — changer cet ordre détacherait l'historique existant.
+ */
 function personKeyOf(item: OverduePayment): string {
+  if (item.groupId) return `gid:${item.groupId}`
+  if (item.memberId) return `uid:${item.memberId}`
   const mat = item.matricule?.trim()
   if (mat) return `mat:${mat}`
   return `${item.isGroup ? 'g' : 'm'}:${item.name.trim().toLowerCase()}`
@@ -72,9 +84,13 @@ function groupOverdue(items: OverduePayment[]): OverdueGroup[] {
       if (!existing.phone && item.phone) existing.phone = item.phone
       if (!existing.whatsappNumber && item.whatsappNumber) existing.whatsappNumber = item.whatsappNumber
       if (!existing.matricule && item.matricule) existing.matricule = item.matricule
+      if (!existing.memberId && item.memberId) existing.memberId = item.memberId
+      if (!existing.groupId && item.groupId) existing.groupId = item.groupId
     } else {
       map.set(key, {
         personKey: key,
+        memberId: item.memberId,
+        groupId: item.groupId,
         matricule: item.matricule,
         name: item.name,
         isGroup: item.isGroup,
@@ -168,6 +184,13 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
   const groups = useMemo(() => groupOverdue(items), [items])
   const totalAmount = items.reduce((sum, i) => sum + (i.amount || 0), 0)
+
+  // Traçabilité : dernier contact par retardataire + fenêtre de compte rendu.
+  const { lastContact } = useLastContactByPerson()
+  const { record } = useRecordCall()
+  const [callTarget, setCallTarget] = useState<CallTarget | null>(null)
+  const [callChannel, setCallChannel] = useState<ContactChannel>('call')
+  const [historyFor, setHistoryFor] = useState<OverdueGroup | null>(null)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const toggleExpanded = (key: string) => {
@@ -283,6 +306,20 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
     }
   }
 
+  /** Photo de la situation au moment du contact, figée dans le compte rendu. */
+  const toCallTarget = (group: OverdueGroup): CallTarget => ({
+    personKey: group.personKey,
+    memberId: group.memberId,
+    groupId: group.groupId,
+    matricule: group.matricule,
+    name: group.name,
+    isGroup: group.isGroup,
+    product: group.product,
+    totalOverdue: group.totalAmount,
+    overdueCount: group.count,
+    maxDaysOverdue: group.maxDaysOverdue,
+  })
+
   const handleSendWhatsApp = (group: OverdueGroup) => {
     const whatsapp = resolveWhatsappNumber(group.whatsappNumber, [group.phone])
     if (!whatsapp) {
@@ -293,9 +330,30 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       const { key, variables } = reminderTemplateFor(group)
       const url = generateWhatsAppUrl(whatsapp, renderMessage(key, variables))
       window.open(url, '_blank', 'noopener,noreferrer')
+      // Un message parti n'est pas un échange : on le trace sans rien demander,
+      // et la fenêtre de compte rendu reste réservée aux appels.
+      void record({
+        ...toCallTarget(group),
+        channel: 'whatsapp',
+        outcome: 'message_envoye',
+        summary: 'Rappel WhatsApp envoyé depuis le calendrier.',
+      }).catch((error) => {
+        console.error('[callLog] trace WhatsApp impossible:', error)
+      })
     } catch {
       toast.error('Numéro de téléphone invalide.')
     }
+  }
+
+  /** Ouvre le composeur téléphonique puis impose la saisie du compte rendu. */
+  const handleCall = (group: OverdueGroup) => {
+    if (!group.phone) {
+      toast.error('Aucun numéro de téléphone enregistré.')
+      return
+    }
+    setCallChannel('call')
+    setCallTarget(toCallTarget(group))
+    window.location.href = `tel:${group.phone.replace(/[^+\d]/g, '')}`
   }
 
   return (
@@ -351,14 +409,15 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                   <TableHead className="text-right">Montant total dû</TableHead>
                   <TableHead>Échéance la + ancienne</TableHead>
                   <TableHead className="text-right">Retard max</TableHead>
-                  <TableHead className="text-right">Rappel</TableHead>
+                  <TableHead>Dernier contact</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading &&
                   [...Array(5)].map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      <TableCell colSpan={9}>
+                      <TableCell colSpan={10}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -366,7 +425,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && isError && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-red-600">
+                    <TableCell colSpan={10} className="text-center py-10 text-red-600">
                       Erreur lors du chargement des versements en retard.
                     </TableCell>
                   </TableRow>
@@ -374,7 +433,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && !isError && groups.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-10 text-gray-500">
                       🎉 Aucun versement en retard.
                     </TableCell>
                   </TableRow>
@@ -386,6 +445,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                     const isMulti = g.count > 1
                     const isOpen = expanded.has(g.personKey)
                     const canRemind = !!resolveWhatsappNumber(g.whatsappNumber, [g.phone])
+                    const last = lastContact.get(g.personKey)
                     return (
                       <Fragment key={g.personKey}>
                         <TableRow
@@ -455,27 +515,79 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                               {g.maxDaysOverdue} j
                             </span>
                           </TableCell>
+                          <TableCell>
+                            {last ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setHistoryFor(g)
+                                }}
+                                className="flex flex-col items-start gap-0.5 text-left hover:underline"
+                                title="Voir tout l'historique des relances"
+                              >
+                                <span className="text-xs text-gray-600">
+                                  {format(last.createdAt, 'dd/MM/yyyy', { locale: fr })}
+                                </span>
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${CALL_OUTCOME_COLORS[last.outcome]}`}
+                                >
+                                  {CALL_OUTCOME_LABELS[last.outcome]}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-xs font-medium text-gray-400">Jamais contacté</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleSendWhatsApp(g)
-                              }}
-                              disabled={!canRemind}
-                              title={canRemind ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
-                              className="h-8 bg-[#25D366] hover:bg-[#1ebe5b] text-white disabled:opacity-50"
-                            >
-                              <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
-                              <span className="hidden sm:inline">Rappel</span>
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleCall(g)
+                                }}
+                                disabled={!g.phone}
+                                title={g.phone ? 'Appeler et noter le compte rendu' : 'Aucun numéro de téléphone'}
+                                className="h-8"
+                              >
+                                <PhoneCall className="h-3.5 w-3.5 sm:mr-1.5" />
+                                <span className="hidden sm:inline">Appeler</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSendWhatsApp(g)
+                                }}
+                                disabled={!canRemind}
+                                title={canRemind ? 'Envoyer un rappel sur WhatsApp' : 'Aucun numéro de téléphone'}
+                                className="h-8 bg-[#25D366] hover:bg-[#1ebe5b] text-white disabled:opacity-50"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
+                                <span className="hidden sm:inline">Rappel</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setHistoryFor(g)
+                                }}
+                                title="Historique des relances"
+                                className="h-8 px-2 text-gray-500"
+                              >
+                                <History className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
 
                         {isMulti && isOpen && (
                           <TableRow className="bg-gray-50/60">
                             <TableCell />
-                            <TableCell colSpan={8} className="py-2">
+                            <TableCell colSpan={9} className="py-2">
                               <div className="space-y-1.5">
                                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                                   Détail des {g.count} versements en retard
@@ -509,6 +621,22 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
           </div>
         </CardContent>
       </Card>
+
+      {/* Compte rendu proposé après chaque appel — fermable sans enregistrer. */}
+      <LogCallModal
+        open={!!callTarget}
+        target={callTarget}
+        channel={callChannel}
+        onRecorded={() => setCallTarget(null)}
+        onCancel={() => setCallTarget(null)}
+      />
+
+      <CallHistorySheet
+        open={!!historyFor}
+        onOpenChange={(open) => !open && setHistoryFor(null)}
+        personKey={historyFor?.personKey}
+        name={historyFor?.name}
+      />
     </div>
   )
 }

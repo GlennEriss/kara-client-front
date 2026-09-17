@@ -5,6 +5,7 @@ import {
     User
 } from 'lucide-react'
 
+import BeneficiaryInfoSection from '@/components/identity-form/BeneficiaryInfoSection'
 import BirthCertificateNumberIdentityForm from '@/components/identity-form/BirthCertificateNumberIdentityForm'
 import BirthDateIdentityForm from '@/components/identity-form/BirthDateIdentityForm'
 import BirthPlaceIdentityForm from '@/components/identity-form/BirthPlaceIdentityForm'
@@ -100,6 +101,9 @@ export default function Step1({ requestId: _requestId }: Step1Props) {
 
           {/* Informations du conjoint (conditionnelles) */}
           <SpouseInfoSection />
+
+          {/* Bénéficiaire désigné (ayant-droit) — obligatoire */}
+          <BeneficiaryInfoSection />
 
 
         </div>

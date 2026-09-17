@@ -38,6 +38,7 @@ import {
   LogOut,
   MapPin,
   MessageSquare,
+  PhoneCall,
   Scale,
   ScrollText,
   Settings,
@@ -267,6 +268,11 @@ const systemMenuItems: any[] = [
     title: "Agents de recouvrement",
     url: routes.admin.agentsRecouvrement,
     icon: UserCheck,
+  },
+  {
+    title: "Journal des relances",
+    url: routes.admin.relances,
+    icon: PhoneCall,
   },
   {
     title: "Journalisation",

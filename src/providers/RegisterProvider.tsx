@@ -542,8 +542,10 @@ export function RegisterProvider({ children, initialData, requestId: adminReques
         console.warn(`Erreur de validation Zod step ${currentStep}:`, schemaError)
         // Si le schéma Zod échoue, forcer les erreurs dans react-hook-form
         if (schemaError instanceof Error) {
-          // Extraire les erreurs du schéma Zod et les appliquer
-          const zodErrors = (schemaError as any).errors || []
+          // Extraire les erreurs du schéma Zod et les appliquer.
+          // Zod 4 expose `issues` ; `errors` (Zod 3) y vaut `undefined`, ce qui
+          // faisait échouer la validation sans qu'aucun message ne s'affiche.
+          const zodErrors = (schemaError as any).issues || []
           zodErrors.forEach((error: any) => {
             const fieldPath = error.path.join('.')
             setError(`${sectionKey}.${fieldPath}` as any, {

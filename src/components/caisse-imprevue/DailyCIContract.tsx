@@ -61,6 +61,10 @@ const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDF
   ssr: false,
 })
 
+const QuittanceSecoursPDFModal = dynamic(() => import('./QuittanceSecoursPDFModal'), {
+  ssr: false,
+})
+
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
@@ -175,6 +179,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
   const [showReconnaissanceAccompagnement, setShowReconnaissanceAccompagnement] = useState(false)
+  const [showQuittanceSecours, setShowQuittanceSecours] = useState(false)
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
   const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
@@ -1440,6 +1445,15 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 <FileSignature className="h-5 w-5" />
                 Reconnaissance d&apos;accompagnement
               </Button>
+
+              <Button
+                variant="outline"
+                className="flex items-center justify-center gap-2 border-rose-300 text-rose-700 hover:bg-rose-50"
+                onClick={() => setShowQuittanceSecours(true)}
+              >
+                <FileSignature className="h-5 w-5" />
+                Quittance de secours
+              </Button>
             </div>
             
             {/* Liste des remboursements */}
@@ -1781,6 +1795,18 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           onClose={() => setShowRemboursementPdf(false)}
           contractId={contract.id}
           contractData={contract}
+        />
+
+        {/* Modal Quittance de secours (Fonds de Secours Mutuel) */}
+        <QuittanceSecoursPDFModal
+          isOpen={showQuittanceSecours}
+          onClose={() => setShowQuittanceSecours(false)}
+          member={{
+            firstName: contract.memberFirstName,
+            lastName: contract.memberLastName,
+            matricule: contract.memberId,
+            phone: contract.memberContacts?.[0],
+          }}
         />
 
         {/* Modal Reconnaissance d'accompagnement */}

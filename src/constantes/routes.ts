@@ -98,6 +98,7 @@ const routes = {
         agentsRecouvrement: '/admin/agents-recouvrement',
         agentRecouvrementDetails: (id: string) => `/admin/agents-recouvrement/${id}`,
         journalisation: '/admin/journalisation',
+        relances: '/admin/relances',
         // Modèles de messages envoyés aux membres (rappels, anniversaire, ...)
         messageTemplates: '/parametres-messages',
         // Documents de l'association (statuts, mise en conformité)

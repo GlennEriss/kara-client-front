@@ -49,7 +49,9 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   {
     key: 'calendar',
     label: 'Calendrier',
-    pathPrefixes: ['/calendrier'],
+    // Le journal des relances prolonge le suivi des retards du calendrier :
+    // même permission, pour ne pas créer un droit que personne ne possède.
+    pathPrefixes: ['/calendrier', '/admin/relances'],
     actions: actions('calendar', [VIEW, EXPORT]),
   },
   {
