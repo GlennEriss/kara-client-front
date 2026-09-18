@@ -1,6 +1,7 @@
 import { User, Admin, ContractCI, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
 import { Document } from "@/domains/infrastructure/documents/entities/document.types";
 import { ICaisseImprevueService, VersementFormData } from "./ICaisseImprevueService";
+import { planVersementSpread } from "./versementSpread";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
 import { ISubscriptionCIRepository } from "@/repositories/caisse-imprevu/ISubscriptionCIRepository";
@@ -236,6 +237,36 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             let supportRepaymentAmount = 0
             let supportRepaymentId: string | undefined = undefined
 
+            // 2.a Contrôler que le contrat peut absorber le versement AVANT toute
+            // écriture : le remboursement de support et l'upload de la preuve
+            // sont irréversibles, il ne faut pas les déclencher pour échouer
+            // ensuite sur un montant trop élevé.
+            const existingPayments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
+            const supportDeduction =
+                activeSupport && activeSupport.status === 'ACTIVE' && versementData.amount >= activeSupport.amountRemaining
+                    ? activeSupport.amountRemaining
+                    : 0
+            const amountForMonths = versementData.amount - supportDeduction
+            const plan = planVersementSpread({
+                duration: contract.subscriptionCIDuration || 0,
+                monthlyTarget: contract.subscriptionCIAmountPerMonth || 0,
+                months: existingPayments.map((p) => ({
+                    monthIndex: p.monthIndex,
+                    targetAmount: p.targetAmount,
+                    accumulatedAmount: p.accumulatedAmount,
+                })),
+                startMonthIndex: monthIndex,
+                amount: amountForMonths,
+            })
+
+            if (plan.overflow > 0) {
+                const maximum = plan.capacity + supportDeduction
+                throw new Error(
+                    `Montant trop élevé : ce contrat ne peut plus recevoir que ${maximum.toLocaleString('fr-FR')} FCFA ` +
+                    `(${plan.overflow.toLocaleString('fr-FR')} FCFA en trop). Réduisez le montant du versement.`
+                )
+            }
+
             if (activeSupport && activeSupport.status === 'ACTIVE') {
                 // BLOQUER LE VERSEMENT : Le support doit être remboursé intégralement AVANT tout nouveau versement
                 if (versementData.amount < activeSupport.amountRemaining) {
@@ -289,48 +320,64 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const minutes = String(now.getMinutes()).padStart(2, '0')
             const versementId = `v_${day}${month}${year}_${hours}${minutes}`
 
-            // 5. Créer le versement complet avec les infos de remboursement de support
-            const versement: VersementCI = {
-                id: versementId,
-                ...versementData,
-                proofUrl,
-                proofPath,
-                supportRepaymentAmount,
-                supportRepaymentId,
-                createdAt: now,
-                createdBy: userId,
-                ...(versementData.agentRecouvrementId && { agentRecouvrementId: versementData.agentRecouvrementId }),
-            }
+            // 5. Écrire une tranche par mois concerné. Un versement qui tient dans
+            // un seul mois produit une tranche unique, identique au comportement
+            // d'avant ; au-delà, les tranches partagent `splitGroupId` pour qu'on
+            // sache qu'elles proviennent d'une même saisie.
+            const isSplit = plan.slices.length > 1
+            const splitGroupId = isSplit ? `split_${versementId}` : undefined
+            let firstPayment: PaymentCI | null = null
 
-            // 6. Vérifier si le paiement du mois existe
-            let payment = await this.paymentCIRepository.getPaymentByMonth(contractId, monthIndex)
-
-            // 7. Si le paiement n'existe pas, le créer
-            if (!payment) {
-                const paymentData: Omit<PaymentCI, 'id' | 'createdAt' | 'updatedAt'> = {
-                    contractId,
-                    monthIndex,
-                    status: 'DUE',
-                    targetAmount: contract.subscriptionCIAmountPerMonth,
-                    accumulatedAmount: 0,
-                    supportRepaymentAmount: 0,
-                    versements: [],
+            for (const [index, slice] of plan.slices.entries()) {
+                const versement: VersementCI = {
+                    id: isSplit ? `${versementId}_${index + 1}` : versementId,
+                    ...versementData,
+                    amount: slice.amount,
+                    proofUrl,
+                    proofPath,
+                    // Le remboursement de support est porté par la première
+                    // tranche seulement : le répéter le compterait plusieurs fois.
+                    supportRepaymentAmount: index === 0 ? supportRepaymentAmount : 0,
+                    supportRepaymentId: index === 0 ? supportRepaymentId : undefined,
+                    createdAt: now,
                     createdBy: userId,
-                    updatedBy: userId,
+                    ...(versementData.agentRecouvrementId && { agentRecouvrementId: versementData.agentRecouvrementId }),
+                    ...(splitGroupId && { splitGroupId }),
                 }
 
-                payment = await this.paymentCIRepository.createPayment(contractId, paymentData)
+                // Créer le document du mois s'il n'existe pas encore : les mois
+                // futurs n'en ont pas tant qu'aucun versement ne les touche.
+                const existing = await this.paymentCIRepository.getPaymentByMonth(contractId, slice.monthIndex)
+                if (!existing) {
+                    const paymentData: Omit<PaymentCI, 'id' | 'createdAt' | 'updatedAt'> = {
+                        contractId,
+                        monthIndex: slice.monthIndex,
+                        status: 'DUE',
+                        targetAmount: contract.subscriptionCIAmountPerMonth,
+                        accumulatedAmount: 0,
+                        supportRepaymentAmount: 0,
+                        versements: [],
+                        createdBy: userId,
+                        updatedBy: userId,
+                    }
+                    await this.paymentCIRepository.createPayment(contractId, paymentData)
+                }
+
+                const updated = await this.paymentCIRepository.addVersement(
+                    contractId,
+                    slice.monthIndex,
+                    versement,
+                    userId
+                )
+                if (index === 0) firstPayment = updated
             }
 
-            // 8. Ajouter le versement au paiement
-            const updatedPayment = await this.paymentCIRepository.addVersement(
-                contractId,
-                monthIndex,
-                versement,
-                userId
-            )
+            if (!firstPayment) {
+                throw new Error('Aucun mois à créditer pour ce versement')
+            }
 
-            return updatedPayment
+            // On renvoie le mois de saisie : c'est celui que l'écran affiche.
+            return firstPayment
         } catch (error) {
             console.error('Erreur lors de la création du versement:', error)
             throw error

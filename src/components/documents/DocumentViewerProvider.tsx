@@ -1,8 +1,12 @@
 'use client'
 
 import React, { createContext, useCallback, useContext, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import DocumentViewerModal from './DocumentViewerModal'
 import { downloadFile } from '@/utils/downloadFile'
+import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { logAdminAction } from '@/services/audit/auditLog'
+import { moduleForPath } from '@/constantes/permissions'
 
 export interface DocumentPayload {
   /** URL du document (Firebase Storage). */
@@ -29,7 +33,34 @@ const DocumentViewerContext = createContext<DocumentViewerContextValue | null>(n
  */
 export function DocumentViewerProvider({ children }: { children: React.ReactNode }) {
   const [doc, setDoc] = useState<DocumentPayload | null>(null)
-  const openDocument = useCallback((next: DocumentPayload) => setDoc(next), [])
+  const { user } = useAuth()
+  const pathname = usePathname()
+
+  // La modale n'ouvre ni onglet ni ancre : elle échappe à l'interception posée
+  // sur le DOM. La consultation est donc journalisée ici.
+  const openDocument = useCallback(
+    (next: DocumentPayload) => {
+      setDoc(next)
+      try {
+        const moduleDef = pathname ? moduleForPath(pathname) : null
+        logAdminAction({
+          adminId: user?.uid || 'inconnu',
+          adminName: user?.displayName?.trim() || user?.email || 'Administrateur',
+          adminEmail: user?.email || undefined,
+          action: 'view',
+          module: moduleDef?.key || 'autre',
+          moduleLabel: moduleDef?.label,
+          targetType: 'fichier',
+          targetId: next.filename,
+          description: `Consultation du document « ${next.title || next.filename} »`,
+          metadata: { fileName: next.filename, page: pathname || undefined },
+        })
+      } catch {
+        // Ne jamais empêcher l'ouverture du document.
+      }
+    },
+    [pathname, user],
+  )
 
   return (
     <DocumentViewerContext.Provider value={{ openDocument }}>

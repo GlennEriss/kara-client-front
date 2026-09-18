@@ -3,9 +3,14 @@
 import LayoutDashboard from '@/components/layout/LayoutDashboard'
 import { RouteAccessGuard } from '@/components/auth/PermissionGate'
 import { DocumentViewerProvider } from '@/components/documents/DocumentViewerProvider'
+import { useFileAccessAudit } from '@/hooks/useFileAccessAudit'
 import React, { useEffect } from 'react'
 
 export default function AdminLayout({ children }:  React.PropsWithChildren) {
+  // Journalise tout accès à un fichier depuis l'admin : téléchargement et
+  // consultation d'un document stocké.
+  useFileAccessAudit()
+
   useEffect(() => {
     // Désactiver le scroll sur le body pour éviter le double scroll
     document.body.style.overflow = 'hidden'
