@@ -359,13 +359,18 @@ export default function PaymentCIModal({
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value.replace(/[^0-9]/g, ''))}
               required
-              disabled={isMonthly && !editMode}
-              className={isMonthly && !editMode ? 'bg-gray-100 cursor-not-allowed' : ''}
+              // Le montant d'un versement enregistré n'est pas rectifiable : il
+              // engage la comptabilité du contrat. Pour corriger une erreur de
+              // saisie, il faut supprimer le versement et le ressaisir.
+              disabled={editMode || isMonthly}
+              className={editMode || isMonthly ? 'bg-gray-100 cursor-not-allowed' : ''}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {isMonthly && !editMode
-                ? 'Contrat mensuel : le montant est fixe (montant de l\'abonnement).' 
-                : '💡 Le montant peut être ajusté pour chaque versement. Montant minimum: 100 FCFA'}
+              {editMode
+                ? "Le montant d'un versement enregistré ne peut pas être modifié. En cas d'erreur, supprimez le versement puis ressaisissez-le."
+                : isMonthly
+                  ? 'Contrat mensuel : le montant est fixe (montant de l\'abonnement).'
+                  : '💡 Le montant peut être ajusté pour chaque versement. Montant minimum: 100 FCFA'}
             </p>
           </div>
 

@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuditLogger } from '@/hooks/useAuditLog'
 import { CaisseImprevueService } from '../services/CaisseImprevueService'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import type { ContractCI } from '@/types/types'
 import { toast } from 'sonner'
 
 const service = CaisseImprevueService.getInstance()
@@ -32,6 +34,33 @@ export function useContractCIMutations() {
     },
     onError: (error: Error) => {
       toast.error(error?.message ?? 'Erreur lors de la suppression du contrat')
+    },
+  })
+
+  /**
+   * Création d'un contrat.
+   *
+   * Passe par une mutation — et non par un appel direct au service — pour que
+   * la liste et les statistiques soient invalidées, et que le filet global du
+   * `MutationCache` rafraîchisse les autres sections. Sans cela, la liste des
+   * contrats servait son cache (staleTime 5 min) et n'affichait le nouveau
+   * contrat qu'après un rechargement de page.
+   *
+   * Le succès n'affiche pas de toast : l'appelant en produit déjà un, détaillé.
+   */
+  const createContract = useMutation({
+    mutationFn: (data: Omit<ContractCI, 'createdAt' | 'updatedAt'>) =>
+      ServiceFactory.getCaisseImprevueService().createContractCI(data),
+    onSuccess: (contract) => {
+      queryClient.invalidateQueries({ queryKey: ['contractsCI'] })
+      queryClient.invalidateQueries({ queryKey: ['contractsCIStats'] })
+      log({
+        action: 'create',
+        ...CI_MODULE,
+        targetType: 'contrat',
+        targetId: contract?.id,
+        description: 'Création d\'un contrat de caisse imprévue',
+      })
     },
   })
 
@@ -70,5 +99,5 @@ export function useContractCIMutations() {
     },
   })
 
-  return { deleteContract, replaceContractDocument, updateContractSubscription }
+  return { createContract, deleteContract, replaceContractDocument, updateContractSubscription }
 }

@@ -14,6 +14,15 @@ export class CaisseImprevuFormMediator {
     private goToNextStep: (() => void) | null = null
     private router: AppRouterInstance | null = null
     private userId: string | null = null
+    /**
+     * Écriture du contrat, injectée depuis le provider.
+     *
+     * Le médiateur n'est pas un composant React et ne peut donc pas appeler de
+     * hook. On lui passe le `mutateAsync` de `useContractCIMutations`, afin que
+     * la création traverse React Query : sans cela, la liste des contrats sert
+     * son cache et n'affiche le nouveau contrat qu'après rechargement.
+     */
+    private createContract: ((data: Omit<ContractCI, 'createdAt' | 'updatedAt'>) => Promise<ContractCI>) | null = null
 
     private constructor() {
         if (CaisseImprevuFormMediator.instance) {
@@ -158,8 +167,16 @@ export class CaisseImprevuFormMediator {
                 updatedBy: this.userId,
             }
 
-            // Créer le contrat via le service
-            const contract = await this.service.createContractCI(contractData)
+            if (!this.createContract) {
+                // Filet de développement : sans ce branchement, la création
+                // fonctionnerait mais la liste resterait périmée.
+                throw new Error(
+                    "Création indisponible : setCreateContractHandler n'a pas été appelé par le provider.",
+                )
+            }
+
+            // Créer le contrat via la mutation (invalide la liste et les stats)
+            const contract = await this.createContract(contractData)
 
             console.log('✅ Contrat créé avec succès:', contract)
 
@@ -213,5 +230,14 @@ export class CaisseImprevuFormMediator {
      */
     setUserId(userId: string) {
         this.userId = userId
+    }
+
+    /**
+     * Définir la fonction d'écriture du contrat (mutation React Query).
+     */
+    setCreateContractHandler(
+        handler: (data: Omit<ContractCI, 'createdAt' | 'updatedAt'>) => Promise<ContractCI>,
+    ) {
+        this.createContract = handler
     }
 }

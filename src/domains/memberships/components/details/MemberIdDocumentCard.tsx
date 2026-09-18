@@ -14,10 +14,23 @@ import { toast } from 'sonner'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { createFile } from '@/db/upload-image.db'
 import { updateUser } from '@/db/user.db'
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+import { IdentityDocumentEnum } from '@/schemas/schemas'
+import { useMemberInlineEdit } from '../../hooks/useMemberInlineEdit'
+import { InlineEditActions } from './InlineEditActions'
 import type { MemberDetails } from '../../hooks/useMembershipDetails'
+
+// Liste de référence des pièces acceptées, dérivée du schéma d'adhésion pour
+// qu'elle ne puisse pas diverger de ce qui est saisi à l'inscription.
+const IDENTITY_DOCUMENT_OPTIONS = IdentityDocumentEnum.options
+
+// Même style de `select` que les autres cartes éditables de la fiche membre.
+const selectClass =
+  'flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#234D65]/40'
 
 interface MemberIdDocumentCardProps {
   member: MemberDetails | null
@@ -101,8 +114,25 @@ export function MemberIdDocumentCard({ member }: MemberIdDocumentCardProps) {
   const queryClient = useQueryClient()
   const isSuperAdmin = useIsSuperAdmin()
   const [uploadingSide, setUploadingSide] = useState<'front' | 'back' | null>(null)
+  const { editing, setEditing, saving, save } = useMemberInlineEdit(member?.id || '')
+  const [form, setForm] = useState({ identityDocument: '', identityDocumentNumber: '' })
 
   if (!member) return null
+
+  const startEdit = () => {
+    setForm({
+      identityDocument: member.identityDocument || '',
+      identityDocumentNumber: member.identityDocumentNumber || '',
+    })
+    setEditing(true)
+  }
+
+  const onSave = () => {
+    save({
+      identityDocument: form.identityDocument,
+      identityDocumentNumber: form.identityDocumentNumber.trim(),
+    })
+  }
 
   const handleUpload = async (side: 'front' | 'back', file: File) => {
     setUploadingSide(side)
@@ -123,21 +153,64 @@ export function MemberIdDocumentCard({ member }: MemberIdDocumentCardProps) {
   return (
     <Card className="group border-0 bg-gradient-to-br from-amber-50/30 to-amber-100/20 shadow-lg">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
-          <IdCard className="h-5 w-5 text-amber-600" /> Pièce d&apos;identité
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
+            <IdCard className="h-5 w-5 text-amber-600" /> Pièce d&apos;identité
+          </CardTitle>
+          <InlineEditActions
+            editing={editing}
+            saving={saving}
+            onEdit={startEdit}
+            onSave={onSave}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-0" data-testid="member-id-document-card">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-xs text-gray-500">Type</div>
-            <div className="font-medium">{member.identityDocument || '—'}</div>
+        {editing ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500">Type</Label>
+              <select
+                className={selectClass}
+                value={form.identityDocument}
+                onChange={(e) => setForm((f) => ({ ...f, identityDocument: e.target.value }))}
+              >
+                <option value="">—</option>
+                {IDENTITY_DOCUMENT_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+                {/* Valeur héritée d'un import hors liste : on la conserve pour ne
+                    pas l'effacer silencieusement à l'ouverture du formulaire. */}
+                {member.identityDocument &&
+                  !IDENTITY_DOCUMENT_OPTIONS.includes(member.identityDocument as never) && (
+                    <option value={member.identityDocument}>{member.identityDocument}</option>
+                  )}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500">Numéro</Label>
+              <Input
+                value={form.identityDocumentNumber}
+                onChange={(e) => setForm((f) => ({ ...f, identityDocumentNumber: e.target.value }))}
+                placeholder="Ex : 1234567890"
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <div className="text-xs text-gray-500">Numéro</div>
-            <div className="font-medium">{member.identityDocumentNumber || '—'}</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <div className="text-xs text-gray-500">Type</div>
+              <div className="font-medium">{member.identityDocument || '—'}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-gray-500">Numéro</div>
+              <div className="font-medium">{member.identityDocumentNumber || '—'}</div>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <DocSlot
