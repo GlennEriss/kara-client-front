@@ -15,9 +15,11 @@ import { StatsCard } from '@/components/ui/stats-card'
 import { useAuditLogs } from '@/hooks/useAuditLog'
 import { AUDIT_ACTION_LABELS, type AuditAction, type AuditLog } from '@/services/audit/auditLog'
 import { PERMISSION_MODULES } from '@/constantes/permissions'
+import { exportRowsToExcel } from '@/utils/excel-export'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Activity, CalendarClock, RefreshCw, ScrollText, Search, Trash2, Users } from 'lucide-react'
+import { Activity, CalendarClock, Download, RefreshCw, ScrollText, Search, Trash2, Users } from 'lucide-react'
 
 const MODULE_LABELS: Record<string, string> = Object.fromEntries(
   PERMISSION_MODULES.map((m) => [m.key, m.label]),
@@ -31,6 +33,7 @@ const ACTION_BADGE: Record<AuditAction, string> = {
   reject: 'bg-orange-100 text-orange-700',
   payment: 'bg-amber-100 text-amber-700',
   export: 'bg-indigo-100 text-indigo-700',
+  view: 'bg-cyan-100 text-cyan-700',
   login: 'bg-slate-100 text-slate-700',
   other: 'bg-gray-100 text-gray-600',
 }
@@ -101,6 +104,39 @@ export default function AuditLogPage() {
 
   const moduleLabel = (key: string) => MODULE_LABELS[key] || key || '—'
 
+  const handleExportExcel = async () => {
+    if (filtered.length === 0) {
+      toast.info('Aucune entrée à exporter')
+      return
+    }
+    try {
+      await exportRowsToExcel({
+        fileName: 'journalisation',
+        sheetName: 'Journalisation',
+        title: 'Journalisation des actions administrateurs',
+        period: { from, to },
+        extraMeta: [`${stats.admins} administrateur(s)`],
+        header: ['Date', 'Heure', 'Administrateur', 'Email', 'Action', 'Module', 'Type de cible', 'Identifiant cible', 'Description'],
+        colWidths: [12, 8, 24, 28, 14, 22, 16, 24, 70],
+        rows: filtered.map((l) => [
+          format(l.createdAt, 'dd/MM/yyyy', { locale: fr }),
+          format(l.createdAt, 'HH:mm', { locale: fr }),
+          l.adminName,
+          l.adminEmail ?? '',
+          AUDIT_ACTION_LABELS[l.action] || l.action,
+          moduleLabel(l.module),
+          l.targetType ?? '',
+          l.targetId ?? '',
+          l.description,
+        ]),
+      })
+      toast.success('Export Excel généré')
+    } catch (error) {
+      console.error('Erreur export Excel:', error)
+      toast.error("Erreur lors de l'export Excel")
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-6">
       <PageHero
@@ -108,16 +144,27 @@ export default function AuditLogPage() {
         title="Journalisation"
         subtitle="Historique des actions effectuées par les administrateurs"
         rightSlot={(
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+              Actualiser
+            </Button>
+          </div>
         )}
       />
 

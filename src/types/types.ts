@@ -694,6 +694,13 @@ export interface VersementCI {
   // Remboursement de support (si applicable)
   supportRepaymentAmount?: number // Montant déduit pour rembourser le support
   supportRepaymentId?: string // ID du remboursement de support lié
+
+  /**
+   * Versement unique réparti sur plusieurs mois : identifiant commun à toutes
+   * les tranches issues d'une même saisie. Absent quand le versement tient
+   * entièrement dans un seul mois.
+   */
+  splitGroupId?: string
 }
 
 /**

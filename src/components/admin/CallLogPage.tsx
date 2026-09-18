@@ -30,6 +30,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { AlertTriangle, CalendarClock, Download, PhoneCall, RefreshCw, Search, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
+import { exportRowsToExcel } from '@/utils/excel-export'
 
 const PAGE_SIZE = 15
 
@@ -137,6 +138,42 @@ export default function CallLogPage() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total)
   }, [filtered])
 
+  const handleExportExcel = async () => {
+    if (filtered.length === 0) {
+      toast.info('Aucune relance à exporter')
+      return
+    }
+    try {
+      await exportRowsToExcel({
+        fileName: 'journal_relances',
+        sheetName: 'Relances',
+        title: 'Journal des relances',
+        period: { from, to },
+        extraMeta: [`${stats.calls} appel(s)`, `joignabilité ${stats.reachRate} %`],
+        header: ['Date', 'Heure', 'Membre / Groupe', 'Matricule', 'Produit', 'Canal', 'Issue', 'Promesse', 'Montant dû (FCFA)', 'Par', 'Commentaire'],
+        colWidths: [12, 8, 26, 14, 18, 12, 20, 12, 18, 22, 60],
+        rows: filtered.map((l) => [
+          format(l.createdAt, 'dd/MM/yyyy', { locale: fr }),
+          format(l.createdAt, 'HH:mm', { locale: fr }),
+          l.name,
+          l.matricule ?? '',
+          l.product,
+          CONTACT_CHANNEL_LABELS[l.channel],
+          CALL_OUTCOME_LABELS[l.outcome],
+          l.promiseToPayAt ? format(l.promiseToPayAt, 'dd/MM/yyyy', { locale: fr }) : '',
+          // Nombre et non texte : Excel doit pouvoir totaliser la colonne.
+          l.totalOverdue,
+          l.adminName,
+          l.summary,
+        ]),
+      })
+      toast.success('Export Excel généré')
+    } catch (error) {
+      console.error('Erreur export Excel:', error)
+      toast.error("Erreur lors de l'export Excel")
+    }
+  }
+
   const handleExportPdf = async () => {
     if (filtered.length === 0) {
       toast.info('Aucune relance à exporter')
@@ -190,6 +227,15 @@ export default function CallLogPage() {
         subtitle="Tous les appels et messages adressés aux retardataires"
         rightSlot={(
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
             <Button
               variant="outline"
               size="sm"

@@ -26,6 +26,7 @@ export type AuditAction =
   | 'reject'
   | 'payment'
   | 'export'
+  | 'view'
   | 'login'
   | 'other'
 
@@ -37,6 +38,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   reject: 'Rejet',
   payment: 'Paiement',
   export: 'Export',
+  view: 'Consultation',
   login: 'Connexion',
   other: 'Autre',
 }
