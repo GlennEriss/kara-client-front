@@ -2,6 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCreditContractsStats } from '@/hooks/useCreditSpeciale'
+import { StatsBreakdownBar } from '@/components/ui/stats-breakdown-bar'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { CreditContractStatus, CreditType } from '@/types/types'
 import {
@@ -110,13 +111,16 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
     {
       title: 'Transformés',
       value: stats.transformed,
-      color: '#8b5cf6',
+      // Magenta plutôt que violet : le violet d'origine était indiscernable du
+      // bleu « Partiels » pour un daltonien (ΔE 1.3 en deutéranopie).
+      color: '#e87ba4',
       icon: FileText
     },
     {
       title: 'Déchargés',
       value: stats.discharged,
-      color: '#059669',
+      // Violet plutôt qu'un second vert, trop proche de « Actifs ».
+      color: '#7c3aed',
       icon: CheckCircle
     },
   ] : []
@@ -139,11 +143,27 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
 
   if (!stats) return null
 
+  // Répartition par statut. Les montants (restant, pénalités) sont exclus : ils
+  // ne sont pas des parts d'un même tout et fausseraient la lecture.
+  const breakdown = [
+    { label: 'Actifs', value: stats.active, color: '#10b981' },
+    { label: 'En retard', value: stats.overdue, color: '#f59e0b' },
+    { label: 'Partiels', value: stats.partial, color: '#3b82f6' },
+    { label: 'Transformés', value: stats.transformed, color: '#e87ba4' },
+    { label: 'Déchargés', value: stats.discharged, color: '#7c3aed' },
+  ]
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2">
-      {statsData.map((stat, index) => (
-        <StatsCard key={index} {...stat} />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2">
+        {statsData.map((stat, index) => (
+          <StatsCard key={index} {...stat} />
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+        <StatsBreakdownBar title="Répartition des contrats par statut" segments={breakdown} />
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { Clock, Mars, UserCheck, Users, Venus } from 'lucide-react'
+import { StatsBreakdownBar } from '@/components/ui/stats-breakdown-bar'
 import type { MembershipStatsV2 } from '../../services/MembershipStatsService'
 
 // Carte stat horizontale compacte (exportée pour usage externe)
@@ -53,11 +54,37 @@ export function MembershipsListStats({ stats }: MembershipsListStatsProps) {
     { title: 'Femmes', value: stats.women, color: '#ec4899', icon: Venus },
   ]
 
+  // Statut d'abonnement : les trois états couvrent l'effectif total. « Sans
+  // abonnement » n'a pas de carte mais doit figurer ici, sinon la barre
+  // représenterait un tout incomplet.
+  const subscriptionBreakdown = [
+    { label: 'Actifs', value: stats.active, color: '#10b981' },
+    { label: 'Sans abonnement', value: stats.noSub, color: '#f59e0b' },
+    { label: 'Expirés', value: stats.expired, color: '#ef4444' },
+  ]
+
+  const genderBreakdown = [
+    { label: 'Hommes', value: stats.men, color: '#3b82f6' },
+    { label: 'Femmes', value: stats.women, color: '#ec4899' },
+  ]
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-      {statsData.map((stat, index) => (
-        <ModernStatsCard key={index} {...stat} />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+        {statsData.map((stat, index) => (
+          <ModernStatsCard key={index} {...stat} />
+        ))}
+      </div>
+
+      {/* Empilées sur mobile, côte à côte dès que la largeur le permet. */}
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+          <StatsBreakdownBar title="Statut d'abonnement" segments={subscriptionBreakdown} />
+        </div>
+        <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+          <StatsBreakdownBar title="Répartition par genre" segments={genderBreakdown} />
+        </div>
+      </div>
     </div>
   )
 }

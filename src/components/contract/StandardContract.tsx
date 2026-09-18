@@ -1,5 +1,6 @@
 "use client"
 import dynamic from 'next/dynamic'
+import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { useDeleteContractPayment } from '@/domains/financial/caisse-speciale/contrats/hooks'
@@ -661,6 +662,21 @@ export default function StandardContract({ id }: Props) {
                                 {(p.time ?? p.contribs?.[0]?.time) || new Date(p.paidAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                               </span>
                             </div>
+                            {(() => {
+                              // Contrats importés / LIBRE : le mode vit sur la
+                              // contribution plutôt que sur le paiement.
+                              const source = p.contribs?.[0] ?? p
+                              const mode = p.mode ?? source?.mode
+                              if (!mode) return null
+                              return (
+                                <div className="flex items-start justify-between gap-2 text-sm">
+                                  <span className="shrink-0 text-gray-600">Moyen:</span>
+                                  <span className="text-right font-semibold text-gray-900">
+                                    {formatPaymentMode(mode, source)}
+                                  </span>
+                                </div>
+                              )
+                            })()}
                           </>
                         )}
 

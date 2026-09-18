@@ -233,7 +233,12 @@ export class DocumentRepository implements IDocumentRepository {
             }
             
             const blob = await response.blob()
-            const file = new File([blob], `${imageType}.jpg`, { type: blob.type })
+            // `blob.type` peut être vide selon l'origine de l'URL (blob:, data:
+            // sans en-tête). Les règles Storage exigent `contentType` image/* :
+            // un type absent est refusé avec « storage/unauthorized », message
+            // trompeur qui laisse croire à un problème de droits.
+            const contentType = blob.type && blob.type.startsWith('image/') ? blob.type : 'image/jpeg'
+            const file = new File([blob], `${imageType}.jpg`, { type: contentType })
             
             console.log('📤 Upload de l\'image vers Firebase Storage...')
             
@@ -246,7 +251,7 @@ export class DocumentRepository implements IDocumentRepository {
             
             // Métadonnées du fichier
             const metadata = {
-                contentType: blob.type,
+                contentType,
                 customMetadata: {
                     memberId: memberId,
                     contractId: contractId,
