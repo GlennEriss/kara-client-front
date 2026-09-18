@@ -357,6 +357,10 @@ interface AdhesionPdfFillData {
   page1SecretaryDate: string
   page1MemberSignature: string | null
   page1SecretarySignature: string | null
+  // Cotisations de la section 2 : dépendent du niveau (A à E) et ne sont donc
+  // pas déductibles du dossier. Vides => pointillés, à remplir à la main.
+  contributionFonctionnement: string
+  contributionSecours: string
   // Lignes imprimées dans les sections 1 et 3 : pré-remplies depuis le dossier
   // et modifiables, pour compléter ce qui manque (sinon la ligne sort en
   // pointillés, à remplir à la main sur le papier).
@@ -465,6 +469,8 @@ const buildInitialFillData = (request: MembershipRequest): AdhesionPdfFillData =
     page1SecretaryDate: today,
     page1MemberSignature: null,
     page1SecretarySignature: null,
+    contributionFonctionnement: '',
+    contributionSecours: '',
     ...buildDocumentFields(request),
   }
 }
@@ -646,13 +652,19 @@ export const MutuelleKaraPDF = ({
               Verser le droit d'entrée unique et non remboursable de{' '}
               <Text style={styles.boldText}>10 000 FCFA</Text> lors de ma souscription ;
             </Bullet>
+            {/* Montants dépendant du niveau de contribution (A à E, cf.
+                GRILLE_CONTRIBUTIONS) : saisis dans le panneau de remplissage,
+                sinon imprimés en pointillés. Les inscrire en dur reviendrait à
+                imposer le Niveau A à tout le monde. */}
             <Bullet>
               S'acquitter régulièrement de la cotisation mensuelle ordinaire de{' '}
-              <Text style={styles.boldText}>5 000 FCFA</Text> (fonctionnement) au plus tard le 5 de chaque mois ;
+              <Text style={styles.boldText}>{inlineValue(fillData.contributionFonctionnement)} FCFA</Text>{' '}
+              (fonctionnement) au plus tard le 5 de chaque mois ;
             </Bullet>
             <Bullet>
               S'acquitter de la cotisation mensuelle obligatoire de{' '}
-              <Text style={styles.boldText}>5 000 FCFA</Text> destinée au Fonds de Secours Mutuel ;
+              <Text style={styles.boldText}>{inlineValue(fillData.contributionSecours)} FCFA</Text>{' '}
+              destinée au Fonds de Secours Mutuel ;
             </Bullet>
             <Bullet>
               Respecter la <Text style={styles.boldText}>période de carence de trois (3) mois</Text> à compter
@@ -1233,6 +1245,34 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                     placeholder="Technicien réseau / SEEG"
                     onChange={(value) => setFillData((prev) => ({ ...prev, professionLine: value }))}
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-kara-primary-dark">
+                    2. Cotisations mensuelles
+                  </p>
+                  <p className="text-[10px] text-gray-500 leading-snug">
+                    Dépendent du niveau coché ci-dessus : Niveau A 5 000 / 5 000, B 10 000 / 10 000,
+                    C 15 000 / 15 000, D 20 000 / 20 000, E 25 000 / 25 000.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FillField
+                      label="Fonctionnement (FCFA)"
+                      value={fillData.contributionFonctionnement}
+                      placeholder="5 000"
+                      onChange={(value) =>
+                        setFillData((prev) => ({ ...prev, contributionFonctionnement: value }))
+                      }
+                    />
+                    <FillField
+                      label="Fonds de Secours (FCFA)"
+                      value={fillData.contributionSecours}
+                      placeholder="5 000"
+                      onChange={(value) =>
+                        setFillData((prev) => ({ ...prev, contributionSecours: value }))
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-3">
