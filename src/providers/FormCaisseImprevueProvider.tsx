@@ -15,6 +15,7 @@ import {
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useContractCIMutations } from '@/domains/financial/caisse-imprevue/hooks/useContractCIMutations'
 
 // Interface pour une étape
 interface Step {
@@ -69,6 +70,13 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
       mediator.setUserId(user.uid)
     }
   }, [user, mediator])
+
+  // Brancher l'écriture du contrat sur la mutation React Query : c'est elle qui
+  // invalide la liste et les statistiques après la création.
+  const { createContract } = useContractCIMutations()
+  useEffect(() => {
+    mediator.setCreateContractHandler(createContract.mutateAsync)
+  }, [mediator, createContract.mutateAsync])
 
   // Initialisation du formulaire global avec keepValues pour préserver les données
   const form = useForm<CaisseImprevueGlobalFormData>({

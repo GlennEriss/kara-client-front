@@ -899,10 +899,17 @@ export async function updatePaymentContribution(input: {
     console.log('📸 Image modifiée uploadée:', uniqueFileName, '→', newProofUrl)
   }
   
-  // Calculer la différence de montant pour ajuster le total accumulé
+  // Le montant d'un versement enregistré n'est rectifiable que sur un contrat
+  // Libre, où chaque versement a un montant propre. Sur les autres types
+  // (Standard, Journalière et leurs variantes charitables), il découle de
+  // l'échéancier : le modifier fausserait cumul, statut et montant nominal
+  // payé. `updates.amount` y est donc ignoré, y compris s'il est forcé —
+  // corriger une erreur passe par la suppression puis la ressaisie.
+  const contractForAmountRule = await getContract(contractId)
+  const caisseType = (contractForAmountRule as any)?.caisseType
+  const amountEditable = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
   const oldAmount = contribution.amount || 0
-  const newAmount = updates.amount || oldAmount
-  const amountDifference = newAmount - oldAmount
+  const newAmount = amountEditable ? (updates.amount || oldAmount) : oldAmount
   
   const newPaidAt = updates.paidAt ?? (contribution.paidAt ? (typeof contribution.paidAt?.toDate === 'function' ? contribution.paidAt.toDate() : new Date(contribution.paidAt)) : undefined)
 

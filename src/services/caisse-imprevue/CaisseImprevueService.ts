@@ -372,7 +372,12 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             id: existing.id,
             date: versementData.date,
             time: versementData.time,
-            amount: versementData.amount,
+            // Montant volontairement repris de l'existant : il engage la
+            // comptabilité du contrat (cumul du mois, statut, totalMonthsPaid,
+            // éligibilité au secours) et n'est donc pas rectifiable. Corriger
+            // une erreur de saisie passe par la suppression puis la ressaisie du
+            // versement. Le champ reçu est ignoré, y compris s'il est forcé.
+            amount: existing.amount,
             mode: versementData.mode,
             ...(versementData.mode === 'airtel_money' || versementData.mode === 'mobicash'
                 ? { withFees: versementData.withFees }

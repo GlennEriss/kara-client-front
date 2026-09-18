@@ -2186,9 +2186,14 @@ export default function DailyContract({ id }: Props) {
                 min="100"
                 step="100"
                 required
+                // Journalière : le montant découle de l'échéancier et n'est pas
+                // rectifiable (cf. `updateContribution`, qui l'ignore aussi).
+                disabled
+                className="bg-muted cursor-not-allowed"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Montant minimum: 100 FCFA
+                Le montant d&apos;un versement enregistré ne peut pas être modifié sur un contrat
+                journalier. En cas d&apos;erreur, supprimez le versement puis ressaisissez-le.
               </p>
             </div>
 

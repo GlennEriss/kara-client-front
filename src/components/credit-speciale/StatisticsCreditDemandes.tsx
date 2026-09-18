@@ -2,6 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCreditDemandsStats } from '@/hooks/useCreditSpeciale'
+import { StatsBreakdownBar } from '@/components/ui/stats-breakdown-bar'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import { CreditDemandStatus, CreditType } from '@/types/types'
 import {
@@ -128,11 +129,26 @@ export default function StatisticsCreditDemandes({ status, creditType }: Statist
 
   if (!stats) return null
 
+  // Répartition par suite donnée : les trois états couvrent le total, et les
+  // couleurs reprennent celles des cartes ci-dessus pour qu'on lise la même
+  // chose au même endroit.
+  const breakdown = [
+    { label: 'En attente', value: stats.pending, color: '#f59e0b' },
+    { label: 'Approuvées', value: stats.approved, color: '#10b981' },
+    { label: 'Rejetées', value: stats.rejected, color: '#ef4444' },
+  ]
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2">
-      {statsData.map((stat, index) => (
-        <StatsCard key={index} {...stat} />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2">
+        {statsData.map((stat, index) => (
+          <StatsCard key={index} {...stat} />
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+        <StatsBreakdownBar title="Répartition des demandes" segments={breakdown} />
+      </div>
     </div>
   )
 }

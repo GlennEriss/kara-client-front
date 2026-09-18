@@ -59,6 +59,12 @@ interface PaymentCSModalProps {
   groupMemberName?: string
   /** Désactive le champ montant (ex: Standard / Standard Charitable : montant fixe non modifiable) */
   amountDisabled?: boolean
+  /**
+   * Autorise la correction du montant en modification. Réservé aux contrats
+   * Libre, seuls à avoir un montant propre par versement ; ailleurs le montant
+   * découle de l'échéancier (cf. `updateContribution`, qui l'ignore aussi).
+   */
+  amountEditableOnUpdate?: boolean
 }
 
 const isEditMode = (initialData: PaymentCSModalProps['initialData']) => initialData != null
@@ -75,8 +81,12 @@ export default function PaymentCSModal({
   isGroupContract = false,
   groupMemberName,
   amountDisabled = false,
+  amountEditableOnUpdate = false,
 }: PaymentCSModalProps) {
   const editMode = isEditMode(initialData)
+  // Montant verrouillé : soit le type de contrat le fige (Standard), soit on
+  // modifie un versement d'un type où il n'est pas rectifiable.
+  const amountLocked = amountDisabled || (editMode && !amountEditableOnUpdate)
   const [formData, setFormData] = useState<Partial<PaymentCSFormData>>({
     date: new Date().toISOString().split('T')[0],
     time: (() => {
@@ -308,11 +318,15 @@ export default function PaymentCSModal({
               min="100"
               step="100"
               required
-              disabled={amountDisabled}
-              className={amountDisabled ? 'bg-muted cursor-not-allowed' : ''}
+              disabled={amountLocked}
+              className={amountLocked ? 'bg-muted cursor-not-allowed' : ''}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {amountDisabled ? 'Montant fixe défini par le contrat (Standard / Standard Charitable).' : 'Montant minimum: 100 FCFA'}
+              {editMode && !amountEditableOnUpdate
+                ? "Le montant d'un versement enregistré ne peut pas être modifié sur ce type de contrat. En cas d'erreur, supprimez le versement puis ressaisissez-le."
+                : amountDisabled
+                  ? 'Montant fixe défini par le contrat (Standard / Standard Charitable).'
+                  : 'Montant minimum: 100 FCFA'}
             </p>
           </div>
 

@@ -1,5 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
+import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
@@ -819,6 +820,14 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                       {paidTimeStr || paidDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   </div>
+                                  {lastVersement?.mode && (
+                                    <div className="flex items-start justify-between gap-2 text-xs">
+                                      <span className="shrink-0 text-gray-600">Moyen:</span>
+                                      <span className="text-right font-semibold text-gray-900">
+                                        {formatPaymentMode(lastVersement.mode, lastVersement)}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               ) : null
                             })()}
