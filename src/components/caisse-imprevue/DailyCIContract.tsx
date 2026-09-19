@@ -237,9 +237,21 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
     }
   }, [contract.firstPaymentDate])
 
+  /**
+   * Échéance choisie explicitement par un clic dans le récapitulatif.
+   *
+   * Sans elle, l'échéance active était redéduite du mois calendaire affiché en
+   * comptant les jours majoritaires. Une période de 30 jours ne s'alignant pas
+   * sur les mois du calendrier, cliquer sur une échéance minoritaire dans son
+   * propre mois en activait une autre — l'étiquette « Actuel » ne suivait pas
+   * le clic à partir du mois 2. Le clic fait désormais foi ; la déduction ne
+   * sert plus qu'à la navigation par flèches.
+   */
+  const [pinnedMonthIndex, setPinnedMonthIndex] = useState<number | null>(null)
+
   // Calculer l'index du mois actuel du calendrier par rapport à firstPaymentDate
   // Le mois est calculé en utilisant des cycles de 30 jours à partir de firstPaymentDate
-  const currentMonthIndex = useMemo(() => {
+  const derivedMonthIndex = useMemo(() => {
     if (!contract.firstPaymentDate) return 0
     
     // Trouver le monthIndex qui a le plus de jours dans le mois calendaire affiché
@@ -302,6 +314,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
     
     return dominantMonthIndex
   }, [currentMonth, contract.firstPaymentDate])
+
+  const currentMonthIndex = pinnedMonthIndex ?? derivedMonthIndex
 
   // Fonctions utilitaires pour le calendrier
   const getMonthDays = (date: Date) => {
@@ -864,6 +878,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                       onClick={() => {
                         const prevMonth = new Date(currentMonth)
                         prevMonth.setMonth(prevMonth.getMonth() - 1)
+                        // Navigation libre : on relâche l'échéance épinglée.
+                        setPinnedMonthIndex(null)
                         setCurrentMonth(prevMonth)
                       }}
                     >
@@ -880,6 +896,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                       onClick={() => {
                         const nextMonth = new Date(currentMonth)
                         nextMonth.setMonth(nextMonth.getMonth() + 1)
+                        setPinnedMonthIndex(null)
                         setCurrentMonth(nextMonth)
                       }}
                     >
@@ -1074,6 +1091,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                         onClick={() => {
                           // Naviguer vers le mois correspondant
                           if (range) {
+                            setPinnedMonthIndex(monthIndex)
                             setCurrentMonth(new Date(range.start))
                           }
                         }}
@@ -1211,6 +1229,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                           onClick={() => {
                             // Naviguer vers le mois correspondant
                             if (range) {
+                              setPinnedMonthIndex(monthIndex)
                               setCurrentMonth(new Date(range.start))
                             }
                           }}
