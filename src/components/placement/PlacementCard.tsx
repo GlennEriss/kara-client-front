@@ -280,7 +280,10 @@ export default function PlacementCard({
               </Button>
             )}
 
-            {placement.status === 'Draft' && onDeleteClick && (
+            {/* La suppression n'est plus réservée aux brouillons : le parent
+                décide via `onDeleteClick` (permission), et la confirmation par
+                saisie de l'identifiant protège les placements actifs. */}
+            {onDeleteClick && (
               <Button
                 variant="outline"
                 size="sm"

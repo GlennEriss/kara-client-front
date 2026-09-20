@@ -166,7 +166,9 @@ export default function PlacementFinalQuittanceModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <ModalContent size="lg" className="max-w-[95vw]">
+      {/* Même gabarit que la fiche d'adhésion : `size="lg"` plafonnait la
+          modale à 672 px, trop étroit pour lire une page A4. */}
+      <ModalContent size="lg" className="!w-[95vw] !max-w-[1400px] max-h-[95vh]">
         <ModalHeader
           icon={FileText}
           tone="success"
@@ -260,7 +262,7 @@ export default function PlacementFinalQuittanceModal({
                 )}
               </BlobProvider>
             ) : (
-              <div className="h-[60vh] w-full overflow-hidden rounded-lg border border-gray-200">
+              <div className="h-[calc(95vh-260px)] min-h-[520px] w-full overflow-hidden rounded-lg border border-gray-200">
                 <PDFViewer width="100%" height="100%" style={{ border: 'none' }} showToolbar={false}>
                   {pdfDocument}
                 </PDFViewer>

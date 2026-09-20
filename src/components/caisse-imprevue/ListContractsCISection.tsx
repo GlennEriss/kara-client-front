@@ -289,6 +289,29 @@ function ContractCIGridCard({
           </div>
         </div>
 
+        {/* Détail du retard — uniquement dans l'onglet Retard, et seulement si
+            le dépôt a fourni le résumé. Inséré avant la progression pour ne rien
+            déplacer du reste de la carte. */}
+        {isOverdue && contract.overdueSummary && (
+          <div className="rounded-xl border border-red-100 bg-red-50/60 px-3 py-2">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              {contract.overdueSummary.count} échéance
+              {contract.overdueSummary.count > 1 ? 's' : ''} impayée
+              {contract.overdueSummary.count > 1 ? 's' : ''}
+            </p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px] text-gray-600">
+              <span className="font-bold tabular-nums text-red-700">
+                {contract.overdueSummary.totalDue.toLocaleString('fr-FR')} FCFA
+              </span>
+              <span className="tabular-nums">
+                {contract.overdueSummary.maxDaysLate} jour
+                {contract.overdueSummary.maxDaysLate > 1 ? 's' : ''} de retard
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Progression */}
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px] text-gray-400">

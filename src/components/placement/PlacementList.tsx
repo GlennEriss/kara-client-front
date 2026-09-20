@@ -12,6 +12,7 @@ import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
@@ -377,6 +378,7 @@ export default function PlacementList() {
   const [finalQuittancePlacementId, setFinalQuittancePlacementId] = useState<string | null>(null)
   const [earlyExitQuittancePlacementId, setEarlyExitQuittancePlacementId] = useState<string | null>(null)
   const [deletePlacementId, setDeletePlacementId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState('')
   const [isUploadingUrgentDoc, setIsUploadingUrgentDoc] = useState(false)
   const [urgentMemberId, setUrgentMemberId] = useState<string | undefined>(undefined)
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'all')
@@ -1589,7 +1591,7 @@ export default function PlacementList() {
                         setEditingPlacementId(p.id)
                         setIsCreateOpen(true)
                       } : undefined}
-                      onDeleteClick={p.status === 'Draft' && can('placements.delete') ? () => setDeletePlacementId(p.id) : undefined}
+                      onDeleteClick={can('placements.delete') ? () => setDeletePlacementId(p.id) : undefined}
                       onUploadContractClick={!p.contractDocumentId ? () => setUploadContractPlacementId(p.id) : undefined}
                       onDownloadContractClick={() => openPlacementContractModal(p)}
                       onViewContractClick={p.contractDocumentId ? () => {
@@ -1616,14 +1618,40 @@ export default function PlacementList() {
         </Tabs>
 
       {/* Modal suppression placement */}
-      <Dialog open={!!deletePlacementId} onOpenChange={(open) => !open && setDeletePlacementId(null)}>
+      <Dialog
+        open={!!deletePlacementId}
+        onOpenChange={(open) => {
+          if (!open) setDeletePlacementId(null)
+          setConfirmDeleteId('')
+        }}
+      >
         <ModalContent size="sm">
           <ModalHeader
             icon={Trash2}
             tone="destructive"
             title="Supprimer le placement ?"
-            description="Cette action est définitive. Le placement (brouillon) sera supprimé ainsi que ses commissions associées."
+            description="Cette action est définitive. Le placement sera supprimé ainsi que toutes ses commissions."
           />
+          <ModalBody>
+            {/* Saisie de l'identifiant exigée : la suppression n'est plus
+                réservée aux brouillons, elle peut donc détruire un placement
+                actif et son historique de commissions. */}
+            <div className="space-y-2">
+              <Label htmlFor="confirm-placement-id" className="text-sm font-semibold text-gray-900">
+                Identifiant du placement à supprimer
+              </Label>
+              <p className="break-all rounded bg-gray-100 p-2 font-mono text-xs text-gray-500">
+                {deletePlacementId}
+              </p>
+              <Input
+                id="confirm-placement-id"
+                value={confirmDeleteId}
+                onChange={(e) => setConfirmDeleteId(e.target.value)}
+                placeholder="Collez l'identifiant du placement"
+                className="font-mono"
+              />
+            </div>
+          </ModalBody>
           <ModalFooter className="flex-col-reverse gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
             <Button variant="outline" onClick={() => setDeletePlacementId(null)}>
               Annuler
@@ -1635,11 +1663,11 @@ export default function PlacementList() {
                 try {
                   await remove.mutateAsync(deletePlacementId)
                   setDeletePlacementId(null)
-                } catch (e) {
+                } catch {
                   // toast géré côté mutation si besoin
                 }
               }}
-              disabled={remove.isPending}
+              disabled={remove.isPending || confirmDeleteId.trim() !== deletePlacementId}
             >
               {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Supprimer

@@ -366,7 +366,40 @@ export class PlacementService {
     return this.placementRepository.getById(id)
   }
 
+  /**
+   * Supprime un placement, ses commissions et ses documents contractuels.
+   *
+   * Aligné sur `deleteContractCI` : sans le nettoyage des documents, le contrat
+   * signé et les quittances restaient dans Storage et dans la collection
+   * `documents`, rattachés à un placement qui n'existe plus.
+   */
   async deletePlacement(id: string): Promise<void> {
+    const placement = await this.placementRepository.getById(id)
+
+    // Documents liés : fichier Storage puis fiche `documents`. Chaque échec est
+    // journalisé sans interrompre : un fichier résiduel est moins grave qu'une
+    // suppression laissée à mi-chemin.
+    const documentIds = [
+      placement?.contractDocumentId,
+      placement?.finalQuittanceDocumentId,
+      placement?.earlyExitQuittanceDocumentId,
+      placement?.earlyExitAddendumDocumentId,
+    ].filter((documentId): documentId is string => Boolean(documentId))
+
+    for (const documentId of documentIds) {
+      try {
+        const doc = await this.documentRepository.getDocumentById(documentId)
+        if (doc?.path) {
+          await this.documentRepository.deleteFile(doc.path)
+        }
+        await this.documentRepository.deleteDocument(documentId)
+      } catch (error) {
+        console.error('[placement] nettoyage du document impossible', documentId, error)
+      }
+    }
+
+    // Le placement et ses commissions en dernier : tant qu'il existe, les
+    // documents restent retrouvables si une étape ci-dessus a échoué.
     await this.placementRepository.delete(id)
   }
 

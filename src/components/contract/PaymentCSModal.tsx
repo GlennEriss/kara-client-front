@@ -65,6 +65,12 @@ interface PaymentCSModalProps {
    * découle de l'échéancier (cf. `updateContribution`, qui l'ignore aussi).
    */
   amountEditableOnUpdate?: boolean
+  /**
+   * Explication affichée quand le montant est verrouillé en modification.
+   * Permet de distinguer un verrou lié au type de contrat d'un verrou lié aux
+   * droits de l'utilisateur.
+   */
+  amountLockedReason?: string
 }
 
 const isEditMode = (initialData: PaymentCSModalProps['initialData']) => initialData != null
@@ -82,6 +88,7 @@ export default function PaymentCSModal({
   groupMemberName,
   amountDisabled = false,
   amountEditableOnUpdate = false,
+  amountLockedReason,
 }: PaymentCSModalProps) {
   const editMode = isEditMode(initialData)
   // Montant verrouillé : soit le type de contrat le fige (Standard), soit on
@@ -323,7 +330,8 @@ export default function PaymentCSModal({
             />
             <p className="text-xs text-muted-foreground mt-1">
               {editMode && !amountEditableOnUpdate
-                ? "Le montant d'un versement enregistré ne peut pas être modifié sur ce type de contrat. En cas d'erreur, supprimez le versement puis ressaisissez-le."
+                ? amountLockedReason ??
+                  "Le montant d'un versement enregistré ne peut pas être modifié sur ce type de contrat. En cas d'erreur, supprimez le versement puis ressaisissez-le."
                 : amountDisabled
                   ? 'Montant fixe défini par le contrat (Standard / Standard Charitable).'
                   : 'Montant minimum: 100 FCFA'}

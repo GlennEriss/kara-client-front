@@ -7,6 +7,7 @@ import { addContractMonths, computeContractEndAt, computeDueAt, PERIOD_DAYS_JOUR
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
+import { resolveIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { logAdminAction } from '@/services/audit/auditLog'
 
 /** Retire les clés à valeur `undefined` (Firestore rejette `undefined`). */
@@ -900,16 +901,36 @@ export async function updatePaymentContribution(input: {
   }
   
   // Le montant d'un versement enregistré n'est rectifiable que sur un contrat
-  // Libre, où chaque versement a un montant propre. Sur les autres types
-  // (Standard, Journalière et leurs variantes charitables), il découle de
-  // l'échéancier : le modifier fausserait cumul, statut et montant nominal
-  // payé. `updates.amount` y est donc ignoré, y compris s'il est forcé —
-  // corriger une erreur passe par la suppression puis la ressaisie.
+  // Libre, où chaque versement a un montant propre, ET par un superAdmin. Sur
+  // les autres types (Standard, Journalière et leurs variantes charitables), il
+  // découle de l'échéancier : le modifier fausserait cumul, statut et montant
+  // nominal payé. Corriger une erreur passe alors par la suppression puis la
+  // ressaisie du versement.
   const contractForAmountRule = await getContract(contractId)
   const caisseType = (contractForAmountRule as any)?.caisseType
-  const amountEditable = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
+  const isLibreContract = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
   const oldAmount = contribution.amount || 0
-  const newAmount = amountEditable ? (updates.amount || oldAmount) : oldAmount
+  const requestedAmount = updates.amount
+  const wantsAmountChange = typeof requestedAmount === 'number' && requestedAmount !== oldAmount
+
+  let newAmount = oldAmount
+  if (wantsAmountChange) {
+    if (!isLibreContract) {
+      // Silencieux et volontaire : le formulaire verrouille déjà le champ, un
+      // montant reçu ici ne peut venir que d'un appel forcé.
+      newAmount = oldAmount
+    } else {
+      // Contrôle refait côté service : l'interface masque le champ aux non
+      // superAdmin, mais elle ne protège rien à elle seule.
+      const isSuperAdmin = await resolveIsSuperAdmin(auth?.currentUser)
+      if (!isSuperAdmin) {
+        throw new Error(
+          "Seul un superAdmin peut modifier le montant d'un versement sur un contrat Libre."
+        )
+      }
+      newAmount = requestedAmount
+    }
+  }
   
   const newPaidAt = updates.paidAt ?? (contribution.paidAt ? (typeof contribution.paidAt?.toDate === 'function' ? contribution.paidAt.toDate() : new Date(contribution.paidAt)) : undefined)
 

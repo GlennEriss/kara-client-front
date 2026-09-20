@@ -1,5 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
+import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -1672,6 +1673,17 @@ const ListContrats = ({
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Prochaine échéance</p>
                           <p className="font-bold text-gray-900 tabular-nums text-sm">
                             {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date fin</p>
+                          <p className="font-bold text-gray-900 tabular-nums text-sm">
+                            {(() => {
+                              // Aucun champ stocké côté crédit : on dérive la date
+                              // de la dernière mensualité.
+                              const end = getCreditContractEndDate(contract)
+                              return end ? end.toLocaleDateString('fr-FR') : '—'
+                            })()}
                           </p>
                         </div>
                         <div>

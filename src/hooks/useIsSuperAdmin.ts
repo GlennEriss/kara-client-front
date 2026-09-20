@@ -58,6 +58,29 @@ async function hasSuperAdminInFirestore(uid: string, email?: string | null): Pro
 }
 
 /**
+ * Résout le statut superAdmin d'un utilisateur : document Firestore (source de
+ * vérité), puis repli sur le claim du token.
+ *
+ * Exporté pour que les services appliquent exactement la même règle que
+ * l'interface — une vérification côté écran seule se contourne.
+ */
+export async function resolveIsSuperAdmin(user: {
+  uid: string
+  email?: string | null
+  getIdTokenResult?: () => Promise<{ claims: Record<string, unknown> }>
+} | null | undefined): Promise<boolean> {
+  if (!user?.uid) return false
+  if (await hasSuperAdminInFirestore(user.uid, user.email)) return true
+  try {
+    const res = await user.getIdTokenResult?.()
+    if (res && hasSuperAdmin(res.claims)) return true
+  } catch {
+    // ignore
+  }
+  return false
+}
+
+/**
  * Indique si l'utilisateur connecté est superAdmin.
  *
  * La source de vérité est le champ `roles` (tableau) du document de l'admin en
@@ -75,18 +98,7 @@ export function useIsSuperAdmin(): boolean {
       return
     }
 
-    const resolve = async () => {
-      // 1) Document Firestore (source de vérité) : users puis admins
-      if (await hasSuperAdminInFirestore(user.uid, user.email)) return true
-      // 2) Repli : custom claim du token
-      try {
-        const res = await user.getIdTokenResult()
-        if (hasSuperAdmin(res.claims as Record<string, unknown>)) return true
-      } catch {
-        // ignore
-      }
-      return false
-    }
+    const resolve = () => resolveIsSuperAdmin(user)
 
     resolve()
       .then((ok) => {
