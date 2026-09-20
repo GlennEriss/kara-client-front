@@ -802,6 +802,16 @@ export interface SupportCI {
  * Type pour un contrat de Caisse Imprévue
  * Stocké dans Firestore dans la collection 'contractsCI'
  */
+/**
+ * Résumé de retard attaché à un contrat au moment de la lecture.
+ * Calculé côté client, jamais enregistré en base.
+ */
+export interface ContractCIOverdueSummary {
+  count: number
+  totalDue: number
+  maxDaysLate: number
+}
+
 export interface ContractCI {
   // Identifiant unique
   id: string
@@ -866,6 +876,13 @@ export interface ContractCI {
   updatedAt: Date
   createdBy: string
   updatedBy: string
+
+  /**
+   * Retard calculé à la lecture (onglet Retard) : nombre d'échéances impayées,
+   * montant dû, jours depuis la plus ancienne. Absent si le contrat est à jour
+   * ou si le calcul n'a pas été demandé. Jamais persisté.
+   */
+  overdueSummary?: ContractCIOverdueSummary
 }
 
 /**

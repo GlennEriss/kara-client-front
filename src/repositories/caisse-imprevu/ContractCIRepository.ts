@@ -2,6 +2,7 @@ import { IContractCIRepository, ContractsCIFilters, ContractsCIStats } from "./I
 import { ContractCI } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 import { getPaymentDueDate } from "@/utils/caisse-imprevue-utils";
+import { findOverdueMonths, summarizeOverdue, type OverduePaymentInput } from "@/services/caisse-imprevue/overdueDetection";
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -623,7 +624,7 @@ export class ContractCIRepository implements IContractCIRepository {
      * @returns {Promise<ContractCI[]>} - Liste des contrats en retard
      */
     private async filterOverdueContracts(contracts: ContractCI[]): Promise<ContractCI[]> {
-        const { collection, db, getDocs, query, where } = await getFirestore();
+        const { collection, db, getDocs } = await getFirestore();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -643,38 +644,17 @@ export class ContractCIRepository implements IContractCIRepository {
                     "payments"
                 );
 
-                // Récupérer uniquement les versements avec status DUE ou PARTIAL
-                const paymentsQuery = query(
-                    paymentsCollectionRef,
-                    where("status", "in", ["DUE", "PARTIAL"])
-                );
+                // Tous les documents du contrat, pas seulement les DUE/PARTIAL :
+                // un mois sans document est un mois entièrement dû, et c'est le
+                // cas des contrats où rien n'a jamais été versé.
+                const paymentsSnapshot = await getDocs(paymentsCollectionRef);
+                const payments = paymentsSnapshot.docs.map((d) => d.data() as OverduePaymentInput);
 
-                const paymentsSnapshot = await getDocs(paymentsQuery);
-
-                // Vérifier si au moins un versement est en retard
-                let hasOverdue = false;
-
-                for (const paymentDoc of paymentsSnapshot.docs) {
-                    const payment = paymentDoc.data();
-                    
-                    // Calculer la date d'échéance à partir de firstPaymentDate et monthIndex
-                    if (contract.firstPaymentDate) {
-                        const dueDate = getPaymentDueDate(contract, payment.monthIndex || 0);
-
-                        // Si la date d'échéance est passée, le versement est en retard
-                        if (dueDate && dueDate < today) {
-                            hasOverdue = true;
-                            break;
-                        }
-                    } else {
-                        // Si pas de firstPaymentDate, considérer comme en retard si status est DUE ou PARTIAL
-                        // (cela signifie qu'un versement est attendu mais pas encore payé)
-                        hasOverdue = true;
-                        break;
-                    }
-                }
-
-                return hasOverdue ? contract : null;
+                // Le résumé est attaché au contrat renvoyé : les chiffres sont
+                // déjà calculés ici, les recalculer côté écran coûterait une
+                // lecture Firestore par contrat.
+                const summary = summarizeOverdue(findOverdueMonths(contract, payments, { today }));
+                return summary ? { ...contract, overdueSummary: summary } : null;
             } catch (error) {
                 console.error(`Erreur lors de la vérification des retards pour le contrat ${contract.id}:`, error);
                 // En cas d'erreur, ne pas inclure le contrat

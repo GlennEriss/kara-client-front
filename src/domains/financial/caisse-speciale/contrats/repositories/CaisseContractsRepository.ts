@@ -473,6 +473,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       lateNoPenalty,
       lateWithPenalty,
       closed,
+      rescinded,
       group,
       individual,
     ] = await Promise.all([
@@ -482,6 +483,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       count([where('status', '==', 'LATE_NO_PENALTY')]),
       count([where('status', '==', 'LATE_WITH_PENALTY')]),
       count([where('status', '==', 'CLOSED')]),
+      count([where('status', '==', 'RESCINDED')]),
       count([where('contractType', '==', 'GROUP')]),
       count([where('contractType', '==', 'INDIVIDUAL')]),
     ])
@@ -523,6 +525,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       active,
       late: lateNoPenalty + lateWithPenalty,
       closed,
+      rescinded,
       group,
       individual,
       byCaisseType,

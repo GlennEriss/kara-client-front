@@ -119,8 +119,21 @@ export class PlacementRepository implements IRepository {
     return updated
   }
 
+  /**
+   * Supprime le placement **et ses commissions**.
+   *
+   * Firestore ne supprime pas les sous-collections avec le document parent :
+   * effacer le seul placement laissait ses commissions orphelines, invisibles
+   * mais toujours facturées en stockage et récupérables. On vide donc la
+   * sous-collection d'abord.
+   */
   async delete(id: string): Promise<void> {
-    const { doc, deleteDoc, db } = await getFirestore()
+    const { collection, doc, deleteDoc, getDocs, db } = await getFirestore()
+
+    const commissionsRef = collection(db, `${this.collectionName}/${id}/commissions`)
+    const commissions = await getDocs(commissionsRef)
+    await Promise.all(commissions.docs.map((commission) => deleteDoc(commission.ref)))
+
     await deleteDoc(doc(db, this.collectionName, id))
   }
 

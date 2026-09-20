@@ -59,6 +59,8 @@ export interface ContractStats {
   active: number
   late: number
   closed: number
+  /** Contrats résiliés (retrait anticipé) — statut RESCINDED. */
+  rescinded: number
   group: number
   individual: number
   byCaisseType: Record<string, number>

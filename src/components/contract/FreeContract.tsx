@@ -848,8 +848,14 @@ export default function FreeContract({ id }: Props) {
             : `Versement pour le mois M${(selectedIdx ?? 0) + 1}`}
           description={editPayment ? 'Modifier la date, l\'heure, le montant ou la preuve du versement.' : 'Enregistrer le versement mensuel'}
           // Contrat Libre : chaque versement a un montant propre, il reste donc
-          // corrigeable — contrairement aux autres types de caisse.
-          amountEditableOnUpdate
+          // corrigeable — mais par un superAdmin seulement. Le service applique
+          // la même règle : ce verrou d'affichage ne protège rien à lui seul.
+          amountEditableOnUpdate={isSuperAdmin}
+          amountLockedReason={
+            isSuperAdmin
+              ? undefined
+              : "Seul un superAdmin peut modifier le montant d'un versement enregistré."
+          }
           defaultAmount={data.monthlyAmount ?? 100000}
           initialData={editPayment ? (() => {
             const p = editPayment.payment

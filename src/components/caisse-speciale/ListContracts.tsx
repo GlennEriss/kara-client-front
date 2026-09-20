@@ -275,12 +275,12 @@ const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: numb
     { title: 'Total', value: stats.total, color: '#234D65', icon: FileText },
     { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(totalPaidSum || 0), color: '#CBB171', icon: DollarSign },
     { title: 'Actifs', value: stats.active, color: '#10b981', icon: CheckCircle },
-    { title: 'En Retard', value: stats.late, color: '#ef4444', icon: Clock },
-    { title: 'Individuels', value: stats.individual, color: '#3b82f6', icon: User },
-    { title: 'Groupes', value: stats.group, color: '#8b5cf6', icon: GroupIcon },
-    { title: 'Standard Closes', value: `${stats.closedStats?.STANDARD?.count || 0}`, color: '#059669', icon: DollarSign },
-    { title: 'Journalière Closes', value: `${stats.closedStats?.JOURNALIERE?.count || 0}`, color: '#dc2626', icon: Calendar },
-    { title: 'Libre Closes', value: `${stats.closedStats?.LIBRE?.count || 0}`, color: '#7c3aed', icon: BarChart3 },
+    { title: 'Résiliés', value: stats.rescinded ?? 0, color: '#ef4444', icon: Clock },
+    { title: 'Individuel', value: stats.individual, color: '#3b82f6', icon: User },
+    { title: 'Groupe', value: stats.group, color: '#8b5cf6', icon: GroupIcon },
+    { title: 'Standard Clos', value: `${stats.closedStats?.STANDARD?.count || 0}`, color: '#059669', icon: DollarSign },
+    { title: 'Journalier Clos', value: `${stats.closedStats?.JOURNALIERE?.count || 0}`, color: '#dc2626', icon: Calendar },
+    { title: 'Libre Clos', value: `${stats.closedStats?.LIBRE?.count || 0}`, color: '#7c3aed', icon: BarChart3 },
   ]
 
   return (
@@ -992,6 +992,11 @@ function ContractCSGridCard({
   const nextDue = contract.nextDueAt
     ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR')
     : '—'
+  // `contractEndAt` est calculé et enregistré à la création du contrat
+  // (computeContractEndAt) : rien à recalculer ici.
+  const contractEnd = contract.contractEndAt
+    ? new Date(contract.contractEndAt).toLocaleDateString('fr-FR')
+    : '—'
 
   return (
     <Card className={cn(
@@ -1048,6 +1053,10 @@ function ContractCSGridCard({
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Prochaine échéance</p>
             <p className="font-bold text-gray-900 tabular-nums text-sm">{nextDue}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Date fin</p>
+            <p className="font-bold text-gray-900 tabular-nums text-sm">{contractEnd}</p>
           </div>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Total versé</p>
