@@ -1,5 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
+import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
@@ -80,7 +81,18 @@ const PaymentStatsGrid = ({ contract, paymentStats }: { contract: ContractCI; pa
 
   const stats: { title: string; value: number | string; subtitle?: string; accent?: boolean }[] = [
     { title: 'Montant mensuel', value: `${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`, accent: true },
-    { title: 'Durée du contrat', value: `${contract.subscriptionCIDuration} mois` },
+    {
+      title: 'Durée du contrat',
+      value: `${contract.subscriptionCIDuration} mois`,
+      // Même information que sur la carte de la liste : la durée seule ne dit
+      // pas à quelles dates le contrat court.
+      subtitle: (() => {
+        const start = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+        const end = getContractEndDate(contract)
+        if (!start || Number.isNaN(start.getTime()) || !end) return undefined
+        return `du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`
+      })(),
+    },
     { title: 'Nominal total', value: `${contract.subscriptionCINominal.toLocaleString('fr-FR')} FCFA` },
     { title: 'Versements effectués', value: paymentStats?.paidMonthsCount || 0 },
     {

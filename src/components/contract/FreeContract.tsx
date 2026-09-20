@@ -1,5 +1,6 @@
 "use client"
 import dynamic from 'next/dynamic'
+import { StatStrip } from '@/components/ui/stat-strip'
 import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { formatPaymentMode } from '@/utils/payment-mode'
 
@@ -84,28 +85,6 @@ function formatContractPeriod(contract: any): string | undefined {
 }
 
 // Composant StatCard pour afficher les statistiques
-/**
- * Cellule d'indicateur du bandeau de contrat.
- *
- * Même rendu que `PaymentStatsGrid` de la Caisse Imprévue : un panneau gris
- * unique, des cellules sans bordure ni icône. L'icône reçue est ignorée — elle
- * reste dans la signature pour ne pas toucher les six appels de chaque vue.
- */
-function StatCard({ label, value, hint, accent = "slate" }: any) {
-  return (
-    <div>
-      <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
-      <p
-        className={`text-sm font-bold tabular-nums ${
-          accent === "slate" ? "text-gray-900" : "text-[#234D65]"
-        }`}
-      >
-        {value}
-      </p>
-      {hint ? <p className="mt-0.5 text-[10px] text-gray-400">{hint}</p> : null}
-    </div>
-  )
-}
 
 export default function FreeContract({ id }: Props) {
   const router = useRouter()
@@ -582,43 +561,17 @@ export default function FreeContract({ id }: Props) {
           </CardHeader>
         </Card>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatCard 
-            icon={CreditCard} 
-            label="Montant mensuel" 
-            value="Libre" 
-            accent="brand" 
-          />
-          <StatCard 
-            icon={Clock} 
-            label="Durée (mois)" 
-            value={data.monthsPlanned || 0} 
-            hint={formatContractPeriod(data)}
-          />
-          <StatCard 
-            icon={CheckCircle2} 
-            label="Nominal payé" 
-            value={`${formatAmount(actualNominalPaid)} FCFA`} 
-          />
-          <StatCard 
-            icon={TrendingUp} 
-            label="Bonus" 
-            value={`${formatAmount(currentBonus)} FCFA`} 
-            accent="emerald" 
-          />
-          <StatCard 
-            icon={AlertTriangle} 
-            label="Pénalités cumulées" 
-            value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} 
-            accent="red" 
-          />
-          <StatCard 
-            icon={CalendarDays} 
-            label="Prochaine échéance" 
-            value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString('fr-FR') : '—'} 
-          />
-        </div>
+        {/* Statistiques — bande partagée `StatStrip`. */}
+        <StatStrip
+          stats={[
+            { title: 'Montant mensuel', value: 'Libre', accent: true },
+            { title: 'Durée (mois)', value: data.monthsPlanned || 0, subtitle: formatContractPeriod(data) },
+            { title: 'Nominal payé', value: `${formatAmount(actualNominalPaid)} FCFA` },
+            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA` },
+            { title: 'Pénalités cumulées', value: `${formatAmount(data.penaltiesTotal || 0)} FCFA`, danger: (data.penaltiesTotal || 0) > 0 },
+            { title: 'Prochaine échéance', value: data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString('fr-FR') : '—' },
+          ]}
+        />
 
         {/* Outils de test (DEV uniquement) */}
         <TestPaymentTools
