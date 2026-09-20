@@ -84,7 +84,7 @@ const FREQUENCY_LABELS = {
 }
 
 type ViewMode = 'grid' | 'list'
-type ContractTabValue = 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth' | 'rescinded'
+type ContractTabValue = 'all' | 'active' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth' | 'rescinded'
 
 type ContractTabItem = {
   value: ContractTabValue
@@ -93,7 +93,7 @@ type ContractTabItem = {
   isDanger?: boolean
 }
 
-const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue', 'rescinded']
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'DAILY', 'MONTHLY', 'currentMonth', 'overdue', 'rescinded']
 const isContractTabValue = (value: string): value is ContractTabValue =>
   CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
@@ -459,6 +459,7 @@ export default function ListContractsCISection() {
 
   const tabItems: ContractTabItem[] = [
     { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'active', label: 'Actifs', icon: CheckCircle },
     { value: 'DAILY', label: 'Journalier', icon: CalendarDays },
     { value: 'MONTHLY', label: 'Mensuel', icon: Calendar },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
@@ -566,14 +567,16 @@ export default function ListContractsCISection() {
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
   
-  // Onglet « Résiliés » = contrats terminés/résiliés (CANCELED + FINISHED).
-  // Les autres onglets (Tous inclus) ne montrent que les contrats en cours.
+  // Onglet « Clos » = contrats terminés (CANCELED + FINISHED).
+  // « Actifs » ne montre que les contrats en cours ; « Tous » n'exclut rien.
+  // Les onglets par fréquence conservent l'ancien comportement : les contrats
+  // terminés y sont masqués, ils ont leur propre onglet.
   const filteredContracts = useMemo(() => {
     const base = contracts || []
     const isTerminated = (status: string) => status === 'CANCELED' || status === 'FINISHED'
-    return activeTab === 'rescinded'
-      ? base.filter((c) => isTerminated(c.status))
-      : base.filter((c) => !isTerminated(c.status))
+    if (activeTab === 'rescinded') return base.filter((c) => isTerminated(c.status))
+    if (activeTab === 'all') return base
+    return base.filter((c) => !isTerminated(c.status))
   }, [contracts, activeTab])
 
   const subscriptionOptions = useMemo(
@@ -716,6 +719,8 @@ export default function ListContractsCISection() {
     if (activeTab === 'MONTHLY') return 'Mensuel'
     if (activeTab === 'overdue') return 'Retard'
     if (activeTab === 'currentMonth') return 'Mois en cours'
+    if (activeTab === 'active') return 'Actifs'
+    if (activeTab === 'rescinded') return 'Clos'
     return 'Tous'
   }
 

@@ -324,7 +324,9 @@ export class CreditContractRepository implements ICreditContractRepository {
                 totalAmount: contracts.reduce((sum, c) => sum + c.amount, 0),
                 totalPaid: contracts.reduce((sum, c) => sum + c.amountPaid, 0),
                 totalRemaining: contracts.reduce((sum, c) => sum + c.amountRemaining, 0),
-                totalPenalties: 0, // Sera calculé via le repository des pénalités
+                // Complété par `CreditSpecialeService.getContractsStats`, qui a
+                // accès à la collection `creditPenalties`. Ce dépôt ne l'a pas.
+                totalPenalties: 0,
                 byType: {
                     speciale: contracts.filter(c => c.creditType === 'SPECIALE').length,
                     fixe: contracts.filter(c => c.creditType === 'FIXE').length,

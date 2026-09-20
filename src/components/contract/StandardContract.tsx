@@ -1,5 +1,6 @@
 "use client"
 import dynamic from 'next/dynamic'
+import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
@@ -83,23 +84,25 @@ const brand = {
   hover: "hover:bg-[#1a3a4f]",
 }
 
-function StatCard({ icon: Icon, label, value, hint, accent = "slate" }: any) {
-  const accents: Record<string, string> = {
-    slate: "from-slate-50 to-white",
-    emerald: "from-emerald-50 to-white",
-    red: "from-rose-50 to-white",
-    brand: "from-[#234D65]/10 to-white",
-  }
+/**
+ * Cellule d'indicateur du bandeau de contrat.
+ *
+ * Même rendu que `PaymentStatsGrid` de la Caisse Imprévue : un panneau gris
+ * unique, des cellules sans bordure ni icône. L'icône reçue est ignorée — elle
+ * reste dans la signature pour ne pas toucher les six appels de chaque vue.
+ */
+function StatCard({ label, value, hint, accent = "slate" }: any) {
   return (
-    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-slate-500">{label}</div>
-          <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
-          {hint ? <div className="mt-0.5 text-[11px] text-slate-500">{hint}</div> : null}
-        </div>
-        {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
-      </div>
+    <div>
+      <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p
+        className={`text-sm font-bold tabular-nums ${
+          accent === "slate" ? "text-gray-900" : "text-[#234D65]"
+        }`}
+      >
+        {value}
+      </p>
+      {hint ? <p className="mt-0.5 text-[10px] text-gray-400">{hint}</p> : null}
     </div>
   )
 }
@@ -111,12 +114,13 @@ function StatCard({ icon: Icon, label, value, hint, accent = "slate" }: any) {
  */
 function formatContractPeriod(contract: any): string | undefined {
   const start = contract?.contractStartAt ?? contract?.firstPaymentDate
-  const end = contract?.contractEndAt
+  // `contractEndAt` manque sur les contrats antérieurs à ce champ et sur les
+  // contrats importés : `resolveContractEndAt` la recalcule au besoin.
+  const end = resolveContractEndAt(contract)
   if (!start || !end) return undefined
   const from = new Date(start)
-  const to = new Date(end)
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return undefined
-  return `du ${from.toLocaleDateString('fr-FR')} au ${to.toLocaleDateString('fr-FR')}`
+  if (Number.isNaN(from.getTime()) || Number.isNaN(end.getTime())) return undefined
+  return `du ${from.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`
 }
 
 function classNames(...cls: (string | false | undefined)[]) {
@@ -520,7 +524,7 @@ export default function StandardContract({ id }: Props) {
         </Card>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
           <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} hint={formatContractPeriod(data)} />
           <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(data.nominalPaid || 0)} FCFA`} />

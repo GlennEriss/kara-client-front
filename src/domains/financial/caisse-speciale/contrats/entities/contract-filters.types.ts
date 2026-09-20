@@ -60,11 +60,16 @@ export interface ContractStats {
   late: number
   closed: number
   /**
-   * Clôtures anticipées : contrats sortis avant terme, comptés par leur
-   * remboursement de type `EARLY`. Le statut `RESCINDED` n'étant jamais écrit,
-   * il ne peut pas servir de repère.
+   * Contrats clos : terminés au terme (`CLOSED`) comme par anticipation
+   * (`RESCINDED`). Une sortie avant terme se solde par un `CLOSED`, les deux
+   * statuts sont donc comptés ensemble.
    */
-  rescinded: number
+  closedTotal: number
+  /**
+   * Contrats clos, par famille de caisse. Chaque famille réunit le type et sa
+   * variante charitable : « Standard » = STANDARD + STANDARD_CHARITABLE.
+   */
+  closedByCaisseType: { STANDARD: number; JOURNALIERE: number; LIBRE: number }
   group: number
   individual: number
   byCaisseType: Record<string, number>

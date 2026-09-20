@@ -1,7 +1,6 @@
 import {
   db,
   collection,
-  collectionGroup,
   query,
   where,
   orderBy,
@@ -31,7 +30,7 @@ import type {
 } from '../entities/contract-filters.types'
 import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, UploadContractPdfInput } from '../entities/contract.types'
 
-/** Statuts "en cours" — tous SAUF résiliés (RESCINDED) et clos (CLOSED). Onglet "Tous". */
+/** Statuts « en cours » — tous SAUF les contrats clos (CLOSED, RESCINDED). Onglet « Tous ». */
 const ONGOING_STATUSES = [
   'DRAFT',
   'ACTIVE',
@@ -47,7 +46,7 @@ const ONGOING_STATUSES = [
  * Contrats « en cours » au sens du compteur Actifs.
  *
  * Un contrat en retard reste un contrat qui court : il n'est ni clos ni
- * résilié. Le compter à part faisait apparaître « 23 actifs » sur 28 contrats
+ * clos. Le compter à part faisait apparaître « 23 actifs » sur 28 contrats
  * vivants, chiffre que personne ne sait interpréter.
  *
  * Les brouillons sont exclus : ils n'ont pas démarré, et disposent déjà de leur
@@ -110,10 +109,10 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
 
     if (filters.status && filters.status !== 'all') {
       if (filters.status === 'CLOTURE') {
-        // Filtre groupé "Clôturé" = contrats clos (CLOSED) ou résiliés (RESCINDED)
+        // Filtre groupé « Clos » = terminés au terme (CLOSED) ou par anticipation (RESCINDED)
         constraints.push(where('status', 'in', ['CLOSED', 'RESCINDED']))
       } else if ((filters.status as string) === 'EXCLUDE_RESCINDED') {
-        // Onglet "Tous" : on masque les contrats résiliés (RESCINDED) et clos (CLOSED).
+        // Onglet « Tous » : on masque les contrats clos (CLOSED, RESCINDED).
         constraints.push(where('status', 'in', ONGOING_STATUSES as unknown as string[]))
       } else {
         constraints.push(where('status', '==', filters.status))
@@ -323,7 +322,11 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     const hasAmountFilters = this.hasAmountFilters(normalizedFilters)
     const hasPaymentCountFilters = this.hasPaymentCountFilters(normalizedFilters)
     const clientSideNextDueFilter = hasCreatedAtRange && hasNextDueRange
-    const needsClientSideFiltering = clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters
+    // `overdueOnly` se calcule en mémoire (statut de retard OU échéance dépassée) :
+    // sans lui ici, on ne chargeait qu'une page brute avant de filtrer, et
+    // l'onglet Retard n'affichait qu'une poignée de contrats avec un total faux.
+    const needsClientSideFiltering =
+      clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters || Boolean(normalizedFilters.overdueOnly)
 
     const fetchLimit = needsClientSideFiltering ? 1000 : Math.min(100, pagination.limit * 3)
     const searchWords = normalizedQuery.split(/\s+/).filter(Boolean)
@@ -420,7 +423,11 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     const hasAmountFilters = this.hasAmountFilters(normalizedFilters)
     const hasPaymentCountFilters = this.hasPaymentCountFilters(normalizedFilters)
     const clientSideNextDueFilter = hasCreatedAtRange && hasNextDueRange
-    const needsClientSideFiltering = clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters
+    // `overdueOnly` se calcule en mémoire (statut de retard OU échéance dépassée) :
+    // sans lui ici, on ne chargeait qu'une page brute avant de filtrer, et
+    // l'onglet Retard n'affichait qu'une poignée de contrats avec un total faux.
+    const needsClientSideFiltering =
+      clientSideNextDueFilter || hasAmountFilters || hasPaymentCountFilters || Boolean(normalizedFilters.overdueOnly)
 
     constraints.push(...this.buildBaseConstraints(normalizedFilters, { excludeNextDueAt: clientSideNextDueFilter }))
     if (hasNextDueRange && !hasCreatedAtRange) {
@@ -479,31 +486,6 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       return snap.data().count
     }
 
-    /**
-     * Clôtures anticipées.
-     *
-     * Le statut `RESCINDED` n'est jamais écrit par l'application : la logique
-     * qui le posait est commentée dans `mutations.ts`. Une sortie avant terme se
-     * termine en `CLOSED`, comme une clôture normale — le seul marqueur qui les
-     * distingue est un remboursement de type `EARLY` dans la sous-collection
-     * `refunds` du contrat.
-     *
-     * On compte donc ces remboursements, via une requête de groupe, plutôt que
-     * les contrats. Les demandes annulées sont écartées : elles suppriment leur
-     * document et remettent le contrat en `ACTIVE`.
-     */
-    const countEarlyClosures = async () => {
-      try {
-        const snap = await getCountFromServer(
-          query(collectionGroup(db, 'refunds'), where('type', '==', 'EARLY')),
-        )
-        return snap.data().count
-      } catch (err) {
-        console.error('[CaisseContractsRepository] comptage des clôtures anticipées:', err)
-        return 0
-      }
-    }
-
     const [
       total,
       draft,
@@ -511,7 +493,7 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       lateNoPenalty,
       lateWithPenalty,
       closed,
-      rescinded,
+      closedTotal,
       group,
       individual,
     ] = await Promise.all([
@@ -521,7 +503,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       count([where('status', '==', 'LATE_NO_PENALTY')]),
       count([where('status', '==', 'LATE_WITH_PENALTY')]),
       count([where('status', '==', 'CLOSED')]),
-      countEarlyClosures(),
+      // Clos = terminé, au terme ou par anticipation.
+      count([where('status', 'in', ['CLOSED', 'RESCINDED'])]),
       count([where('contractType', '==', 'GROUP')]),
       count([where('contractType', '==', 'INDIVIDUAL')]),
     ])
@@ -538,6 +521,39 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     const caisseCounts = await Promise.all(
       caisseTypes.map((type) => count([where('caisseType', '==', type)]))
     )
+
+    /**
+     * Contrats clos par type de caisse.
+     *
+     * Un seul `in` par requête : on interroge type par type, avec le statut en
+     * `in`. Nécessite l'index composite (caisseType, status) — déclaré dans
+     * `firestore.indexes.json`. En cas d'index manquant, on renvoie 0 plutôt
+     * que de faire échouer toute la page de statistiques.
+     */
+    const closedCountFor = async (type: string) => {
+      try {
+        return await count([
+          where('caisseType', '==', type),
+          where('status', 'in', ['CLOSED', 'RESCINDED']),
+        ])
+      } catch (err) {
+        console.error('[CaisseContractsRepository] comptage des clos par type:', type, err)
+        return 0
+      }
+    }
+
+    const closedCounts = await Promise.all(caisseTypes.map(closedCountFor))
+    const closedByType: Record<string, number> = {}
+    caisseTypes.forEach((type, idx) => {
+      closedByType[type] = closedCounts[idx]
+    })
+
+    // Chaque famille réunit le type et sa variante charitable.
+    const closedByCaisseType = {
+      STANDARD: (closedByType.STANDARD || 0) + (closedByType.STANDARD_CHARITABLE || 0),
+      JOURNALIERE: (closedByType.JOURNALIERE || 0) + (closedByType.JOURNALIERE_CHARITABLE || 0),
+      LIBRE: (closedByType.LIBRE || 0) + (closedByType.LIBRE_CHARITABLE || 0),
+    }
 
     const byCaisseType: Record<string, number> = {}
     caisseTypes.forEach((type, idx) => {
@@ -563,7 +579,8 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       active,
       late: lateNoPenalty + lateWithPenalty,
       closed,
-      rescinded,
+      closedTotal,
+      closedByCaisseType,
       group,
       individual,
       byCaisseType,
