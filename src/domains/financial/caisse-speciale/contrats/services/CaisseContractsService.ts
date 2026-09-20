@@ -63,7 +63,7 @@ export class CaisseContractsService {
   /**
    * Supprime un versement (mauvaise date, erreur de saisie, etc.).
    * Autorisé uniquement si le contrat est en DRAFT, ACTIVE, LATE_NO_PENALTY ou LATE_WITH_PENALTY.
-   * Interdit si contrat CLOSED, en remboursement final/anticipé, résilié, etc.
+   * Interdit si contrat clos (CLOSED/RESCINDED) ou en remboursement final/anticipé.
    * Recalcule les totaux du contrat (nominalPaid, bonusAccrued, penaltiesTotal) et la prochaine échéance.
    */
   async deleteContractPayment(
@@ -78,7 +78,7 @@ export class CaisseContractsService {
     }
     if (!ALLOWED_DELETE_PAYMENT_STATUSES.includes(contract.status as any)) {
       throw new Error(
-        'Impossible de supprimer un versement : le contrat est terminé, en remboursement final ou anticipé, ou résilié. ' +
+        'Impossible de supprimer un versement : le contrat est clos, ou en remboursement final ou anticipé. ' +
         'Seuls les contrats actifs (Actif, Retard J+0..3, Retard J+4..12) permettent de supprimer un versement.'
       )
     }

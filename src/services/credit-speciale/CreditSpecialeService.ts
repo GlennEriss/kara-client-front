@@ -524,8 +524,36 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return await this.creditContractRepository.getContractsWithFilters(filters);
     }
 
+    /**
+     * Statistiques des contrats, pénalités comprises.
+     *
+     * Le dépôt des contrats ne connaît pas la collection `creditPenalties` : il
+     * renvoyait `totalPenalties: 0`, et la carte « Pénalités » affichait zéro
+     * depuis toujours. Le service compose les deux sources.
+     */
     async getContractsStats(filters?: CreditContractFilters): Promise<CreditContractStats> {
-        return await this.creditContractRepository.getContractsStats(filters);
+        const stats = await this.creditContractRepository.getContractsStats(filters);
+
+        try {
+            const contracts = await this.creditContractRepository.getContractsWithFilters(filters);
+            if (contracts.length === 0) return stats;
+
+            // Les pénalités portent `creditId` : on somme celles des contrats
+            // retenus par les filtres, pas la collection entière.
+            const creditIds = new Set(contracts.map((contract) => contract.id));
+            const penalties = await this.creditPenaltyRepository.getAllPenalties();
+            const totalPenalties = penalties.reduce(
+                (sum, penalty) => (creditIds.has(penalty.creditId) ? sum + (Number(penalty.amount) || 0) : sum),
+                0,
+            );
+
+            return { ...stats, totalPenalties };
+        } catch (error) {
+            // Une panne du calcul des pénalités ne doit pas priver la page de
+            // toutes ses statistiques : on renvoie le reste.
+            console.error('[CreditSpecialeService] calcul des pénalités impossible:', error);
+            return stats;
+        }
     }
 
     async recordRestMonth(creditId: string, monthNumber: number, reason: string, recordedBy: string, recordedByName: string): Promise<void> {

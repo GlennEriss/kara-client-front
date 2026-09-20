@@ -900,22 +900,25 @@ export async function updatePaymentContribution(input: {
     console.log('📸 Image modifiée uploadée:', uniqueFileName, '→', newProofUrl)
   }
   
-  // Le montant d'un versement enregistré n'est rectifiable que sur un contrat
-  // Libre, où chaque versement a un montant propre, ET par un superAdmin. Sur
-  // les autres types (Standard, Journalière et leurs variantes charitables), il
-  // découle de l'échéancier : le modifier fausserait cumul, statut et montant
-  // nominal payé. Corriger une erreur passe alors par la suppression puis la
-  // ressaisie du versement.
+  // Le montant d'un versement enregistré n'est rectifiable que sur les contrats
+  // où chaque versement porte son propre montant — Libre et Journalière — et
+  // seulement par un superAdmin. Sur Standard, il découle de l'échéancier : le
+  // modifier fausserait cumul, statut et montant nominal payé. Corriger une
+  // erreur passe alors par la suppression puis la ressaisie du versement.
   const contractForAmountRule = await getContract(contractId)
   const caisseType = (contractForAmountRule as any)?.caisseType
-  const isLibreContract = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
+  // Libre et Journalière : chaque versement a un montant propre, il est donc
+  // rectifiable — par un superAdmin uniquement. Standard en est exclu : son
+  // montant découle de l'échéancier.
+  const amountEditableTypes = ['LIBRE', 'LIBRE_CHARITABLE', 'JOURNALIERE', 'JOURNALIERE_CHARITABLE']
+  const isAmountEditableContract = amountEditableTypes.includes(caisseType)
   const oldAmount = contribution.amount || 0
   const requestedAmount = updates.amount
   const wantsAmountChange = typeof requestedAmount === 'number' && requestedAmount !== oldAmount
 
   let newAmount = oldAmount
   if (wantsAmountChange) {
-    if (!isLibreContract) {
+    if (!isAmountEditableContract) {
       // Silencieux et volontaire : le formulaire verrouille déjà le champ, un
       // montant reçu ici ne peut venir que d'un appel forcé.
       newAmount = oldAmount
@@ -925,7 +928,7 @@ export async function updatePaymentContribution(input: {
       const isSuperAdmin = await resolveIsSuperAdmin(auth?.currentUser)
       if (!isSuperAdmin) {
         throw new Error(
-          "Seul un superAdmin peut modifier le montant d'un versement sur un contrat Libre."
+          "Seul un superAdmin peut modifier le montant d'un versement enregistré."
         )
       }
       newAmount = requestedAmount

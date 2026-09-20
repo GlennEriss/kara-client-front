@@ -1,5 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
+import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -91,6 +92,7 @@ type GroupedCaisseTabValue = 'STANDARD_GROUP' | 'JOURNALIERE_GROUP' | 'LIBRE_GRO
 
 type CaisseTypeTabValue =
   | 'all'
+  | 'active'
   | GroupedCaisseTabValue
   | 'overdue'
   | 'currentMonth'
@@ -116,6 +118,7 @@ const isGroupedCaisseTab = (value: string): value is GroupedCaisseTabValue =>
 
 const isCaisseTypeTabValue = (value: string): value is CaisseTypeTabValue =>
   value === 'all' ||
+  value === 'active' ||
   value === 'overdue' ||
   value === 'currentMonth' ||
   value === 'rescinded' ||
@@ -279,12 +282,12 @@ const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: numb
     { title: 'Total', value: stats.total, color: '#234D65', icon: FileText },
     { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(totalPaidSum || 0), color: '#CBB171', icon: DollarSign },
     { title: 'Actifs', value: stats.active, color: '#10b981', icon: CheckCircle },
-    { title: 'Résiliés', value: stats.rescinded ?? 0, color: '#ef4444', icon: Clock, hint: 'Clôtures anticipées' },
+    { title: 'Clos', value: stats.closedTotal ?? 0, color: '#ef4444', icon: Clock },
     { title: 'Individuel', value: stats.individual, color: '#3b82f6', icon: User },
     { title: 'Groupe', value: stats.group, color: '#8b5cf6', icon: GroupIcon },
-    { title: 'Standard Clos', value: `${stats.closedStats?.STANDARD?.count || 0}`, color: '#059669', icon: DollarSign },
-    { title: 'Journalier Clos', value: `${stats.closedStats?.JOURNALIERE?.count || 0}`, color: '#dc2626', icon: Calendar },
-    { title: 'Libre Clos', value: `${stats.closedStats?.LIBRE?.count || 0}`, color: '#7c3aed', icon: BarChart3 },
+    { title: 'Standard Clos', value: stats.closedByCaisseType?.STANDARD ?? 0, color: '#059669', icon: DollarSign },
+    { title: 'Journalier Clos', value: stats.closedByCaisseType?.JOURNALIERE ?? 0, color: '#dc2626', icon: Calendar },
+    { title: 'Libre Clos', value: stats.closedByCaisseType?.LIBRE ?? 0, color: '#7c3aed', icon: BarChart3 },
   ]
 
   return (
@@ -373,9 +376,9 @@ const ContractFilters = ({
     ACTIVE: 'Actif',
     LATE_NO_PENALTY: 'Retard (J+0..3)',
     LATE_WITH_PENALTY: 'Retard (J+4..12)',
-    RESCINDED: 'Cloture en urgence',
-    CLOSED: 'Cloture finale',
-    CLOTURE: 'Clôturé',
+    RESCINDED: 'Clos (anticipé)',
+    CLOSED: 'Clos (terme)',
+    CLOTURE: 'Clos',
   }
   const contractTypeLabels: Record<string, string> = {
     all: 'Tous les types',
@@ -523,9 +526,9 @@ const ContractFilters = ({
                 {!isOverdueTab && <SelectItem value="ACTIVE">Actif</SelectItem>}
                 <SelectItem value="LATE_NO_PENALTY">Retard (J+0..3)</SelectItem>
                 <SelectItem value="LATE_WITH_PENALTY">Retard (J+4..12)</SelectItem>
-                {!isOverdueTab && <SelectItem value="CLOTURE">Clôturé</SelectItem>}
-                {!isOverdueTab && <SelectItem value="RESCINDED">Cloture en urgence</SelectItem>}
-                {!isOverdueTab && <SelectItem value="CLOSED">Cloture finale</SelectItem>}
+                {!isOverdueTab && <SelectItem value="CLOTURE">Clos</SelectItem>}
+                {!isOverdueTab && <SelectItem value="RESCINDED">Clos (anticipé)</SelectItem>}
+                {!isOverdueTab && <SelectItem value="CLOSED">Clos (terme)</SelectItem>}
               </SelectContent>
             </Select>
           </div>
@@ -928,7 +931,7 @@ const STATUS_META_CS: Record<string, { label: string; dot: string; text: string 
   DEFAULTED_AFTER_J12:      { label: 'Défaillant',        dot: 'bg-red-500',     text: 'text-red-700'     },
   DRAFT:                    { label: 'Brouillon',         dot: 'bg-gray-400',    text: 'text-gray-500'    },
   CLOSED:                   { label: 'Clos',              dot: 'bg-gray-400',    text: 'text-gray-500'    },
-  RESCINDED:                { label: 'Résilié',           dot: 'bg-red-400',     text: 'text-red-600'     },
+  RESCINDED:                { label: 'Clos',              dot: 'bg-red-400',     text: 'text-red-600'     },
   EARLY_WITHDRAW_REQUESTED: { label: 'Retrait anticipé',  dot: 'bg-blue-500',    text: 'text-blue-700'    },
   FINAL_REFUND_PENDING:     { label: 'Remb. final',       dot: 'bg-indigo-500',  text: 'text-indigo-700'  },
   EARLY_REFUND_PENDING:     { label: 'Remb. anticipé',    dot: 'bg-blue-400',    text: 'text-blue-600'    },
@@ -998,11 +1001,12 @@ function ContractCSGridCard({
   const nextDue = contract.nextDueAt
     ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR')
     : '—'
-  // `contractEndAt` est calculé et enregistré à la création du contrat
-  // (computeContractEndAt) : rien à recalculer ici.
-  const contractEnd = contract.contractEndAt
-    ? new Date(contract.contractEndAt).toLocaleDateString('fr-FR')
-    : '—'
+  // `contractEndAt` n'est écrit qu'à la création : les contrats antérieurs à ce
+  // champ, ou importés, ne l'ont pas. `resolveContractEndAt` recalcule alors la
+  // date depuis le début, la durée et le type de caisse — sans ce repli, la
+  // carte affichait « — » sur une partie du portefeuille.
+  const resolvedEnd = resolveContractEndAt(contract)
+  const contractEnd = resolvedEnd ? resolvedEnd.toLocaleDateString('fr-FR') : '—'
 
   return (
     <Card className={cn(
@@ -1168,7 +1172,7 @@ function ContractCSGridCard({
           {hasRefundEarly && (
             <Button variant="outline" size="sm" onClick={onViewRefundEarly}
               className="h-8 cursor-pointer rounded-lg border-[#234D65]/30 px-3 text-xs text-[#234D65] hover:bg-[#234D65] hover:text-white">
-              <Eye className="mr-1.5 h-3.5 w-3.5" />Résiliation
+              <Eye className="mr-1.5 h-3.5 w-3.5" />Clôture anticipée
             </Button>
           )}
 
@@ -1192,12 +1196,13 @@ const ListContracts = () => {
 
   const tabItems: CaisseTypeTabItem[] = [
     { value: 'all', label: 'Tous', icon: FileText },
+    { value: 'active', label: 'Actifs', icon: CheckCircle },
     { value: 'STANDARD_GROUP', label: 'Standard', icon: FileText },
     { value: 'JOURNALIERE_GROUP', label: 'Journalier', icon: Calendar },
     { value: 'LIBRE_GROUP', label: 'Libre', icon: FileText },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
-    { value: 'rescinded', label: 'Résiliés', icon: Ban },
+    { value: 'rescinded', label: 'Clos', icon: Ban },
   ]
 
   // Fonction de navigation vers la création de contrat
@@ -1320,11 +1325,19 @@ const ListContracts = () => {
     }
 
     if (activeTab === 'rescinded') {
-      // Onglet dédié : contrats résiliés (RESCINDED) + clos (CLOSED).
+      // Onglet dédié : tous les contrats terminés — au terme (CLOSED) comme
+      // par anticipation (RESCINDED).
       nextFilters.status = 'CLOTURE'
       nextFilters.overdueOnly = false
+    } else if (activeTab === 'active') {
+      // Onglet dédié : contrats en cours, clos exclus.
+      nextFilters.status = 'EXCLUDE_RESCINDED'
+    } else if (activeTab === 'all') {
+      // « Tous » affiche vraiment tous les contrats, clos compris — c'est
+      // l'onglet « Actifs » qui porte désormais la restriction.
+      if (!nextFilters.status) nextFilters.status = 'all'
     } else if (!nextFilters.status || nextFilters.status === 'all') {
-      // Tous les autres onglets masquent les résiliés (sauf statut choisi explicitement).
+      // Onglets par type : on masque les clos, qui ont leur propre onglet.
       nextFilters.status = 'EXCLUDE_RESCINDED'
     }
 
@@ -1849,11 +1862,11 @@ const ListContracts = () => {
       ACTIVE: 'Actif',
       LATE_NO_PENALTY: 'Retard (J+0..3)',
       LATE_WITH_PENALTY: 'Retard (J+4..12)',
-      DEFAULTED_AFTER_J12: 'Résilié (&gt;J+12)',
+      DEFAULTED_AFTER_J12: 'Clos (&gt;J+12)',
       EARLY_WITHDRAW_REQUESTED: 'Retrait anticipé',
       FINAL_REFUND_PENDING: 'Remboursement final',
       EARLY_REFUND_PENDING: 'Remboursement anticipé',
-      RESCINDED: 'Résilié',
+      RESCINDED: 'Clos (anticipé)',
       CLOSED: 'Clos'
     }
     return labels[status as keyof typeof labels] || status
@@ -1978,7 +1991,8 @@ const ListContracts = () => {
       latePercentage: total > 0 ? (late / total) * 100 : 0,
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
-      closedStats: {},
+      closedTotal: stats.closedTotal ?? 0,
+      closedByCaisseType: stats.closedByCaisseType ?? { STANDARD: 0, JOURNALIERE: 0, LIBRE: 0 },
       byCaisseType: stats.byCaisseType || {},
     }
   }, [stats])
@@ -2526,7 +2540,7 @@ const ListContracts = () => {
                                     className="cursor-pointer"
                                   >
                                     <Eye className="h-4 w-4 mr-2" />
-                                    Contrat de résiliation
+                                    Contrat de clôture anticipée
                                   </DropdownMenuItem>
                                 )}
                                 {contract.memberSignedStatus === 'PENDING_ADMIN' && (
