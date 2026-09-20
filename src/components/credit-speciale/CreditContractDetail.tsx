@@ -1,5 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
+import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 
 import { backOr } from '@/lib/backNavigation'
 import { Badge } from '@/components/ui/badge'
@@ -167,6 +168,19 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
       title: 'Montant emprunté',
       value: contract.amount.toLocaleString('fr-FR'),
       color: '#3b82f6',
+      icon: DollarSign
+    },
+    {
+      // Durée et période : la fiche n'affichait aucune date d'échéancier.
+      title: 'Durée',
+      value: `${contract.duration} mois`,
+      subtitle: (() => {
+        const start = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+        const end = getCreditContractEndDate(contract)
+        if (!start || Number.isNaN(start.getTime()) || !end) return undefined
+        return `du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`
+      })(),
+      color: '#234D65',
       icon: DollarSign
     },
     {
