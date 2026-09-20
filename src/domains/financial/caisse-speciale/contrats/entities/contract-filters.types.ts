@@ -59,7 +59,11 @@ export interface ContractStats {
   active: number
   late: number
   closed: number
-  /** Contrats résiliés (retrait anticipé) — statut RESCINDED. */
+  /**
+   * Clôtures anticipées : contrats sortis avant terme, comptés par leur
+   * remboursement de type `EARLY`. Le statut `RESCINDED` n'étant jamais écrit,
+   * il ne peut pas servir de repère.
+   */
   rescinded: number
   group: number
   individual: number

@@ -67,8 +67,22 @@ const formatAmount = (amount: number): string => {
 
 type Props = { id: string }
 
+/**
+ * Période couverte par le contrat, pour la carte « Durée ».
+ * `contractEndAt` est calculé et enregistré à la création (computeContractEndAt).
+ */
+function formatContractPeriod(contract: any): string | undefined {
+  const start = contract?.contractStartAt ?? contract?.firstPaymentDate
+  const end = contract?.contractEndAt
+  if (!start || !end) return undefined
+  const from = new Date(start)
+  const to = new Date(end)
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return undefined
+  return `du ${from.toLocaleDateString('fr-FR')} au ${to.toLocaleDateString('fr-FR')}`
+}
+
 // Composant StatCard pour afficher les statistiques
-function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
+function StatCard({ icon: Icon, label, value, hint, accent = "slate" }: any) {
   const accents: Record<string, string> = {
     slate: "from-slate-50 to-white",
     emerald: "from-emerald-50 to-white",
@@ -84,7 +98,10 @@ function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
         <div>
           <div className="text-xs text-slate-500">{label}</div>
           <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
+          {hint ? <div className="mt-0.5 text-[11px] text-slate-500">{hint}</div> : null}
         </div>
+
+
         {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
       </div>
     </div>
@@ -578,6 +595,7 @@ export default function FreeContract({ id }: Props) {
             icon={Clock} 
             label="Durée (mois)" 
             value={data.monthsPlanned || 0} 
+            hint={formatContractPeriod(data)}
           />
           <StatCard 
             icon={CheckCircle2} 

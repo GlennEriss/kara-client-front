@@ -83,7 +83,7 @@ const brand = {
   hover: "hover:bg-[#1a3a4f]",
 }
 
-function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
+function StatCard({ icon: Icon, label, value, hint, accent = "slate" }: any) {
   const accents: Record<string, string> = {
     slate: "from-slate-50 to-white",
     emerald: "from-emerald-50 to-white",
@@ -96,6 +96,7 @@ function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
         <div>
           <div className="text-xs text-slate-500">{label}</div>
           <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
+          {hint ? <div className="mt-0.5 text-[11px] text-slate-500">{hint}</div> : null}
         </div>
         {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
       </div>
@@ -103,6 +104,20 @@ function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
   )
 }
 
+
+/**
+ * Période couverte par le contrat, pour la carte « Durée ».
+ * `contractEndAt` est calculé et enregistré à la création (computeContractEndAt).
+ */
+function formatContractPeriod(contract: any): string | undefined {
+  const start = contract?.contractStartAt ?? contract?.firstPaymentDate
+  const end = contract?.contractEndAt
+  if (!start || !end) return undefined
+  const from = new Date(start)
+  const to = new Date(end)
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return undefined
+  return `du ${from.toLocaleDateString('fr-FR')} au ${to.toLocaleDateString('fr-FR')}`
+}
 
 function classNames(...cls: (string | false | undefined)[]) {
   return cls.filter(Boolean).join(" ")
@@ -507,7 +522,7 @@ export default function StandardContract({ id }: Props) {
         {/* Stats */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
-          <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
+          <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} hint={formatContractPeriod(data)} />
           <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(data.nominalPaid || 0)} FCFA`} />
           <StatCard icon={CalendarDays} label="Bonus" value={`${formatAmount(currentBonus)} FCFA`} accent="emerald" />
           <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} accent="red" />

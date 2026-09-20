@@ -243,11 +243,14 @@ const StatsCard = ({
   value,
   color,
   icon: Icon,
+  hint,
 }: {
   title: string
   value: number | string
   color: string
   icon: React.ComponentType<any>
+  /** Précision facultative sous la valeur, quand le libellé seul est ambigu. */
+  hint?: string
 }) => {
   return (
     <div className="group flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200">
@@ -264,6 +267,7 @@ const StatsCard = ({
         <p className="text-sm font-black text-gray-900 tabular-nums whitespace-nowrap">
           {value}
         </p>
+        {hint ? <p className="truncate text-[10px] text-gray-400">{hint}</p> : null}
       </div>
     </div>
   )
@@ -275,7 +279,7 @@ const StatsCarousel = ({ stats, totalPaidSum }: { stats: any; totalPaidSum: numb
     { title: 'Total', value: stats.total, color: '#234D65', icon: FileText },
     { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(totalPaidSum || 0), color: '#CBB171', icon: DollarSign },
     { title: 'Actifs', value: stats.active, color: '#10b981', icon: CheckCircle },
-    { title: 'Résiliés', value: stats.rescinded ?? 0, color: '#ef4444', icon: Clock },
+    { title: 'Résiliés', value: stats.rescinded ?? 0, color: '#ef4444', icon: Clock, hint: 'Clôtures anticipées' },
     { title: 'Individuel', value: stats.individual, color: '#3b82f6', icon: User },
     { title: 'Groupe', value: stats.group, color: '#8b5cf6', icon: GroupIcon },
     { title: 'Standard Clos', value: `${stats.closedStats?.STANDARD?.count || 0}`, color: '#059669', icon: DollarSign },
@@ -358,8 +362,10 @@ const ContractFilters = ({
   const isOverdueTab = activeTab === 'overdue'
   const isLateStatus =
     safeFilters.status === 'LATE_NO_PENALTY' || safeFilters.status === 'LATE_WITH_PENALTY'
+  // Sur l'onglet Retard, « Tous les statuts » est le bon défaut : la sélection
+  // est déjà restreinte aux contrats en retard par `overdueOnly`.
   const statusValue = isOverdueTab
-    ? (isLateStatus ? safeFilters.status : 'LATE_NO_PENALTY')
+    ? (isLateStatus ? safeFilters.status : 'all')
     : (safeFilters.status || 'all')
 
   const statusLabels: Record<string, string> = {
@@ -386,7 +392,7 @@ const ContractFilters = ({
     LIBRE_CHARITABLE: 'Libre Charitable',
   }
 
-  const defaultStatusValue = isOverdueTab ? 'LATE_NO_PENALTY' : 'all'
+  const defaultStatusValue = 'all'
   const hasCustomStatus = statusValue !== defaultStatusValue
 
   const activeFilterLabels = [
@@ -1286,13 +1292,11 @@ const ListContracts = () => {
     }
 
     if (activeTab === 'overdue') {
+      // `overdueOnly` retient déjà les deux statuts de retard ET les contrats
+      // actifs dont l'échéance est dépassée. Forcer `status` en plus réduisait
+      // la requête aux seuls retards J+0..3 : les retards J+4..12 et les actifs
+      // échus n'apparaissaient jamais, et l'onglet pouvait sembler vide.
       nextFilters.overdueOnly = true
-      if (
-        nextFilters.status !== 'LATE_NO_PENALTY' &&
-        nextFilters.status !== 'LATE_WITH_PENALTY'
-      ) {
-        nextFilters.status = 'LATE_NO_PENALTY'
-      }
     }
 
     if (activeTab === 'currentMonth') {

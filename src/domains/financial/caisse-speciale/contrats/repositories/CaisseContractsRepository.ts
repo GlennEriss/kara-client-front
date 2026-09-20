@@ -1,6 +1,7 @@
 import {
   db,
   collection,
+  collectionGroup,
   query,
   where,
   orderBy,
@@ -41,6 +42,18 @@ const ONGOING_STATUSES = [
   'FINAL_REFUND_PENDING',
   'EARLY_REFUND_PENDING',
 ] as const
+
+/**
+ * Contrats « en cours » au sens du compteur Actifs.
+ *
+ * Un contrat en retard reste un contrat qui court : il n'est ni clos ni
+ * résilié. Le compter à part faisait apparaître « 23 actifs » sur 28 contrats
+ * vivants, chiffre que personne ne sait interpréter.
+ *
+ * Les brouillons sont exclus : ils n'ont pas démarré, et disposent déjà de leur
+ * propre compteur.
+ */
+const RUNNING_STATUSES = ONGOING_STATUSES.filter((status) => status !== 'DRAFT')
 
 export class CaisseContractsRepository implements ICaisseContractsRepository {
   private static instance: CaisseContractsRepository
@@ -466,6 +479,31 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
       return snap.data().count
     }
 
+    /**
+     * Clôtures anticipées.
+     *
+     * Le statut `RESCINDED` n'est jamais écrit par l'application : la logique
+     * qui le posait est commentée dans `mutations.ts`. Une sortie avant terme se
+     * termine en `CLOSED`, comme une clôture normale — le seul marqueur qui les
+     * distingue est un remboursement de type `EARLY` dans la sous-collection
+     * `refunds` du contrat.
+     *
+     * On compte donc ces remboursements, via une requête de groupe, plutôt que
+     * les contrats. Les demandes annulées sont écartées : elles suppriment leur
+     * document et remettent le contrat en `ACTIVE`.
+     */
+    const countEarlyClosures = async () => {
+      try {
+        const snap = await getCountFromServer(
+          query(collectionGroup(db, 'refunds'), where('type', '==', 'EARLY')),
+        )
+        return snap.data().count
+      } catch (err) {
+        console.error('[CaisseContractsRepository] comptage des clôtures anticipées:', err)
+        return 0
+      }
+    }
+
     const [
       total,
       draft,
@@ -479,11 +517,11 @@ export class CaisseContractsRepository implements ICaisseContractsRepository {
     ] = await Promise.all([
       count(),
       count([where('status', '==', 'DRAFT')]),
-      count([where('status', '==', 'ACTIVE')]),
+      count([where('status', 'in', RUNNING_STATUSES as unknown as string[])]),
       count([where('status', '==', 'LATE_NO_PENALTY')]),
       count([where('status', '==', 'LATE_WITH_PENALTY')]),
       count([where('status', '==', 'CLOSED')]),
-      count([where('status', '==', 'RESCINDED')]),
+      countEarlyClosures(),
       count([where('contractType', '==', 'GROUP')]),
       count([where('contractType', '==', 'INDIVIDUAL')]),
     ])
