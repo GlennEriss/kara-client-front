@@ -124,6 +124,10 @@ function NotificationItem({
     } else if (notification.module === 'caisse_imprevue' && notification.type === 'payment_due' && notification.metadata?.contractId) {
       // Navigation vers la page des versements du contrat
       onNavigate(`/caisse-imprevue/contrats/${notification.metadata.contractId}/versements`)
+    } else if (notification.module === 'boutique') {
+      // Boutique soumise par un membre : l'annuaire l'affiche dans sa file
+      // « À valider ».
+      onNavigate('/boutiques')
     }
   }
 

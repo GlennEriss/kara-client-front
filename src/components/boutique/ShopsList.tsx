@@ -3,7 +3,21 @@
 import React, { useMemo, useState } from 'react'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { EyeOff, Images, MapPin, Pencil, Plus, Search, Store, Tag, Trash2, User } from 'lucide-react'
+import {
+  CheckCircle2,
+  Clock,
+  EyeOff,
+  Images,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  Store,
+  Tag,
+  Trash2,
+  User,
+  XCircle,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +26,43 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useShops, useShopMutations } from '@/hooks/useShops'
 import ShopFormModal from './ShopFormModal'
+import ShopReviewModal from './ShopReviewModal'
 import { StatsBreakdownBar } from '@/components/ui/stats-breakdown-bar'
+import { cn } from '@/lib/utils'
 import type { Shop } from '@/types/types'
+
+/**
+ * Onglets de l'annuaire. « À valider » isole les fiches soumises par les
+ * membres depuis leur portail : elles ne sont pas encore dans l'annuaire.
+ */
+type ShopTab = 'pending' | 'published' | 'hidden' | 'all'
+
+const TAB_ITEMS: { value: ShopTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'pending', label: 'À valider', icon: Clock },
+  { value: 'published', label: 'Publiées', icon: CheckCircle2 },
+  { value: 'hidden', label: 'Masquées', icon: EyeOff },
+  { value: 'all', label: 'Toutes', icon: Store },
+]
+
+/** Une boutique est publiée si elle est validée ET visible. */
+function isPublished(shop: Shop): boolean {
+  return (shop.status ?? 'approved') === 'approved' && shop.isActive
+}
+
+function matchesTab(shop: Shop, tab: ShopTab): boolean {
+  const status = shop.status ?? 'approved'
+  switch (tab) {
+    case 'pending':
+      return status === 'pending'
+    case 'published':
+      return isPublished(shop)
+    case 'hidden':
+      // Refusées et retirées de l'annuaire : tout ce qui est tranché mais invisible.
+      return status !== 'pending' && !shop.isActive
+    default:
+      return true
+  }
+}
 
 /** Carte d'indicateur compacte, alignée sur celles des autres sections. */
 function ShopStatCard({
@@ -46,16 +95,29 @@ export default function ShopsList() {
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Shop | null>(null)
+  const [tab, setTab] = useState<ShopTab>('all')
+  const [reviewing, setReviewing] = useState<{ shop: Shop; decision: 'approved' | 'rejected' } | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return shops
-    return shops.filter((s) =>
-      [s.name, s.category, s.city, s.ownerName, s.description]
+    return shops.filter((s) => {
+      if (!matchesTab(s, tab)) return false
+      if (!q) return true
+      return [s.name, s.category, s.city, s.ownerName, s.description]
         .filter(Boolean)
-        .some((v) => v!.toLowerCase().includes(q)),
-    )
-  }, [shops, search])
+        .some((v) => v!.toLowerCase().includes(q))
+    })
+  }, [shops, search, tab])
+
+  const tabCounts = useMemo(
+    () => ({
+      pending: shops.filter((s) => matchesTab(s, 'pending')).length,
+      published: shops.filter((s) => matchesTab(s, 'published')).length,
+      hidden: shops.filter((s) => matchesTab(s, 'hidden')).length,
+      all: shops.length,
+    }),
+    [shops],
+  )
 
   const openCreate = () => {
     setEditing(null)
@@ -70,10 +132,18 @@ export default function ShopsList() {
    * recherche en cours : ils décrivent le fonds, pas l'écran.
    */
   const stats = useMemo(() => {
-    const active = shops.filter((s) => s.isActive).length
+    const published = shops.filter(isPublished).length
+    const pending = shops.filter((s) => (s.status ?? 'approved') === 'pending').length
     const categories = new Set(shops.map((s) => s.category?.trim()).filter(Boolean)).size
     const withPhotos = shops.filter((s) => (s.gallery?.length ?? 0) > 0).length
-    return { total: shops.length, active, hidden: shops.length - active, categories, withPhotos }
+    return {
+      total: shops.length,
+      published,
+      pending,
+      hidden: shops.length - published - pending,
+      categories,
+      withPhotos,
+    }
   }, [shops])
 
   const handleDelete = async (shop: Shop) => {
@@ -102,10 +172,11 @@ export default function ShopsList() {
 
       {!isLoading && shops.length > 0 && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <ShopStatCard icon={Store} label="Total" value={stats.total} color="#234D65" />
-            <ShopStatCard icon={Store} label="Visibles" value={stats.active} color="#10b981" />
-            <ShopStatCard icon={EyeOff} label="Masquées" value={stats.hidden} color="#f59e0b" />
+            <ShopStatCard icon={Clock} label="À valider" value={stats.pending} color="#f59e0b" />
+            <ShopStatCard icon={CheckCircle2} label="Publiées" value={stats.published} color="#10b981" />
+            <ShopStatCard icon={EyeOff} label="Masquées" value={stats.hidden} color="#6b7280" />
             <ShopStatCard icon={Tag} label="Catégories" value={stats.categories} color="#3b82f6" />
             <ShopStatCard icon={Images} label="Avec photos" value={stats.withPhotos} color="#e87ba4" />
           </div>
@@ -114,13 +185,67 @@ export default function ShopsList() {
             <StatsBreakdownBar
               title="Visibilité dans l'annuaire"
               segments={[
-                { label: 'Visibles', value: stats.active, color: '#10b981' },
-                { label: 'Masquées', value: stats.hidden, color: '#f59e0b' },
+                { label: 'Publiées', value: stats.published, color: '#10b981' },
+                { label: 'À valider', value: stats.pending, color: '#f59e0b' },
+                { label: 'Masquées', value: stats.hidden, color: '#6b7280' },
               ]}
             />
           </div>
         </div>
       )}
+
+      {/* La file d'attente ne doit pas dépendre d'un onglet qu'on pense à
+          ouvrir : on la signale tant qu'elle n'est pas vide. */}
+      {!isLoading && stats.pending > 0 && tab !== 'pending' && (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-amber-900">
+            <span className="font-semibold">{stats.pending}</span>{' '}
+            {stats.pending > 1 ? 'boutiques soumises par des membres attendent' : 'boutique soumise par un membre attend'}{' '}
+            votre validation.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100 sm:shrink-0"
+            onClick={() => setTab('pending')}
+          >
+            Voir les demandes
+          </Button>
+        </div>
+      )}
+
+      {/* Onglets : défilement horizontal sur mobile, aucune troncature. */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {TAB_ITEMS.map(({ value, label, icon: Icon }) => {
+          const isActive = tab === value
+          const count = tabCounts[value]
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTab(value)}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                isActive
+                  ? 'border-[#234D65] bg-[#234D65] text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-[#234D65]',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.5 text-[10px] tabular-nums',
+                  isActive ? 'bg-white/20' : 'bg-gray-100 text-gray-600',
+                  !isActive && value === 'pending' && count > 0 ? 'bg-amber-100 text-amber-800' : '',
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -140,7 +265,15 @@ export default function ShopsList() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-10 text-center text-gray-500">
-          {search ? 'Aucune boutique ne correspond à la recherche.' : 'Aucune boutique. Cliquez sur « Ajouter une boutique ».'}
+          {search
+            ? 'Aucune boutique ne correspond à la recherche.'
+            : tab === 'pending'
+              ? 'Aucune boutique en attente de validation.'
+              : tab === 'published'
+                ? "Aucune boutique publiée dans l'annuaire."
+                : tab === 'hidden'
+                  ? 'Aucune boutique masquée ou refusée.'
+                  : 'Aucune boutique. Cliquez sur « Ajouter une boutique ».'}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -163,9 +296,17 @@ export default function ShopsList() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate font-semibold text-gray-900">{shop.name}</p>
-                      {!shop.isActive && <Badge variant="outline" className="text-xs text-gray-500">Masquée</Badge>}
+                      {(shop.status ?? 'approved') === 'pending' ? (
+                        <Badge className="bg-amber-100 text-xs text-amber-800 hover:bg-amber-100">À valider</Badge>
+                      ) : shop.status === 'rejected' ? (
+                        <Badge className="bg-red-100 text-xs text-red-700 hover:bg-red-100">Refusée</Badge>
+                      ) : (
+                        !shop.isActive && (
+                          <Badge variant="outline" className="text-xs text-gray-500">Masquée</Badge>
+                        )
+                      )}
                     </div>
                     <p className="truncate text-sm text-[#234D65]">{shop.category}</p>
                     {shop.ownerName && (
@@ -203,6 +344,34 @@ export default function ShopsList() {
                   </div>
                 )}
 
+                {/* Motif du refus : l'admin doit pouvoir relire ce qu'il a
+                    répondu au membre sans rouvrir la fiche. */}
+                {shop.status === 'rejected' && shop.rejectionReason && (
+                  <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                    Motif du refus : {shop.rejectionReason}
+                  </p>
+                )}
+
+                {(shop.status ?? 'approved') === 'pending' && (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => setReviewing({ shop, decision: 'approved' })}
+                    >
+                      <CheckCircle2 className="mr-1 h-4 w-4" /> Valider
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => setReviewing({ shop, decision: 'rejected' })}
+                    >
+                      <XCircle className="mr-1 h-4 w-4" /> Refuser
+                    </Button>
+                  </div>
+                )}
+
                 <div className="mt-3 flex justify-end gap-1">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(shop)} title="Modifier">
                     <Pencil className="h-4 w-4" />
@@ -224,6 +393,12 @@ export default function ShopsList() {
       )}
 
       <ShopFormModal open={modalOpen} onClose={() => setModalOpen(false)} shop={editing} />
+      <ShopReviewModal
+        open={!!reviewing}
+        onClose={() => setReviewing(null)}
+        shop={reviewing?.shop ?? null}
+        decision={reviewing?.decision ?? 'approved'}
+      />
     </div>
   )
 }

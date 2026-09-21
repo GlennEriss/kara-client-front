@@ -2,7 +2,8 @@ import { createContract, getContract, updateContract } from '@/db/caisse/contrac
 import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db'
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
-import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt, contractMonthNumberAt } from './engine'
+import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt } from './engine'
+import { computeContractBonus } from './bonus'
 import { addContractMonths, computeContractEndAt, computeDueAt, PERIOD_DAYS_JOURNALIER } from './contractDates'
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
@@ -556,17 +557,17 @@ export async function requestFinalRefund(contractId: string, reason?: string) {
   }
   await updateContract(contractId, { status: 'FINAL_REFUND_PENDING' })
   const amountNominal = c.nominalPaid || 0
-  // Calcul du bonus final: (montant global versé) * (taux du mois final) / 100, à partir de M4
   const settings = await getActiveSettings((c as any).caisseType)
-  // Mois final = nombre de mois planifiés si dispo, sinon max des échéances connues
-  const finalMonthNumber = (c as any).monthsPlanned
-    ? Number((c as any).monthsPlanned)
-    : (payments.length > 0 ? (Math.max(...payments.map((p: any) => Number(p.dueMonthIndex || 0))) + 1) : 0)
-  let amountBonus = 0
-  if (finalMonthNumber >= 4 && settings) {
-    const bonusRate = computeBonus(finalMonthNumber - 1, settings as any) || 0 // valeur interprétée comme pourcentage
-    amountBonus = (amountNominal || 0) * (Number(bonusRate) / 100)
-  }
+  // Même règle que le retrait anticipé : le taux vient de min(mois écoulés,
+  // mois soldés), et non de la durée planifiée. Un contrat soldé en avance ne
+  // donne donc pas le taux de son dernier mois.
+  const paidMonthsCount = payments.filter((p: any) => p.status === 'PAID').length
+  const amountBonus = computeContractBonus({
+    contractStartAt: c.contractStartAt,
+    paidMonthsCount,
+    totalPaid: amountNominal,
+    settings: settings as any,
+  }).amount
   const deadlineAt = c.contractEndAt ? new Date(new Date(c.contractEndAt).getTime() + 30*86400000) : new Date()
   await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING', reason: reason || '' })
   return true
@@ -625,22 +626,13 @@ export async function requestEarlyRefund(contractId: string, input?: {
       }
     }
   }
-  let amountBonus = 0
-  if (settings) {
-    // Le numéro de mois court de la date de début du contrat (premier versement)
-    // jusqu'à aujourd'hui, plafonné au nombre de mois effectivement soldés :
-    // un membre qui cesse de payer fige son taux au lieu de le voir monter
-    // avec le temps qui passe.
-    const elapsedMonthNumber = c.contractStartAt
-      ? contractMonthNumberAt(c.contractStartAt)
-      : paidCount
-    const monthCount = Math.min(elapsedMonthNumber, paidCount)
-    const prevIndex = monthCount - 2 // mappe M(monthCount-1)
-    const bonusRate = prevIndex >= 0 ? (computeBonus(prevIndex, settings as any) || 0) : 0
-    if (prevIndex + 1 >= 4 && bonusRate > 0) {
-      amountBonus = (totalPaid || 0) * (Number(bonusRate) / 100)
-    }
-  }
+  // Règle partagée `computeContractBonus` : min(mois écoulés, mois soldés).
+  const amountBonus = computeContractBonus({
+    contractStartAt: c.contractStartAt,
+    paidMonthsCount: paidCount,
+    totalPaid,
+    settings: settings as any,
+  }).amount
   const deadlineAt = new Date(Date.now() + 45*86400000)
 
   const withdrawalDate = input?.withdrawalDate ? new Date(input.withdrawalDate) : new Date()

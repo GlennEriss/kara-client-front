@@ -1,10 +1,17 @@
 "use client"
 
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useUpcomingPayouts, type UpcomingPayout } from '@/hooks/useUpcomingPayouts'
+import {
+  PAYOUT_HORIZON_MONTHS,
+  PAYOUT_HORIZON_OPTIONS,
+  useUpcomingPayouts,
+  type UpcomingPayout,
+} from '@/hooks/useUpcomingPayouts'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Building2, Calendar, Download, HandCoins, Phone, RefreshCw, User } from 'lucide-react'
@@ -79,7 +86,10 @@ function referenceLabel(payout: UpcomingPayout): string {
  * cotisé), la fin du placement, ou la demande de retrait anticipé.
  */
 export function UpcomingPayoutsList() {
-  const { data: payouts = [], isLoading, isError, refetch, isFetching } = useUpcomingPayouts()
+  // Profondeur de prévision : jusqu'où l'admin veut anticiper les sorties.
+  const [horizonMonths, setHorizonMonths] = useState<number>(PAYOUT_HORIZON_MONTHS)
+  const { data: payouts = [], isLoading, isError, refetch, isFetching } =
+    useUpcomingPayouts(horizonMonths)
 
   const overdue = payouts.filter((p) => p.daysUntil < 0)
   const thisWeek = payouts.filter((p) => p.daysUntil >= 0 && p.daysUntil <= 7)
@@ -93,7 +103,10 @@ export function UpcomingPayoutsList() {
     try {
       const XLSX = await import('xlsx')
       const title = "Remises d'argent à venir — Caisse Spéciale, Caisse Imprévue & Placement"
-      const meta = `Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}  •  ${payouts.length} remise(s)  •  Total : ${fmtAmount(totalAmount)} FCFA`
+      // L'horizon est inscrit dans le fichier : un export de 12 mois et un de
+      // 1 mois n'ont pas le même sens, et rien ne les distinguerait sinon.
+      const horizonLabel = horizonMonths === 1 ? 'prochain mois' : `${horizonMonths} prochains mois`
+      const meta = `Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}  •  Horizon : ${horizonLabel}  •  ${payouts.length} remise(s)  •  Total : ${fmtAmount(totalAmount)} FCFA`
       const header = [
         'Matricule',
         'Membre / Groupe',
@@ -156,7 +169,22 @@ export function UpcomingPayoutsList() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={String(horizonMonths)}
+            onValueChange={(value) => setHorizonMonths(Number(value))}
+          >
+            <SelectTrigger className="h-9 w-[150px]" aria-label="Horizon de prévision">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYOUT_HORIZON_OPTIONS.map((months) => (
+                <SelectItem key={months} value={String(months)}>
+                  {months === 1 ? 'Prochain mois' : `${months} prochains mois`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
             Actualiser
@@ -261,6 +289,17 @@ export function UpcomingPayoutsList() {
                       </TableCell>
                       <TableCell className="text-right font-semibold text-gray-900 tabular-nums">
                         {fmtAmount(p.amount)} FCFA
+                        {/* Contrat encore en cours : le montant grossira avec les
+                            versements restants. On le signale pour qu'une
+                            prévision de trésorerie ne se lise pas comme une dette. */}
+                        {p.isProjected && (
+                          <span
+                            className="ml-1.5 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+                            title="Contrat en cours : montant estimé à ce jour, il évoluera avec les versements restants."
+                          >
+                            estimé
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span

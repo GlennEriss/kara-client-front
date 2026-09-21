@@ -265,7 +265,7 @@ export interface MembershipRequestAction {
 /**
  * Module d'origine de la notification
  */
-export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement' | 'credit_speciale'
+export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement' | 'credit_speciale' | 'boutique'
 
 /**
  * Type de notification
@@ -2840,8 +2840,24 @@ export interface ShopPhoto {
 }
 
 /**
+ * Cycle de validation d'une boutique.
+ *
+ * Une boutique créée par un admin est publiée directement (`approved`). Une
+ * boutique soumise par un membre depuis son portail arrive en `pending` et
+ * n'apparaît dans l'annuaire qu'une fois validée. Les fiches créées avant ce
+ * circuit n'ont pas le champ : elles sont lues comme `approved`.
+ */
+export type ShopStatus = 'pending' | 'approved' | 'rejected'
+
+export const SHOP_STATUS_LABELS: Record<ShopStatus, string> = {
+  pending: 'À valider',
+  approved: 'Validée',
+  rejected: 'Refusée',
+}
+
+/**
  * Boutique / commerce d'un membre (annuaire « Boutiques »).
- * Créée et gérée par l'admin, consultable par tous les membres.
+ * Créée par l'admin ou soumise par le membre, puis validée par l'admin.
  */
 export interface Shop {
   id: string
@@ -2871,6 +2887,17 @@ export interface Shop {
   openingHours?: ShopDayHours[]
   /** Visible dans l'annuaire membre si true. */
   isActive: boolean
+  // Circuit de validation
+  /** Absent sur les fiches antérieures au circuit : lu comme `approved`. */
+  status?: ShopStatus
+  /** UID du membre qui a soumis la fiche depuis son portail. */
+  submittedBy?: string
+  submittedAt?: Date
+  /** Identifiant de l'admin qui a tranché. */
+  reviewedBy?: string
+  reviewedAt?: Date
+  /** Motif communiqué au membre en cas de refus. */
+  rejectionReason?: string
   createdAt: Date
   createdBy: string
   updatedAt: Date
