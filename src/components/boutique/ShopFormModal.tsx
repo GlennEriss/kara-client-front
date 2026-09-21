@@ -394,6 +394,14 @@ export default function ShopFormModal({ open, onClose, shop }: Props) {
                 <SelectItem value="inactive">Inactive (masquée)</SelectItem>
               </SelectContent>
             </Select>
+            {/* Une fiche soumise par un membre reste hors annuaire tant qu'elle
+                n'est pas validée : le sélecteur de visibilité ne suffit pas. */}
+            {shop?.status === 'pending' && (
+              <p className="text-xs text-amber-700">
+                Fiche soumise par un membre, en attente de validation : elle n&apos;apparaîtra dans
+                l&apos;annuaire qu&apos;après un clic sur « Valider » dans la liste.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

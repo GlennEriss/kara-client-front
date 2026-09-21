@@ -505,6 +505,22 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Boutique soumise par un membre depuis son portail. Chemins générés par
+    // uploadDataUrlToStorage : {category}/{userId}/{matricule}/{filename}.
+    // Lecture publique comme `shops/**` : une fois la fiche validée, ces
+    // images sont celles de l'annuaire.
+    match /shop-photo/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
+    match /shop-gallery/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isImage() && isImageSizeValid();
+      allow delete: if isAdmin();
+    }
+
     // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================

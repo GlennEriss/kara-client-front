@@ -1,7 +1,7 @@
 "use client"
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
-import { resolveContractEndAt } from '@/services/caisse/contractDates'
+import { formatBonusPeriod, formatContractPeriod } from '@/services/caisse/contractLabels'
 import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
@@ -87,20 +87,6 @@ const brand = {
 
 
 
-/**
- * Période couverte par le contrat, pour la carte « Durée ».
- * `contractEndAt` est calculé et enregistré à la création (computeContractEndAt).
- */
-function formatContractPeriod(contract: any): string | undefined {
-  const start = contract?.contractStartAt ?? contract?.firstPaymentDate
-  // `contractEndAt` manque sur les contrats antérieurs à ce champ et sur les
-  // contrats importés : `resolveContractEndAt` la recalcule au besoin.
-  const end = resolveContractEndAt(contract)
-  if (!start || !end) return undefined
-  const from = new Date(start)
-  if (Number.isNaN(from.getTime()) || Number.isNaN(end.getTime())) return undefined
-  return `du ${from.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`
-}
 
 function classNames(...cls: (string | false | undefined)[]) {
   return cls.filter(Boolean).join(" ")
@@ -508,7 +494,7 @@ export default function StandardContract({ id }: Props) {
             { title: 'Montant mensuel', value: `${formatAmount(data.monthlyAmount || 0)} FCFA`, accent: true },
             { title: 'Durée (mois)', value: data.monthsPlanned || 0, subtitle: formatContractPeriod(data) },
             { title: 'Nominal payé', value: `${formatAmount(data.nominalPaid || 0)} FCFA` },
-            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA` },
+            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: formatBonusPeriod(data) },
             { title: 'Pénalités cumulées', value: `${formatAmount(data.penaltiesTotal || 0)} FCFA`, danger: (data.penaltiesTotal || 0) > 0 },
             { title: 'Prochaine échéance', value: data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—" },
           ]}

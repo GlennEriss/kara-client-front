@@ -15,16 +15,32 @@
 import { useQuery } from '@tanstack/react-query'
 import { addDays, addMonths, differenceInCalendarDays, startOfDay } from 'date-fns'
 import { getAllContracts } from '@/db/caisse/contracts.db'
+import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { listPayments } from '@/db/caisse/payments.db'
 import { listRefunds, listRefundsCI } from '@/db/caisse/refunds.db'
 import { getUserById } from '@/db/user.db'
 import { getGroupById } from '@/db/group.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 import type { CaisseContract, CaissePayment, CaisseType } from '@/services/caisse/types'
 import type { ContractCI, PaymentCI, Placement } from '@/types/types'
 
 /** Délai (jours) entre le fait générateur (dernier versement / fin / demande) et la remise. */
 export const PAYOUT_DELAY_DAYS = 30
+
+/**
+ * Horizon de prévision : un contrat entre dans la liste dès que sa fin est
+ * atteinte ou prévue dans les N prochains mois.
+ *
+ * Auparavant, seuls les contrats *entièrement* cotisés apparaissaient. Un
+ * membre ayant versé 8 mois sur 12 n'était visible nulle part alors que la
+ * caisse lui devra son nominal à l'échéance : l'admin n'avait aucun moyen
+ * d'anticiper la trésorerie à sortir.
+ */
+export const PAYOUT_HORIZON_MONTHS = 3
+
+/** Horizons proposés dans le sélecteur de l'écran Calendrier. */
+export const PAYOUT_HORIZON_OPTIONS = [1, 3, 6, 12] as const
 
 export type PayoutProduct = 'Caisse Spéciale' | 'Caisse Imprévue' | 'Placement'
 export type PayoutKind = 'FINAL' | 'EARLY'
@@ -49,6 +65,12 @@ export interface UpcomingPayout {
   dueAt: Date
   /** Jours restants (négatif = remise en retard). */
   daysUntil: number
+  /**
+   * `true` quand le contrat n'est pas encore arrivé à son terme : le montant
+   * est une projection, pas une somme déjà exigible. Permet à l'écran de ne pas
+   * faire passer une prévision pour une dette.
+   */
+  isProjected?: boolean
 }
 
 const CAISSE_TYPE_LABELS: Record<CaisseType, string> = {
@@ -118,17 +140,25 @@ function lastPaidDateCS(payments: CaissePayment[]): Date | undefined {
   return last
 }
 
-async function fetchUpcomingCS(today: Date): Promise<UpcomingPayout[]> {
+async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<UpcomingPayout[]> {
   const contracts = (await getAllContracts({
     statuses: [...CS_RUNNING_STATUSES, ...CS_PENDING_STATUSES],
   })) as CaisseContract[]
 
-  // Candidats : retrait/remboursement demandé, OU contrat entièrement cotisé.
-  const candidates = contracts.filter(
-    (c) =>
-      CS_PENDING_STATUSES.includes(c.status) ||
-      ((c.monthsPlanned || 0) > 0 && (c.currentMonthIndex || 0) >= c.monthsPlanned),
-  )
+  // Candidats : retrait/remboursement demandé, contrat entièrement cotisé, OU
+  // contrat dont la fin est atteinte / proche — à condition qu'au moins un
+  // versement ait été fait, sinon il n'y a rien à restituer.
+  const horizon = addMonths(today, horizonMonths)
+  const candidates = contracts.filter((c) => {
+    if (CS_PENDING_STATUSES.includes(c.status)) return true
+    if ((c.monthsPlanned || 0) > 0 && (c.currentMonthIndex || 0) >= c.monthsPlanned) return true
+
+    const hasPaid = (c.nominalPaid || 0) > 0 || (c.currentMonthIndex || 0) > 0
+    if (!hasPaid) return false
+
+    const end = resolveContractEndAt(c)
+    return Boolean(end && startOfDay(end) <= horizon)
+  })
 
   const getUser = makeUserCache()
 
@@ -173,6 +203,10 @@ async function fetchUpcomingCS(today: Date): Promise<UpcomingPayout[]> {
           (pending?.withdrawalAmount && pending.withdrawalAmount > 0
             ? pending.withdrawalAmount
             : undefined) ?? (c.nominalPaid || 0) + (c.bonusAccrued || 0)
+        // Contrat pas encore soldé et sans demande : le montant continuera de
+        // croître avec les versements restants.
+        const isProjected =
+          !isEarly && !pending && (c.monthsPlanned || 0) > 0 && (c.currentMonthIndex || 0) < c.monthsPlanned
 
         let name = '—'
         let phone: string | undefined
@@ -210,6 +244,7 @@ async function fetchUpcomingCS(today: Date): Promise<UpcomingPayout[]> {
           referenceAt,
           dueAt,
           daysUntil: differenceInCalendarDays(dueAt, today),
+          isProjected,
         }
       } catch (error) {
         console.error(`[payouts][CS] contrat ${c.id}:`, error)
@@ -237,7 +272,7 @@ function lastPaidDateCI(payments: PaymentCI[]): Date | undefined {
   return last
 }
 
-async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
+async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<UpcomingPayout[]> {
   const service = ServiceFactory.getCaisseImprevueService()
   const contracts: ContractCI[] = await service.getContractsCIPaginated({ status: 'ACTIVE' })
 
@@ -248,6 +283,13 @@ async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
       try {
         const fullyPaid =
           (c.subscriptionCIDuration || 0) > 0 && (c.totalMonthsPaid || 0) >= c.subscriptionCIDuration
+
+        // Fin atteinte ou proche, avec au moins un versement : la caisse devra
+        // restituer, même si le contrat n'est pas allé au bout de ses mois.
+        const contractEnd = getContractEndDate(c)
+        const endingSoon =
+          (c.totalMonthsPaid || 0) > 0 &&
+          Boolean(contractEnd && startOfDay(contractEnd) <= addMonths(today, horizonMonths))
 
         // La sous-collection earlyRefunds contient les demandes EARLY et FINAL.
         const refunds = (await listRefundsCI(c.id)) as Array<{
@@ -260,7 +302,7 @@ async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
         if (refunds.some((r) => r.status === 'PAID')) return null
 
         const pending = refunds.find((r) => r.status === 'PENDING' || r.status === 'APPROVED')
-        if (!pending && !fullyPaid) return null
+        if (!pending && !fullyPaid && !endingSoon) return null
 
         const isEarly = pending ? pending.type !== 'FINAL' : false
         let referenceAt: Date | undefined
@@ -269,11 +311,14 @@ async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
         } else {
           // Contrat entièrement cotisé : 30 jours après la DATE DE FIN du contrat
           // (début + durée du forfait), pas après le dernier versement.
+          // `getContractEndDate` tient compte des périodes de 30 jours en
+          // journalier, là où « début + durée mois » dérivait de quelques jours.
           const start =
             toDate(c.firstPaymentDate) ?? toDate((c as { startDate?: unknown }).startDate) ?? toDate(c.createdAt)
-          referenceAt = start
-            ? addMonths(start, c.subscriptionCIDuration || 0)
-            : lastPaidDateCI(await service.getPaymentsByContractId(c.id))
+          referenceAt =
+            contractEnd ??
+            (start ? addMonths(start, c.subscriptionCIDuration || 0) : undefined) ??
+            lastPaidDateCI(await service.getPaymentsByContractId(c.id))
         }
         if (!referenceAt) return null
 
@@ -283,6 +328,7 @@ async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
             ? pending.withdrawalAmount
             : undefined) ??
           (c.totalMonthsPaid || 0) * (c.subscriptionCIAmountPerMonth || 0)
+        const isProjected = !isEarly && !pending && !fullyPaid
 
         // Matricule / WhatsApp : pas sur le contrat CI → via le membre.
         let matricule: string | undefined
@@ -308,6 +354,7 @@ async function fetchUpcomingCI(today: Date): Promise<UpcomingPayout[]> {
           referenceAt,
           dueAt,
           daysUntil: differenceInCalendarDays(dueAt, today),
+          isProjected,
         }
       } catch (error) {
         console.error(`[payouts][CI] contrat ${c.id}:`, error)
@@ -408,14 +455,19 @@ async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
 
 /* ---------- Hook ---------- */
 
-export function useUpcomingPayouts() {
+/**
+ * @param horizonMonths profondeur de prévision : un contrat entre dans la liste
+ *   si sa fin est atteinte ou prévue dans ce délai.
+ */
+export function useUpcomingPayouts(horizonMonths: number = PAYOUT_HORIZON_MONTHS) {
   return useQuery<UpcomingPayout[]>({
-    queryKey: ['upcoming-payouts'],
+    // L'horizon fait partie de la clé : chaque profondeur a son propre cache.
+    queryKey: ['upcoming-payouts', horizonMonths],
     queryFn: async () => {
       const today = startOfDay(new Date())
       const [cs, ci, pl] = await Promise.all([
-        fetchUpcomingCS(today),
-        fetchUpcomingCI(today),
+        fetchUpcomingCS(today, horizonMonths),
+        fetchUpcomingCI(today, horizonMonths),
         fetchUpcomingPlacement(today),
       ])
       return [...cs, ...ci, ...pl].sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())

@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
-import type { Shop, ShopPhoto } from '@/types/types'
+import type { Shop, ShopPhoto, ShopStatus } from '@/types/types'
 
 const COL = firebaseCollectionNames.shops
 
@@ -54,6 +54,14 @@ function mapShop(id: string, data: any): Shop {
       : [],
     openingHours: Array.isArray(data.openingHours) ? data.openingHours : [],
     isActive: data.isActive ?? true,
+    // Fiches créées avant le circuit de validation : pas de champ `status`,
+    // elles étaient publiées d'office et le restent.
+    status: (data.status as ShopStatus) ?? 'approved',
+    submittedBy: data.submittedBy ?? '',
+    submittedAt: toDate(data.submittedAt),
+    reviewedBy: data.reviewedBy ?? '',
+    reviewedAt: toDate(data.reviewedAt),
+    rejectionReason: data.rejectionReason ?? '',
     createdAt: toDate(data.createdAt) ?? new Date(),
     createdBy: data.createdBy ?? '',
     updatedAt: toDate(data.updatedAt) ?? new Date(),
@@ -77,6 +85,9 @@ export async function createShop(input: ShopInput, adminId: string): Promise<str
   await setDoc(doc(db, COL, id), {
     ...clean(input as Record<string, unknown>),
     isActive: input.isActive ?? true,
+    // Une fiche saisie par un admin est déjà validée : il est l'instance de
+    // contrôle, la faire passer par sa propre file n'aurait pas de sens.
+    status: input.status ?? 'approved',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     createdBy: adminId,
@@ -99,4 +110,27 @@ export async function updateShop(
 
 export async function deleteShop(id: string): Promise<void> {
   await deleteDoc(doc(db, COL, id))
+}
+
+/**
+ * Tranche une boutique soumise par un membre.
+ *
+ * L'acceptation la publie (`isActive`), le refus la laisse hors annuaire avec
+ * son motif : le membre peut la corriger et la resoumettre sans tout ressaisir.
+ */
+export async function reviewShop(
+  id: string,
+  decision: Extract<ShopStatus, 'approved' | 'rejected'>,
+  adminId: string,
+  rejectionReason?: string,
+): Promise<void> {
+  await updateDoc(doc(db, COL, id), {
+    status: decision,
+    isActive: decision === 'approved',
+    rejectionReason: decision === 'rejected' ? (rejectionReason || '').trim() : '',
+    reviewedBy: adminId,
+    reviewedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: adminId,
+  })
 }
