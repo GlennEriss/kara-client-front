@@ -82,8 +82,8 @@ function referenceLabel(payout: UpcomingPayout): string {
 
 /**
  * Remises d'argent à venir (Caisse Spéciale + Caisse Imprévue + Placement) :
- * l'argent est dû 30 jours après le dernier versement (contrat entièrement
- * cotisé), la fin du placement, ou la demande de retrait anticipé.
+ * une remise finale est due à la fin du contrat ou du placement. Pour un
+ * retrait anticipé, l'argent est dû 30 jours après la demande.
  */
 export function UpcomingPayoutsList() {
   // Profondeur de prévision : jusqu'où l'admin veut anticiper les sorties.

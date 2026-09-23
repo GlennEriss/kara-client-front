@@ -15,6 +15,7 @@ import { ICaisseImprevueDemandRepository } from "@/repositories/caisse-imprevue/
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
+import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
@@ -891,7 +892,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             // 9. Créer la demande de retrait anticipé
             const withdrawalDate = new Date(data.withdrawalDate)
             const withdrawalRecordedAt = new Date(`${data.withdrawalDate}T${data.withdrawalTime}:00`)
-            const deadlineAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // 45 jours après création
+            // La remise finale est due au terme du contrat, pas 45 jours après
+            // sa création. Le repli conserve une date exploitable pour les
+            // anciens contrats dont les données de durée seraient incomplètes.
+            const deadlineAt = getContractEndDate(contract) ?? withdrawalDate
 
             const earlyRefundData: Omit<EarlyRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
                 contractId,
