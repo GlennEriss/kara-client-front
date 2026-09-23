@@ -568,7 +568,12 @@ export async function requestFinalRefund(contractId: string, reason?: string) {
     totalPaid: amountNominal,
     settings: settings as any,
   }).amount
-  const deadlineAt = c.contractEndAt ? new Date(new Date(c.contractEndAt).getTime() + 30*86400000) : new Date()
+  // La remise finale est exigible dès le terme du contrat. Les anciens dossiers
+  // sans `contractEndAt` sont recalculés avec la même règle que l'échéancier.
+  const deadlineAt =
+    (c.contractEndAt ? new Date(c.contractEndAt) : null) ??
+    computeContractEndAt(c.contractStartAt, c.monthsPlanned, c.caisseType) ??
+    new Date()
   await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING', reason: reason || '' })
   return true
 }

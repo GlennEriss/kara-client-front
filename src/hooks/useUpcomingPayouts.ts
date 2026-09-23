@@ -3,10 +3,9 @@
 /**
  * Hook : liste des REMISES D'ARGENT à venir (Caisse Spéciale + Caisse Imprévue + Placement).
  *
- * Règle métier : la personne récupère son argent 30 jours après
- *  - son DERNIER VERSEMENT pour un contrat de caisse entièrement cotisé ;
- *  - la FIN DU PLACEMENT (date de terme) pour un placement actif ;
- *  - la DATE DE LA DEMANDE pour un retrait anticipé (caisses et placements).
+ * Règle métier : la remise finale est due exactement à la fin du contrat ou
+ * du placement. Seul un retrait anticipé conserve un délai de 30 jours après
+ * la date de sa demande.
  *
  * Un contrat sort de la liste dès que sa remise est marquée payée (refund PAID)
  * ou que le contrat/placement est clôturé/résilié.
@@ -25,8 +24,8 @@ import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 import type { CaisseContract, CaissePayment, CaisseType } from '@/services/caisse/types'
 import type { ContractCI, PaymentCI, Placement } from '@/types/types'
 
-/** Délai (jours) entre le fait générateur (dernier versement / fin / demande) et la remise. */
-export const PAYOUT_DELAY_DAYS = 30
+/** Délai appliqué exclusivement aux demandes de retrait anticipé. */
+export const EARLY_PAYOUT_DELAY_DAYS = 30
 
 /**
  * Horizon de prévision : un contrat entre dans la liste dès que sa fin est
@@ -59,9 +58,9 @@ export interface UpcomingPayout {
   typeLabel: string
   /** Montant à remettre (montant demandé si connu, sinon cotisé + bonus). */
   amount: number
-  /** Fait générateur : dernier versement (FINAL) ou demande de retrait (EARLY). */
+  /** Fait générateur : fin du contrat/placement (FINAL) ou demande de retrait (EARLY). */
   referenceAt: Date
-  /** Date à laquelle l'argent doit être remis (référence + 30 jours). */
+  /** Date à laquelle l'argent doit être remis (fin du contrat ou demande + 30 jours). */
   dueAt: Date
   /** Jours restants (négatif = remise en retard). */
   daysUntil: number
@@ -104,6 +103,17 @@ function maxDate(a: Date | undefined, b: Date | undefined): Date | undefined {
   if (!a) return b
   if (!b) return a
   return a > b ? a : b
+}
+
+/**
+ * Une remise finale est exigible à son terme. Le délai de 30 jours ne concerne
+ * que les demandes de retrait anticipé.
+ */
+export function getPayoutDueAt(referenceAt: Date, kind: PayoutKind): Date {
+  const referenceDay = startOfDay(referenceAt)
+  return kind === 'EARLY'
+    ? addDays(referenceDay, EARLY_PAYOUT_DELAY_DAYS)
+    : referenceDay
 }
 
 /** Le même membre n'est lu qu'une fois par exécution (cache de promesses). */
@@ -198,7 +208,7 @@ async function fetchUpcomingCS(today: Date, horizonMonths: number): Promise<Upco
         }
         if (!referenceAt) return null
 
-        const dueAt = addDays(startOfDay(referenceAt), PAYOUT_DELAY_DAYS)
+        const dueAt = getPayoutDueAt(referenceAt, isEarly ? 'EARLY' : 'FINAL')
         const amount =
           (pending?.withdrawalAmount && pending.withdrawalAmount > 0
             ? pending.withdrawalAmount
@@ -309,7 +319,7 @@ async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<Upco
         if (isEarly) {
           referenceAt = toDate(pending?.createdAt) ?? toDate(pending?.withdrawalDate)
         } else {
-          // Contrat entièrement cotisé : 30 jours après la DATE DE FIN du contrat
+          // Contrat entièrement cotisé : remise à la DATE DE FIN du contrat
           // (début + durée du forfait), pas après le dernier versement.
           // `getContractEndDate` tient compte des périodes de 30 jours en
           // journalier, là où « début + durée mois » dérivait de quelques jours.
@@ -322,7 +332,7 @@ async function fetchUpcomingCI(today: Date, horizonMonths: number): Promise<Upco
         }
         if (!referenceAt) return null
 
-        const dueAt = addDays(startOfDay(referenceAt), PAYOUT_DELAY_DAYS)
+        const dueAt = getPayoutDueAt(referenceAt, isEarly ? 'EARLY' : 'FINAL')
         const amount =
           (pending?.withdrawalAmount && pending.withdrawalAmount > 0
             ? pending.withdrawalAmount
@@ -375,7 +385,7 @@ const PAYOUT_MODE_LABELS: Record<string, string> = {
 
 async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
   const service = ServiceFactory.getPlacementService()
-  // Filtre serveur : seuls les placements actifs (remise à terme + 30 j)
+  // Filtre serveur : seuls les placements actifs (remise à terme)
   // et les retraits anticipés en cours nous intéressent.
   const candidates: Placement[] = await service.listPlacements({ statuses: ['Active', 'EarlyExit'] })
 
@@ -394,7 +404,7 @@ async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
           referenceAt = toDate(exit?.requestedAt) ?? toDate(p.updatedAt)
           amount = exit?.withdrawalAmount || exit?.payoutAmount || amount
         } else {
-          // Placement à terme : 30 jours après la date de fin (connue d'avance).
+          // Placement à terme : remise à la date de fin (connue d'avance).
           referenceAt =
             toDate(p.endDate) ??
             (toDate(p.startDate) ? addMonths(toDate(p.startDate) as Date, p.periodMonths || 0) : undefined)
@@ -408,7 +418,7 @@ async function fetchUpcomingPlacement(today: Date): Promise<UpcomingPayout[]> {
         }
         if (!referenceAt) return null
 
-        const dueAt = addDays(startOfDay(referenceAt), PAYOUT_DELAY_DAYS)
+        const dueAt = getPayoutDueAt(referenceAt, isEarly ? 'EARLY' : 'FINAL')
 
         // Matricule / WhatsApp du bienfaiteur via sa fiche membre.
         let matricule: string | undefined
