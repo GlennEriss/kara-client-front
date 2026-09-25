@@ -33,7 +33,7 @@ export default function LoginMembershipWithEmailAndPassword() {
               <div className="flex items-center justify-center mb-6">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-[#234D65] to-[#1a3b4d] shadow-md">
                   <div className="logo-white-filter">
-                    <Logo variant="default" size="md" alt="KARA" />
+                    <Logo variant="default" size="md" alt="LE KARA" />
                   </div>
                 </div>
               </div>

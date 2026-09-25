@@ -20,7 +20,7 @@ import { auth } from '@/firebase/auth'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 
 const SUPERADMIN_EMAIL = 'phil@gmail.com'
-const CONFIRM_PHRASE = 'SUPPRIMER TOUT KARA'
+const CONFIRM_PHRASE = 'SUPPRIMER TOUT LE KARA'
 
 /** Sections métier réinitialisables individuellement (clés alignées sur l'API). */
 const SECTIONS: { key: string; label: string }[] = [

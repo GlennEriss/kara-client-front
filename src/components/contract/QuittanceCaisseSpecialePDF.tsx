@@ -397,7 +397,7 @@ const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fi
           </Text>
 
           <Text style={[styles.articleText, { marginTop: 8 }]}>
-            Cette quittance est libératoire de tout engagement de l'Association KARA vis-à-vis de l'épargnant.
+            Cette quittance est libératoire de tout engagement de l'Association LE KARA vis-à-vis de l'épargnant.
             Elle est établie pour faire valoir ce que de droit.
           </Text>
 

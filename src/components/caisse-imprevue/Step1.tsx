@@ -234,7 +234,7 @@ export default function Step1() {
                   <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
                     <Badge className="bg-[#224D62]">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Membre KARA
+                      Membre LE KARA
                     </Badge>
                   </div>
                 </div>

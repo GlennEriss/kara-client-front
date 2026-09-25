@@ -102,7 +102,7 @@ export default function AdminLogin() {
   return (
     <AuthLayout
       title="Connexion Administrateur"
-      subtitle="Accédez au panneau d'administration KARA"
+      subtitle="Accédez au panneau d'administration LE KARA"
       headerIcon={<Shield className="w-6 h-6" />}
       headerTitle="Espace Sécurisé"
     >

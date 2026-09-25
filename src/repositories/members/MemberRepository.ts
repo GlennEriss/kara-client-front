@@ -77,23 +77,32 @@ export class MemberRepository implements IMemberRepository {
      */
     async getMemberById(memberId: string): Promise<User | null> {
         try {
-            const { doc, getDoc } = await getFirestore();
+            const { collection, doc, getDoc, getDocs, query, where } = await getFirestore();
             const { db } = await getFirestore();
             
             // Chercher dans la collection users avec l'ID comme document ID
             const userRef = doc(db, firebaseCollectionNames.users || "users", memberId);
             const docSnap = await getDoc(userRef);
             
-            if (!docSnap.exists()) {
-                console.log(`Membre non trouvé avec l'ID: ${memberId}`);
+            // Les contrats CI historiques utilisent parfois le matricule au
+            // lieu de l'identifiant du document `users`.
+            const memberSnapshot = docSnap.exists()
+                ? docSnap
+                : (await getDocs(query(
+                    collection(db, firebaseCollectionNames.users || "users"),
+                    where("matricule", "==", memberId.trim()),
+                ))).docs[0];
+
+            if (!memberSnapshot) {
+                console.log(`Membre non trouvé avec l'ID ou le matricule: ${memberId}`);
                 return null;
             }
-            
-            const data = docSnap.data();
+
+            const data = memberSnapshot.data();
             
             // Convertir les timestamps Firebase en Date
             const user: User = {
-                id: docSnap.id,
+                id: memberSnapshot.id,
                 ...(data as any),
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
@@ -116,7 +125,7 @@ export class MemberRepository implements IMemberRepository {
      */
     async searchMembers(searchQuery: string): Promise<User[]> {
         try {
-            const { collection, db, getDocs, query, where, or } = await getFirestore();
+            const { collection, db, getDocs, query, where } = await getFirestore();
             const normalizedQuery = searchQuery.trim().toLowerCase();
 
             if (!normalizedQuery) {

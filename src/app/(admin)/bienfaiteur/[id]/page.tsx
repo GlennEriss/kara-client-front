@@ -2,7 +2,7 @@ import CharityEventDetail from '@/components/bienfaiteur/CharityEventDetail'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Détail Évènement | KARA Admin',
+  title: 'Détail Évènement | LE KARA Admin',
   description: 'Détails d\'un évènement caritatif'
 }
 

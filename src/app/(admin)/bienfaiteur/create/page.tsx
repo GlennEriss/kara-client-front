@@ -4,7 +4,7 @@ import { HandHeart } from 'lucide-react'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Créer un Évènement | KARA Admin',
+  title: 'Créer un Évènement | LE KARA Admin',
   description: 'Créer un nouvel évènement caritatif'
 }
 

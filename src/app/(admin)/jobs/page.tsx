@@ -5,7 +5,7 @@ import { Suspense } from 'react'
  * Page de gestion des Métiers / Professions
  * 
  * Utilise le composant ReferencesManagementV2 avec l'onglet "Métiers" par défaut
- * Design cohérent KARA : Header > Stats > Tabs
+ * Design cohérent LE KARA : Header > Stats > Tabs
  */
 export default function JobsPage() {
   return (

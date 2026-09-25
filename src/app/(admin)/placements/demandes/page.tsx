@@ -5,7 +5,7 @@ import { ClipboardList } from 'lucide-react'
 import { Suspense } from 'react'
 
 export const metadata = {
-  title: 'Demandes de placement | Kara Administration',
+  title: 'Demandes de placement | LE KARA Administration',
   description: 'Liste des demandes de placement (en attente, acceptées, refusées, converties)',
 }
 

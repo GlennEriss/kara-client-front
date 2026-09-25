@@ -178,7 +178,7 @@ describe('paymentPDFUtils', () => {
       expect(mockJsPDF).toHaveBeenCalledWith('portrait', 'mm', 'a4')
     })
 
-    it('devrait inclure le titre "KARA" dans l\'en-tête', async () => {
+    it('devrait inclure le titre "LE KARA" dans l\'en-tête', async () => {
       const payment = createMockPayment()
 
       await generatePaymentPDF({
@@ -187,7 +187,7 @@ describe('paymentPDFUtils', () => {
         requestId: '2357.MK.160126',
       })
 
-      expect(mockText).toHaveBeenCalledWith('KARA', 20, 20)
+      expect(mockText).toHaveBeenCalledWith('LE KARA', 20, 20)
     })
 
     it('devrait inclure le sous-titre "Reçu de paiement – Adhésion"', async () => {
@@ -353,7 +353,7 @@ describe('paymentPDFUtils', () => {
       )
     })
 
-    it('devrait inclure "Admin KARA" comme enregistreur (pas le nom réel)', async () => {
+    it('devrait inclure "Admin LE KARA" comme enregistreur (pas le nom réel)', async () => {
       const payment = createMockPayment({ recordedByName: 'Jean Dupont' })
 
       await generatePaymentPDF({
@@ -363,7 +363,7 @@ describe('paymentPDFUtils', () => {
       })
 
       expect(mockText).toHaveBeenCalledWith(
-        'Paiement enregistré par: Admin KARA',
+        'Paiement enregistré par: Admin LE KARA',
         20,
         expect.any(Number)
       )

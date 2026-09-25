@@ -107,7 +107,7 @@ const Homepage = () => {
             <div className="text-white space-y-8 animate-fade-in-left">
               <div className="space-y-4">
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-[1.1]">
-                  <span className="block mt-10">KARA</span>
+                  <span className="block mt-10">LE KARA</span>
                   <span className="block text-kara-gold bg-gradient-to-r from-kara-gold to-yellow-400 bg-clip-text text-transparent">
                     association de Solidarité
                   </span>
@@ -143,7 +143,7 @@ const Homepage = () => {
                 <div className="hero-card w-full h-80 sm:h-96 lg:h-[28rem] rounded-3xl overflow-hidden floating shadow-2xl">
                   <img
                     src="/imgkara.webp"
-                    alt="KARA - Solidarité Active"
+                    alt="LE KARA - Solidarité Active"
                     className="hero-image-full w-full h-full object-cover"
                     loading="eager"
                   />
@@ -196,7 +196,7 @@ const Homepage = () => {
                   <h3 className="text-xl font-bold text-kara-blue mb-6">Notre origine</h3>
                   <TruncatedText
                     id="qui-sommes-nous-1"
-                    fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, l'Association KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
+                    fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, l'Association LE KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
                     truncatedText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité"
                     className="text-gray-700 leading-relaxed"
                     expandedTexts={expandedTexts}
@@ -217,7 +217,7 @@ const Homepage = () => {
                 <div className="flex-grow flex flex-col justify-center">
                   <h3 className="text-xl font-bold text-kara-blue mb-6">Notre vision</h3>
                   <p className="text-gray-700 leading-relaxed text-lg">
-                    Kara c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
+                    LE KARA, c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
                   </p>
                 </div>
               </CardContent>
@@ -270,7 +270,7 @@ const Homepage = () => {
               </div>
               <h3 className="text-xl font-bold text-kara-blue mb-4">Actions Caritatives</h3>
               <p className="text-gray-700 leading-relaxed">
-                Nous croyons que chaque membre a quelque chose à donner, c'est pourquoi l'Association KARA s'ouvre au monde par les actions charitables auprès des nécessiteux.
+                Nous croyons que chaque membre a quelque chose à donner, c'est pourquoi l'Association LE KARA s'ouvre au monde par les actions charitables auprès des nécessiteux.
               </p>
             </div>
           </div>
@@ -291,7 +291,7 @@ const Homepage = () => {
                 <CalendarCheck className="text-kara-blue mx-auto mb-6" size={64} />
                 <h3 className="text-xl font-bold text-kara-blue mb-4">L'entraide mensuelle</h3>
                 <p className="text-gray-700 text-sm leading-relaxed">
-                  Comme toute association, Kara vit des cotisations mensuelles de ses membres et du soutien des bénévoles. À travers l'entraide mensuelle, chacun participe activement au fonctionnement régulier de notre association.
+                  Comme toute association, LE KARA vit des cotisations mensuelles de ses membres et du soutien des bénévoles. À travers l'entraide mensuelle, chacun participe activement au fonctionnement régulier de notre association.
                 </p>
               </CardContent>
             </Card>
@@ -302,7 +302,7 @@ const Homepage = () => {
                 <h3 className="text-xl font-bold text-kara-blue mb-4">La Caisse spéciale</h3>
                 <TruncatedText
                   id="service-caisse-speciale"
-                  fullText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre. En contrepartie des versements mensuels, l'Association KARA assure la conservation et la mise à disposition de ces fonds aux épargnants en cas de besoin."
+                  fullText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre. En contrepartie des versements mensuels, l'Association LE KARA assure la conservation et la mise à disposition de ces fonds aux épargnants en cas de besoin."
                   truncatedText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre..."
                   className="text-gray-700 text-sm leading-relaxed"
                   expandedTexts={expandedTexts}
@@ -327,8 +327,8 @@ const Homepage = () => {
                 <h3 className="text-xl font-bold text-kara-blue mb-4">La caisse bienfaiteur</h3>
                 <TruncatedText
                   id="service-bienfaiteur"
-                  fullText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur» de contribuer exceptionnellement aux œuvres caritatives qu'elle organise."
-                  truncatedText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur»..."
+                  fullText="Parce que la générosité n'a pas de frontières, LE KARA offre la possibilité à une catégorie de membres dits «bienfaiteur» de contribuer exceptionnellement aux œuvres caritatives qu'elle organise."
+                  truncatedText="Parce que la générosité n'a pas de frontières, LE KARA offre la possibilité à une catégorie de membres dits «bienfaiteur»..."
                   className="text-gray-700 text-sm leading-relaxed"
                   expandedTexts={expandedTexts}
                   onToggle={toggleText}
@@ -338,7 +338,7 @@ const Homepage = () => {
           </div>
 
           <div className="text-center mt-12">
-            <h3 className="text-2xl font-bold text-gradient">Avec KARA, la solidarité est une force !</h3>
+            <h3 className="text-2xl font-bold text-gradient">Avec LE KARA, la solidarité est une force !</h3>
           </div>
         </div>
       </section>
@@ -348,7 +348,7 @@ const Homepage = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in-up">
-              <h2 className="text-4xl font-bold text-kara-blue mb-8">Comment adhérer à KARA ?</h2>
+              <h2 className="text-4xl font-bold text-kara-blue mb-8">Comment adhérer à LE KARA ?</h2>
               <div className="section-divider mx-auto mb-12"></div>
 
               <Card className="adhesion-card p-12 text-white">
@@ -356,7 +356,7 @@ const Homepage = () => {
                   <MousePointer className="text-kara-gold mx-auto mb-8" size={80} />
                   <TruncatedText
                     id="adhesion"
-                    fullText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur. En adhérant à KARA, vous faîtes le choix d'impacter positivement le monde de votre façon et de semer une graine d'amour dans un cœur."
+                    fullText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur. En adhérant à LE KARA, vous faîtes le choix d'impacter positivement le monde de votre façon et de semer une graine d'amour dans un cœur."
                     truncatedText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur..."
                     className="text-xl leading-relaxed mb-8"
                     expandedTexts={expandedTexts}
@@ -367,7 +367,7 @@ const Homepage = () => {
                     Adhérer Maintenant
                   </Button>
                   <p className="text-2xl font-bold text-kara-gold">
-                    Avec KARA, aimer n'a jamais été aussi simple !
+                    Avec LE KARA, aimer n'a jamais été aussi simple !
                   </p>
                 </CardContent>
               </Card>
@@ -383,7 +383,7 @@ const Homepage = () => {
             <h2 className="text-4xl font-bold text-kara-blue mb-4">Nous Contacter</h2>
             <div className="section-divider mx-auto mb-8"></div>
             <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-              Pour obtenir des informations supplémentaires et discuter amplement avec les représentants de l'Association KARA, contactez le secrétaire général.
+              Pour obtenir des informations supplémentaires et discuter amplement avec les représentants de l'Association LE KARA, contactez le secrétaire général.
             </p>
           </div>
 
@@ -515,7 +515,7 @@ const Homepage = () => {
           </div>
 
           <div className="border-t border-gray-600 mt-8 pt-8 text-center">
-            <p className="text-gray-300">© 2025 KARA - association de Solidarité. Tous droits réservés.</p>
+            <p className="text-gray-300">© 2025 LE KARA - association de Solidarité. Tous droits réservés.</p>
           </div>
         </div>
       </footer>

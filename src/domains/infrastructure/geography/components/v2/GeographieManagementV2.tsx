@@ -14,11 +14,11 @@ import { useGeographyStats } from '../../hooks/useGeographie'
 import GeographyStatsV2 from './GeographyStatsV2'
 
 /**
- * GeographieManagementV2 - Version 2 avec couleurs KARA
+ * GeographieManagementV2 - Version 2 avec couleurs LE KARA
  * Voir documentation/DESIGN_SYSTEM_COULEURS_KARA.md
  * 
  * Améliorations V2 :
- * - Design avec couleurs KARA (kara-primary-dark, kara-primary-light)
+ * - Design avec couleurs LE KARA (kara-primary-dark, kara-primary-light)
  * - Sélecteurs stables avec data-testid pour les tests E2E
  * - Tabs avec attributs ARIA améliorés
  */
@@ -31,14 +31,14 @@ export default function GeographieManagementV2() {
 
   return (
     <div className="space-y-4 sm:space-y-6" data-testid="geographie-management-v2">
-      {/* Header - PageHero partagé (cohérence KARA) */}
+      {/* Header - PageHero partagé (cohérence LE KARA) */}
       <PageHero
         icon={MapPin}
         title="Gestion Géographique"
         subtitle="Gérez les provinces, départements, communes, arrondissements et quartiers"
       />
 
-      {/* Statistiques avec couleurs KARA */}
+      {/* Statistiques avec couleurs LE KARA */}
       <section data-testid="geographie-stats-section">
         <GeographyStatsV2 
           stats={stats} 
@@ -46,7 +46,7 @@ export default function GeographieManagementV2() {
         />
       </section>
 
-      {/* Tabs avec style KARA */}
+      {/* Tabs avec style LE KARA */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" data-testid="geographie-tabs">
         <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
           <TabsList 

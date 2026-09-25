@@ -82,7 +82,7 @@ export async function generatePaymentPDF({
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF('portrait', 'mm', 'a4')
 
-    // Couleurs KARA
+    // Couleurs LE KARA
     const primaryColor: [number, number, number] = [31, 81, 255] // kara-primary-dark
     const secondaryColor: [number, number, number] = [100, 116, 139] // kara-neutral-500
 
@@ -93,7 +93,7 @@ export async function generatePaymentPDF({
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(20)
     doc.setFont('helvetica', 'bold')
-    doc.text('KARA', 20, 20)
+    doc.text('LE KARA', 20, 20)
     
     doc.setFontSize(12)
     doc.setFont('helvetica', 'normal')
@@ -157,7 +157,7 @@ export async function generatePaymentPDF({
     yPos += 8
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text('Paiement enregistré par: Admin KARA', 20, yPos)
+    doc.text('Paiement enregistré par: Admin LE KARA', 20, yPos)
     
     yPos += 6
     const recordedDate = normalizeDate(payment.recordedAt)

@@ -28,14 +28,14 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
         <div style={{ marginBottom: '10px' }}>
           <img 
             src="/Logo-Kara.webp" 
-            alt="Logo KARA" 
+            alt="Logo LE KARA"
             width={80} 
             height={80}
             style={{ margin: '0 auto', display: 'block' }}
           />
         </div>
         <h2 style={{ color: '#234D65', marginBottom: '4px', fontSize: '20px', fontWeight: 'bold' }}>
-          Association KARA
+          Association LE KARA
         </h2>
         <h3 style={{ color: '#2c5a73', textDecoration: 'underline', fontSize: '16px', fontWeight: 'bold' }}>
           VOLET ENTRAIDE
@@ -128,12 +128,12 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
       {/* ===== TEXTE DU CONTRAT ===== */}
       <div style={{ marginTop: '25px', textAlign: 'justify' }}>
         <p style={{ marginBottom: '10px' }}>
-          Dans le cadre d&apos;une démarche purement sociale, l&apos;association <b>KARA</b> lance le volet
+          Dans le cadre d&apos;une démarche purement sociale, l&apos;association <b>LE KARA</b> lance le volet
           <b> « Entraide »</b>, qui est un contrat sous lequel l&apos;association garantit des prestations
           destinées à octroyer des fonds monétaires à l&apos;adhérent au cours de l&apos;année.
         </p>
         <p>
-          Au titre de la présente garantie, l&apos;Association KARA s&apos;engage, en contrepartie d&apos;une prime
+          Au titre de la présente garantie, l&apos;Association LE KARA s&apos;engage, en contrepartie d&apos;une prime
           mensuelle (<b>{contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA</b>),
           à octroyer à l&apos;adhérent un montant compris entre 30 000 et 150 000 FCFA à taux nul (0%)
           remboursable dans une durée définie. Ce prêt est dit : <b>accompagnement régulier</b>.
@@ -247,4 +247,3 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
     </div>
   )
 }
-

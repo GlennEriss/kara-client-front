@@ -8,7 +8,7 @@ interface LogoSVGProps {
 }
 
 /**
- * Composant SVG du logo KARA
+ * Composant SVG du logo LE KARA
  * Version vectorielle optimisée pour les PDFs et l'affichage
  */
 const LogoSVG: React.FC<LogoSVGProps> = ({ 
@@ -26,7 +26,7 @@ const LogoSVG: React.FC<LogoSVGProps> = ({
       preserveAspectRatio="xMidYMid meet"
     >
       <metadata>
-        KARA Logo - Association KARA
+        LE KARA Logo - Association LE KARA
       </metadata>
       <g transform="translate(0,1080) scale(0.1,-0.1)" fill={color} stroke="none">
         {/* Éléments graphiques du logo */}
@@ -65,7 +65,7 @@ const LogoSVG: React.FC<LogoSVGProps> = ({
 -529 0 -212 10 -299 55 -475 26 -104 94 -272 146 -360 66 -112 75 -116 32 -15
 -143 333 -180 846 -93 1280 143 717 677 1326 1368 1561 l111 38 -95 -1 c-52
 -1 -117 -3 -145 -5z"/>
-        {/* Texte "KARA" */}
+        {/* Texte "LE KARA" */}
         <path d="M5460 7205 l0 -535 70 0 70 0 0 189 0 189 87 80 c48 44 91 78 94 76
 4 -2 92 -123 196 -269 l188 -265 155 2 154 3 59 158 60 157 227 0 228 0 57
 -160 58 -160 78 0 79 0 -15 38 c-8 20 -102 260 -209 532 l-193 495 -79 3 -79

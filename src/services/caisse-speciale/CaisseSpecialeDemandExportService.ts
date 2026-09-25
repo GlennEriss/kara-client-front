@@ -403,7 +403,7 @@ export class CaisseSpecialeDemandExportService {
       doc.setFont('times', 'normal')
       doc.setFontSize(8.5)
       doc.setTextColor(100, 116, 139)
-      doc.text('KARA - Caisse Spéciale', margin.left, pageHeight - 8)
+      doc.text('LE KARA - Caisse Spéciale', margin.left, pageHeight - 8)
       doc.text(`Page ${page}/${pageCount}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
       doc.text(generatedLabel, pageWidth - margin.right, pageHeight - 8, { align: 'right' })
     }

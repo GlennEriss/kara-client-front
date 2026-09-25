@@ -1,7 +1,7 @@
 /**
  * StatsCard - Carte stat horizontale compacte (icône + label/valeur)
  *
- * Utilise les couleurs KARA (bleu institutionnel et accent or)
+ * Utilise les couleurs LE KARA (bleu institutionnel et accent or)
  * Layout horizontal compact pour un design uniforme à travers l'admin.
  */
 

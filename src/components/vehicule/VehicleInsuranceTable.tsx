@@ -88,7 +88,7 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
               {data?.items.map(item => {
                 const holderFirstName = (item.holderType === 'member' ? item.memberFirstName : item.nonMemberFirstName) || ''
                 const holderLastName = (item.holderType === 'member' ? item.memberLastName : item.nonMemberLastName) || ''
-                const holderLabel = item.holderType === 'member' ? 'Membre KARA' : 'Non-membre'
+                const holderLabel = item.holderType === 'member' ? 'Membre LE KARA' : 'Non-membre'
                 const holderReference = item.holderType === 'member' ? (item.memberMatricule || 'Matricule inconnu') : 'Externe'
                 const phone = item.primaryPhone || item.memberContacts?.[0] || item.nonMemberPhone1 || ''
                 const city = item.city || ''

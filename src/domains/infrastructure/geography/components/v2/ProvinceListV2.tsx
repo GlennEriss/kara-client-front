@@ -20,11 +20,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { Province } from '../../entities/geography.types'
 
 /**
- * ProvinceListV2 - Version 2 avec design compact et couleurs KARA
+ * ProvinceListV2 - Version 2 avec design compact et couleurs LE KARA
  * 
  * Améliorations :
  * - Design table/liste compact au lieu de cards énormes
- * - Couleurs KARA (kara-primary-dark, kara-primary-light)
+ * - Couleurs LE KARA (kara-primary-dark, kara-primary-light)
  * - Informations supplémentaires (nombre de départements)
  * - Sélecteurs stables avec data-testid
  */

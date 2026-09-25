@@ -7,7 +7,7 @@ vi.mock('@/services/audit/auditLog', () => ({
   logAdminAction: (entry: unknown) => logAdminAction(entry),
 }))
 vi.mock('@/domains/auth/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'u1', email: 'admin@kara.ga', displayName: 'Admin KARA' } }),
+  useAuth: () => ({ user: { uid: 'u1', email: 'admin@kara.ga', displayName: 'Admin LE KARA' } }),
 }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/memberships' }))
 

@@ -39,7 +39,7 @@ describe('PaymentDetailsModalV2 - Intégration', () => {
     withFees: true,
     proofUrl: 'https://example.com/proof.jpg',
     recordedBy: 'admin-id-123',
-    recordedByName: 'Admin KARA',
+    recordedByName: 'Admin LE KARA',
     recordedAt: new Date('2026-01-17T15:05:00'),
   }
 

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import routes from '@/constantes/routes'
 import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
-import { useActiveSupport, useCheckEligibilityForSupport, useContractPaymentStats, useCreateVersement, useDeleteVersement, usePaymentsCI, useSupportHistory, useUpdateVersement } from '@/hooks/caisse-imprevue'
+import { useActiveSupport, useCheckEligibilityForSupport, useContractPaymentStats, useCreateVersement, useDeleteVersement, usePaymentsCI, useUpdateVersement } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import { requestEarlyRefund, requestFinalRefund } from '@/services/caisse/mutations'
@@ -52,20 +52,13 @@ import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 const PaymentReceiptCIModal = dynamic(() => import('./PaymentReceiptCIModal'), {
   ssr: false,
 })
-const RemboursementCIPDFModal = dynamic(() => import('./RemboursementCIPDFModal'), {
+const LiquidationContratPDFModal = dynamic(() => import('./RemboursementCIPDFModal'), {
   ssr: false,
 })
 import RefundDocumentLinkCI from './RefundDocumentLinkCI'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistorySection from './SupportHistorySection'
-const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDFModal'), {
-  ssr: false,
-})
-
-const QuittanceSecoursPDFModal = dynamic(() => import('./QuittanceSecoursPDFModal'), {
-  ssr: false,
-})
 
 interface MonthlyCIContractProps {
   contract: ContractCI
@@ -241,7 +234,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
   const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
-  const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
+  const [showLiquidationQuittance, setShowLiquidationQuittance] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
@@ -249,8 +242,6 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   const [refunds, setRefunds] = useState<any[]>([])
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
-  const [showReconnaissanceAccompagnement, setShowReconnaissanceAccompagnement] = useState(false)
-  const [showQuittanceSecours, setShowQuittanceSecours] = useState(false)
   const [editCategoryOpen, setEditCategoryOpen] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
   const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
@@ -266,7 +257,6 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
   const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
-  const { data: supportHistory = [] } = useSupportHistory(contract.id)
   
   // Récupérer les statistiques de paiement
   const { data: paymentStats } = useContractPaymentStats(contract.id)
@@ -309,20 +299,6 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
     }
     return null
   }, [contract.subscriptionCIDuration, payments])
-
-  // Prochaine échéance à payer (premier mois DUE dont la date >= aujourd'hui) pour le PDF Reconnaissance
-  const nextDueDate = React.useMemo(() => {
-    if (!contract.firstPaymentDate) return null
-    const first = new Date(contract.firstPaymentDate)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    for (let monthIndex = 0; monthIndex < (contract.subscriptionCIDuration ?? 12); monthIndex++) {
-      const due = addContractMonths(first, monthIndex)
-      due.setHours(0, 0, 0, 0)
-      if (due >= today && getMonthStatus(monthIndex) === 'DUE') return due
-    }
-    return null
-  }, [contract.firstPaymentDate, contract.subscriptionCIDuration, payments])
 
   const getMonthTotal = (monthIndex: number) => {
     const payment = payments.find((p: any) => p.monthIndex === monthIndex)
@@ -1062,29 +1038,12 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
               <Button
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                onClick={() => setShowRemboursementPdf(true)}
+                onClick={() => setShowLiquidationQuittance(true)}
               >
                 <FileSignature className="h-5 w-5" />
-                Générer la quittance
+                Générer le procès-verbal de liquidation
               </Button>
 
-              <Button
-                variant="outline"
-                className="flex items-center justify-center gap-2 border-teal-300 text-teal-700 hover:bg-teal-50"
-                onClick={() => setShowReconnaissanceAccompagnement(true)}
-              >
-                <FileSignature className="h-5 w-5" />
-                Reconnaissance d&apos;accompagnement
-              </Button>
-
-              <Button
-                variant="outline"
-                className="flex items-center justify-center gap-2 border-rose-300 text-rose-700 hover:bg-rose-50"
-                onClick={() => setShowQuittanceSecours(true)}
-              >
-                <FileSignature className="h-5 w-5" />
-                Quittance de secours
-              </Button>
             </div>
             
             {/* Liste des remboursements */}
@@ -1404,8 +1363,6 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                         setRefundType(null)
                         setRefundReasonInput('')
                         
-                        // Afficher le PDF de remboursement
-                        setShowRemboursementPdf(true)
                       } catch (e: any) {
                         toast.error(e?.message || 'Action impossible')
                       } finally {
@@ -1413,7 +1370,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                       }
                     }}
                   >
-                    {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+                    {isRefunding ? 'Traitement...' : 'Confirmer la demande'}
                   </Button>
                 </div>
               </div>
@@ -1421,47 +1378,12 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           </div>
         )}
 
-        {/* Modal PDF Remboursement */}
-        <RemboursementCIPDFModal
-          isOpen={showRemboursementPdf}
-          onClose={() => setShowRemboursementPdf(false)}
+        {/* Procès-verbal de liquidation du contrat de Caisse Imprévue */}
+        <LiquidationContratPDFModal
+          isOpen={showLiquidationQuittance}
+          onClose={() => setShowLiquidationQuittance(false)}
           contractId={contract.id}
           contractData={contract}
-        />
-
-        {/* Modal Quittance de secours (Fonds de Secours Mutuel) */}
-        <QuittanceSecoursPDFModal
-          isOpen={showQuittanceSecours}
-          onClose={() => setShowQuittanceSecours(false)}
-          member={{
-            firstName: contract.memberFirstName,
-            lastName: contract.memberLastName,
-            matricule: contract.memberId,
-            phone: contract.memberContacts?.[0],
-          }}
-        />
-
-        {/* Modal Reconnaissance d'accompagnement */}
-        <SupportRecognitionPDFModal
-          isOpen={showReconnaissanceAccompagnement}
-          onClose={() => setShowReconnaissanceAccompagnement(false)}
-          contract={{
-            memberFirstName: contract.memberFirstName,
-            memberLastName: contract.memberLastName,
-            subscriptionCICode: contract.subscriptionCICode,
-            subscriptionCIAmountPerMonth: contract.subscriptionCIAmountPerMonth,
-            subscriptionCINominal: contract.subscriptionCINominal,
-            subscriptionCISupportMin: contract.subscriptionCISupportMin,
-            subscriptionCISupportMax: contract.subscriptionCISupportMax,
-            firstPaymentDate: contract.firstPaymentDate,
-            createdAt: contract.createdAt,
-          }}
-          nextDueDate={nextDueDate}
-          support={
-            activeSupport || supportHistory[0]
-              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt ?? new Date() }
-              : null
-          }
         />
 
         {/* Modal de demande de retrait anticipé */}

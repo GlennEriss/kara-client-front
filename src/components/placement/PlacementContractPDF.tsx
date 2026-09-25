@@ -9,7 +9,7 @@ const colWidths = [0.269, 0.307, 0.152, 0.272]
 const sumCols = (start: number, span: number) =>
   colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
 
-// Charte des contrats KARA — identique à CaisseSpecialePDFV3 : les documents
+// Charte des contrats LE KARA — identique à CaisseSpecialePDFV3 : les documents
 // remis aux membres doivent former une même famille visuelle.
 const ACCENT_BLUE = '#1f4f68'
 const BORDER_SOFT = '#cbd5e1'

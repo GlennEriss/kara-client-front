@@ -514,7 +514,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
       {/* PAGE 3 - SUITE ARTICLE 4 + ARTICLE 5 */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.bulletPoint}>• Il prend l'engagement de moduler ses capacités financières personnelles afin d'honorer à son remboursement ;</Text>
-        <Text style={styles.bulletPoint}>• Il a pris connaissance du règlement intérieur de KARA et du protocole d'accompagnement ;</Text>
+        <Text style={styles.bulletPoint}>• Il a pris connaissance du règlement intérieur de LE KARA et du protocole d'accompagnement ;</Text>
 
         <Text style={[styles.paragraph, { marginTop: 10 }]}>Le membre bénéficiaire affecte :</Text>
         <Text style={styles.paragraph}>
@@ -530,10 +530,10 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
         {/* ARTICLE 5 */}
         <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
         <Text style={styles.paragraph}>
-          Afin de garantir toute insolvabilité et non remboursement d'un accompagnement souscrit par le membre, l'Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal s'avère insuffisant, KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
+          Afin de garantir toute insolvabilité et non remboursement d'un accompagnement souscrit par le membre, l'Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal s'avère insuffisant, LE KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
         </Text>
         <Text style={styles.paragraph}>
-          Le non-respect des délais de remboursement m'expose aux sanctions disciplinaires et pénales conformément aux dispositions du Règlement intérieur de KARA.
+          Le non-respect des délais de remboursement m'expose aux sanctions disciplinaires et pénales conformément aux dispositions du Règlement intérieur de LE KARA.
         </Text>
         <Text style={styles.paragraph}>
           Ce protocole d'accompagnement est établi pour servir et valoir ce que de droit.
@@ -575,7 +575,7 @@ const CreditSpecialeContractPDF = ({ contract, memberData, guarantorData }: Cred
           <View style={styles.cautionRow}>
             <Text style={[styles.cautionCell, { width: '18%' }]}>L'Association</Text>
             <Text style={[styles.cautionCell, { width: '7%' }]}>LE</Text>
-            <Text style={[styles.cautionCell, { width: '12%' }]}>KARA</Text>
+            <Text style={[styles.cautionCell, { width: '12%' }]}>LE KARA</Text>
             <Text style={[styles.cautionCell, { width: '7%' }]}>et</Text>
             <Text style={[styles.cautionCellLast, { width: '56%' }]}>
               M/Mme/Mlle {guarantor.lastName.toUpperCase()} {guarantor.firstName}

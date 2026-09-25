@@ -112,12 +112,12 @@ const QuittanceSecoursPDFModal: React.FC<QuittanceSecoursPDFModalProps> = ({
       const link = document.createElement('a')
       link.href = url
       const nom = (nomComplet || 'MEMBRE').replace(/\s+/g, '_').toUpperCase()
-      link.download = `QUITTANCE_SECOURS_${nom}_${new Date().getFullYear()}.pdf`
+      link.download = `LIQUIDATION_SECOURS_${nom}_${new Date().getFullYear()}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
-      toast.success('Quittance de secours téléchargée')
+      toast.success('Procès-verbal de liquidation téléchargé')
     } catch (error) {
       console.error('Erreur lors du téléchargement de la quittance de secours:', error)
       toast.error('Impossible de générer la quittance')
@@ -133,7 +133,7 @@ const QuittanceSecoursPDFModal: React.FC<QuittanceSecoursPDFModalProps> = ({
           <DialogTitle className="flex items-center gap-2 text-lg lg:text-xl">
             <HeartHandshake className="h-5 w-5 text-[#234D65]" />
             <span className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent font-bold">
-              Quittance de secours — {nomComplet || 'Membre'}
+              Procès-verbal de liquidation — {nomComplet || 'Membre'}
             </span>
           </DialogTitle>
           <Button
@@ -223,7 +223,7 @@ const QuittanceSecoursPDFModal: React.FC<QuittanceSecoursPDFModalProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <p className="text-[11px] text-gray-600">Matricule (préfixe KARA- ajouté)</p>
+                    <p className="text-[11px] text-gray-600">Matricule (préfixe LE KARA- ajouté)</p>
                     <Input
                       value={fillData.matricule}
                       onChange={(e) =>

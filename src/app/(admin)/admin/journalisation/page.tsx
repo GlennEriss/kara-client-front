@@ -3,7 +3,7 @@ import { Metadata } from 'next'
 import { Suspense } from 'react'
 
 export const metadata: Metadata = {
-  title: 'Journalisation | KARA Admin',
+  title: 'Journalisation | LE KARA Admin',
   description: 'Historique des actions des administrateurs',
 }
 

@@ -20,7 +20,7 @@ import {
 } from './documentFill'
 
 /**
- * Statuts révisés de l'Association de Secours Mutuel KARA.
+ * Statuts révisés de l'Association de Secours Mutuel LE KARA.
  *
  * Deux sorties pour un seul contenu source (`@/constantes/statuts-kara`) :
  *

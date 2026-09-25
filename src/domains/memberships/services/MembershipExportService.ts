@@ -710,7 +710,7 @@ export class MembershipExportService {
         const drawY = circleY + (circleSize - drawH) / 2
         doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
       } else {
-        doc.text('KARA', pageWidth - marginX, pageHeight - 8, { align: 'right' })
+        doc.text('LE KARA', pageWidth - marginX, pageHeight - 8, { align: 'right' })
       }
     }
 

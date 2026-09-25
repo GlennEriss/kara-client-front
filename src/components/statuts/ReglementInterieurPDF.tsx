@@ -21,7 +21,7 @@ import {
 } from './documentFill'
 
 /**
- * Règlement Intérieur de la Mutuelle d'Entraide et de Secours Mutuel KARA.
+ * Règlement Intérieur de la Mutuelle d'Entraide et de Secours Mutuel LE KARA.
  *
  * Même charte que les Statuts : le composant ne fait que mettre en page
  * `@/constantes/reglement-interieur`. Le document s'étale sur autant de pages

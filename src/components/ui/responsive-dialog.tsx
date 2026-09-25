@@ -2,7 +2,7 @@
 
 /**
  * Variante responsive des modales, alignée sur le design de l'app membre
- * (kara-members-front) : modale centrée, en-tête teal KARA (#234D65) avec icône,
+ * (kara-members-front) : modale centrée, en-tête teal LE KARA (#234D65) avec icône,
  * quasi pleine largeur + scroll vertical sur mobile, boutons pleine largeur sur
  * petit écran. API identique à `@/components/ui/dialog` : il suffit de changer le
  * chemin d'import dans une modale pour adopter ce style (JSX inchangé).
@@ -88,7 +88,7 @@ function DialogTitle({
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        // Look KARA : teal, gras, icône alignée. La couleur propre à une modale
+        // Look LE KARA : teal, gras, icône alignée. La couleur propre à une modale
         // (ex. rouge destructif) reste prioritaire car `className` passe en dernier.
         "flex items-center gap-2 text-lg leading-tight font-bold text-[#234D65] sm:text-xl [&_svg]:h-5 [&_svg]:w-5 [&_svg]:shrink-0",
         className,

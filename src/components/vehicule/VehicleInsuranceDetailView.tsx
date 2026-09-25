@@ -55,7 +55,7 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
 
   const holderFirstName = (data.holderType === 'member' ? data.memberFirstName : data.nonMemberFirstName) || ''
   const holderLastName = (data.holderType === 'member' ? data.memberLastName : data.nonMemberLastName) || ''
-  const holderLabel = data.holderType === 'member' ? 'Membre KARA' : 'Non-membre'
+  const holderLabel = data.holderType === 'member' ? 'Membre LE KARA' : 'Non-membre'
   const holderReference = data.holderType === 'member' ? (data.memberMatricule || 'Matricule inconnu') : 'Externe'
   const phone = data.primaryPhone || data.memberContacts?.[0] || data.nonMemberPhone1 || ''
   const vehicleTypeLabel = VEHICLE_TYPE_LABELS[data.vehicleType] || data.vehicleType

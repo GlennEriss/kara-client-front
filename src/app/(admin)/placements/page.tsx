@@ -4,7 +4,7 @@ import { PiggyBank } from 'lucide-react'
 import { Suspense } from 'react'
 
 export const metadata = {
-  title: 'Placements | Kara Administration',
+  title: 'Placements | LE KARA Administration',
   description: 'Gestion des placements et suivi des bienfaiteurs',
 }
 

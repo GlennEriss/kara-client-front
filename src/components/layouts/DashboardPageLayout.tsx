@@ -6,7 +6,7 @@ import React from "react";
 
 /**
  * Layout standard pour toutes les pages du dashboard
- * Design système KARA avec animations modernes
+ * Design système LE KARA avec animations modernes
  *
  * Structure :
  * - Header avec titre gradient, description et icône optionnelle

@@ -3,7 +3,7 @@ import { Metadata } from 'next'
 import { Suspense } from 'react'
 
 export const metadata: Metadata = {
-  title: 'Module Véhicules | KARA Admin',
+  title: 'Module Véhicules | LE KARA Admin',
   description: 'Suivi des assurances des membres possédant un véhicule',
 }
 

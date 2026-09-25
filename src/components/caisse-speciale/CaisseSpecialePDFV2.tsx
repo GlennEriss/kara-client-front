@@ -425,12 +425,12 @@ const CaisseSpecialePDFV2 = ({ contract }: { contract?: any }) => {
           <Text>Je soussigné(e),</Text>
           <Text>
             <Text style={styles.bold}>{contract?.member?.lastName || '—'} {contract?.member?.firstName || '—'} </Text>
-            membre de l'Association KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}
+            membre de l'Association LE KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}
           </Text>
 
           <Text style={styles.articleTitle}>Article 1 : Objet du contrat</Text>
           <Text style={styles.articleText}>
-            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association Kara.
+            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association LE KARA.
           </Text>
 
           <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>

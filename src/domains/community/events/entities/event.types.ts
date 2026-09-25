@@ -1,5 +1,5 @@
 /**
- * Types et interfaces pour les Événements KARA
+ * Types et interfaces pour les Événements LE KARA
  *
  * Un événement est organisé par l'association et peut éventuellement
  * inclure un sondage de lieu (les membres avec abonnement actif votent).

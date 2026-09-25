@@ -1,7 +1,7 @@
 /**
  * Page de détails d'une demande Caisse Imprévue V2
  * 
- * Design coloré selon le thème KARA avec animations
+ * Design coloré selon le thème LE KARA avec animations
  * Titre responsive pour mobile
  */
 

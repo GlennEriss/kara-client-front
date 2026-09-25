@@ -147,7 +147,7 @@ export async function createDemandListPdf(options: DemandListPdfOptions) {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
       doc.setTextColor(100, 116, 139)
-      doc.text('Kara Administration • Export demandes', marginX, pageHeight - 6)
+      doc.text('LE KARA Administration • Export demandes', marginX, pageHeight - 6)
       doc.text(`Page ${data.pageNumber}`, pageWidth - marginX, pageHeight - 6, { align: 'right' })
     },
   })

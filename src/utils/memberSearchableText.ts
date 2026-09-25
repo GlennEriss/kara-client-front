@@ -45,7 +45,7 @@ export interface MemberSearchableTextData {
  *   lastName: 'Dupont',
  *   email: 'jean.dupont@kara.ga',
  *   contacts: ['+241 65 67 17 34', '065671734'],
- *   companyName: 'KARA Gabon',
+ *   companyName: 'LE KARA Gabon',
  *   profession: 'Ingénieur',
  *   province: 'Estuaire',
  *   city: 'Libreville',
@@ -137,7 +137,7 @@ export function generateMemberSearchableText(data: MemberSearchableTextData): st
  * @example
  * normalizeText('Jean-François') // Returns: "jean-francois"
  * normalizeText('  ÉLÈVE  ') // Returns: "eleve"
- * normalizeText('KARA Gabon') // Returns: "kara gabon"
+ * normalizeText('LE KARA Gabon') // Returns: "kara gabon"
  */
 export function normalizeText(text: string): string {
   if (!text || typeof text !== 'string') {

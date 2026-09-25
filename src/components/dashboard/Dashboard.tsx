@@ -89,7 +89,7 @@ const recentMembershipRequests: Partial<MembershipRequest>[] = [
     createdAt: new Date("2024-01-14"),
     updatedAt: new Date("2024-01-14"),
     processedAt: new Date("2024-01-14"),
-    memberNumber: "KARA-2024-001"
+    memberNumber: "LE KARA-2024-001"
   },
   {
     id: "req-003",
@@ -149,7 +149,7 @@ const insurancePolicies: InsurancePolicy[] = [
       lastName: "Dubois",
       email: "marie.dubois@email.com",
       phone: "+33123456789",
-      memberNumber: "KARA-2024-001"
+      memberNumber: "LE KARA-2024-001"
     },
     policyNumber: "POL-2024-001234",
     status: "Active",
@@ -183,7 +183,7 @@ const insurancePolicies: InsurancePolicy[] = [
       lastName: "Hassan",
       email: "ahmed.hassan@email.com",
       phone: "+212654321987",
-      memberNumber: "KARA-2024-002"
+      memberNumber: "LE KARA-2024-002"
     },
     policyNumber: "POL-2024-001235",
     status: "Active",
@@ -317,7 +317,7 @@ export default function Dashboard() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Tableau de Bord</h1>
         <p className="text-muted-foreground">
-          Vue d'ensemble de votre organisation KARA
+          Vue d'ensemble de votre organisation LE KARA
         </p>
       </div>
 

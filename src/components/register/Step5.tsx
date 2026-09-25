@@ -91,7 +91,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
 
   const handleWhatsAppClick = () => {
     const message = encodeURIComponent(
-      `Bonjour, je viens de soumettre ma demande d'inscription à l'Association Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via ${currentProvider} pour finaliser mon inscription.`
+      `Bonjour, je viens de soumettre ma demande d'inscription à l'Association LE KARA. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via ${currentProvider} pour finaliser mon inscription.`
     )
     const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\s/g, '')}?text=${message}`
     window.open(whatsappUrl, '_blank')
@@ -170,7 +170,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
               <Shield className="w-6 h-6 text-green-600" />
               <div className="text-center">
                 <p className="text-sm sm:text-base text-green-800 font-medium">
-                  Votre demande d'inscription à l'<strong>Association Kara</strong> a été enregistrée
+                  Votre demande d'inscription à l'<strong>Association LE KARA</strong> a été enregistrée
                 </p>
                 {membershipId && (
                   <p className="text-xs text-green-600 mt-1 font-mono">
@@ -387,7 +387,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
 
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-700 italic">
-                    "Bonjour, je viens de soumettre ma demande d'inscription à l'Association Kara.
+                    "Bonjour, je viens de soumettre ma demande d'inscription à l'Association LE KARA.
                     Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via {currentProvider} pour finaliser mon inscription."
                   </p>
                 </div>
@@ -452,7 +452,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
           <Heart className="w-6 h-6 text-red-500" />
         </div>
         <p className="text-[#224D62]/80 text-sm sm:text-base">
-          Bienvenue dans la famille <strong>Association Kara</strong>.
+          Bienvenue dans la famille <strong>Association LE KARA</strong>.
           Nous sommes ravis de vous accompagner dans votre protection santé.
         </p>
         <div className="text-center my-8">

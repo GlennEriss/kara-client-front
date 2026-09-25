@@ -596,13 +596,13 @@ export const MutuelleKaraPDF = ({
         <Text style={styles.titleListe}>
           ENGAGEMENT D'ADHÉSION ET DE PRÉVOYANCE SOCIALE
         </Text>
-        <Text style={styles.docSubtitle}>ASSOCIATION DE SECOURS MUTUEL KARA</Text>
+        <Text style={styles.docSubtitle}>ASSOCIATION DE SECOURS MUTUEL LE KARA</Text>
         <Text style={styles.docDevise}>Devise : Intégrité – Solidarité – Dynamisme</Text>
 
         {/* Préambule */}
         <Text style={styles.preamble}>
           Cet acte constitue un contrat synallagmatique d'adhésion souscrit conformément à la Loi n° 35/62
-          régissant les associations au Gabon et au Règlement Intérieur de KARA. Il formalise les droits et
+          régissant les associations au Gabon et au Règlement Intérieur de LE KARA. Il formalise les droits et
           devoirs du membre adhérent et confirme la nature non financière (absence de crédit/prêt) des
           secours apportés.
         </Text>
@@ -646,7 +646,7 @@ export const MutuelleKaraPDF = ({
           <View style={styles.sectionBody}>
             <Text style={styles.sectionParagraph}>
               Je soussigné(e), nommé(e) ci-dessus, déclare adhérer librement à l'Association de Secours
-              Mutuel KARA et m'engage formellement à :
+              Mutuel LE KARA et m'engage formellement à :
             </Text>
             <Bullet>
               Verser le droit d'entrée unique et non remboursable de{' '}
@@ -747,7 +747,7 @@ export const MutuelleKaraPDF = ({
           <Text style={styles.sectionHeader}>4. ACCEPTATION DU RÈGLEMENT ET SIGNATURE</Text>
           <View style={styles.sectionBody}>
             <Text style={styles.sectionParagraph}>
-              Je reconnais avoir pris connaissance des Statuts et du Règlement Intérieur de l'Association KARA
+              Je reconnais avoir pris connaissance des Statuts et du Règlement Intérieur de l'Association LE KARA
               et m'engage à m'y conformer strictement.
             </Text>
             <Text style={styles.faitA}>
@@ -787,7 +787,7 @@ export const MutuelleKaraPDF = ({
 
         {/* Pied de page */}
         <View style={styles.footer}>
-          <Text>ASSOCIATION DE SECOURS MUTUEL KARA. <Text style={styles.boldText}>Intégrité - Solidarité - Dynamisme</Text></Text>
+          <Text>ASSOCIATION DE SECOURS MUTUEL LE KARA. <Text style={styles.boldText}>Intégrité - Solidarité - Dynamisme</Text></Text>
           <Text>Siège : Awougou, Owendo</Text>
           <Text>R.D N°: 0650 /MIS/SG/DGELP/DPPALC/KMOG-</Text>
           <Text>Tél : 066-95-13-14 / 074-36-97-29</Text>

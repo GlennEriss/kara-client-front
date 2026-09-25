@@ -1387,14 +1387,34 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         // Exclure id de contractData s'il est présent pour éviter les conflits
         const { id: _, ...contractDataWithoutId } = contractData || {};
 
+        // Le PDF contractuel doit être autonome : on mémorise les informations
+        // du membre sur le contrat au moment de sa création. Cela évite que les
+        // coordonnées disparaissent si la fiche membre n'est pas résolue par
+        // son matricule par la suite.
+        const member = await this.memberRepository.getMemberById(demand.memberId);
+        const memberAddress = member?.address
+            ? [
+                member.address.district,
+                member.address.arrondissement,
+                member.address.city,
+                member.address.additionalInfo,
+              ].filter(Boolean).join(', ')
+            : undefined;
+
         // Créer le contrat à partir de la demande
         const contract = await this.createContractCI({
             id: contractId,
             memberId: demand.memberId,
-            memberFirstName: demand.memberFirstName || '',
-            memberLastName: demand.memberLastName || '',
-            memberContacts: demand.memberContacts || [],
-            memberEmail: demand.memberEmail,
+            memberFirstName: demand.memberFirstName || member?.firstName || '',
+            memberLastName: demand.memberLastName || member?.lastName || '',
+            memberContacts: demand.memberContacts?.length ? demand.memberContacts : member?.contacts || [],
+            memberEmail: demand.memberEmail || member?.email,
+            memberGender: member?.gender,
+            memberBirthDate: member?.birthDate,
+            memberNationality: member?.nationality,
+            memberAddress,
+            memberProfession: member?.profession || member?.companyName,
+            memberPhotoUrl: member?.photoURL || undefined,
             subscriptionCIID: demand.subscriptionCIID,
             subscriptionCICode: demand.subscriptionCICode,
             subscriptionCILabel: demand.subscriptionCILabel,

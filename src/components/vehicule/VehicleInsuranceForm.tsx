@@ -210,7 +210,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
               </div>
               <div>
                 <CardTitle className="text-lg">Titulaire de l'assurance</CardTitle>
-                <CardDescription>Choisissez si le titulaire est un membre KARA ou un non-membre</CardDescription>
+                <CardDescription>Choisissez si le titulaire est un membre LE KARA ou un non-membre</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -236,7 +236,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                           className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
                         >
                           <User className="h-4 w-4 text-blue-600" />
-                          Membre KARA
+                          Membre LE KARA
                         </label>
                       </div>
                       <div className="flex items-center space-x-2">

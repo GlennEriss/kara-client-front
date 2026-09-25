@@ -22,7 +22,7 @@
 import type { UserFilters, MembershipType } from '@/types/types'
 import type { PaginatedMembers } from '@/db/member.db'
 import { getMembers, getMemberWithSubscription } from '@/db/member.db'
-import { getUserById, getUsersByIds } from '@/db/user.db'
+import { getUserById, getUsersByIds, getUsersByMatricules } from '@/db/user.db'
 import type { User } from '@/types/types'
 import type { DocumentSnapshot } from 'firebase/firestore'
 import {
@@ -44,10 +44,18 @@ export class MembersRepositoryV2 {
   }
 
   /**
-   * Récupère un membre par son id (document users / uid Firebase Auth).
+   * Récupère un membre par son identifiant Firebase ou son matricule.
+   * Les contrats Caisse Imprévue historiques conservent parfois le matricule
+   * dans `memberId` : le repli permet donc de retrouver leur fiche membre.
    */
   async getById(memberId: string): Promise<User | null> {
-    return getUserById(memberId)
+    const member = await getUserById(memberId)
+    if (member) return member
+
+    const matricule = memberId.trim()
+    if (!matricule) return null
+    const membersByMatricule = await getUsersByMatricules([matricule])
+    return membersByMatricule.get(matricule) ?? null
   }
 
   /**

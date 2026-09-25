@@ -9,6 +9,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import QuittanceSecoursPDF, {
+  formatMatriculeQuittance,
   quittanceSecoursFillDataParDefaut,
   type QuittanceSecoursFillData,
 } from '../QuittanceSecoursPDF'
@@ -55,4 +56,9 @@ describe('QuittanceSecoursPDF', () => {
   it('tient sur une page, document rempli', async () => {
     expect(countPages(await renderToBuffer(<QuittanceSecoursPDF fillData={rempli} />))).toBe(1)
   }, 60000)
+
+  it('remplace proprement les anciens préfixes du matricule', () => {
+    expect(formatMatriculeQuittance('KARA-1234')).toBe('LE KARA-1234')
+    expect(formatMatriculeQuittance('LE KARA-1234')).toBe('LE KARA-1234')
+  })
 })

@@ -881,7 +881,7 @@ export function MembershipRequestsPageV2() {
   return (
     <div className="min-h-screen bg-kara-neutral-50 overflow-x-hidden">
       <div className="space-y-3 md:space-y-6 px-1 py-3 sm:px-3 md:p-4 lg:p-6 xl:p-8">
-        {/* Header avec fond KARA - Réduit sur mobile */}
+        {/* Header avec fond LE KARA - Réduit sur mobile */}
         <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-kara-primary-dark p-3 sm:p-4 md:p-6 lg:p-8">
           {/* Motif décoratif */}
           <div className="absolute inset-0 opacity-10">
@@ -895,7 +895,7 @@ export function MembershipRequestsPageV2() {
                 Demandes d'Adhésion
               </h1>
               <p className="text-kara-primary-light/80 mt-1 md:mt-2 text-xs sm:text-sm md:text-base font-medium line-clamp-2">
-                Gérez les demandes d'inscription des membres KARA
+                Gérez les demandes d'inscription des membres LE KARA
               </p>
             </div>
             <div className="flex w-full md:w-auto items-center gap-2 shrink-0 self-start md:self-auto flex-wrap md:flex-nowrap">

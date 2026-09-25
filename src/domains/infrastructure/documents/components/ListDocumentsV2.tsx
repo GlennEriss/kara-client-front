@@ -52,11 +52,11 @@ function TableSkeleton() {
 }
 
 /**
- * ListDocumentsV2 - Version 2 avec design moderne et couleurs KARA
+ * ListDocumentsV2 - Version 2 avec design moderne et couleurs LE KARA
  * 
  * Améliorations :
  * - Design table/liste compact au lieu de cards énormes
- * - Couleurs KARA (kara-primary-dark, kara-primary-light)
+ * - Couleurs LE KARA (kara-primary-dark, kara-primary-light)
  * - Vue responsive : table sur desktop/tablet, cards sur mobile
  * - Sélecteurs stables avec data-testid pour les tests E2E
  */

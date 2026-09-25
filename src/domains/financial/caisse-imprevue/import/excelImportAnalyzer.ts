@@ -1,7 +1,7 @@
 /**
  * Analyseur d'import Excel — Caisse Imprévue.
  *
- * Lit une feuille du classeur "GESTION MEMBRES KARA" (tableau de tableaux) et
+ * Lit une feuille du classeur "GESTION MEMBRES LE KARA" (tableau de tableaux) et
  * produit, en UNE seule passe :
  *  - un RÉSUMÉ (aperçu) ;
  *  - le DÉTAIL prêt à écrire (versements, supports, retrait, contact urgence) ;

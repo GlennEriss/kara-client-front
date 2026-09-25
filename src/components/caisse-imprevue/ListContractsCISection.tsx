@@ -1630,7 +1630,7 @@ export default function ListContractsCISection() {
                                   )}
                                 </Avatar>
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Membre KARA</p>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Membre LE KARA</p>
                                   <p className="text-sm font-semibold text-emerald-900">{emergencyMember.firstName} {emergencyMember.lastName}</p>
                                   <p className="font-mono text-[11px] text-emerald-700">{emergencyMember.matricule}</p>
                                 </div>

@@ -196,13 +196,16 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
     loadRefunds()
   }, [contractId, isOpen])
 
-  // Trouver le refund actif pour récupérer le montant nominal
+  // Le procès-verbal de liquidation ne devient définitif qu'après le versement.
+  // On privilégie donc le dernier remboursement effectivement payé.
   const activeRefund = React.useMemo(() => {
-    return refunds.find((r: any) => 
-      (r.type === 'FINAL' || r.type === 'EARLY') && 
-      (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PAID')
+    const eligible = refunds.filter((r: any) =>
+      (r.type === 'FINAL' || r.type === 'EARLY') &&
+      (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PAID'),
     )
+    return eligible.find((r: any) => r.status === 'PAID') ?? eligible[0]
   }, [refunds])
+  const canGenerateLiquidation = activeRefund?.status === 'PAID'
 
   useEffect(() => {
     if (!isOpen) return
@@ -243,6 +246,11 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
   )
 
   const handleDownloadPDF = async () => {
+    if (!canGenerateLiquidation) {
+      toast.error('La quittance est disponible une fois le remboursement marqué comme payé.')
+      return
+    }
+
     setIsExporting(true)
 
     try {
@@ -259,11 +267,11 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
       const link = document.createElement('a')
       link.href = url
       
-      // Format: MK_CI_firstname_lastname
+      // Le nom téléchargé reprend la nature juridique du document.
       const firstName = contractData?.memberFirstName || memberData?.firstName || ''
       const lastName = contractData?.memberLastName || memberData?.lastName || ''
       const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
-      const fileName = `MK_CI_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
+      const fileName = `PROCES_VERBAL_LIQUIDATION_CI_${sanitizeName(lastName)}_${sanitizeName(firstName)}.pdf`
       
       link.download = fileName
       document.body.appendChild(link)
@@ -271,8 +279,8 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast.success('✅ PDF téléchargé avec succès', {
-        description: 'Le document de remboursement a été généré et téléchargé dans votre dossier de téléchargements.',
+      toast.success('Procès-verbal de liquidation du contrat téléchargé', {
+        description: 'Le procès-verbal de liquidation a été généré.',
         duration: 3000,
       })
 
@@ -299,7 +307,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
-                  Document de Remboursement - Caisse Imprévue
+                  Procès-verbal de liquidation du contrat
                 </DialogTitle>
                 <p className="text-sm lg:text-base text-gray-600 truncate">
                   Contrat #{contractId.slice(-6)}
@@ -309,7 +317,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
           </div>
           <Button
             onClick={handleDownloadPDF}
-            disabled={isExporting}
+            disabled={isExporting || !canGenerateLiquidation}
             className="mr-2 lg:mr-10 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
           >
             {isExporting ? (
@@ -345,6 +353,16 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                 </div>
               </div>
             </div>
+          ) : !canGenerateLiquidation ? (
+            <div className="flex h-full items-center justify-center bg-amber-50 p-6 text-center">
+              <div className="max-w-md space-y-2">
+                <h3 className="text-lg font-bold text-amber-900">Liquidation en attente de règlement</h3>
+                <p className="text-sm leading-relaxed text-amber-800">
+                  Le procès-verbal devient téléchargeable après l&apos;enregistrement du remboursement
+                  comme payé. Il ne constitue pas un acte de liquidation avant ce versement.
+                </p>
+              </div>
+            </div>
           ) : (
             <>
               {/* Version mobile */}
@@ -369,7 +387,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                   <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Document:</span>
-                      <span className="font-medium text-gray-900">Remboursement CI</span>
+                      <span className="font-medium text-gray-900">Liquidation du contrat CI</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Contrat:</span>
@@ -377,7 +395,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">3 pages</span>
+                      <span className="font-medium text-gray-900">1 page</span>
                     </div>
                   </div>
 
@@ -387,7 +405,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                       <div className="w-full space-y-2">
                         <Button
                           asChild
-                          disabled={loading || !url}
+                          disabled={loading || !url || !canGenerateLiquidation}
                           className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                         >
                           <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
@@ -398,7 +416,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
 
                         <Button
                           onClick={handleDownloadPDF}
-                          disabled={isExporting}
+                          disabled={isExporting || !canGenerateLiquidation}
                           variant="outline"
                           className="w-full h-11 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-300"
                         >
@@ -437,7 +455,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                   <CardContent className="p-4 space-y-4">
                     <div className="flex items-center gap-2">
                       <PenLine className="w-4 h-4 text-kara-primary-dark" />
-                      <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage de la quittance</h3>
+                      <h3 className="text-sm font-bold text-kara-primary-dark">Signatures de la liquidation</h3>
                     </div>
 
                     {isPreviewRefreshing ? (
@@ -447,7 +465,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
                       <SignaturePad
-                        title="Signature du Secrétaire exécutif"
+                        title="Signature et cachet du Comité Exécutif"
                         value={fillData.secretarySignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true
@@ -455,7 +473,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                         }}
                       />
                       <SignaturePad
-                        title="Signature de l'épargnant (Lu et Approuvé)"
+                        title="Signature du membre (Lu et approuvé)"
                         value={fillData.memberSignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true

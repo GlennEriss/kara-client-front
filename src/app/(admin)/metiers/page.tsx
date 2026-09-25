@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 /**
  * Page de gestion des Métiers (Entreprises & Professions)
  * 
- * Utilise le composant ReferencesManagementV2 avec design cohérent KARA
+ * Utilise le composant ReferencesManagementV2 avec design cohérent LE KARA
  * Structure : Header > Stats > Tabs (Entreprises / Métiers)
  */
 export default function MetiersPage() {

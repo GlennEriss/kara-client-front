@@ -1,725 +1,458 @@
 'use client'
 
-import { getNationalityName } from '@/constantes/nationality'
-import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { REGLEMENT_ENTETE } from '@/constantes/reglement-interieur'
+import type { ContractCI } from '@/types/types'
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
-Font.register({
-  family: 'Times New Roman',
-  fonts: [
-    { src: '/fonts/TimesNewRoman-Regular.ttf', fontWeight: 'normal' },
-    { src: '/fonts/TimesNewRoman-Bold.ttf', fontWeight: 'bold' },
-    { src: '/fonts/TimesNewRoman-Italic.ttf', fontStyle: 'italic' },
-    { src: '/fonts/TimesNewRoman-BoldItalic.ttf', fontWeight: 'bold', fontStyle: 'italic' },
-  ],
-})
+/**
+ * Contrat d'adhésion à la Caisse Imprévue.
+ *
+ * Il reprend la structure de l'engagement d'adhésion fourni par la Mutuelle,
+ * avec des clauses et des données propres à la Caisse Imprévue. Il est
+ * distinct du procès-verbal de liquidation, qui n'est établi qu'au règlement.
+ */
 
-const colWidths = [0.269, 0.307, 0.152, 0.272]
-const sumCols = (start: number, span: number) =>
-  colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
-
-const ACCENT_BLUE = '#1f4f68'
-const BORDER_SOFT = '#cbd5e1'
-const BORDER_MEDIUM = '#94a3b8'
-const TEXT_PRIMARY = '#1f2937'
-const TEXT_MUTED = '#475569'
+const A4_HEIGHT = 841.89
+const EMPTY = '........................................'
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily: 'Times New Roman',
-    fontSize: 11,
-    paddingTop: 30,
-    paddingRight: 50,
-    paddingBottom: 20,
-    paddingLeft: 50,
-    color: TEXT_PRIMARY,
-    lineHeight: 1.33,
-  },
-  logo: {
-    width: 180,
-    height: 86,
-    objectFit: 'contain',
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  table: {
-    borderWidth: 0.5,
-    borderColor: BORDER_SOFT,
-  },
-  tableRow: {
-    flexDirection: 'row',
-  },
-  tableCell: {
-    paddingVertical: 4,
-    paddingHorizontal: 5,
-    justifyContent: 'center',
-  },
-  tableCellRightBorder: {
-    borderRightWidth: 0.5,
-    borderRightColor: BORDER_SOFT,
-  },
-  tableCellBottomBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_SOFT,
-  },
-  tableHeaderText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  tableSectionText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  tableLabelText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 11,
-    color: TEXT_MUTED,
-  },
-  tableValueText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 11,
-    textAlign: 'center',
-    color: TEXT_PRIMARY,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: ACCENT_BLUE,
-    textDecoration: 'underline',
-    marginBottom: 12,
-    marginTop: 5,
-
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textDecoration: 'underline',
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    backgroundColor: ACCENT_BLUE,
-  },
-  paragraph: {
-    fontSize: 11,
-    textAlign: 'justify',
-    marginBottom: 6,
-    color: TEXT_PRIMARY,
-  },
-  paragraphIndented: {
-    fontSize: 11,
-    textAlign: 'justify',
-    textIndent: 36,
-    marginBottom: 6,
-    color: TEXT_PRIMARY,
-  },
-  bullet: {
-    fontSize: 11,
-    textAlign: 'justify',
-    marginLeft: 18,
-    marginBottom: 6,
-    color: TEXT_PRIMARY,
-  },
-  subParagraph: {
-    fontSize: 11,
-    textAlign: 'justify',
-    marginLeft: 18,
-    marginBottom: 6,
-    color: TEXT_PRIMARY,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  forfaitTable: {
-    width: '63%',
-    alignSelf: 'center',
-    borderWidth: 0.5,
-    borderColor: BORDER_MEDIUM,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  forfaitRow: {
-    flexDirection: 'row',
-  },
-  forfaitCell: {
-    flex: 1,
-    borderRightWidth: 0.5,
-    borderRightColor: BORDER_MEDIUM,
-    borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_MEDIUM,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    fontSize: 11,
-    textAlign: 'center',
-    color: TEXT_PRIMARY,
-  },
-  forfaitHeaderCell: {
-    flex: 1,
-    borderRightWidth: 0.5,
-    borderRightColor: BORDER_MEDIUM,
-    borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_MEDIUM,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    fontSize: 11,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    color: TEXT_PRIMARY,
-    backgroundColor: '#f8fafc',
-  },
-  forfaitRowHighlight: {
-    backgroundColor: '#eaf3f8',
-  },
-  forfaitCellHighlight: {
-    backgroundColor: '#eaf3f8',
-  },
-  signatures: {
-    marginTop: 18,
-    borderTopWidth: 0.5,
-    borderTopColor: BORDER_SOFT,
-    paddingTop: 10,
-  },
-  signatureImage: {
-    width: 220,
-    height: 64,
-    objectFit: 'contain',
-    marginLeft: 18,
-  },
-  signaturePlaceholder: {
-    width: 220,
-    height: 64,
-    marginLeft: 18,
-    borderWidth: 0.5,
-    borderColor: BORDER_MEDIUM,
-    borderStyle: 'dashed',
-    backgroundColor: '#f8fafc',
-  },
-  unsignedSignerName: {
-    // Aligné sur le cadre de signature (même width/marginLeft) : sans largeur
-    // explicite, le texte s'étire sur toute la page et `textAlign:'center'`
-    // le centre sur la page au lieu du cadre.
-    width: 220,
-    marginLeft: 18,
-    marginTop: 4,
-    fontSize: 9,
-    textAlign: 'center',
-    color: TEXT_MUTED,
+    fontFamily: 'Times-Roman',
+    fontSize: 9.4,
+    paddingTop: 24,
+    paddingBottom: 34,
+    paddingHorizontal: 42,
+    lineHeight: 1.3,
+    color: '#1f2937',
   },
   pageNumber: {
     position: 'absolute',
-    bottom: 16,
-    right: 24,
+    top: A4_HEIGHT - 22,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 8.5,
+    lineHeight: 1,
+    color: '#475569',
+  },
+  footer: {
+    position: 'absolute',
+    top: A4_HEIGHT - 34,
+    left: 42,
+    right: 42,
+    fontSize: 7.5,
+    lineHeight: 1,
+    color: '#475569',
+    textAlign: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  logo: {
+    width: 52,
+    height: 52,
+    objectFit: 'cover',
+    marginBottom: 5,
+  },
+  association: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#1f4f68',
+  },
+  devise: {
+    fontSize: 8.5,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    color: '#475569',
+    marginTop: 2,
+  },
+  siege: {
+    fontSize: 8,
+    textAlign: 'center',
+    color: '#475569',
+    marginTop: 2,
+  },
+  docTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#1f4f68',
+    textDecoration: 'underline',
+    marginTop: 7,
+  },
+  preamble: {
+    fontSize: 9.2,
+    fontStyle: 'italic',
+    textAlign: 'justify',
+    marginBottom: 6,
+    color: '#1f2937',
+  },
+  section: { marginBottom: 7 },
+  sectionTitle: {
+    backgroundColor: '#1f4f68',
+    color: 'white',
+    textAlign: 'center',
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    fontSize: 9.5,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  table: {
+    borderTop: '1px solid #cbd5e1',
+  },
+  row: {
+    flexDirection: 'row',
+    borderLeft: '1px solid #cbd5e1',
+    borderRight: '1px solid #cbd5e1',
+    borderBottom: '1px solid #cbd5e1',
+  },
+  cell: {
+    flex: 1,
+    paddingVertical: 2.5,
+    paddingHorizontal: 4,
+    fontSize: 8.8,
+  },
+  secondCell: {
+    borderLeft: '1px solid #cbd5e1',
+  },
+  bold: { fontWeight: 'bold' },
+  paragraph: {
+    fontSize: 9.2,
+    textAlign: 'justify',
+    lineHeight: 1.28,
+    marginBottom: 4,
+  },
+  bullet: {
     fontSize: 9,
-    color: TEXT_MUTED,
+    textAlign: 'justify',
+    lineHeight: 1.25,
+    marginLeft: 9,
+    marginBottom: 2,
+  },
+  note: {
+    fontSize: 8.4,
+    fontStyle: 'italic',
+    color: '#334155',
+    marginTop: 1,
+  },
+  signatures: {
+    flexDirection: 'row',
+    marginTop: 7,
+  },
+  signatureCell: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  signatureTitle: {
+    fontSize: 9.2,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  signatureRole: {
+    fontSize: 8.3,
+    color: '#475569',
+    marginBottom: 3,
+  },
+  signatureLine: {
+    borderBottom: '1px solid #64748b',
+    height: 48,
+    marginBottom: 4,
+    justifyContent: 'flex-end',
+  },
+  signatureImage: {
+    width: 150,
+    height: 44,
+    objectFit: 'contain',
+  },
+  signatureName: {
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  signatureHint: {
+    fontSize: 8,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    color: '#64748b',
   },
 })
 
-type TableCellConfig = {
-  content?: React.ReactNode
-  span?: number
-  textStyle?: any
-  backgroundColor?: string
+const isPresent = (value?: string | null): value is string => !!value && value.trim().length > 0
+const display = (value?: string | null): string => (isPresent(value) ? value : EMPTY)
+
+const toDate = (value: unknown): Date | null => {
+  if (!value) return null
+  const date = typeof (value as { toDate?: () => Date })?.toDate === 'function'
+    ? (value as { toDate: () => Date }).toDate()
+    : new Date(value as string | number | Date)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
-const TableRow = ({
-  cells,
-  height,
-  isLastRow,
-}: {
-  cells: TableCellConfig[]
-  height: number
-  isLastRow?: boolean
-}) => {
-  let colIndex = 0
-
-  return (
-    <View style={[styles.tableRow, { minHeight: height }]}>
-      {cells.map((cell, index) => {
-        const span = cell.span ?? 1
-        const width = `${sumCols(colIndex, span) * 100}%`
-        const isLastCol = colIndex + span >= colWidths.length
-        const cellStyles = [
-          styles.tableCell,
-          { width },
-          ...(!isLastCol ? [styles.tableCellRightBorder] : []),
-          ...(!isLastRow ? [styles.tableCellBottomBorder] : []),
-          ...(cell.backgroundColor ? [{ backgroundColor: cell.backgroundColor }] : []),
-        ]
-
-        colIndex += span
-
-        return (
-          <View key={index} style={cellStyles}>
-            {typeof cell.content === 'string' ? (
-              <Text style={cell.textStyle}>{cell.content}</Text>
-            ) : (
-              cell.content
-            )}
-          </View>
-        )
-      })}
-    </View>
-  )
+const formatDate = (value: unknown): string => {
+  const date = toDate(value)
+  return date ? date.toLocaleDateString('fr-FR') : EMPTY
 }
 
-const PageNumber = ({ label }: { label: string }) => (
-  <Text style={styles.pageNumber}>{label}</Text>
+const formatAmount = (value: unknown): string => {
+  const amount = Number(value ?? 0)
+  return Number.isFinite(amount)
+    ? Math.trunc(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+    : '0'
+}
+
+const contractEndDate = (contract?: Record<string, unknown>): string => {
+  if (contract?.contractEndAt) return formatDate(contract.contractEndAt)
+  if (!contract?.firstPaymentDate || !contract?.subscriptionCIDuration) return EMPTY
+
+  const start = toDate(contract.firstPaymentDate)
+  if (!start) return EMPTY
+  start.setMonth(start.getMonth() + Number(contract.subscriptionCIDuration))
+  start.setDate(start.getDate() - 1)
+  return start.toLocaleDateString('fr-FR')
+}
+
+const frequencyLabel = (frequency?: unknown): string =>
+  frequency === 'DAILY' ? 'Quotidienne' : frequency === 'MONTHLY' ? 'Mensuelle' : EMPTY
+
+const paymentDayLabel = (contract: Record<string, unknown>): string => {
+  if (contract.paymentFrequency === 'DAILY') return 'Chaque jour'
+
+  const firstPaymentDate = toDate(contract.firstPaymentDate)
+  return firstPaymentDate
+    ? `Le ${String(firstPaymentDate.getDate()).padStart(2, '0')} de chaque mois`
+    : EMPTY
+}
+
+const Pair = ({ leftLabel, leftValue, rightLabel, rightValue }: {
+  leftLabel: string
+  leftValue?: string | null
+  rightLabel: string
+  rightValue?: string | null
+}) => (
+  <View style={styles.row}>
+    <Text style={styles.cell}><Text style={styles.bold}>{leftLabel} </Text>{display(leftValue)}</Text>
+    <Text style={[styles.cell, styles.secondCell]}><Text style={styles.bold}>{rightLabel} </Text>{display(rightValue)}</Text>
+  </View>
 )
 
 export interface CaisseImprevuePdfFillData {
-  paymentDueDay: string
   memberSignature: string | null
   secretarySignature: string | null
 }
 
 const DEFAULT_FILL_DATA: CaisseImprevuePdfFillData = {
-  paymentDueDay: '',
   memberSignature: null,
   secretarySignature: null,
 }
 
 const CaisseImprevuePDFV3 = ({
-  contract,
+  contract: inputContract,
   fillData,
 }: {
-  contract?: any
+  contract?: ContractCI | null
   fillData?: CaisseImprevuePdfFillData
 }) => {
+  const contract = (inputContract ?? {}) as Record<string, any>
   const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
-  const logoUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/assets/caisse-imprevue/image1.png`
-    : '/assets/caisse-imprevue/image1.png'
-
-  const formatDate = (date: any) => {
-    if (!date) return '—'
-    try {
-      const dateObj = date?.toDate ? date.toDate() : new Date(date)
-      return dateObj.toLocaleDateString('fr-FR')
-    } catch {
-      return '—'
-    }
-  }
-
-  const calculateAge = (birthDate: any) => {
-    if (!birthDate) return '—'
-    const dateObj = birthDate?.toDate ? birthDate.toDate() : new Date(birthDate)
-    if (Number.isNaN(dateObj.getTime())) return '—'
-    const today = new Date()
-    let age = today.getFullYear() - dateObj.getFullYear()
-    const monthDiff = today.getMonth() - dateObj.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateObj.getDate())) {
-      age -= 1
-    }
-    return String(age)
-  }
-
-  const memberAge = contract?.member?.age || calculateAge(contract?.member?.birthDate) || '—'
-  const memberFullName = [contract?.member?.lastName, contract?.member?.firstName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || contract?.memberId || 'Membre'
-  const paymentDueDayLabel = resolvedFillData.paymentDueDay?.trim() || '________________'
+  const member = (contract?.member ?? {}) as Record<string, unknown>
+  const emergencyContact = (contract?.emergencyContact ?? {}) as Record<string, unknown>
+  // Même source que le contrat Caisse Spéciale : le PDF reçoit d'abord la
+  // fiche `member` complète, enrichie dans la modale avant son rendu.
+  // Les champs dénormalisés du contrat ne servent que de secours pour les
+  // contrats historiques dont la fiche membre est introuvable.
+  const lastName = String(member.lastName || contract?.memberLastName || '')
+  const firstName = String(member.firstName || contract?.memberFirstName || '')
+  const memberName = [lastName.toUpperCase(), firstName].filter(Boolean).join(' ').trim()
+  const contacts = Array.isArray(member.contacts) && member.contacts.length > 0
+    ? member.contacts
+    : Array.isArray(contract?.memberContacts) ? contract.memberContacts : []
+  const memberAddress = member.address && typeof member.address === 'object'
+    ? (member.address as Record<string, unknown>).district
+      ?? (member.address as Record<string, unknown>).arrondissement
+      ?? (member.address as Record<string, unknown>).city
+    : member.address
+  const address = String(memberAddress || contract?.memberAddress || '')
+  const memberBirthDate = member.birthDate || contract?.memberBirthDate
+  const memberBirthPlace = String(member.birthPlace ?? contract?.memberBirthPlace ?? '')
+  const identityNumber = String(member.identityDocumentNumber ?? contract?.memberIdentityDocumentNumber ?? '')
+  const nationality = String(member.nationality || contract?.memberNationality || '')
+  const profession = String(member.profession || member.companyName || contract?.memberProfession || '')
+  const email = String(member.email || contract?.memberEmail || '')
+  const paymentDueDay = paymentDayLabel(contract)
+  const periodicAmount = Number(contract?.subscriptionCIAmountPerMonth ?? 0)
+  const nominal = Number(contract?.subscriptionCINominal ?? 0)
+  const duration = Number(contract?.subscriptionCIDuration ?? 0)
+  const contractDate = contract?.createdAt ?? contract?.firstPaymentDate
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <PageNumber label="Page 1 / 4" />
-        <Image src={logoUrl} style={styles.logo} />
+        <Text
+          fixed
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+        />
+        <Text fixed style={styles.footer}>
+          {REGLEMENT_ENTETE.association} — Contrat d’adhésion à la Caisse Imprévue
+        </Text>
 
-        <View style={styles.table}>
-          <TableRow
-            height={43.35}
-            cells={[
-              {
-                content: 'Informations Personnelles du Membre :',
-                span: 4,
-                textStyle: styles.tableHeaderText,
-                backgroundColor: ACCENT_BLUE,
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'MATRICULE', textStyle: styles.tableLabelText },
-              { content: contract?.memberId || '—', textStyle: styles.tableValueText },
-              { content: 'MEMBRE', textStyle: styles.tableLabelText },
-              { content: '  ', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'NOM', textStyle: styles.tableLabelText },
-              { content: contract?.member?.lastName?.toUpperCase() || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'PRÉNOM', textStyle: styles.tableLabelText },
-              { content: contract?.member?.firstName || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'LIEU / NAISSANCE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.birthPlace || '—', textStyle: styles.tableValueText },
-              { content: 'DATE / NAISSANCE', textStyle: styles.tableLabelText },
-              { content: formatDate(contract?.member?.birthDate), textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'NATIONALITÉ', textStyle: styles.tableLabelText },
-              { content: getNationalityName(contract?.member?.nationality) || '—', textStyle: styles.tableValueText },
-              { content: 'N°CNI/PASS/CS', textStyle: styles.tableLabelText },
-              { content: contract?.member?.identityDocumentNumber || '—', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'TÉLÉPHONES', textStyle: styles.tableLabelText },
-              {
-                content:
-                  (Array.isArray(contract?.member?.contacts) && contract.member.contacts.length > 0
-                    ? contract.member.contacts.filter(Boolean).join(' || ')
-                    : '—') as string,
-                span: 3,
-                textStyle: styles.tableValueText,
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'SEXE', textStyle: styles.tableLabelText },
-              { content: contract?.member?.gender || '—', textStyle: styles.tableValueText },
-              { content: 'ÂGE', textStyle: styles.tableLabelText },
-              { content: memberAge + ' ans', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'QUARTIER', textStyle: styles.tableLabelText },
-              { content: contract?.member?.address?.district || '—', textStyle: styles.tableValueText },
-              { content: 'PROFESSION', textStyle: styles.tableLabelText },
-              { content: contract?.member?.profession || '—', textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={41.9}
-            cells={[
-              {
-                content: 'Informations Concernant Le Contact Urgent :',
-                span: 4,
-                textStyle: styles.tableSectionText,
-                backgroundColor: ACCENT_BLUE,
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'NOM', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.lastName || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'PRÉNOM', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.firstName || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'LIENS', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.relationship || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'TÉLÉPHONE', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.phone1 || '—', textStyle: styles.tableValueText },
-              { content: '', span: 2, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            isLastRow
-            cells={[
-              { content: 'N°CNI/PASS/CS', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.idNumber || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
+        <View style={styles.header}>
+          <Image src={window.location.origin + '/Logo-Kara.jpg'} style={styles.logo} cache={false} />
+          <Text style={styles.association}>{REGLEMENT_ENTETE.association}</Text>
+          <Text style={styles.devise}>{REGLEMENT_ENTETE.devise}</Text>
+          <Text style={styles.siege}>{REGLEMENT_ENTETE.siege}</Text>
+          <Text style={styles.docTitle}>CONTRAT D’ADHÉSION À LA CAISSE IMPRÉVUE</Text>
         </View>
-      </Page>
 
-      <Page size="A4" style={styles.page}>
-        <PageNumber label="Page 2 / 4" />
-        <Text style={styles.title}>VOLET ENTRAIDE</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          Dans le cadre d’une démarche purement sociale, l’association LE KARA met en place le «Volet
-          Entraide», un mécanisme inspiré de la solidarité qui fonde l’âme même de l’association. Ce
-          dispositif est le pilier sur lequel sont fondées les actions solidaires telles que les appuis,
-          les collectes, les dons que l’association réalise.
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          Le Volet Entraide constitue le système obligatoire de cotisations, garantissant la vie
-          financière de l’association et la disponibilité des fonds nécessaires aux aides apportées aux
-          membres en difficulté.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          A ce titre, le KARA par le canal du Volet Entraide invite tous ses membres à verser
-          mensuellement une cotisation de 10 000 FCFA, 20 000 FCFA, 30 000 FCFA, 40 000 FCFA, 50 000 FCFA
-          ou plus, selon leurs disponibilités financières.
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          Ces versements réguliers assurent la stabilité de la trésorerie, le financement des activités
-          de l’association, la disponibilité des appuis et l’équité entre tous les membres.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          Concernant les appuis, c’est un système où chacun contribue selon ses moyens et reçoit selon
-          ses besoins et permettent de bénéficier d’une somme comprise entre 30 000 FCFA à 150 000 FCFA
-          ou plus selon le forfait souscrit, mais qui sera par la suite reverser dans la caisse de
-          l’association après une durée déterminée.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          Toutefois, pour la bonne tenue de la trésorerie de l’association, les membres bénéficiaires
-          sont tenus aux respects des règles suivantes :
-        </Text>
-        <Text style={styles.paragraph}>
+        <Text style={styles.preamble}>
+          Le présent acte formalise l’adhésion du membre à la Caisse Imprévue de la Mutuelle. Il
+          précise la formule souscrite, les engagements de versement et les conditions applicables
+          pendant la durée du contrat. Il ne constitue ni un crédit ni un prêt accordé au membre.
         </Text>
 
-        <Text style={styles.sectionTitle}>I.  Fonctionnement général du Volet Entraide</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>1. Début du contrat : </Text>
-          Toute adhésion nouvelle ou renouvellement à l’association le KARA emporte systématiquement
-          adhésion au Volet Entraide. En effet, le Volet Entraide assure la vie de l’association par le
-          biais de cotisations volontaires conformément au règlement intérieur.
-        </Text>
-        <Text style={styles.bullet}>• Le refus ou l’abandon pour un membre du Volet Entraide entraine le retrait du membre de l’association car il est considéré comme la rupture de l’aspiration à l’idéologie de l’association.</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>2. Durée du contrat : </Text>
-          L’adhésion au Volet Entraide dure aussi longtemps que dure l’adhésion à l’association Le
-          KARA, soit sur une année.
-        </Text>
-        <Text style={styles.bullet}>• Le retrait de l’association entraine automatiquement rupture du contrat du Volet Entraide et emporte remboursement des sommes versées.</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>3. Déroulement des versements : </Text>
-          Le membre se doit de procéder aux versements des cotisations au plus tard le {paymentDueDayLabel}{' '}
-          de chaque mois durant toute la durée du présent contrat.
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>4. Tolérance de retard : </Text>
-          L’épargnant dispose d’un délai de grâce de trois jours après la date prévue pour son
-          versement mensuel. Aucun frais ni pénalité ne s’applique dans ce délai.
-        </Text>
-        <Text style={styles.bullet}>• À compter du quatrième jour jusqu’au septième jour succédant l’expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l’équilibre et la bonne tenue de la caisse commune.</Text>
-        <Text style={styles.bullet}>• A compter du septième jour les mesures disciplinaires ci-après, non cumulatives, sont applicables :</Text>
-      </Page>
-
-      <Page size="A4" style={styles.page}>
-        <PageNumber label="Page 3 / 4" />
-        <Text style={styles.subParagraph}>
-          La non prise en compte de ce versement pour le mois auquel il est normalement dû. Il sera
-          considéré comme non acquitté et sera compté pour le mois suivant.
-        </Text>
-        <Text style={styles.subParagraph}>
-          La perte de tous les avantages liés à la régularité dans les versements conformément aux
-          dispositions du règlement intérieur.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>5. Le retrait de l’association : </Text>
-          À compter du troisième mois suivant l’adhésion à l’association, le membre a la faculté de la
-          résilier. Cette résiliation doit être obligatoirement formulée par écrit et déposée auprès du
-          Secrétaire Exécutif. À compter de la date de notification, l’association dispose de 30 jours
-          pour rembourser les sommes versées au titre du Volet Entraide.
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>6. Terme du contrat : </Text>
-          Le contrat Volet Entraide prend fin à l’expiration de l’adhésion annuelle à l’association. Il
-          emporte l’obligation pour le KARA de restituer au membre l’intégralité des sommes versées par
-          le membre au cours de l’année au titre du Volet Entraide.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>7. Remboursement du nominal : </Text>
-          Le remboursement des sommes visées au ci-dessus, intervient dans un délai maximal de 30 jours
-          suivant la date du terme du contrat.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.sectionTitle}>II.  Des accompagnements réguliers  (appuis)</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          Dans le respect des principes d’équité et de gestion saine de la caisse commune, l’octroi
-          d’un appui suit les règles ci-après :
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>8. Délai avant première demande : </Text>
-          Aucune demande d’appui ne peut être réalisée dans un intervalle de trois mois à compter de la
-          date d’adhésion à l’association jusqu’à la date du troisième versement mensuel effectif,
-          effectué par le membre. Ce délai permet de stabiliser la caisse et de garantir des appuis
-          fiables pour tous.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>9. Conditions d’éligibilité à un appui : </Text>
-          Peut solliciter un accompagnement régulier, le membre qui, en plus d’être à jour dans ses
-          cotisations mensuelles, s’est acquitté de sa prime mensuelle pour le mois durant lequel il
-          sollicite un accompagnement régulier.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>10. Nombre d’appuis autorisés : </Text>
-          Tout membre a droit à un appui par mois dans la limite de six appuis maximum pour toute
-          l’année, de manière non consécutive. Ce dispositif constitue le volet prévoyance du Volet
-          Entraide.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-          <Text style={styles.bold}>11. Remboursement des appuis : </Text>
-          Tout appui accordé doit être remboursé au plus tard avant le versement de la prochaine
-          contribution.
-        </Text>
-        <Text style={styles.paragraph}>
-          En cas de non remboursement de l’accompagnement par un adhérent dans le délai fixé à l’alinéa
-          précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal
-          cumulé de l’adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en
-          demeure adressée à l’adhérent par le Secrétaire exécutif.
-        </Text>
-      </Page>
-
-      <Page size="A4" style={styles.page}>
-        <PageNumber label="Page 4 / 4" />
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-
-        <Text style={styles.sectionTitle}>III. Catégorie des forfaits</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>Les appuis octroyés sont plafonnés en fonction du forfait souscrit par le membre.</Text>
-        <Text style={styles.paragraph}>Ces appuis sont détaillés dans le tableau ci-après :</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <View style={styles.forfaitTable} wrap={false}>
-          <View style={styles.forfaitRow}>
-            <Text style={styles.forfaitHeaderCell}>Forfait</Text>
-            <Text style={styles.forfaitHeaderCell}>Nominal</Text>
-            <Text style={styles.forfaitHeaderCell}>Appui</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>1. IDENTIFICATION DU MEMBRE ADHÉRENT</Text>
+          <View style={styles.table}>
+            <Pair
+              leftLabel="Nom(s) :"
+              leftValue={lastName.toUpperCase()}
+              rightLabel="Prénom(s) :"
+              rightValue={firstName}
+            />
+            <Pair
+              leftLabel="Matricule / N° d’adhérent :"
+              leftValue={String(contract?.memberId ?? '')}
+              rightLabel="Référence du contrat :"
+              rightValue={String(contract?.id ?? '')}
+            />
+            <Pair
+              leftLabel="Date de naissance :"
+              leftValue={formatDate(memberBirthDate)}
+              rightLabel="Lieu de naissance :"
+              rightValue={memberBirthPlace}
+            />
+            <Pair
+              leftLabel="N° CNI/Passeport :"
+              leftValue={identityNumber}
+              rightLabel="Nationalité :"
+              rightValue={nationality}
+            />
+            <Pair
+              leftLabel="Adresse / Quartier :"
+              leftValue={address}
+              rightLabel="Profession / Employeur :"
+              rightValue={profession}
+            />
+            <Pair
+              leftLabel="Téléphone / WhatsApp :"
+              leftValue={String(contacts.filter(Boolean).join(' / '))}
+              rightLabel="Email :"
+              rightValue={email}
+            />
           </View>
-          {(() => {
-            const code = (contract?.subscriptionCICode ?? '').toString().toUpperCase().trim()
-            const fixedRows: [string, string, string][] = [
-              ['A- 10 000', '120 000', '[0 ; 30 000]'],
-              ['B- 20 000', '240 000', '[0 ; 60 000]'],
-              ['C- 30 000', '360 000', '[0 ; 90 000]'],
-              ['D- 40 000', '480 000', '[0 ; 120 000]'],
-              ['E-50 000', '600 000', '[0 ; 150 000]'],
-            ]
-            const codeToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
-            const isFixed = code in codeToIndex
-            const customRow: [string, string, string] | null =
-              !isFixed && contract
-                ? [
-                  `${contract.subscriptionCICode ?? ''}- ${Number(contract.subscriptionCIAmountPerMonth ?? 0).toLocaleString('fr-FR')}`,
-                  Number(contract.subscriptionCINominal ?? 0).toLocaleString('fr-FR'),
-                  `[${Number(contract.subscriptionCISupportMin ?? 0).toLocaleString('fr-FR')} ; ${Number(contract.subscriptionCISupportMax ?? 0).toLocaleString('fr-FR')}]`,
-                ]
-                : null
-            const rows = customRow ? [...fixedRows, customRow] : fixedRows
-            const highlightedIndex = isFixed ? codeToIndex[code] : 5
-            return rows.map((row, index) => {
-              const highlighted = index === highlightedIndex
-              const rowStyle = highlighted ? [styles.forfaitRow, styles.forfaitRowHighlight] : styles.forfaitRow
-              const cellStyle = highlighted ? [styles.forfaitCell, styles.forfaitCellHighlight] : styles.forfaitCell
-              return (
-                <View key={index} style={rowStyle}>
-                  <Text style={cellStyle}>{row[0]}</Text>
-                  <Text style={cellStyle}>{row[1]}</Text>
-                  <Text style={cellStyle}>{row[2]}</Text>
-                </View>
-              )
-            })
-          })()}
         </View>
 
-        <Text style={[styles.paragraph, styles.bold]}>NB : LE FORFAIT CHOISIT NE PEUT ÊTRE CHANGEABLE</Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <View style={styles.signatures}>
-          <Text style={styles.paragraph}>Signature membre précédée de la mention « lu et approuvé »</Text>
-          {resolvedFillData.memberSignature ? (
-            <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
-          ) : (
-            <View style={styles.signaturePlaceholder} />
-          )}
-          <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-          <Text style={[styles.paragraph, { marginTop: 40 }]}>Signature du Secrétaire Exécutif</Text>
-          {resolvedFillData.secretarySignature ? (
-            <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
-          ) : (
-            <View style={styles.signaturePlaceholder} />
-          )}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>2. ENGAGEMENTS ET CONDITIONS DE LA CAISSE IMPRÉVUE</Text>
+          <View style={styles.table}>
+            <Pair
+              leftLabel="Formule souscrite :"
+              leftValue={String(contract?.subscriptionCILabel ?? contract?.subscriptionCICode ?? '')}
+              rightLabel="Fréquence de versement :"
+              rightValue={frequencyLabel(contract?.paymentFrequency)}
+            />
+            <Pair
+              leftLabel="Montant prévu par période :"
+              leftValue={`${formatAmount(periodicAmount)} FCFA`}
+              rightLabel="Nominal contractuel :"
+              rightValue={`${formatAmount(nominal)} FCFA`}
+            />
+            <Pair
+              leftLabel="Durée du contrat :"
+              leftValue={duration > 0 ? `${duration} mois` : EMPTY}
+              rightLabel="Jour convenu de versement :"
+              rightValue={paymentDueDay}
+            />
+            <Pair
+              leftLabel="Date de début :"
+              leftValue={formatDate(contract?.firstPaymentDate ?? contract?.contractStartAt)}
+              rightLabel="Date de fin prévue :"
+              rightValue={contractEndDate(contract)}
+            />
+          </View>
+          <Text style={styles.paragraph}>
+            Je soussigné(e), nommé(e) ci-dessus, adhère librement à la Caisse Imprévue et m’engage à
+            effectuer les versements correspondant à la formule souscrite, selon la fréquence et la
+            durée mentionnées au présent contrat.
+          </Text>
+          <Text style={styles.bullet}>• Les versements sont enregistrés dans l’échéancier du contrat.</Text>
+          <Text style={styles.bullet}>• Toute demande de retrait anticipé est traitée selon les conditions applicables au contrat.</Text>
+          <Text style={styles.bullet}>• À l’échéance ou après un règlement anticipé, les sommes effectivement remises sont constatées dans un document de liquidation distinct.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>3. PERSONNE À CONTACTER EN CAS D’URGENCE</Text>
+          <View style={styles.table}>
+            <Pair
+              leftLabel="Nom(s) :"
+              leftValue={String(emergencyContact.lastName ?? '').toUpperCase()}
+              rightLabel="Prénom(s) :"
+              rightValue={String(emergencyContact.firstName ?? '')}
+            />
+            <Pair
+              leftLabel="Lien avec le membre :"
+              leftValue={String(emergencyContact.relationship ?? '')}
+              rightLabel="Téléphone :"
+              rightValue={String(emergencyContact.phone1 ?? emergencyContact.phone ?? '')}
+            />
+            <Pair
+              leftLabel="N° CNI/Passeport :"
+              leftValue={String(emergencyContact.idNumber ?? '')}
+              rightLabel="Adresse / Quartier :"
+              rightValue={String(emergencyContact.address ?? '')}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>4. ACCEPTATION DU RÈGLEMENT ET SIGNATURE</Text>
+          <Text style={styles.paragraph}>
+            Je reconnais avoir pris connaissance des Statuts, du Règlement Intérieur et des conditions
+            de la Caisse Imprévue de la Mutuelle d’Entraide et de Secours Mutuel « LE KARA ». Je
+            m’engage à les respecter pendant toute la durée du présent contrat.
+          </Text>
+          <Text style={styles.paragraph}>Fait à Owendo, le {formatDate(contractDate)}</Text>
+          <Text style={styles.note}>
+            (Inscrire la mention manuscrite « Lu et approuvé, bon pour engagement »)
+          </Text>
+
+          <View style={styles.signatures}>
+            <View style={styles.signatureCell}>
+              <Text style={styles.signatureTitle}>Le Membre Adhérent</Text>
+              <View style={styles.signatureLine}>
+                {resolvedFillData.memberSignature && (
+                  <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
+                )}
+              </View>
+              <Text style={styles.signatureName}>{display(memberName)}</Text>
+              <Text style={styles.signatureHint}>(Signature précédée de la mention « Lu et approuvé »)</Text>
+            </View>
+            <View style={styles.signatureCell}>
+              <Text style={styles.signatureTitle}>Pour le Comité Exécutif</Text>
+              <Text style={styles.signatureRole}>Le Secrétaire Exécutif</Text>
+              <View style={styles.signatureLine}>
+                {resolvedFillData.secretarySignature && (
+                  <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
+                )}
+              </View>
+              <Text style={styles.signatureHint}>(Signature et cachet)</Text>
+            </View>
+          </View>
         </View>
       </Page>
     </Document>

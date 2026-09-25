@@ -51,7 +51,7 @@ export interface LogoProps {
 }
 
 /**
- * Composant Logo centralisé pour KARA
+ * Composant Logo centralisé pour LE KARA
  * 
  * Gère automatiquement les styles selon la variante et l'état
  * Optimisé avec Next.js Image pour les performances
@@ -60,7 +60,7 @@ const Logo: React.FC<LogoProps> = ({
   variant = 'default',
   size = 'md',
   className,
-  alt = 'KARA Logo',
+  alt = 'LE KARA Logo',
   isScrolled = false,
   onClick,
   clickable = false,

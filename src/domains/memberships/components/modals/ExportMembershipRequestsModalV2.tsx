@@ -400,7 +400,7 @@ export function ExportMembershipRequestsModalV2({
     const logoCircleSize = 16
     const titleX = logoAsset ? marginX + logoCircleSize + 4 : marginX
 
-    // Palette visuelle cohérente avec KARA
+    // Palette visuelle cohérente avec LE KARA
     const colors = {
       primary: [31, 81, 255] as [number, number, number], // kara-primary-dark
       brandDark: [35, 77, 101] as [number, number, number],
@@ -462,7 +462,7 @@ export function ExportMembershipRequestsModalV2({
     } else {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(15)
-      doc.text('KARA', marginX, 15)
+      doc.text('LE KARA', marginX, 15)
     }
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
@@ -664,7 +664,7 @@ export function ExportMembershipRequestsModalV2({
         const drawY = circleY + (circleSize - drawH) / 2
         doc.addImage(logoAsset.dataUrl, 'PNG', drawX, drawY, drawW, drawH)
       } else {
-        doc.text('KARA', pageWidth - marginX, pageHeight - 8, { align: 'right' })
+        doc.text('LE KARA', pageWidth - marginX, pageHeight - 8, { align: 'right' })
       }
     }
 

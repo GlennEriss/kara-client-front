@@ -825,7 +825,7 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text style={styles.paragraph14}>Il est majeur et a la capacité juridique pour conclure le contrat ;</Text>
         <Text style={styles.paragraph14}>Il a compris les termes du contrat et la portée de ses engagements ;</Text>
         <Text style={styles.paragraph14}>Il prend l’engagement de moduler ses capacités financières personnelles afin d’honorer à son remboursement ;</Text>
-        <Text style={styles.paragraph14}>Il a pris connaissance du règlement intérieur de KARA et du protocole d’accompagnement ;</Text>
+        <Text style={styles.paragraph14}>Il a pris connaissance du règlement intérieur de LE KARA et du protocole d’accompagnement ;</Text>
         <Text style={styles.paragraph14}>Le membre bénéficiaire affecte :</Text>
         <Text style={styles.paragraph12}>
         </Text>
@@ -846,10 +846,10 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         <Text style={styles.paragraph12}>
         </Text>
         <Text style={styles.paragraph14}>
-          Afin de garantir toute insolvabilité et non remboursement d’un accompagnement souscrit par le membre, l’Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal s’avère insuffisant, KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
+          Afin de garantir toute insolvabilité et non remboursement d’un accompagnement souscrit par le membre, l’Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal s’avère insuffisant, LE KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
         </Text>
         <Text style={styles.paragraph14}>
-          Le non-respect des délais de remboursement m’expose aux sanctions disciplinaires et pénales conformément aux dispositions du Règlement intérieur de KARA.
+          Le non-respect des délais de remboursement m’expose aux sanctions disciplinaires et pénales conformément aux dispositions du Règlement intérieur de LE KARA.
         </Text>
         <Text style={styles.paragraph14}>
           Ce protocole d’accompagnement est établi pour servir et valoir ce que de droit.

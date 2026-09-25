@@ -1,6 +1,6 @@
 /**
  * Texte du Règlement Intérieur de la Mutuelle d'Entraide et de Secours Mutuel
- * KARA, adopté en Assemblée Générale (Art. 24 des Statuts).
+ * LE KARA, adopté en Assemblée Générale (Art. 24 des Statuts).
  *
  * Source unique du document : le composant `ReglementInterieurPDF` ne fait que
  * mettre en page ce contenu, dans l'ordre. Toute révision votée en Assemblée
@@ -16,7 +16,7 @@
 export const REGLEMENT_VERSION = '2026-01'
 
 export const REGLEMENT_ENTETE = {
-  association: 'MUTUELLE D\'ENTRAIDE ET DE SECOURS MUTUEL « KARA »',
+  association: 'MUTUELLE D\'ENTRAIDE ET DE SECOURS MUTUEL « LE KARA »',
   devise: 'Devise : Intégrité – Solidarité – Dynamisme',
   siege:
     "Siège Social : Awoungou, Commune d'Owendo dans la Province de l'Estuaire en République Gabonaise",
@@ -128,7 +128,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
     type: 'preambule',
     titre: "PRÉAMBULE D'APPLICATION ET DE CONFORMITÉ JURIDIQUE",
     paragraphes: [
-      "Le présent Règlement Intérieur précise et complète les Statuts révisés de la Mutuelle d'Entraide et de Secours Mutuel « KARA » (ci-après dénommée « KARA »). Rédigé en application de la Loi n° 35/62 du 10 décembre 1962 relative aux associations en République Gabonaise et en conformité avec les règles de gestion financière associative, il fixe les modalités pratiques de fonctionnement, les catégories de membres, la grille des cotisations et placements, le régime des accompagnements et bonus, le barème des secours sociaux non remboursables ainsi que la discipline applicable sur l'ensemble du territoire national.",
+      "Le présent Règlement Intérieur précise et complète les Statuts révisés de la Mutuelle d'Entraide et de Secours Mutuel « LE KARA » (ci-après dénommée « LE KARA »). Rédigé en application de la Loi n° 35/62 du 10 décembre 1962 relative aux associations en République Gabonaise et en conformité avec les règles de gestion financière associative, il fixe les modalités pratiques de fonctionnement, les catégories de membres, la grille des cotisations et placements, le régime des accompagnements et bonus, le barème des secours sociaux non remboursables ainsi que la discipline applicable sur l'ensemble du territoire national.",
     ],
   },
 
@@ -139,7 +139,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
     points: [
       {
         texte:
-          "Conformément aux Statuts, l'association a pour dénomination officielle : Mutuelle d'Entraide et de Secours Mutuel « KARA » (sigle « KARA »).",
+          "Conformément aux Statuts, l'association a pour dénomination officielle : Mutuelle d'Entraide et de Secours Mutuel « LE KARA » (sigle « LE KARA »).",
       },
       {
         texte:
@@ -147,7 +147,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
       },
       {
         texte:
-          "KARA exerce ses activités sur l'ensemble du territoire national de la République Gabonaise. Le présent Règlement s'impose à tous les membres, quelles que soient leur résidence ou leur section d'attache.",
+          "LE KARA exerce ses activités sur l'ensemble du territoire national de la République Gabonaise. Le présent Règlement s'impose à tous les membres, quelles que soient leur résidence ou leur section d'attache.",
       },
     ],
   },
@@ -177,13 +177,13 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
   {
     type: 'article',
     titre: 'Article 3 : Catégories et Statuts des Membres',
-    chapeau: "Conformément à l'Article 8 des Statuts, KARA comprend trois (3) catégories de membres :",
+    chapeau: "Conformément à l'Article 8 des Statuts, LE KARA comprend trois (3) catégories de membres :",
     points: [
       {
         texte: 'Les Membres Sympathisants :',
         puces: [
           "Toute personne nouvellement admise acquiert d'office la qualité de membre sympathisant.",
-          "Ils partagent la vision de KARA et peuvent solliciter l'accompagnement et l'aide de la mutuelle sous certaines conditions.",
+          "Ils partagent la vision de LE KARA et peuvent solliciter l'accompagnement et l'aide de la mutuelle sous certaines conditions.",
           "Ils s'acquittent des cotisations régulières et participent aux Assemblées Générales sans droit de vote.",
         ],
       },
@@ -269,7 +269,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
     type: 'article',
     titre: 'Article 8 : Les Accompagnements Financiers Remboursables',
     chapeau:
-      "Les membres de KARA peuvent bénéficier d'accompagnements financiers destinés à faire face à des besoins urgents ou des projets :",
+      "Les membres de LE KARA peuvent bénéficier d'accompagnements financiers destinés à faire face à des besoins urgents ou des projets :",
     points: [
       {
         texte: 'Accompagnement Régulier (Réservé aux Membres Adhérents à jour) :',
@@ -354,7 +354,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
     type: 'article',
     titre: 'Article 13 : Composition du Comité Exécutif',
     chapeau:
-      'Le Comité Exécutif est l\'organe de gestion, de programmation et de coordination de KARA. Il est composé de 5 membres choisis parmi les membres adhérents :',
+      'Le Comité Exécutif est l\'organe de gestion, de programmation et de coordination de LE KARA. Il est composé de 5 membres choisis parmi les membres adhérents :',
     points: [
       {
         texte:
@@ -384,7 +384,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
     points: [
       {
         texte:
-          'Les fonds de KARA sont obligatoirement déposés sur un compte bancaire ouvert au nom de la mutuelle dans un établissement agréé en République Gabonaise.',
+          'Les fonds de LE KARA sont obligatoirement déposés sur un compte bancaire ouvert au nom de la mutuelle dans un établissement agréé en République Gabonaise.',
       },
       {
         texte:
@@ -432,7 +432,7 @@ export const REGLEMENT_BLOCS: ReglementBloc[] = [
       },
       {
         texte:
-          "Recouvrement des Créances et Voies de Droit : En cas d'insolvabilité organisée frauduleusement ou d'absence de signe de vie sans cas de force majeure, KARA se réserve le droit d'émettre un avis de recherche et de publier la photo et l'identité du membre défaillant sur tous supports publics ou réseaux sociaux, sans préjudice des poursuites pénales applicables.",
+          "Recouvrement des Créances et Voies de Droit : En cas d'insolvabilité organisée frauduleusement ou d'absence de signe de vie sans cas de force majeure, LE KARA se réserve le droit d'émettre un avis de recherche et de publier la photo et l'identité du membre défaillant sur tous supports publics ou réseaux sociaux, sans préjudice des poursuites pénales applicables.",
       },
     ],
   },
