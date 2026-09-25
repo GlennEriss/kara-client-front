@@ -491,7 +491,7 @@ export function AppSidebar() {
           >
             <Image
               src="/Logo-Kara.webp"
-              alt="KARA"
+              alt="LE KARA"
               width={24}
               height={24}
               className="h-6 w-6 object-contain brightness-0 invert"
@@ -499,7 +499,7 @@ export function AppSidebar() {
           </div>
           <div className="text-left">
             <p className="text-sm font-bold leading-none tracking-wide text-white">
-              KARA
+              LE KARA
             </p>
             <p className="mt-0.5 text-[11px] font-medium tracking-wide text-white/40">
               Administration

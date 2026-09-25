@@ -17,7 +17,7 @@ interface ReferencesManagementV2Props {
 
 /**
  * ReferencesManagementV2 - Gestion des référentiels métiers
- * Design cohérent avec GeographieManagementV2, couleurs KARA
+ * Design cohérent avec GeographieManagementV2, couleurs LE KARA
  * 
  * Structure :
  * 1. Header (titre + description + icône)
@@ -47,7 +47,7 @@ export default function ReferencesManagementV2({ defaultTab = 'companies' }: Ref
         subtitle="Gérez les entreprises et les professions/métiers de vos membres"
       />
 
-      {/* Statistiques avec couleurs KARA */}
+      {/* Statistiques avec couleurs LE KARA */}
       <section data-testid="references-stats-section">
         <ReferencesStatsV2 
           stats={stats} 
@@ -55,7 +55,7 @@ export default function ReferencesManagementV2({ defaultTab = 'companies' }: Ref
         />
       </section>
 
-      {/* Tabs avec style KARA */}
+      {/* Tabs avec style LE KARA */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'companies' | 'professions')} className="w-full" data-testid="references-tabs">
         <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
           <TabsList 

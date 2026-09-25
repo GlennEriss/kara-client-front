@@ -29,7 +29,7 @@ export async function generateRequestPDF(request: MembershipRequest): Promise<vo
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF('portrait', 'mm', 'a4')
 
-  // Couleurs KARA
+  // Couleurs LE KARA
   const primaryColor: [number, number, number] = [31, 81, 255] // kara-primary-dark
   const secondaryColor: [number, number, number] = [100, 116, 139] // kara-neutral-500
 
@@ -40,7 +40,7 @@ export async function generateRequestPDF(request: MembershipRequest): Promise<vo
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.text('KARA', 20, 20)
+  doc.text('LE KARA', 20, 20)
   
   doc.setFontSize(14)
   doc.text('Demande d\'adhésion', 20, 30)

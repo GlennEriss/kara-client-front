@@ -33,7 +33,7 @@ export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<
   const jsPDF = (await import('jspdf')).default
   const doc = new jsPDF()
   
-  // Couleurs KARA
+  // Couleurs LE KARA
   const karaBlue: [number, number, number] = [34, 77, 98] // #224D62
   const karaGold: [number, number, number] = [203, 177, 113] // #CBB171
   const darkGray: [number, number, number] = [51, 51, 51]
@@ -47,14 +47,14 @@ export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<
   
   let yPosition = margin
   
-  // Header avec logo KARA (texte pour l'instant)
+  // Header avec logo LE KARA (texte pour l'instant)
   doc.setFillColor(...karaBlue)
   doc.rect(0, 0, pageWidth, 50, 'F')
   
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
-  doc.text('KARA Association', margin, 30)
+  doc.text('LE KARA Association', margin, 30)
   
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
@@ -125,7 +125,7 @@ export async function generateCredentialsPDF(data: CredentialsPDFData): Promise<
     'Instructions importantes:',
     '1. Conservez ce document en lieu sûr',
     '2. Changez votre mot de passe après votre première connexion',
-    '3. En cas de perte, contactez l\'administration KARA'
+    '3. En cas de perte, contactez l\'administration LE KARA'
   ]
   
   instructions.forEach((line, index) => {

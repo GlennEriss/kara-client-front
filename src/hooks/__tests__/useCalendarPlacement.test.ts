@@ -64,7 +64,7 @@ describe('groupPlacementScheduleByDay', () => {
       today
     )
 
-    // Le 10/11, KARA remet la dernière commission ET le capital.
+    // Le 10/11, LE KARA remet la dernière commission ET le capital.
     expect(day.totalAmount).toBe(1_050_000)
     expect(day.remainingAmount).toBe(1_050_000)
     expect(day.capitalAmount).toBe(1_000_000)
@@ -104,7 +104,7 @@ describe('groupPlacementScheduleByDay', () => {
       today
     )
 
-    // Seule la commission encore due engage KARA ; l'annulée reste listée.
+    // Seule la commission encore due engage LE KARA ; l'annulée reste listée.
     expect(day.totalAmount).toBe(50_000)
     expect(day.remainingAmount).toBe(50_000)
     expect(day.count).toBe(2)

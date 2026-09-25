@@ -8,7 +8,7 @@ interface LogoPDFProps {
 }
 
 /**
- * Composant SVG du logo KARA pour @react-pdf/renderer
+ * Composant SVG du logo LE KARA pour @react-pdf/renderer
  * Version vectorielle optimisée pour les PDFs
  */
 const LogoPDF: React.FC<LogoPDFProps> = ({ 

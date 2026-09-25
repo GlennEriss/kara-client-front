@@ -217,7 +217,7 @@ const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance,
           </Text>
 
           <Text style={styles.text}>
-            Membre de l'Association KARA, reconnais avoir souscris un accompagnement régulier à taux nul, en date du{' '}
+            Membre de l'Association LE KARA, reconnais avoir souscris un accompagnement régulier à taux nul, en date du{' '}
             <Text style={styles.bold}>{formatDate(datePriseAide)}</Text>.
           </Text>
 
@@ -227,7 +227,7 @@ const SupportRecognitionPDF = ({ contract, datePriseAide, dateProchaineEcheance,
           </Text>
 
           <Text style={[styles.text, { marginTop: 15 }]}>
-            J'atteste, qu'en cas de non remboursement de l'accompagnement dans le délai indiqué, KARA se réserve la faculté de se désintéresser par prélèvement dans mon nominal, et ce après mise en demeure.
+            J'atteste, qu'en cas de non remboursement de l'accompagnement dans le délai indiqué, LE KARA se réserve la faculté de se désintéresser par prélèvement dans mon nominal, et ce après mise en demeure.
           </Text>
 
           {/* Type d'accompagnement */}

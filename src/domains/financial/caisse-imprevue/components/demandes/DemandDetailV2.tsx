@@ -1,7 +1,7 @@
 /**
  * Composant d'affichage des détails d'une demande
  * 
- * Design coloré selon le thème KARA avec animations
+ * Design coloré selon le thème LE KARA avec animations
  * Sections : Informations, Motif, Forfait, Contact, Simulation, Actions
  */
 

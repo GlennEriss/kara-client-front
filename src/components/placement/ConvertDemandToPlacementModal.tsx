@@ -168,7 +168,7 @@ export default function ConvertDemandToPlacementModal({
               id="handover-location"
               value={handoverLocation}
               onChange={(e) => setHandoverLocation(e.target.value)}
-              placeholder="Ex: Agence Kara - Libreville"
+              placeholder="Ex: Agence LE KARA - Libreville"
             />
           </div>
 
@@ -218,4 +218,3 @@ export default function ConvertDemandToPlacementModal({
     </Dialog>
   )
 }
-

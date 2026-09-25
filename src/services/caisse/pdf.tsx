@@ -29,7 +29,7 @@ export function PaymentReceiptDoc({ contract, payment }: { contract: any; paymen
             <View style={styles.row}><Text style={styles.label}>Pénalité</Text><Text style={styles.value}>{payment.penaltyApplied.toLocaleString('fr-FR')} FCFA</Text></View>
           ) : null}
         </View>
-        <Text style={{ fontSize: 10, color: '#666', marginTop: 16 }}>Document généré automatiquement — Kara</Text>
+        <Text style={{ fontSize: 10, color: '#666', marginTop: 16 }}>Document généré automatiquement — LE KARA</Text>
       </Page>
     </Document>
   )
@@ -53,9 +53,8 @@ export function RefundAttestationDoc({ contract, refund }: { contract: any; refu
           <View style={styles.row}><Text style={styles.label}>Total</Text><Text style={styles.value}>{total.toLocaleString('fr-FR')} FCFA</Text></View>
           <View style={styles.row}><Text style={styles.label}>Date</Text><Text style={styles.value}>{new Date().toLocaleDateString('fr-FR')}</Text></View>
         </View>
-        <Text style={{ fontSize: 10, color: '#666', marginTop: 16 }}>Document généré automatiquement — Kara</Text>
+        <Text style={{ fontSize: 10, color: '#666', marginTop: 16 }}>Document généré automatiquement — LE KARA</Text>
       </Page>
     </Document>
   )
 }
-

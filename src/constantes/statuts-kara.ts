@@ -1,5 +1,5 @@
 /**
- * Texte des Statuts révisés de l'Association de Secours Mutuel KARA.
+ * Texte des Statuts révisés de l'Association de Secours Mutuel LE KARA.
  *
  * Source unique du document : le composant `StatutsKaraPDF` ne fait que
  * mettre en page ce contenu, dans l'ordre. Toute révision votée en Assemblée
@@ -20,7 +20,7 @@ export type StatutsBloc =
 export const STATUTS_NOTE_ORIENTATION = {
   intitule: "Note d'orientation juridique",
   texte:
-    "La présente version révisée transforme l'association KARA en Association de Secours Mutuel régie par la Loi n° 35/62 du 10 décembre 1962. Elle clarifie la nature non lucrative des prestations (entraide, secours, prévoyance sociale interne) et exclut explicitement toute activité de crédit rémunéré ou de prêt d'argent à intérêts, conformément aux exigences de la réglementation CEMAC/COBAC relative aux établissements de microfinance et à la profession bancaire.",
+    "La présente version révisée transforme l'association LE KARA en Association de Secours Mutuel régie par la Loi n° 35/62 du 10 décembre 1962. Elle clarifie la nature non lucrative des prestations (entraide, secours, prévoyance sociale interne) et exclut explicitement toute activité de crédit rémunéré ou de prêt d'argent à intérêts, conformément aux exigences de la réglementation CEMAC/COBAC relative aux établissements de microfinance et à la profession bancaire.",
 } as const
 
 /**
@@ -30,7 +30,7 @@ export const STATUTS_NOTE_ORIENTATION = {
 export const STATUTS_VERSION = '2026-01'
 
 export const STATUTS_ENTETE = {
-  association: 'ASSOCIATION DE SECOURS MUTUEL KARA',
+  association: 'ASSOCIATION DE SECOURS MUTUEL LE KARA',
   titre: 'STATUTS RÉVISÉS & MIS EN CONFORMITÉ',
   devise: 'Devise : Intégrité - Solidarité - Dynamisme',
 } as const
@@ -61,27 +61,27 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
     type: 'article',
     titre: 'Article 1 (Constitution)',
     paragraphes: [
-      "En application des dispositions de la Loi n° 35/62 du 10 décembre 1962 relative aux associations en République Gabonaise, il est formé entre les Jeunes du quartier AWOUNGOU (commune d'Owendo, province de l'Estuaire) et toute personne adhérant aux présents statuts, une association de secours mutuel appelée « Mutuelle d'Entraide et de Secours Mutuel KARA », ci-après désignée « KARA ».",
+      "En application des dispositions de la Loi n° 35/62 du 10 décembre 1962 relative aux associations en République Gabonaise, il est formé entre les Jeunes du quartier AWOUNGOU (commune d'Owendo, province de l'Estuaire) et toute personne adhérant aux présents statuts, une association de secours mutuel appelée « Mutuelle d'Entraide et de Secours Mutuel LE KARA », ci-après désignée « LE KARA ».",
     ],
   },
   {
     type: 'article',
     titre: 'Article 2 (Nature juridique & Rayonnement territorial)',
     paragraphes: [
-      "KARA est une association apolitique, laïque, à but non lucratif et de secours mutuel. Elle exerce ses activités et déploie ses actions d'entraide sur l'ensemble du territoire national de la République Gabonaise, avec la faculté de créer des antennes, représentations ou sections provinciales dans tout le pays.",
+      "LE KARA est une association apolitique, laïque, à but non lucratif et de secours mutuel. Elle exerce ses activités et déploie ses actions d'entraide sur l'ensemble du territoire national de la République Gabonaise, avec la faculté de créer des antennes, représentations ou sections provinciales dans tout le pays.",
       "Elle s'interdit rigoureusement toute opération bancaire, tout octroi de prêts rémunérés ou d'intérêts financiers, conformément à la réglementation bancaire et macrofinancière en vigueur dans la zone CEMAC.",
     ],
   },
   {
     type: 'article',
     titre: 'Article 3 (Devise)',
-    paragraphes: ['La devise de KARA est : Intégrité - Solidarité - Dynamisme.'],
+    paragraphes: ['La devise de LE KARA est : Intégrité - Solidarité - Dynamisme.'],
   },
   {
     type: 'article',
     titre: 'Article 4 (Logo)',
     paragraphes: [
-      'KARA est représentée par son logo institutionnel figurant en annexe des présents statuts.',
+      'LE KARA est représentée par son logo institutionnel figurant en annexe des présents statuts.',
     ],
   },
 
@@ -106,7 +106,7 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
     type: 'article',
     titre: 'Article 6 (Objectifs)',
     paragraphes: [
-      "KARA a pour objet exclusif la solidarité et la prévoyance sociale entre ses membres sur l'ensemble du territoire national. Ses objectifs sont :",
+      "LE KARA a pour objet exclusif la solidarité et la prévoyance sociale entre ses membres sur l'ensemble du territoire national. Ses objectifs sont :",
     ],
     puces: [
       "L'assistance sociale et le secours mutuel : Octroi d'aides financières forfaitarisées ou matérielles non remboursables lors d'événements familiaux majeurs (naissances, mariages, maladies graves, hospitalisations, décès) selon le barème fixé par le Règlement Intérieur ;",
@@ -127,10 +127,10 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
   {
     type: 'article',
     titre: 'Article 8 (Catégories de membres)',
-    paragraphes: ['KARA se compose de trois (3) catégories de membres :'],
+    paragraphes: ['LE KARA se compose de trois (3) catégories de membres :'],
     puces: [
       "les membres adhérents : Personnes physiques participant activement à la vie de l'association, s'acquittant régulièrement des cotisations statutaires et du fonds de secours mutuel. Ils jouissent du droit de vote et sont éligibles aux organes de gestion.",
-      'les membres sympathisants : Personnes physiques souscrivant à la vision de KARA. Elles peuvent bénéficier des prestations d\'accompagnement social selon les conditions prévues au Règlement Intérieur. Elles participent aux Assemblées Générales avec voix consultative (sans droit de vote).',
+      'les membres sympathisants : Personnes physiques souscrivant à la vision de LE KARA. Elles peuvent bénéficier des prestations d\'accompagnement social selon les conditions prévues au Règlement Intérieur. Elles participent aux Assemblées Générales avec voix consultative (sans droit de vote).',
       "les membres bienfaiteurs : Personnes physiques ou morales apportant un soutien financier, matériel ou moral exceptionnel à l'association sans obligation permanente à son égard.",
     ],
   },
@@ -139,14 +139,14 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
   {
     type: 'article',
     titre: 'Article 9 (Organes)',
-    paragraphes: ['KARA est structurée autour de deux organes principaux :'],
+    paragraphes: ['LE KARA est structurée autour de deux organes principaux :'],
     puces: ["L'Assemblée Générale (A.G) ;", 'Le Comité Exécutif (C.E).'],
   },
   {
     type: 'article',
     titre: 'Article 10 (Assemblée Générale)',
     paragraphes: [
-      "L'Assemblée Générale est l'instance suprême de décision de KARA. Elle regroupe l'ensemble des membres à jour de leurs obligations.",
+      "L'Assemblée Générale est l'instance suprême de décision de LE KARA. Elle regroupe l'ensemble des membres à jour de leurs obligations.",
     ],
   },
   {
@@ -214,7 +214,7 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
   {
     type: 'article',
     titre: 'Article 18-bis (Ressources)',
-    paragraphes: ['Les ressources financières de KARA proviennent exclusivement de :'],
+    paragraphes: ['Les ressources financières de LE KARA proviennent exclusivement de :'],
     puces: [
       "droits d'adhésion et cotisations ordinaires des membres ;",
       'cotisations spécifiques affectées au Fonds de Secours Mutuel ;',
@@ -226,7 +226,7 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
     type: 'article',
     titre: 'Article 19 (Gestion bancaire & Signatures)',
     paragraphes: [
-      "Le Comité Exécutif est tenu d'ouvrir un compte bancaire au nom de l'association « Mutuelle d'Entraide KARA ». Les opérations de retrait de fonds nécessitent obligatoirement la double signature conjointe de :",
+      "Le Comité Exécutif est tenu d'ouvrir un compte bancaire au nom de l'association « Mutuelle d'Entraide LE KARA ». Les opérations de retrait de fonds nécessitent obligatoirement la double signature conjointe de :",
     ],
     puces: ['le Secrétaire Exécutif ;', 'le Financier Général.'],
   },
@@ -250,7 +250,7 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
     type: 'article',
     titre: 'Article 22 (Dissolution)',
     paragraphes: [
-      "La dissolution volontaire de KARA est prononcée par l'Assemblée Générale Extraordinaire convoquée à cet effet, à la majorité des quatre cinquièmes (4/5) des membres.",
+      "La dissolution volontaire de LE KARA est prononcée par l'Assemblée Générale Extraordinaire convoquée à cet effet, à la majorité des quatre cinquièmes (4/5) des membres.",
     ],
   },
   {
@@ -293,7 +293,7 @@ export const STATUTS_BLOCS: StatutsBloc[] = [
 export const PROCEDURE_CONFORMITE_ENTETE = {
   titre: 'PROCÉDURE RÉGLEMENTAIRE DE MISE EN CONFORMITÉ',
   introduction:
-    "Pour officialiser la transformation des statuts de l'Association KARA en Association de Secours Mutuel en République Gabonaise (Loi 35/62), le Comité Exécutif doit suivre scrupuleusement les étapes suivantes :",
+    "Pour officialiser la transformation des statuts de l'Association LE KARA en Association de Secours Mutuel en République Gabonaise (Loi 35/62), le Comité Exécutif doit suivre scrupuleusement les étapes suivantes :",
   colonnes: ['Étape', 'Action Administrative', 'Modalités & Exigences Légales'] as const,
 } as const
 
@@ -309,7 +309,7 @@ export const PROCEDURE_CONFORMITE: EtapeConformite[] = [
     numero: 1,
     action: "Convocation d'une AGE",
     modalites:
-      "Convoquer une Assemblée Générale Extraordinaire (AGE) des membres de KARA avec à l'ordre du jour : « Adoption de la révision des statuts et passage en Association de Secours Mutuel ». Quorum d'adoption : 3/4 des membres (Art. 20).",
+      "Convoquer une Assemblée Générale Extraordinaire (AGE) des membres de LE KARA avec à l'ordre du jour : « Adoption de la révision des statuts et passage en Association de Secours Mutuel ». Quorum d'adoption : 3/4 des membres (Art. 20).",
   },
   {
     numero: 2,

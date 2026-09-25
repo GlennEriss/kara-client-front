@@ -1661,7 +1661,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
-            doc.text('Crédit Spéciale - KARA', pageWidth / 2, 30, { align: 'center' });
+            doc.text('Crédit Spéciale - LE KARA', pageWidth / 2, 30, { align: 'center' });
 
             yPos = 50;
 

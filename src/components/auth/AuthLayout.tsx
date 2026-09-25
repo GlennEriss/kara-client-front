@@ -25,7 +25,7 @@ export default function AuthLayout({
   headerIcon,
   headerTitle,
   showBackButton = true,
-  footerText = "© 2025 KARA - association de Solidarité"
+  footerText = "© 2025 LE KARA - association de Solidarité"
 }: AuthLayoutProps) {
   const router = useRouter()
 
@@ -35,7 +35,7 @@ export default function AuthLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Décorations de fond - style KARA */}
+      {/* Décorations de fond - style LE KARA */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#224D62]/10 to-transparent rounded-full opacity-30 transform translate-x-48 -translate-y-48 floating"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#CBB171]/10 to-transparent rounded-full opacity-30 transform -translate-x-48 translate-y-48 floating" style={{ animationDelay: '2s' }}></div>

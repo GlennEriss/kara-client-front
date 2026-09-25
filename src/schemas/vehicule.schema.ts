@@ -91,7 +91,7 @@ export const vehicleInsuranceFormSchema = z.object({
     if (!data.memberId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Sélectionnez un membre KARA',
+        message: 'Sélectionnez un membre LE KARA',
         path: ['memberId'],
       })
     }

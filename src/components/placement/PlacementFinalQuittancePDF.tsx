@@ -7,7 +7,7 @@ import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-// Charte des quittances KARA — mêmes jetons que QuittanceCaisseSpecialePDF.
+// Charte des quittances LE KARA — mêmes jetons que QuittanceCaisseSpecialePDF.
 const ACCENT_BLUE = '#1f4f68'
 const BORDER_SOFT = '#cbd5e1'
 const TEXT_PRIMARY = '#1f2937'
@@ -236,7 +236,7 @@ export default function PlacementFinalQuittancePDF({
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
         <Text style={styles.title}>QUITTANCE FINALE</Text>
-        <Text style={styles.subtitle}>Placement — KARA</Text>
+        <Text style={styles.subtitle}>Placement — LE KARA</Text>
 
         <QuittanceCoverPage
           memberSectionTitle="INFORMATIONS DU PLACEMENT"

@@ -3,7 +3,7 @@ import { PageHero } from '@/components/ui/page-hero'
 import { MessageSquare } from 'lucide-react'
 
 export const metadata = {
-  title: 'Modèles de messages | Kara Administration',
+  title: 'Modèles de messages | LE KARA Administration',
   description: 'Personnalisez les messages de rappel et d’anniversaire envoyés aux membres',
 }
 

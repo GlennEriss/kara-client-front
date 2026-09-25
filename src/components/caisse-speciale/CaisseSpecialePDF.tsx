@@ -521,7 +521,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
 
           <Text style={styles.articleTitle}>Article 1 : Objet du contrat</Text>
           <Text style={styles.articleText}>
-            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association KARA.
+            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association LE KARA.
           </Text>
 
           <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>

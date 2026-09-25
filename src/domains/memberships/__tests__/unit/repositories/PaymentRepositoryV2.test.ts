@@ -89,7 +89,7 @@ function createMockPayment(overrides: Partial<CentralizedPayment> = {}): Central
     time: '10:00',
     acceptedBy: 'admin-123',
     recordedBy: 'admin-123',
-    recordedByName: 'Admin KARA',
+    recordedByName: 'Admin LE KARA',
     recordedAt: new Date('2026-01-18'),
     createdAt: new Date('2026-01-18'),
     updatedAt: new Date('2026-01-18'),
@@ -146,7 +146,7 @@ describe('PaymentRepositoryV2', () => {
         time: '10:00',
         acceptedBy: 'admin-123',
         recordedBy: 'admin-123',
-        recordedByName: 'Admin KARA',
+        recordedByName: 'Admin LE KARA',
         recordedAt: new Date('2026-01-18'),
       }
 
@@ -175,7 +175,7 @@ describe('PaymentRepositoryV2', () => {
         time: '10:00',
         acceptedBy: 'admin-123',
         recordedBy: 'admin-123',
-        recordedByName: 'Admin KARA',
+        recordedByName: 'Admin LE KARA',
         recordedAt: '2026-01-18' as any,
       }
 
@@ -203,7 +203,7 @@ describe('PaymentRepositoryV2', () => {
         time: '10:00',
         acceptedBy: 'admin-123',
         recordedBy: 'admin-123',
-        recordedByName: 'Admin KARA',
+        recordedByName: 'Admin LE KARA',
         recordedAt: new Date('2026-01-18'),
         beneficiaryId: undefined,
       }
@@ -230,7 +230,7 @@ describe('PaymentRepositoryV2', () => {
         time: '10:00',
         acceptedBy: 'admin-123',
         recordedBy: 'admin-123',
-        recordedByName: 'Admin KARA',
+        recordedByName: 'Admin LE KARA',
         recordedAt: new Date('2026-01-18'),
       }
 
@@ -251,7 +251,7 @@ describe('PaymentRepositoryV2', () => {
         time: '10:00',
         acceptedBy: 'admin-123',
         recordedBy: 'admin-123',
-        recordedByName: 'Admin KARA',
+        recordedByName: 'Admin LE KARA',
         recordedAt: new Date('2026-01-18'),
       }
 

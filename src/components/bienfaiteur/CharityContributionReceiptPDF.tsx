@@ -72,7 +72,7 @@ export default function CharityContributionReceiptPDF({
       
       doc.setFontSize(12)
       doc.setFont('helvetica', 'normal')
-      doc.text('Évènement de Charité - KARA', pageWidth / 2, 30, { align: 'center' })
+      doc.text('Évènement de Charité - LE KARA', pageWidth / 2, 30, { align: 'center' })
 
       yPos = 50
 
@@ -195,7 +195,7 @@ export default function CharityContributionReceiptPDF({
       doc.setFontSize(8)
       doc.setFont('helvetica', 'italic')
       doc.setTextColor(100, 100, 100)
-      doc.text('Ce document est généré automatiquement par le système KARA', pageWidth / 2, yPos, { align: 'center' })
+      doc.text('Ce document est généré automatiquement par le système LE KARA', pageWidth / 2, yPos, { align: 'center' })
       doc.text(`Page 1/1 - Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, pageWidth / 2, yPos + 5, { align: 'center' })
 
       // Télécharger le PDF

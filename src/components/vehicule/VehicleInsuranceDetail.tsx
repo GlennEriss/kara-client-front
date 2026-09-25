@@ -36,7 +36,7 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
 
   const holderFirstName = (insurance.holderType === 'member' ? insurance.memberFirstName : insurance.nonMemberFirstName) || ''
   const holderLastName = (insurance.holderType === 'member' ? insurance.memberLastName : insurance.nonMemberLastName) || ''
-  const holderLabel = insurance.holderType === 'member' ? 'Membre KARA' : 'Non-membre'
+  const holderLabel = insurance.holderType === 'member' ? 'Membre LE KARA' : 'Non-membre'
   const holderReference = insurance.holderType === 'member' ? (insurance.memberMatricule || 'Matricule inconnu') : 'Externe'
   const phone = insurance.primaryPhone || insurance.memberContacts?.[0] || insurance.nonMemberPhone1 || ''
   const vehicleTypeLabel = VEHICLE_TYPE_LABELS[insurance.vehicleType] || insurance.vehicleType

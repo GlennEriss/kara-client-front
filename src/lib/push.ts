@@ -93,7 +93,7 @@ export async function listenForegroundMessages(
   if (!messaging) return () => {};
   return onMessage(messaging, (payload) => {
     onNotification({
-      title: payload.notification?.title ?? "KARA",
+      title: payload.notification?.title ?? "LE KARA",
       body: payload.notification?.body ?? "",
     });
   });

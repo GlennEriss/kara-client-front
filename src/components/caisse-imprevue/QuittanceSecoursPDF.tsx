@@ -12,8 +12,6 @@ import React from 'react'
  * explicitement, c'est ce qui le distingue d'un accompagnement.
  */
 
-const A4_HEIGHT = 841.89
-
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
@@ -24,44 +22,24 @@ const styles = StyleSheet.create({
     lineHeight: 1.25,
     color: '#1f2937',
   },
-  pageNumber: {
-    position: 'absolute',
-    top: A4_HEIGHT - 18,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 9,
-    lineHeight: 1,
-    color: '#475569',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-    width: '100%',
-  },
-  logo: { width: 52, height: 52, objectFit: 'cover' },
+  header: { marginBottom: 8 },
   titre: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#1f4f68',
-    textDecoration: 'underline',
-    marginBottom: 2,
+    color: '#000000',
   },
   sousTitre: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#1f4f68',
+    color: '#000000',
   },
   devise: {
-    fontSize: 9,
+    fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
-    color: '#475569',
-    marginBottom: 4,
+    color: '#000000',
   },
   preambule: {
     fontSize: 9,
@@ -148,7 +126,6 @@ const styles = StyleSheet.create({
   signatureImage: { width: 200, height: 160, objectFit: 'contain', alignSelf: 'center' },
   signaturePlaceholder: { width: 200, height: 160, alignSelf: 'center' },
   signatureHint: { fontSize: 8, fontStyle: 'italic', color: '#64748b', textAlign: 'center' },
-  footer: { marginTop: 3, fontSize: 7.5, lineHeight: 1.2, color: '#475569' },
 })
 
 const POINTILLES = '..............................'
@@ -237,11 +214,19 @@ const formatDateQuittance = (value: string): string => {
   return `${jour}/${mois}/${annee}`
 }
 
+/** Préserve la nouvelle appellation sans doubler un ancien préfixe « KARA- ». */
+export const formatMatriculeQuittance = (matricule?: string | null): string => {
+  const valeur = matricule
+    ?.trim()
+    .replace(/^(?:LE\s+)?KARA\s*-\s*/i, '')
+    .trim()
+
+  return aValeur(valeur) ? `LE KARA-${valeur}` : `LE KARA-${POINTILLES}`
+}
+
 const QuittanceSecoursPDF = ({ fillData }: { fillData: QuittanceSecoursFillData }) => {
   // Le matricule s'imprime toujours préfixé, comme sur le document papier
-  const matriculeAffiche = aValeur(fillData.matricule)
-    ? `KARA-${fillData.matricule.replace(/^KARA-/i, '')}`
-    : `KARA-${POINTILLES}`
+  const matriculeAffiche = formatMatriculeQuittance(fillData.matricule)
 
   const telephoneAffiche = aValeur(fillData.telephone)
     ? `(+241) ${fillData.telephone.replace(/^\(\+241\)\s*/, '').replace(/^\+241\s*/, '')}`
@@ -250,32 +235,20 @@ const QuittanceSecoursPDF = ({ fillData }: { fillData: QuittanceSecoursFillData 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text
-          fixed
-          style={styles.pageNumber}
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
-
         <View style={styles.header}>
-          <Image
-            src={window.location.origin + '/Logo-Kara.jpg'}
-            style={styles.logo}
-            cache={false}
-          />
-          <View style={{ width: 52 }} />
+          <Text style={styles.titre}>
+            PROCÈS-VERBAL DE LIQUIDATION ET QUITTANCE D&apos;ALLOCATION DE SECOURS
+          </Text>
+          <Text style={styles.sousTitre}>ASSOCIATION DE SECOURS MUTUEL LE KARA</Text>
+          <Text style={styles.devise}>Intégrité – Solidarité – Dynamisme</Text>
         </View>
-
-        <Text style={styles.titre}>
-          PROCÈS-VERBAL DE LIQUIDATION ET QUITTANCE D&apos;ALLOCATION DE SECOURS
-        </Text>
-        <Text style={styles.sousTitre}>ASSOCIATION DE SECOURS MUTUEL KARA</Text>
-        <Text style={styles.devise}>Intégrité – Solidarité – Dynamisme</Text>
 
         <Text style={styles.preambule}>
           Ce document atteste de la liquidation effective d&apos;une allocation financière
-          forfaitaire au titre du Fonds de Secours Mutuel. Conformément à la réglementation
-          gabonaise (Loi 35/62) et aux statuts de KARA, ce versement constitue une prestation
-          sociale de prévoyance non imposable et non remboursable.
+          forfaitaire au titre du Fonds de Secours Mutuel. Conformément à la loi n°35/62 du 10
+          décembre 1962 relative aux associations et aux statuts de LE KARA, cette allocation
+          constitue une prestation d&apos;entraide sociale. Elle ne constitue ni un prêt ni une avance
+          remboursable.
         </Text>
 
         {/* 1. Identification du bénéficiaire */}
@@ -368,7 +341,7 @@ const QuittanceSecoursPDF = ({ fillData }: { fillData: QuittanceSecoursFillData 
               <Text style={styles.gras}>
                 {ouPointilles(fillData.soussigneNom || fillData.beneficiaireNom)}
               </Text>
-              , reconnaît avoir reçu de l&apos;Association de Secours Mutuel KARA la somme indiquée
+              , reconnaît avoir reçu de l&apos;Association de Secours Mutuel LE KARA la somme indiquée
               ci-dessus au titre de l&apos;allocation forfaitaire de secours mutuel.
             </Text>
             <Text style={styles.paragraphe}>
@@ -404,7 +377,7 @@ const QuittanceSecoursPDF = ({ fillData }: { fillData: QuittanceSecoursFillData 
               </View>
               <View style={styles.signatureCell}>
                 <View>
-                  <Text style={styles.signatureTitre}>Pour le Comité Exécutif (KARA)</Text>
+                  <Text style={styles.signatureTitre}>Pour le Comité Exécutif (LE KARA)</Text>
                   <Text style={styles.signatureRole}>
                     Le Financier Général / Le Secrétaire Exécutif
                   </Text>
@@ -424,12 +397,6 @@ const QuittanceSecoursPDF = ({ fillData }: { fillData: QuittanceSecoursFillData 
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <Text>
-            ASSOCIATION DE SECOURS MUTUEL KARA. <Text style={styles.gras}>Intégrité - Solidarité - Dynamisme</Text>
-          </Text>
-          <Text>Siège : Awoungou, Owendo — R.D N°: 0650 /MIS/SG/DGELP/DPPALC/KMOG-</Text>
-        </View>
       </Page>
     </Document>
   )

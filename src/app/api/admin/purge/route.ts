@@ -12,7 +12,7 @@ export const maxDuration = 300
 /** Compte superAdmin conservé (et SEUL autorisé à purger). */
 const SUPERADMIN_EMAIL = (process.env.PURGE_SUPERADMIN_EMAIL || 'phil@gmail.com').toLowerCase()
 /** Phrase exacte à taper pour exécuter réellement (purge globale/domaine). */
-const CONFIRM_PHRASE = 'SUPPRIMER TOUT KARA'
+const CONFIRM_PHRASE = 'SUPPRIMER TOUT LE KARA'
 
 /**
  * Réinitialisation par SECTION métier : chaque section liste ses collections

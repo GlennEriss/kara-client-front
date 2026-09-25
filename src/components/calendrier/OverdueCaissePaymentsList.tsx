@@ -130,7 +130,7 @@ function reminderTemplateFor(group: OverdueGroup): { key: string; variables: Rec
   const name = group.name?.trim() || 'cher membre'
   const fmtDue = (d: Date) => format(d, 'dd/MM/yyyy', { locale: fr })
 
-  // Placement : c'est KARA qui doit la commission au bienfaiteur — le message
+  // Placement : c'est LE KARA qui doit la commission au bienfaiteur — le message
   // l'informe (au lieu de lui réclamer un paiement).
   if (group.product === 'Placement') {
     return {

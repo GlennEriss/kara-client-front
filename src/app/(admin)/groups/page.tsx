@@ -5,7 +5,7 @@ import { Metadata } from 'next'
 import { Suspense } from 'react'
 
 export const metadata: Metadata = {
-  title: 'Groupes | KARA Admin',
+  title: 'Groupes | LE KARA Admin',
   description: 'Gestion des groupes et des membres associés'
 }
 

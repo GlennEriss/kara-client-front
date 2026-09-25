@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { useMemberById } from '@/domains/memberships/hooks/useMemberById'
 import type { ContractCI } from '@/types/types'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
@@ -24,7 +23,6 @@ interface ViewContractCIModalProps {
 }
 
 const EMPTY_FILL_DATA: CaisseImprevuePdfFillData = {
-  paymentDueDay: '',
   memberSignature: null,
   secretarySignature: null,
 }
@@ -380,25 +378,6 @@ export default function ViewContractCIModal({ isOpen, onClose, contract }: ViewC
                     {isPreviewRefreshing ? (
                       <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
                     ) : null}
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-kara-primary-dark">Date limite de versement (point 3)</p>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="Ex: 05"
-                        value={fillData.paymentDueDay}
-                        onChange={(event) => {
-                          const nextValue = event.target.value.replace(/\D/g, '').slice(0, 2)
-                          setFillData((prev) => ({ ...prev, paymentDueDay: nextValue }))
-                        }}
-                        className="h-9"
-                      />
-                      <p className="text-[11px] text-gray-500">
-                        Jour du mois affiché dans: « au plus tard le ... de chaque mois »
-                      </p>
-                    </div>
 
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>

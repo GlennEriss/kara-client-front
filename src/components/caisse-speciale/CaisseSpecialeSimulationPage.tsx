@@ -576,7 +576,7 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
     const separator = '----------------------'
     const lines = [
       '*TABLEAU R\u00c9CAPITULATIF*',
-      'Caisse Sp\u00e9ciale KARA',
+      'Caisse Sp\u00e9ciale LE KARA',
       separator,
       '',
       '*R\u00c9SUM\u00c9*',
@@ -595,7 +595,7 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
       '',
       separator,
       'Fait le ' + formatDateFr(new Date()),
-      'KARA - Association de solidarite',
+      'LE KARA - Association de solidarite',
     ]
 
     const text = lines.join('\n')

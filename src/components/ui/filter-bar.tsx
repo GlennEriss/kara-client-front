@@ -27,7 +27,7 @@ export interface FilterConfig {
 
 /**
  * Barre de filtres horizontale standardisée
- * Design système KARA avec animations modernes
+ * Design système LE KARA avec animations modernes
  *
  * Features :
  * - Filtres Select avec icônes optionnelles

@@ -139,10 +139,10 @@ export default function LoginMembership() {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300 overflow-hidden bg-white">
-              <Logo variant="with-bg" size="md" alt="KARA" />
+              <Logo variant="with-bg" size="md" alt="LE KARA" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-[#234E64] to-[#234E64] bg-clip-text text-transparent mb-2">
-              Bienvenue sur KARA
+              Bienvenue sur LE KARA
             </h1>
             <p className="text-slate-600 text-lg">
               Connectez-vous à votre espace membre
@@ -483,7 +483,7 @@ export default function LoginMembership() {
               onClick={() => router.push(routes.public.register)}
                 className="text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
             >
-              Rejoignez KARA
+              Rejoignez LE KARA
             </button>
           </p>
         </div>

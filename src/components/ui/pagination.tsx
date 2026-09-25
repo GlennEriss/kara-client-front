@@ -18,7 +18,7 @@ import {
 
 /**
  * Composant de pagination standardisé et réutilisable
- * Design système KARA avec animations modernes
+ * Design système LE KARA avec animations modernes
  *
  * Features :
  * - Navigation avec boutons animés

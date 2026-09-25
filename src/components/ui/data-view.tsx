@@ -8,7 +8,7 @@ import React from "react";
 
 /**
  * Composant pour afficher des données en liste ou en cards
- * Design système KARA avec animations modernes
+ * Design système LE KARA avec animations modernes
  *
  * Features :
  * - Toggle vue liste/cards animé

@@ -168,7 +168,10 @@ service firebase.storage {
     
     match /contracts-ci/refunds/{contractId}/{refundId}/{fileName} {
       allow read: if isAdmin();
-      allow write: if isAdmin() && isImage() && request.resource.size < 20 * 1024 * 1024;
+      allow write: if isAdmin() && (
+        (isPDF() && isPDFSizeValid()) ||
+        (isImage() && request.resource.size < 20 * 1024 * 1024)
+      );
       allow delete: if isAdmin();
     }
 

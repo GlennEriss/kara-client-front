@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from "react";
  * Composant de recherche standardisé avec debounce
  *
  * Utilisé dans tous les modules pour la recherche de données
- * Design système KARA avec animations modernes
+ * Design système LE KARA avec animations modernes
  *
  * Features :
  * - Icône de recherche animée
@@ -18,7 +18,7 @@ import { useCallback, useEffect, useState } from "react";
  * - Debounce automatique pour limiter les requêtes
  * - Variantes de style (default, kara, minimal, glass)
  * - Indicateur de chargement
- * - Design cohérent KARA
+ * - Design cohérent LE KARA
  */
 
 type SearchVariant = "default" | "kara" | "minimal" | "glass";

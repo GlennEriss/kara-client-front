@@ -407,7 +407,7 @@ export interface InsurancePolicy {
     lastName: string
     email?: string
     phone: string
-    memberNumber?: string // Si c'est un membre KARA
+    memberNumber?: string // Si c'est un membre LE KARA
   }
 
   // Informations de la police

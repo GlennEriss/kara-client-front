@@ -27,11 +27,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { Profession } from '../entities/profession.types'
 
 /**
- * ProfessionListV2 - Version 2 avec design cohérent KARA
+ * ProfessionListV2 - Version 2 avec design cohérent LE KARA
  * 
  * Améliorations :
  * - Design table/liste compact au lieu de cards énormes
- * - Couleurs KARA (kara-primary-dark, kara-primary-light)
+ * - Couleurs LE KARA (kara-primary-dark, kara-primary-light)
  * - Stats cards en haut
  * - Vue responsive (liste mobile / table desktop)
  * - Sélecteurs stables avec data-testid

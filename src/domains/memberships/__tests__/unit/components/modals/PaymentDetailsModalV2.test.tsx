@@ -46,7 +46,7 @@ describe('PaymentDetailsModalV2', () => {
     withFees: true,
     proofUrl: 'https://example.com/proof.jpg',
     recordedBy: 'admin-id-123',
-    recordedByName: 'Admin KARA',
+    recordedByName: 'Admin LE KARA',
     recordedAt: new Date('2026-01-17T15:05:00'),
   }
 
@@ -261,7 +261,7 @@ describe('PaymentDetailsModalV2', () => {
   describe('Traçabilité', () => {
     it('devrait afficher le nom de l\'admin qui a enregistré', () => {
       render(<PaymentDetailsModalV2 {...defaultProps} />)
-      expect(screen.getByText('Admin KARA')).toBeInTheDocument()
+      expect(screen.getByText('Admin LE KARA')).toBeInTheDocument()
     })
 
     it('devrait afficher "Admin inconnu" si recordedByName et acceptedBy ne sont pas fournis', () => {

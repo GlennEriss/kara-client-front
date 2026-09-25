@@ -115,7 +115,7 @@ export default function PlacementEarlyExitQuittanceModal({
       
       doc.setFontSize(12)
       doc.setFont('helvetica', 'normal')
-      doc.text('Placement - KARA', pageWidth / 2, 30, { align: 'center' })
+      doc.text('Placement - LE KARA', pageWidth / 2, 30, { align: 'center' })
 
       yPos = 50
 
@@ -273,7 +273,7 @@ export default function PlacementEarlyExitQuittanceModal({
       
       yPos += 20
       doc.setFont('helvetica', 'bold')
-      doc.text('Pour KARA', 15, yPos)
+      doc.text('Pour LE KARA', 15, yPos)
       doc.text('Le Bienfaiteur', pageWidth - 60, yPos)
 
       yPos += 15

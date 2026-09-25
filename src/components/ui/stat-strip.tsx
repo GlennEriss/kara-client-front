@@ -13,7 +13,7 @@ export type StatStripItem = {
   title: string
   value: React.ReactNode
   subtitle?: string
-  /** Met la valeur en avant (bleu KARA). */
+  /** Met la valeur en avant (bleu LE KARA). */
   accent?: boolean
   /** Signale une valeur problématique (retard). Prime sur `accent`. */
   danger?: boolean

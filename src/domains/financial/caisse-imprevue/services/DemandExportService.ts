@@ -429,7 +429,7 @@ export class DemandExportService {
       20,
       pageHeight - 20
     )
-    doc.text('KARA - Caisse Imprévue', 20, pageHeight - 15)
+    doc.text('LE KARA - Caisse Imprévue', 20, pageHeight - 15)
 
     const buffer = doc.output('arraybuffer')
     return new Blob([buffer], { type: 'application/pdf' })

@@ -51,12 +51,12 @@ export const MESSAGE_TEMPLATES: MessageTemplateDefinition[] = [
     ],
     defaultBody: `Joyeux anniversaire {{prenom}} ! 🎉🎂
 
-En ce jour si spécial, toute la famille KARA pense à toi et te souhaite une merveilleuse journée entourée de tes proches.
+En ce jour si spécial, toute la famille LE KARA pense à toi et te souhaite une merveilleuse journée entourée de tes proches.
 
 Que cette nouvelle année t'apporte santé, bonheur et réussite. Tu comptes énormément pour nous ❤️
 
 Avec toute notre affection,
-— L'équipe KARA`,
+— L'équipe LE KARA`,
   },
 
   // ── Relances de versement ───────────────────────────────────────────────
@@ -76,13 +76,13 @@ Avec toute notre affection,
     ],
     defaultBody: `Bonjour {{nom}},
 
-Petit rappel amical de la part de la famille KARA 🙏
+Petit rappel amical de la part de la famille LE KARA 🙏
 
 Un versement {{typeVersement}} de {{montant}} FCFA pour ta {{produit}} est en retard depuis le {{dateEcheance}} ({{joursRetard}}).
 
 Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
 
-— L'équipe KARA`,
+— L'équipe LE KARA`,
   },
   {
     key: 'paymentReminderMultiple',
@@ -101,20 +101,20 @@ Merci de bien vouloir régulariser dès que possible. Pour toute question, nous 
     ],
     defaultBody: `Bonjour {{nom}},
 
-Petit rappel amical de la part de la famille KARA 🙏
+Petit rappel amical de la part de la famille LE KARA 🙏
 
 Tu as {{nombre}} versements en retard pour ta {{produit}}, pour un total de {{montantTotal}} FCFA (le plus ancien depuis le {{dateEcheance}}, soit {{joursRetard}}) :
 {{detail}}
 
 Merci de bien vouloir régulariser dès que possible. Pour toute question, nous restons à ta disposition.
 
-— L'équipe KARA`,
+— L'équipe LE KARA`,
   },
   {
     key: 'placementCommissionDue',
     label: 'Information — échéance de placement échue',
     description:
-      'Envoyé au bienfaiteur : c’est KARA qui doit la commission ou la restitution du capital, le message informe au lieu de réclamer.',
+      'Envoyé au bienfaiteur : c’est LE KARA qui doit la commission ou la restitution du capital, le message informe au lieu de réclamer.',
     category: 'relance',
     variables: [
       V('nom', 'Nom du bienfaiteur'),
@@ -122,12 +122,12 @@ Merci de bien vouloir régulariser dès que possible. Pour toute question, nous 
     ],
     defaultBody: `Bonjour {{nom}},
 
-L'équipe KARA vous informe qu'une ou plusieurs échéances de votre placement sont arrivées à terme :
+L'équipe LE KARA vous informe qu'une ou plusieurs échéances de votre placement sont arrivées à terme :
 {{detail}}
 
 Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci de votre confiance 🙏
 
-— L'équipe KARA`,
+— L'équipe LE KARA`,
   },
 
   // ── Assurance véhicule ──────────────────────────────────────────────────
@@ -143,7 +143,7 @@ Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci 
       V('echeance', 'Formulation de l’échéance : « aujourd’hui », « demain », « dans N jours (le jj/mm/aaaa) »'),
       V('dateFin', 'Date de fin de couverture (jj/mm/aaaa)'),
     ],
-    defaultBody: `Bonjour {{nom}}, votre assurance véhicule{{plaque}}{{compagnie}} arrive à expiration {{echeance}}. Pensez à la renouveler à temps pour rester couvert. — Association KARA`,
+    defaultBody: `Bonjour {{nom}}, votre assurance véhicule{{plaque}}{{compagnie}} arrive à expiration {{echeance}}. Pensez à la renouveler à temps pour rester couvert. — Association LE KARA`,
   },
   {
     key: 'insuranceExpired',
@@ -156,7 +156,7 @@ Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci 
       V('compagnie', 'Compagnie d’assurance (précédée d’une virgule, vide si inconnue)'),
       V('dateFin', 'Date d’expiration (jj/mm/aaaa)'),
     ],
-    defaultBody: `Bonjour {{nom}}, nous vous informons que votre assurance véhicule{{plaque}}{{compagnie}} a expiré le {{dateFin}}. Merci de la renouveler dans les meilleurs délais. — Association KARA`,
+    defaultBody: `Bonjour {{nom}}, nous vous informons que votre assurance véhicule{{plaque}}{{compagnie}} a expiré le {{dateFin}}. Merci de la renouveler dans les meilleurs délais. — Association LE KARA`,
   },
 
   // ── Demandes d'adhésion ─────────────────────────────────────────────────
@@ -172,7 +172,7 @@ Nous vous contactons pour organiser la remise dans les meilleurs délais. Merci 
     ],
     defaultBody: `Bonjour {{prenom}},
 
-Votre demande d'adhésion KARA (matricule: {{matricule}}) a été rejetée.
+Votre demande d'adhésion LE KARA (matricule: {{matricule}}) a été rejetée.
 
 Motif de rejet:
 {{motif}}
@@ -180,7 +180,7 @@ Motif de rejet:
 Pour toute question, veuillez contacter notre service client.
 
 Cordialement,
-KARA Association`,
+LE KARA Association`,
   },
   {
     key: 'membershipCorrections',
@@ -209,7 +209,7 @@ Pour effectuer les corrections, veuillez :
 ⚠️ Le code expire le {{dateExpiration}} (dans {{tempsRestant}})
 
 Cordialement,
-KARA Association`,
+LE KARA Association`,
   },
 ]
 

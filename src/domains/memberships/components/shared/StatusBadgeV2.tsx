@@ -1,7 +1,7 @@
 /**
  * Badge pour afficher le statut d'une demande d'adhésion V2
  * 
- * Suit le design system KARA avec animations et couleurs du thème
+ * Suit le design system LE KARA avec animations et couleurs du thème
  */
 
 'use client'

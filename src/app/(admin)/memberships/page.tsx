@@ -30,7 +30,7 @@ function MembershipsPageInner() {
       <PageHero
         icon={Users}
         title="Gestion des Membres"
-        subtitle="Gérez les membres adhérents, bienfaiteurs et sympathisants de KARA"
+        subtitle="Gérez les membres adhérents, bienfaiteurs et sympathisants de LE KARA"
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

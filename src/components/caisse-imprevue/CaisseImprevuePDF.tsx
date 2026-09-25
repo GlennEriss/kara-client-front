@@ -412,7 +412,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
           </Text>
 
           <Text style={styles.articleText}>
-            A ce titre, le KARA par le canal du Volet Entraide invite tous ses membres à verser mensuellement une cotisation de 10 000 FCFA, 20 000 FCFA, 30 000 FCFA, 40 000 FCFA, 50 000 FCFA ou plus, selon leurs disponibilités financières.
+            A ce titre, le LE KARA par le canal du Volet Entraide invite tous ses membres à verser mensuellement une cotisation de 10 000 FCFA, 20 000 FCFA, 30 000 FCFA, 40 000 FCFA, 50 000 FCFA ou plus, selon leurs disponibilités financières.
           </Text>
 
           <Text style={styles.articleText}>
@@ -435,7 +435,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.definitionItem}>
               <Text style={styles.definitionSymbol}>1.</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>Début du contrat :</Text> Toute adhésion nouvelle ou renouvellement à l'association le KARA emporte systématiquement adhésion au Volet Entraide. En effet, le Volet Entraide assure la vie de l'association par le biais de cotisations volontaires conformément au règlement intérieur.
+                <Text style={styles.bold}>Début du contrat :</Text> Toute adhésion nouvelle ou renouvellement à l'association le LE KARA emporte systématiquement adhésion au Volet Entraide. En effet, le Volet Entraide assure la vie de l'association par le biais de cotisations volontaires conformément au règlement intérieur.
               </Text>
             </View>
 
@@ -449,7 +449,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.definitionItem}>
               <Text style={styles.definitionSymbol}>2.</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>Durée du contrat :</Text> L'adhésion au Volet Entraide dure aussi longtemps que dure l'adhésion à l'association Le KARA, soit sur une année.
+                <Text style={styles.bold}>Durée du contrat :</Text> L'adhésion au Volet Entraide dure aussi longtemps que dure l'adhésion à l'association Le LE KARA, soit sur une année.
               </Text>
             </View>
 
@@ -523,7 +523,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.definitionItem}>
               <Text style={styles.definitionSymbol}>6.</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>Terme du contrat :</Text> Le contrat Volet Entraide prend fin à l'expiration de l'adhésion annuelle à l'association. Il emporte l'obligation pour le KARA de restituer au membre l'intégralité des sommes versées par le membre au cours de l'année au titre du Volet Entraide.
+                <Text style={styles.bold}>Terme du contrat :</Text> Le contrat Volet Entraide prend fin à l'expiration de l'adhésion annuelle à l'association. Il emporte l'obligation pour le LE KARA de restituer au membre l'intégralité des sommes versées par le membre au cours de l'année au titre du Volet Entraide.
               </Text>
             </View>
 
@@ -575,7 +575,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.definitionItem}>
               <Text style={styles.definitionSymbol}>•</Text>
               <Text style={styles.definitionText}>
-                En cas de non remboursement de l'accompagnement par un adhérent dans le délai fixé à l'alinéa précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal cumulé de l'adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en demeure adressée à l'adhérent par le Secrétaire exécutif.
+                En cas de non remboursement de l'accompagnement par un adhérent dans le délai fixé à l'alinéa précédent, LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal cumulé de l'adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en demeure adressée à l'adhérent par le Secrétaire exécutif.
               </Text>
             </View>
           </View>

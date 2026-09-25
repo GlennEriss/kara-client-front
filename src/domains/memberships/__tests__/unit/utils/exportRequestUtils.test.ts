@@ -77,12 +77,12 @@ describe('exportRequestUtils', () => {
       expect(mockJsPDF).toHaveBeenCalledWith('portrait', 'mm', 'a4')
     })
 
-    it('devrait inclure le titre "KARA" dans l\'en-tête', async () => {
+    it('devrait inclure le titre "LE KARA" dans l\'en-tête', async () => {
       const request = createMembershipRequestFixture()
 
       await generateRequestPDF(request)
 
-      expect(mockText).toHaveBeenCalledWith('KARA', 20, 20)
+      expect(mockText).toHaveBeenCalledWith('LE KARA', 20, 20)
     })
 
     it('devrait inclure le sous-titre "Demande d\'adhésion"', async () => {
