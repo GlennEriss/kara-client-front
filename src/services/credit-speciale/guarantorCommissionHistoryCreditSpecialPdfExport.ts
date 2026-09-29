@@ -87,9 +87,9 @@ const drawCommissionTablePage = (
   doc.setFontSize(9.5)
   doc.setTextColor(...NAVY)
   doc.text('MOIS', marginX + col1Width / 2, y + 5.8, { align: 'center' })
-  doc.text('RESTE DU (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
+  doc.text('CAPITAL RESTANT (FCFA)', marginX + col1Width + col2Width / 2, y + 5.8, { align: 'center' })
   doc.text('% COMM.', marginX + col1Width + col2Width + col3Width / 2, y + 5.8, { align: 'center' })
-  doc.text('SOMME DUE (FCFA)', marginX + col1Width + col2Width + col3Width + col4Width / 2, y + 5.8, { align: 'center' })
+  doc.text('COMMISSION (FCFA)', marginX + col1Width + col2Width + col3Width + col4Width / 2, y + 5.8, { align: 'center' })
   y += rowHeight
 
   rows.forEach((row) => {

@@ -54,6 +54,11 @@ export class GuarantorPaymentRepository implements IGuarantorPaymentRepository {
         return created;
     }
 
+    async deletePayment(id: string): Promise<void> {
+        const { doc, deleteDoc, db } = await getFirestore();
+        await deleteDoc(doc(db, COLLECTION, id));
+    }
+
     async getPaymentById(id: string): Promise<GuarantorPayment | null> {
         const { doc, getDoc, db } = await getFirestore();
         const ref = doc(db, COLLECTION, id);

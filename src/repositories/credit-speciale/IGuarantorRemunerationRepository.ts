@@ -18,6 +18,11 @@ export interface GuarantorRemunerationStats {
 
 export interface IGuarantorRemunerationRepository extends IRepository {
     createRemuneration(data: Omit<GuarantorRemuneration, 'id' | 'createdAt' | 'updatedAt'>): Promise<GuarantorRemuneration>;
+    /**
+     * Crée la commission sous un identifiant déterministe, dans une transaction.
+     * Retourne `null` si un document existe déjà sous cet identifiant.
+     */
+    createRemunerationIfAbsent(id: string, data: Omit<GuarantorRemuneration, 'id' | 'createdAt' | 'updatedAt'>): Promise<GuarantorRemuneration | null>;
     getRemunerationById(id: string): Promise<GuarantorRemuneration | null>;
     getAllRemunerations(): Promise<GuarantorRemuneration[]>;
     getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]>;

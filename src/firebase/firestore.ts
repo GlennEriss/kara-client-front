@@ -26,6 +26,7 @@ export {
   doc,
   or,
   deleteDoc,
+  deleteField,
   documentId,
   serverTimestamp,
   limit,

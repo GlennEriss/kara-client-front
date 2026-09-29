@@ -6,4 +6,5 @@ export interface IGuarantorPaymentRepository extends IRepository {
     getPaymentById(id: string): Promise<GuarantorPayment | null>;
     getPaymentsByCreditId(creditId: string): Promise<GuarantorPayment[]>;
     getPaymentsByGuarantorId(guarantorId: string): Promise<GuarantorPayment[]>;
+    deletePayment(id: string): Promise<void>;
 }

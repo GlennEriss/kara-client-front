@@ -233,6 +233,18 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
         }
     }
 
+    async markPenaltyUnpaid(id: string, userId: string): Promise<void> {
+        const { doc, updateDoc, db, serverTimestamp, deleteField } = await getFirestore();
+        const penaltyRef = doc(db, firebaseCollectionNames.creditPenalties || "creditPenalties", id);
+        await updateDoc(penaltyRef, {
+            paid: false,
+            paidAt: deleteField(),
+            paymentId: deleteField(),
+            updatedBy: userId,
+            updatedAt: serverTimestamp(),
+        });
+    }
+
     async deletePenalty(id: string): Promise<void> {
         try {
             const { doc, deleteDoc, db } = await getFirestore();
