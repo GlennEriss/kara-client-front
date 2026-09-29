@@ -92,9 +92,9 @@ describe('member form builders', () => {
     expect(entries[0].contractHref).toBe('/credit-fixe/contrats/credit-1')
   })
 
-  it('fusionne les produits et ne garde que les dix résultats les plus récents', () => {
-    const contract = { id: 'cs-many', monthlyAmount: 5_000 } as CaisseContract & { id: string }
-    const payments = Array.from({ length: 12 }, (_, index) => ({
+  it('garde les dix dernières échéances de chaque produit séparément', () => {
+    const csContract = { id: 'cs-many', monthlyAmount: 5_000 } as CaisseContract & { id: string }
+    const csPayments = Array.from({ length: 12 }, (_, index) => ({
       id: `p-${index}`,
       dueMonthIndex: index,
       dueAt: new Date(2025, index, 1),
@@ -102,17 +102,34 @@ describe('member form builders', () => {
       amount: 5_000,
       status: 'PAID',
     })) as ContractPayment[]
+    const ciContract = {
+      id: 'ci-old',
+      paymentFrequency: 'MONTHLY',
+      firstPaymentDate: '2024-01-01',
+      subscriptionCIDuration: 2,
+      subscriptionCIAmountPerMonth: 10_000,
+    } as ContractCI
 
     const summary = buildCompleteMemberFormSummary({
       memberId: 'member-1',
-      caisseSpeciale: [{ contract, payments }],
-      caisseImprevue: [],
+      caisseSpeciale: [{ contract: csContract, payments: csPayments }],
+      caisseImprevue: [{ contract: ciContract, payments: [] }],
       credits: [],
       now: NOW,
     })
 
-    expect(summary.entries).toHaveLength(10)
-    expect(summary.onTimeCount).toBe(10)
-    expect(summary.punctualityRate).toBe(1)
+    // Plus anciennes que les douze échéances CS, les échéances CI auraient
+    // été évincées par une bande fusionnée.
+    expect(summary.products.map((product) => product.product)).toEqual([
+      'Caisse Spéciale',
+      'Caisse Imprévue',
+    ])
+    const [cs, ci] = summary.products
+    expect(cs.entries).toHaveLength(10)
+    expect(cs.onTimeCount).toBe(10)
+    expect(cs.punctualityRate).toBe(1)
+    expect(ci.entries).toHaveLength(2)
+    expect(ci.missedCount).toBe(2)
+    expect(ci.punctualityRate).toBe(0)
   })
 })
