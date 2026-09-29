@@ -4,7 +4,7 @@ import type { ContractPayment } from '@/domains/financial/caisse-speciale/contra
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CaisseContract, ContractCI, CreditContract, CreditPayment, PaymentCI } from '@/types/types'
-import type { MemberFormSummary } from '../entities/member-form.types'
+import type { MemberFormByProduct } from '../entities/member-form.types'
 import {
   buildCompleteMemberFormSummary,
   type CaisseImprevueFormSource,
@@ -29,7 +29,7 @@ const CAISSE_SPECIALE_TYPES = new Set([
 export async function getMemberFormSummary(
   memberId: string,
   now: Date = new Date(),
-): Promise<MemberFormSummary> {
+): Promise<MemberFormByProduct> {
   const caisseImprevueService = ServiceFactory.getCaisseImprevueService()
   const creditContractRepository = RepositoryFactory.getCreditContractRepository()
   const creditPaymentRepository = RepositoryFactory.getCreditPaymentRepository()

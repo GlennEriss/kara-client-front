@@ -14,11 +14,11 @@ import {
   getCreditPaymentMonthNumber,
 } from '@/utils/credit-speciale-history'
 import {
-  buildMemberFormSummary,
+  buildMemberFormByProduct,
   resolveOutcome,
+  type MemberFormByProduct,
   type MemberFormEntry,
   type MemberFormProduct,
-  type MemberFormSummary,
 } from '../entities/member-form.types'
 import { addContractMonths } from '@/utils/contract-months'
 
@@ -366,7 +366,7 @@ export function buildCompleteMemberFormSummary(params: {
   caisseImprevue: CaisseImprevueFormSource[]
   credits: CreditFormSource[]
   now?: Date
-}): MemberFormSummary {
+}): MemberFormByProduct {
   const now = params.now ?? new Date()
   const entries = [
     ...buildCaisseSpecialeEntries(params.caisseSpeciale, now),
@@ -374,5 +374,5 @@ export function buildCompleteMemberFormSummary(params: {
     ...buildCreditEntries(params.credits, now),
   ]
 
-  return buildMemberFormSummary({ memberId: params.memberId, entries })
+  return buildMemberFormByProduct({ memberId: params.memberId, entries })
 }

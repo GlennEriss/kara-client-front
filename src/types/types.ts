@@ -1913,8 +1913,10 @@ export interface GuarantorRemuneration {
   creditId: string
   guarantorId: string
   paymentId: string
-  amount: number // 2% du montant versé mensuel
-  month: number // Mois concerné
+  amount: number // Taux du contrat × capital restant au début du mois
+  month: number // Mois concerné, relatif au cycle
+  /** Cycle du contrat (1 = initial, 2+ = après rajout). Absent sur les documents antérieurs. */
+  cycleNumber?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string

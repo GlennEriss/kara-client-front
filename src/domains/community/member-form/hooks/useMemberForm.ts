@@ -5,7 +5,7 @@ import { getMemberFormSummary } from '../services/MemberFormService'
 
 export function useMemberForm(memberId: string) {
   return useQuery({
-    queryKey: ['member-form', memberId],
+    queryKey: ['member-form', 'by-product', memberId],
     queryFn: () => getMemberFormSummary(memberId),
     enabled: Boolean(memberId),
     staleTime: 3 * 60 * 1000,

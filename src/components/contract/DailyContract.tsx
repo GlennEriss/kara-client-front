@@ -999,7 +999,7 @@ export default function DailyContract({ id }: Props) {
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                       <FileText className="h-5 w-5" />
-                      Générer la quittance
+                      Générer le procès-verbal de liquidation
                 </Button>
               </>
             )
@@ -1111,7 +1111,7 @@ export default function DailyContract({ id }: Props) {
 
                   {r.status === 'PENDING' && !isEarlyRefund && (
                         <div className="space-y-2">
-                          {/* Première ligne : Approbation et Document de remboursement */}
+                          {/* Première ligne : Approbation et Procès-verbal de liquidation */}
                     <div className="flex flex-col sm:flex-row gap-2">
                             <button 
                               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1126,7 +1126,7 @@ export default function DailyContract({ id }: Props) {
                             onClick={() => setShowRemboursementPdf(true)}
                           >
                             <FileText className="h-4 w-4" />
-                            Document de remboursement
+                            Procès-verbal de liquidation
                               </button>
                             )}
                           </div>
@@ -2925,9 +2925,6 @@ export default function DailyContract({ id }: Props) {
                     setShowReasonModal(false)
                     setRefundType(null)
                     setRefundReasonInput('')
-
-                    // Afficher le PDF de remboursement
-                    setShowRemboursementPdf(true)
                   } catch (e: any) {
                     toast.error(e?.message || 'Action impossible')
                   } finally {
@@ -2935,7 +2932,7 @@ export default function DailyContract({ id }: Props) {
                   }
                 }}
               >
-                {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+                {isRefunding ? 'Traitement...' : 'Confirmer la demande'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2968,7 +2965,7 @@ export default function DailyContract({ id }: Props) {
         />
       )}
 
-      {/* Modal Quittance / Document de remboursement */}
+      {/* Modal Quittance / Procès-verbal de liquidation */}
       <RemboursementNormalPDFModal
         isOpen={showRemboursementPdf}
         onClose={() => setShowRemboursementPdf(false)}

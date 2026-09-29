@@ -1,436 +1,196 @@
 'use client'
 
-import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
-import { getNationalityName } from '@/constantes/nationality'
-import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import {
+  EMPTY,
+  FieldTable,
+  MutuelleHeader,
+  MutuellePageChrome,
+  MutuelleSection,
+  MutuelleSignatures,
+  collectDocumentFields,
+  display,
+  documentPlace,
+  field,
+  formatAmount,
+  formatDate,
+  fullNameFrom,
+  mutuelleStyles as styles,
+  numberToWords,
+  readField,
+  toDate,
+  type DocumentCompletion,
+  type DocumentField,
+  type FieldRow,
+} from '@/components/pdf/mutuelle/MutuelleDocumentKit'
+import { resolveContractEndAt } from '@/services/caisse/contractDates'
+import { Document, Page, Text } from '@react-pdf/renderer'
+import React from 'react'
 
-const ACCENT_BLUE = '#1f4f68'
-const BORDER_SOFT = '#cbd5e1'
-const TEXT_PRIMARY = '#1f2937'
-const TEXT_MUTED = '#475569'
+/**
+ * Procès-verbal de liquidation du contrat de Caisse Spéciale (modèle
+ * LIQUIDATION.docx, comme la Caisse Imprévue). Il constate la restitution liée
+ * à un contrat arrivé à son terme ou clôturé par retrait anticipé, et n'est
+ * établi qu'une fois le remboursement réglé.
+ */
 
-// Styles - basés sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
-const styles = StyleSheet.create({
-  page: {
-    // Aligne 1:1 avec `AdhesionCreditSpecialeV2` (page 1)
-    fontFamily: 'Times-Roman',
-    fontSize: 11,
-    paddingLeft: 30,
-    paddingRight: 30,
-    paddingTop: 50,
-    paddingBottom: 40,
-    lineHeight: 1.45,
-    color: TEXT_PRIMARY,
-  },
-  pageContainer: {
-    width: '100%',
-    height: '100%',
-    border: '1px solid #94a3b8',
-    borderRadius: 2,
-    position: 'relative',
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    width: '100%',
-  },
-  logo: {
-    width: 70,
-    height: 70,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 16,
-    border: '1px solid #1f4f68',
-    backgroundColor: ACCENT_BLUE,
-    color: 'white',
-    paddingVertical: 5,
-  },
-  section: {
-    border: '1px solid black',
-    marginBottom: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    borderBottom: '1px solid #ccc',
-    padding: 5,
-  },
-  cell: {
-    flex: 1,
-    fontSize: 11,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  articleText: {
-    marginBottom: 7,
-    lineHeight: 1.45,
-    textAlign: 'justify',
-    color: TEXT_PRIMARY,
-  },
-  signatureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 26,
-    minHeight: 120,
-    border: `1px solid ${BORDER_SOFT}`,
-    backgroundColor: '#f8fafc',
-    padding: 15,
-  },
-  signatureBlock: {
-    width: '48%',
-    justifyContent: 'space-between',
-  },
-  signatureBlockRight: {
-    width: '48%',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  signatureTitle: {
-    fontWeight: 'bold',
-    color: TEXT_PRIMARY,
-  },
-  signatureTitleRight: {
-    fontWeight: 'bold',
-    color: TEXT_PRIMARY,
-    textAlign: 'right',
-  },
-  dateText: {
-    fontSize: 9,
-    marginTop: 12,
-    color: TEXT_MUTED,
-  },
-  signatureImage: {
-    width: 185,
-    height: 56,
-    objectFit: 'contain',
-    marginTop: 12,
-  },
-  signaturePlaceholder: {
-    width: 185,
-    height: 56,
-    marginTop: 12,
-    border: '1px dashed #94a3b8',
-    backgroundColor: '#ffffff',
-  },
-  unsignedSignerName: {
-    // Même largeur que le cadre pour être centré dessous.
-    width: 185,
-    marginTop: 4,
-    fontSize: 9,
-    textAlign: 'center',
-    color: TEXT_MUTED,
-  },
-  pageNumber: {
-    position: 'absolute',
-    bottom: 8,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 9,
-    color: TEXT_MUTED,
-  },
-})
+const CAISSE_TYPE_LABELS: Record<string, string> = {
+  STANDARD: 'Standard',
+  JOURNALIERE: 'Journalière',
+  LIBRE: 'Libre',
+  STANDARD_CHARITABLE: 'Standard charitable',
+  JOURNALIERE_CHARITABLE: 'Journalière charitable',
+  LIBRE_CHARITABLE: 'Libre charitable',
+}
 
-// PDF basé sur TEMPLATE_REMBOURSEMENT_NORMAL_CS_N.docx
+const paymentModeLabel = (refund?: Record<string, unknown>): string => {
+  if (typeof refund?.paymentMethodOther === 'string' && refund.paymentMethodOther.trim()) {
+    return refund.paymentMethodOther.trim()
+  }
+
+  switch (refund?.withdrawalMode) {
+    case 'cash': return 'Espèces'
+    case 'bank_transfer': return 'Virement bancaire'
+    case 'airtel_money': return 'Airtel Money'
+    case 'mobicash': return 'Mobicash'
+    default: return ''
+  }
+}
+
 export interface QuittanceCaisseSpecialePdfFillData {
-  refundDelayDays: string
   secretarySignature: string | null
-  secretaryDate: string
   memberSignature: string | null
-  memberDate: string
 }
 
 const DEFAULT_FILL_DATA: QuittanceCaisseSpecialePdfFillData = {
-  refundDelayDays: '',
   secretarySignature: null,
-  secretaryDate: '',
   memberSignature: null,
-  memberDate: '',
 }
 
-const QuittanceCaisseSpecialePDF = ({ contract, fillData }: { contract?: any; fillData?: QuittanceCaisseSpecialePdfFillData }) => {
-  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
+type CaisseSpecialeLiquidationInput = {
+  /** Contrat enrichi par la modale : fiche `member` et `nominalPaid`. */
+  contract?: any
+  refund?: Record<string, unknown> | null
+}
 
-  const formatDate = (date: any) => {
-    if (!date) return '—'
-    try {
-      const dateObj = date?.toDate ? date.toDate() : new Date(date)
-      return dateObj.toLocaleDateString('fr-FR')
-    } catch {
-      return '—'
-    }
+/** Champs du procès-verbal, partagés avec la modale pour la saisie des informations manquantes. */
+export const buildCaisseSpecialeLiquidationFields = ({ contract: inputContract, refund }: CaisseSpecialeLiquidationInput) => {
+  const contract = (inputContract ?? {}) as Record<string, any>
+  const member = (contract.member ?? {}) as Record<string, any>
+  const contacts: string[] = Array.isArray(member.contacts) ? member.contacts.filter(Boolean) : []
+  const caisseType = String(contract.caisseType ?? '')
+  const durationMonths = Number(contract.monthsPlanned ?? 0)
+  const startDate = contract.contractStartAt ?? contract.firstPaymentDate
+  const endDate = resolveContractEndAt(contract)
+  const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
+
+  const totalPaid = Number(contract.nominalPaid ?? refund?.amountNominal ?? 0)
+  const nominal = Number(refund?.amountNominal ?? totalPaid)
+  // Le montant effectivement remis reste celui enregistré lors du règlement ;
+  // le bonus n'est pas détaillé comme ligne autonome.
+  const amountPaid = Number(refund?.withdrawalAmount ?? (nominal + Number(refund?.amountBonus ?? 0)))
+  const liquidationType = refund?.type === 'EARLY'
+    ? 'Retrait anticipé et clôture du contrat'
+    : 'Remboursement final à l’échéance'
+  const paidDate = field('refund.paidDate', 'Date du règlement :', optionalDate(refund?.paidAt ?? refund?.withdrawalDate ?? refund?.processedAt), 'date')
+
+  return {
+    amountPaid,
+    member: [
+      [field('member.lastName', 'Nom(s) du membre :', String(member.lastName ?? '').toUpperCase()), field('member.firstName', 'Prénom(s) du membre :', member.firstName)],
+      [field('member.matricule', 'Matricule / N° d’Adhérent :', member.matricule || contract.memberId), field('contract.id', 'Référence du contrat :', contract.id)],
+      [
+        field('contract.caisseType', 'Type de Caisse Spéciale :', CAISSE_TYPE_LABELS[caisseType] ?? caisseType),
+        field('contract.duration', 'Durée du contrat :', durationMonths > 0 ? `${durationMonths} mois` : ''),
+      ],
+      [field('contract.startDate', 'Date de début :', optionalDate(startDate), 'date'), field('contract.endDate', 'Date de fin :', optionalDate(endDate), 'date')],
+      [field('member.identityDocumentNumber', 'N° CNI/Passeport :', member.identityDocumentNumber), field('member.phone', 'Téléphone :', contacts[0])],
+    ] as FieldRow[],
+    liquidation: [
+      [field('refund.type', 'Nature de la liquidation :', liquidationType), paidDate],
+      [
+        field('contract.totalPaid', 'Total des versements enregistrés :', `${formatAmount(totalPaid)} FCFA`),
+        field('refund.paymentMode', 'Mode de règlement :', paymentModeLabel(refund ?? undefined)),
+      ],
+      [
+        field('refund.amountDigits', 'Montant remis (en chiffres) :', `${formatAmount(amountPaid)} FCFA`),
+        field('refund.amountWords', 'Montant remis (en lettres) :', `${numberToWords(amountPaid)} francs CFA`),
+      ],
+    ] as FieldRow[],
+    paidDate,
   }
+}
 
-  const numberToWords = (num: number) => {
-    if (num === 0) return 'zéro'
+export const listCaisseSpecialeLiquidationFields = (input: CaisseSpecialeLiquidationInput): DocumentField[] => {
+  const { member, liquidation } = buildCaisseSpecialeLiquidationFields(input)
+  return collectDocumentFields({ member, liquidation })
+}
 
-    const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
-    const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
-
-    const convertHundreds = (n: number) => {
-      let result = ''
-
-      if (n >= 100) {
-        const hundredDigit = Math.floor(n / 100)
-        if (hundredDigit === 1) {
-          result += 'cent'
-        } else {
-          result += ones[hundredDigit] + ' cent'
-        }
-        if (n % 100 !== 0) result += ' '
-        n %= 100
-      }
-
-      if (n >= 20) {
-        const tenDigit = Math.floor(n / 10)
-        if (tenDigit === 7) {
-          result += 'soixante'
-          n += 10
-        } else if (tenDigit === 9) {
-          result += 'quatre-vingt'
-          n += 10
-        } else {
-          result += tens[tenDigit]
-        }
-
-        if (n % 10 !== 0) {
-          if (tenDigit === 8 && n % 10 === 1) {
-            result += '-un'
-          } else {
-            result += '-' + ones[n % 10]
-          }
-        } else if (tenDigit === 8) {
-          result += 's'
-        }
-      } else if (n > 0) {
-        result += ones[n]
-      }
-
-      return result
-    }
-
-    if (num < 1000) {
-      return convertHundreds(num)
-    } else if (num < 1000000) {
-      const thousands = Math.floor(num / 1000)
-      const remainder = num % 1000
-      let result = ''
-
-      if (thousands === 1) {
-        result = 'mille'
-      } else {
-        result = convertHundreds(thousands) + ' mille'
-      }
-
-      if (remainder > 0) {
-        result += ' ' + convertHundreds(remainder)
-      }
-
-      return result
-    } else {
-      const millions = Math.floor(num / 1000000)
-      const remainder = num % 1000000
-      let result = ''
-
-      if (millions === 1) {
-        result = 'un million'
-      } else {
-        result = convertHundreds(millions) + ' millions'
-      }
-
-      if (remainder > 0) {
-        if (remainder < 1000) {
-          result += ' ' + convertHundreds(remainder)
-        } else {
-          const thousands = Math.floor(remainder / 1000)
-          const lastPart = remainder % 1000
-          if (thousands > 0) {
-            if (thousands === 1) {
-              result += ' mille'
-            } else {
-              result += ' ' + convertHundreds(thousands) + ' mille'
-            }
-          }
-          if (lastPart > 0) {
-            result += ' ' + convertHundreds(lastPart)
-          }
-        }
-      }
-
-      return result
-    }
-  }
-
-  const formatInputDate = (dateValue: string) => {
-    if (!dateValue) return '____/____/________'
-    const [year, month, day] = dateValue.split('-')
-    if (!year || !month || !day) return '____/____/________'
-    return `${day}/${month}/${year}`
-  }
-
-  const formatAmountWithSpaces = (amount: unknown) => {
-    const numericValue = Number(amount ?? 0)
-    if (!Number.isFinite(numericValue)) return '0'
-    return Math.trunc(numericValue)
-      .toString()
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-  }
-
-  const refundDelayDaysLabel =
-    resolvedFillData.refundDelayDays.trim() ||
-    (contract?.refundDelayDays != null ? String(contract.refundDelayDays) : '.......')
-  const secretaryDateLabel = formatInputDate(resolvedFillData.secretaryDate)
-  const memberDateLabel = formatInputDate(resolvedFillData.memberDate)
-  const memberFullName = [contract?.member?.lastName, contract?.member?.firstName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || contract?.memberId || 'Membre'
-
-  const memberRows: QuittanceCoverRow[] = [
-    {
-      kind: 'pair',
-      left: { label: 'MATRICULE', value: contract?.memberId || '—' },
-      right: { label: 'MEMBRE', value: '' },
-    },
-    { kind: 'single', label: 'NOM', value: (contract?.member?.lastName || '—').toUpperCase() },
-    { kind: 'single', label: 'PRÉNOM', value: contract?.member?.firstName || '—' },
-    {
-      kind: 'pair',
-      left: { label: 'LIEU / NAISSANCE', value: contract?.member?.birthPlace || '—' },
-      right: { label: 'DATE / NAISSANCE', value: formatDate(contract?.member?.birthDate) },
-    },
-    {
-      kind: 'pair',
-      left: { label: 'TYPE DE PIÈCE', value: contract?.member?.identityDocument || '—' },
-      right: { label: 'N° DE PIÈCE', value: contract?.member?.identityDocumentNumber || '—' },
-    },
-    {
-      kind: 'pair',
-      left: { label: 'TÉLÉPHONE 1', value: contract?.member?.contacts?.[0] || '—' },
-      right: { label: 'TÉLÉPHONE 2', value: contract?.member?.contacts?.[1] || '—' },
-    },
-    {
-      kind: 'pair',
-      left: { label: 'SEXE', value: contract?.member?.gender || '—' },
-      right: { label: 'QUARTIER', value: contract?.member?.address?.district || '—' },
-    },
-    {
-      kind: 'single',
-      label: 'NATIONALITÉ',
-      value: getNationalityName(contract?.member?.nationality) || '—' ,
-    },
-  ]
-
-  const emergencyRows: QuittanceCoverRow[] = [
-    { kind: 'pair', left: { label: 'NOM', value: (contract?.emergencyContact?.lastName || '—').toUpperCase() }, right: { label: 'PRÉNOM', value: contract?.emergencyContact?.firstName || '—' } },
-    { kind: 'single', label: 'TÉLÉPHONE', value: contract?.emergencyContact?.phone1 || '—' },
-    { kind: 'single', label: 'LIENS', value: contract?.emergencyContact?.relationship || '—' },
-  ]
+const QuittanceCaisseSpecialePDF = ({
+  contract,
+  refund,
+  fillData,
+  completion,
+}: CaisseSpecialeLiquidationInput & {
+  fillData?: QuittanceCaisseSpecialePdfFillData
+  completion?: DocumentCompletion | null
+}) => {
+  const signatures = fillData ?? DEFAULT_FILL_DATA
+  const fields = buildCaisseSpecialeLiquidationFields({ contract, refund })
+  const [[lastNameField, firstNameField]] = fields.member
+  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
+  const paidDate = readField(fields.paidDate, completion) || EMPTY
+  const amountPaid = fields.amountPaid
 
   return (
     <Document>
-      {/* PAGE 1 - Informations personnelles et contact urgent (template) */}
       <Page size="A4" style={styles.page}>
-        <QuittanceCoverPage
-          memberSectionTitle="Informations Personnelles du Membre"
-          memberRows={memberRows}
-          secondarySectionTitle="Informations Concernant le Contact Urgent"
-          secondaryRows={emergencyRows}
-        />
-        <Text
-          style={styles.pageNumber}
-          fixed
-        >
-          Page 1 / 2
+        <MutuellePageChrome footerLabel="Procès-verbal de liquidation du contrat de Caisse Spéciale" />
+        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION DU CONTRAT DE CAISSE SPÉCIALE" />
+
+        <Text style={styles.preamble}>
+          Ce document constate la liquidation du contrat de Caisse Spéciale identifié ci-dessous et
+          le versement à l’épargnant du montant arrêté. Conformément à la loi n°35/62 du 10 décembre
+          1962 relative aux associations, aux statuts de LE KARA et aux conditions du contrat, ce
+          règlement atteste des sommes effectivement remises au membre.
         </Text>
-      </Page>
 
-      {/* PAGE 2 - Quittance de paiement (template) */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          <Text style={styles.title}>QUITTANCE DE PAIEMENT</Text>
+        <MutuelleSection title="1. IDENTIFICATION DU MEMBRE ET DU CONTRAT">
+          <FieldTable rows={fields.member} completion={completion} />
+        </MutuelleSection>
 
-          <Text style={styles.articleText}>
-            L'Association LE KARA, ayant son siège social à Awoungou/Owendo, immatriculée au registre du
-            Ministère de l'Intérieur, sous le numéro n° 0650/MIS/SG/DGELP/DPPALC/KMOG, atteste avoir
-            procédé au remboursement du nominal de l'épargnant :
+        <MutuelleSection title="2. LIQUIDATION FINANCIÈRE DU CONTRAT">
+          <Text style={styles.paragraph}>
+            Le Comité Exécutif certifie avoir vérifié les versements enregistrés et arrêté la
+            liquidation suivante :
+          </Text>
+          <FieldTable rows={fields.liquidation} completion={completion} />
+        </MutuelleSection>
+
+        <MutuelleSection title="3. DÉCLARATION DE DÉCHARGE ET D’ACQUITTEMENT">
+          <Text style={styles.paragraph}>
+            Je soussigné(e), <Text style={styles.bold}>{display(memberName)}</Text>, reconnais avoir
+            reçu de l’Association de Secours Mutuel LE KARA la somme indiquée ci-dessus au titre de
+            la liquidation de mon contrat de Caisse Spéciale.
+          </Text>
+          <Text style={styles.paragraph}>
+            Je confirme que ce règlement correspond aux sommes effectivement remises et que le
+            présent procès-verbal atteste de la clôture financière du contrat, conformément aux
+            conditions contractuelles et aux statuts de LE KARA.
+          </Text>
+          <Text style={styles.paragraph}>Fait à {documentPlace(completion)}, le {paidDate}</Text>
+          <Text style={styles.note}>
+            (Inscrire la mention manuscrite « Reçu la somme de {formatAmount(amountPaid)} FCFA au
+            titre de la liquidation du contrat de Caisse Spéciale pour solde de tout compte »)
           </Text>
 
-          <Text style={[styles.articleText, styles.bold]}>
-            {contract?.member?.firstName || '—'} {contract?.member?.lastName?.toUpperCase() || '—'}
-          </Text>
-
-          <Text style={styles.articleText}>
-            Souscrit en date du <Text style={styles.bold}>{formatDate(contract?.firstPaymentDate)}</Text> et intervenant suite à :
-          </Text>
-
-          {(contract?.status === 'CLOSED' || contract?.status === 'FINAL_REFUND_PENDING') && (
-            <>
-              <Text style={styles.articleText}>• L'arrivée du terme du contrat</Text>
-              <Text style={styles.articleText}>
-                Ce remboursement a été réalisé <Text style={styles.bold}>{refundDelayDaysLabel}</Text> jours après la notification de la demande de résiliation.
-              </Text>
-            </>
-          )}
-
-          {(contract?.status === 'RESCINDED' || contract?.status === 'EARLY_REFUND_PENDING' || contract?.status === 'EARLY_WITHDRAW_REQUESTED') && (
-            <>
-              <Text style={styles.articleText}>• Demande unilatérale de résiliation</Text>
-              <Text style={styles.articleText}>
-                Ce remboursement a été réalisé <Text style={styles.bold}>{refundDelayDaysLabel}</Text> jours après la notification de la demande de résiliation.
-              </Text>
-            </>
-          )}
-
-          <Text style={styles.articleText}>
-            Le nominal remboursé s'élève à <Text style={styles.bold}>{formatAmountWithSpaces(contract?.nominalPaid)} FCFA</Text> (chiffres),
-            <Text style={styles.bold}> {numberToWords(contract?.nominalPaid || 0)} francs CFA</Text> (lettres).
-          </Text>
-
-          <Text style={[styles.articleText, { marginTop: 8 }]}>
-            Cette quittance est libératoire de tout engagement de l'Association LE KARA vis-à-vis de l'épargnant.
-            Elle est établie pour faire valoir ce que de droit.
-          </Text>
-
-          <View style={styles.signatureRow}>
-            <View style={styles.signatureBlock}>
-              <Text style={styles.signatureTitle}>Signature du Secrétaire exécutif</Text>
-              {resolvedFillData.secretarySignature ? (
-                <Image src={resolvedFillData.secretarySignature} style={styles.signatureImage} cache={false} />
-              ) : (
-                <View style={styles.signaturePlaceholder} />
-              )}
-              <Text style={styles.dateText}>Date : {secretaryDateLabel}</Text>
-            </View>
-            <View style={styles.signatureBlockRight}>
-              <Text style={styles.signatureTitleRight}>
-                Signature de l'épargnant (Précédée de la mention Lu et Approuvé)
-              </Text>
-              {resolvedFillData.memberSignature ? (
-                <Image src={resolvedFillData.memberSignature} style={styles.signatureImage} cache={false} />
-              ) : (
-                <View style={styles.signaturePlaceholder} />
-              )}
-              <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-              <Text style={styles.dateText}>Date : {memberDateLabel}</Text>
-            </View>
-          </View>
-        </View>
-        <Text
-          style={styles.pageNumber}
-          fixed
-        >
-          Page 2 / 2
-        </Text>
+          <MutuelleSignatures
+            memberTitle="L’Épargnant / Réceptionnaire"
+            memberName={memberName}
+            memberSignature={signatures.memberSignature}
+            committeeRole="Le Financier Général / Le Secrétaire Exécutif"
+            committeeSignature={signatures.secretarySignature}
+          />
+        </MutuelleSection>
       </Page>
     </Document>
   )

@@ -36,6 +36,38 @@ export class GuarantorRemunerationRepository implements IGuarantorRemunerationRe
         }
     }
 
+    async createRemunerationIfAbsent(id: string, data: Omit<GuarantorRemuneration, 'id' | 'createdAt' | 'updatedAt'>): Promise<GuarantorRemuneration | null> {
+        try {
+            const { doc, db, runTransaction, serverTimestamp } = await getFirestore();
+
+            const cleanData: any = { ...data };
+            Object.keys(cleanData).forEach((key) => {
+                if (cleanData[key] === undefined) {
+                    delete cleanData[key];
+                }
+            });
+
+            const remunerationRef = doc(db, firebaseCollectionNames.guarantorRemunerations || "guarantorRemunerations", id);
+            const created = await runTransaction(db, async (transaction) => {
+                const existing = await transaction.get(remunerationRef);
+                if (existing.exists()) {
+                    return false;
+                }
+                transaction.set(remunerationRef, {
+                    ...cleanData,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
+                return true;
+            });
+
+            return created ? await this.getRemunerationById(id) : null;
+        } catch (error) {
+            console.error("Erreur lors de la création de la rémunération:", error);
+            throw error;
+        }
+    }
+
     async getRemunerationById(id: string): Promise<GuarantorRemuneration | null> {
         try {
             const { doc, getDoc, db } = await getFirestore();

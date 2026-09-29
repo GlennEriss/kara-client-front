@@ -862,7 +862,7 @@ export default function StandardContract({ id }: Props) {
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                       <FileText className="h-5 w-5" />
-                      Générer la quittance
+                      Générer le procès-verbal de liquidation
                 </Button>
                   </div>
 
@@ -971,7 +971,7 @@ export default function StandardContract({ id }: Props) {
 
                             {r.status === "PENDING" && !isEarlyRefund && (
                               <div className="space-y-2">
-                                {/* Première ligne : Approbation et Document de remboursement */}
+                                {/* Première ligne : Approbation et Procès-verbal de liquidation */}
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <Button
                                     variant="outline"
@@ -988,7 +988,7 @@ export default function StandardContract({ id }: Props) {
                                       onClick={() => setShowRemboursementPdf(true)}
                                     >
                                       <FileText className="h-4 w-4" />
-                                      Document de remboursement
+                                      Procès-verbal de liquidation
                                     </Button>
                                   )}
                                 </div>
@@ -1276,9 +1276,6 @@ export default function StandardContract({ id }: Props) {
                     setShowReasonModal(false)
                     setRefundType(null)
                     setRefundReasonInput('')
-
-                    // Afficher le PDF de remboursement
-                    setShowRemboursementPdf(true)
                   } catch (e: any) {
                     toast.error(e?.message || "Action impossible")
                   } finally {
@@ -1286,7 +1283,7 @@ export default function StandardContract({ id }: Props) {
                   }
                 }}
               >
-                {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+                {isRefunding ? 'Traitement...' : 'Confirmer la demande'}
               </button>
             </div>
           </div>

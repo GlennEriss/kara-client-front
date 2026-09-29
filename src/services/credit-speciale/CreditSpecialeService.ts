@@ -7,7 +7,7 @@ import { ICreditPenaltyRepository } from "@/repositories/credit-speciale/ICredit
 import { ICreditInstallmentRepository } from "@/repositories/credit-speciale/ICreditInstallmentRepository";
 import { IGuarantorRemunerationRepository, GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 import { IGuarantorPaymentRepository } from "@/repositories/credit-speciale/IGuarantorPaymentRepository";
-import { createFile } from "@/db/upload-image.db";
+import { createFile, deleteFile } from "@/db/upload-image.db";
 import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
@@ -27,8 +27,14 @@ import {
     getCreditPaymentCycleNumber,
     getCreditPaymentsForCurrentCycle,
     getCreditPaymentMonthNumber,
+    getCurrentCreditContractCycle,
     getNextDueFromCreditSpecialeHistory,
 } from "@/utils/credit-speciale-history";
+import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
+import {
+    buildGuarantorRemunerationDocId,
+    getGuarantorRemunerationCycleNumber,
+} from "@/utils/guarantor-commission";
 import { addContractMonths } from '@/utils/contract-months'
 
 export class CreditSpecialeService implements ICreditSpecialeService {
@@ -1528,12 +1534,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 }
             }
 
-            // Calculer et créer la rémunération du garant si applicable
+            // Calculer et créer la rémunération du garant si applicable.
+            // Une seule commission par (cycle, mois), déclenchée par le premier
+            // versement réel du mois : un paiement à 0 FCFA ou de pénalités
+            // seules ne rembourse rien et ne rémunère donc pas le garant.
             if (contract.creditType === 'SPECIALE' &&
                 contract.guarantorIsMember &&
                 contract.guarantorId &&
-                contract.guarantorRemunerationPercentage > 0) {
+                contract.guarantorRemunerationPercentage > 0 &&
+                !isZeroPayment &&
+                data.amount > 0) {
                 const month = getCreditPaymentMonthNumber(contract, payment);
+                const cycleNumber = getCurrentCreditContractCycle(contract).cycleNumber;
                 const historyBeforeCurrentPayment = buildCreditSpecialeHistory(contract, realPayments, {
                     endMonth: month,
                     projectUntilZero: false,
@@ -1545,17 +1557,30 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         (monthHistory.capitalStart * contract.guarantorRemunerationPercentage) / 100
                     );
 
-                    if (remunerationAmount > 0) {
-                        await this.guarantorRemunerationRepository.createRemuneration({
-                            creditId: contract.id,
-                            guarantorId: contract.guarantorId,
-                            paymentId: payment.id,
-                            amount: remunerationAmount,
-                            month,
-                            createdBy: data.createdBy,
-                            updatedBy: data.createdBy,
-                        });
+                    // Les commissions antérieures à l'identifiant déterministe ont un id aléatoire.
+                    const existingRemunerations = await this.guarantorRemunerationRepository.getRemunerationsByCreditId(contract.id);
+                    const alreadyRemunerated = existingRemunerations.some((remuneration) =>
+                        remuneration.month === month &&
+                        getGuarantorRemunerationCycleNumber(contract, remuneration) === cycleNumber
+                    );
 
+                    const created = remunerationAmount > 0 && !alreadyRemunerated
+                        ? await this.guarantorRemunerationRepository.createRemunerationIfAbsent(
+                            buildGuarantorRemunerationDocId(contract.id, cycleNumber, month),
+                            {
+                                creditId: contract.id,
+                                guarantorId: contract.guarantorId,
+                                paymentId: payment.id,
+                                amount: remunerationAmount,
+                                month,
+                                cycleNumber,
+                                createdBy: data.createdBy,
+                                updatedBy: data.createdBy,
+                            }
+                        )
+                        : null;
+
+                    if (created) {
                         void this.notificationService.createNotification({
                             module: 'credit_speciale',
                             entityId: contract.id,
@@ -1635,6 +1660,100 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const updated = await this.creditPaymentRepository.updatePayment(paymentId, payload);
         if (!updated) throw new Error('Échec de la mise à jour du paiement');
         return updated;
+    }
+
+    /**
+     * Supprime un paiement saisi par erreur et remet le contrat dans l'état
+     * d'avant ce paiement : pénalités, commission du garant, totaux et statut.
+     */
+    async deletePayment(paymentId: string, userId: string): Promise<void> {
+        const payment = await this.creditPaymentRepository.getPaymentById(paymentId);
+        if (!payment) throw new Error('Paiement introuvable');
+        const contract = await this.creditContractRepository.getContractById(payment.creditId);
+        if (!contract) throw new Error('Contrat introuvable');
+
+        const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
+        const blocker = getCreditPaymentDeletionBlocker(contract, allPayments, payment);
+        if (blocker) throw new Error(blocker);
+
+        const cycleNumber = getCurrentCreditContractCycle(contract).cycleNumber;
+        const month = getCreditPaymentMonthNumber(contract, payment);
+        const installmentKey = `C${cycleNumber}_M${month}`;
+
+        // Pénalités : celles réglées par ce paiement redeviennent dues ; celle
+        // créée pour le retard de ce mois disparaît si elle est impayée (le
+        // contrôle des retards la recréera si le mois reste impayé).
+        const penalties = await this.creditPenaltyRepository.getPenaltiesByCreditId(contract.id);
+        await Promise.all(
+            penalties.map((penalty) => {
+                if (penalty.paymentId === payment.id) {
+                    return this.creditPenaltyRepository.markPenaltyUnpaid(penalty.id, userId);
+                }
+                if (!penalty.paid && penalty.installmentId === installmentKey) {
+                    return this.creditPenaltyRepository.deletePenalty(penalty.id);
+                }
+                return undefined;
+            })
+        );
+
+        // Commission du garant gagnée sur ce mois.
+        const remunerations = await this.guarantorRemunerationRepository.getRemunerationsByCreditId(contract.id);
+        await Promise.all(
+            remunerations
+                .filter((remuneration) =>
+                    remuneration.month === month &&
+                    getGuarantorRemunerationCycleNumber(contract, remuneration) === cycleNumber
+                )
+                .map((remuneration) => this.guarantorRemunerationRepository.deleteRemuneration(remuneration.id))
+        );
+
+        await this.creditPaymentRepository.deletePayment(payment.id);
+
+        const remainingPayments = allPayments.filter((existingPayment) => existingPayment.id !== payment.id);
+        await this.creditContractRepository.updateContract(
+            contract.id,
+            this.computeContractTotalsAfterPaymentRemoval(contract, remainingPayments, userId)
+        );
+    }
+
+    private computeContractTotalsAfterPaymentRemoval(
+        contract: CreditContract,
+        payments: CreditPayment[],
+        userId: string
+    ): Partial<CreditContract> {
+        const realPayments = getCreditPaymentsForCurrentCycle(contract, payments).filter(p =>
+            p.amount > 0 ||
+            p.comment?.includes('Paiement de pénalités uniquement') ||
+            p.comment?.includes('Paiement de 0 FCFA')
+        );
+        const totalPaid = realPayments.reduce((sum, p) => sum + p.amount, 0);
+
+        let totalRemaining: number;
+        let nextDueAt: Date | undefined;
+        if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
+            totalRemaining = Math.max(0, contract.totalAmount - totalPaid);
+            const lastPayment = [...realPayments].sort(
+                (a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
+            )[0];
+            nextDueAt = lastPayment
+                ? addContractMonths(new Date(lastPayment.paymentDate), 1)
+                : new Date(contract.firstPaymentDate);
+        } else {
+            const history = buildCreditSpecialeHistory(contract, realPayments, { projectUntilZero: true });
+            const nextDue = getNextDueFromCreditSpecialeHistory(history);
+            totalRemaining = nextDue ? nextDue.amountDue : 0;
+            nextDueAt = nextDue?.date;
+        }
+
+        return {
+            amountPaid: totalPaid,
+            amountRemaining: Math.round(totalRemaining),
+            // Le blocage et le retard restent gérés par leurs propres règles ;
+            // seul « partiellement remboursé » dépend directement des paiements.
+            status: contract.status === 'PARTIAL' && totalPaid <= 0 ? 'ACTIVE' : contract.status,
+            nextDueAt,
+            updatedBy: userId,
+        };
     }
 
     // ==================== GÉNÉRATION REÇU PDF ====================
@@ -2364,6 +2483,25 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     async getGuarantorPaymentsByCreditId(creditId: string): Promise<GuarantorPayment[]> {
         return this.guarantorPaymentRepository.getPaymentsByCreditId(creditId);
+    }
+
+    /**
+     * Supprime un versement au garant saisi par erreur. Le reste à verser est
+     * recalculé à l'affichage (commissions gagnées − versements restants).
+     */
+    async deleteGuarantorPayment(paymentId: string): Promise<void> {
+        const payment = await this.guarantorPaymentRepository.getPaymentById(paymentId);
+        if (!payment) throw new Error('Versement au garant introuvable');
+
+        await this.guarantorPaymentRepository.deletePayment(paymentId);
+
+        if (payment.proofPath) {
+            try {
+                await deleteFile(payment.proofPath);
+            } catch {
+                // Justificatif orphelin sans incidence : le versement est déjà supprimé.
+            }
+        }
     }
 
     // ==================== ÉLIGIBILITÉ ====================

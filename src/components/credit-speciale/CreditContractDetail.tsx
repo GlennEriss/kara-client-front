@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
-import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
+import { Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -18,7 +19,7 @@ import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAdmin } from '@/hooks/useAdmins'
 import { useAuth } from '@/hooks/useAuth'
-import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
+import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPaymentMutations, useCreditPenaltiesByCreditId, useDeleteGuarantorPayment, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
 import DocumentViewerModal from '@/components/documents/DocumentViewerModal'
@@ -29,7 +30,7 @@ import {
 import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import { generateCreditSpecialGuarantorCommissionHistoryPDF } from '@/services/credit-speciale/guarantorCommissionHistoryCreditSpecialPdfExport'
 import { generateCreditSpecialLossHistoryPDF } from '@/services/credit-speciale/lossHistoryCreditSpecialPdfExport'
-import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty } from '@/types/types'
+import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty, GuarantorPayment } from '@/types/types'
 import {
   getCreditContractCycles,
   buildCreditSpecialeHistory,
@@ -41,6 +42,14 @@ import {
   getCreditPaymentsForCurrentCycle,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
+import { getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+import {
+  buildGuarantorCommissionBalance,
+  buildGuarantorCommissionRows,
+  formatGuarantorCommissionMonth,
+  getGuarantorCycleTitle,
+} from '@/utils/guarantor-commission'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -50,10 +59,9 @@ import {
     Calendar,
     CalendarDays,
     CheckCircle,
+    ChevronDown,
     Clock,
-    DollarSign,
     Download,
-    ExternalLink,
     Eye,
     FileSignature,
     FileText,
@@ -63,9 +71,9 @@ import {
     Link2,
     Loader2,
     Pencil,
-    Percent,
     Plus,
     Shield,
+    Trash2,
     TrendingUp,
     Upload,
     User,
@@ -107,6 +115,12 @@ interface CreditContractDetailProps {
 }
 
 // Libellés moyen de paiement (alignés caisse spéciale + rétrocompatibilité + remboursement final)
+const CREDIT_TYPE_LABELS: Record<CreditContract['creditType'], string> = {
+  SPECIALE: 'Crédit spécial',
+  FIXE: 'Crédit fixe',
+  AIDE: 'Crédit aide',
+}
+
 const CREDIT_PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',
   mobicash: 'Mobicash',
@@ -150,7 +164,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -163,84 +177,44 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
     ? Math.max(0, customRound(contract.totalAmount - contract.amount))
     : actualSchedule.reduce((sum, item) => sum + item.interest, 0)
 
-  const statsData = [
-    {
-      title: 'Montant emprunté',
-      value: contract.amount.toLocaleString('fr-FR'),
-      color: '#3b82f6',
-      icon: DollarSign
-    },
-    {
-      // Durée et période : la fiche n'affichait aucune date d'échéancier.
-      title: 'Durée',
-      value: `${contract.duration} mois`,
-      subtitle: (() => {
-        const start = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
-        const end = getCreditContractEndDate(contract)
-        if (!start || Number.isNaN(start.getTime()) || !end) return undefined
-        return `du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`
-      })(),
-      color: '#234D65',
-      icon: DollarSign
-    },
-    {
-      title: 'Montant versé',
-      value: contract.amountPaid.toLocaleString('fr-FR'),
-      color: '#10b981',
-      icon: CheckCircle
-    },
-    {
-      title: 'Montant restant',
-      value: Math.round(realRemainingAmount).toLocaleString('fr-FR'),
-      color: '#f59e0b',
-      icon: Clock
-    },
-    {
-      title: 'Pourcentage remboursé',
-      value: totalAmountToRepay > 0 
-        ? `${((totalPaidFromSchedule / totalAmountToRepay) * 100).toFixed(1)}%`
-        : '0%',
-      subtitle: totalAmountToRepay > 0 
-        ? `${Math.round(totalPaidFromSchedule).toLocaleString('fr-FR')} / ${Math.round(totalAmountToRepay).toLocaleString('fr-FR')} FCFA`
-        : 'Aucun paiement enregistré',
-      color: '#8b5cf6',
-      icon: TrendingUp
-    },
+  // Même présentation que le contrat Caisse imprévue : une ligne compacte, montants en FCFA.
+  // Le pourcentage remboursé est porté par la barre de progression juste en dessous.
+  const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
+  const statsData: Array<{ title: string; value: string; subtitle?: string; tone?: 'accent' | 'danger' }> = [
+    { title: 'Montant emprunté', value: fcfa(contract.amount) },
+    { title: 'Montant versé', value: fcfa(contract.amountPaid), tone: 'accent' },
+    { title: 'Montant restant', value: fcfa(realRemainingAmount) },
     {
       title: isSimpleCredit ? 'Intérêt unique' : 'Total intérêts',
-      value: Math.round(totalInterest).toLocaleString('fr-FR'),
-      subtitle: isSimpleCredit
-        ? 'Appliqué une seule fois au démarrage'
-        : `Somme des intérêts de l'échéancier`,
-      color: '#06b6d4',
-      icon: Percent
+      value: fcfa(totalInterest),
     },
     {
       title: 'Pénalités impayées',
-      value: Math.round(unpaidPenaltiesTotal).toLocaleString('fr-FR'),
-      subtitle: unpaidPenaltiesTotal > 0 
+      value: fcfa(unpaidPenaltiesTotal),
+      subtitle: unpaidPenaltiesCount > 0
         ? `${unpaidPenaltiesCount} pénalité${unpaidPenaltiesCount > 1 ? 's' : ''}`
-        : 'Aucune pénalité impayée',
-      color: '#ef4444',
-      icon: AlertCircle
+        : undefined,
+      tone: unpaidPenaltiesTotal > 0 ? 'danger' : undefined,
     },
-    ...(totalLosses > 0 ? [{
-      title: 'Manque à gagner',
-      value: totalLosses.toLocaleString('fr-FR'),
-      subtitle: contract.creditType === 'FIXE'
-        ? 'Pertes après la durée contractuelle'
-        : 'Manque à gagner en partie fixe',
-      color: '#dc2626',
-      icon: TrendingUp
-    }] : []),
+    ...(totalLosses > 0
+      ? [{ title: 'Manque à gagner', value: fcfa(totalLosses), tone: 'danger' as const }]
+      : []),
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className={cn(
+      'grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3',
+      statsData.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+    )}>
       {statsData.map((stat) => (
         <div key={stat.title}>
           <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{stat.title}</p>
-          <p className="text-sm font-bold tabular-nums" style={{ color: stat.color }}>{stat.value}</p>
+          <p className={cn(
+            'text-sm font-bold tabular-nums',
+            stat.tone === 'accent' ? 'text-[#234D65]' : stat.tone === 'danger' ? 'text-red-600' : 'text-gray-900'
+          )}>
+            {stat.value}
+          </p>
           {stat.subtitle && <p className="mt-0.5 text-[10px] text-gray-400">{stat.subtitle}</p>}
         </div>
       ))}
@@ -364,6 +338,12 @@ export default function CreditContractDetail({
     error: guarantorPaymentsError,
   } = useGuarantorPaymentsByCreditId(contract.id, shouldLoadGuarantorTabData)
   const [showGuarantorPaymentModal, setShowGuarantorPaymentModal] = useState(false)
+  const [showContractInfo, setShowContractInfo] = useState(false)
+  const [guarantorPaymentToDelete, setGuarantorPaymentToDelete] = useState<GuarantorPayment | null>(null)
+  const deleteGuarantorPayment = useDeleteGuarantorPayment()
+  const isSuperAdmin = useIsSuperAdmin()
+  const { remove: removePayment } = useCreditPaymentMutations()
+  const [paymentToDelete, setPaymentToDelete] = useState<{ payment: CreditPayment; month: number } | null>(null)
   const [showRestMonthModal, setShowRestMonthModal] = useState(false)
   const [selectedRestMonth, setSelectedRestMonth] = useState<number | null>(null)
   const queryClient = useQueryClient()
@@ -650,6 +630,15 @@ export default function CreditContractDetail({
     specialHistory.some(
       (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
     )
+  const isContractRepaying = contract.status === 'ACTIVE' || contract.status === 'PARTIAL'
+  // Un seul rajout autorisé, masqué si déjà fait ou contrat soldé / clos.
+  const canExtendContract =
+    (contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
+    isContractRepaying &&
+    !contract.rajoutEffectue
+  const canSwitchToFixed = contract.creditType === 'SPECIALE' && isContractRepaying && !hasEnteredFixedPhase
+  const hasRajoutNotice = !!contract.rajoutEffectue && (contract.initialAmount != null || contract.rajoutAmount != null)
+  const hasManualFixedNotice = fixedTransitionMeta.mode === 'MANUAL' && !!fixedTransitionMeta.at
   const { data: fixedTransitionAdmin } = useAdmin(fixedTransitionMeta.by || '')
   const guarantorRemunerationsErrorMessage =
     guarantorRemunerationsError instanceof Error
@@ -1027,6 +1016,8 @@ export default function CreditContractDetail({
   const tabsGridClassName = isSimpleCredit
     ? shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
     : shouldShowLossesTab ? 'grid-cols-5' : 'grid-cols-4'
+  // Toutes les commissions du contrat, tous cycles confondus : un rajout ouvre
+  // un nouveau cycle qui repart à M1 et rémunère à nouveau le garant.
   const guarantorCommissionRows = React.useMemo(() => {
     if (
       contract.creditType !== 'SPECIALE' ||
@@ -1037,38 +1028,32 @@ export default function CreditContractDetail({
       return []
     }
 
-    const commissionPercentage = contract.guarantorRemunerationPercentage || 0
-    const cyclePrefix = currentCycle && currentCycle.cycleNumber > 1 ? 'Apres augmentation - ' : ''
-
-    return [...guarantorRemunerations]
-      .sort((a, b) => a.month - b.month)
-      .map((remuneration) => {
-        const remainingAtStartOfMonth = specialHistoryByMonth.get(remuneration.month)?.capitalStart ?? contract.amount
-        const commissionAmount = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
-
-        return {
-          id: remuneration.id,
-          month: remuneration.month,
-          monthLabel: `${cyclePrefix}M${remuneration.month}`,
-          remainingAtStartOfMonth,
-          commissionPercentage,
-          commissionAmount,
-        }
-      })
-  }, [
-    contract.amount,
-    contract.creditType,
-    contract.guarantorId,
-    contract.guarantorIsMember,
-    contract.guarantorRemunerationPercentage,
-    currentCycle,
-    guarantorRemunerations,
-    specialHistoryByMonth,
-  ])
-  const totalGuarantorCommissions = React.useMemo(
-    () => guarantorCommissionRows.reduce((sum, row) => sum + row.commissionAmount, 0),
-    [guarantorCommissionRows]
+    return buildGuarantorCommissionRows(contract, guarantorRemunerations, payments)
+  }, [contract, guarantorRemunerations, payments])
+  const guarantorCommissionBalance = React.useMemo(
+    () => buildGuarantorCommissionBalance(guarantorCommissionRows, guarantorPayments),
+    [guarantorCommissionRows, guarantorPayments]
   )
+  const totalGuarantorCommissions = guarantorCommissionBalance.totalEarned
+  const guarantorCommissionCycles = React.useMemo(() => {
+    const byCycle = new Map<number, typeof guarantorCommissionRows>()
+    for (const row of guarantorCommissionRows) {
+      byCycle.set(row.cycleNumber, [...(byCycle.get(row.cycleNumber) ?? []), row])
+    }
+    return [...byCycle.entries()].map(([cycleNumber, rows]) => {
+      const cycle = contractCycles.find((entry) => entry.cycleNumber === cycleNumber)
+      return {
+        cycleNumber,
+        title: getGuarantorCycleTitle(cycleNumber),
+        startedAt: cycle?.startedAt,
+        startCapital: cycle?.amount,
+        carriedCapital: cycle?.carriedCapital,
+        additionalAmount: cycle?.additionalAmount,
+        rows,
+        total: rows.reduce((sum, row) => sum + row.commissionAmount, 0),
+      }
+    })
+  }, [contractCycles, guarantorCommissionRows])
 
   useEffect(() => {
     if (isSimpleCredit && activeTab === 'guarantor') {
@@ -1672,13 +1657,13 @@ export default function CreditContractDetail({
       const rows = [
         ...guarantorCommissionRows.map((row) => ({
           'Mois': row.monthLabel,
-          'Reste dû (FCFA)': row.remainingAtStartOfMonth,
+          'Capital restant en début de mois (FCFA)': row.capitalAtStartOfMonth,
           'Pourcentage de commission': `${row.commissionPercentage}%`,
           'Somme due (FCFA)': row.commissionAmount,
         })),
         {
           'Mois': 'TOTAL DES COMMISSIONS',
-          'Reste dû (FCFA)': '',
+          'Capital restant en début de mois (FCFA)': '',
           'Pourcentage de commission': '',
           'Somme due (FCFA)': totalGuarantorCommissions,
         },
@@ -1724,7 +1709,7 @@ export default function CreditContractDetail({
         page1Data: buildCreditSpecialFacturePage1Data(contract, member),
         rows: guarantorCommissionRows.map((row) => ({
           monthLabel: row.monthLabel,
-          remainingAmount: row.remainingAtStartOfMonth,
+          remainingAmount: row.capitalAtStartOfMonth,
           commissionPercentage: row.commissionPercentage,
           commissionAmount: row.commissionAmount,
         })),
@@ -2053,248 +2038,186 @@ export default function CreditContractDetail({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <Button
-            variant="ghost"
-            onClick={() => backOr(router, listPath)}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Retour
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* En-tête avec bouton retour — même disposition que le contrat Caisse imprévue */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => backOr(router, listPath)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </Button>
             <EmergencyContact emergencyContact={contract.emergencyContact} />
-            {/* Bouton d'augmentation - un seul rajout autorisé, masqué si déjà fait ou DISCHARGED/CLOSED */}
-            {(contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
-              (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') &&
-              !contract.rajoutEffectue && (
-              <Button
-                variant="outline"
-                onClick={() => setShowExtensionModal(true)}
-                className="flex items-center gap-2 border-cyan-300 text-cyan-700 hover:bg-cyan-50"
-              >
-                <Plus className="h-4 w-4" />
-                Augmenter le crédit
-              </Button>
-            )}
-            {contract.creditType === 'SPECIALE' && (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && !hasEnteredFixedPhase && (
-              <Button
-                variant="outline"
-                onClick={() => setShowSwitchToFixedModal(true)}
-                className="flex items-center gap-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
-              >
-                <Lock className="h-4 w-4" />
-                Basculer en fixe
-              </Button>
-            )}
-            <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
-              {statusConfig.label}
-            </Badge>
-            {contract.rajoutEffectue && contract.rajoutAmount != null && contract.rajoutAmount > 0 && (
-              <span className="text-sm text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-md border border-cyan-200">
-                Augmentation enregistrée : +{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA
-              </span>
+            {(canExtendContract || canSwitchToFixed) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    Actions
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {canExtendContract && (
+                    <DropdownMenuItem onClick={() => setShowExtensionModal(true)}>
+                      <Plus className="h-4 w-4" />
+                      Augmenter le crédit
+                    </DropdownMenuItem>
+                  )}
+                  {canSwitchToFixed && (
+                    <DropdownMenuItem onClick={() => setShowSwitchToFixedModal(true)}>
+                      <Lock className="h-4 w-4" />
+                      Basculer en fixe
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              {CREDIT_TYPE_LABELS[contract.creditType]}
+            </Badge>
+            <Badge className={cn('text-lg px-4 py-2', statusConfig.bgColor, statusConfig.color)}>
+              {statusConfig.label}
+            </Badge>
+          </div>
         </div>
-        
-        {/* Rappel : même contrat après rajout — tous les versements restent traçables */}
-        {contract.rajoutEffectue && (contract.initialAmount != null || contract.rajoutAmount != null) && (
-          <Card className="shadow-md bg-slate-50 border border-slate-200">
-            <CardContent className="py-4">
-              <div className="flex items-start gap-3">
-                <History className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-700 space-y-1">
-                  <p className="font-medium text-slate-800">Augmentation de crédit — nouveau cycle dans le meme contrat</p>
-                  <p className="text-slate-600">
-                    Montant initial : <strong>{(contract.initialAmount ?? (contract.amount - (contract.rajoutAmount ?? 0))).toLocaleString('fr-FR')} FCFA</strong>
-                    {contract.rajoutAmount != null && contract.rajoutAmount > 0 && (
-                      <> • Rajout : <strong>+{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA</strong></>
-                    )}
-                    {' '}• Nouveau cycle : <strong>{contract.amount.toLocaleString('fr-FR')} FCFA</strong>
-                    {contract.extendedAt && (
-                      <> • Augmentation enregistrée le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>
-                    )}
-                  </p>
-                  <p className="text-slate-600">
-                    Tous les versements (avant et après l’augmentation) sont conservés ci-dessous. Apres l’augmentation, l’échéancier repart a M1 sur le nouveau cycle.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {fixedTransitionMeta.mode === 'MANUAL' && fixedTransitionMeta.at && (
-          <Card className="shadow-md border border-blue-200 bg-blue-50">
-            <CardContent className="py-4">
-              <div className="flex items-start gap-3">
-                <Lock className="h-5 w-5 text-[#234D65] shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-700 space-y-2">
-                  <p className="font-medium text-slate-800">Basculement manuel en partie fixe</p>
-                  <p>
-                    Le contrat a été basculé en partie fixe le
-                    {' '}
-                    <strong>{format(new Date(fixedTransitionMeta.at), 'dd MMMM yyyy à HH:mm', { locale: fr })}</strong>
-                    {' '}par{' '}
-                    <strong>
-                      {fixedTransitionAdmin ? `${fixedTransitionAdmin.firstName} ${fixedTransitionAdmin.lastName}`.trim() : (fixedTransitionMeta.by || '—')}
-                    </strong>.
-                  </p>
-                  {fixedTransitionMeta.startMonth ? (
-                    <p>
-                      La partie fixe commence à
-                      {' '}
-                      <strong>M{fixedTransitionMeta.startMonth}</strong>.
-                    </p>
-                  ) : null}
-                  <p className="text-slate-600 whitespace-pre-line">
-                    Raison : <strong>{fixedTransitionMeta.reason || '—'}</strong>
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Liens vers contrat parent/enfant (ancienne logique avec contrat enfant) */}
-        {(parentContract || childContract) && (
-          <Card className="border-0 shadow-lg bg-gradient-to-r from-cyan-50 to-blue-50">
-            <CardContent className="py-4">
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Link2 className="h-5 w-5 text-cyan-600" />
-                  <span className="font-medium text-cyan-800">Contrats liés :</span>
-                </div>
-                {parentContract && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`${contractDetailsBasePath.replace(/\/$/, '')}/${parentContract.id}`)}
-                    className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
-                  >
-                    <ArrowLeft className="h-3 w-3" />
-                    Contrat parent
-                    <span className="text-xs font-mono bg-blue-100 px-2 py-0.5 rounded">{parentContract.id.slice(-10)}</span>
-                    <Badge variant="outline" className="text-xs">{parentContract.status}</Badge>
-                  </Button>
-                )}
-                {childContract && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`${contractDetailsBasePath.replace(/\/$/, '')}/${childContract.id}`)}
-                    className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                  >
-                    Nouveau contrat
-                    <span className="text-xs font-mono bg-green-100 px-2 py-0.5 rounded">{childContract.id.slice(-10)}</span>
-                    <Badge variant="outline" className="text-xs">{childContract.status}</Badge>
-                    <ExternalLink className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-              {contract.status === 'EXTENDED' && contract.extendedAt && (
-                <p className="text-xs text-cyan-600 mt-2 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Étendu le {format(new Date(contract.extendedAt), 'dd MMMM yyyy', { locale: fr })}
-                  {contract.blockedReason && ` • ${contract.blockedReason}`}
+        {/* Un seul bandeau pour les événements du contrat (rajout, bascule en fixe, contrats liés) */}
+        {(hasRajoutNotice || hasManualFixedNotice || parentContract || childContract) && (
+          <Card className="border-0 shadow-md">
+            <CardContent className="p-4 space-y-2 text-sm text-slate-700">
+              {hasRajoutNotice && (
+                <p className="flex items-start gap-2">
+                  <History className="h-4 w-4 mt-0.5 shrink-0 text-[#234D65]" />
+                  <span>
+                    <b>Rajout</b>
+                    {contract.rajoutAmount != null && contract.rajoutAmount > 0 && <> de <b>+{contract.rajoutAmount.toLocaleString('fr-FR')} FCFA</b></>}
+                    {contract.extendedAt && <> le {format(new Date(contract.extendedAt), 'dd/MM/yyyy', { locale: fr })}</>}
+                    {' '}: montant initial {(contract.initialAmount ?? (contract.amount - (contract.rajoutAmount ?? 0))).toLocaleString('fr-FR')} FCFA,
+                    nouveau cycle {contract.amount.toLocaleString('fr-FR')} FCFA. L&apos;échéancier repart à M1 ; les versements d&apos;avant restent dans l&apos;historique.
+                  </span>
                 </p>
               )}
-              {/* Indicateur si le contrat enfant est terminé */}
-              {childContract && childContract.status === 'DISCHARGED' && (
-                <div className="mt-2 flex items-center gap-2 text-green-700">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">Crédit terminé</span>
-                  <span className="text-xs text-green-600">(Le nouveau contrat a été entièrement remboursé)</span>
+              {hasManualFixedNotice && fixedTransitionMeta.at && (
+                <p className="flex items-start gap-2">
+                  <Lock className="h-4 w-4 mt-0.5 shrink-0 text-[#234D65]" />
+                  <span>
+                    <b>Basculé en partie fixe</b> le {format(new Date(fixedTransitionMeta.at), 'dd/MM/yyyy', { locale: fr })}
+                    {' '}par {fixedTransitionAdmin ? `${fixedTransitionAdmin.firstName} ${fixedTransitionAdmin.lastName}`.trim() : (fixedTransitionMeta.by || '—')}
+                    {fixedTransitionMeta.startMonth ? <>, à partir de M{fixedTransitionMeta.startMonth}</> : null}
+                    {fixedTransitionMeta.reason ? <> — {fixedTransitionMeta.reason}</> : null}
+                  </span>
+                </p>
+              )}
+              {(parentContract || childContract) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link2 className="h-4 w-4 shrink-0 text-[#234D65]" />
+                  <b>Contrats liés :</b>
+                  {parentContract && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-[#234D65]"
+                      onClick={() => router.push(`${contractDetailsBasePath.replace(/\/$/, '')}/${parentContract.id}`)}
+                    >
+                      Contrat parent ({parentContract.status})
+                    </Button>
+                  )}
+                  {childContract && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-[#234D65]"
+                      onClick={() => router.push(`${contractDetailsBasePath.replace(/\/$/, '')}/${childContract.id}`)}
+                    >
+                      Nouveau contrat ({childContract.status === 'DISCHARGED' ? 'terminé' : childContract.status})
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
         )}
 
-        {/* Informations client + contrat (même esprit que la section avant stats en caisse spéciale) */}
+        {/* Titre principal */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
           <CardHeader className="overflow-hidden">
-            <CardTitle className="text-xl sm:text-2xl font-black text-white flex items-center gap-3 break-words">
-              <User className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
+            <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
+              <User className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
               <span className="break-words">{contract.clientFirstName} {contract.clientLastName}</span>
             </CardTitle>
-            <div className="space-y-1.5 text-blue-100 break-words">
-              <p className="text-sm sm:text-base break-words">
+            <div className="space-y-1 text-blue-100 break-words">
+              <p className="text-sm sm:text-base lg:text-lg break-words">
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{contract.id}</span>
               </p>
               <p className="text-sm break-words">
-                Contacts client: <span className="font-medium">{contract.clientContacts.join(', ') || '—'}</span>
+                Taux {contract.interestRate}% · {contract.duration} mois · Mensualité {contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA
               </p>
-              <p className="text-xs break-words">
-                Type: <span className="font-mono">{contract.creditType}</span> • Statut: <span className="font-mono">{statusConfig.label}</span>
-              </p>
-              <p className="text-xs break-words">
-                Taux: <span className="font-mono">{contract.interestRate}%</span> • Durée: <span className="font-mono">{contract.duration} mois</span> • Mensualité: <span className="font-mono">{contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA</span>
-              </p>
-              <p className="text-xs break-words">
-                Premier versement: <span className="font-mono">{formatDate(contract.firstPaymentDate)}</span>
-                {contract.nextDueAt ? (
-                  <>
-                    {' '}• Prochaine échéance: <span className="font-mono">{formatDate(contract.nextDueAt)}</span>
-                  </>
-                ) : null}
-              </p>
-              {contract.guarantorId && (
-                <p className="text-xs break-words">
-                  Garant: <span className="font-medium">{contract.guarantorFirstName} {contract.guarantorLastName}</span>
-                  {contract.guarantorRelation ? (
-                    <>
-                      {' '}• Relation: <span className="font-medium">{contract.guarantorRelation}</span>
-                    </>
-                  ) : null}
-                </p>
+              <button
+                type="button"
+                onClick={() => setShowContractInfo((value) => !value)}
+                className="inline-flex items-center gap-1 text-xs text-blue-200 hover:text-white"
+                aria-expanded={showContractInfo}
+              >
+                {showContractInfo ? 'Masquer les détails' : 'Plus de détails'}
+                <ChevronDown className={cn('h-3 w-3 transition-transform', showContractInfo && 'rotate-180')} />
+              </button>
+              {showContractInfo && (
+                <div className="space-y-1 pt-1 text-xs">
+                  <p>Contacts client : <span className="font-medium">{contract.clientContacts.join(', ') || '—'}</span></p>
+                  <p>
+                    Premier versement : <span className="font-medium">{formatDate(contract.firstPaymentDate)}</span>
+                    {contract.nextDueAt ? <> · Prochaine échéance : <span className="font-medium">{formatDate(contract.nextDueAt)}</span></> : null}
+                    {getCreditContractEndDate(contract) ? <> · Fin prévue : <span className="font-medium">{formatDate(getCreditContractEndDate(contract)!)}</span></> : null}
+                  </p>
+                  {contract.guarantorId && (
+                    <p>
+                      Garant : <span className="font-medium">{contract.guarantorFirstName} {contract.guarantorLastName}</span>
+                      {contract.guarantorRelation ? <> · Relation : <span className="font-medium">{contract.guarantorRelation}</span></> : null}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </CardHeader>
         </Card>
 
         {/* Statistiques */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
+        <div>
           <ContractStatsGrid
             contract={contract}
             penalties={penalties} 
             realRemainingAmount={realRemainingAmount}
-            totalPaidFromSchedule={totalPaidFromSchedule}
-            totalAmountToRepay={totalAmountToRepay}
             actualSchedule={actualSchedule}
             totalLosses={totalLosses}
           />
         </div>
 
         {/* Barre de progression */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Progression du remboursement
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Remboursé</span>
-                <span className="font-semibold">{progressPercentage.toFixed(1)}%</span>
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[#234D65]" />
+                <span>
+                  Échéances payées&nbsp;: <b>{actualSchedule.filter((item) => item.status === 'PAID').length}</b> / {actualSchedule.filter((item) => !item.isRest).length || '—'}
+                </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] transition-all duration-500 rounded-full"
-                  style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>{contract.amountPaid.toLocaleString('fr-FR')} FCFA</span>
-                <span>{contract.totalAmount.toLocaleString('fr-FR')} FCFA</span>
-              </div>
+              <span className="text-slate-500">{progressPercentage.toFixed(1)}% remboursé</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] transition-all duration-300"
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              />
+            </div>
+            <div className="text-sm text-slate-700">
+              Montant payé&nbsp;: <b>{contract.amountPaid.toLocaleString('fr-FR')} FCFA</b> / {contract.totalAmount.toLocaleString('fr-FR')} FCFA
             </div>
           </CardContent>
         </Card>
@@ -2349,67 +2272,36 @@ export default function CreditContractDetail({
                   // Même si le contrat est DISCHARGED, on peut avoir des échéances restantes à payer
                   const hasUnpaidInstallments = actualSchedule.some(i => i.status === 'DUE' || i.status === 'FUTURE')
                   const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments
-                  
-                  // Vérifier si toutes les échéances précédentes sont payées ou en repos
-                  let allPreviousPaid = true
-                  const previousStatuses: string[] = []
-                  for (let j = 0; j < index; j++) {
-                    previousStatuses.push(`M${actualSchedule[j].month}:${actualSchedule[j].status}`)
-                    if (actualSchedule[j].status !== 'PAID' && actualSchedule[j].status !== 'REST') {
-                      allPreviousPaid = false
-                    }
-                  }
-                  
-                  // Permettre de payer si :
-                  // - L'échéance est DUE
-                  // - Toutes les échéances précédentes sont payées
+
+                  // Les échéances se paient dans l'ordre : toutes les précédentes doivent être payées ou en repos.
+                  const allPreviousPaid = actualSchedule
+                    .slice(0, index)
+                    .every((previous) => previous.status === 'PAID' || previous.status === 'REST')
                   const isPayable = item.status === 'DUE' && allPreviousPaid
-                  
-                  const isDisabled = !canMakePayments || 
-                                   item.status === 'FUTURE' || 
-                                   item.status === 'PAID' ||
-                                   item.status === 'REST' ||
-                                   !isPayable
-                  
-                  // Log de débogage pour l'échéance 8
-                  if (item.month === 8) {
-                    console.log('[CreditContractDetail] Debug Échéance 8:', {
-                      month: item.month,
-                      index,
-                      status: item.status,
-                      canMakePayments,
-                      contractStatus: contract.status,
-                      hasUnpaidInstallments,
-                      allPreviousPaid,
-                      previousStatuses,
-                      isPayable,
-                      isDisabled,
-                      reasons: {
-                        notCanMakePayments: !canMakePayments,
-                        isFuture: item.status === 'FUTURE',
-                        isPaid: item.status === 'PAID',
-                        notIsPayable: !isPayable
-                      },
-                      actualScheduleLength: actualSchedule.length,
-                      actualScheduleItems: actualSchedule.map(i => ({ month: i.month, status: i.status }))
-                    })
-                  }
-                  
-                  // Déterminer si le paiement est suffisant (pour l'échéancier après rajout, seuls les paiements >= extendedAt comptent)
-                  const expectedPaymentForCard = dueItems.find((due) => due.month === item.month)?.payment
+                  const isDisabled = !canMakePayments || !isPayable
+
+                  const isRest = item.status === 'REST' || !!item.isRest
+                  // Pour l'échéancier après rajout, seuls les paiements >= extendedAt comptent
+                  const expectedPayment = dueItems.find((due) => due.month === item.month)?.payment
                     ?? Math.min(contract.monthlyPaymentAmount, item.principal)
-                  const paidAmountForCard = item.paidAmount !== undefined ? item.paidAmount : null
-                  const isPaymentSufficient = paidAmountForCard !== null && paidAmountForCard >= expectedPaymentForCard
-                  
-                  const statusConfig = item.status === 'PAID' 
-                    ? paidAmountForCard === 0
+                  const paidAmount = item.status === 'PAID' ? (item.paidAmount ?? 0) : 0
+                  const isPaymentSufficient = paidAmount >= expectedPayment
+                  const percentage = expectedPayment > 0 ? Math.min(100, (paidAmount / expectedPayment) * 100) : 0
+                  const paymentForCard = item.status === 'PAID' ? getPaymentForScheduleIndex(index) : null
+                  const canDeletePayment =
+                    isSuperAdmin &&
+                    !!paymentForCard &&
+                    getCreditPaymentDeletionBlocker(contract, payments, paymentForCard) === null
+
+                  const statusConfig = item.status === 'PAID'
+                    ? paidAmount === 0
                       ? { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'Non payé' }
                       : isPaymentSufficient
                         ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
                         : { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: AlertCircle, label: 'Payé (insuffisant)' }
                     : item.status === 'DUE'
                     ? { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', icon: Clock, label: 'À payer' }
-                    : item.status === 'REST' || item.isRest
+                    : isRest
                     ? { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: Calendar, label: 'Mois de repos' }
                     : { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'À venir' }
                   const StatusIcon = statusConfig.icon
@@ -2418,61 +2310,52 @@ export default function CreditContractDetail({
                     <Card
                       key={index}
                       className={cn(
-                        'transition-all duration-300 border-2 overflow-hidden',
-                        isDisabled
-                          ? 'border-gray-300 bg-white cursor-not-allowed'
-                          : item.status === 'PAID'
-                          ? paidAmountForCard === 0
-                            ? 'border-gray-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                        'transition-all duration-300 border-2',
+                        item.status === 'PAID'
+                          ? paidAmount === 0
+                            ? 'border-gray-200 bg-white hover:shadow-lg hover:-translate-y-1'
                             : isPaymentSufficient
-                              ? 'border-green-300 bg-white hover:shadow-xl hover:-translate-y-1'
-                              : 'border-red-300 bg-white hover:shadow-xl hover:-translate-y-1'
-                          : item.status === 'REST' || item.isRest
-                          ? 'border-blue-200 bg-white'
-                          : 'border-gray-300 hover:border-[#224D62] bg-white hover:shadow-xl hover:-translate-y-1'
+                              ? 'border-green-200 bg-green-50/50 hover:shadow-lg hover:-translate-y-1'
+                              : 'border-red-200 bg-red-50/50 hover:shadow-lg hover:-translate-y-1'
+                          : isRest
+                          ? 'border-blue-200 bg-blue-50/40'
+                          : item.status === 'DUE' && !isDisabled
+                          ? 'border-gray-200 bg-white cursor-pointer hover:border-[#224D62] hover:shadow-lg hover:-translate-y-1'
+                          : 'border-gray-200 bg-white'
                       )}
+                      onClick={() => {
+                        // Comme en Caisse imprévue : un clic sur l'échéance à payer ouvre le versement.
+                        if (item.status !== 'DUE' || isDisabled) return
+                        setSelectedDueIndex(index)
+                        setShowPaymentModal(true)
+                      }}
                     >
-                      {/* En-tête coloré de la carte */}
-                      <div className={cn(
-                        'p-4 border-b-2',
-                        item.status === 'PAID' 
-                          ? paidAmountForCard === 0
-                            ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200'
-                            : isPaymentSufficient
-                              ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200' 
-                              : 'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
-                          : item.status === 'DUE'
-                          ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200'
-                          : item.status === 'REST' || item.isRest
-                          ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200'
-                          : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200'
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={cn(
-                              'rounded-lg px-3 py-1.5 text-sm font-bold shadow-sm',
-                              item.status === 'REST' || item.isRest ? 'bg-blue-600 text-white' : 'bg-[#224D62] text-white'
-                            )}>
-                              {item.status === 'REST' || item.isRest ? `Mois ${item.month} – Repos` : `Échéance ${item.month}`}
-                            </div>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className={cn(
+                            'rounded-lg px-3 py-1 text-sm font-bold text-white',
+                            isRest ? 'bg-blue-600' : 'bg-[#224D62]'
+                          )}>
+                            M{item.month}
                           </div>
-                          <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border shadow-sm`}>
+                          <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {statusConfig.label}
                           </Badge>
                         </div>
-                      </div>
 
-                      {/* Corps de la carte avec fond blanc */}
-                      <CardContent className="p-4 bg-white space-y-3">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Date:</span>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-200">
+                            <span className="text-gray-600 flex items-center gap-1">
+                              <CalendarDays className="h-3 w-3" />
+                              Date d&apos;échéance:
+                            </span>
                             <span className="font-semibold text-gray-900">
-                              {formatDate(item.date)}
+                              {new Date(item.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                             </span>
                           </div>
 
-                          {(item.status === 'REST' || item.isRest) ? (
+                          {isRest ? (
                             <div className="space-y-2 text-sm">
                               <p className="text-blue-700 font-medium">Aucun paiement ce mois (repos)</p>
                               {item.restReason && (
@@ -2487,180 +2370,159 @@ export default function CreditContractDetail({
                                   {item.restRecordedAt && ` le ${format(item.restRecordedAt, 'dd/MM/yyyy à HH:mm', { locale: fr })}`}
                                 </div>
                               )}
-                              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-100">
+                              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
                                 <span className="text-gray-600">Capital après repos:</span>
-                                <span className="font-semibold">{item.remaining.toLocaleString('fr-FR')} FCFA</span>
+                                <span className="font-semibold text-gray-900">{item.remaining.toLocaleString('fr-FR')} FCFA</span>
                               </div>
                             </div>
                           ) : (
-                          <>
-                          {(() => {
-                            // Calculer le montant théorique à payer (mensualité ou montant global si inférieur)
-                            const expectedPayment = dueItems.find((due) => due.month === item.month)?.payment
-                              ?? Math.min(contract.monthlyPaymentAmount, item.principal)
-                            const paidAmount = item.paidAmount !== undefined ? item.paidAmount : null
-                            
-                            return (
-                              <>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">Montant à payer:</span>
-                                  <span className="font-semibold text-gray-900">
-                                    {expectedPayment.toLocaleString('fr-FR')} FCFA
-                                  </span>
-                                </div>
-                                
-                                {/* Afficher montant versé si l'échéance est payée */}
-                                {item.status === 'PAID' && paidAmount !== null && (
-                                  <div className={`flex items-center justify-between text-sm mt-2 p-2 rounded ${
-                                    paidAmount >= expectedPayment 
-                                      ? 'bg-green-50 border border-green-200' 
-                                      : 'bg-red-50 border border-red-200'
-                                  }`}>
-                                    <span className={`font-medium ${
-                                      paidAmount >= expectedPayment ? 'text-green-700' : 'text-red-700'
-                                    }`}>Montant versé:</span>
-                                    <span className={`font-semibold ${
-                                      paidAmount >= expectedPayment ? 'text-green-800' : 'text-red-800'
-                                    }`}>
-                                      {paidAmount.toLocaleString('fr-FR')} FCFA
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            )
-                          })()}
-                          
-                          {/* Détail principal + intérêts (masqué pour mois de repos) */}
-                          {!item.isRest && (
-                          <>
-                          <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-gray-200">
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-gray-600">Montant global:</span>
-                              <span className="font-semibold text-gray-900">
-                                {item.principal.toLocaleString('fr-FR')} FCFA
-                              </span>
-                            </div>
-                          </div>
-                          {!isSimpleCredit && (
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">Intérêts:</span>
-                              <span className="font-semibold text-gray-900">
-                                {item.interest.toLocaleString('fr-FR')} FCFA
-                              </span>
-                            </div>
-                          )}
-                          </>
-                          )}
-
-                          {item.status === 'PAID' && item.paymentDate && (
                             <>
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">Payé le:</span>
-                                <span className="font-semibold text-green-600">
-                                  {formatDate(item.paymentDate)}
+                                <span className="text-gray-600">À payer:</span>
+                                <span className="font-semibold text-gray-900">
+                                  {expectedPayment.toLocaleString('fr-FR')} FCFA
                                 </span>
                               </div>
+
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">Payé à:</span>
-                                <span className="font-semibold text-green-600">
-                                  {(item.paymentTime != null && item.paymentTime !== '') ? item.paymentTime : new Date(item.paymentDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                <span className="text-gray-600">Versé:</span>
+                                <span className={cn(
+                                  'font-semibold',
+                                  item.status !== 'PAID' ? 'text-gray-400' : isPaymentSufficient ? 'text-green-600' : 'text-red-600'
+                                )}>
+                                  {paidAmount.toLocaleString('fr-FR')} FCFA
                                 </span>
+                              </div>
+
+                              {item.status === 'PAID' && item.paymentDate && (
+                                <div className="space-y-1 pt-1 border-t border-gray-200">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Payé le:</span>
+                                    <span className="font-semibold text-green-600">{formatDate(item.paymentDate)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Payé à:</span>
+                                    <span className="font-semibold text-green-600">
+                                      {(item.paymentTime != null && item.paymentTime !== '') ? item.paymentTime : new Date(item.paymentDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  {paymentForCard?.mode && (
+                                    <div className="flex items-start justify-between gap-2 text-xs">
+                                      <span className="shrink-0 text-gray-600">Moyen:</span>
+                                      <span className="text-right font-semibold text-gray-900">
+                                        {CREDIT_PAYMENT_MODE_LABELS[paymentForCard.mode] ?? paymentForCard.mode}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {(paymentForCard?.modificationReason || paymentForCard?.updatedAt) && (() => {
+                                const u = paymentForCard.updatedAt
+                                const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
+                                return (
+                                  <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                                    {modDate && !isNaN(modDate.getTime()) && (
+                                      <div className="flex items-center justify-between">
+                                        <span>Modifié le:</span>
+                                        <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                    )}
+                                    {paymentForCard.modificationReason && (
+                                      <div>
+                                        <span className="font-medium">Motif:</span>
+                                        <span className="ml-1">{paymentForCard.modificationReason}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()}
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span>Progression</span>
+                                  <span>{percentage.toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className={cn(
+                                      'h-2 rounded-full transition-all duration-300',
+                                      percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                    )}
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
                               </div>
                             </>
                           )}
 
-                          {item.status === 'PAID' && (() => {
-                            const paymentForCard = getPaymentForScheduleIndex(index)
-                            if (!paymentForCard?.modificationReason && !paymentForCard?.updatedAt) return null
-                            return (
-                              <div className="pt-2 mt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
-                                {paymentForCard?.updatedAt && (() => {
-                                  const u = paymentForCard.updatedAt
-                                  const modDate = u instanceof Date ? u : (typeof (u as { toDate?: () => Date })?.toDate === 'function' ? (u as { toDate: () => Date }).toDate() : u ? new Date(u as string | number) : null)
-                                  if (!modDate || isNaN(modDate.getTime())) return null
-                                  return (
-                                    <div className="flex items-center justify-between">
-                                      <span>Modifié le:</span>
-                                      <span>{modDate.toLocaleDateString('fr-FR')} à {modDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    </div>
-                                  )
-                                })()}
-                                {paymentForCard?.modificationReason && (
-                                  <div>
-                                    <span className="font-medium">Motif:</span>
-                                    <span className="ml-1">{paymentForCard.modificationReason}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })()}
-                          </>
-                          )}
-
-                        {/* Boutons d'action */}
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          {item.status === 'DUE' && (
-                            <div className="flex flex-col gap-2">
+                          {item.status === 'DUE' &&
+                            !isDisabled &&
+                            contract.creditType === 'SPECIALE' &&
+                            index === nextDueIndex &&
+                            specialHistoryByMonth.get(item.month)?.phase !== 'FIXE' && (
+                            <div className="pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
                               <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
                                 onClick={() => {
-                                  setSelectedDueIndex(index)
-                                  setShowPaymentModal(true)
+                                  setSelectedRestMonth(item.month)
+                                  setShowRestMonthModal(true)
                                 }}
-                                className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white h-11 font-semibold shadow-md hover:shadow-lg transition-all"
-                                disabled={isDisabled}
                               >
-                                <HandCoins className="h-4 w-4 mr-2" />
-                                Payer cette échéance
+                                <Calendar className="h-3 w-3 mr-1" />
+                                Mois de repos
                               </Button>
-                              {contract.creditType === 'SPECIALE' &&
-                                index === nextDueIndex &&
-                                specialHistoryByMonth.get(item.month)?.phase !== 'FIXE' && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
-                                  onClick={() => {
-                                    setSelectedRestMonth(item.month)
-                                    setShowRestMonthModal(true)
-                                  }}
-                                  disabled={isDisabled}
-                                >
-                                  <Calendar className="h-4 w-4 mr-2" />
-                                  Mois de repos
-                                </Button>
-                              )}
                             </div>
                           )}
 
                           {item.status === 'PAID' && (
-                            <div className="flex flex-col gap-2">
+                            <div className="pt-3 border-t border-gray-200 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                               <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
                                 onClick={() => {
                                   setSelectedDueIndexForReceipt(index)
                                   setShowReceiptModal(true)
                                 }}
-                                className="w-full h-11 font-semibold text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
-                                variant="outline"
                               >
-                                <Eye className="h-4 w-4 mr-2" />
+                                <Eye className="h-3 w-3 mr-1" />
                                 Voir la facture
                               </Button>
                               {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
                                 <Button
+                                  type="button"
                                   variant="outline"
+                                  size="sm"
                                   className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
                                   onClick={() => {
-                                    const paymentForThisDue = getPaymentForScheduleIndex(index)
-                                    if (!paymentForThisDue) {
+                                    if (!paymentForCard) {
                                       toast.error('Impossible de retrouver le versement pour cette échéance')
                                       return
                                     }
-                                    setPaymentToEdit(paymentForThisDue)
+                                    setPaymentToEdit(paymentForCard)
                                     setShowPaymentModal(true)
                                   }}
                                 >
-                                  <Pencil className="h-4 w-4 mr-2" />
+                                  <Pencil className="h-3 w-3 mr-1" />
                                   Modifier
+                                </Button>
+                              )}
+                              {canDeletePayment && paymentForCard && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                                  disabled={removePayment.isPending}
+                                  onClick={() => setPaymentToDelete({ payment: paymentForCard, month: item.month })}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Supprimer
                                 </Button>
                               )}
                             </div>
@@ -2676,7 +2538,7 @@ export default function CreditContractDetail({
                   {/* Information */}
                   <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-sm text-blue-700">
-                      <strong>ℹ️ Information :</strong> Les échéances doivent être payées dans l'ordre. Vous ne pouvez payer une échéance que si toutes les précédentes sont payées.
+                      <strong>ℹ️ Information :</strong> Cliquez sur l&apos;échéance à payer pour enregistrer un versement. Les échéances se paient dans l&apos;ordre.
                     </p>
                   </div>
                 </div>
@@ -3005,17 +2867,50 @@ export default function CreditContractDetail({
                         <Shield className="h-5 w-5" />
                         Commission du garant
                       </h3>
-                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-700">
+                      <div className="mb-4 space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                        <p>
                           <strong>Garant :</strong> {contract.guarantorFirstName} {contract.guarantorLastName}
+                          {' · '}
+                          <strong>Taux :</strong> {contract.guarantorRemunerationPercentage}%
                         </p>
-                        {contract.guarantorRemunerationPercentage !== undefined && (
-                          <p className="text-sm text-blue-700 mt-1">
-                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du reste dû (capital restant au début de chaque échéance), calculé sur maximum 7 mois
-                          </p>
-                        )}
+                        <p>
+                          Chaque mois où le client rembourse, le garant gagne{' '}
+                          <strong>{contract.guarantorRemunerationPercentage}% du capital qui restait dû au début du mois</strong>{' '}
+                          (avant les intérêts du mois). Plus la dette baisse, plus la commission baisse.
+                        </p>
+                        <p>
+                          La commission court sur les 7 mois de la partie spéciale (hors mois de repos) et s&apos;arrête au passage en partie fixe.
+                          Un rajout ouvre un nouveau cycle qui repart à M1 : le garant regagne alors une commission sur le nouveau capital.
+                          Elle n&apos;est pas facturée au client ; c&apos;est l&apos;association qui la verse.
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          Une ligne n&apos;apparaît qu&apos;une fois le mois remboursé : un mois impayé ne génère pas encore de commission.
+                        </p>
                       </div>
                     </div>
+
+                    {!isLoadingRemunerations && !isGuarantorRemunerationsError && !isLoadingGuarantorPayments && !isGuarantorPaymentsError && (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="rounded-lg border bg-gray-50 p-4">
+                          <p className="text-xs text-gray-500">Commissions gagnées</p>
+                          <p className="mt-1 text-xl font-bold text-[#234D65]">
+                            {guarantorCommissionBalance.totalEarned.toLocaleString('fr-FR')} FCFA
+                          </p>
+                        </div>
+                        <div className="rounded-lg border bg-gray-50 p-4">
+                          <p className="text-xs text-gray-500">Déjà versé au garant</p>
+                          <p className="mt-1 text-xl font-bold text-emerald-700">
+                            {guarantorCommissionBalance.totalPaid.toLocaleString('fr-FR')} FCFA
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                          <p className="text-xs text-amber-700">Reste à verser</p>
+                          <p className="mt-1 text-xl font-bold text-amber-800">
+                            {guarantorCommissionBalance.remaining.toLocaleString('fr-FR')} FCFA
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {isLoadingRemunerations ? (
                       <div className="text-center py-8 text-gray-500">Chargement...</div>
@@ -3067,56 +2962,76 @@ export default function CreditContractDetail({
                             )}
                           </Button>
                         </div>
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Mois</TableHead>
-                                <TableHead>Reste dû</TableHead>
-                                <TableHead className="text-right">Pourcentage de commission</TableHead>
-                                <TableHead className="text-right">Somme due</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {guarantorCommissionRows.map((row) => (
-                                <TableRow key={row.id}>
-                                  <TableCell className="font-medium">{row.monthLabel}</TableCell>
-                                  <TableCell>{row.remainingAtStartOfMonth.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  <TableCell className="text-right">{row.commissionPercentage}%</TableCell>
-                                  <TableCell className="text-right font-semibold">{row.commissionAmount.toLocaleString('fr-FR')} FCFA</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        <div className="p-4 bg-gray-50 border rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="font-semibold">Total des commissions :</span>
-                            <span className="text-xl font-bold text-[#234D65]">
-                              {totalGuarantorCommissions.toLocaleString('fr-FR')} FCFA
-                            </span>
+                        {guarantorCommissionCycles.map((cycle) => (
+                          <div key={cycle.cycleNumber} className="space-y-2">
+                            {contractCycles.length > 1 && (
+                              <div className="flex flex-wrap items-end justify-between gap-2 rounded-lg bg-[#234D65]/5 px-3 py-2">
+                                <div>
+                                  <h4 className="text-sm font-semibold text-[#234D65]">{cycle.title}</h4>
+                                  <p className="text-xs text-gray-600">
+                                    {cycle.cycleNumber > 1 && cycle.startedAt
+                                      ? `Démarré le ${format(cycle.startedAt, 'dd/MM/yyyy')} · les mois repartent à M1 · `
+                                      : ''}
+                                    {cycle.startCapital !== undefined && (
+                                      <>Capital de départ : {cycle.startCapital.toLocaleString('fr-FR')} FCFA</>
+                                    )}
+                                    {cycle.carriedCapital !== undefined && cycle.additionalAmount !== undefined && (
+                                      <> (reste reporté {cycle.carriedCapital.toLocaleString('fr-FR')} + rajout {cycle.additionalAmount.toLocaleString('fr-FR')})</>
+                                    )}
+                                  </p>
+                                </div>
+                                <span className="text-sm text-gray-600">
+                                  Sous-total : <strong>{cycle.total.toLocaleString('fr-FR')} FCFA</strong>
+                                </span>
+                              </div>
+                            )}
+                            <div className="border rounded-lg overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Mois</TableHead>
+                                    <TableHead>Capital restant en début de mois</TableHead>
+                                    <TableHead className="text-right">Taux</TableHead>
+                                    <TableHead className="text-right">Commission</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {cycle.rows.map((row) => (
+                                    <TableRow key={row.id}>
+                                      <TableCell>
+                                        <span className="font-medium">M{row.month}</span>
+                                        {row.dueDate && (
+                                          <span className="ml-2 text-xs capitalize text-gray-500">
+                                            {formatGuarantorCommissionMonth(row.dueDate)}
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>{row.capitalAtStartOfMonth.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      <TableCell className="text-right">{row.commissionPercentage}%</TableCell>
+                                      <TableCell className="text-right font-semibold">{row.commissionAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     )}
 
                       {/* Paiement au garant */}
                       <div className="border-t pt-6 mt-6">
                         <h4 className="font-semibold mb-1">Paiement au garant</h4>
-                        {hasEnteredFixedPhase ? (
-                          <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
-                            <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
-                            <div>
-                              <p className="text-sm font-semibold text-red-700">
-                                Le contrat est déjà passé en partie fixe.
-                              </p>
-                              <p className="mt-1 text-sm text-red-700">
-                                À partir de cette bascule, le garant n&apos;a plus droit à ses commissions.
-                                L&apos;enregistrement d&apos;un paiement au garant est donc désactivé.
-                              </p>
-                            </div>
+                        {hasEnteredFixedPhase && (
+                          <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600" />
+                            <p className="text-sm text-amber-800">
+                              Le cycle en cours est passé en partie fixe : le garant ne gagne plus de nouvelle commission sur ce cycle.
+                              Les commissions déjà gagnées restent dues et peuvent être versées.
+                            </p>
                           </div>
-                        ) : (
+                        )}
+                        {guarantorCommissionBalance.remaining > 0 ? (
                           <>
                             <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
                             <Button
@@ -3129,7 +3044,11 @@ export default function CreditContractDetail({
                               Enregistrer un paiement au garant
                             </Button>
                           </>
-                        )}
+                        ) : !isLoadingRemunerations && !isLoadingGuarantorPayments ? (
+                          <p className="text-sm text-gray-600 mb-3">
+                            Aucune commission en attente de versement.
+                          </p>
+                        ) : null}
                         {/* Historique des paiements au garant */}
                         <div className="mt-4">
                           <h5 className="text-sm font-medium text-gray-700 mb-2">Historique des paiements au garant</h5>
@@ -3150,6 +3069,7 @@ export default function CreditContractDetail({
                                     <TableHead className="text-right">Montant</TableHead>
                                     <TableHead>Moyen</TableHead>
                                     <TableHead>Preuve</TableHead>
+                                    <TableHead className="w-12"><span className="sr-only">Actions</span></TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -3168,6 +3088,18 @@ export default function CreditContractDetail({
                                         ) : (
                                           <span className="text-gray-400">—</span>
                                         )}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                          aria-label={`Supprimer le versement de ${gp.amount.toLocaleString('fr-FR')} FCFA`}
+                                          onClick={() => setGuarantorPaymentToDelete(gp)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
                                       </TableCell>
                                     </TableRow>
                                   ))}
@@ -3296,7 +3228,7 @@ export default function CreditContractDetail({
                   className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                 >
                   <FileText className="h-4 w-4 mr-2" />
-                  Générer la quittance
+                  Générer le procès-verbal de liquidation
                 </Button>
                 {contract.status !== 'CLOSED' && (
                   <Button
@@ -3677,10 +3609,120 @@ export default function CreditContractDetail({
         isOpen={showGuarantorPaymentModal}
         onClose={() => setShowGuarantorPaymentModal(false)}
         creditId={contract.id}
+        remainingAmount={guarantorCommissionBalance.remaining}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', contract.id] })
         }}
       />
+      <Modal
+        open={!!paymentToDelete}
+        onOpenChange={(open) => {
+          if (!open && !removePayment.isPending) setPaymentToDelete(null)
+        }}
+        size="sm"
+        icon={Trash2}
+        tone="destructive"
+        title={paymentToDelete ? `Supprimer le paiement de l'échéance M${paymentToDelete.month}` : 'Supprimer le paiement'}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              disabled={removePayment.isPending}
+              onClick={() => setPaymentToDelete(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={removePayment.isPending}
+              onClick={async () => {
+                if (!paymentToDelete) return
+                try {
+                  await removePayment.mutateAsync({
+                    paymentId: paymentToDelete.payment.id,
+                    creditId: contract.id,
+                    month: paymentToDelete.month,
+                    amount: paymentToDelete.payment.amount,
+                  })
+                  setPaymentToDelete(null)
+                } catch {
+                  // Le toast d'erreur est affiché par le hook ; la modale reste ouverte.
+                }
+              }}
+            >
+              {removePayment.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Supprimer le paiement
+            </Button>
+          </>
+        }
+      >
+        {paymentToDelete && (
+          <div className="space-y-2 text-sm text-gray-700">
+            <p>
+              Paiement de <strong>{paymentToDelete.payment.amount.toLocaleString('fr-FR')} FCFA</strong> du{' '}
+              {format(new Date(paymentToDelete.payment.paymentDate), 'dd/MM/yyyy', { locale: fr })}.
+              L&apos;échéance M{paymentToDelete.month} redeviendra à payer.
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-gray-600">
+              <li>Le reste dû et la prochaine échéance du contrat sont recalculés.</li>
+              <li>Les pénalités réglées avec ce paiement redeviennent dues ; la pénalité de retard de ce mois, si elle est impayée, est retirée.</li>
+              <li>La commission du garant gagnée sur ce mois est retirée.</li>
+            </ul>
+            <p className="font-medium text-red-700">Cette action est irréversible.</p>
+          </div>
+        )}
+      </Modal>
+      <Modal
+        open={!!guarantorPaymentToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleteGuarantorPayment.isPending) setGuarantorPaymentToDelete(null)
+        }}
+        size="sm"
+        icon={Trash2}
+        tone="destructive"
+        title="Supprimer ce versement au garant"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              disabled={deleteGuarantorPayment.isPending}
+              onClick={() => setGuarantorPaymentToDelete(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteGuarantorPayment.isPending}
+              onClick={async () => {
+                if (!guarantorPaymentToDelete) return
+                try {
+                  await deleteGuarantorPayment.mutateAsync({
+                    paymentId: guarantorPaymentToDelete.id,
+                    creditId: contract.id,
+                  })
+                  setGuarantorPaymentToDelete(null)
+                } catch {
+                  // Le toast d'erreur est affiché par le hook ; la modale reste ouverte.
+                }
+              }}
+            >
+              {deleteGuarantorPayment.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Supprimer le versement
+            </Button>
+          </>
+        }
+      >
+        {guarantorPaymentToDelete && (
+          <p className="text-sm text-gray-700">
+            Versement de <strong>{guarantorPaymentToDelete.amount.toLocaleString('fr-FR')} FCFA</strong> du{' '}
+            {format(new Date(guarantorPaymentToDelete.paymentDate), 'dd/MM/yyyy', { locale: fr })}. Le montant sera
+            retiré du « déjà versé » et ajouté au reste à verser au garant. Le justificatif est aussi supprimé.
+            Cette action est irréversible.
+          </p>
+        )}
+      </Modal>
       {(selectedPaymentForReceipt && (selectedDueIndexForReceipt !== null || !!selectedPayment)) && (
         <PaymentReceiptModal
           isOpen={showReceiptModal}

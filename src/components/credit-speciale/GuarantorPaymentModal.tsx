@@ -25,6 +25,8 @@ interface GuarantorPaymentModalProps {
   isOpen: boolean
   onClose: () => void
   creditId: string
+  /** Commissions gagnées non encore versées : plafond du versement. */
+  remainingAmount?: number
   onSuccess?: () => void
 }
 
@@ -39,6 +41,7 @@ export default function GuarantorPaymentModal({
   isOpen,
   onClose,
   creditId,
+  remainingAmount,
   onSuccess,
 }: GuarantorPaymentModalProps) {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -56,6 +59,10 @@ export default function GuarantorPaymentModal({
     const amountNum = Number(amount)
     if (!amountNum || amountNum <= 0) {
       toast.error('Veuillez saisir un montant valide')
+      return
+    }
+    if (remainingAmount !== undefined && amountNum > remainingAmount) {
+      toast.error(`Le montant dépasse le reste à verser au garant (${remainingAmount.toLocaleString('fr-FR')} FCFA)`)
       return
     }
     const [hours, minutes] = paymentTime.split(':').map(Number)
@@ -155,6 +162,11 @@ export default function GuarantorPaymentModal({
                         FCFA
                       </span>
                     </div>
+                    {remainingAmount !== undefined && (
+                      <p className="text-xs text-slate-500">
+                        Reste à verser au garant : {remainingAmount.toLocaleString('fr-FR')} FCFA
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label>Moyen de paiement *</Label>

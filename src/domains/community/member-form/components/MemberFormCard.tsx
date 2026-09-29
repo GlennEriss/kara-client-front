@@ -17,7 +17,11 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import type { MemberFormEntry, MemberFormOutcome } from '../entities/member-form.types'
+import type {
+  MemberFormEntry,
+  MemberFormOutcome,
+  MemberFormProductSummary,
+} from '../entities/member-form.types'
 import { useMemberForm } from '../hooks/useMemberForm'
 
 const OUTCOME_CONFIG: Record<MemberFormOutcome, {
@@ -125,6 +129,103 @@ function EntryDetails({
   )
 }
 
+function formatPunctuality(rate: number | null) {
+  return rate == null ? '—' : `${Math.round(rate * 100)} %`
+}
+
+function ProductFormSection({
+  summary,
+  selectedKey,
+  onSelect,
+  onNavigate,
+}: {
+  summary: MemberFormProductSummary
+  selectedKey: string | null
+  onSelect: (key: string | null) => void
+  onNavigate?: () => void
+}) {
+  const selectedEntry = summary.entries.find((entry) => entry.key === selectedKey) ?? null
+
+  return (
+    <section
+      className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+      data-testid="member-form-product-section"
+      aria-label={`Historique ${summary.product}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-semibold text-slate-900">{summary.product}</p>
+          <p className="text-xs text-slate-500">
+            {summary.entries.length} dernière{summary.entries.length > 1 ? 's' : ''} échéance{summary.entries.length > 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="rounded-lg bg-[#234D65] px-3 py-1.5 text-right text-white">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-white/70">Ponctualité</p>
+          <p className="text-base font-bold">{formatPunctuality(summary.punctualityRate)}</p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto pb-2">
+        <div className="flex min-w-max gap-2" aria-label={`Forme récente ${summary.product}`}>
+          {summary.entries.map((entry) => {
+            const config = OUTCOME_CONFIG[entry.outcome]
+            const Icon = config.icon
+            const isSelected = entry.key === selectedKey
+            const detail = entry.daysLate > 0
+              ? `${entry.daysLate} j`
+              : config.shortLabel
+
+            return (
+              <Tooltip key={entry.key}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`${entry.product}, ${config.label}, échéance du ${formatDate(entry.dueAt)}`}
+                    aria-pressed={isSelected}
+                    onClick={() => onSelect(isSelected ? null : entry.key)}
+                    className={cn(
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#234D65] focus-visible:ring-offset-2',
+                      config.className,
+                      isSelected && config.selectedClassName,
+                    )}
+                  >
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="font-semibold">{entry.label ?? entry.product}</p>
+                  <p>{formatDate(entry.dueAt)} · {detail}</p>
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+        <div className="rounded-lg bg-emerald-50 px-2 py-1.5">
+          <p className="text-base font-bold text-emerald-700">{summary.onTimeCount}</p>
+          <p className="text-[11px] text-emerald-700">À temps</p>
+        </div>
+        <div className="rounded-lg bg-amber-50 px-2 py-1.5">
+          <p className="text-base font-bold text-amber-700">{summary.lateCount}</p>
+          <p className="text-[11px] text-amber-700">En retard</p>
+        </div>
+        <div className="rounded-lg bg-red-50 px-2 py-1.5">
+          <p className="text-base font-bold text-red-700">{summary.missedCount}</p>
+          <p className="text-[11px] text-red-700">Impayées</p>
+        </div>
+        <div className="rounded-lg bg-sky-50 px-2 py-1.5">
+          <p className="text-base font-bold text-sky-700">{summary.excusedCount}</p>
+          <p className="text-[11px] text-sky-700">Reports</p>
+        </div>
+      </div>
+
+      {selectedEntry && <EntryDetails entry={selectedEntry} onNavigate={onNavigate} />}
+    </section>
+  )
+}
+
 export function MemberFormCard({
   memberId,
   onNavigate,
@@ -134,30 +235,19 @@ export function MemberFormCard({
   onNavigate?: () => void
 }) {
   const { data, isLoading, isError, refetch } = useMemberForm(memberId)
+  // Les clés d'échéance sont uniques tous produits confondus : une seule
+  // sélection suffit, son détail s'affiche dans la section concernée.
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const selectedEntry = data?.entries.find((entry) => entry.key === selectedKey) ?? null
-  const punctuality = data?.punctualityRate == null
-    ? null
-    : Math.round(data.punctualityRate * 100)
+  const products = data?.products ?? []
 
   return (
     <Card className="border-0 bg-linear-to-br from-white to-slate-50/70 shadow-lg">
       <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <History className="h-5 w-5 text-[#234D65]" />
-              Historique d’activité
-            </CardTitle>
-            <p className="mt-1 text-sm text-slate-500">Les 10 dernières échéances du membre</p>
-          </div>
-          {!isLoading && !isError && (
-            <div className="rounded-xl bg-[#234D65] px-3 py-2 text-right text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-white/70">Ponctualité</p>
-              <p className="text-lg font-bold">{punctuality == null ? '—' : `${punctuality} %`}</p>
-            </div>
-          )}
-        </div>
+        <CardTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+          <History className="h-5 w-5 text-[#234D65]" />
+          Historique d’activité
+        </CardTitle>
+        <p className="mt-1 text-sm text-slate-500">Les 10 dernières échéances du membre, par module</p>
       </CardHeader>
 
       <CardContent className="space-y-4" data-testid="member-form-card">
@@ -182,7 +272,7 @@ export function MemberFormCard({
           </div>
         )}
 
-        {!isLoading && !isError && data?.entries.length === 0 && (
+        {!isLoading && !isError && data && products.length === 0 && (
           <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
             <History className="mx-auto h-7 w-7 text-slate-300" />
             <p className="mt-2 text-sm font-medium text-slate-600">Aucune échéance passée</p>
@@ -190,67 +280,18 @@ export function MemberFormCard({
           </div>
         )}
 
-        {!isLoading && !isError && data && data.entries.length > 0 && (
+        {!isLoading && !isError && products.length > 0 && (
           <>
-            <div className="overflow-x-auto pb-2">
-              <div className="flex min-w-max gap-2" aria-label="Forme récente du membre">
-                {data.entries.map((entry) => {
-                  const config = OUTCOME_CONFIG[entry.outcome]
-                  const Icon = config.icon
-                  const isSelected = entry.key === selectedKey
-                  const detail = entry.daysLate > 0
-                    ? `${entry.daysLate} j`
-                    : config.shortLabel
-
-                  return (
-                    <Tooltip key={entry.key}>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={`${entry.product}, ${config.label}, échéance du ${formatDate(entry.dueAt)}`}
-                          aria-pressed={isSelected}
-                          onClick={() => setSelectedKey(isSelected ? null : entry.key)}
-                          className={cn(
-                            'flex h-12 w-12 shrink-0 items-center justify-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#234D65] focus-visible:ring-offset-2',
-                            config.className,
-                            isSelected && config.selectedClassName,
-                          )}
-                        >
-                          <Icon className="h-5 w-5" aria-hidden="true" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p className="font-semibold">{entry.product}</p>
-                        <p>{formatDate(entry.dueAt)} · {detail}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
-              <div className="rounded-lg bg-emerald-50 px-2 py-2">
-                <p className="text-lg font-bold text-emerald-700">{data.onTimeCount}</p>
-                <p className="text-[11px] text-emerald-700">À temps</p>
-              </div>
-              <div className="rounded-lg bg-amber-50 px-2 py-2">
-                <p className="text-lg font-bold text-amber-700">{data.lateCount}</p>
-                <p className="text-[11px] text-amber-700">En retard</p>
-              </div>
-              <div className="rounded-lg bg-red-50 px-2 py-2">
-                <p className="text-lg font-bold text-red-700">{data.missedCount}</p>
-                <p className="text-[11px] text-red-700">Impayées</p>
-              </div>
-              <div className="rounded-lg bg-sky-50 px-2 py-2">
-                <p className="text-lg font-bold text-sky-700">{data.excusedCount}</p>
-                <p className="text-[11px] text-sky-700">Reports</p>
-              </div>
-            </div>
-
-            {selectedEntry ? (
-              <EntryDetails entry={selectedEntry} onNavigate={onNavigate} />
-            ) : (
+            {products.map((summary) => (
+              <ProductFormSection
+                key={summary.product}
+                summary={summary}
+                selectedKey={selectedKey}
+                onSelect={setSelectedKey}
+                onNavigate={onNavigate}
+              />
+            ))}
+            {!selectedKey && (
               <p className="text-center text-xs text-slate-400">
                 Sélectionnez un résultat pour afficher son détail.
               </p>

@@ -502,7 +502,32 @@ export function useCreditPaymentMutations() {
         },
     })
 
-    return { create, update }
+    const remove = useMutation({
+        mutationFn: ({ paymentId }: { paymentId: string; creditId: string; month: number; amount: number }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.deletePayment(paymentId, user.uid)
+        },
+        onSuccess: async (_, variables) => {
+            const creditId = variables.creditId
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditPayments'] }),
+                qc.invalidateQueries({ queryKey: ['creditPayments', 'creditId', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditInstallments', 'creditId', creditId] }),
+                qc.invalidateQueries({ queryKey: ['guarantorRemunerations', 'creditId', creditId] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+            ])
+            toast.success('Paiement supprimé')
+            log({ action: 'delete', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: creditId, description: `Suppression du paiement de l'échéance M${variables.month} (${variables.amount.toLocaleString('fr-FR')} FCFA)` })
+        },
+        onError: (error: unknown) => {
+            toast.error(error instanceof Error ? error.message : 'Erreur lors de la suppression du paiement')
+        },
+    })
+
+    return { create, update, remove }
 }
 
 // ==================== PÉNALITÉS ====================
@@ -705,6 +730,23 @@ export function useRecordGuarantorPayment() {
         },
         onError: (error: unknown) => {
             toast.error((error as Error)?.message ?? 'Erreur lors de l\'enregistrement du paiement au garant')
+        },
+    })
+}
+
+export function useDeleteGuarantorPayment() {
+    const qc = useQueryClient()
+    const service = ServiceFactory.getCreditSpecialeService()
+
+    return useMutation({
+        mutationFn: (params: { paymentId: string; creditId: string }) =>
+            service.deleteGuarantorPayment(params.paymentId),
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['guarantorPayments', 'creditId', variables.creditId] })
+            toast.success('Versement au garant supprimé')
+        },
+        onError: (error: unknown) => {
+            toast.error((error as Error)?.message ?? 'Erreur lors de la suppression du versement au garant')
         },
     })
 }

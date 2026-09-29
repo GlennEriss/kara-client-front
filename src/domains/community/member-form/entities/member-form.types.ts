@@ -30,6 +30,15 @@ export type MemberFormProduct =
   | 'Crédit Fixe'
   | 'Crédit Aide'
 
+/** Ordre d'affichage des sections, aligné sur la vue consolidée du membre. */
+export const MEMBER_FORM_PRODUCTS: readonly MemberFormProduct[] = [
+  'Caisse Spéciale',
+  'Caisse Imprévue',
+  'Crédit Spéciale',
+  'Crédit Fixe',
+  'Crédit Aide',
+]
+
 /** Une échéance passée et son issue. */
 export interface MemberFormEntry {
   key: string
@@ -59,6 +68,22 @@ export interface MemberFormSummary {
   ratedCount: number
   /** Part d'échéances à l'heure, sur les seules échéances jugées. `null` si aucune. */
   punctualityRate: number | null
+}
+
+/** Forme récente d'un seul produit. */
+export interface MemberFormProductSummary extends MemberFormSummary {
+  product: MemberFormProduct
+}
+
+/**
+ * Forme récente découpée par produit. Chaque produit garde ses propres
+ * dernières échéances : fusionnés, un produit à échéances fréquentes (Caisse
+ * Spéciale journalière) évinçait les autres de la bande.
+ */
+export interface MemberFormByProduct {
+  memberId: string
+  /** Seuls les produits ayant au moins une échéance passée, dans l'ordre de `MEMBER_FORM_PRODUCTS`. */
+  products: MemberFormProductSummary[]
 }
 
 function startOfDay(date: Date): Date {
@@ -139,4 +164,20 @@ export function buildMemberFormSummary(params: {
     ratedCount,
     punctualityRate: ratedCount > 0 ? onTimeCount / ratedCount : null,
   }
+}
+
+/** Regroupe les échéances par produit, puis applique `buildMemberFormSummary` à chacun. */
+export function buildMemberFormByProduct(params: {
+  memberId: string
+  entries: MemberFormEntry[]
+  length?: number
+}): MemberFormByProduct {
+  const products = MEMBER_FORM_PRODUCTS.flatMap((product) => {
+    const entries = params.entries.filter((entry) => entry.product === product)
+    if (entries.length === 0) return []
+    const summary = buildMemberFormSummary({ memberId: params.memberId, entries, length: params.length })
+    return [{ ...summary, product }]
+  })
+
+  return { memberId: params.memberId, products }
 }

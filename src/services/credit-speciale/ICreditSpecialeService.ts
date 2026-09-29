@@ -136,6 +136,8 @@ export interface ICreditSpecialeService {
         adminId: string
     ): Promise<GuarantorPayment>;
     getGuarantorPaymentsByCreditId(creditId: string): Promise<GuarantorPayment[]>;
+    deletePayment(paymentId: string, userId: string): Promise<void>;
+    deleteGuarantorPayment(paymentId: string): Promise<void>;
     
     // Éligibilité
     checkEligibility(clientId: string, guarantorId?: string): Promise<{ eligible: boolean; reason?: string }>;

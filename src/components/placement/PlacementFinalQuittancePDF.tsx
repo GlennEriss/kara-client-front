@@ -1,173 +1,58 @@
 'use client'
 
-import { QuittanceCoverPage, type QuittanceCoverRow } from '@/components/pdf/quittance/QuittanceCoverPage'
+import {
+  DEFAULT_DOCUMENT_PLACE,
+  EMPTY,
+  FieldTable,
+  MutuelleHeader,
+  MutuellePageChrome,
+  MutuelleSection,
+  MutuelleSignatures,
+  collectDocumentFields,
+  display,
+  field,
+  formatAmount,
+  formatDate,
+  fullNameFrom,
+  mutuelleStyles,
+  numberToWords,
+  readField,
+  toDate,
+  type DocumentCompletion,
+  type DocumentField,
+  type FieldRow,
+} from '@/components/pdf/mutuelle/MutuelleDocumentKit'
 import type { CommissionPaymentPlacement, Placement, User } from '@/types/types'
 import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import React from 'react'
 
-// Charte des quittances LE KARA — mêmes jetons que QuittanceCaisseSpecialePDF.
-const ACCENT_BLUE = '#1f4f68'
-const BORDER_SOFT = '#cbd5e1'
-const TEXT_PRIMARY = '#1f2937'
-const TEXT_MUTED = '#475569'
-const SUCCESS = '#16a34a'
+/**
+ * Procès-verbal de liquidation du placement (volet Bienfaiteur), sur le modèle
+ * LIQUIDATION.docx comme les caisses. Il constate la restitution du capital au
+ * terme du placement ; les commissions déjà versées sont rappelées pour
+ * mémoire, avec leur détail.
+ */
 
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Times-Roman',
-    fontSize: 11,
-    paddingLeft: 30,
-    paddingRight: 30,
-    paddingTop: 50,
-    paddingBottom: 40,
-    color: TEXT_PRIMARY,
-  },
-  // Cadre de page : signature visuelle des quittances de l'association.
-  pageContainer: {
-    width: '100%',
-    height: '100%',
-    border: '1px solid #94a3b8',
-    borderRadius: 2,
-    position: 'relative',
-    padding: 16,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    border: `1px solid ${ACCENT_BLUE}`,
-    backgroundColor: ACCENT_BLUE,
-    color: '#ffffff',
-    paddingVertical: 5,
-  },
-  subtitle: {
-    fontSize: 11,
-    textAlign: 'center',
-    color: '#ffffff',
-    backgroundColor: ACCENT_BLUE,
-    borderLeft: `1px solid ${ACCENT_BLUE}`,
-    borderRight: `1px solid ${ACCENT_BLUE}`,
-    borderBottom: `1px solid ${ACCENT_BLUE}`,
-    paddingBottom: 6,
-    marginBottom: 16,
-  },
-  statusBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: SUCCESS,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  statusText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: ACCENT_BLUE,
-    marginBottom: 6,
-  },
-  // Tableau des reversements : React-PDF n'a pas de primitive de tableau,
-  // on le reconstruit en flexbox (l'équivalent de jspdf-autotable).
-  table: { marginBottom: 16 },
-  tableHeadRow: { flexDirection: 'row', backgroundColor: ACCENT_BLUE },
-  tableHeadCell: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: 'bold',
-    padding: 6,
-    textAlign: 'center',
-  },
-  tableRow: { flexDirection: 'row', borderBottom: `1px solid ${BORDER_SOFT}` },
-  tableRowAlt: { backgroundColor: '#f8fafc' },
-  tableCell: { fontSize: 9, padding: 6, textAlign: 'center', color: TEXT_PRIMARY },
-  cellRight: { textAlign: 'right', fontWeight: 'bold' },
-  colIndex: { width: '10%' },
-  colDue: { width: '25%' },
-  colAmount: { width: '27%' },
-  colStatus: { width: '18%' },
-  colPaid: { width: '20%' },
-
-  recapRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 3,
-    lineHeight: 1.45,
-  },
-  recapTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 6,
-    marginTop: 4,
-    borderTop: `1px solid ${BORDER_SOFT}`,
-  },
-  bold: { fontWeight: 'bold' },
-  words: { fontSize: 9, marginTop: 6, fontStyle: 'italic', color: TEXT_MUTED },
-  historicalNote: {
-    fontSize: 8,
-    marginTop: 7,
-    padding: 6,
-    color: TEXT_MUTED,
-    backgroundColor: '#f8fafc',
-    border: `1px solid ${BORDER_SOFT}`,
-  },
-  // Panneau de signatures encadré, comme la quittance caisse spéciale.
-  signatures: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 26,
-    minHeight: 120,
-    border: `1px solid ${BORDER_SOFT}`,
-    backgroundColor: '#f8fafc',
-    padding: 15,
-  },
-  signatureBlock: { width: '48%', justifyContent: 'space-between' },
-  signatureBlockRight: { width: '48%', justifyContent: 'space-between', alignItems: 'flex-end' },
-  signatureTitle: { fontWeight: 'bold', color: TEXT_PRIMARY },
-  signatureTitleRight: { fontWeight: 'bold', color: TEXT_PRIMARY, textAlign: 'right' },
-  signatureSubtitle: { fontSize: 8, color: TEXT_MUTED },
-  signaturePlaceholder: {
-    width: 185,
-    height: 56,
-    marginTop: 12,
-    border: '1px dashed #94a3b8',
-    backgroundColor: '#ffffff',
-  },
-  // Même largeur que le cadre pour être centré dessous.
-  unsignedSignerName: {
-    width: 185,
-    marginTop: 4,
-    fontSize: 9,
-    textAlign: 'center',
-    color: TEXT_MUTED,
-  },
-  dateText: { fontSize: 9, marginTop: 12, color: TEXT_MUTED },
-  dateLine: { marginTop: 20, lineHeight: 1.45 },
-  pageNumber: {
-    position: 'absolute',
-    bottom: 8,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 9,
-    color: TEXT_MUTED,
-  },
-})
-
-const formatAmount = (amount: number): string =>
-  roundFcfa(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-
-const formatDate = (value?: Date | string | null): string => {
-  if (!value) return '—'
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? '—' : format(d, 'dd/MM/yyyy', { locale: fr })
+const PAYOUT_MODE_LABELS: Record<Placement['payoutMode'], string> = {
+  MonthlyCommission_CapitalEnd: 'Commission mensuelle, capital à la fin',
+  CapitalPlusCommission_End: 'Capital et commissions à la fin',
 }
+
+const commissionStyles = StyleSheet.create({
+  headRow: {
+    flexDirection: 'row',
+    backgroundColor: '#e2e8f0',
+    borderLeft: '1px solid #cbd5e1',
+    borderRight: '1px solid #cbd5e1',
+    borderBottom: '1px solid #cbd5e1',
+  },
+  headCell: { flex: 1, paddingVertical: 2, paddingHorizontal: 4, fontSize: 8.3, fontWeight: 'bold' },
+  cell: { flex: 1, paddingVertical: 2, paddingHorizontal: 4, fontSize: 8.3 },
+  index: { flex: 0.4 },
+  amount: { textAlign: 'right' },
+  caption: { fontSize: 8.5, fontWeight: 'bold', marginTop: 5, marginBottom: 2 },
+})
 
 export type PlacementFinalQuittancePdfProps = {
   placement: Placement
@@ -175,23 +60,18 @@ export type PlacementFinalQuittancePdfProps = {
   commissions: CommissionPaymentPlacement[]
   /** Cumul historique (capital restitué + commissions payées) en toutes lettres. */
   amountInWords: string
-  /** Ville d'émission. */
+  /** Ville d'émission par défaut, remplacée par le lieu saisi dans la modale. */
   city?: string
+  completion?: DocumentCompletion | null
 }
 
-export default function PlacementFinalQuittancePDF({
-  placement,
-  member,
-  commissions,
-  amountInWords,
-  city = 'Libreville',
-}: PlacementFinalQuittancePdfProps) {
-  const memberName = member
-    ? `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim()
-    : `Bienfaiteur #${placement.benefactorId.slice(0, 8)}`
+type PlacementLiquidationInput = Pick<PlacementFinalQuittancePdfProps, 'placement' | 'member' | 'commissions' | 'amountInWords'>
 
+/** Champs du procès-verbal, partagés avec la modale pour la saisie des informations manquantes. */
+export const buildPlacementLiquidationFields = ({ placement, member, commissions, amountInWords }: PlacementLiquidationInput) => {
+  const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
   const paidCommissions = commissions.filter((commission) => commission.status === 'Paid')
-  const capitalRestituted = roundFcfa(placement.amount)
+  const capitalRestituted = roundFcfa(placement.capitalRepaidAmount ?? placement.amount)
   const paidCommissionsTotal = sumCommissionAmounts(
     paidCommissions.map((commission) => ({
       ...commission,
@@ -199,125 +79,136 @@ export default function PlacementFinalQuittancePDF({
     })),
   )
   const historicalTotalPaid = roundFcfa(capitalRestituted + paidCommissionsTotal)
+  const paidDate = field('placement.paidDate', 'Date du règlement :', optionalDate(placement.capitalRepaidAt ?? placement.endDate), 'date')
 
-  const payoutModeLabel =
-    placement.payoutMode === 'MonthlyCommission_CapitalEnd'
-      ? 'Commission mensuelle + Capital à la fin'
-      : 'Capital + Commissions à la fin'
+  return {
+    paidCommissions,
+    capitalRestituted,
+    member: [
+      [
+        field('member.lastName', 'Nom(s) du Bienfaiteur :', String(member?.lastName ?? '').toUpperCase() || placement.benefactorName),
+        field('member.firstName', 'Prénom(s) :', member?.firstName),
+      ],
+      [field('member.matricule', 'Matricule / N° d’Adhérent :', member?.matricule || placement.benefactorId), field('placement.id', 'Référence du placement :', placement.id)],
+      [field('placement.amount', 'Capital placé :', `${formatAmount(placement.amount)} FCFA`), field('placement.rate', 'Taux de commission :', `${placement.rate} %`)],
+      [
+        field('placement.startDate', 'Date de début :', optionalDate(placement.startDate ?? placement.createdAt), 'date'),
+        field('placement.endDate', 'Date de fin :', optionalDate(placement.endDate), 'date'),
+      ],
+      [
+        field('placement.period', 'Durée :', `${placement.periodMonths} mois`),
+        field('placement.payoutMode', 'Versement des commissions :', PAYOUT_MODE_LABELS[placement.payoutMode]),
+      ],
+    ] as FieldRow[],
+    liquidation: [
+      [field('placement.liquidationType', 'Nature de la liquidation :', 'Restitution du capital au terme du placement'), paidDate],
+      [
+        field('placement.capitalDigits', 'Capital restitué (en chiffres) :', `${formatAmount(capitalRestituted)} FCFA`),
+        field('placement.capitalWords', 'Capital restitué (en lettres) :', `${numberToWords(capitalRestituted)} francs CFA`),
+      ],
+      [
+        field('placement.commissionsPaid', 'Commissions versées antérieurement :', `${formatAmount(paidCommissionsTotal)} FCFA`),
+        field('placement.historicalTotal', 'Cumul historique versé :', `${formatAmount(historicalTotalPaid)} FCFA (${amountInWords} francs CFA)`),
+      ],
+    ] as FieldRow[],
+    paidDate,
+  }
+}
 
-  const startDate = formatDate(placement.startDate ?? placement.createdAt)
-  const endDate = formatDate(placement.endDate)
+export const listPlacementLiquidationFields = (input: PlacementLiquidationInput): DocumentField[] => {
+  const { member, liquidation } = buildPlacementLiquidationFields(input)
+  return collectDocumentFields({ member, liquidation })
+}
 
-  const memberRows: QuittanceCoverRow[] = [
-    {
-      kind: 'pair',
-      left: { label: 'Bienfaiteur', value: memberName },
-      right: { label: 'N° Placement', value: placement.id.slice(-8).toUpperCase() },
-    },
-    {
-      kind: 'pair',
-      left: { label: 'Capital placé', value: `${formatAmount(capitalRestituted)} FCFA` },
-      right: { label: 'Taux', value: `${placement.rate}%` },
-    },
-    {
-      kind: 'pair',
-      left: { label: 'Date de début', value: startDate },
-      right: { label: 'Date de fin', value: endDate },
-    },
-    {
-      kind: 'pair',
-      left: { label: 'Période', value: `${placement.periodMonths} mois` },
-      right: { label: 'Mode', value: payoutModeLabel },
-    },
-  ]
+export default function PlacementFinalQuittancePDF({
+  placement,
+  member,
+  commissions,
+  amountInWords,
+  city = DEFAULT_DOCUMENT_PLACE,
+  completion,
+}: PlacementFinalQuittancePdfProps) {
+  const fields = buildPlacementLiquidationFields({ placement, member, commissions, amountInWords })
+  const [[lastNameField, firstNameField]] = fields.member
+  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
+  const { paidCommissions, capitalRestituted } = fields
+  const paidDate = readField(fields.paidDate, completion) || EMPTY
+  const place = completion?.place?.trim() || city
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-        <Text style={styles.title}>QUITTANCE FINALE</Text>
-        <Text style={styles.subtitle}>Placement — LE KARA</Text>
+      <Page size="A4" style={mutuelleStyles.page}>
+        <MutuellePageChrome footerLabel="Procès-verbal de liquidation du placement" />
+        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION DU PLACEMENT (VOLET BIENFAITEUR)" />
 
-        <QuittanceCoverPage
-          memberSectionTitle="INFORMATIONS DU PLACEMENT"
-          memberRows={memberRows}
-        />
+        <Text style={mutuelleStyles.preamble}>
+          Ce document constate la liquidation du placement identifié ci-dessous et la restitution au
+          Bienfaiteur du capital mis à la disposition de l’Association. Conformément à la loi n°35/62
+          du 10 décembre 1962 relative aux associations, aux statuts de LE KARA et aux conditions du
+          contrat, ce règlement atteste des sommes effectivement remises au membre.
+        </Text>
 
-        <View style={styles.statusBanner}>
-          <Text style={styles.statusText}>CAPITAL RESTITUÉ</Text>
-          <Text style={styles.statusText}>{formatAmount(capitalRestituted)} FCFA</Text>
-        </View>
+        <MutuelleSection title="1. IDENTIFICATION DU BIENFAITEUR ET DU PLACEMENT">
+          <FieldTable rows={fields.member} completion={completion} />
+        </MutuelleSection>
 
-        {paidCommissions.length > 0 && (
-          <View style={styles.table}>
-            <Text style={styles.sectionTitle}>COMMISSIONS PAYÉES — CUMUL HISTORIQUE</Text>
-            <View style={styles.tableHeadRow}>
-              <Text style={[styles.tableHeadCell, styles.colIndex]}>#</Text>
-              <Text style={[styles.tableHeadCell, styles.colDue]}>Échéance</Text>
-              <Text style={[styles.tableHeadCell, styles.colAmount]}>Montant</Text>
-              <Text style={[styles.tableHeadCell, styles.colStatus]}>Statut</Text>
-              <Text style={[styles.tableHeadCell, styles.colPaid]}>Payée le</Text>
-            </View>
-            {paidCommissions.map((commission, index) => (
-              <View
-                key={commission.id ?? index}
-                style={[styles.tableRow, ...(index % 2 === 1 ? [styles.tableRowAlt] : [])]}
-                wrap={false}
-              >
-                <Text style={[styles.tableCell, styles.colIndex]}>{index + 1}</Text>
-                <Text style={[styles.tableCell, styles.colDue]}>{formatDate(commission.dueDate)}</Text>
-                <Text style={[styles.tableCell, styles.colAmount, styles.cellRight]}>
-                  {formatAmount(commission.paidAmount ?? commission.amount)} FCFA
-                </Text>
-                <Text style={[styles.tableCell, styles.colStatus]}>Payée</Text>
-                <Text style={[styles.tableCell, styles.colPaid]}>{formatDate(commission.paidAt)}</Text>
+        <MutuelleSection title="2. LIQUIDATION FINANCIÈRE DU PLACEMENT">
+          <Text style={mutuelleStyles.paragraph}>
+            Le Comité Exécutif certifie avoir vérifié les versements enregistrés et arrêté la
+            liquidation suivante :
+          </Text>
+          <FieldTable rows={fields.liquidation} completion={completion} />
+
+          {paidCommissions.length > 0 && (
+            <>
+              <Text style={commissionStyles.caption}>Détail des commissions versées</Text>
+              <View style={mutuelleStyles.table}>
+                <View style={commissionStyles.headRow}>
+                  <Text style={[commissionStyles.headCell, commissionStyles.index]}>#</Text>
+                  <Text style={commissionStyles.headCell}>Échéance</Text>
+                  <Text style={[commissionStyles.headCell, commissionStyles.amount]}>Montant</Text>
+                  <Text style={commissionStyles.headCell}>Versée le</Text>
+                </View>
+                {paidCommissions.map((commission, index) => (
+                  <View key={commission.id} style={mutuelleStyles.row}>
+                    <Text style={[commissionStyles.cell, commissionStyles.index]}>{index + 1}</Text>
+                    <Text style={commissionStyles.cell}>{formatDate(commission.dueDate)}</Text>
+                    <Text style={[commissionStyles.cell, commissionStyles.amount]}>
+                      {formatAmount(commission.paidAmount ?? commission.amount)} FCFA
+                    </Text>
+                    <Text style={commissionStyles.cell}>{formatDate(commission.paidAt)}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
+            </>
+          )}
+        </MutuelleSection>
 
-        <View wrap={false}>
-          <Text style={styles.sectionTitle}>RÉCAPITULATIF</Text>
-          <View style={styles.recapRow}>
-            <Text>Capital restitué</Text>
-            <Text>{formatAmount(capitalRestituted)} FCFA</Text>
-          </View>
-          <View style={styles.recapRow}>
-            <Text>Commissions payées cumulées</Text>
-            <Text>{formatAmount(paidCommissionsTotal)} FCFA</Text>
-          </View>
-          <View style={styles.recapTotal}>
-            <Text style={styles.bold}>Cumul historique versé</Text>
-            <Text style={styles.bold}>{formatAmount(historicalTotalPaid)} FCFA</Text>
-          </View>
-          <Text style={styles.words}>Montant en lettres : {amountInWords} francs CFA</Text>
-          <Text style={styles.historicalNote}>
-            Ce cumul historique additionne le capital restitué et les commissions payées antérieurement.
-            Il ne correspond pas au seul versement final.
+        <MutuelleSection title="3. DÉCLARATION DE DÉCHARGE ET D’ACQUITTEMENT">
+          <Text style={mutuelleStyles.paragraph}>
+            Je soussigné(e), <Text style={mutuelleStyles.bold}>{display(memberName)}</Text>, reconnais
+            avoir reçu de l’Association de Secours Mutuel LE KARA le capital indiqué ci-dessus au titre
+            de la liquidation de mon placement, les commissions ayant été perçues aux dates rappelées.
+          </Text>
+          <Text style={mutuelleStyles.paragraph}>
+            Je confirme que ce règlement correspond aux sommes effectivement remises et que le présent
+            procès-verbal atteste de la clôture financière du placement, conformément aux conditions
+            contractuelles et aux statuts de LE KARA.
+          </Text>
+          <Text style={mutuelleStyles.paragraph}>Fait à {place}, le {paidDate}</Text>
+          <Text style={mutuelleStyles.note}>
+            (Inscrire la mention manuscrite « Reçu la somme de {formatAmount(capitalRestituted)} FCFA au
+            titre de la liquidation du placement pour solde de tout compte »)
           </Text>
 
-          <Text style={styles.dateLine}>
-            Fait à {city}, le {format(new Date(), 'dd MMMM yyyy', { locale: fr })}
-          </Text>
-
-          <View style={styles.signatures}>
-            <View style={styles.signatureBlock}>
-              <Text style={styles.signatureTitle}>Signature du Secrétaire exécutif</Text>
-              <View style={styles.signaturePlaceholder} />
-              <Text style={styles.dateText}>Date : ____________________</Text>
-            </View>
-            <View style={styles.signatureBlockRight}>
-              <Text style={styles.signatureTitleRight}>
-                Signature du Bienfaiteur (Précédée de la mention Lu et Approuvé)
-              </Text>
-              <View style={styles.signaturePlaceholder} />
-              <Text style={styles.unsignedSignerName}>{memberName}</Text>
-              <Text style={styles.dateText}>Date : ____________________</Text>
-            </View>
-          </View>
-        </View>
-        </View>
-        <Text style={styles.pageNumber} fixed render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`} />
+          <MutuelleSignatures
+            memberTitle="Le Bienfaiteur / Réceptionnaire"
+            memberName={memberName}
+            memberSignature={null}
+            committeeRole="Le Financier Général / Le Secrétaire Exécutif"
+            committeeSignature={null}
+          />
+        </MutuelleSection>
       </Page>
     </Document>
   )

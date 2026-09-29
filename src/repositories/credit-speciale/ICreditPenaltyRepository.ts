@@ -31,5 +31,7 @@ export interface ICreditPenaltyRepository extends IRepository {
     getPenaltiesStats(filters?: CreditPenaltyFilters): Promise<CreditPenaltyStats>;
     updatePenalty(id: string, data: Partial<Omit<CreditPenalty, 'id' | 'createdAt'>>): Promise<CreditPenalty | null>;
     deletePenalty(id: string): Promise<void>;
+    /** Remet une pénalité réglée par un paiement dans l'état « due » (efface paidAt et paymentId). */
+    markPenaltyUnpaid(id: string, userId: string): Promise<void>;
 }
 

@@ -8,8 +8,8 @@ import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import CaisseSpecialePDFV3, { type CaisseSpecialePdfFillData } from './CaisseSpecialePDFV3'
-import { addContractMonths } from '@/utils/contract-months'
+import CaisseSpecialePDFV3, { listCaisseSpecialeContractFields, type CaisseSpecialePdfFillData } from './CaisseSpecialePDFV3'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 interface CaisseSpecialePDFModalProps {
   isOpen: boolean
@@ -19,9 +19,8 @@ interface CaisseSpecialePDFModalProps {
 }
 
 const EMPTY_FILL_DATA: CaisseSpecialePdfFillData = {
-  page3MemberSignature: null,
-  page5SecretarySignature: null,
-  page5MemberSignature: null,
+  memberSignature: null,
+  secretarySignature: null,
 }
 
 const SignaturePad = ({
@@ -173,6 +172,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   const [fillData, setFillData] = useState<CaisseSpecialePdfFillData>(EMPTY_FILL_DATA)
   const [previewFillData, setPreviewFillData] = useState<CaisseSpecialePdfFillData>(EMPTY_FILL_DATA)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contractId)
   const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre
@@ -217,22 +217,9 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
       age: calculateAge(memberData.birthDate)
     } : memberData
 
-    // Calculer la dernière date de paiement
-    let lastPaymentDate = null
-    if (contractData.firstPaymentDate && contractData.monthsPlanned) {
-      try {
-        const firstDate = new Date(contractData.firstPaymentDate)
-        // Le dernier paiement est monthsPlanned mois après le premier
-        lastPaymentDate = addContractMonths(firstDate, contractData.monthsPlanned)
-      } catch (error) {
-        console.error('Erreur lors du calcul de la dernière date de paiement:', error)
-      }
-    }
-
     return {
       ...contractData,
       member: memberWithAge,
-      lastPaymentDate
     }
   }, [contractData, memberData])
 
@@ -262,15 +249,15 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   }, [fillData, isOpen])
 
   const pdfDocument = useMemo(
-    () => <CaisseSpecialePDFV3 contract={enrichedContract} fillData={previewFillData} />,
-    [enrichedContract, previewFillData]
+    () => <CaisseSpecialePDFV3 contract={enrichedContract} fillData={previewFillData} completion={previewCompletion} />,
+    [enrichedContract, previewFillData, previewCompletion]
   )
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<CaisseSpecialePDFV3 contract={enrichedContract} fillData={fillData} />).toBlob()
+      const blob = await pdf(<CaisseSpecialePDFV3 contract={enrichedContract} fillData={fillData} completion={completion} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -397,7 +384,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">5 pages</span>
+                      <span className="font-medium text-gray-900">1 page</span>
                     </div>
                   </div>
 
@@ -464,30 +451,28 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                       <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
                     ) : null}
 
+                    <DocumentCompletionPanel
+                      fields={listCaisseSpecialeContractFields(enrichedContract)}
+                      completion={completion}
+                      onChange={setCompletion}
+                    />
+
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
                       <SignaturePad
-                        title="Signature épargnant (page 3)"
-                        value={fillData.page3MemberSignature}
+                        title="Signature de l'épargnant (Lu et approuvé)"
+                        value={fillData.memberSignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true
-                          setFillData((prev) => ({ ...prev, page3MemberSignature: value }))
+                          setFillData((prev) => ({ ...prev, memberSignature: value }))
                         }}
                       />
                       <SignaturePad
-                        title="Signature secrétaire exécutif (page 5)"
-                        value={fillData.page5SecretarySignature}
+                        title="Signature et cachet du Secrétaire Exécutif"
+                        value={fillData.secretarySignature}
                         onChange={(value) => {
                           skipDebouncePreviewRef.current = true
-                          setFillData((prev) => ({ ...prev, page5SecretarySignature: value }))
-                        }}
-                      />
-                      <SignaturePad
-                        title="Signature épargnant (page 5)"
-                        value={fillData.page5MemberSignature}
-                        onChange={(value) => {
-                          skipDebouncePreviewRef.current = true
-                          setFillData((prev) => ({ ...prev, page5MemberSignature: value }))
+                          setFillData((prev) => ({ ...prev, secretarySignature: value }))
                         }}
                       />
                     </div>

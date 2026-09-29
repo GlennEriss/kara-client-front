@@ -16,6 +16,9 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useContractPaymentStats, useRequestEarlyRefundCI } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
+import { useMember } from '@/hooks/useMembers'
+import { DownloadRefundRequestButton } from '@/components/pdf/mutuelle/DownloadRefundRequestButton'
+import { buildCIRefundRequestData } from './refundRequestPdfData'
 import { defaultEarlyRefundCIValues, earlyRefundCISchema, WITHDRAWAL_MODES, type EarlyRefundCIFormData } from '@/schemas/caisse-imprevue/early-refund-ci.schema'
 import { ContractCI } from '@/types/types'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -53,6 +56,7 @@ export default function EarlyRefundCIModal({
   onSuccess,
 }: EarlyRefundCIModalProps) {
   const { user } = useAuth()
+  const { data: memberData } = useMember(contract.memberId)
   const requestEarlyRefundCIMutation = useRequestEarlyRefundCI()
   const { data: paymentStats } = useContractPaymentStats(contract.id)
 
@@ -457,6 +461,26 @@ export default function EarlyRefundCIModal({
               <p className="text-xs text-muted-foreground mt-1">
                 Téléversez une photo de la preuve du retrait (JPEG, PNG, WebP, max 20MB)
               </p>
+            </div>
+
+            {/* Demande à faire signer, puis à joindre ci-dessous */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-3">
+              <p className="text-xs text-muted-foreground">
+                Téléchargez la demande pré-remplie, faites-la signer, puis joignez-la ci-dessous.
+              </p>
+              <DownloadRefundRequestButton
+                fileName={`DEMANDE_REMBOURSEMENT_CI_${(contract.memberLastName ?? '').toUpperCase()}_${(contract.memberFirstName ?? '').toUpperCase()}.pdf`}
+                data={buildCIRefundRequestData({
+                  contract,
+                  member: memberData,
+                  type: 'EARLY',
+                  amount: Number(watch('withdrawalAmount')) || undefined,
+                  withdrawalMode: watch('withdrawalMode'),
+                  paymentMethodOther: watch('paymentMethodOther'),
+                  reason: watch('reason'),
+                  requestedAt: watch('withdrawalDate') || new Date(),
+                })}
+              />
             </div>
 
             {/* Document PDF signé */}

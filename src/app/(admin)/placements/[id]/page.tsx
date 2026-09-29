@@ -484,7 +484,7 @@ const handleGenerateGlobalFacture = async () => {
                 onClick={() => setShowFinalQuittance(true)}
                 disabled={placement.status !== 'Closed' && !canClosePlacement}
               >
-                Quittance finale
+                Procès-verbal de liquidation
               </Button>
               <Button
                 variant="default"
@@ -508,7 +508,7 @@ const handleGenerateGlobalFacture = async () => {
                 onClick={() => setShowEarlyExitQuittance(true)}
                 disabled={!earlyExit}
               >
-                Quittance sortie anticipée
+                PV de liquidation anticipée
               </Button>
               {earlyExit && (
                 <Button
