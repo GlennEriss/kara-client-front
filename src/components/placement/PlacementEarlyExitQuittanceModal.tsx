@@ -7,6 +7,9 @@ import { useMember } from '@/hooks/useMembers'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 import { EarlyExitPlacement, Placement } from '@/types/types'
 import { roundFcfa } from '@/utils/placementMoney'
+import { pdf } from '@react-pdf/renderer'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
+import PlacementEarlyExitQuittancePDF, { listPlacementEarlyExitFields } from './PlacementEarlyExitQuittancePDF'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -18,45 +21,6 @@ import {
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { toast } from 'sonner'
-
-// Helper pour formater les montants
-const formatAmount = (amount: number): string => {
-  return roundFcfa(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-}
-
-// Fonction pour convertir un nombre en lettres (simplifiée)
-const numberToWords = (num: number): string => {
-  if (num === 0) return 'zéro'
-  
-  const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
-  const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix']
-  
-  if (num < 20) return ones[num]
-  if (num < 100) {
-    const ten = Math.floor(num / 10)
-    const one = num % 10
-    if (ten === 7) {
-      return one === 0 ? 'soixante-dix' : `soixante-${ones[10 + one]}`
-    }
-    if (ten === 9) {
-      return one === 0 ? 'quatre-vingt-dix' : `quatre-vingt-${ones[10 + one]}`
-    }
-    return tens[ten] + (one > 0 ? `-${ones[one]}` : '')
-  }
-  if (num < 1000) {
-    const hundred = Math.floor(num / 100)
-    const remainder = num % 100
-    const hundredText = hundred === 1 ? 'cent' : `${ones[hundred]} cent`
-    return remainder > 0 ? `${hundredText} ${numberToWords(remainder)}` : hundredText
-  }
-  if (num < 1000000) {
-    const thousand = Math.floor(num / 1000)
-    const remainder = num % 1000
-    const thousandText = thousand === 1 ? 'mille' : `${numberToWords(thousand)} mille`
-    return remainder > 0 ? `${thousandText} ${numberToWords(remainder)}` : thousandText
-  }
-  return num.toString()
-}
 
 interface PlacementEarlyExitQuittanceModalProps {
   isOpen: boolean
@@ -78,6 +42,7 @@ export default function PlacementEarlyExitQuittanceModal({
   
   const { data: memberData, isLoading: memberLoading } = useMember(placement.benefactorId)
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
+  const { completion, setCompletion } = useDocumentCompletion(isOpen, placement.id)
   const capitalToReturn = roundFcfa(placement.amount)
   const commissionDue = roundFcfa(earlyExit.commissionDue)
   const payoutAmount = roundFcfa(capitalToReturn + commissionDue)
@@ -97,205 +62,32 @@ export default function PlacementEarlyExitQuittanceModal({
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
 
-      const { jsPDF } = await import('jspdf')
-      const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      let yPos = 20
-
-      // En-tête
-      doc.setFillColor(35, 77, 101) // #234D65
-      doc.rect(0, 0, pageWidth, 40, 'F')
-      
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('QUITTANCE DE SORTIE ANTICIPÉE', pageWidth / 2, 20, { align: 'center' })
-      
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Placement - LE KARA', pageWidth / 2, 30, { align: 'center' })
-
-      yPos = 50
-
-      // Informations du placement
-      doc.setTextColor(0, 0, 0)
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 50, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('INFORMATIONS DU PLACEMENT', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      const memberName = memberData 
-        ? `${memberData.firstName} ${memberData.lastName}`
-        : `Bienfaiteur #${placement.benefactorId.slice(0, 8)}`
-      doc.text(`Bienfaiteur: ${memberName}`, 15, yPos)
-      doc.text(`N° Placement: ${placement.id.slice(-8).toUpperCase()}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Capital placé: ${formatAmount(capitalToReturn)} FCFA`, 15, yPos)
-      doc.text(`Taux: ${placement.rate}%`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      const startDate = placement.startDate 
-        ? format(new Date(placement.startDate), 'dd/MM/yyyy', { locale: fr })
-        : format(new Date(placement.createdAt), 'dd/MM/yyyy', { locale: fr })
-      const requestDate = format(new Date(earlyExit.requestedAt), 'dd/MM/yyyy', { locale: fr })
-      doc.text(`Date de début: ${startDate}`, 15, yPos)
-      doc.text(`Date de demande: ${requestDate}`, pageWidth / 2 + 5, yPos)
-      
-      yPos += 7
-      doc.text(`Période prévue: ${placement.periodMonths} mois`, 15, yPos)
-      const payoutModeLabel = placement.payoutMode === 'MonthlyCommission_CapitalEnd' 
-        ? 'Commission mensuelle + Capital à la fin'
-        : 'Capital + Commissions à la fin'
-      doc.text(`Mode: ${payoutModeLabel}`, pageWidth / 2 + 5, yPos)
-
-      yPos += 15
-
-      // Avertissement de sortie anticipée
-      doc.setFillColor(251, 191, 36) // yellow-400
-      doc.rect(10, yPos, pageWidth - 20, 15, 'F')
-      doc.setTextColor(0, 0, 0)
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'bold')
-      doc.text('⚠ SORTIE ANTICIPÉE', 15, yPos + 6)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text('Le bienfaiteur a demandé un retrait anticipé avant la fin de la période prévue.', 15, yPos + 12)
-
-      yPos += 20
-
-      // Détails du retrait anticipé
-      doc.setFillColor(240, 240, 240)
-      doc.rect(10, yPos, pageWidth - 20, 40, 'F')
-      
-      yPos += 10
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.text('DÉTAILS DU RETRAIT ANTICIPÉ', 15, yPos)
-      
-      yPos += 7
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Capital à restituer: ${formatAmount(capitalToReturn)} FCFA`, 15, yPos)
-      
-      yPos += 6
-      doc.text(`Commission due: ${formatAmount(commissionDue)} FCFA`, 15, yPos)
-      
-      yPos += 6
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Montant total à verser: ${formatAmount(payoutAmount)} FCFA`, 15, yPos)
-      
-      yPos += 8
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text(`Montant en lettres: ${numberToWords(payoutAmount)} francs CFA`, 15, yPos)
-
-      yPos += 15
-
-      // Règle de calcul
-      doc.setFillColor(245, 245, 245)
-      doc.rect(10, yPos, pageWidth - 20, 25, 'F')
-      
-      yPos += 8
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Règle de calcul appliquée:', 15, yPos)
-      
-      yPos += 6
-      doc.setFont('helvetica', 'normal')
-      doc.text('Si au moins 1 mois s\'est écoulé depuis le début du placement,', 15, yPos)
-      
-      yPos += 5
-      doc.text('la commission d\'un mois est due. Sinon, aucune commission n\'est due.', 15, yPos)
-
-      yPos += 12
-
-      // Commissions payées avant le retrait (si applicable)
-      const paidCommissions = commissions.filter(c => c.status === 'Paid' && new Date(c.dueDate) <= new Date(earlyExit.requestedAt))
-      if (paidCommissions.length > 0) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text('COMMISSIONS DÉJÀ PAYÉES', 15, yPos)
-        
-        yPos += 5
-
-        const tableData = paidCommissions.map((commission, index) => {
-          const dueDate = format(new Date(commission.dueDate), 'dd/MM/yyyy', { locale: fr })
-          const paidDate = commission.paidAt 
-            ? format(new Date(commission.paidAt), 'dd/MM/yyyy', { locale: fr })
-            : '-'
-          return [
-            `#${index + 1}`,
-            dueDate,
-            `${formatAmount(commission.amount)} FCFA`,
-            paidDate,
-          ]
-        })
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [['#', 'Date d\'échéance', 'Montant', 'Date de paiement']],
-          body: tableData,
-          theme: 'striped',
-          headStyles: {
-            fillColor: [35, 77, 101],
-            textColor: [255, 255, 255],
-            fontSize: 9,
-            fontStyle: 'bold',
-            halign: 'center'
-          },
-          bodyStyles: {
-            fontSize: 8,
-            halign: 'center'
-          },
-          columnStyles: {
-            0: { cellWidth: 15, halign: 'center' },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 50, halign: 'right', fontStyle: 'bold' },
-            3: { cellWidth: 40 },
-          },
-          margin: { left: 10, right: 10 },
-        })
-
-        yPos = (doc as any).lastAutoTable.finalY + 10
-      }
-
-      // Date et signature
-      const today = format(new Date(), 'dd MMMM yyyy', { locale: fr })
-      doc.setFontSize(10)
-      doc.text(`Fait à Ouagadougou, le ${today}`, 15, yPos)
-      
-      yPos += 20
-      doc.setFont('helvetica', 'bold')
-      doc.text('Pour LE KARA', 15, yPos)
-      doc.text('Le Bienfaiteur', pageWidth - 60, yPos)
-
-      yPos += 15
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text('_________________', 15, yPos)
-      doc.text('_________________', pageWidth - 60, yPos)
-      doc.setFontSize(8)
-      doc.text(memberName, pageWidth - 60, yPos + 5, { maxWidth: 50 })
-
-      // Sauvegarder le PDF
+      const blob = await pdf(
+        <PlacementEarlyExitQuittancePDF
+          placement={placement}
+          earlyExit={earlyExit}
+          member={memberData}
+          commissions={commissions}
+          completion={completion}
+        />,
+      ).toBlob()
       const firstName = memberData?.firstName || 'Bienfaiteur'
       const lastName = memberData?.lastName || 'Inconnu'
       const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
-      const fileName = `QUITTANCE_SORTIE_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
-      
-      doc.save(fileName)
+      const fileName = `PROCES_VERBAL_LIQUIDATION_ANTICIPEE_PLACEMENT_${sanitizeName(lastName)}_${sanitizeName(firstName)}.pdf`
+
+      const url = URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = fileName
+      window.document.body.appendChild(link)
+      link.click()
+      window.document.body.removeChild(link)
+      URL.revokeObjectURL(url)
 
       // Attacher dans la base (optionnel)
       if (onGenerated) {
         try {
-          const blob = doc.output('blob')
           const file = new File([blob], fileName, { type: 'application/pdf' })
           const { ServiceFactory } = await import('@/factories/ServiceFactory')
           const service = ServiceFactory.getPlacementService()
@@ -312,7 +104,7 @@ export default function PlacementEarlyExitQuittanceModal({
       }
 
       toast.success('✅ PDF téléchargé avec succès', {
-        description: 'La quittance de sortie anticipée a été générée et téléchargée.',
+        description: 'Le procès-verbal de liquidation anticipée a été généré et téléchargé.',
         duration: 3000,
       })
 
@@ -333,7 +125,7 @@ export default function PlacementEarlyExitQuittanceModal({
         <ModalHeader
           icon={FileText}
           tone="warning"
-          title="Quittance de Sortie Anticipée"
+          title="Procès-verbal de liquidation anticipée"
           description={<>Placement #{placement.id.slice(-8).toUpperCase()}</>}
         />
 
@@ -428,6 +220,14 @@ export default function PlacementEarlyExitQuittanceModal({
                 </div>
               </div>
             )}
+
+            <div className="rounded-lg border border-gray-200 p-4">
+              <DocumentCompletionPanel
+                fields={listPlacementEarlyExitFields({ placement, earlyExit, member: memberData, commissions })}
+                completion={completion}
+                onChange={setCompletion}
+              />
+            </div>
 
             {/* Bouton de téléchargement */}
             <div className="flex justify-end gap-3 pt-4 border-t">

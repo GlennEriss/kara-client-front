@@ -13,7 +13,9 @@ import { toast } from 'sonner'
 import QuittanceCreditSpecialePDF, {
   EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA,
   type QuittanceCreditSpecialeFillData,
+  listCreditLiquidationFields,
 } from './QuittanceCreditSpecialePDF'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 interface QuittanceCreditSpecialePDFModalProps {
   isOpen: boolean
@@ -167,6 +169,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [fillData, setFillData] = useState<QuittanceCreditSpecialeFillData>(EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contract.id)
 
   // Récupérer le téléphone du garant (membre)
   const { data: guarantorData } = useMember(
@@ -180,7 +183,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
   // Nom du fichier : Quittance_Empunt_Nom_Prenom_du_membre.pdf
   const lastName = (contract.clientLastName || 'Membre').replace(/[\s/\\?*:|"<>]/g, '_').trim()
   const firstName = (contract.clientFirstName || 'Inconnu').replace(/[\s/\\?*:|"<>]/g, '_').trim()
-  const quittanceFilename = `Quittance_Empunt_${lastName}_${firstName}_du_membre.pdf`
+  const quittanceFilename = `PROCES_VERBAL_LIQUIDATION_CREDIT_${lastName.toUpperCase()}_${firstName.toUpperCase()}.pdf`
 
   useEffect(() => {
     if (!isOpen) return
@@ -195,9 +198,10 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
         memberData={memberData}
         guarantorData={guarantorData}
         fillData={fillData}
+        completion={previewCompletion}
       />
     ),
-    [contract, guarantorPhone, memberData, guarantorData, fillData]
+    [contract, guarantorPhone, memberData, guarantorData, fillData, previewCompletion]
   )
 
   // Fonction pour télécharger le PDF
@@ -213,6 +217,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
           memberData={memberData}
           guarantorData={guarantorData}
           fillData={fillData}
+          completion={completion}
         />
       )
 
@@ -248,6 +253,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
           memberData={memberData}
           guarantorData={guarantorData}
           fillData={fillData}
+          completion={completion}
         />
       )
 
@@ -282,7 +288,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 bg-clip-text text-transparent">
-                  Quittance de remboursement
+                  Procès-verbal de liquidation du crédit
                 </DialogTitle>
                 <p className="text-sm lg:text-base text-gray-600 truncate">
                   {clientName} - Contrat #{contract.id?.slice(-6)}
@@ -406,16 +412,21 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
                   <h3 className="text-sm font-bold text-kara-primary-dark">Signatures numériques</h3>
                 </div>
                 <p className="text-xs text-gray-600">
-                  Ces signatures seront appliquées à la quittance PDF téléchargée et enregistrée.
+                  Ces signatures seront appliquées au procès-verbal PDF téléchargé et enregistré.
                 </p>
+                <DocumentCompletionPanel
+                  fields={listCreditLiquidationFields({ contract, guarantorPhone, memberData, guarantorData })}
+                  completion={completion}
+                  onChange={setCompletion}
+                />
                 <div className="space-y-3">
                   <SignaturePad
-                    title="Signature de l'épargnant"
+                    title="Signature du membre (Lu et approuvé)"
                     value={fillData.memberSignature}
                     onChange={(value) => setFillData((prev) => ({ ...prev, memberSignature: value }))}
                   />
                   <SignaturePad
-                    title="Signature du secrétaire exécutif"
+                    title="Signature et cachet du Secrétaire Exécutif"
                     value={fillData.secretarySignature}
                     onChange={(value) => setFillData((prev) => ({ ...prev, secretarySignature: value }))}
                   />

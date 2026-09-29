@@ -10,7 +10,8 @@ import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import QuittanceCaisseImprevuePDF, { type QuittanceCaisseImprevuePdfFillData } from './QuittanceCaisseImprevuePDF'
+import QuittanceCaisseImprevuePDF, { listCaisseImprevueLiquidationFields, type QuittanceCaisseImprevuePdfFillData } from './QuittanceCaisseImprevuePDF'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 interface RemboursementCIPDFModalProps {
   isOpen: boolean
@@ -173,6 +174,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
   const [fillData, setFillData] = useState<QuittanceCaisseImprevuePdfFillData>(EMPTY_FILL_DATA)
   const [previewFillData, setPreviewFillData] = useState<QuittanceCaisseImprevuePdfFillData>(EMPTY_FILL_DATA)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contractId)
   const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre si memberId est disponible
@@ -240,9 +242,10 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
         memberData={memberData}
         totalAmountPaid={paymentStats?.totalAmountPaid}
         fillData={previewFillData}
+        completion={previewCompletion}
       />
     ),
-    [contractData, activeRefund, memberData, paymentStats?.totalAmountPaid, previewFillData]
+    [contractData, activeRefund, memberData, paymentStats?.totalAmountPaid, previewFillData, previewCompletion]
   )
 
   const handleDownloadPDF = async () => {
@@ -261,6 +264,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
           memberData={memberData}
           totalAmountPaid={paymentStats?.totalAmountPaid}
           fillData={fillData}
+          completion={completion}
         />
       ).toBlob()
       const url = URL.createObjectURL(blob)
@@ -461,6 +465,17 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                     {isPreviewRefreshing ? (
                       <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
                     ) : null}
+
+                    <DocumentCompletionPanel
+                      fields={listCaisseImprevueLiquidationFields({
+                        contract: contractData,
+                        refund: activeRefund,
+                        memberData,
+                        totalAmountPaid: paymentStats?.totalAmountPaid,
+                      })}
+                      completion={completion}
+                      onChange={setCompletion}
+                    />
 
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>

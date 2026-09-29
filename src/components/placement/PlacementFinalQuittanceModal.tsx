@@ -16,7 +16,8 @@ import {
 } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import PlacementFinalQuittancePDF from './PlacementFinalQuittancePDF'
+import PlacementFinalQuittancePDF, { listPlacementLiquidationFields } from './PlacementFinalQuittancePDF'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 // Fonction pour convertir un nombre en lettres (simplifiée)
 const numberToWords = (num: number): string => {
@@ -70,6 +71,7 @@ export default function PlacementFinalQuittanceModal({
   
   const { data: memberData, isLoading: memberLoading } = useMember(placement.benefactorId)
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, placement.id)
 
   // Détecter si on est sur mobile
   React.useEffect(() => {
@@ -101,7 +103,7 @@ export default function PlacementFinalQuittanceModal({
     const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
     const firstName = memberData?.firstName || 'Bienfaiteur'
     const lastName = memberData?.lastName || 'Inconnu'
-    return `QUITTANCE_FINALE_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
+    return `PROCES_VERBAL_LIQUIDATION_PLACEMENT_${sanitizeName(lastName)}_${sanitizeName(firstName)}.pdf`
   }, [memberData?.firstName, memberData?.lastName])
 
   const pdfDocument = useMemo(
@@ -111,9 +113,10 @@ export default function PlacementFinalQuittanceModal({
         member={memberData}
         commissions={paidCommissions}
         amountInWords={numberToWords(historicalTotalPaid)}
+        completion={previewCompletion}
       />
     ),
-    [placement, memberData, paidCommissions, historicalTotalPaid],
+    [placement, memberData, paidCommissions, historicalTotalPaid, previewCompletion],
   )
 
   const handleDownloadPDF = async () => {
@@ -121,7 +124,15 @@ export default function PlacementFinalQuittanceModal({
       setIsGeneratingPDF(true)
       toast.info('Génération du PDF en cours...')
 
-      const blob = await pdf(pdfDocument).toBlob()
+      const blob = await pdf(
+        <PlacementFinalQuittancePDF
+          placement={placement}
+          member={memberData}
+          commissions={paidCommissions}
+          amountInWords={numberToWords(historicalTotalPaid)}
+          completion={completion}
+        />,
+      ).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -149,7 +160,7 @@ export default function PlacementFinalQuittanceModal({
       }
 
       toast.success('✅ PDF téléchargé avec succès', {
-        description: 'La quittance finale a été générée et téléchargée.',
+        description: 'Le procès-verbal de liquidation a été généré et téléchargé.',
         duration: 3000,
       })
     } catch (error) {
@@ -172,7 +183,7 @@ export default function PlacementFinalQuittanceModal({
         <ModalHeader
           icon={FileText}
           tone="success"
-          title="Quittance Finale - Placement"
+          title="Procès-verbal de liquidation du placement"
           description={<>Placement #{placement.id.slice(-8).toUpperCase()}</>}
         />
 
@@ -262,10 +273,24 @@ export default function PlacementFinalQuittanceModal({
                 )}
               </BlobProvider>
             ) : (
-              <div className="h-[calc(95vh-260px)] min-h-[520px] w-full overflow-hidden rounded-lg border border-gray-200">
-                <PDFViewer width="100%" height="100%" style={{ border: 'none' }} showToolbar={false}>
-                  {pdfDocument}
-                </PDFViewer>
+              <div className="flex h-[calc(95vh-260px)] min-h-[520px] w-full gap-4">
+                <div className="w-[360px] shrink-0 overflow-y-auto rounded-lg border border-gray-200 p-4">
+                  <DocumentCompletionPanel
+                    fields={listPlacementLiquidationFields({
+                      placement,
+                      member: memberData,
+                      commissions: paidCommissions,
+                      amountInWords: numberToWords(historicalTotalPaid),
+                    })}
+                    completion={completion}
+                    onChange={setCompletion}
+                  />
+                </div>
+                <div className="flex-1 overflow-hidden rounded-lg border border-gray-200">
+                  <PDFViewer width="100%" height="100%" style={{ border: 'none' }} showToolbar={false}>
+                    {pdfDocument}
+                  </PDFViewer>
+                </div>
               </div>
             )}
 

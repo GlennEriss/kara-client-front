@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  DEFAULT_DOCUMENT_PLACE,
   EMPTY,
   FieldTable,
   MutuelleHeader,
@@ -10,6 +9,7 @@ import {
   MutuelleSignatures,
   collectDocumentFields,
   display,
+  documentPlace,
   field,
   formatAmount,
   formatDate,
@@ -22,21 +22,29 @@ import {
   type DocumentField,
   type FieldRow,
 } from '@/components/pdf/mutuelle/MutuelleDocumentKit'
-import type { CommissionPaymentPlacement, Placement, User } from '@/types/types'
-import { roundFcfa, sumCommissionAmounts } from '@/utils/placementMoney'
+import type { CommissionPaymentPlacement, EarlyExitPlacement, PaymentMode, Placement, User } from '@/types/types'
+import { roundFcfa } from '@/utils/placementMoney'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
 /**
- * Procès-verbal de liquidation du placement (volet Bienfaiteur), sur le modèle
- * LIQUIDATION.docx comme les caisses. Il constate la restitution du capital au
- * terme du placement ; les commissions déjà versées sont rappelées pour
- * mémoire, avec leur détail.
+ * Procès-verbal de liquidation anticipée d'un placement (volet Bienfaiteur),
+ * sur le modèle LIQUIDATION.docx comme les autres documents de clôture. Il
+ * constate la restitution du capital et de la commission due lorsque le
+ * Bienfaiteur sort avant le terme.
  */
 
 const PAYOUT_MODE_LABELS: Record<Placement['payoutMode'], string> = {
   MonthlyCommission_CapitalEnd: 'Commission mensuelle, capital à la fin',
   CapitalPlusCommission_End: 'Capital et commissions à la fin',
+}
+
+const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  airtel_money: 'Airtel Money',
+  mobicash: 'Mobicash',
+  cash: 'Espèces',
+  bank_transfer: 'Virement bancaire',
+  other: 'Autre',
 }
 
 const commissionStyles = StyleSheet.create({
@@ -54,97 +62,95 @@ const commissionStyles = StyleSheet.create({
   caption: { fontSize: 8.5, fontWeight: 'bold', marginTop: 5, marginBottom: 2 },
 })
 
-export type PlacementFinalQuittancePdfProps = {
+export type PlacementEarlyExitQuittancePdfProps = {
   placement: Placement
+  earlyExit: EarlyExitPlacement
   member?: User | null
   commissions: CommissionPaymentPlacement[]
-  /** Cumul historique (capital restitué + commissions payées) en toutes lettres. */
-  amountInWords: string
-  /** Ville d'émission par défaut, remplacée par le lieu saisi dans la modale. */
-  city?: string
   completion?: DocumentCompletion | null
 }
 
-type PlacementLiquidationInput = Pick<PlacementFinalQuittancePdfProps, 'placement' | 'member' | 'commissions' | 'amountInWords'>
+type EarlyExitInput = Omit<PlacementEarlyExitQuittancePdfProps, 'completion'>
+
+/** Commissions versées avant la demande de sortie, rappelées pour mémoire. */
+const commissionsPaidBeforeExit = (commissions: CommissionPaymentPlacement[], earlyExit: EarlyExitPlacement) =>
+  commissions.filter(
+    (commission) => commission.status === 'Paid' && new Date(commission.dueDate) <= new Date(earlyExit.requestedAt),
+  )
 
 /** Champs du procès-verbal, partagés avec la modale pour la saisie des informations manquantes. */
-export const buildPlacementLiquidationFields = ({ placement, member, commissions, amountInWords }: PlacementLiquidationInput) => {
+export const buildPlacementEarlyExitFields = ({ placement, earlyExit, member }: EarlyExitInput) => {
   const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
-  const paidCommissions = commissions.filter((commission) => commission.status === 'Paid')
-  const capitalRestituted = roundFcfa(placement.capitalRepaidAmount ?? placement.amount)
-  const paidCommissionsTotal = sumCommissionAmounts(
-    paidCommissions.map((commission) => ({
-      ...commission,
-      amount: roundFcfa(commission.paidAmount ?? commission.amount),
-    })),
-  )
-  const historicalTotalPaid = roundFcfa(capitalRestituted + paidCommissionsTotal)
-  const paidDate = field('placement.paidDate', 'Date du règlement :', optionalDate(placement.capitalRepaidAt ?? placement.endDate), 'date')
+  const capitalToReturn = roundFcfa(placement.amount)
+  const commissionDue = roundFcfa(earlyExit.commissionDue)
+  const payoutAmount = roundFcfa(capitalToReturn + commissionDue)
+  const paymentMode = earlyExit.paymentMode === 'other'
+    ? earlyExit.paymentMethodOther
+    : earlyExit.paymentMode ? PAYMENT_MODE_LABELS[earlyExit.paymentMode] : ''
+  const paidDate = field('earlyExit.paidDate', 'Date du règlement :', optionalDate(earlyExit.paymentDate ?? earlyExit.withdrawalDate), 'date')
 
   return {
-    paidCommissions,
-    capitalRestituted,
+    payoutAmount,
     member: [
       [
         field('member.lastName', 'Nom(s) du Bienfaiteur :', String(member?.lastName ?? '').toUpperCase() || placement.benefactorName),
         field('member.firstName', 'Prénom(s) :', member?.firstName),
       ],
       [field('member.matricule', 'Matricule / N° d’Adhérent :', member?.matricule || placement.benefactorId), field('placement.id', 'Référence du placement :', placement.id)],
-      [field('placement.amount', 'Capital placé :', `${formatAmount(placement.amount)} FCFA`), field('placement.rate', 'Taux de commission :', `${placement.rate} %`)],
+      [field('placement.amount', 'Capital placé :', `${formatAmount(capitalToReturn)} FCFA`), field('placement.rate', 'Taux de commission :', `${placement.rate} %`)],
       [
         field('placement.startDate', 'Date de début :', optionalDate(placement.startDate ?? placement.createdAt), 'date'),
-        field('placement.endDate', 'Date de fin :', optionalDate(placement.endDate), 'date'),
+        field('earlyExit.requestedAt', 'Date de la demande de sortie :', optionalDate(earlyExit.requestedAt), 'date'),
       ],
       [
-        field('placement.period', 'Durée :', `${placement.periodMonths} mois`),
+        field('placement.period', 'Durée prévue :', `${placement.periodMonths} mois`),
         field('placement.payoutMode', 'Versement des commissions :', PAYOUT_MODE_LABELS[placement.payoutMode]),
       ],
     ] as FieldRow[],
     liquidation: [
-      [field('placement.liquidationType', 'Nature de la liquidation :', 'Restitution du capital au terme du placement'), paidDate],
+      [field('earlyExit.type', 'Nature de la liquidation :', 'Sortie anticipée avant le terme du placement'), paidDate],
       [
-        field('placement.capitalDigits', 'Capital restitué (en chiffres) :', `${formatAmount(capitalRestituted)} FCFA`),
-        field('placement.capitalWords', 'Capital restitué (en lettres) :', `${numberToWords(capitalRestituted)} francs CFA`),
+        field('earlyExit.capital', 'Capital restitué :', `${formatAmount(capitalToReturn)} FCFA`),
+        field('earlyExit.commissionDue', 'Commission due :', `${formatAmount(commissionDue)} FCFA`),
       ],
       [
-        field('placement.commissionsPaid', 'Commissions versées antérieurement :', `${formatAmount(paidCommissionsTotal)} FCFA`),
-        field('placement.historicalTotal', 'Cumul historique versé :', `${formatAmount(historicalTotalPaid)} FCFA (${amountInWords} francs CFA)`),
+        field('earlyExit.amountDigits', 'Montant remis (en chiffres) :', `${formatAmount(payoutAmount)} FCFA`),
+        field('earlyExit.amountWords', 'Montant remis (en lettres) :', `${numberToWords(payoutAmount)} francs CFA`),
       ],
+      [field('earlyExit.paymentMode', 'Mode de règlement :', paymentMode), field('earlyExit.reason', 'Motif de la sortie :', earlyExit.reason)],
     ] as FieldRow[],
     paidDate,
   }
 }
 
-export const listPlacementLiquidationFields = (input: PlacementLiquidationInput): DocumentField[] => {
-  const { member, liquidation } = buildPlacementLiquidationFields(input)
+export const listPlacementEarlyExitFields = (input: EarlyExitInput): DocumentField[] => {
+  const { member, liquidation } = buildPlacementEarlyExitFields(input)
   return collectDocumentFields({ member, liquidation })
 }
 
-export default function PlacementFinalQuittancePDF({
+export default function PlacementEarlyExitQuittancePDF({
   placement,
+  earlyExit,
   member,
   commissions,
-  amountInWords,
-  city = DEFAULT_DOCUMENT_PLACE,
   completion,
-}: PlacementFinalQuittancePdfProps) {
-  const fields = buildPlacementLiquidationFields({ placement, member, commissions, amountInWords })
+}: PlacementEarlyExitQuittancePdfProps) {
+  const fields = buildPlacementEarlyExitFields({ placement, earlyExit, member, commissions })
   const [[lastNameField, firstNameField]] = fields.member
   const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
-  const { paidCommissions, capitalRestituted } = fields
   const paidDate = readField(fields.paidDate, completion) || EMPTY
-  const place = completion?.place?.trim() || city
+  const paidCommissions = commissionsPaidBeforeExit(commissions, earlyExit)
 
   return (
     <Document>
       <Page size="A4" style={mutuelleStyles.page}>
-        <MutuellePageChrome footerLabel="Procès-verbal de liquidation du placement" />
-        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION DU PLACEMENT (VOLET BIENFAITEUR)" />
+        <MutuellePageChrome footerLabel="Procès-verbal de liquidation anticipée du placement" />
+        <MutuelleHeader title="PROCÈS-VERBAL DE LIQUIDATION ANTICIPÉE DU PLACEMENT (VOLET BIENFAITEUR)" />
 
         <Text style={mutuelleStyles.preamble}>
-          Ce document constate la liquidation du placement identifié ci-dessous et la restitution au
-          Bienfaiteur du capital mis à la disposition de l’Association. Conformément à la loi n°35/62
-          du 10 décembre 1962 relative aux associations, aux statuts de LE KARA et aux conditions du
+          Ce document constate la liquidation anticipée du placement identifié ci-dessous, à la
+          demande du Bienfaiteur et avant le terme convenu. Conformément à la loi n°35/62 du 10
+          décembre 1962 relative aux associations, aux statuts de LE KARA et aux conditions du
           contrat, ce règlement atteste des sommes effectivement remises au membre.
         </Text>
 
@@ -152,16 +158,17 @@ export default function PlacementFinalQuittancePDF({
           <FieldTable rows={fields.member} completion={completion} />
         </MutuelleSection>
 
-        <MutuelleSection title="2. LIQUIDATION FINANCIÈRE DU PLACEMENT">
+        <MutuelleSection title="2. LIQUIDATION FINANCIÈRE ANTICIPÉE">
           <Text style={mutuelleStyles.paragraph}>
             Le Comité Exécutif certifie avoir vérifié les versements enregistrés et arrêté la
-            liquidation suivante :
+            liquidation suivante. Si au moins un mois s’est écoulé depuis le début du placement, la
+            commission d’un mois est due ; sinon, aucune commission n’est due.
           </Text>
           <FieldTable rows={fields.liquidation} completion={completion} />
 
           {paidCommissions.length > 0 && (
             <>
-              <Text style={commissionStyles.caption}>Détail des commissions versées</Text>
+              <Text style={commissionStyles.caption}>Commissions déjà versées avant la demande</Text>
               <View style={mutuelleStyles.table}>
                 <View style={commissionStyles.headRow}>
                   <Text style={[commissionStyles.headCell, commissionStyles.index]}>#</Text>
@@ -187,18 +194,18 @@ export default function PlacementFinalQuittancePDF({
         <MutuelleSection title="3. DÉCLARATION DE DÉCHARGE ET D’ACQUITTEMENT">
           <Text style={mutuelleStyles.paragraph}>
             Je soussigné(e), <Text style={mutuelleStyles.bold}>{display(memberName)}</Text>, reconnais
-            avoir reçu de l’Association de Secours Mutuel LE KARA le capital indiqué ci-dessus au titre
-            de la liquidation de mon placement, les commissions ayant été perçues aux dates rappelées.
+            avoir reçu de l’Association de Secours Mutuel LE KARA la somme indiquée ci-dessus au titre
+            de la liquidation anticipée de mon placement.
           </Text>
           <Text style={mutuelleStyles.paragraph}>
             Je confirme que ce règlement correspond aux sommes effectivement remises et que le présent
             procès-verbal atteste de la clôture financière du placement, conformément aux conditions
             contractuelles et aux statuts de LE KARA.
           </Text>
-          <Text style={mutuelleStyles.paragraph}>Fait à {place}, le {paidDate}</Text>
+          <Text style={mutuelleStyles.paragraph}>Fait à {documentPlace(completion)}, le {paidDate}</Text>
           <Text style={mutuelleStyles.note}>
-            (Inscrire la mention manuscrite « Reçu la somme de {formatAmount(capitalRestituted)} FCFA au
-            titre de la liquidation du placement pour solde de tout compte »)
+            (Inscrire la mention manuscrite « Reçu la somme de {formatAmount(fields.payoutAmount)} FCFA au
+            titre de la liquidation anticipée du placement pour solde de tout compte »)
           </Text>
 
           <MutuelleSignatures

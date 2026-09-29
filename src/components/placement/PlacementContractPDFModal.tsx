@@ -8,7 +8,9 @@ import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import { Download, FileText, Loader2, Smartphone } from 'lucide-react'
 import React from 'react'
 import { toast } from 'sonner'
-import PlacementContractPDF from './PlacementContractPDF'
+import PlacementContractPDF, { listPlacementContractFields } from './PlacementContractPDF'
+import { Card, CardContent } from '@/components/ui/card'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 export default function PlacementContractPDFModal({
   isOpen,
@@ -22,12 +24,13 @@ export default function PlacementContractPDFModal({
   const [isExporting, setIsExporting] = React.useState(false)
 
   const { data: member, isLoading: memberLoading } = useMember(placement?.benefactorId)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, placement?.id)
 
   const handleDownload = async () => {
     if (!placement) return
     setIsExporting(true)
     try {
-      const blob = await pdf(<PlacementContractPDF placement={placement} member={member} />).toBlob()
+      const blob = await pdf(<PlacementContractPDF placement={placement} member={member} completion={completion} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = window.document.createElement('a')
       link.href = url
@@ -105,7 +108,7 @@ export default function PlacementContractPDFModal({
                     <div className="text-lg font-bold text-gray-900">Prévisualisation mobile</div>
                     <div className="text-sm text-gray-600">Télécharge le PDF ou ouvre-le dans un nouvel onglet.</div>
                   </div>
-                  <BlobProvider document={<PlacementContractPDF placement={placement} member={member} />}>
+                  <BlobProvider document={<PlacementContractPDF placement={placement} member={member} completion={previewCompletion} />}>
                     {({ url, loading }) => (
                       <Button asChild disabled={loading || !url} className="w-full h-11 bg-[#234D65] hover:bg-[#2c5a73]">
                         <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
@@ -118,10 +121,21 @@ export default function PlacementContractPDFModal({
                 </div>
               </div>
 
-              <div className="hidden lg:block h-full">
-                <PDFViewer width="100%" height="100%" style={{ border: 'none' }}>
-                  <PlacementContractPDF placement={placement} member={member} />
-                </PDFViewer>
+              <div className="hidden lg:flex h-full gap-4">
+                <Card className="w-[420px] h-full overflow-y-auto border border-gray-200 shadow-sm">
+                  <CardContent className="p-4 space-y-4">
+                    <DocumentCompletionPanel
+                      fields={listPlacementContractFields({ placement, member })}
+                      completion={completion}
+                      onChange={setCompletion}
+                    />
+                  </CardContent>
+                </Card>
+                <div className="flex-1 rounded-xl overflow-hidden shadow-inner bg-white border">
+                  <PDFViewer width="100%" height="100%" style={{ border: 'none' }}>
+                    <PlacementContractPDF placement={placement} member={member} completion={previewCompletion} />
+                  </PDFViewer>
+                </div>
               </div>
             </>
           )}

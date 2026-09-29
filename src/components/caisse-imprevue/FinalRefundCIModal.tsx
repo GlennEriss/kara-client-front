@@ -16,6 +16,9 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useContractPaymentStats, useRequestFinalRefundCI } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
+import { useMember } from '@/hooks/useMembers'
+import { DownloadRefundRequestButton } from '@/components/pdf/mutuelle/DownloadRefundRequestButton'
+import { buildCIRefundRequestData } from './refundRequestPdfData'
 import { defaultFinalRefundCIValues, finalRefundCISchema, WITHDRAWAL_MODES, type FinalRefundCIFormData } from '@/schemas/caisse-imprevue/final-refund-ci.schema'
 import { ContractCI } from '@/types/types'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -54,6 +57,7 @@ export default function FinalRefundCIModal({
   onSuccess,
 }: FinalRefundCIModalProps) {
   const { user } = useAuth()
+  const { data: memberData } = useMember(contract.memberId)
   const requestFinalRefundCIMutation = useRequestFinalRefundCI()
   const { data: paymentStats } = useContractPaymentStats(contract.id)
 
@@ -388,6 +392,26 @@ export default function FinalRefundCIModal({
               <p className="text-xs text-muted-foreground mt-1">
                 Téléversez une photo de la preuve du retrait (JPEG, PNG, WebP, max 20MB)
               </p>
+            </div>
+
+            {/* Demande à faire signer, puis à joindre ci-dessous */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-3">
+              <p className="text-xs text-muted-foreground">
+                Téléchargez la demande pré-remplie, faites-la signer, puis joignez-la ci-dessous.
+              </p>
+              <DownloadRefundRequestButton
+                fileName={`DEMANDE_REMBOURSEMENT_CI_${(contract.memberLastName ?? '').toUpperCase()}_${(contract.memberFirstName ?? '').toUpperCase()}.pdf`}
+                data={buildCIRefundRequestData({
+                  contract,
+                  member: memberData,
+                  type: 'FINAL',
+                  amount: paymentStats?.totalAmountPaid,
+                  withdrawalMode: watch('withdrawalMode'),
+                  paymentMethodOther: undefined,
+                  reason: watch('reason'),
+                  requestedAt: watch('withdrawalDate') || new Date(),
+                })}
+              />
             </div>
 
             {/* Document PDF signé */}

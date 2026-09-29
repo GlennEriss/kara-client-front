@@ -3,15 +3,14 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { useMember } from '@/hooks/useMembers'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import QuittanceCaisseSpecialePDF, { type QuittanceCaisseSpecialePdfFillData } from './QuittanceCaisseSpecialePDF'
-import { addContractMonths } from '@/utils/contract-months'
+import QuittanceCaisseSpecialePDF, { listCaisseSpecialeLiquidationFields, type QuittanceCaisseSpecialePdfFillData } from './QuittanceCaisseSpecialePDF'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 interface RemboursementNormalPDFModalProps {
   isOpen: boolean
@@ -21,17 +20,9 @@ interface RemboursementNormalPDFModalProps {
 }
 
 const EMPTY_FILL_DATA: QuittanceCaisseSpecialePdfFillData = {
-  refundDelayDays: '',
   secretarySignature: null,
-  secretaryDate: '',
   memberSignature: null,
-  memberDate: '',
 }
-
-const createInitialFillData = (refundDelayDays: unknown): QuittanceCaisseSpecialePdfFillData => ({
-  ...EMPTY_FILL_DATA,
-  refundDelayDays: refundDelayDays == null ? '' : String(refundDelayDays),
-})
 
 const SignaturePad = ({
   title,
@@ -180,9 +171,10 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
   const [isExporting, setIsExporting] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [refunds, setRefunds] = useState<any[]>([])
-  const [fillData, setFillData] = useState<QuittanceCaisseSpecialePdfFillData>(createInitialFillData(contractData?.refundDelayDays))
-  const [previewFillData, setPreviewFillData] = useState<QuittanceCaisseSpecialePdfFillData>(createInitialFillData(contractData?.refundDelayDays))
+  const [fillData, setFillData] = useState<QuittanceCaisseSpecialePdfFillData>(EMPTY_FILL_DATA)
+  const [previewFillData, setPreviewFillData] = useState<QuittanceCaisseSpecialePdfFillData>(EMPTY_FILL_DATA)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contractId)
   const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre
@@ -229,6 +221,17 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     }
   }
 
+  // Le procès-verbal de liquidation ne devient définitif qu'après le versement.
+  // On privilégie donc le dernier remboursement effectivement payé.
+  const activeRefund = React.useMemo(() => {
+    const eligible = refunds.filter((r: any) =>
+      (r.type === 'FINAL' || r.type === 'EARLY') &&
+      (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PAID'),
+    )
+    return eligible.find((r: any) => r.status === 'PAID') ?? eligible[0]
+  }, [refunds])
+  const canGenerateLiquidation = activeRefund?.status === 'PAID'
+
   // Créer un objet contract enrichi avec les données du membre
   const enrichedContract = React.useMemo(() => {
     if (!contractData) return null
@@ -237,24 +240,6 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
       ...memberData,
       age: calculateAge(memberData.birthDate)
     } : memberData
-
-    // Calculer la dernière date de paiement
-    let lastPaymentDate = null
-    if (contractData.firstPaymentDate && contractData.monthsPlanned) {
-      try {
-        const firstDate = new Date(contractData.firstPaymentDate)
-        // Le dernier paiement est monthsPlanned mois après le premier
-        lastPaymentDate = addContractMonths(firstDate, contractData.monthsPlanned)
-      } catch (error) {
-        console.error('Erreur lors du calcul de la dernière date de paiement:', error)
-      }
-    }
-
-    // Trouver le refund actif pour récupérer la cause
-    const activeRefund = refunds.find((r: any) =>
-      (r.type === 'FINAL' || r.type === 'EARLY') &&
-      (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PAID')
-    )
 
     // Nominal payé : même logique que la page contrat (DailyContract / Standard etc.)
     // Une valeur par mois (accumulatedAmount du paiement pour ce mois), pas de somme des contribs
@@ -273,19 +258,17 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     return {
       ...contractData,
       member: memberWithAge,
-      lastPaymentDate,
       refundReason: activeRefund?.reason || '',
       nominalPaid,
     }
-  }, [contractData, memberData, refunds])
+  }, [contractData, memberData, activeRefund])
 
   useEffect(() => {
     if (!isOpen) return
-    const initialFillData = createInitialFillData(contractData?.refundDelayDays)
-    setFillData(initialFillData)
-    setPreviewFillData(initialFillData)
+    setFillData(EMPTY_FILL_DATA)
+    setPreviewFillData(EMPTY_FILL_DATA)
     setIsPreviewRefreshing(false)
-  }, [isOpen, contractId, contractData?.refundDelayDays])
+  }, [isOpen, contractId])
 
   // Détecter si on est sur mobile
   React.useEffect(() => {
@@ -318,26 +301,37 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
   }, [fillData, isOpen])
 
   const pdfDocument = useMemo(
-    () => <QuittanceCaisseSpecialePDF contract={enrichedContract} fillData={previewFillData} />,
-    [enrichedContract, previewFillData]
+    () => (
+      <QuittanceCaisseSpecialePDF contract={enrichedContract} refund={activeRefund} fillData={previewFillData} completion={previewCompletion} />
+    ),
+    [enrichedContract, activeRefund, previewFillData, previewCompletion]
   )
 
   const handleDownloadPDF = async () => {
+    if (!canGenerateLiquidation) {
+      toast.error('Le procès-verbal est disponible une fois le remboursement marqué comme payé.')
+      return
+    }
+
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<QuittanceCaisseSpecialePDF contract={enrichedContract} fillData={fillData} />).toBlob()
+      const blob = await pdf(
+        <QuittanceCaisseSpecialePDF contract={enrichedContract} refund={activeRefund} fillData={fillData} completion={completion} />
+      ).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `remboursement-normal-${contractId}-${new Date().toISOString().split('T')[0]}.pdf`
+      // Le nom téléchargé reprend la nature juridique du document.
+      const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
+      link.download = `PROCES_VERBAL_LIQUIDATION_CS_${sanitizeName(memberData?.lastName ?? '')}_${sanitizeName(memberData?.firstName ?? '')}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast.success('✅ PDF téléchargé avec succès', {
-        description: 'Le document de remboursement a été généré et téléchargé dans votre dossier de téléchargements.',
+      toast.success('Procès-verbal de liquidation du contrat téléchargé', {
+        description: 'Le procès-verbal de liquidation a été généré.',
         duration: 3000,
       })
 
@@ -364,7 +358,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
-                  Document de Remboursement
+                  Procès-verbal de liquidation du contrat
                 </DialogTitle>
                 <p className="text-sm lg:text-base text-gray-600 truncate">
                   Contrat #{contractId.slice(-6)}
@@ -374,7 +368,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
           </div>
           <Button
             onClick={handleDownloadPDF}
-            disabled={isExporting}
+            disabled={isExporting || !canGenerateLiquidation}
             className="mr-2 lg:mr-10 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
           >
             {isExporting ? (
@@ -410,6 +404,16 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                 </div>
               </div>
             </div>
+          ) : !canGenerateLiquidation ? (
+            <div className="flex h-full items-center justify-center bg-amber-50 p-6 text-center">
+              <div className="max-w-md space-y-2">
+                <h3 className="text-lg font-bold text-amber-900">Liquidation en attente de règlement</h3>
+                <p className="text-sm leading-relaxed text-amber-800">
+                  Le procès-verbal devient téléchargeable après l&apos;enregistrement du remboursement
+                  comme payé. Il ne constitue pas un acte de liquidation avant ce versement.
+                </p>
+              </div>
+            </div>
           ) : (
             <>
               {/* Version mobile */}
@@ -434,7 +438,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                   <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Document:</span>
-                      <span className="font-medium text-gray-900">Remboursement Normal</span>
+                      <span className="font-medium text-gray-900">Liquidation du contrat CS</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Contrat:</span>
@@ -442,7 +446,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">2 pages</span>
+                      <span className="font-medium text-gray-900">1 page</span>
                     </div>
                   </div>
 
@@ -501,76 +505,37 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                     <CardContent className="p-4 space-y-4">
                       <div className="flex items-center gap-2">
                         <PenLine className="w-4 h-4 text-kara-primary-dark" />
-                        <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du document</h3>
+                        <h3 className="text-sm font-bold text-kara-primary-dark">Signatures de la liquidation</h3>
                       </div>
 
                       {isPreviewRefreshing ? (
                         <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
                       ) : null}
 
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-kara-primary-dark">Délai de remboursement</p>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          placeholder="Ex: 7"
-                          value={fillData.refundDelayDays}
-                          onChange={(event) => {
-                            const nextValue = event.target.value.replace(/\D/g, '').slice(0, 3)
-                            setFillData((prev) => ({ ...prev, refundDelayDays: nextValue }))
-                          }}
-                          className="h-9"
-                        />
-                        <p className="text-[11px] text-gray-500">
-                          Utilisé dans: « Ce remboursement a été réalisé ... jours après la notification de la demande de résiliation »
-                        </p>
-                      </div>
+                      <DocumentCompletionPanel
+                        fields={listCaisseSpecialeLiquidationFields({ contract: enrichedContract, refund: activeRefund })}
+                        completion={completion}
+                        onChange={setCompletion}
+                      />
 
-                      <div className="space-y-4">
-                        <p className="text-xs font-semibold text-kara-primary-dark">Signature Secrétaire Exécutif</p>
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
                         <SignaturePad
-                          title="Signature du Secrétaire exécutif"
+                          title="Signature et cachet du Comité Exécutif"
                           value={fillData.secretarySignature}
                           onChange={(value) => {
                             skipDebouncePreviewRef.current = true
                             setFillData((prev) => ({ ...prev, secretarySignature: value }))
                           }}
                         />
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold text-kara-primary-dark">Date Secrétaire</p>
-                          <Input
-                            type="date"
-                            value={fillData.secretaryDate}
-                            onChange={(event) => {
-                              setFillData((prev) => ({ ...prev, secretaryDate: event.target.value }))
-                            }}
-                            className="h-9"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <p className="text-xs font-semibold text-kara-primary-dark">Signature Épargnant</p>
                         <SignaturePad
-                          title="Signature de l'épargnant (Lu et Approuvé)"
+                          title="Signature de l'épargnant (Lu et approuvé)"
                           value={fillData.memberSignature}
                           onChange={(value) => {
                             skipDebouncePreviewRef.current = true
                             setFillData((prev) => ({ ...prev, memberSignature: value }))
                           }}
                         />
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold text-kara-primary-dark">Date Épargnant</p>
-                          <Input
-                            type="date"
-                            value={fillData.memberDate}
-                            onChange={(event) => {
-                              setFillData((prev) => ({ ...prev, memberDate: event.target.value }))
-                            }}
-                            className="h-9"
-                          />
-                        </div>
                       </div>
                     </CardContent>
                   </Card>

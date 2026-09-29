@@ -1,424 +1,68 @@
 'use client'
 
-import { getNationalityName } from '@/constantes/nationality'
 import {
-  MemberInfoRows,
-  calculateAgeFromBirthDate,
-  getIdentityDocumentLabel as getSharedIdentityDocumentLabel,
-} from '@/components/pdf/MemberInfoRows'
-import { CreditContract, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
-import { calculateSchedule, formatNumberWithSpaces } from '@/utils/credit-speciale-calculations'
-import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
-import React from 'react'
+  EMPTY,
+  FieldTable,
+  MutuelleHeader,
+  MutuellePageChrome,
+  MutuelleSection,
+  MutuelleSignatureRow,
+  collectDocumentFields,
+  field,
+  formatAmount,
+  formatDate,
+  fullNameFrom,
+  mutuelleStyles as styles,
+  numberToWords,
+  readField,
+  toDate,
+  type DocumentCompletion,
+  type DocumentField,
+  type FieldRow,
+  type MutuelleSigner,
+} from '@/components/pdf/mutuelle/MutuelleDocumentKit'
+import { calculateAgeFromBirthDate, getIdentityDocumentLabel } from '@/components/pdf/MemberInfoRows'
+import { getNationalityName } from '@/constantes/nationality'
+import type { CreditContract } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
+import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import React from 'react'
 
-Font.register({
-  family: 'Times New Roman',
-  fonts: [
-    { src: '/fonts/TimesNewRoman-Regular.ttf', fontWeight: 'normal' },
-    { src: '/fonts/TimesNewRoman-Bold.ttf', fontWeight: 'bold' },
-    { src: '/fonts/TimesNewRoman-Italic.ttf', fontStyle: 'italic' },
-    { src: '/fonts/TimesNewRoman-BoldItalic.ttf', fontWeight: 'bold', fontStyle: 'italic' },
-  ],
-})
+/**
+ * Contrat de crédit (spécial, fixe ou aide) : reconnaissance de dette,
+ * protocole d'accompagnement et acte de cautionnement solidaire.
+ *
+ * Mise en forme alignée sur les actes de la Mutuelle (modèle LIQUIDATION.docx :
+ * en-tête LE KARA, sections sur bandeau, tableaux et signatures). Contrairement
+ * aux contrats de caisse, les clauses ne renvoient pas au Règlement intérieur :
+ * elles fondent l'engagement du débiteur et de sa caution et sont reprises mot
+ * pour mot.
+ */
 
-Font.register({
-  family: 'Bahnschrift',
-  fonts: [
-    { src: '/fonts/Bahnschrift-Regular.ttf', fontWeight: 'normal' },
-    { src: '/fonts/Bahnschrift-Bold.ttf', fontWeight: 'bold' },
-  ],
-})
-
-const colWidths = [2668, 3048, 1510, 2689]
-const sumCols = (start: number, span: number) =>
-  colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
-
-const COLORS = {
-  primary: '#1E3A5F',
-  subtitle: '#475569',
-  tableHeaderBg: '#E7EFF8',
-  rowAlt: '#F7F9FC',
-  border: '#CBD5E1',
-}
-
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Times New Roman',
+const localStyles = StyleSheet.create({
+  amount: { fontSize: 9.4, textAlign: 'center', marginBottom: 2 },
+  actTitle: {
     fontSize: 12,
-    paddingTop: 50,
-    paddingRight: 60,
-    paddingBottom: 50,
-    paddingLeft: 60,
-    color: '#000000',
-    lineHeight: 1.3,
-  },
-  logo: {
-    width: 186,
-    height: 100,
-    objectFit: 'contain',
-    marginBottom: 8,
-    alignSelf: 'center',
-  },
-  headerBand: {
-    height: 6,
-    backgroundColor: COLORS.primary,
-    marginBottom: 12,
-  },
-  table: {
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    marginBottom: 10,
-  },
-  tableRow: {
-    flexDirection: 'row',
-  },
-  tableCell: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    justifyContent: 'center',
-  },
-  tableCellRightBorder: {
-    borderRightWidth: 0.5,
-    borderRightColor: COLORS.border,
-  },
-  tableCellBottomBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-  },
-  tableHeaderText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
     textAlign: 'center',
-  },
-  tableSectionText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  tableLabelText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 10,
-  },
-  tableValueText: {
-    fontFamily: 'Times New Roman',
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  associationLabel: {
-    fontFamily: 'Times New Roman',
-    fontSize: 10,
-    color: COLORS.subtitle,
-    marginBottom: 4,
-  },
-  title16: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#1f4f68',
     textDecoration: 'underline',
-    marginTop: 4,
-    marginBottom: 6,
-    color: COLORS.primary,
-  },
-  title14Center: {
-   fontSize: 15,
-    fontWeight: 'bold',
-    textDecoration: 'underline',
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    backgroundColor: '#224d62',
-  },
-  paragraph12: {
-    fontSize: 12,
-    textAlign: 'justify',
-    marginBottom: 20,
-  },
-  paragraph14: {
-    fontSize: 12,
-    textAlign: 'justify',
-    marginBottom: 4,
-  },
-  articleTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'justify',
-    marginTop: 8,
-    marginBottom: 4,
-    color: COLORS.primary,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  checkbox: {
-    width: 10,
-    height: 10,
-    border: '1px solid #1f4f68',
-    marginRight: 4,
-    backgroundColor: 'white',
-  },
-  checkboxChecked: {
-    width: 10,
-    height: 10,
-    border: '1px solid #1f4f68',
-    marginRight: 4,
-    backgroundColor: '#1f4f68',
-    position: 'relative',
-  },
-  checkmark: {
-    position: 'absolute',
-    left: 1,
-    top: -1,
-    width: 2,
-    height: 5,
-    border: '1px solid white',
-    borderWidth: '0 1px 1px 0',
-    transform: 'rotate(45deg)',
-  },
-  checkboxLabel: {
-    fontSize: 12,
-    lineHeight: 1.2,
-  },
-  checkboxLabelBold: {
-    fontSize: 12,
-    lineHeight: 1.2,
-    fontWeight: 'bold',
-  },
-  signatureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  signatureText14: {
-    fontSize: 13,
-  },
-  signatureTextRight: {
-    fontSize: 13,
-    textAlign: 'right',
-  },
-  indent: {
-    marginLeft: 36,
-  },
-  scheduleTable: {
-    marginTop: 6,
-    marginBottom: 6,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-  },
-  scheduleRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-  },
-  scheduleHeaderRow: {
-    backgroundColor: COLORS.tableHeaderBg,
-  },
-  scheduleRowLast: {
-    flexDirection: 'row',
-  },
-  scheduleCell: {
-    flex: 1,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    fontSize: 14,
-    textAlign: 'center',
-    borderRightWidth: 0.5,
-    borderRightColor: COLORS.border,
-  },
-  scheduleHeaderCell: {
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  scheduleCellLast: {
-    flex: 1,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  pageNumber: {
-    position: 'absolute',
-    bottom: 16,
-    right: 24,
-    fontSize: 10,
-    color: '#475569',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 2,
-    zIndex: 20,
-  },
-  signatureCaptureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
     marginBottom: 8,
   },
-  signatureCaptureSlot: {
-    width: '42%',
+  checkboxRow: { flexDirection: 'row', marginLeft: 12, marginBottom: 4 },
+  checkboxItem: { flexDirection: 'row', alignItems: 'center', marginRight: 24 },
+  checkbox: { width: 9, height: 9, border: '1px solid #1f2937', marginRight: 5, alignItems: 'center', justifyContent: 'center' },
+  checkmark: { width: 5, height: 5, backgroundColor: '#1f2937' },
+  scheduleHead: {
+    flexDirection: 'row',
+    backgroundColor: '#e2e8f0',
+    borderLeft: '1px solid #cbd5e1',
+    borderRight: '1px solid #cbd5e1',
+    borderBottom: '1px solid #cbd5e1',
   },
-  signatureCaptureSlotRight: {
-    width: '42%',
-    alignItems: 'flex-end',
-  },
-  signatureImage: {
-    width: 170,
-    height: 56,
-    objectFit: 'contain',
-  },
-  signaturePlaceholder: {
-    width: 170,
-    height: 56,
-    borderWidth: 0.5,
-    borderColor: '#94a3b8',
-    borderStyle: 'dashed',
-    backgroundColor: '#f8fafc',
-  },
-  unsignedSignerName: {
-    // Même largeur que le cadre pour être centré dessous.
-    width: 170,
-    marginTop: 4,
-    fontSize: 9,
-    textAlign: 'center',
-    color: '#334155',
-  },
-  signatureStack: {
-    marginTop: 6,
-  },
-  signatureStackItem: {
-    marginTop: 10,
-  },
-  signatureInlineLabel: {
-    fontSize: 13,
-    marginBottom: 6,
-  },
+  scheduleCell: { flex: 1, paddingVertical: 2, paddingHorizontal: 4, fontSize: 8.6, textAlign: 'center' },
+  scheduleBand: { backgroundColor: '#f8fafc' },
 })
-
-type TableCellConfig = {
-  content?: React.ReactNode
-  span?: number
-  textStyle?: any
-  backgroundColor?: string
-}
-
-const TableRow = ({
-  cells,
-  height,
-  isLastRow,
-}: {
-  cells: TableCellConfig[]
-  height: number
-  isLastRow?: boolean
-}) => {
-  let colIndex = 0
-
-  return (
-    <View style={[styles.tableRow, { minHeight: height }]}>
-      {cells.map((cell, index) => {
-        const span = cell.span ?? 1
-        const width = `${sumCols(colIndex, span) * 100}%`
-        const isLastCol = colIndex + span >= colWidths.length
-        const cellStyles = [
-          styles.tableCell,
-          { width },
-          ...(!isLastCol ? [styles.tableCellRightBorder] : []),
-          ...(!isLastRow ? [styles.tableCellBottomBorder] : []),
-          ...(cell.backgroundColor ? [{ backgroundColor: cell.backgroundColor }] : []),
-        ]
-
-        colIndex += span
-
-        return (
-          <View key={index} style={cellStyles}>
-            {typeof cell.content === 'string' ? (
-              <Text style={cell.textStyle}>{cell.content}</Text>
-            ) : (
-              cell.content
-            )}
-          </View>
-        )
-      })}
-    </View>
-  )
-}
-
-const numberToWords = (num: number): string => {
-  if (!num || Number.isNaN(num)) return '—'
-  if (num === 0) return 'zéro'
-
-  const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
-  const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
-
-  const convertHundreds = (n: number): string => {
-    let result = ''
-    if (n >= 100) {
-      const hundredDigit = Math.floor(n / 100)
-      result += hundredDigit === 1 ? 'cent' : ones[hundredDigit] + ' cent'
-      if (n % 100 !== 0) result += ' '
-      n %= 100
-    }
-    if (n >= 20) {
-      const tenDigit = Math.floor(n / 10)
-      if (tenDigit === 7) {
-        result += 'soixante'
-        n += 10
-      } else if (tenDigit === 9) {
-        result += 'quatre-vingt'
-        n += 10
-      } else {
-        result += tens[tenDigit]
-      }
-      if (n % 10 !== 0) {
-        result += tenDigit === 8 && n % 10 === 1 ? '-un' : '-' + ones[n % 10]
-      } else if (tenDigit === 8) {
-        result += 's'
-      }
-    } else if (n > 0) {
-      result += ones[n]
-    }
-    return result
-  }
-
-  if (num < 1000) return convertHundreds(num)
-  if (num < 1000000) {
-    const thousands = Math.floor(num / 1000)
-    const remainder = num % 1000
-    let result = thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille'
-    if (remainder > 0) result += ' ' + convertHundreds(remainder)
-    return result
-  }
-  const millions = Math.floor(num / 1000000)
-  const remainder = num % 1000000
-  let result = millions === 1 ? 'un million' : convertHundreds(millions) + ' millions'
-  if (remainder > 0) {
-    if (remainder < 1000) {
-      result += ' ' + convertHundreds(remainder)
-    } else {
-      const thousands = Math.floor(remainder / 1000)
-      const lastPart = remainder % 1000
-      if (thousands > 0) result += thousands === 1 ? ' mille' : ' ' + convertHundreds(thousands) + ' mille'
-      if (lastPart > 0) result += ' ' + convertHundreds(lastPart)
-    }
-  }
-  return result
-}
-
-interface AdhesionCreditSpecialeV3Props {
-  contract: CreditContract
-  memberData?: any
-  guarantorData?: any
-  fillData?: AdhesionCreditSpecialeFillData
-}
 
 export interface AdhesionCreditSpecialeFillData {
   memberSignature: string | null
@@ -442,105 +86,102 @@ export const EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA: AdhesionCreditSpecialeFil
   sanctionsDate: '',
 }
 
-const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData }: AdhesionCreditSpecialeV3Props) => {
-  const logoUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/assets/credit-speciale/image1.png`
-    : '/assets/credit-speciale/image1.png'
+interface AdhesionCreditSpecialeV3Props {
+  contract: CreditContract
+  memberData?: any
+  guarantorData?: any
+  fillData?: AdhesionCreditSpecialeFillData
+  completion?: DocumentCompletion | null
+}
 
-  const formatDate = (date: any) => {
-    if (!date) return '—'
-    try {
-      const dateObj = date?.toDate ? date.toDate() : new Date(date)
-      if (Number.isNaN(dateObj.getTime())) return '—'
-      return dateObj.toLocaleDateString('fr-FR')
-    } catch {
-      return '—'
-    }
+const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
+  <View style={localStyles.checkboxItem}>
+    <View style={localStyles.checkbox}>{checked ? <View style={localStyles.checkmark} /> : null}</View>
+    <Text>{label}</Text>
+  </View>
+)
+
+type CreditContractInput = Omit<AdhesionCreditSpecialeV3Props, 'fillData' | 'completion'>
+
+/** Champs des tableaux d'identification, partagés avec la modale pour la saisie des informations manquantes. */
+export const buildCreditContractFields = ({ contract, memberData, guarantorData }: CreditContractInput) => {
+  const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
+  const memberPhones: string[] = (memberData?.contacts?.length ? memberData.contacts : contract.clientContacts ?? []).filter(Boolean)
+  const guarantorAddress = guarantorData?.address && typeof guarantorData.address === 'object'
+    ? guarantorData.address.district || guarantorData.address.city || ''
+    : String(guarantorData?.address ?? '')
+
+  return {
+    member: [
+      [
+        field('member.lastName', 'Nom(s) :', String(memberData?.lastName || contract.clientLastName || '').toUpperCase()),
+        field('member.firstName', 'Prénom(s) :', memberData?.firstName || contract.clientFirstName),
+      ],
+      [
+        field('member.matricule', 'Matricule / N° d’adhérent :', memberData?.matricule || memberData?.id || contract.clientId),
+        field('contract.id', 'Référence du contrat :', contract.id),
+      ],
+      [
+        field('member.birthDate', 'Date de naissance :', optionalDate(memberData?.birthDate), 'date'),
+        field('member.birthPlace', 'Lieu de naissance :', memberData?.birthPlace),
+      ],
+      [
+        field(
+          'member.identityDocumentNumber',
+          memberData?.identityDocument ? `${getIdentityDocumentLabel(memberData.identityDocument)} n° :` : 'N° CNI/Passeport :',
+          memberData?.identityDocumentNumber,
+        ),
+        field('member.nationality', 'Nationalité :', memberData?.nationality ? getNationalityName(memberData.nationality) : ''),
+      ],
+      [
+        field('member.age', 'Âge :', memberData?.birthDate ? calculateAgeFromBirthDate(memberData.birthDate) : ''),
+        field('member.profession', 'Profession :', memberData?.profession),
+      ],
+      [
+        field('member.quarter', 'Quartier :', memberData?.address?.district || memberData?.address?.arrondissement),
+        field('member.phones', 'Téléphone(s) :', memberPhones.join(' / ')),
+      ],
+    ] as FieldRow[],
+    guarantor: [
+      [
+        field('guarantor.lastName', 'Nom(s) :', String(guarantorData?.lastName || contract.guarantorLastName || '').toUpperCase()),
+        field('guarantor.firstName', 'Prénom(s) :', guarantorData?.firstName || contract.guarantorFirstName),
+      ],
+      [field('guarantor.phone', 'Téléphone :', guarantorData?.contacts?.[0]), field('guarantor.address', 'Adresse :', guarantorAddress)],
+      [
+        field('guarantor.identityDocument', 'Type de pièce :', guarantorData?.identityDocument ? getIdentityDocumentLabel(guarantorData.identityDocument) : ''),
+        field('guarantor.identityDocumentNumber', 'N° de pièce :', guarantorData?.identityDocumentNumber),
+      ],
+    ] as FieldRow[],
+    disbursementDate: field('contract.disbursementDate', 'Date de mise à disposition des fonds', optionalDate(contract.disbursementDate), 'date'),
   }
+}
 
-  const formatAmount = (amount?: number) => {
-    if (!amount) return '0'
-    return formatNumberWithSpaces(amount)
-  }
+export const listCreditContractFields = (input: CreditContractInput): DocumentField[] =>
+  collectDocumentFields(buildCreditContractFields(input))
 
-  const formatAddress = (address: any): string => {
-    if (!address) return '—'
-    if (typeof address === 'string') return address
-    if (typeof address === 'object') {
-      const parts = []
-      if (address.district) parts.push(address.district)
-      if (address.city) parts.push(address.city)
-      if (address.arrondissement) parts.push(address.arrondissement)
-      if (address.province) parts.push(address.province)
-      if (address.additionalInfo) parts.push(address.additionalInfo)
-      return parts.length > 0 ? parts.join(', ') : '—'
-    }
-    return '—'
-  }
+const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillData, completion }: AdhesionCreditSpecialeV3Props) => {
+  const filled = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
+  const fields = buildCreditContractFields({ contract, memberData, guarantorData })
+  const read = (target: DocumentField) => readField(target, completion)
+  const [[lastNameField, firstNameField]] = fields.member
+  const memberName = fullNameFrom(read(lastNameField), read(firstNameField))
+  const [[guarantorLastNameField, guarantorFirstNameField]] = fields.guarantor
+  const guarantorName = fullNameFrom(read(guarantorLastNameField), read(guarantorFirstNameField))
+  const memberNationality = read(fields.member[3][1])
+  const memberQuarter = read(fields.member[5][0])
+  const memberPhone = read(fields.member[5][1]).split(' / ')[0]
 
-  const getGenderLabel = (gender?: string) => {
-    if (!gender) return '—'
-    const g = String(gender).toLowerCase()
-    if (g === 'm' || g === 'male' || g === 'homme') return 'Masculin'
-    if (g === 'f' || g === 'female' || g === 'femme') return 'Féminin'
-    return gender
-  }
-
-  const member = {
-    matricule: memberData?.matricule || memberData?.id || contract.clientId || '—',
-    membershipType: memberData?.membershipType
-      ? MEMBERSHIP_TYPE_LABELS[memberData.membershipType as keyof typeof MEMBERSHIP_TYPE_LABELS] || memberData.membershipType
-      : '—',
-    lastName: memberData?.lastName || contract.clientLastName || '—',
-    firstName: memberData?.firstName || contract.clientFirstName || '—',
-    birthPlace: memberData?.birthPlace || '—',
-    birthDate: memberData?.birthDate ? formatDate(memberData.birthDate) : '—',
-    identityDocument: getSharedIdentityDocumentLabel(memberData?.identityDocument),
-    identityDocumentNumber: memberData?.identityDocumentNumber || '—',
-    phone1: memberData?.contacts?.[0] || contract.clientContacts?.[0] || '—',
-    phone2: memberData?.contacts?.[1] || contract.clientContacts?.[1] || '—',
-    gender: getGenderLabel(memberData?.gender),
-    // Le quartier seul : `formatAddress` concatène district, ville,
-    // arrondissement et province, ce qui débordait de la cellule QUARTIER.
-    quarter: memberData?.address?.district || memberData?.address?.arrondissement || '—',
-    nationality: getNationalityName(memberData?.nationality || '') || '—',
-    // Âge et profession : présents sur le contrat Caisse Spéciale, ils manquaient
-    // ici alors que la donnée membre est la même.
-    age: calculateAgeFromBirthDate(memberData?.birthDate),
-    profession: memberData?.profession || '—',
-    association: 'LE KARA',
-  }
-
-  const guarantor = {
-    lastName: guarantorData?.lastName || contract.guarantorLastName || '—',
-    firstName: guarantorData?.firstName || contract.guarantorFirstName || '—',
-    phone: guarantorData?.contacts?.[0] || '—',
-    address: formatAddress(guarantorData?.address),
-    identityDocument: getSharedIdentityDocumentLabel(guarantorData?.identityDocument),
-    identityDocumentNumber: guarantorData?.identityDocumentNumber || '—',
-  }
-  const memberFullName = [memberData?.lastName || contract.clientLastName, memberData?.firstName || contract.clientFirstName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || member.matricule || 'Membre'
-  const guarantorFullName = [guarantorData?.lastName || contract.guarantorLastName, guarantorData?.firstName || contract.guarantorFirstName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || 'Caution'
-
-  const firstPaymentDate = contract.firstPaymentDate
-    ? (contract.firstPaymentDate as any)?.toDate
-      ? (contract.firstPaymentDate as any).toDate()
-      : new Date(contract.firstPaymentDate as any)
-    : null
+  const creditAmount = contract.totalAmount ?? contract.amount
+  const guaranteeAmount = contract.totalAmount || contract.amount
+  const firstPaymentDate = toDate(contract.firstPaymentDate)
+  const endDate = firstPaymentDate ? addContractMonths(firstPaymentDate, (contract.duration || 0) - 1) : null
+  const disbursementDate = read(fields.disbursementDate) || EMPTY
 
   const customSchedule = contract.customSchedule && contract.customSchedule.length > 0 ? contract.customSchedule : null
   const schedule = firstPaymentDate
     ? customSchedule
-      ? customSchedule.map(({ month, amount }) => {
-          const date = addContractMonths(firstPaymentDate, month - 1)
-          return { month, date, payment: amount, interest: 0, principal: amount, remaining: 0 }
-        })
+      ? customSchedule.map(({ month, amount }) => ({ month, date: addContractMonths(firstPaymentDate, month - 1), payment: amount }))
       : calculateSchedule({
           amount: contract.amount,
           interestRate: contract.interestRate,
@@ -550,442 +191,219 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
         })
     : []
 
-  const endDate = firstPaymentDate ? (() => {
-    const d = addContractMonths(firstPaymentDate, (contract.duration || 0) - 1)
-    return d
-  })() : null
-  const disbursementDate = contract.disbursementDate
-    ? formatDate(contract.disbursementDate)
-    : '....................'
+  const filledDate = (raw: string) => (raw?.trim() ? formatDate(raw) : EMPTY)
+  const filledCity = (raw: string) => raw?.trim() || EMPTY
 
-  const guaranteeAmount = contract.totalAmount || contract.amount
-
-  const visibleScheduleRows = schedule
-  const bandColor = COLORS.rowAlt
-  const withBand = (cells: TableCellConfig[], shaded: boolean) =>
-    shaded ? cells.map((cell) => ({ ...cell, backgroundColor: bandColor })) : cells
-  const resolvedFillData = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
-  const accompanimentType = resolvedFillData.accompanimentType
-
-  const formatFilledDate = (rawDate: string, placeholder: string) => {
-    if (!rawDate || !rawDate.trim()) return placeholder
-    const asDate = new Date(rawDate)
-    if (!Number.isNaN(asDate.getTime())) {
-      return asDate.toLocaleDateString('fr-FR')
-    }
-    return rawDate
-  }
-
-  const safeCity = (rawCity: string, placeholder: string) => {
-    const value = rawCity?.trim()
-    return value ? value : placeholder
-  }
-
-  const renderSignatureCapture = (signature: string | null, signerName?: string) => (
-    <>
-      {signature ? (
-        <Image src={signature} style={styles.signatureImage} cache={false} />
-      ) : (
-        <View style={styles.signaturePlaceholder} />
-      )}
-      {signerName ? <Text style={styles.unsignedSignerName}>{signerName}</Text> : null}
-    </>
-  )
-
-  const renderPageNumber = (page: number) => (
-    <Text style={styles.pageNumber}>{`Page ${page} / 7`}</Text>
-  )
+  const threePartySigners: MutuelleSigner[] = [
+    { title: 'Le Membre bénéficiaire', name: memberName, signature: filled.memberSignature, hint: '(Précédée de la mention « Lu et approuvé »)' },
+    { title: 'La Caution', name: guarantorName, signature: filled.guarantorSignature, hint: '(Précédée de la mention « Lu et approuvé »)' },
+    { title: 'Le Secrétaire Exécutif', signature: filled.secretarySignature, hint: '(Signature et cachet)' },
+  ]
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Image src={logoUrl} style={styles.logo} />
+        <MutuellePageChrome footerLabel="Contrat de crédit — reconnaissance de dette et cautionnement" />
 
-        <View style={styles.table}>
-          <MemberInfoRows
-            isLastRow
-            // Le reste du contrat est en Times New Roman : on conserve sa
-            // typographie, seule la structure du bloc est partagée.
-            theme={{
-              fontFamily: 'Times New Roman',
-              headerFontSize: 15,
-              labelFontSize: 10,
-              valueFontSize: 10,
-              borderColor: COLORS.border,
-              cellPaddingHorizontal: 6,
-            }}
-            member={{
-              matricule: member.matricule,
-              lastName: member.lastName,
-              firstName: member.firstName,
-              birthPlace: member.birthPlace,
-              birthDate: member.birthDate,
-              nationality: member.nationality,
-              identityDocumentLabel: member.identityDocument,
-              identityDocumentNumber: member.identityDocumentNumber,
-              phones: [member.phone1, member.phone2],
-              gender: member.gender,
-              age: member.age,
-              district: member.quarter,
-              profession: member.profession,
-            }}
-          />
-        </View>
+        {/* Acte 1 : reconnaissance de dette */}
+        <MutuelleHeader title="RECONNAISSANCE DE DETTE" />
 
-        <View style={styles.table}>
-          <TableRow
-            height={43.35}
-            cells={[
-              {
-                content: 'Information Concernant le Garant',
-                span: 4,
-                textStyle: styles.tableSectionText,
-                backgroundColor: '#224d62',
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'NOM :', textStyle: styles.tableLabelText },
-              { content: guarantor.lastName, textStyle: styles.tableValueText },
-              { content: 'PRÉNOM :', textStyle: styles.tableLabelText },
-              { content: guarantor.firstName, textStyle: styles.tableValueText },
-            ], true)}
-          />
-          <TableRow
-            height={26.15}
-            isLastRow
-            cells={withBand([
-              { content: 'TÉLÉPHONE :', textStyle: styles.tableLabelText },
-              { content: guarantor.phone, span: 3, textStyle: styles.tableValueText },
-            ], false)}
-          />
-          <TableRow
-            height={26.15}
-            cells={withBand([
-              { content: 'TYPE DE PIÈCE :', textStyle: styles.tableLabelText },
-              { content: guarantor.identityDocument, textStyle: styles.tableValueText },
-              { content: 'N° DE PIÈCE:', textStyle: styles.tableLabelText },
-              { content: guarantor.identityDocumentNumber, textStyle: styles.tableValueText },
-            ], true)}
-          />
-        </View>
-        {renderPageNumber(1)}
-      </Page>
+        <MutuelleSection title="1. IDENTIFICATION DU MEMBRE BÉNÉFICIAIRE">
+          <FieldTable rows={fields.member} completion={completion} />
+        </MutuelleSection>
 
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.title16}>RECONNAISSANCE DE DETTE</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph12}>
-          Je soussigné M/Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text> 
+        <MutuelleSection title="2. IDENTIFICATION DE LA CAUTION">
+          <FieldTable rows={fields.guarantor} completion={completion} />
+        </MutuelleSection>
+
+        <MutuelleSection title="3. RECONNAISSANCE DE DETTE">
+          <Text style={styles.paragraph}>
+            Je soussigné M/Mme/Mlle <Text style={styles.bold}>{memberName || EMPTY}</Text>, de nationalité{' '}
+            {memberNationality || EMPTY}, Membre de
+            l’Association LE KARA, par la présente, je reconnais avoir reçu de l’association un
+            accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de :
           </Text>
-          <Text style={styles.paragraph12}>
-          de nationalité <Text style={{ fontWeight: 'bold' }}>{member.nationality} </Text>Membre de l’Association LE KARA par la présente, je reconnais avoir reçu de l'association un accompagnement financier, conformément aux dispositions du règlement intérieur, d’un montant de : 
+          <Text style={localStyles.amount}>{formatAmount(creditAmount)} FCFA (chiffres),</Text>
+          <Text style={localStyles.amount}>{numberToWords(creditAmount)} FCFA (lettres),</Text>
+          <Text style={styles.paragraph}>En date du {disbursementDate}.</Text>
+          <Text style={styles.paragraph}>
+            Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de{' '}
+            {contract.duration} mois à compter du {formatDate(firstPaymentDate)}. Jusqu’au{' '}
+            {formatDate(endDate)} date de fin de créance.
           </Text>
-          <Text style={styles.paragraph12}>
-         <Text style={{ fontWeight: 'bold',textAlign: 'center' }}> {formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres)</Text>,
-        </Text>
-        <Text style={styles.paragraph12}>
-          <Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres)</Text>, 
-         </Text>
-         <Text style={styles.paragraph12}> 
-          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate}</Text>.
-        </Text>
-        <Text style={styles.paragraph12}>
-          Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de <Text style={{ fontWeight: 'bold' }}>{contract.duration} mois </Text>à compter du <Text style={{ fontWeight: 'bold' }}>{formatDate(firstPaymentDate)}</Text>. Jusqu’au <Text style={{ fontWeight: 'bold' }}>{formatDate(endDate)}</Text> date de fin de créance.
-        </Text>
-        <Text style={styles.paragraph12}>
-         <Text style={{ fontWeight: 'bold' }}> En foi de quoi, la présente reconnaissance de dette est signée par les deux parties pour servir et valoir ce que de droit.</Text>
-        </Text>
-<Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph12}>
-          Fait à <Text style={{ fontWeight: 'bold' }}>{safeCity(resolvedFillData.reconnaissanceCity, '…………….….........…..')}</Text> Le <Text style={{ fontWeight: 'bold' }}>{formatFilledDate(resolvedFillData.reconnaissanceDate, '…….......……... /………............…..…../………….........')}</Text>
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <View style={styles.signatureRow}>
-          <Text style={styles.signatureText14}>SECRÉTAIRE EXÉCUTIF</Text>
-          <Text style={styles.signatureText14}>MEMBRE BÉNÉFICIAIRE</Text>
-        </View>
-        <View style={styles.signatureCaptureRow}>
-          <View style={styles.signatureCaptureSlot}>
-            {renderSignatureCapture(resolvedFillData.secretarySignature)}
-          </View>
-          <View style={styles.signatureCaptureSlotRight}>
-            {renderSignatureCapture(resolvedFillData.memberSignature, memberFullName)}
-          </View>
-        </View>
-        <View style={styles.signatureRow}>
-          <Text style={styles.signatureText14}> </Text>
-          <Text style={styles.signatureTextRight}>(Précédée de la mention lue et approuvé)</Text>
-        </View>
-        {renderPageNumber(2)}
-      </Page>
-
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.title14Center}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
-
-        <Text style={styles.articleTitle}>ARTICLE 1 : MONTANT ET DURÉE DE LA CRÉANCE</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          L’Association accorde et consent au membre bénéficiaire un accompagnement
-        </Text>
-        <View style={styles.checkboxRow}>
-          <View style={styles.checkboxContainer}>
-            <View style={accompanimentType === 'EXCEPTIONNEL' ? styles.checkboxChecked : styles.checkbox}>
-              {accompanimentType === 'EXCEPTIONNEL' ? <View style={styles.checkmark} /> : null}
-            </View>
-            <Text style={styles.checkboxLabelBold}>Exceptionnel</Text>
-          </View>
-        </View>
-        <View style={styles.checkboxRow}>
-          <View style={styles.checkboxContainer}>
-            <View style={accompanimentType === 'REGULIER' ? styles.checkboxChecked : styles.checkbox}>
-              {accompanimentType === 'REGULIER' ? <View style={styles.checkmark} /> : null}
-            </View>
-            <Text style={styles.checkboxLabel}>Régulier</Text>
-          </View>
-        </View>
-        <Text style={styles.paragraph14}>À hauteur de :</Text>
-        <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA (chiffres),</Text></Text>
-        <Text style={styles.paragraph14}><Text style={{ fontWeight: 'bold',textAlign: 'center' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (lettres),</Text></Text>
-        <Text style={styles.paragraph14}>
-          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate}</Text>. Pour une nécessité sociale.
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre quelques jours supplémentaires sans que ce délai n’affecte la date de début du prêt.
-        </Text>
-
-        <Text style={styles.articleTitle}>ARTICLE 2 : REMBOURSEMENT DE SOMME</Text>
-        <Text style={styles.paragraph14}>
-          Le membre s’engage sur l’honneur à rembourser ledit accompagnement en plusieurs échéances mensuelles sous un délai maximum de {contract.duration} mois.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Le tableau ci-dessous représente l’échéancier convenu entre les parties.
-        </Text>
-
-        <View style={styles.scheduleTable}>
-          <View style={[styles.scheduleRow, styles.scheduleHeaderRow]}>
-            <Text style={[styles.scheduleCell, styles.scheduleHeaderCell]}>Échéances</Text>
-            <Text style={[styles.scheduleCell, styles.scheduleHeaderCell]}>Date</Text>
-            <Text style={[styles.scheduleCellLast, styles.scheduleHeaderCell]}>Montant FCFA</Text>
-          </View>
-          {visibleScheduleRows.map((item, index) => (
-            <View
-              key={index}
-              style={[
-                index === visibleScheduleRows.length - 1 ? styles.scheduleRowLast : styles.scheduleRow,
-                ...(index % 2 === 0 ? [{ backgroundColor: bandColor }] : []),
+          <Text style={styles.paragraph}>
+            En foi de quoi, la présente reconnaissance de dette est signée par les deux parties pour
+            servir et valoir ce que de droit.
+          </Text>
+          <View wrap={false}>
+            <Text style={styles.paragraph}>
+              Fait à {filledCity(filled.reconnaissanceCity)}, le {filledDate(filled.reconnaissanceDate)}
+            </Text>
+            <MutuelleSignatureRow
+              signers={[
+                { title: 'Le Membre bénéficiaire', name: memberName, signature: filled.memberSignature, hint: '(Précédée de la mention « Lu et approuvé »)' },
+                { title: 'Le Secrétaire Exécutif', signature: filled.secretarySignature, hint: '(Signature et cachet)' },
               ]}
-            >
-              <Text style={styles.scheduleCell}>{`M${item.month}`}</Text>
-              <Text style={styles.scheduleCell}>{formatDate(item.date)}</Text>
-              <Text style={styles.scheduleCellLast}>{formatAmount(item.payment)}</Text>
+            />
+          </View>
+        </MutuelleSection>
+
+        {/* Acte 2 : protocole d'accompagnement */}
+        <Text break style={localStyles.actTitle}>PROTOCOLE D’ACCOMPAGNEMENT</Text>
+
+        <MutuelleSection title="ARTICLE 1 : MONTANT ET DURÉE DE LA CRÉANCE">
+          <Text style={styles.paragraph}>L’Association accorde et consent au membre bénéficiaire un accompagnement</Text>
+          <View style={localStyles.checkboxRow}>
+            <Checkbox checked={filled.accompanimentType === 'EXCEPTIONNEL'} label="Exceptionnel" />
+            <Checkbox checked={filled.accompanimentType === 'REGULIER'} label="Régulier" />
+          </View>
+          <Text style={styles.paragraph}>À hauteur de :</Text>
+          <Text style={localStyles.amount}>{formatAmount(creditAmount)} FCFA (chiffres),</Text>
+          <Text style={localStyles.amount}>{numberToWords(creditAmount)} FCFA (lettres),</Text>
+          <Text style={styles.paragraph}>En date du {disbursementDate}. Pour une nécessité sociale.</Text>
+          <Text style={styles.paragraph}>
+            La mise à disposition effective des fonds auprès du membre bénéficiaire pourra prendre
+            quelques jours supplémentaires sans que ce délai n’affecte la date de début du prêt.
+          </Text>
+        </MutuelleSection>
+
+        <MutuelleSection title="ARTICLE 2 : REMBOURSEMENT DE SOMME">
+          <Text style={styles.paragraph}>
+            Le membre s’engage sur l’honneur à rembourser ledit accompagnement en plusieurs échéances
+            mensuelles sous un délai maximum de {contract.duration} mois.
+          </Text>
+          <Text style={styles.paragraph}>Le tableau ci-dessous représente l’échéancier convenu entre les parties.</Text>
+          <View style={styles.table}>
+            <View style={localStyles.scheduleHead}>
+              <Text style={localStyles.scheduleCell}>Échéances</Text>
+              <Text style={localStyles.scheduleCell}>Date</Text>
+              <Text style={localStyles.scheduleCell}>Montant FCFA</Text>
             </View>
-          ))}
-        </View>
-
-        <Text style={styles.paragraph14}>
-          Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit échéancier est non valable et irrecevable.
-        </Text>
-        {renderPageNumber(3)}
-      </Page>
-
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.articleTitle}>ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur et marque le décompte des intérêts légaux.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Le non-respect des échéanciers expose le membre bénéficiaire à des poursuites judiciaires sous huitaine.
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-
-        <Text style={styles.articleTitle}>ARTICLE 4 : DÉCLARATIONS ET ENGAGEMENTS DU PRÊTEUR</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>Le membre bénéficiaire déclare et reconnaît :</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>Il est majeur et a la capacité juridique pour conclure le contrat ;</Text>
-        <Text style={styles.paragraph14}>Il a compris les termes du contrat et la portée de ses engagements ;</Text>
-        <Text style={styles.paragraph14}>Il prend l’engagement de moduler ses capacités financières personnelles afin d’honorer à son remboursement ;</Text>
-        <Text style={styles.paragraph14}>Il a pris connaissance du règlement intérieur de LE KARA et du protocole d’accompagnement ;</Text>
-        <Text style={styles.paragraph14}>Le membre bénéficiaire affecte :</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={[styles.paragraph14, styles.indent]}>
-          Pour des raisons de prévoyance, M/Mme/Mlle<Text style={{ fontWeight: 'bold' }}> {guarantor.lastName} {guarantor.firstName}</Text>
-        </Text>
-        <Text style={[styles.paragraph14, styles.indent]}>
-          Qui se porte caution solidaire en cas de non-exécution de ma part.
-        </Text>
-        <Text style={[styles.paragraph14, styles.indent]}>
-          Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires à l’encontre du débiteur pour le recouvrement de ladite créance.
-        </Text>
-        {renderPageNumber(4)}
-      </Page>
-
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.articleTitle}>ARTICLE 5 : SANCTIONS</Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          Afin de garantir toute insolvabilité et non remboursement d’un accompagnement souscrit par le membre, l’Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal s’avère insuffisant, LE KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Le non-respect des délais de remboursement m’expose aux sanctions disciplinaires et pénales conformément aux dispositions du Règlement intérieur de LE KARA.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Ce protocole d’accompagnement est établi pour servir et valoir ce que de droit.
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          Fait à <Text style={{ fontWeight: 'bold' }}>{safeCity(resolvedFillData.sanctionsCity, '……………………….........…')}</Text> Le <Text style={{ fontWeight: 'bold' }}>{formatFilledDate(resolvedFillData.sanctionsDate, '……..........……/……..........…/……........……….')}</Text>
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <View style={styles.signatureStack}>
-          <View style={styles.signatureStackItem}>
-            <Text style={styles.signatureInlineLabel}>Signature Secrétaire Exécutif</Text>
-            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+            {schedule.map((item, index) => (
+              <View key={item.month} style={[styles.row, ...(index % 2 === 0 ? [localStyles.scheduleBand] : [])]} wrap={false}>
+                <Text style={localStyles.scheduleCell}>{`M${item.month}`}</Text>
+                <Text style={localStyles.scheduleCell}>{formatDate(item.date)}</Text>
+                <Text style={localStyles.scheduleCell}>{formatAmount(item.payment)}</Text>
+              </View>
+            ))}
           </View>
-          <View style={styles.signatureStackItem}>
-            <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.memberSignature, memberFullName)}
-          </View>
-          <View style={styles.signatureStackItem}>
-            <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.guarantorSignature, guarantorFullName)}
-          </View>
-        </View>
-        {renderPageNumber(5)}
-      </Page>
+          <Text style={[styles.paragraph, { marginTop: 4 }]}>
+            Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit
+            échéancier est non valable et irrecevable.
+          </Text>
+        </MutuelleSection>
 
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.title14Center}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
-<Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate} </Text>le présent acte a été conclu entre les parties suivantes nommément désignées:
-        </Text>
-        <Text style={styles.paragraph14}>
-          L’Association LE KARA et M/Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName}</Text>,
-         
-         </Text> 
-         <Text style={styles.paragraph14}>
-           domicilié à {member.quarter} et Tel : {member.phone1}.
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          Il a été convenu entre les parties ce qui suit :
-        </Text>
-        <Text style={styles.paragraph14}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          En date du <Text style={{ fontWeight: 'bold' }}>{disbursementDate}</Text>,
-        </Text>
-        <Text style={styles.paragraph14}>
-          l’Association LE KARA a mis à la disposition de M / Mme/Mlle <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text>
+        <MutuelleSection title="ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE">
+          <Text style={styles.paragraph}>
+            L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur et marque le
+            décompte des intérêts légaux.
           </Text>
-          <Text style={styles.paragraph14}>
-          Une somme de :
+          <Text style={styles.paragraph}>
+            Le non-respect des échéanciers expose le membre bénéficiaire à des poursuites judiciaires sous huitaine.
           </Text>
-          <Text style={styles.paragraph14}>
-          <Text style={{ fontWeight: 'bold' }}>{formatAmount(contract.totalAmount ?? contract.amount)} FCFA(Chiffres)</Text>, 
-          </Text>
-          <Text style={styles.paragraph14}>
-          <Text style={{ fontWeight: 'bold' }}>{numberToWords(contract.totalAmount ?? contract.amount)} FCFA (Lettres) </Text>,
-          </Text>
-          <Text style={styles.paragraph14}>
-          dans le cadre d’un accompagnement, à charge pour le membre de la lui restituer en date du <Text style={{ fontWeight: 'bold' }}>{formatDate(endDate)}</Text>.
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          Que pour garantir le remboursement de ladite somme,
-        </Text>
-        <Text style={styles.paragraph14}>
-          Monsieur/ Madame <Text style={{ fontWeight: 'bold' }}>{guarantor.lastName} {guarantor.firstName} </Text>Affirme s’être librement et volontairement porté caution solidaire de cette dette à charge pour elle de rembourser à l’Association les sommes indiquées si Monsieur/ Madame <Text style={{ fontWeight: 'bold' }}>{String(member.lastName).toUpperCase()} {member.firstName} </Text>N’y satisfait pas elle-même.
-        </Text>
-        <Text style={styles.paragraph14}>
-          La caution s’engage à garantir le prêt pour une hauteur maximale de :
-          </Text>
-          <Text style={styles.paragraph14}>
-          <Text style={{ fontWeight: 'bold' }}>{formatAmount(guaranteeAmount)} FCFA(Chiffres)</Text>,
-          </Text>
-          <Text style={styles.paragraph14}>
-           <Text style={{ fontWeight: 'bold' }}>{numberToWords(guaranteeAmount)} FCFA (Lettres)</Text>,
-           </Text>
-           <Text style={styles.paragraph14}>
-            somme couvrant l’intégralité de la créance.
-        </Text>
-        {renderPageNumber(6)}
-      </Page>
+        </MutuelleSection>
 
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-          Le cautionnement vaut tant que la dette principale n’a pas été remboursée.
-        </Text>
-        <Text style={styles.paragraph14}>
-          La caution affecte principalement en garantie de la dette du débiteur, son nominal correspondant à ses versements mensuels en tant que membre de l’Association. Elle autorise l’Association à y prélever les sommes dues par le débiteur en cas de défaillance de celui-ci.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Le montant de la caution, à concurrence de la créance garantie, demeurera consigné par l’association jusqu’à l’extinction totale de la dette du débiteur principal.
-        </Text>
-        <Text style={styles.paragraph14}>
-          La caution s’engage sur simple demande adressée par lettre recommandée à exécuter son engagement, sans qu’elle use du bénéfice de discussion.
-        </Text>
-        <Text style={styles.paragraph14}>
-          L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Pour tout litige pouvant naître de l’exécution dudit contrat, les parties donnent compétence territoriale au Tribunal de Libreville.
-        </Text>
-        <Text style={styles.paragraph14}>
-          Au vue des dispositions réglementaires qui régissent l’Association, les parties attestent avoir pris connaissance de l’étendue de leurs obligations respectives et s’engagent en parfaite connaissance de cause.
-        </Text>
-        <Text style={styles.paragraph12}>
-        </Text>
-        <Text style={styles.paragraph14}>
-         <Text style={{ fontWeight: 'bold' }}> Ce document a été dressé pour faire valoir ce que de droit</Text>
-        </Text>
-<Text style={styles.paragraph12}>
-        </Text>
-        <View style={styles.signatureStack}>
-          <View style={styles.signatureStackItem}>
-            <Text style={styles.signatureInlineLabel}>Signature Secrétaire Exécutif</Text>
-            {renderSignatureCapture(resolvedFillData.secretarySignature)}
+        <MutuelleSection title="ARTICLE 4 : DÉCLARATIONS ET ENGAGEMENTS DU PRÊTEUR">
+          <Text style={styles.paragraph}>Le membre bénéficiaire déclare et reconnaît :</Text>
+          <Text style={styles.bullet}>• Il est majeur et a la capacité juridique pour conclure le contrat ;</Text>
+          <Text style={styles.bullet}>• Il a compris les termes du contrat et la portée de ses engagements ;</Text>
+          <Text style={styles.bullet}>• Il prend l’engagement de moduler ses capacités financières personnelles afin d’honorer à son remboursement ;</Text>
+          <Text style={styles.bullet}>• Il a pris connaissance du règlement intérieur de LE KARA et du protocole d’accompagnement ;</Text>
+          <Text style={styles.paragraph}>Le membre bénéficiaire affecte :</Text>
+          <Text style={styles.bullet}>
+            Pour des raisons de prévoyance, M/Mme/Mlle <Text style={styles.bold}>{guarantorName || EMPTY}</Text>
+          </Text>
+          <Text style={styles.bullet}>Qui se porte caution solidaire en cas de non-exécution de ma part.</Text>
+          <Text style={styles.bullet}>
+            Que la présence de cette caution n’empêche pas l’engagement préalable de poursuites judiciaires
+            à l’encontre du débiteur pour le recouvrement de ladite créance.
+          </Text>
+        </MutuelleSection>
+
+        <MutuelleSection title="ARTICLE 5 : SANCTIONS">
+          <Text style={styles.paragraph}>
+            Afin de garantir toute insolvabilité et non remboursement d’un accompagnement souscrit par le
+            membre, l’Association LE KARA se réserve la faculté de se désintéresser par prélèvement dans le
+            nominal correspondant aux versements mensuels du membre à hauteur des sommes dues. Si le nominal
+            s’avère insuffisant, LE KARA procède au prélèvement du surplus manquant dans le nominal de sa caution.
+          </Text>
+          <Text style={styles.paragraph}>
+            Le non-respect des délais de remboursement m’expose aux sanctions disciplinaires et pénales
+            conformément aux dispositions du Règlement intérieur de LE KARA.
+          </Text>
+          {/* La clôture, le « Fait à » et les signatures ne se séparent pas d'une page à l'autre. */}
+          <View wrap={false}>
+            <Text style={styles.paragraph}>Ce protocole d’accompagnement est établi pour servir et valoir ce que de droit.</Text>
+            <Text style={styles.paragraph}>
+              Fait à {filledCity(filled.sanctionsCity)}, le {filledDate(filled.sanctionsDate)}
+            </Text>
+            <MutuelleSignatureRow signers={threePartySigners} />
           </View>
-          <View style={styles.signatureStackItem}>
-            <Text style={styles.signatureInlineLabel}>Signature Membre (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.memberSignature, memberFullName)}
+        </MutuelleSection>
+
+        {/* Acte 3 : cautionnement solidaire */}
+        <Text break style={localStyles.actTitle}>ACTE DE CAUTIONNEMENT SOLIDAIRE</Text>
+
+        <MutuelleSection title="PARTIES ET OBJET DU CAUTIONNEMENT">
+          <Text style={styles.paragraph}>
+            En date du {disbursementDate} le présent acte a été conclu entre les parties suivantes nommément désignées :
+          </Text>
+          <Text style={styles.paragraph}>
+            L’Association LE KARA et M/Mme/Mlle <Text style={styles.bold}>{memberName || EMPTY}</Text>, domicilié à{' '}
+            {memberQuarter || EMPTY} et Tel : {memberPhone || EMPTY}.
+          </Text>
+          <Text style={styles.paragraph}>Il a été convenu entre les parties ce qui suit :</Text>
+          <Text style={styles.paragraph}>
+            En date du {disbursementDate}, l’Association LE KARA a mis à la disposition de M / Mme/Mlle{' '}
+            <Text style={styles.bold}>{memberName || EMPTY}</Text> une somme de :
+          </Text>
+          <Text style={localStyles.amount}>{formatAmount(creditAmount)} FCFA (Chiffres),</Text>
+          <Text style={localStyles.amount}>{numberToWords(creditAmount)} FCFA (Lettres),</Text>
+          <Text style={styles.paragraph}>
+            dans le cadre d’un accompagnement, à charge pour le membre de la lui restituer en date du {formatDate(endDate)}.
+          </Text>
+          <Text style={styles.paragraph}>
+            Que pour garantir le remboursement de ladite somme, Monsieur/ Madame{' '}
+            <Text style={styles.bold}>{guarantorName || EMPTY}</Text> affirme s’être librement et volontairement
+            porté caution solidaire de cette dette à charge pour elle de rembourser à l’Association les sommes
+            indiquées si Monsieur/ Madame <Text style={styles.bold}>{memberName || EMPTY}</Text> n’y satisfait pas elle-même.
+          </Text>
+          <Text style={styles.paragraph}>La caution s’engage à garantir le prêt pour une hauteur maximale de :</Text>
+          <Text style={localStyles.amount}>{formatAmount(guaranteeAmount)} FCFA (Chiffres),</Text>
+          <Text style={localStyles.amount}>{numberToWords(guaranteeAmount)} FCFA (Lettres),</Text>
+          <Text style={styles.paragraph}>somme couvrant l’intégralité de la créance.</Text>
+        </MutuelleSection>
+
+        <MutuelleSection title="ENGAGEMENTS DE LA CAUTION">
+          <Text style={styles.paragraph}>Le cautionnement vaut tant que la dette principale n’a pas été remboursée.</Text>
+          <Text style={styles.paragraph}>
+            La caution affecte principalement en garantie de la dette du débiteur, son nominal correspondant à
+            ses versements mensuels en tant que membre de l’Association. Elle autorise l’Association à y
+            prélever les sommes dues par le débiteur en cas de défaillance de celui-ci.
+          </Text>
+          <Text style={styles.paragraph}>
+            Le montant de la caution, à concurrence de la créance garantie, demeurera consigné par
+            l’association jusqu’à l’extinction totale de la dette du débiteur principal.
+          </Text>
+          <Text style={styles.paragraph}>
+            La caution s’engage sur simple demande adressée par lettre recommandée à exécuter son engagement,
+            sans qu’elle use du bénéfice de discussion.
+          </Text>
+          <Text style={styles.paragraph}>L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur.</Text>
+          <Text style={styles.paragraph}>
+            Pour tout litige pouvant naître de l’exécution dudit contrat, les parties donnent compétence
+            territoriale au Tribunal de Libreville.
+          </Text>
+          <Text style={styles.paragraph}>
+            Au vue des dispositions réglementaires qui régissent l’Association, les parties attestent avoir
+            pris connaissance de l’étendue de leurs obligations respectives et s’engagent en parfaite
+            connaissance de cause.
+          </Text>
+          <View wrap={false}>
+            <Text style={styles.paragraph}>Ce document a été dressé pour faire valoir ce que de droit.</Text>
+            <MutuelleSignatureRow signers={threePartySigners} />
           </View>
-          <View style={styles.signatureStackItem}>
-            <Text style={styles.signatureInlineLabel}>Signature de la caution (précédée de la mention membre lu et approuvé)</Text>
-            {renderSignatureCapture(resolvedFillData.guarantorSignature, guarantorFullName)}
-          </View>
-        </View>
-        {renderPageNumber(7)}
+        </MutuelleSection>
       </Page>
     </Document>
   )

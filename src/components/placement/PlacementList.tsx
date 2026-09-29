@@ -2332,7 +2332,7 @@ export default function PlacementList() {
                             onClick={() => setFinalQuittancePlacementId(currentPlacement.id)}
                           >
                             <FileText className="h-4 w-4 mr-2" />
-                            Générer quittance finale
+                            Générer le procès-verbal de liquidation
                           </Button>
                         </div>
                         <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
@@ -2508,7 +2508,7 @@ export default function PlacementList() {
                         }}
                       >
                         <FileText className="h-4 w-4 mr-2" />
-                        Générer quittance de sortie
+                        Générer le procès-verbal de liquidation anticipée
                       </Button>
                     </div>
                   </div>

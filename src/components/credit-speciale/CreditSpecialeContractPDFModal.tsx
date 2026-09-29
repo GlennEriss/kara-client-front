@@ -14,8 +14,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import AdhesionCreditSpecialeV3, {
   EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA,
+  listCreditContractFields,
   type AdhesionCreditSpecialeFillData,
 } from './AdhesionCreditSpecialeV3'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 interface AdhesionCreditSpecialeV2ModalProps {
   isOpen: boolean
@@ -169,6 +171,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
   const [isExporting, setIsExporting] = useState(false)
   const [fillData, setFillData] = useState<AdhesionCreditSpecialeFillData>(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
   const [previewFillData, setPreviewFillData] = useState<AdhesionCreditSpecialeFillData>(EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contract.id)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
   const skipDebouncePreviewRef = useRef(false)
 
@@ -212,9 +215,10 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
         memberData={memberData}
         guarantorData={guarantorData}
         fillData={previewFillData}
+        completion={previewCompletion}
       />
     ),
-    [contract, memberData, guarantorData, previewFillData]
+    [contract, memberData, guarantorData, previewFillData, previewCompletion]
   )
 
   // Fonction pour télécharger le PDF
@@ -229,6 +233,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
           memberData={memberData}
           guarantorData={guarantorData}
           fillData={fillData}
+          completion={completion}
         />
       )
 
@@ -268,6 +273,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
           memberData={memberData}
           guarantorData={guarantorData}
           fillData={fillData}
+          completion={completion}
         />
       )
 
@@ -382,7 +388,7 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">7 pages</span>
+                      <span className="font-medium text-gray-900">4 pages</span>
                     </div>
                   </div>
 
@@ -448,6 +454,13 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
                     {isPreviewRefreshing ? (
                       <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
                     ) : null}
+
+                    <DocumentCompletionPanel
+                      fields={listCreditContractFields({ contract, memberData, guarantorData })}
+                      completion={completion}
+                      onChange={setCompletion}
+                      showPlace={false}
+                    />
 
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>

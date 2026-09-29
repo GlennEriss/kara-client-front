@@ -1,738 +1,201 @@
 'use client'
 
+import {
+  EMPTY,
+  FieldTable,
+  MutuelleHeader,
+  MutuellePageChrome,
+  MutuelleSection,
+  MutuelleSignatures,
+  collectDocumentFields,
+  documentPlace,
+  field,
+  formatAmount,
+  formatDate,
+  fullNameFrom,
+  mutuelleStyles as styles,
+  readField,
+  toDate,
+  type DocumentCompletion,
+  type DocumentField,
+  type FieldRow,
+} from '@/components/pdf/mutuelle/MutuelleDocumentKit'
 import { getNationalityName } from '@/constantes/nationality'
-import { MemberInfoRows, getIdentityDocumentLabel } from '@/components/pdf/MemberInfoRows'
-import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { resolveContractEndAt } from '@/services/caisse/contractDates'
+import { Document, Page, Text } from '@react-pdf/renderer'
 import React from 'react'
-import { addContractMonths } from '@/utils/contract-months'
 
-const colWidths = [0.269, 0.307, 0.152, 0.272]
-const sumCols = (start: number, span: number) =>
-  colWidths.slice(start, start + span).reduce((acc, val) => acc + val, 0)
+/**
+ * Contrat d'adhésion à la Caisse Spéciale.
+ *
+ * Même gabarit que le contrat Caisse Imprévue (modèle LIQUIDATION.docx) : une
+ * page, quatre sections et une double signature. Les règles de fonctionnement
+ * relèvent du Règlement intérieur, auquel le contrat renvoie. Il est distinct
+ * du procès-verbal de liquidation, qui n'est établi qu'au règlement.
+ */
 
-const ACCENT_BLUE = '#1f4f68'
-const BORDER_SOFT = '#cbd5e1'
-const TEXT_PRIMARY = '#1f2937'
-const TEXT_MUTED = '#334155'
-
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Times-Roman',
-    fontSize: 11,
-    paddingTop: 30, // 1820 twips
-    paddingRight: 50, // 1240 twips
-    paddingBottom: 14, // 280 twips
-    paddingLeft: 50, // 1300 twips
-    color: TEXT_PRIMARY,
-  },
-  logo: {
-    width: 201,
-    height: 100,
-    objectFit: 'contain',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  table: {
-    borderWidth: 0.5,
-    borderColor: BORDER_SOFT,
-  },
-  tableRow: {
-    flexDirection: 'row',
-  },
-  tableCell: {
-    paddingVertical: 4,
-    paddingHorizontal: 5,
-    justifyContent: 'center',
-  },
-  tableCellRightBorder: {
-    borderRightWidth: 0.5,
-    borderRightColor: BORDER_SOFT,
-  },
-  tableCellBottomBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_SOFT,
-  },
-  tableHeaderCell: {
-    backgroundColor: ACCENT_BLUE,
-  },
-  tableHeaderText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  tableSectionText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  tableLabelText: {
-    fontSize: 11,
-    color: TEXT_MUTED,
-  },
-  tableValueText: {
-    fontSize: 11,
-    textAlign: 'center',
-    color: TEXT_PRIMARY,
-  },
-  title1: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textDecoration: 'underline',
-    marginBottom: 12,
-    color: ACCENT_BLUE,
-    marginTop: 5,
-  },
-  title2Underline: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textDecoration: 'underline',
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    backgroundColor: ACCENT_BLUE,
-  },
-  title2: {
-   fontSize: 14,
-    fontWeight: 'bold',
-    textDecoration: 'underline',
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    backgroundColor: ACCENT_BLUE,
-  },
-  articleTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    backgroundColor: ACCENT_BLUE,
-  },
-  paragraph: {
-    fontSize: 11,
-    lineHeight: 1.35,
-    textAlign: 'justify',
-    color: TEXT_PRIMARY,
-  },
-  paragraphIndented: {
-    fontSize: 11,
-    textAlign: 'justify',
-    textIndent: 36,
-    marginBottom: 6,
-    lineHeight: 1.35,
-    color: TEXT_PRIMARY,
-  },
-  paragraphIndented2: {
-    fontSize: 11,
-    textAlign: 'center',
-    textIndent: 36,
-    marginBottom: 6,
-    fontWeight: 'bold',
-    color: TEXT_PRIMARY,
-  },
-  paragraphListIndent: {
-    fontSize: 11,
-    lineHeight: 1.35,
-    textAlign: 'justify',
-    marginLeft: 24,
-    color: TEXT_PRIMARY,
-  },
-  numberedItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginLeft: 24,
-    marginBottom: 4,
-  },
-  numberedIndex: {
-    width: 18,
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: TEXT_PRIMARY,
-  },
-  numberedText: {
-    flex: 1,
-    fontSize: 11,
-    lineHeight: 1.35,
-    textAlign: 'justify',
-    color: TEXT_PRIMARY,
-  },
-  italicText: {
-    fontStyle: 'italic',
-    color: TEXT_MUTED,
-  },
-  rightAlign: {
-    textAlign: 'right',
-  },
-  changeableRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-    marginBottom: 6,
-  },
-  changeableGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  oval: {
-    width: 46,
-    height: 18.5,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: '#64748b',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
-  },
-  ovalDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: ACCENT_BLUE,
-  },
-  dotsLine: {
-    fontSize: 11,
-    lineHeight: 1.35,
-    textAlign: 'justify',
-    marginLeft: 6,
-    color: TEXT_MUTED,
-  },
-  signatureTextSmall: {
-    fontSize: 11,
-    color: TEXT_PRIMARY,
-  },
-  signatureImageRight: {
-    width: 180,
-    height: 54,
-    objectFit: 'contain',
-    alignSelf: 'flex-end',
-  },
-  signaturePlaceholderRight: {
-    width: 180,
-    height: 54,
-    alignSelf: 'flex-end',
-    borderWidth: 0.5,
-    borderColor: '#94a3b8',
-    borderStyle: 'dashed',
-    backgroundColor: '#f8fafc',
-  },
-  signatureImageWide: {
-    width: 220,
-    height: 64,
-    objectFit: 'contain',
-    marginLeft: 36,
-  },
-  signaturePlaceholderWide: {
-    width: 220,
-    height: 64,
-    marginLeft: 36,
-    borderWidth: 0.5,
-    borderColor: '#94a3b8',
-    borderStyle: 'dashed',
-    backgroundColor: '#f8fafc',
-  },
-  unsignedSignerName: {
-    // Cadre de 180 aligné à droite : on reprend largeur et alignement pour
-    // que le nom soit centré exactement sous lui.
-    width: 180,
-    alignSelf: 'flex-end',
-    marginTop: 4,
-    fontSize: 9,
-    textAlign: 'center',
-    color: TEXT_MUTED,
-  },
-  pageNumber: {
-    position: 'absolute',
-    bottom: 16,
-    right: 24,
-    fontSize: 10,
-    color: '#475569',
-  },
-})
-
-type TableCellConfig = {
-  content?: React.ReactNode
-  span?: number
-  textStyle?: any
-  backgroundColor?: string
+const CAISSE_TYPE_LABELS: Record<string, string> = {
+  STANDARD: 'Standard',
+  JOURNALIERE: 'Journalière',
+  LIBRE: 'Libre',
+  STANDARD_CHARITABLE: 'Standard charitable',
+  JOURNALIERE_CHARITABLE: 'Journalière charitable',
+  LIBRE_CHARITABLE: 'Libre charitable',
 }
 
-const TableRow = ({
-  cells,
-  height,
-  isLastRow,
-}: {
-  cells: TableCellConfig[]
-  height: number
-  isLastRow?: boolean
-}) => {
-  let colIndex = 0
-
-  return (
-    <View style={[styles.tableRow, { minHeight: height }]}>
-      {cells.map((cell, index) => {
-        const span = cell.span ?? 1
-        const width = `${sumCols(colIndex, span) * 100}%`
-        const isLastCol = colIndex + span >= colWidths.length
-        const cellStyles = [
-          styles.tableCell,
-          { width },
-          ...(isLastCol ? [] : [styles.tableCellRightBorder]),
-          ...(isLastRow ? [] : [styles.tableCellBottomBorder]),
-          ...(cell.backgroundColor ? [{ backgroundColor: cell.backgroundColor }] : []),
-        ]
-
-        colIndex += span
-
-        return (
-          <View key={index} style={cellStyles}>
-            {typeof cell.content === 'string' ? (
-              <Text style={cell.textStyle}>{cell.content}</Text>
-            ) : (
-              cell.content
-            )}
-          </View>
-        )
-      })}
-    </View>
-  )
-}
+const CHANGEABLE_TYPES = new Set(['LIBRE', 'JOURNALIERE', 'LIBRE_CHARITABLE', 'JOURNALIERE_CHARITABLE'])
+const DAILY_TYPES = new Set(['JOURNALIERE', 'JOURNALIERE_CHARITABLE'])
 
 export interface CaisseSpecialePdfFillData {
-  page3MemberSignature: string | null
-  page5SecretarySignature: string | null
-  page5MemberSignature: string | null
+  memberSignature: string | null
+  secretarySignature: string | null
 }
 
 const DEFAULT_FILL_DATA: CaisseSpecialePdfFillData = {
-  page3MemberSignature: null,
-  page5SecretarySignature: null,
-  page5MemberSignature: null,
+  memberSignature: null,
+  secretarySignature: null,
 }
 
 /**
- * PDF Caisse Spéciale V3 - Réplique fidèle de CAISSE_SPECIALE_MUTUELLE_N.docx
+ * Champs du contrat, dans l'ordre des tableaux. Partagés avec la modale, qui
+ * propose à la saisie ceux qui manquent dans les données.
  */
+export const buildCaisseSpecialeContractFields = (inputContract?: any) => {
+  const contract = (inputContract ?? {}) as Record<string, any>
+  // La modale enrichit le contrat avec la fiche `member` complète.
+  const member = (contract.member ?? {}) as Record<string, any>
+  const emergencyContact = (contract.emergencyContact ?? {}) as Record<string, any>
+  const contacts: string[] = Array.isArray(member.contacts) ? member.contacts.filter(Boolean) : []
+  const memberAddress = member.address && typeof member.address === 'object'
+    ? member.address.district ?? member.address.arrondissement ?? member.address.city
+    : member.address
+
+  const caisseType = String(contract.caisseType ?? '')
+  const isChangeable = CHANGEABLE_TYPES.has(caisseType)
+  const monthlyAmount = Number(contract.monthlyAmount ?? 0)
+  const durationMonths = Number(contract.monthsPlanned ?? 0)
+  // Une seule définition du terme : celle de la plateforme. Les contrats
+  // journaliers sont en périodes de 30 jours et les autres en mois calendaires.
+  const startDate = contract.contractStartAt ?? contract.firstPaymentDate
+  const endDate = resolveContractEndAt(contract)
+  const contractDate = contract.createdAt ?? startDate
+  const startDay = toDate(startDate)
+  const paymentDayLabel = DAILY_TYPES.has(caisseType)
+    ? 'Chaque jour'
+    : startDay ? `Le ${String(startDay.getDate()).padStart(2, '0')} de chaque mois` : ''
+  const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
+
+  return {
+    member: [
+      [field('member.lastName', 'Nom(s) :', String(member.lastName ?? '').toUpperCase()), field('member.firstName', 'Prénom(s) :', member.firstName)],
+      [field('member.matricule', 'Matricule / N° d’adhérent :', member.matricule || contract.memberId), field('contract.id', 'Référence du contrat :', contract.id)],
+      [field('member.birthDate', 'Date de naissance :', optionalDate(member.birthDate), 'date'), field('member.birthPlace', 'Lieu de naissance :', member.birthPlace)],
+      [
+        field('member.identityDocumentNumber', 'N° CNI/Passeport :', member.identityDocumentNumber),
+        field('member.nationality', 'Nationalité :', member.nationality ? getNationalityName(member.nationality) : ''),
+      ],
+      [field('member.address', 'Adresse / Quartier :', memberAddress), field('member.profession', 'Profession / Employeur :', member.profession || member.companyName)],
+      [field('member.phones', 'Téléphone / WhatsApp :', contacts.join(' / ')), field('member.email', 'Email :', member.email)],
+    ] as FieldRow[],
+    engagements: [
+      [
+        field('contract.caisseType', 'Type de caisse :', CAISSE_TYPE_LABELS[caisseType] ?? caisseType),
+        field('contract.formula', 'Formule :', isChangeable ? 'Changeable' : 'Non changeable'),
+      ],
+      [
+        field(
+          'contract.monthlyAmount',
+          'Montant mensuel :',
+          isChangeable ? 'Variable selon la formule changeable' : monthlyAmount > 0 ? `${formatAmount(monthlyAmount)} FCFA` : '',
+        ),
+        field('contract.rhythm', 'Rythme des échéances :', DAILY_TYPES.has(caisseType) ? 'Périodes de 30 jours' : 'Mensuel'),
+      ],
+      [
+        field('contract.duration', 'Durée du contrat :', durationMonths > 0 ? `${durationMonths} mois` : ''),
+        field('contract.paymentDay', 'Jour convenu de versement :', paymentDayLabel),
+      ],
+      [field('contract.startDate', 'Date de début :', optionalDate(startDate), 'date'), field('contract.endDate', 'Date de fin prévue :', optionalDate(endDate), 'date')],
+    ] as FieldRow[],
+    emergency: [
+      [field('emergency.lastName', 'Nom(s) :', String(emergencyContact.lastName ?? '').toUpperCase()), field('emergency.firstName', 'Prénom(s) :', emergencyContact.firstName)],
+      [
+        field('emergency.relationship', 'Lien avec le membre :', emergencyContact.relationship),
+        field('emergency.phone', 'Téléphone :', emergencyContact.phone1 ?? emergencyContact.phone),
+      ],
+      [field('emergency.idNumber', 'N° CNI/Passeport :', emergencyContact.idNumber), field('emergency.address', 'Adresse / Quartier :', emergencyContact.address)],
+    ] as FieldRow[],
+    signedAt: field('signedAt', 'Date de signature', optionalDate(contractDate), 'date'),
+  }
+}
+
+export const listCaisseSpecialeContractFields = (contract?: any): DocumentField[] =>
+  collectDocumentFields(buildCaisseSpecialeContractFields(contract))
+
 const CaisseSpecialePDFV3 = ({
   contract,
   fillData,
+  completion,
 }: {
   contract?: any
   fillData?: CaisseSpecialePdfFillData
+  completion?: DocumentCompletion | null
 }) => {
-  const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
-  const logoUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/assets/caisse-speciale/caissesp-logo.png`
-    : '/assets/caisse-speciale/caissesp-logo.png'
-
-  const formatDate = (date: any) => {
-    if (!date) return '—'
-    try {
-      const dateObj = date?.toDate ? date.toDate() : new Date(date)
-      return dateObj.toLocaleDateString('fr-FR')
-    } catch {
-      return '—'
-    }
-  }
-
-  const formatAmount = (amount: number) => {
-    return amount ? amount : '0'
-  }
-
-  const numberToWords = (num: number) => {
-    if (num === 0) return 'zéro'
-    const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
-    const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
-
-    const convertHundreds = (n: number) => {
-      let result = ''
-      if (n >= 100) {
-        const hundredDigit = Math.floor(n / 100)
-        result += hundredDigit === 1 ? 'cent' : ones[hundredDigit] + ' cent'
-        if (n % 100 !== 0) result += ' '
-        n %= 100
-      }
-      if (n >= 20) {
-        const tenDigit = Math.floor(n / 10)
-        if (tenDigit === 7) { result += 'soixante'; n += 10 }
-        else if (tenDigit === 9) { result += 'quatre-vingt'; n += 10 }
-        else result += tens[tenDigit]
-        if (n % 10 !== 0) result += (tenDigit === 8 && n % 10 === 1) ? '-un' : '-' + ones[n % 10]
-        else if (tenDigit === 8) result += 's'
-      } else if (n > 0) result += ones[n]
-      return result
-    }
-
-    if (num < 1000) return convertHundreds(num)
-    if (num < 1000000) {
-      const thousands = Math.floor(num / 1000)
-      const remainder = num % 1000
-      let result = thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille'
-      if (remainder > 0) result += ' ' + convertHundreds(remainder)
-      return result
-    }
-    const millions = Math.floor(num / 1000000)
-    const remainder = num % 1000000
-    let result = millions === 1 ? 'un million' : convertHundreds(millions) + ' millions'
-    if (remainder > 0) {
-      if (remainder < 1000) result += ' ' + convertHundreds(remainder)
-      else {
-        const thousands = Math.floor(remainder / 1000)
-        const lastPart = remainder % 1000
-        if (thousands > 0) result += ' ' + (thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille')
-        if (lastPart > 0) result += ' ' + convertHundreds(lastPart)
-      }
-    }
-    return result
-  }
-
-  const caisseType = contract?.caisseType
-  const isDailyType = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
-  const isChangeable =
-    caisseType === 'LIBRE' ||
-    caisseType === 'JOURNALIERE' ||
-    caisseType === 'LIBRE_CHARITABLE' ||
-    caisseType === 'JOURNALIERE_CHARITABLE'
-
-  const shiftOneMonthForDailyType = (date: any) => {
-    if (!isDailyType || !date) return date
-    try {
-      const baseDate = date?.toDate ? date.toDate() : new Date(date)
-      if (isNaN(baseDate.getTime())) return date
-      return addContractMonths(baseDate, 1)
-    } catch {
-      return date
-    }
-  }
-
-  const displayFirstPaymentDate = shiftOneMonthForDailyType(contract?.firstPaymentDate)
-  const displayLastPaymentDate = shiftOneMonthForDailyType(contract?.lastPaymentDate)
-  const memberFullName = `${contract?.member?.lastName ?? ''} ${contract?.member?.firstName ?? ''}`.trim() || '—'
-  const memberAddress = contract?.member?.address?.district || '—'
-  const memberPhones =
-    Array.isArray(contract?.member?.contacts) && contract.member.contacts.length > 0
-      ? contract.member.contacts.filter(Boolean).join(' || ')
-      : '—'
-  const durationMonths = contract?.monthsPlanned || 12
-  const amountValue = Number(contract?.monthlyAmount ?? 0)
-  const amountInWords = amountValue ? `${numberToWords(amountValue)} francs CFA` : '—'
-  const amountInDigits = amountValue ? `${formatAmount(amountValue)} FCFA` : '—'
+  const signatures = fillData ?? DEFAULT_FILL_DATA
+  const fields = buildCaisseSpecialeContractFields(contract)
+  const [[lastNameField, firstNameField]] = fields.member
+  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
 
   return (
     <Document>
-      {/* PAGE 1 */}
       <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
-        <Image src={logoUrl} style={styles.logo} />
+        <MutuellePageChrome footerLabel="Contrat d’adhésion à la Caisse Spéciale" />
+        <MutuelleHeader title="CONTRAT D’ADHÉSION À LA CAISSE SPÉCIALE" />
 
-        <View style={styles.table}>
-          <MemberInfoRows
-            member={{
-              // Le matricule métier, pas l'identifiant technique du document.
-              matricule: contract?.member?.matricule || contract?.memberId,
-              lastName: contract?.member?.lastName,
-              firstName: contract?.member?.firstName,
-              birthPlace: contract?.member?.birthPlace,
-              birthDate: formatDate(contract?.member?.birthDate),
-              nationality: getNationalityName(contract?.member?.nationality),
-              identityDocumentLabel: getIdentityDocumentLabel(contract?.member?.identityDocument),
-              identityDocumentNumber: contract?.member?.identityDocumentNumber,
-              phones: memberPhones,
-              gender: contract?.member?.gender,
-              age: contract?.member?.age,
-              district: contract?.member?.address?.district,
-              profession: contract?.member?.profession,
-            }}
-          />
-          <TableRow
-            height={41.9}
-            cells={[
-              {
-                content: 'Informations Concernant Le Contact Urgent :',
-                span: 4,
-                textStyle: styles.tableSectionText,
-                backgroundColor: ACCENT_BLUE,
-              },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'NOM', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.lastName || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'PRÉNOM', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.firstName || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'LIENS', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.relationship || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            cells={[
-              { content: 'TÉLÉPHONE', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.phone1 || '—', textStyle: styles.tableValueText },
-              { content: '', span: 2, textStyle: styles.tableValueText },
-            ]}
-          />
-          <TableRow
-            height={26.15}
-            isLastRow
-            cells={[
-              { content: 'N°CNI/PASS/CS', textStyle: styles.tableLabelText },
-              { content: contract?.emergencyContact?.idNumber || '—', span: 3, textStyle: styles.tableValueText },
-            ]}
-          />
-        </View>
-      </Page>
-
-      {/* PAGE 2 */}
-      <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
-        <Text style={styles.title1}>CAISSE SPÉCIALE</Text>
-        <Text style={styles.paragraph}>
-               </Text>
-               <Text style={styles.paragraph}>
-               </Text>
-               <Text style={styles.paragraph}>
-               </Text>
-               <Text style={styles.paragraph}>
-               </Text>
-               <Text style={styles.paragraph}>
-               </Text>
-
-        <Text style={styles.paragraphIndented}>
-          Dans le cadre d’une démarche purement sociale et en 
-          lien à sa mission de promouvoir la solidarité et l’appui mutuel entre ses membres, l’Association LE KARA met en place le volet « Caisse spéciale ».
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          Ce dispositif permet à chaque adhérent volontaire, appelé épargnant, de constituer progressivement une réserve financière personnelle destinée à faire face sereinement aux imprévus de la vie 
-          : difficultés passagères, besoins urgents, projets essentiels ou situations fragilisantes.
-        </Text>
-        <Text style={styles.paragraph}>
-        </Text>
-        <Text style={styles.paragraphIndented}>
-          L’Association LE KARA s’engage avec transparence, à sécuriser les fonds épargnés et à les mettre à
-           la disposition de l’épargnant au moindre besoin, conformément aux dispositions qui suivent.
-        </Text>
-        <Text style={styles.paragraph}>
+        <Text style={styles.preamble}>
+          Le présent acte formalise l’adhésion du membre, dit l’épargnant, à la Caisse Spéciale de la
+          Mutuelle. Il précise la formule souscrite, les engagements de versement et les conditions
+          applicables pendant la durée du contrat. Il ne constitue ni un crédit ni un prêt accordé au
+          membre.
         </Text>
 
-        <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          <Text style={{ fontWeight: 'bold' }}>L’épargnant : </Text>
-          Dénomination donnée au membre de l’association qui souscrit au volet caisse spéciale.
-        </Text>
-        <Text style={[styles.paragraph, { marginTop: 2 }]}>
-          <Text style={{ fontWeight: 'bold' }}>Le nominal : </Text>
-          Globalité des versements mensuels de l’épargnant. 
-        </Text>
-<Text style={styles.paragraph}>
-               </Text>
-        <Text style={styles.title2Underline}>Fonctionnement général de la Caisse Spéciale</Text>
-<Text style={styles.paragraph}>
-               </Text>
-        {[
-          {
-            label: 'Durée du contrat',
-            text: 'Chaque contrat est conclu sur une période maximale de douze (12) mois',
-          },
-          {
-            label: 'Début du contrat',
-            text: 'Le contrat court pour une durée déterminée à partir de la date du premier versement.',
-          },
-          {
-            label: 'Terme du contrat',
-            text: 'Le contrat prend fin à la date prévue par le contrat. A cette date, l’épargnant reçoit le remboursement de l’intégralité des sommes qu’il a eu à verser.',
-          },
-          {
-            label: 'Déroulement des versements mensuels',
-            text: 'L’épargnant effectue chaque mois un versement librement déterminé, mais dont le montant doit être supérieur ou égal à 100 000 FCFA. Les fonds versés sont déposés sur un compte fermé, ce qui signifie que tout retrait avant le 12ᵉ mois n’est pas autorisé, sauf situations exceptionnelles prévues ci-dessous. Afin d’assurer la stabilité de la caisse, aucun retrait n’est autorisé avant la fin du douzième mois.',
-          },
-          {
-            label: 'Remboursement',
-            text: 'Le remboursement du nominal, à l’initiative de l’association et au bénéfice de l’épargnant, intervient sur une durée maximale de trente (30) jours à compter de la date du terme du contrat.  Ce délai permet une gestion saine, responsable et transparente de la trésorerie',
-                  
+        <MutuelleSection title="1. IDENTIFICATION DU MEMBRE ÉPARGNANT">
+          <FieldTable rows={fields.member} completion={completion} />
+        </MutuelleSection>
 
-          },
-          {
-            label: 'Tolérance de retard',
-            text: 'Il est accordé à tout épargnant, à compter de la date d’échéance contractuellement prévue pour chaque versement mensuel, un délai de retard de trois(3) jours pour procéder à son versement. Le versement intervenu dans ledit délai ne donne lieu à aucune pénalité.',
-          },
-        ].map((item, index) => (
-          <View key={item.label} style={styles.numberedItem}>
-            <Text style={styles.numberedIndex}>{index + 1}.</Text>
-            <Text style={styles.numberedText}>
-              <Text style={{ fontWeight: 'bold' }}>{item.label} : </Text>
-              {item.text}
-            </Text>
-          </View>
-        ))}
-        <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          Ce délai permet une gestion saine, responsable et transparente de la trésorerie.
-        </Text>
-        <Text style={[styles.paragraphListIndent, { marginTop: 4 }]}>
-          •À compter du quatrième jour jusqu'au douzième jour succédant à l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l’équilibre et
-          la bonne tenue de la caisse commune.
-        </Text>
-        <Text style={styles.paragraphListIndent}>
-          •Tout versement intervenu après le douzième jour est irrecevable et s’assimile à un manquement substantiel
-          de l’épargnant à ses obligations contractuelles. Ainsi, il entraîne la résiliation du contrat à l’initiative du
-          secrétaire exécutif, comme précisé ci-après.
-        </Text>
-      </Page>
-
-      {/* PAGE 3 */}
-      <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
-        <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          <Text style={{ fontWeight: 'bold' }}>7. Résiliation</Text> : Le contrat est de plein droit résolu si :
-        </Text>
-        <Text style={[styles.paragraphListIndent, styles.italicText]}>
-        </Text>
-        <Text style={[styles.paragraphListIndent, styles.italicText]}>-l’épargnant omet le versement d’un mois.</Text>
-        <Text style={[styles.paragraphListIndent, styles.italicText]}>
-        </Text>
-        <Text style={[styles.paragraphListIndent, styles.italicText]}>
-          -l’épargnant exige le remboursement du nominal avant le terme du contrat.
-        </Text>
-<Text style={styles.paragraph}>
-        </Text>
-        <Text style={[styles.paragraph, { marginTop: 4 }]}>
-          Le remboursement du nominal suite à une demande de retrait intervenue avant terme, est réalisé
-          dans un intervalle de quarante-cinq jours à compter de la demande.
-        </Text>
-<Text style={styles.paragraph}>
-        </Text>
-        <View style={{ marginTop: 12 }}>
-          {resolvedFillData.page3MemberSignature ? (
-            <Image src={resolvedFillData.page3MemberSignature} style={styles.signatureImageRight} cache={false} />
-          ) : (
-            <View style={styles.signaturePlaceholderRight} />
-          )}
-          <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-          <Text style={[styles.paragraph, styles.rightAlign, { marginTop: 6 }]}>
-            [Signature de l’épargnant précédée de la mention « lu et approuvé »]
+        <MutuelleSection title="2. ENGAGEMENTS ET CONDITIONS DE LA CAISSE SPÉCIALE">
+          <FieldTable rows={fields.engagements} completion={completion} />
+          <Text style={styles.paragraph}>
+            Je soussigné(e), nommé(e) ci-dessus, adhère librement à la Caisse Spéciale et m’engage à
+            effectuer les versements correspondant à la formule souscrite, selon le rythme et la durée
+            mentionnés au présent contrat.
           </Text>
-        </View>
+          <Text style={styles.bullet}>• Les versements sont enregistrés dans l’échéancier du contrat.</Text>
+          <Text style={styles.bullet}>• À la date de fin du contrat, LE KARA restitue à l’épargnant le nominal correspondant aux sommes versées, dans les conditions prévues par le Règlement intérieur.</Text>
+          <Text style={styles.bullet}>• Toute demande de retrait anticipé est traitée selon les conditions applicables au contrat.</Text>
+          <Text style={styles.bullet}>• À l’échéance ou après un règlement anticipé, les sommes effectivement remises sont constatées dans un procès-verbal de liquidation distinct.</Text>
+        </MutuelleSection>
 
-        <Text style={styles.title2}>FICHE D’ADHESION</Text>
+        <MutuelleSection title="3. PERSONNE À CONTACTER EN CAS D’URGENCE">
+          <FieldTable rows={fields.emergency} completion={completion} />
+        </MutuelleSection>
 
-        <Text style={styles.paragraphIndented}>Je soussigné(e),</Text>
-        <Text style={[styles.paragraphIndented, { fontWeight: 'bold' }]}>{memberFullName}</Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          Membre de l’association LE KARA, domicilié à {memberAddress} et joignable au :
-        </Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-           {memberPhones}.
-        </Text>
+        <MutuelleSection title="4. ACCEPTATION DU RÈGLEMENT ET SIGNATURE">
+          <Text style={styles.paragraph}>
+            Je reconnais avoir pris connaissance des Statuts, du Règlement Intérieur et des conditions
+            de la Caisse Spéciale de la Mutuelle d’Entraide et de Secours Mutuel « LE KARA ». Je
+            m’engage à les respecter pendant toute la durée du présent contrat.
+          </Text>
+          <Text style={styles.paragraph}>Fait à {documentPlace(completion)}, le {readField(fields.signedAt, completion) || EMPTY}</Text>
+          <Text style={styles.note}>(Inscrire la mention manuscrite « Lu et approuvé, bon pour engagement »)</Text>
 
-        <Text style={styles.articleTitle}>ARTICLE 1 : OBJET DU CONTRAT</Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l’association LE KARA.</Text>
-<Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-        </Text>
-
-        <Text style={styles.articleTitle}>ARTICLE 2 : DUREE DU CONTRAT</Text>
-        <Text style={styles.paragraphIndented}>Que cet engagement est valable pour une durée de {durationMonths} mois ;</Text>
-        <Text style={styles.paragraphIndented}>
-          Qu’il a été Conclu en date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayFirstPaymentDate)}</Text>  et prend donc fin en
-        </Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-          Date du  <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayLastPaymentDate)}</Text>
-        </Text>
-<Text style={[styles.paragraphIndented, { marginTop: 2 }]}>
-        </Text>
-        <Text style={styles.articleTitle}>ARTICLE 3 : TERMES CONTRACTUELS</Text>
-        <Text style={[styles.paragraph, { fontWeight: 'bold', marginTop: 4 }]}>L’épargnant souscrit à la formule :</Text>
-
-        <View style={styles.changeableRow}>
-          <View style={styles.changeableGroup}>
-            <View style={styles.oval}>
-              {isChangeable && <View style={styles.ovalDot} />}
-            </View>
-            <Text style={{ fontWeight: 'bold', fontSize: 12 }}>Changeable</Text>
-          </View>
-          <View style={styles.changeableGroup}>
-            <View style={styles.oval}>
-              {!isChangeable && <View style={styles.ovalDot} />}
-            </View>
-            <Text style={{ fontWeight: 'bold', fontSize: 12 }}>Non Changeable</Text>
-          </View>
-        </View>
-
-        <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>Par cet engagement, je prends la décision de mettre à la disposition de l’association la somme déterminée de :</Text>
-        {!isChangeable && (
-          <>
-            <Text style={[styles.paragraphIndented2, { marginTop: 4 }]}>{amountInWords} (Lettres)</Text>
-            <Text style={[styles.paragraphIndented2, { marginTop: 2 }]}>{amountInDigits} (Chiffres)</Text>
-          </>
-        )}
-        <Text style={[styles.paragraphIndented, { marginTop: 6 }]}>
-          A l’échéance prévue pour le <Text style={[styles.paragraph, { fontWeight: 'bold'}]}>{formatDate(displayFirstPaymentDate)}</Text>. Et ce
-        </Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>durant les 12 mois correspondant à la durée du contrat.</Text>
-
-      </Page>
-
-      {/* PAGE 4 */}
-      <Page size="A4" style={styles.page}>
-        <Text
-          style={styles.pageNumber}
-          fixed
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-        />
-        <Text style={styles.articleTitle}>ARTICLE 4 : MONTANT DE REMBOURSEMENT</Text>
-        <Text style={[styles.paragraphIndented, { marginTop: 2 }]}>L’association LE KARA s’engage à la date de fin du contrat à verser au membre le nominal correspondant aux sommes versées durant toute la durée du contrat.</Text>
-
-        <Text style={[styles.paragraphIndented, { fontWeight: 'bold', marginTop: 4 }]}>Je prends acte des clauses contractuelles et des conséquences qui pourraient résulter de tout agissement défaillant de ma part.</Text>
-
-        <Text style={[styles.paragraphIndented, { marginTop: 4 }]}>CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT</Text>
-
-        <Text style={[styles.paragraphIndented, { marginTop: 16 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
-        {resolvedFillData.page5SecretarySignature ? (
-          <Image src={resolvedFillData.page5SecretarySignature} style={styles.signatureImageWide} cache={false} />
-        ) : (
-          <View style={styles.signaturePlaceholderWide} />
-        )}
-
-        <Text style={[styles.paragraphIndented, styles.signatureTextSmall, { marginTop: 28 }]}>
-          Signature de l’épargnant précédée de la mention « lu et approuvé »
-        </Text>
-        <Text style={styles.unsignedSignerName}>{memberFullName}</Text>
-        {resolvedFillData.page5MemberSignature ? (
-          <Image src={resolvedFillData.page5MemberSignature} style={styles.signatureImageWide} cache={false} />
-        ) : (
-          <View style={styles.signaturePlaceholderWide} />
-        )}
+          <MutuelleSignatures
+            memberTitle="L’Épargnant"
+            memberName={memberName}
+            memberSignature={signatures.memberSignature}
+            committeeRole="Le Secrétaire Exécutif"
+            committeeSignature={signatures.secretarySignature}
+          />
+        </MutuelleSection>
       </Page>
     </Document>
   )

@@ -14,7 +14,8 @@ import type { ContractCI } from '@/types/types'
 import { BlobProvider, PDFViewer, pdf } from '@react-pdf/renderer'
 import { Download, FileText, Loader2, Monitor, PenLine, RotateCcw, Smartphone } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import CaisseImprevuePDFV3, { type CaisseImprevuePdfFillData } from './CaisseImprevuePDFV3'
+import CaisseImprevuePDFV3, { listCaisseImprevueContractFields, type CaisseImprevuePdfFillData } from './CaisseImprevuePDFV3'
+import { DocumentCompletionPanel, useDocumentCompletion } from '@/components/pdf/mutuelle/DocumentCompletionPanel'
 
 interface ViewContractCIModalProps {
   isOpen: boolean
@@ -171,6 +172,7 @@ export default function ViewContractCIModal({ isOpen, onClose, contract }: ViewC
   const [fillData, setFillData] = useState<CaisseImprevuePdfFillData>(EMPTY_FILL_DATA)
   const [previewFillData, setPreviewFillData] = useState<CaisseImprevuePdfFillData>(EMPTY_FILL_DATA)
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false)
+  const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contract?.id)
   const skipDebouncePreviewRef = useRef(false)
 
   const { data: member, isLoading: memberLoading } = useMemberById(contract?.memberId)
@@ -208,15 +210,15 @@ export default function ViewContractCIModal({ isOpen, onClose, contract }: ViewC
   const baseContract = contractWithMember ?? contract
 
   const pdfDocument = useMemo(
-    () => <CaisseImprevuePDFV3 contract={baseContract} fillData={previewFillData} />,
-    [baseContract, previewFillData]
+    () => <CaisseImprevuePDFV3 contract={baseContract} fillData={previewFillData} completion={previewCompletion} />,
+    [baseContract, previewFillData, previewCompletion]
   )
 
   const handleDownloadPDF = async () => {
     if (!baseContract) return
     setIsExporting(true)
     try {
-      const blob = await pdf(<CaisseImprevuePDFV3 contract={baseContract} fillData={fillData} />).toBlob()
+      const blob = await pdf(<CaisseImprevuePDFV3 contract={baseContract} fillData={fillData} completion={completion} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -378,6 +380,12 @@ export default function ViewContractCIModal({ isOpen, onClose, contract }: ViewC
                     {isPreviewRefreshing ? (
                       <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
                     ) : null}
+
+                    <DocumentCompletionPanel
+                      fields={listCaisseImprevueContractFields(baseContract)}
+                      completion={completion}
+                      onChange={setCompletion}
+                    />
 
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
