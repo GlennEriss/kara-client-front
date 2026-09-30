@@ -28,6 +28,7 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import routes from '@/constantes/routes'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { CHARITY_EVENT_STATUS_LABELS, CharityEvent } from '@/types/types'
 import { Eye, Loader2, MoreVertical, Pencil, PlayCircle } from 'lucide-react'
 import Image from 'next/image'
@@ -41,6 +42,8 @@ interface CharityEventTableProps {
 }
 
 export default function CharityEventTable({ events, onSetOngoing, updatingEventId }: CharityEventTableProps) {
+  const { can } = useMyAccess()
+  const canEdit = can('bienfaiteur.edit')
   const router = useRouter()
   const [eventIdToSetOngoing, setEventIdToSetOngoing] = useState<string | null>(null)
 
@@ -173,10 +176,12 @@ export default function CharityEventTable({ events, onSetOngoing, updatingEventI
                             Mettre en cours
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem onClick={() => router.push(routes.admin.bienfaiteurModify(event.id))}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Modifier
-                        </DropdownMenuItem>
+                        {canEdit && (
+                          <DropdownMenuItem onClick={() => router.push(routes.admin.bienfaiteurModify(event.id))}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

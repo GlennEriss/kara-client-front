@@ -1,5 +1,6 @@
 "use client"
 
+import { useMyAccess } from "@/hooks/useMyAccess"
 import CreditPaymentModal from "@/components/credit-speciale/CreditPaymentModal"
 import { Button } from "@/components/ui/button"
 import type { CalendarPaymentItemCredit } from "@/hooks/useCalendarCreditSpeciale"
@@ -26,6 +27,7 @@ export function PaymentSidebarCreditSpeciale({
 }: PaymentSidebarCreditSpecialeProps) {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const queryClient = useQueryClient()
+  const { canRecordPayments } = useMyAccess()
   const canRecordPayment =
     payment.status === "DUE" ||
     payment.status === "PARTIAL" ||
@@ -90,7 +92,12 @@ export function PaymentSidebarCreditSpeciale({
         </div>
 
         <div className="p-5 border-t border-gray-100">
-          {canRecordPayment ? (
+          {!canRecordPayments ? (
+            // L'agent de recouvrement relance le membre ; l'encaissement reste aux administrateurs.
+            <p className="rounded-xl border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-500">
+              Encaissement réservé aux administrateurs.
+            </p>
+          ) : canRecordPayment ? (
             <Button
               onClick={() => setShowPaymentModal(true)}
               className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white"

@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
@@ -28,6 +29,8 @@ interface CharityMediaSectionProps {
 }
 
 export default function CharityMediaSection({ eventId }: CharityMediaSectionProps) {
+  const { can } = useMyAccess()
+  const canEdit = can('bienfaiteur.edit')
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'photo' | 'video'>('all')
@@ -221,13 +224,15 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
           </div>
 
           <div className="flex flex-col sm:flex-row sm:justify-end">
-            <Button
-              onClick={() => setIsAddOpen(true)}
-              className="w-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95 sm:w-auto"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter
-            </Button>
+            {canEdit && (
+              <Button
+                onClick={() => setIsAddOpen(true)}
+                className="w-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95 sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -267,15 +272,17 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
                     <Eye className="w-4 h-4 mr-2" />
                     Voir
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(item.id)}
-                    disabled={isDeleting}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Supprimer
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(item.id)}
+                      disabled={isDeleting}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Supprimer
+                    </Button>
+                  )}
                 </div>
 
                 {/* Badge type */}
@@ -320,10 +327,12 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
           <CardContent className="p-12 text-center text-slate-500">
             <ImageIcon className="mx-auto mb-4 h-16 w-16 text-slate-400" />
             <p className="mb-4">Aucun média pour le moment</p>
-            <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter le premier média
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter le premier média
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

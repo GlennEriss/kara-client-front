@@ -1,5 +1,7 @@
 "use client"
 
+import { useMyAccess } from "@/hooks/useMyAccess"
+import { pdfPreviewUrl } from "@/utils/documentPreview"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
 import { useContractPayments } from "@/hooks/useContractPayments"
 import { cn } from "@/lib/utils"
@@ -40,6 +42,7 @@ export function PaymentSidebarContent({
   showReceipt,
   receiptUrl,
 }: PaymentSidebarContentProps) {
+  const { canDownloadDocuments } = useMyAccess()
   const { payments: allPayments, isLoading } = useContractPayments(
     payment.contract.id || ""
   )
@@ -315,7 +318,7 @@ export function PaymentSidebarContent({
             Reçu de paiement
           </h4>
           <iframe
-            src={receiptUrl}
+            src={pdfPreviewUrl(receiptUrl, canDownloadDocuments)}
             className="w-full h-[500px] border border-gray-200 rounded-xl"
             title="Reçu de paiement"
           />

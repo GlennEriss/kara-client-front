@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isFirebaseStorageUrl } from '@/utils/storedDocumentUrl'
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url')
@@ -6,6 +7,10 @@ export async function GET(req: NextRequest) {
 
   if (!url) {
     return NextResponse.json({ error: 'Missing url param' }, { status: 400 })
+  }
+  // Uniquement Firebase Storage : sinon le serveur téléchargerait n'importe quelle adresse (SSRF).
+  if (!isFirebaseStorageUrl(url)) {
+    return NextResponse.json({ error: 'URL not allowed' }, { status: 400 })
   }
 
   const res = await fetch(url)

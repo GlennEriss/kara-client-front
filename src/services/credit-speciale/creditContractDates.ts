@@ -15,6 +15,8 @@ import { addContractMonths } from '@/services/caisse/contractDates'
 export interface CreditContractDatesInput {
   firstPaymentDate?: Date | string | null
   duration?: number | null
+  /** 'WEEKS' : l'échéance unique est la fin du contrat. */
+  durationUnit?: 'MONTHS' | 'WEEKS'
 }
 
 /** Date de la dernière mensualité, ou `null` si l'échéancier est inconnu. */
@@ -26,6 +28,9 @@ export function getCreditContractEndDate(contract: CreditContractDatesInput): Da
   const first = new Date(contract.firstPaymentDate)
   if (Number.isNaN(first.getTime())) return null
   first.setHours(0, 0, 0, 0)
+
+  // Crédit en semaines : une seule échéance, qui est la fin du contrat.
+  if (contract.durationUnit === 'WEEKS') return first
 
   return addContractMonths(first, duration - 1)
 }

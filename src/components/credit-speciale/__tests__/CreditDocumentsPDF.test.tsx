@@ -69,4 +69,14 @@ describe('documents de crédit', () => {
     expect(buffer.length).toBeGreaterThan(0)
     expect(countPages(buffer)).toBe(1)
   }, 60_000)
+
+  it('produit la reconnaissance de dette d’un crédit en semaines', async () => {
+    const buffer = await renderToBuffer(
+      <AdhesionCreditSpecialeV3
+        contract={{ ...contract, durationUnit: 'WEEKS', duration: 2, monthlyPaymentAmount: 550_000, totalAmount: 550_000 }}
+        memberData={member}
+      />,
+    )
+    expect(countPages(buffer)).toBeGreaterThanOrEqual(3)
+  }, 60_000)
 })

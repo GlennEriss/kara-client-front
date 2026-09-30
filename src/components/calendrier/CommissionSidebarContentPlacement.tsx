@@ -1,5 +1,7 @@
 "use client"
 
+import { useMyAccess } from "@/hooks/useMyAccess"
+import { pdfPreviewUrl } from "@/utils/documentPreview"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
 import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { usePlacementCommissions } from "@/hooks/usePlacements"
@@ -65,6 +67,7 @@ export function CommissionSidebarContentPlacement({
   showReceipt,
   receiptUrl,
 }: CommissionSidebarContentPlacementProps) {
+  const { canDownloadDocuments } = useMyAccess()
   const { data: allCommissions = [], isLoading } = usePlacementCommissions(
     commission.placement.id
   )
@@ -288,7 +291,7 @@ export function CommissionSidebarContentPlacement({
           </div>
           <div className="p-4">
             <iframe
-              src={receiptUrl}
+              src={pdfPreviewUrl(receiptUrl, canDownloadDocuments)}
               className="w-full h-[500px] border rounded-xl"
               title="Reçu de paiement"
             />

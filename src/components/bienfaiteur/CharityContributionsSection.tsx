@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -29,6 +30,9 @@ interface CharityContributionsSectionProps {
 }
 
 export default function CharityContributionsSection({ eventId }: CharityContributionsSectionProps) {
+  const { can, canDownloadDocuments } = useMyAccess()
+  const canContribute = can('bienfaiteur.contribute')
+  const canExport = can('bienfaiteur.export')
   const { openDocument } = useDocumentViewer()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -449,36 +453,40 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                   </SelectContent>
                 </Select>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Exporter
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-[180px]">
-                    <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer">
-                      <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-700" /> Exporter Excel
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
-                      <FileDown className="mr-2 h-4 w-4 text-rose-700" /> Exporter PDF
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {canExport && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 cursor-pointer rounded-xl border-2 border-emerald-300 bg-white px-4 text-emerald-700 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Exporter
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[180px]">
+                      <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer">
+                        <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-700" /> Exporter Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
+                        <FileDown className="mr-2 h-4 w-4 text-rose-700" /> Exporter PDF
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-                <Button
-                  onClick={() => setIsAddOpen(true)}
-                  size="sm"
-                  className="h-10 cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Ajouter
-                </Button>
+                {canContribute && (
+                  <Button
+                    onClick={() => setIsAddOpen(true)}
+                    size="sm"
+                    className="h-10 cursor-pointer rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] px-4 text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Ajouter
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -586,24 +594,28 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                             Preuve
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleGenerateReceipt(contribution.id)}
-                          className="flex-1 border-slate-200 bg-white"
-                        >
-                          <FileText className="w-4 h-4 mr-2" />
-                          Reçu
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(contribution.id)}
-                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Supprimer
-                        </Button>
+                        {canDownloadDocuments && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleGenerateReceipt(contribution.id)}
+                            className="flex-1 border-slate-200 bg-white"
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Reçu
+                          </Button>
+                        )}
+                        {canContribute && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(contribution.id)}
+                            className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )
@@ -706,23 +718,27 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                                   <Eye className="w-4 h-4" />
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleGenerateReceipt(contribution.id)}
-                                title="Télécharger le reçu"
-                              >
-                                <FileText className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(contribution.id)}
-                                title="Supprimer"
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              {canDownloadDocuments && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleGenerateReceipt(contribution.id)}
+                                  title="Télécharger le reçu"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canContribute && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(contribution.id)}
+                                  title="Supprimer"
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -747,10 +763,12 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
           ) : (
             <div className="p-12 text-center text-slate-500">
               <p className="mb-4">Aucune contribution pour le moment</p>
-              <Button onClick={() => setIsAddOpen(true)} className="rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md">
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter la première contribution
-              </Button>
+              {canContribute && (
+                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl border-0 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white shadow-sm transition-all duration-200 hover:from-[#2c5a73] hover:to-[#234D65] hover:shadow-md">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter la première contribution
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -810,18 +828,20 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
               <Button variant="outline" onClick={() => setProofToView(null)}>
                 Fermer
               </Button>
-              <Button
-                onClick={() => {
-                  const isPdf = proofToView.endsWith('.pdf') || proofToView.includes('application/pdf')
-                  const proofContribution = contributions?.find(c => c.proofUrl === proofToView)
-                  const donorName = proofContribution?.participant?.name?.trim().replace(/\s+/g, '_')
-                  const filename = donorName ? `preuve_${donorName}.${isPdf ? 'pdf' : 'jpg'}` : 'preuve.pdf'
-                  openDocument({ url: proofToView, filename, title: 'Preuve de contribution' })
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Télécharger
-              </Button>
+              {canDownloadDocuments && (
+                <Button
+                  onClick={() => {
+                    const isPdf = proofToView.endsWith('.pdf') || proofToView.includes('application/pdf')
+                    const proofContribution = contributions?.find(c => c.proofUrl === proofToView)
+                    const donorName = proofContribution?.participant?.name?.trim().replace(/\s+/g, '_')
+                    const filename = donorName ? `preuve_${donorName}.${isPdf ? 'pdf' : 'jpg'}` : 'preuve.pdf'
+                    openDocument({ url: proofToView, filename, title: 'Preuve de contribution' })
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Télécharger
+                </Button>
+              )}
             </ModalFooter>
           </ModalContent>
         </Dialog>

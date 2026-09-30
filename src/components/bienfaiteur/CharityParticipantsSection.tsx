@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { ListPagination } from '@/components/ui/list-pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -22,6 +23,8 @@ interface CharityParticipantsSectionProps {
 }
 
 export default function CharityParticipantsSection({ eventId }: CharityParticipantsSectionProps) {
+  const { can } = useMyAccess()
+  const canEdit = can('bienfaiteur.edit')
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'member' | 'group'>('all')
@@ -113,13 +116,15 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
           </div>
 
           <div className="flex flex-col sm:flex-row sm:justify-end">
-            <Button
-              onClick={() => setIsAddOpen(true)}
-              className="w-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95 sm:w-auto"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter
-            </Button>
+            {canEdit && (
+              <Button
+                onClick={() => setIsAddOpen(true)}
+                className="w-full bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95 sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -167,16 +172,18 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
                         </div>
                       </div>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setParticipantToRemove(participant.id)}
-                        disabled={participant.contributionsCount > 0}
-                        className={`h-7 w-7 shrink-0 ${participant.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
-                        title={participant.contributionsCount > 0 ? 'Impossible de retirer un participant ayant des contributions' : 'Retirer ce participant'}
-                      >
-                        <UserMinus className="w-4 h-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setParticipantToRemove(participant.id)}
+                          disabled={participant.contributionsCount > 0}
+                          className={`h-7 w-7 shrink-0 ${participant.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                          title={participant.contributionsCount > 0 ? 'Impossible de retirer un participant ayant des contributions' : 'Retirer ce participant'}
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
 
                     <div className="space-y-2 rounded-xl bg-gray-50 p-3 text-sm">
@@ -227,10 +234,12 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
         <Card className="border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/50">
           <CardContent className="p-12 text-center text-slate-500">
             <p className="mb-4">Aucun participant pour le moment</p>
-            <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter le premier participant
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter le premier participant
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

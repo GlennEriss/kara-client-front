@@ -326,6 +326,55 @@ export function getCreditSpecialeLastRecordedMonth(
   return Math.max(0, ...paymentMonths, ...restMonths)
 }
 
+/**
+ * Crédit en semaines : une seule échéance à `firstPaymentDate`. Les intérêts
+ * s'appliquent une fois ; un paiement partiel laisse le reste dû sur cette même
+ * échéance, sans intérêts supplémentaires (le retard relève des pénalités).
+ *
+ * `amountDue` et `expectedPayment` portent ce qu'il reste à payer tant que
+ * l'échéance n'est pas soldée, afin que le reste dû du contrat et le montant
+ * proposé au paiement suivant soient justes.
+ */
+function buildWeeklyCreditHistory(
+  contract: Pick<CreditContract, 'amount' | 'interestRate' | 'guarantorRemunerationPercentage' | 'firstPaymentDate'>,
+  payments: CreditPayment[]
+): CreditSpecialeHistoryMonth[] {
+  const capital = customRound(contract.amount)
+  const interest = customRound(capital * (contract.interestRate / 100))
+  const commission = customRound(capital * ((contract.guarantorRemunerationPercentage ?? 0) / 100))
+  const totalDue = customRound(capital + interest)
+
+  const recorded = payments
+    .filter(isRecordedMonthlyPayment)
+    .sort((left, right) => new Date(left.paymentDate).getTime() - new Date(right.paymentDate).getTime())
+  const actualPayment = customRound(recorded.reduce((sum, payment) => sum + payment.amount, 0))
+  const remaining = Math.max(0, customRound(totalDue - actualPayment))
+  const isSettled = recorded.length > 0 && remaining <= 0
+  const lastPayment = recorded.at(-1)
+
+  return [
+    {
+      month: 1,
+      logicalMonth: 1,
+      date: new Date(contract.firstPaymentDate),
+      phase: 'SPECIALE',
+      isRest: false,
+      capitalStart: capital,
+      commission,
+      interest,
+      amountDue: isSettled ? totalDue : remaining,
+      expectedPayment: isSettled ? totalDue : remaining,
+      actualPayment,
+      hasPaymentRecord: recorded.length > 0,
+      paymentDate: lastPayment ? new Date(lastPayment.paymentDate) : undefined,
+      paymentTime: lastPayment?.paymentTime,
+      nextCapitalActual: remaining,
+      nextCapitalProjected: remaining,
+      status: isSettled ? 'PAID' : 'DUE',
+    },
+  ]
+}
+
 export function buildCreditSpecialeHistory(
   contract: Pick<
     CreditContract,
@@ -344,6 +393,7 @@ export function buildCreditSpecialeHistory(
     | 'monthlyPaymentAmount'
     | 'totalAmount'
     | 'duration'
+    | 'durationUnit'
     | 'restMonths'
   >,
   payments: CreditPayment[],
@@ -351,6 +401,10 @@ export function buildCreditSpecialeHistory(
 ): CreditSpecialeHistoryMonth[] {
   if (contract.creditType !== 'SPECIALE') {
     return []
+  }
+
+  if (contract.durationUnit === 'WEEKS') {
+    return buildWeeklyCreditHistory(contract, payments)
   }
 
   const firstDate = new Date(contract.firstPaymentDate)
@@ -497,6 +551,7 @@ export function buildCreditSpecialeTimelineHistory(
     | 'rajoutEffectue'
     | 'restMonths'
     | 'totalAmount'
+    | 'durationUnit'
   >,
   payments: CreditPayment[]
 ): CreditSpecialeTimelineMonth[] {
@@ -510,6 +565,7 @@ export function buildCreditSpecialeTimelineHistory(
     const cycleContract = {
       amount: cycle.amount,
       creditType: contract.creditType,
+      durationUnit: contract.durationUnit,
       createdAt: cycle.startedAt,
       creditCycles: undefined,
       firstPaymentDate: cycle.firstPaymentDate,

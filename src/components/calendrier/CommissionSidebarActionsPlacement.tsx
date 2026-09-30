@@ -1,5 +1,6 @@
 "use client"
 
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { Button } from "@/components/ui/button"
 import routes from "@/constantes/routes"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
@@ -23,6 +24,7 @@ export function CommissionSidebarActionsPlacement({
   onDownloadReceipt,
   isGeneratingReceipt = false,
 }: CommissionSidebarActionsPlacementProps) {
+  const { canRecordPayments, canDownloadDocuments } = useMyAccess()
   const isPaid = commission.status === "Paid"
 
   // La restitution du capital n'est pas une commission : elle se solde à la
@@ -63,26 +65,28 @@ export function CommissionSidebarActionsPlacement({
             <Eye className="h-5 w-5 mr-2" />
             Voir le reçu
           </Button>
-          <Button
-            onClick={onDownloadReceipt}
-            variant="outline"
-            className="w-full h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-300"
-            disabled={isGeneratingReceipt}
-          >
-            {isGeneratingReceipt ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Génération en cours...
-              </>
-            ) : (
-              <>
-                <Download className="h-5 w-5 mr-2" />
-                Télécharger le reçu PDF
-              </>
-            )}
-          </Button>
+          {canDownloadDocuments && (
+            <Button
+              onClick={onDownloadReceipt}
+              variant="outline"
+              className="w-full h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-300"
+              disabled={isGeneratingReceipt}
+            >
+              {isGeneratingReceipt ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Génération en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="h-5 w-5 mr-2" />
+                  Télécharger le reçu PDF
+                </>
+              )}
+            </Button>
+          )}
         </div>
-      ) : (
+      ) : canRecordPayments ? (
         <div className="space-y-3">
           <Button 
             onClick={onRecordPayment} 
@@ -100,6 +104,11 @@ export function CommissionSidebarActionsPlacement({
             <span>Une preuve de paiement sera demandée</span>
           </div>
         </div>
+      ) : (
+        // L'agent de recouvrement relance le membre ; l'encaissement reste aux administrateurs.
+        <p className="rounded-xl border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-500">
+          Encaissement réservé aux administrateurs.
+        </p>
       )}
     </div>
   )

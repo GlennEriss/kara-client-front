@@ -19,12 +19,13 @@ import {
 
 // ================== TYPES POUR LES ADMINS ==================
 
-export type AdminRole = 'SuperAdmin' | 'Admin' | 'Secretary'
+export type AdminRole = 'SuperAdmin' | 'Admin' | 'Secretary' | 'AgentRecouvrement'
 
 export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   SuperAdmin: 'Super Administrateur',
   Admin: 'Administrateur',
   Secretary: 'Secrétaire',
+  AgentRecouvrement: 'Agent de recouvrement',
 }
 
 export interface AdminUser {

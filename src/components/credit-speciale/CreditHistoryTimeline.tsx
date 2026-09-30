@@ -1,5 +1,7 @@
 'use client'
 
+import { formatCreditDuration } from '@/utils/credit-weekly'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -186,7 +188,7 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
         type: 'contract',
         date: contractCreatedDate,
         title: 'Contrat créé',
-        description: `Contrat de crédit ${history.contract.creditType} créé avec une durée de ${history.contract.duration} mois`,
+        description: `Contrat de crédit ${history.contract.creditType} créé avec une durée de ${formatCreditDuration(history.contract.duration, history.contract.durationUnit)}`,
         icon: FileSignature,
         color: '#8b5cf6',
         badge: history.contract.status,

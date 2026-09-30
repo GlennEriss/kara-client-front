@@ -10,6 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useMyAccess } from '@/hooks/useMyAccess'
+import { pdfPreviewUrl } from '@/utils/documentPreview'
 import { downloadFile } from '@/utils/downloadFile'
 import { AlertCircle, Download, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
@@ -45,6 +47,7 @@ export default function DocumentViewerModal({
   title = 'Document',
   subtitle,
 }: DocumentViewerModalProps) {
+  const { canDownloadDocuments } = useMyAccess()
   const handleDownload = () => {
     if (!downloadFile(url, filename)) {
       toast.error('URL du document non disponible')
@@ -62,7 +65,10 @@ export default function DocumentViewerModal({
                 <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent truncate">
+                <DialogTitle
+                  title={title}
+                  className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent truncate"
+                >
                   {title}
                 </DialogTitle>
                 {subtitle && (
@@ -73,16 +79,18 @@ export default function DocumentViewerModal({
               </div>
             </div>
           </div>
-          <Button
-            onClick={handleDownload}
-            disabled={!url}
-            className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
-          >
-            <div className="flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              <span className="hidden lg:inline">Télécharger</span>
-            </div>
-          </Button>
+          {canDownloadDocuments && (
+            <Button
+              onClick={handleDownload}
+              disabled={!url}
+              className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
+            >
+              <div className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                <span className="hidden lg:inline">Télécharger</span>
+              </div>
+            </Button>
+          )}
         </DialogHeader>
 
         {/* Contenu principal */}
@@ -113,13 +121,17 @@ export default function DocumentViewerModal({
                     </div>
 
                     <div className="w-full space-y-2">
-                      <Button
-                        onClick={handleDownload}
-                        className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Télécharger
-                      </Button>
+                      {canDownloadDocuments ? (
+                        <Button
+                          onClick={handleDownload}
+                          className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Télécharger
+                        </Button>
+                      ) : (
+                        <p className="text-sm text-gray-500">Téléchargement non autorisé pour votre profil.</p>
+                      )}
                     </div>
 
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
@@ -137,7 +149,7 @@ export default function DocumentViewerModal({
 
               {/* Version desktop : aperçu iframe */}
               <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-                <iframe src={url} className="w-full h-full border-none" title={title} />
+                <iframe src={pdfPreviewUrl(url, canDownloadDocuments)} className="w-full h-full border-none" title={title} />
               </div>
             </>
           )}

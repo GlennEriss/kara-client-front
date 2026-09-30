@@ -6,11 +6,22 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/firebase/firestore'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
-import { moduleViewKey } from '@/constantes/permissions'
+import { AGENT_RECOUVREMENT_PERMISSIONS, moduleViewKey, withImpliedPermissions } from '@/constantes/permissions'
 
 /** Un rôle (string) correspond-il à superAdmin ? (insensible à la casse) */
 function roleIsSuperAdmin(role: unknown): boolean {
   return typeof role === 'string' && role.toLowerCase().replace(/[^a-z]/g, '').includes('superadmin')
+}
+
+function roleIsAgent(role: unknown): boolean {
+  return typeof role === 'string' && role === 'AgentRecouvrement'
+}
+
+function hasAgentRole(data: Record<string, unknown> | undefined): boolean {
+  if (!data) return false
+  const roles = data.roles
+  if (Array.isArray(roles) && roles.some(roleIsAgent)) return true
+  return roleIsAgent(data.role)
 }
 
 function hasSuperAdmin(data: Record<string, unknown> | undefined): boolean {
@@ -22,6 +33,7 @@ function hasSuperAdmin(data: Record<string, unknown> | undefined): boolean {
 
 interface AccessData {
   isSuperAdmin: boolean
+  isAgent: boolean
   permissions: string[]
   /** Le champ `permissions` a-t-il été explicitement défini pour cet admin ? */
   permissionsDefined: boolean
@@ -74,34 +86,49 @@ async function resolveAccess(
   getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>
 ): Promise<AccessData> {
   let isSuperAdmin = false
+  let isAgent = false
   let permissions: string[] = []
   let permissionsDefined = false
 
   const accountDocs = await getAccountDocs(uid, email)
   for (const data of accountDocs) {
     if (hasSuperAdmin(data)) isSuperAdmin = true
+    if (hasAgentRole(data)) isAgent = true
     if (Array.isArray(data.permissions) && !permissionsDefined) {
       permissions = (data.permissions as unknown[]).filter((p): p is string => typeof p === 'string')
       permissionsDefined = true
     }
   }
 
-  // Repli superAdmin : custom claim du token
+  // Repli superAdmin / agent : custom claim du token
   if (!isSuperAdmin) {
     try {
       const res = await getIdTokenResult()
       if (hasSuperAdmin(res.claims)) isSuperAdmin = true
+      if (hasAgentRole(res.claims)) isAgent = true
     } catch {
       // ignore
     }
   }
 
-  return { isSuperAdmin, permissions, permissionsDefined }
+  // L'agent de recouvrement a des droits fixes : ils ne dépendent pas de ce qui
+  // est enregistré sur son compte, pour qu'aucune case cochée ne les élargisse.
+  if (isAgent && !isSuperAdmin) {
+    return { isSuperAdmin, isAgent, permissions: [...AGENT_RECOUVREMENT_PERMISSIONS], permissionsDefined: true }
+  }
+
+  return { isSuperAdmin, isAgent, permissions, permissionsDefined }
 }
 
 export interface MyAccess {
   isLoading: boolean
   isSuperAdmin: boolean
+  /** Compte « Agent de recouvrement » : droits fixes, aucun encaissement. */
+  isAgent: boolean
+  /** Peut enregistrer des encaissements (faux pour l'agent, qui ne fait que relancer). */
+  canRecordPayments: boolean
+  /** Peut télécharger des documents (reçus, preuves, médias) — interdit à l'agent pour l'instant. */
+  canDownloadDocuments: boolean
   /** Ensemble des clés de permission accordées (vide pour un superAdmin — utiliser `can`). */
   permissions: Set<string>
   /** L'admin peut-il effectuer cette action ? (superAdmin → toujours vrai) */
@@ -129,21 +156,25 @@ export function useMyAccess(): MyAccess {
   })
 
   const isSuperAdmin = data?.isSuperAdmin ?? false
+  const isAgent = !isSuperAdmin && (data?.isAgent ?? false)
   // Rétro-compatibilité : un admin sans champ `permissions` explicite conserve l'accès
   // complet (comportement d'avant la fonctionnalité). L'enforcement démarre une fois
   // des permissions enregistrées (même un tableau vide = « aucun accès »).
   const permissionsDefined = data?.permissionsDefined ?? false
-  const permissions = useMemo(() => new Set(data?.permissions ?? []), [data?.permissions])
+  const permissions = useMemo(() => new Set(withImpliedPermissions(data?.permissions ?? [])), [data?.permissions])
 
   return useMemo<MyAccess>(() => {
     const can = (key: string) => isSuperAdmin || !permissionsDefined || permissions.has(key)
     return {
       isLoading: !!user?.uid && isLoading,
       isSuperAdmin,
+      isAgent,
+      canRecordPayments: !isAgent,
+      canDownloadDocuments: !isAgent,
       permissions,
       can,
       canAny: (keys: string[]) => isSuperAdmin || !permissionsDefined || keys.some((k) => permissions.has(k)),
       canModule: (moduleKey: string) => can(moduleViewKey(moduleKey)),
     }
-  }, [isSuperAdmin, permissionsDefined, permissions, isLoading, user?.uid])
+  }, [isSuperAdmin, isAgent, permissionsDefined, permissions, isLoading, user?.uid])
 }

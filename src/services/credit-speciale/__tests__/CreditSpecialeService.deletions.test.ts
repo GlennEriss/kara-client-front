@@ -177,3 +177,62 @@ describe('CreditSpecialeService - deletePayment', () => {
     expect(contractRepository.updateContract).not.toHaveBeenCalled()
   })
 })
+
+describe('CreditSpecialeService - deletePayment (crédit en semaines)', () => {
+  const contract = {
+    id: 'credit-w',
+    creditType: 'SPECIALE',
+    durationUnit: 'WEEKS',
+    status: 'PARTIAL',
+    amount: 100_000,
+    interestRate: 10,
+    monthlyPaymentAmount: 110_000,
+    totalAmount: 110_000,
+    duration: 2,
+    firstPaymentDate: new Date('2026-05-15'),
+    createdAt: new Date('2026-05-01'),
+    restMonths: [],
+    guarantorRemunerationPercentage: 2,
+  }
+  const first = { id: 'M1_credit-w', creditId: 'credit-w', amount: 60_000, paymentDate: new Date('2026-05-20') }
+  const complement = { id: 'M1_credit-w_P2', creditId: 'credit-w', amount: 20_000, paymentDate: new Date('2026-05-25') }
+
+  it('supprimer un complément garde la commission du garant et la pénalité de retard', async () => {
+    const contractRepository = { getContractById: vi.fn().mockResolvedValue(contract), updateContract: vi.fn() }
+    const paymentRepository = {
+      getPaymentById: vi.fn().mockResolvedValue(complement),
+      getPaymentsByCreditId: vi.fn().mockResolvedValue([first, complement]),
+      deletePayment: vi.fn(),
+    }
+    const penaltyRepository = {
+      getPenaltiesByCreditId: vi.fn().mockResolvedValue([{ id: 'pen-late', paid: false, installmentId: 'C1_M1' }]),
+      markPenaltyUnpaid: vi.fn(),
+      deletePenalty: vi.fn(),
+    }
+    const remunerationRepository = {
+      getRemunerationsByCreditId: vi.fn().mockResolvedValue([
+        { id: 'rem-1', month: 1, paymentId: 'M1_credit-w', cycleNumber: 1, createdAt: new Date() },
+      ]),
+      deleteRemuneration: vi.fn(),
+    }
+    const service = new CreditSpecialeService(
+      {} as ICreditDemandRepository,
+      contractRepository as unknown as ICreditContractRepository,
+      paymentRepository as unknown as ICreditPaymentRepository,
+      penaltyRepository as unknown as ICreditPenaltyRepository,
+      remunerationRepository as unknown as IGuarantorRemunerationRepository,
+      {} as IGuarantorPaymentRepository
+    )
+
+    await service.deletePayment('M1_credit-w_P2', 'admin-1')
+
+    expect(paymentRepository.deletePayment).toHaveBeenCalledWith('M1_credit-w_P2')
+    expect(penaltyRepository.deletePenalty).not.toHaveBeenCalled()
+    expect(remunerationRepository.deleteRemuneration).not.toHaveBeenCalled()
+    // Reste dû : 110 000 − 60 000, sans intérêts supplémentaires.
+    expect(contractRepository.updateContract).toHaveBeenCalledWith(
+      'credit-w',
+      expect.objectContaining({ amountPaid: 60_000, amountRemaining: 50_000 })
+    )
+  })
+})

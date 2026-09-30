@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from '@/components/ui/button'
+import { PermissionGate } from '@/components/auth/PermissionGate'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -374,14 +375,16 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
             Actualiser
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={groups.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={groups.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
+          <PermissionGate permission="calendar.export">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={groups.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={groups.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 

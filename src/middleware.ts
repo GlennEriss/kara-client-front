@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import routes from "./constantes/routes";
 
+// Rôles admin (même liste que `ADMIN_ROLES` dans types.ts, recopiée pour ne pas
+// charger ce module dans le middleware Edge).
+const ADMIN_ROLE_CLAIMS = ["Admin", "SuperAdmin", "Secretary", "Administrateur", "AgentRecouvrement"];
+
 /**
  * Liste des routes publiques (accessibles sans authentification)
  */
@@ -104,8 +108,12 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
     }
 
-    // Protection admin basique par rôle (si claim existe)
-    if (sessionValid && isAdmin && role && !String(role).toLowerCase().includes('admin')) {
+    // Protection admin basique par rôle (si claim existe). Le test « contient admin »
+    // excluait Secretary et exclurait AgentRecouvrement : on s'appuie sur la liste officielle.
+    const isAdminRole = !!role && (
+        ADMIN_ROLE_CLAIMS.includes(role) || String(role).toLowerCase().includes('admin')
+    );
+    if (sessionValid && isAdmin && role && !isAdminRole) {
         console.log(`[Middleware] Accès refusé - role=${role} (${pathname})`);
         return NextResponse.redirect(new URL(routes.public.login, request.nextUrl));
     }

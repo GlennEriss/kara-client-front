@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import {
   signataireFillDataParDefaut,
   type SignataireFillData,
@@ -57,6 +58,8 @@ const DocumentSignableWorkspace: React.FC<DocumentSignableWorkspaceProps> = ({
   publication,
 }) => {
   const { user } = useAuth()
+  // L'agent de recouvrement consulte seulement : ni remplissage, ni téléchargement, ni publication.
+  const { canDownloadDocuments, isAgent } = useMyAccess()
   const [isExporting, setIsExporting] = useState(false)
   const [fillData, setFillData] = useState<SignataireFillData>(() =>
     signataireFillDataParDefaut(lieuParDefaut),
@@ -177,7 +180,7 @@ const DocumentSignableWorkspace: React.FC<DocumentSignableWorkspaceProps> = ({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">{enTete}</div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-        {publication && (
+        {publication && !isAgent && (
           <Button
             onClick={handlePublish}
             disabled={isPublishing}
@@ -197,23 +200,25 @@ const DocumentSignableWorkspace: React.FC<DocumentSignableWorkspaceProps> = ({
             )}
           </Button>
         )}
-        <Button
-          onClick={handleDownload}
-          disabled={isExporting}
-          className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg"
-        >
-          {isExporting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Génération...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              Télécharger
-            </>
-          )}
-        </Button>
+        {canDownloadDocuments && (
+          <Button
+            onClick={handleDownload}
+            disabled={isExporting}
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Génération...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Télécharger
+              </>
+            )}
+          </Button>
+        )}
         </div>
       </div>
 
@@ -244,16 +249,20 @@ const DocumentSignableWorkspace: React.FC<DocumentSignableWorkspaceProps> = ({
                 depuis un ordinateur.
               </p>
             </div>
-            <BlobProvider document={pdfDocument}>
-              {({ url, loading }) => (
-                <Button asChild disabled={loading || !url} className="w-full h-11">
-                  <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
-                    <Eye className="w-4 h-4 mr-2" />
-                    Ouvrir dans le navigateur
-                  </a>
-                </Button>
-              )}
-            </BlobProvider>
+            {canDownloadDocuments ? (
+              <BlobProvider document={pdfDocument}>
+                {({ url, loading }) => (
+                  <Button asChild disabled={loading || !url} className="w-full h-11">
+                    <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Ouvrir dans le navigateur
+                    </a>
+                  </Button>
+                )}
+              </BlobProvider>
+            ) : (
+              <p className="text-sm text-gray-500">Consultez ce document depuis un ordinateur.</p>
+            )}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full flex items-start gap-2">
               <Monitor className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
               <p className="text-xs text-blue-700 text-left">
@@ -266,106 +275,108 @@ const DocumentSignableWorkspace: React.FC<DocumentSignableWorkspaceProps> = ({
 
       {/* Desktop : panneau de remplissage + aperçu */}
       <div className="hidden lg:flex h-[calc(100vh-360px)] min-h-[540px] gap-4">
-        <Card className="w-[400px] h-full overflow-y-auto border border-gray-200 shadow-sm">
-          <CardContent className="p-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <PenLine className="w-4 h-4 text-kara-primary-dark" />
-              <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du PDF</h3>
-            </div>
-            {isPreviewRefreshing ? (
-              <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
-            ) : null}
-            <p className="text-[11px] leading-relaxed text-gray-500">
-              Un champ laissé vide s&apos;imprime en pointillés, à compléter à la main après
-              impression.
-            </p>
+        {!isAgent && (
+          <Card className="w-[400px] h-full overflow-y-auto border border-gray-200 shadow-sm">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <PenLine className="w-4 h-4 text-kara-primary-dark" />
+                <h3 className="text-sm font-bold text-kara-primary-dark">Remplissage du PDF</h3>
+              </div>
+              {isPreviewRefreshing ? (
+                <p className="text-[11px] text-kara-primary-dark/70">Aperçu PDF en mise à jour...</p>
+              ) : null}
+              <p className="text-[11px] leading-relaxed text-gray-500">
+                Un champ laissé vide s&apos;imprime en pointillés, à compléter à la main après
+                impression.
+              </p>
 
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-kara-primary-dark">Adoption</p>
-              <div className="space-y-1">
-                <p className="text-[11px] text-gray-600">Lieu</p>
-                <Input
-                  type="text"
-                  value={fillData.lieu}
-                  placeholder={lieuParDefaut}
-                  onChange={(event) =>
-                    setFillData((prev) => ({ ...prev, lieu: event.target.value }))
-                  }
-                  className="h-9"
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-kara-primary-dark">Adoption</p>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-gray-600">Lieu</p>
+                  <Input
+                    type="text"
+                    value={fillData.lieu}
+                    placeholder={lieuParDefaut}
+                    onChange={(event) =>
+                      setFillData((prev) => ({ ...prev, lieu: event.target.value }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-gray-600">Date d&apos;adoption</p>
+                  <Input
+                    type="date"
+                    value={fillData.date}
+                    onChange={(event) =>
+                      setFillData((prev) => ({ ...prev, date: event.target.value }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-kara-primary-dark">Signataires</p>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-gray-600">Nom du Secrétaire Exécutif</p>
+                  <Input
+                    type="text"
+                    value={fillData.secretaireNom}
+                    placeholder="NDONG OBAME Jean Baptiste"
+                    onChange={(event) =>
+                      setFillData((prev) => ({ ...prev, secretaireNom: event.target.value }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-gray-600">Nom du Conseiller Juridique</p>
+                  <Input
+                    type="text"
+                    value={fillData.conseillerNom}
+                    placeholder="MBOUMBA Marie Claire"
+                    onChange={(event) =>
+                      setFillData((prev) => ({ ...prev, conseillerNom: event.target.value }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
+                <SignaturePad
+                  title="Signature du Secrétaire Exécutif"
+                  value={fillData.secretaireSignature}
+                  onChange={(value) => setSignature('secretaireSignature', value)}
+                />
+                <SignaturePad
+                  title="Signature du Conseiller Juridique"
+                  value={fillData.conseillerSignature}
+                  onChange={(value) => setSignature('conseillerSignature', value)}
                 />
               </div>
-              <div className="space-y-1">
-                <p className="text-[11px] text-gray-600">Date d&apos;adoption</p>
-                <Input
-                  type="date"
-                  value={fillData.date}
-                  onChange={(event) =>
-                    setFillData((prev) => ({ ...prev, date: event.target.value }))
-                  }
-                  className="h-9"
-                />
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-kara-primary-dark">Signataires</p>
-              <div className="space-y-1">
-                <p className="text-[11px] text-gray-600">Nom du Secrétaire Exécutif</p>
-                <Input
-                  type="text"
-                  value={fillData.secretaireNom}
-                  placeholder="NDONG OBAME Jean Baptiste"
-                  onChange={(event) =>
-                    setFillData((prev) => ({ ...prev, secretaireNom: event.target.value }))
-                  }
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px] text-gray-600">Nom du Conseiller Juridique</p>
-                <Input
-                  type="text"
-                  value={fillData.conseillerNom}
-                  placeholder="MBOUMBA Marie Claire"
-                  onChange={(event) =>
-                    setFillData((prev) => ({ ...prev, conseillerNom: event.target.value }))
-                  }
-                  className="h-9"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-kara-primary-dark">Signatures numériques</p>
-              <SignaturePad
-                title="Signature du Secrétaire Exécutif"
-                value={fillData.secretaireSignature}
-                onChange={(value) => setSignature('secretaireSignature', value)}
-              />
-              <SignaturePad
-                title="Signature du Conseiller Juridique"
-                value={fillData.conseillerSignature}
-                onChange={(value) => setSignature('conseillerSignature', value)}
-              />
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                skipDebouncePreviewRef.current = true
-                setFillData(signataireFillDataParDefaut(lieuParDefaut))
-              }}
-            >
-              Vider le remplissage
-            </Button>
-          </CardContent>
-        </Card>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  skipDebouncePreviewRef.current = true
+                  setFillData(signataireFillDataParDefaut(lieuParDefaut))
+                }}
+              >
+                Vider le remplissage
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex-1 rounded-xl overflow-hidden border shadow-inner bg-white">
-          <PDFViewer style={{ width: '100%', height: '100%', border: 'none' }}>
+          <PDFViewer showToolbar={canDownloadDocuments} style={{ width: '100%', height: '100%', border: 'none' }}>
             {pdfDocument}
           </PDFViewer>
         </div>

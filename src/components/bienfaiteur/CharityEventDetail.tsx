@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { useCharityEventRealtimeSync } from '@/hooks/bienfaiteur/useCharityEventRealtimeSync'
 import { useCharityEvent, useCharityEventStats } from '@/hooks/bienfaiteur/useCharityEvents'
 import { CHARITY_EVENT_STATUS_LABELS } from '@/types/types'
@@ -27,6 +28,8 @@ interface CharityEventDetailProps {
 
 export default function CharityEventDetail({ eventId }: CharityEventDetailProps) {
   const router = useRouter()
+  const { can } = useMyAccess()
+  const canEdit = can('bienfaiteur.edit')
   useCharityEventRealtimeSync(eventId, true)
   const [activeTab, setActiveTab] = useState('contributions')
   const { data: event, isLoading: isLoadingEvent } = useCharityEvent(eventId)
@@ -138,17 +141,19 @@ export default function CharityEventDetail({ eventId }: CharityEventDetailProps)
             </div>
           </div>
 
-          <div className="absolute right-4 top-4">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="border border-white/25 bg-white/20 text-white backdrop-blur hover:bg-white/25"
-              onClick={() => router.push(routes.admin.bienfaiteurModify(eventId))}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Modifier
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="absolute right-4 top-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="border border-white/25 bg-white/20 text-white backdrop-blur hover:bg-white/25"
+                onClick={() => router.push(routes.admin.bienfaiteurModify(eventId))}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Modifier
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -239,10 +244,12 @@ export default function CharityEventDetail({ eventId }: CharityEventDetailProps)
                   <ImageIcon className="mr-2 h-4 w-4" />
                   Médias
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-xl px-4 py-2 data-[state=active]:bg-[#1f4f67] data-[state=active]:text-white">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Paramètres
-                </TabsTrigger>
+                {canEdit && (
+                  <TabsTrigger value="settings" className="rounded-xl px-4 py-2 data-[state=active]:bg-[#1f4f67] data-[state=active]:text-white">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Paramètres
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
             <span className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-slate-50 to-transparent" />
@@ -282,13 +289,15 @@ export default function CharityEventDetail({ eventId }: CharityEventDetailProps)
             </Card>
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-4">
-            <Card className="border-cyan-100/70 bg-white/75 p-1 shadow-[0_14px_30px_-24px_rgba(16,56,90,0.85)] backdrop-blur-sm">
-              <CardContent className="p-3 sm:p-4">
-                <CharityEventSettings event={event} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {canEdit && (
+            <TabsContent value="settings" className="space-y-4">
+              <Card className="border-cyan-100/70 bg-white/75 p-1 shadow-[0_14px_30px_-24px_rgba(16,56,90,0.85)] backdrop-blur-sm">
+                <CardContent className="p-3 sm:p-4">
+                  <CharityEventSettings event={event} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

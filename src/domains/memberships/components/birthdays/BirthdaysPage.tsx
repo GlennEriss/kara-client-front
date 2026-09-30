@@ -15,6 +15,7 @@
 import { useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { Download, Cake, CalendarClock, CalendarDays, History } from 'lucide-react'
 import { useMemberBirthdays } from '../../hooks/useMemberBirthdays'
 import { BirthdayCard } from './BirthdayCard'
@@ -55,6 +56,7 @@ function BirthdaySection({ title, icon: Icon, accent, members }: BirthdaySection
 }
 
 export function BirthdaysPage() {
+  const { can } = useMyAccess()
   // Tout récupérer (le repository ne pose pas de limite Firestore, il slice côté client)
   const { data: allBirthdays, isLoading } = useMemberBirthdays({ itemsPerPage: 100000 })
 
@@ -169,16 +171,18 @@ export function BirthdaysPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!hasAny}>
-            <Download className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!hasAny}>
-            <Download className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
-        </div>
+        {can('birthdays.export') && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!hasAny}>
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!hasAny}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Contenu */}

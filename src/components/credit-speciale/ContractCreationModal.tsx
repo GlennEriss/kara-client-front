@@ -39,6 +39,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
+import { computeWeeklyCreditTotals, formatCreditDuration } from '@/utils/credit-weekly'
 
 interface ContractCreationModalProps {
   isOpen: boolean
@@ -117,6 +118,8 @@ export default function ContractCreationModal({
       : 'spéciale'
   
   const [currentStep, setCurrentStep] = useState<Step>('summary')
+  const simulationDurationUnit = 'durationUnit' in simulation ? simulation.durationUnit : undefined
+  const isWeeklySimulation = simulationDurationUnit === 'WEEKS'
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2% (peut aller jusqu'à 5%)
@@ -178,6 +181,12 @@ export default function ContractCreationModal({
     const result = simulation
     const firstDate = new Date(result.firstPaymentDate)
     const isCustom = 'monthlyPayments' in result && result.monthlyPayments?.length > 0
+
+    // Crédit en semaines : une seule échéance, capital + intérêts appliqués une fois.
+    if ('durationUnit' in result && result.durationUnit === 'WEEKS') {
+      const { interest, totalAmount } = computeWeeklyCreditTotals(result.amount, result.interestRate)
+      return [{ month: 1, date: firstDate, payment: totalAmount, interest, remaining: 0 }]
+    }
 
     const items: Array<{
       month: number
@@ -289,7 +298,7 @@ export default function ContractCreationModal({
 
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const referenceSchedule = useMemo(() => {
-    if (demand.creditType !== 'SPECIALE') return []
+    if (demand.creditType !== 'SPECIALE' || isWeeklySimulation) return []
     
     const result = simulation
     const monthlyRate = result.interestRate / 100
@@ -451,6 +460,7 @@ export default function ContractCreationModal({
               ? simulation.monthlyPayments[0].amount 
               : simulation.amount / simulation.duration,
           duration: simulation.duration,
+          durationUnit: simulationDurationUnit,
           firstPaymentDate: simulation.firstPaymentDate,
           totalAmount: simulation.totalAmount,
           ...(isCustom ? { customSchedule: simulation.monthlyPayments } : {}),
@@ -579,7 +589,7 @@ export default function ContractCreationModal({
                     <p className="font-bold text-lg">{simulation.amount.toLocaleString('fr-FR')} FCFA</p>
                   </div>
                   <div className="text-center p-2 bg-white rounded-lg">
-                    <p className="text-gray-500">Mensualité</p>
+                    <p className="text-gray-500">{isWeeklySimulation ? 'Montant à l’échéance' : 'Mensualité'}</p>
                     <p className="font-bold text-lg">
                       {'monthlyPayment' in simulation 
                         ? simulation.monthlyPayment.toLocaleString('fr-FR') 
@@ -588,7 +598,7 @@ export default function ContractCreationModal({
                   </div>
                   <div className="text-center p-2 bg-white rounded-lg">
                     <p className="text-gray-500">Durée</p>
-                    <p className="font-bold text-lg">{simulation.duration} mois</p>
+                    <p className="font-bold text-lg">{formatCreditDuration(simulation.duration, simulationDurationUnit)}</p>
                   </div>
                   <div className="text-center p-2 bg-white rounded-lg">
                     <p className="text-gray-500">Total à rembourser</p>
@@ -601,7 +611,11 @@ export default function ContractCreationModal({
             {/* Échéancier calculé */}
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-3 text-sm">Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)</h4>
+                <h4 className="font-semibold mb-3 text-sm">
+                  {isWeeklySimulation
+                    ? 'Échéance unique'
+                    : `Échéancier calculé (${schedule.filter(row => row.payment > 0).length} mois)`}
+                </h4>
                 <div className="max-h-60 overflow-y-auto border rounded-lg">
                   <Table>
                     <TableHeader className="sticky top-0 bg-white">
@@ -946,7 +960,7 @@ export default function ContractCreationModal({
                   <CardTitle className="text-sm">Montant & Durée</CardTitle>
                 </CardHeader>
                 <CardContent className="py-2 text-sm">
-                  <p>{simulation.amount.toLocaleString('fr-FR')} FCFA sur {simulation.duration} mois</p>
+                  <p>{simulation.amount.toLocaleString('fr-FR')} FCFA sur {formatCreditDuration(simulation.duration, simulationDurationUnit)}</p>
                 </CardContent>
               </Card>
 

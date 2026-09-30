@@ -37,6 +37,7 @@ import {
   Users as UsersIcon,
   Vote,
 } from 'lucide-react'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { EVENT_TYPE_LABEL, EventStatusBadge, EventTypeBadge } from './event-meta'
@@ -243,6 +244,8 @@ function EventCard({ event, index = 0 }: { event: Event; index?: number }) {
 }
 
 export function EventsListPage() {
+  const { can } = useMyAccess()
+  const canManage = can('events.manage')
   const [activeTab, setActiveTab] = useState<TabKey>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | EventType>('all')
 
@@ -296,12 +299,14 @@ export function EventsListPage() {
               >
                 <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
               </Button>
-              <Button asChild size="sm" className="flex-1 bg-[#234D65] hover:bg-[#1A3D4F] sm:flex-none">
-                <Link href={routes.admin.eventNew}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Nouvel événement
-                </Link>
-              </Button>
+              {canManage && (
+                <Button asChild size="sm" className="flex-1 bg-[#234D65] hover:bg-[#1A3D4F] sm:flex-none">
+                  <Link href={routes.admin.eventNew}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nouvel événement
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -335,12 +340,14 @@ export function EventsListPage() {
               Créez un événement pour qu&apos;il apparaisse ici. Les membres pourront ensuite le
               consulter et, si vous l&apos;activez, voter pour le lieu.
             </p>
-            <Button asChild className="bg-[#234D65] hover:bg-[#1A3D4F]">
-              <Link href={routes.admin.eventNew}>
-                <Plus className="h-4 w-4 mr-1" />
-                Créer un événement
-              </Link>
-            </Button>
+            {canManage && (
+              <Button asChild className="bg-[#234D65] hover:bg-[#1A3D4F]">
+                <Link href={routes.admin.eventNew}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Créer un événement
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
