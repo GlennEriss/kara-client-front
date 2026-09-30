@@ -1,6 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
+import { computeWeeklyCreditTotals, formatCreditDuration, getWeeklyCreditStartDate, isWeeklyCredit } from '@/utils/credit-weekly'
 
 import { backOr } from '@/lib/backNavigation'
 import { Badge } from '@/components/ui/badge'
@@ -179,14 +180,18 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
 
   // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
-  const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+  const startDate = contract.firstPaymentDate
+    ? isWeeklyCredit(contract)
+      ? getWeeklyCreditStartDate(contract.firstPaymentDate, contract.duration)
+      : new Date(contract.firstPaymentDate)
+    : null
   const endDate = getCreditContractEndDate(contract)
   const statsData: Array<{ title: string; value: string; subtitle?: string; tone?: 'accent' | 'danger' }> = [
     { title: 'Montant emprunté', value: fcfa(contract.amount) },
     {
       // Durée et période : la fiche n'affichait aucune date d'échéancier.
       title: 'Durée',
-      value: `${contract.duration} mois`,
+      value: formatCreditDuration(contract.duration, contract.durationUnit),
       subtitle: startDate && !Number.isNaN(startDate.getTime()) && endDate
         ? `du ${startDate.toLocaleDateString('fr-FR')} au ${endDate.toLocaleDateString('fr-FR')}`
         : undefined,
@@ -292,6 +297,9 @@ export default function CreditContractDetail({
   const { user: _user } = useAuth()
   const [activeTab, setActiveTab] = useState<'payments' | 'penalties' | 'history' | 'losses' | 'guarantor'>('payments')
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
+  // Crédit spécial court terme : une seule échéance, pas de partie fixe, de repos ni de rajout.
+  const isWeekly = isWeeklyCredit(contract)
+  const weeklyTotals = isWeekly ? computeWeeklyCreditTotals(contract.amount, contract.interestRate) : null
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showPaymentSummaryModal, setShowPaymentSummaryModal] = useState(false)
@@ -662,8 +670,9 @@ export default function CreditContractDetail({
   const canExtendContract =
     (contract.creditType === 'FIXE' || contract.creditType === 'SPECIALE') &&
     isContractRepaying &&
-    !contract.rajoutEffectue
-  const canSwitchToFixed = contract.creditType === 'SPECIALE' && isContractRepaying && !hasEnteredFixedPhase
+    !contract.rajoutEffectue &&
+    !isWeekly
+  const canSwitchToFixed = contract.creditType === 'SPECIALE' && isContractRepaying && !hasEnteredFixedPhase && !isWeekly
   const hasRajoutNotice = !!contract.rajoutEffectue && (contract.initialAmount != null || contract.rajoutAmount != null)
   const hasManualFixedNotice = fixedTransitionMeta.mode === 'MANUAL' && !!fixedTransitionMeta.at
   const { data: fixedTransitionAdmin } = useAdmin(fixedTransitionMeta.by || '')
@@ -981,7 +990,8 @@ export default function CreditContractDetail({
   const nextDueIndex = actualSchedule.findIndex(item => item.status === 'DUE')
 
   // Calculer le montant total payé
-  const totalPaidFromSchedule = isSimpleCredit
+  // Crédit simple ou en semaines : tout versement compte, même sur une échéance pas encore soldée.
+  const totalPaidFromSchedule = isSimpleCredit || isWeekly
     ? paymentsForSchedule
         .filter((p) => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
         .reduce((sum, p) => sum + p.amount, 0)
@@ -992,10 +1002,12 @@ export default function CreditContractDetail({
   // Le montant total à rembourser
   const totalAmountToRepay = isSimpleCredit
     ? customRound(contract.totalAmount)
-    : actualSchedule.reduce((sum, item) => sum + item.payment, 0)
+    : weeklyTotals
+      ? weeklyTotals.totalAmount
+      : actualSchedule.reduce((sum, item) => sum + item.payment, 0)
 
   // Calculer le montant restant
-  const realRemainingAmount = isSimpleCredit
+  const realRemainingAmount = isSimpleCredit || isWeekly
     ? Math.max(0, totalAmountToRepay - totalPaidFromSchedule)
     : totalAmountToRepay - totalPaidFromSchedule
 
@@ -2183,7 +2195,8 @@ export default function CreditContractDetail({
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{contract.id}</span>
               </p>
               <p className="text-sm break-words">
-                Taux {contract.interestRate}% · {contract.duration} mois · Mensualité {contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA
+                Taux {contract.interestRate}% · {formatCreditDuration(contract.duration, contract.durationUnit)} ·{' '}
+                {isWeekly ? 'Montant dû' : 'Mensualité'} {contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA
               </p>
               <button
                 type="button"
@@ -2313,9 +2326,12 @@ export default function CreditContractDetail({
                   // Pour l'échéancier après rajout, seuls les paiements >= extendedAt comptent
                   const expectedPayment = dueItems.find((due) => due.month === item.month)?.payment
                     ?? Math.min(contract.monthlyPaymentAmount, item.principal)
-                  const paidAmount = item.status === 'PAID' ? (item.paidAmount ?? 0) : 0
-                  const isPaymentSufficient = paidAmount >= expectedPayment
-                  const percentage = expectedPayment > 0 ? Math.min(100, (paidAmount / expectedPayment) * 100) : 0
+                  // Crédit en semaines : un versement partiel reste affiché sur l'échéance encore due,
+                  // et la progression se mesure sur le total dû.
+                  const paidAmount = item.status === 'PAID' || isWeekly ? (item.paidAmount ?? 0) : 0
+                  const progressTarget = weeklyTotals ? weeklyTotals.totalAmount : expectedPayment
+                  const isPaymentSufficient = paidAmount >= progressTarget
+                  const percentage = progressTarget > 0 ? Math.min(100, (paidAmount / progressTarget) * 100) : 0
                   const paymentForCard = item.status === 'PAID' ? getPaymentForScheduleIndex(index) : null
                   // Seul le dernier mois payé se supprime : les mois suivants dépendent du capital
                   // de celui-ci. Sur un contrat encore en cours, les mois plus anciens montrent le
@@ -2370,7 +2386,7 @@ export default function CreditContractDetail({
                             'rounded-lg px-3 py-1 text-sm font-bold text-white',
                             isRest ? 'bg-blue-600' : 'bg-[#224D62]'
                           )}>
-                            {isRest ? `Mois ${item.month} – Repos` : `Échéance ${item.month}`}
+                            {isRest ? `Mois ${item.month} – Repos` : isWeekly ? 'Échéance unique' : `Échéance ${item.month}`}
                           </div>
                           <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
@@ -2430,7 +2446,7 @@ export default function CreditContractDetail({
 
                               <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
                                 <span className="text-gray-600">Montant global:</span>
-                                <span className="font-semibold text-gray-900">{item.principal.toLocaleString('fr-FR')} FCFA</span>
+                                <span className="font-semibold text-gray-900">{(weeklyTotals ? weeklyTotals.totalAmount : item.principal).toLocaleString('fr-FR')} FCFA</span>
                               </div>
                               {!isSimpleCredit && (
                                 <div className="flex items-center justify-between text-sm">
@@ -2504,6 +2520,7 @@ export default function CreditContractDetail({
                           {item.status === 'DUE' &&
                             !isDisabled &&
                             contract.creditType === 'SPECIALE' &&
+                            !isWeekly &&
                             index === nextDueIndex &&
                             specialHistoryByMonth.get(item.month)?.phase !== 'FIXE' && (
                             <div className="pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
@@ -2942,7 +2959,9 @@ export default function CreditContractDetail({
                           (avant les intérêts du mois). Plus la dette baisse, plus la commission baisse.
                         </p>
                         <p>
-                          La commission court sur les 7 mois de la partie spéciale (hors mois de repos) et s&apos;arrête au passage en partie fixe.
+                          {isWeekly
+                            ? 'Crédit en semaines : la commission est due une seule fois, sur le montant du crédit, au premier versement.'
+                            : 'La commission court sur les 7 mois de la partie spéciale (hors mois de repos) et s’arrête au passage en partie fixe.'}
                           Un rajout ouvre un nouveau cycle qui repart à M1 : le garant regagne alors une commission sur le nouveau capital.
                           Elle n&apos;est pas facturée au client ; c&apos;est l&apos;association qui la verse.
                         </p>
@@ -3591,7 +3610,14 @@ export default function CreditContractDetail({
         creditId={contract.id}
         paymentToEdit={paymentToEdit}
         submitLabel={paymentToEdit ? 'Modifier le versement' : undefined}
-        defaultAmount={paymentToEdit ? paymentToEdit.amount : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount)}
+        defaultAmount={
+          paymentToEdit
+            ? paymentToEdit.amount
+            : isWeekly
+              // Complément éventuel : on propose le reste à payer, pas ce qui a déjà été versé.
+              ? realRemainingAmount
+              : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount)
+        }
         defaultPaymentDate={paymentToEdit ? paymentToEdit.paymentDate : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined)}
         installmentId={paymentToEdit?.installmentId ?? (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined)}
         installmentNumber={paymentToEdit ? getCreditPaymentMonthNumber(contract, paymentToEdit) : (selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined)}

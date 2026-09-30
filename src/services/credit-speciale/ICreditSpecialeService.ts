@@ -1,4 +1,4 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, PaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditDurationUnit, CreditType, CreditPaymentMode, PaymentMode, StandardSimulation, CustomSimulation, Notification, SignedQuittanceUploadData } from "@/types/types";
 import { EmergencyContact } from "@/schemas/emergency-contact.schema";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
@@ -43,6 +43,8 @@ export interface ICreditSpecialeService {
             duration: number;
             firstPaymentDate: Date;
             totalAmount: number;
+            /** 'WEEKS' : crédit spécial court terme (1 à 3 semaines, échéance unique). */
+            durationUnit?: CreditDurationUnit;
             /** Échéancier personnalisé (simulation personnalisée uniquement) */
             customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;

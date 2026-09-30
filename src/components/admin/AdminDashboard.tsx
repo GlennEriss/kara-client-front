@@ -38,6 +38,7 @@ function RoleBadge({ role }: { role: AdminRole }) {
     SuperAdmin: { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
     Admin: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
     Secretary: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+    AgentRecouvrement: { bg: 'bg-teal-50', text: 'text-teal-700', dot: 'bg-teal-500' },
   }
   const variant = variants[role]
 
@@ -79,6 +80,7 @@ const COLORS = {
   SuperAdmin: '#8b5cf6',
   Admin: '#3b82f6',
   Secretary: '#f59e0b',
+  AgentRecouvrement: '#14b8a6',
   active: '#10b981',
   inactive: '#ef4444'
 }
@@ -123,6 +125,7 @@ export default function AdminDashboard() {
       SuperAdmin: 0,
       Admin: 0,
       Secretary: 0,
+      AgentRecouvrement: 0,
     }
     let active = 0
     admins.forEach((a) => {
@@ -331,7 +334,7 @@ export default function AdminDashboard() {
       />
 
       {/* Statistiques compactes - alignées avec caisse imprévue */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
         {[
           { title: 'Total', value: stats.total, color: '#234D65', icon: Users },
           { title: 'Actifs', value: stats.active, color: '#10b981', icon: CheckCircle2 },
@@ -339,6 +342,7 @@ export default function AdminDashboard() {
           { title: 'Super Admins', value: stats.byRole.SuperAdmin, color: '#8b5cf6', icon: ShieldCheck },
           { title: 'Admins', value: stats.byRole.Admin, color: '#3b82f6', icon: Shield },
           { title: 'Secrétaires', value: stats.byRole.Secretary, color: '#f59e0b', icon: Edit3 },
+          { title: 'Agents', value: stats.byRole.AgentRecouvrement, color: '#14b8a6', icon: Users },
         ].map((stat, i) => (
           <div
             key={i}
@@ -458,6 +462,7 @@ export default function AdminDashboard() {
                   <SelectItem value="SuperAdmin">{ADMIN_ROLE_LABELS.SuperAdmin}</SelectItem>
                   <SelectItem value="Admin">{ADMIN_ROLE_LABELS.Admin}</SelectItem>
                   <SelectItem value="Secretary">{ADMIN_ROLE_LABELS.Secretary}</SelectItem>
+                  <SelectItem value="AgentRecouvrement">{ADMIN_ROLE_LABELS.AgentRecouvrement}</SelectItem>
                 </SelectContent>
               </Select>
 

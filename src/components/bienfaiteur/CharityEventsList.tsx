@@ -130,7 +130,7 @@ export default function CharityEventsList() {
           {viewMode === 'table' ? (
             <CharityEventTable
               events={events}
-              onSetOngoing={handleSetOngoing}
+              onSetOngoing={can('bienfaiteur.edit') ? handleSetOngoing : undefined}
               updatingEventId={updatingEventId}
             />
           ) : (
@@ -139,7 +139,7 @@ export default function CharityEventsList() {
                 <CharityEventCard
                   key={event.id}
                   event={event}
-                  onSetOngoing={handleSetOngoing}
+                  onSetOngoing={can('bienfaiteur.edit') ? handleSetOngoing : undefined}
                   updatingEventId={updatingEventId}
                 />
               ))}

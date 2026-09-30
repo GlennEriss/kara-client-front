@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { CharityMedia } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -29,6 +30,7 @@ export default function CharityMediaLightbox({
   onNext,
   currentIndex = 0
 }: CharityMediaLightboxProps) {
+  const { canDownloadDocuments } = useMyAccess()
   // Navigation au clavier
   useEffect(() => {
     if (!isOpen) return
@@ -93,14 +95,16 @@ export default function CharityMediaLightbox({
             <p className="text-gray-400 text-xs mt-1">{formattedDate}</p>
           </div>
           <div className="flex items-center gap-2 ml-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDownload}
-              className="text-white hover:bg-white/20"
-            >
-              <Download className="w-4 h-4" />
-            </Button>
+            {canDownloadDocuments && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownload}
+                className="text-white hover:bg-white/20"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

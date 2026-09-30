@@ -40,6 +40,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
+import WeeklyCreditSimulationPanel from './WeeklyCreditSimulationPanel'
 
 interface CreditSimulationModalProps {
   isOpen: boolean
@@ -60,7 +61,7 @@ export default function CreditSimulationModal({
   lockAmount = false,
   onSimulationComplete
 }: CreditSimulationModalProps) {
-  const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed'>('standard')
+  const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed' | 'weekly'>('standard')
   const [standardResult, setStandardResult] = useState<StandardSimulation | null>(null)
   const [customResult, setCustomResult] = useState<CustomSimulation | null>(null)
   const [proposedResult, setProposedResult] = useState<StandardSimulation | null>(null)
@@ -208,16 +209,19 @@ export default function CreditSimulationModal({
         </DialogHeader>
 
         <Tabs value={simulationType} onValueChange={(v) => {
-          setSimulationType(v as 'standard' | 'custom' | 'proposed')
+          setSimulationType(v as 'standard' | 'custom' | 'proposed' | 'weekly')
           setShowResults(false)
           setStandardResult(null)
           setCustomResult(null)
           setProposedResult(null)
         }}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full ${creditType === 'SPECIALE' ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="standard">Simulation standard</TabsTrigger>
             <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
             <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>
+            {creditType === 'SPECIALE' && (
+              <TabsTrigger value="weekly">Court terme (semaines)</TabsTrigger>
+            )}
           </TabsList>
 
           {/* Simulation standard */}
@@ -629,6 +633,21 @@ export default function CreditSimulationModal({
               />
             )}
           </TabsContent>
+
+          {/* Crédit spécial court terme : 1 à 3 semaines, échéance unique */}
+          {creditType === 'SPECIALE' && (
+            <TabsContent value="weekly" className="space-y-6">
+              <WeeklyCreditSimulationPanel
+                isOpen={isOpen}
+                initialAmount={initialAmount}
+                lockAmount={lockAmount}
+                onUse={(simulation) => {
+                  onSimulationComplete?.(simulation)
+                  onClose()
+                }}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </DialogContent>
     </Dialog>

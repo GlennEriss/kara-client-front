@@ -67,6 +67,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     actions: actions('members', [VIEW, CREATE, EDIT, DELETE, EXPORT]),
   },
   {
+    // Sous-page de Membres, avec son propre droit pour l'ouvrir sans la liste des
+    // membres (agent de recouvrement). Le préfixe plus long l'emporte sur /memberships.
+    key: 'birthdays',
+    label: 'Anniversaires des membres',
+    pathPrefixes: ['/memberships/anniversaires'],
+    actions: actions('birthdays', [VIEW, EXPORT]),
+  },
+  {
     key: 'caisseSpeciale',
     label: 'Caisse Spéciale',
     pathPrefixes: ['/caisse-speciale'],
@@ -208,6 +216,50 @@ export const PERMISSION_MODULES: PermissionModule[] = [
 
 /** Routes toujours accessibles à tout admin connecté (pas de permission requise). */
 export const ALWAYS_ALLOWED_PREFIXES = ['/dashboard']
+
+/**
+ * Droits fixes du rôle « Agent de recouvrement » : consultation du calendrier
+ * (avec appels et messages de rappel, sans encaissement), de Bienfaiteur, des
+ * Événements et des anniversaires des membres (avec les messages de vœux). Imposés quel que soit le contenu de `permissions` en base.
+ */
+export const AGENT_RECOUVREMENT_PERMISSIONS = ['calendar.view', 'bienfaiteur.view', 'events.view', 'birthdays.view'] as const
+
+/**
+ * Droits accordés d'office par un autre : les admins qui voyaient les
+ * anniversaires via « Membres » les gardent sans reconfiguration.
+ */
+export const IMPLIED_PERMISSIONS: Record<string, string> = {
+  'birthdays.view': 'members.view',
+  'birthdays.export': 'members.export',
+}
+
+/** Ajoute aux permissions enregistrées celles qu'elles impliquent. */
+export function withImpliedPermissions(permissions: readonly string[]): string[] {
+  const granted = new Set(permissions)
+  for (const [implied, source] of Object.entries(IMPLIED_PERMISSIONS)) {
+    if (granted.has(source)) granted.add(implied)
+  }
+  return Array.from(granted)
+}
+
+/** Page d'arrivée de l'agent : le tableau de bord agrège des données qui ne le concernent pas. */
+export const AGENT_RECOUVREMENT_HOME = '/calendrier'
+
+/**
+ * Pages d'action protégées par une permission autre que « view » : sans cela,
+ * une URL de création ou de modification resterait ouverte à qui voit le module.
+ */
+export const ACTION_ROUTE_PERMISSIONS: Array<{ pattern: RegExp; permission: string }> = [
+  { pattern: /^\/events\/nouveau\/?$/, permission: 'events.manage' },
+  { pattern: /^\/events\/[^/]+\/edit\/?$/, permission: 'events.manage' },
+  { pattern: /^\/bienfaiteur\/create\/?$/, permission: 'bienfaiteur.create' },
+  { pattern: /^\/bienfaiteur\/[^/]+\/modify\/?$/, permission: 'bienfaiteur.edit' },
+]
+
+/** Permission d'action exigée par une page, ou null. */
+export function requiredActionPermissionForPath(pathname: string): string | null {
+  return ACTION_ROUTE_PERMISSIONS.find((entry) => entry.pattern.test(pathname))?.permission ?? null
+}
 
 /** Toutes les clés de permission existantes (à plat). */
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_MODULES.flatMap((m) => m.actions.map((a) => a.key))

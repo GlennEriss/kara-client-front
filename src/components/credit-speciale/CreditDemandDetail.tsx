@@ -1,5 +1,7 @@
 'use client'
 
+import { formatCreditDuration, isWeeklyCredit } from '@/utils/credit-weekly'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -325,7 +327,7 @@ export default function CreditDemandDetail({
     (sum, item) => sum + item.guarantorAmount,
     0
   )
-  const optimalMonthlyPaymentFor7Months = contract?.creditType === 'SPECIALE'
+  const optimalMonthlyPaymentFor7Months = contract?.creditType === 'SPECIALE' && !isWeeklyCredit(contract)
     ? calculateOptimalMonthlyPaymentFor7Months(contract)
     : null
 
@@ -507,7 +509,7 @@ export default function CreditDemandDetail({
                       </div>
                       <div className="rounded-xl border border-emerald-200 bg-white/70 p-3">
                         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Durée</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">{contract.duration} mois</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{formatCreditDuration(contract.duration, contract.durationUnit)}</p>
                       </div>
                     </div>
 
@@ -526,7 +528,7 @@ export default function CreditDemandDetail({
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-[#224D62]">
                       <Calculator className="h-5 w-5" />
-                      Échéancier calculé ({contract.duration} mois)
+                      Échéancier calculé ({formatCreditDuration(contract.duration, contract.durationUnit)})
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

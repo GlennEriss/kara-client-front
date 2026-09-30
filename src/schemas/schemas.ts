@@ -261,7 +261,7 @@ export const adminLoginDefaultValues: AdminLoginFormData = {
 }
 
 // ================== ADMIN CREATE SCHEMA ==================
-export const AdminRoleEnum = z.enum(['SuperAdmin', 'Admin', 'Secretary'])
+export const AdminRoleEnum = z.enum(['SuperAdmin', 'Admin', 'Secretary', 'AgentRecouvrement'])
 // ================== JOB (PROFESSION) SCHEMA ==================
 export const jobSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(100),

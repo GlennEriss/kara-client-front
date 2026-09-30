@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal'
@@ -19,6 +20,8 @@ interface CharityGroupsSectionProps {
 }
 
 export default function CharityGroupsSection({ eventId }: CharityGroupsSectionProps) {
+  const { can } = useMyAccess()
+  const canEdit = can('bienfaiteur.edit')
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -141,10 +144,12 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
               />
             </div>
 
-            <Button onClick={() => setIsAddOpen(true)} className="h-11 bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter un groupe
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setIsAddOpen(true)} className="h-11 bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter un groupe
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -206,17 +211,19 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
 
                     {/* Bouton supprimer - seulement si 0 contributions */}
                     <div className="pt-3 border-t mt-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setGroupToRemove(group.id)}
-                        disabled={group.contributionsCount > 0}
-                        className={`w-full ${group.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700 hover:bg-red-50'}`}
-                        title={group.contributionsCount > 0 ? 'Impossible de supprimer un groupe ayant des contributions' : 'Retirer ce groupe'}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        {group.contributionsCount > 0 ? 'Contributions existantes' : 'Retirer le groupe'}
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setGroupToRemove(group.id)}
+                          disabled={group.contributionsCount > 0}
+                          className={`w-full ${group.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700 hover:bg-red-50'}`}
+                          title={group.contributionsCount > 0 ? 'Impossible de supprimer un groupe ayant des contributions' : 'Retirer ce groupe'}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          {group.contributionsCount > 0 ? 'Contributions existantes' : 'Retirer le groupe'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -258,10 +265,12 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
           <CardContent className="p-12 text-center text-slate-500">
             <Users className="mx-auto mb-4 h-16 w-16 text-slate-400" />
             <p className="mb-4">Aucun groupe participant pour le moment</p>
-            <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter le premier groupe
-            </Button>
+            {canEdit && (
+              <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-[#1f4f67] to-[#2f7895] text-white hover:opacity-95">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter le premier groupe
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

@@ -5,7 +5,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMyAccess } from '@/hooks/useMyAccess'
-import { requiredViewPermissionForPath } from '@/constantes/permissions'
+import {
+  AGENT_RECOUVREMENT_HOME,
+  requiredActionPermissionForPath,
+  requiredViewPermissionForPath,
+} from '@/constantes/permissions'
 import routes from '@/constantes/routes'
 
 /**
@@ -27,6 +31,8 @@ export function PermissionGate({
   const allowed = permission ? can(permission) : anyOf ? canAny(anyOf) : true
   return <>{allowed ? children : fallback}</>
 }
+
+const isDashboardPath = (pathname: string) => pathname === '/dashboard' || pathname.startsWith('/dashboard/')
 
 /** Écran « Accès refusé » réutilisable. */
 export function AccessDenied() {
@@ -76,14 +82,25 @@ export function RequirePermission({
  */
 export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { can, isLoading } = useMyAccess()
+  const router = useRouter()
+  const { can, isLoading, isAgent } = useMyAccess()
 
-  const required = requiredViewPermissionForPath(pathname || '')
+  const path = pathname || ''
+  const required = requiredViewPermissionForPath(path)
+  const requiredAction = requiredActionPermissionForPath(path)
+  // L'agent n'a pas de tableau de bord : il arrive sur le calendrier.
+  const redirectAgent = !isLoading && isAgent && isDashboardPath(path)
 
+  React.useEffect(() => {
+    if (redirectAgent) router.replace(AGENT_RECOUVREMENT_HOME)
+  }, [redirectAgent, router])
+
+  if (redirectAgent) return null
   // Pas de restriction sur ce chemin → on affiche.
-  if (!required) return <>{children}</>
+  if (!required && !requiredAction) return <>{children}</>
   // On attend la résolution des droits pour éviter un flash « Accès refusé ».
   if (isLoading) return null
-  if (!can(required)) return <AccessDenied />
+  if (required && !can(required)) return <AccessDenied />
+  if (requiredAction && !can(requiredAction)) return <AccessDenied />
   return <>{children}</>
 }

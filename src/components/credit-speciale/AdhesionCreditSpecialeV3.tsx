@@ -26,6 +26,7 @@ import { getNationalityName } from '@/constantes/nationality'
 import type { CreditContract } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
+import { computeWeeklyCreditTotals, formatCreditDuration, isWeeklyCredit } from '@/utils/credit-weekly'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -175,12 +176,19 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
   const creditAmount = contract.totalAmount ?? contract.amount
   const guaranteeAmount = contract.totalAmount || contract.amount
   const firstPaymentDate = toDate(contract.firstPaymentDate)
-  const endDate = firstPaymentDate ? addContractMonths(firstPaymentDate, (contract.duration || 0) - 1) : null
+  // Crédit en semaines : une seule échéance (firstPaymentDate), qui est aussi la fin de la créance.
+  const isWeekly = isWeeklyCredit(contract)
+  const durationLabel = formatCreditDuration(contract.duration, contract.durationUnit)
+  const endDate = firstPaymentDate
+    ? isWeekly ? firstPaymentDate : addContractMonths(firstPaymentDate, (contract.duration || 0) - 1)
+    : null
   const disbursementDate = read(fields.disbursementDate) || EMPTY
 
   const customSchedule = contract.customSchedule && contract.customSchedule.length > 0 ? contract.customSchedule : null
   const schedule = firstPaymentDate
-    ? customSchedule
+    ? isWeekly
+      ? [{ month: 1, date: firstPaymentDate, payment: computeWeeklyCreditTotals(contract.amount, contract.interestRate).totalAmount }]
+      : customSchedule
       ? customSchedule.map(({ month, amount }) => ({ month, date: addContractMonths(firstPaymentDate, month - 1), payment: amount }))
       : calculateSchedule({
           amount: contract.amount,
@@ -227,9 +235,18 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           <Text style={localStyles.amount}>{numberToWords(creditAmount)} FCFA (lettres),</Text>
           <Text style={styles.paragraph}>En date du {disbursementDate}.</Text>
           <Text style={styles.paragraph}>
-            Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de{' '}
-            {contract.duration} mois à compter du {formatDate(firstPaymentDate)}. Jusqu’au{' '}
-            {formatDate(endDate)} date de fin de créance.
+            {isWeekly ? (
+              <>
+                Cette somme doit être restituée à la trésorerie de l’Association en une seule échéance, dans
+                un délai de {durationLabel}, le {formatDate(firstPaymentDate)}, date de fin de créance.
+              </>
+            ) : (
+              <>
+                Cette somme doit être restituée à la trésorerie de l’Association selon un échéancier de{' '}
+                {durationLabel} à compter du {formatDate(firstPaymentDate)}. Jusqu’au{' '}
+                {formatDate(endDate)} date de fin de créance.
+              </>
+            )}
           </Text>
           <Text style={styles.paragraph}>
             En foi de quoi, la présente reconnaissance de dette est signée par les deux parties pour
@@ -269,8 +286,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
 
         <MutuelleSection title="ARTICLE 2 : REMBOURSEMENT DE SOMME">
           <Text style={styles.paragraph}>
-            Le membre s’engage sur l’honneur à rembourser ledit accompagnement en plusieurs échéances
-            mensuelles sous un délai maximum de {contract.duration} mois.
+            {isWeekly
+              ? `Le membre s’engage sur l’honneur à rembourser ledit accompagnement en une seule échéance, sous un délai de ${durationLabel}.`
+              : `Le membre s’engage sur l’honneur à rembourser ledit accompagnement en plusieurs échéances mensuelles sous un délai maximum de ${durationLabel}.`}
           </Text>
           <Text style={styles.paragraph}>Le tableau ci-dessous représente l’échéancier convenu entre les parties.</Text>
           <View style={styles.table}>
@@ -281,22 +299,22 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             </View>
             {schedule.map((item, index) => (
               <View key={item.month} style={[styles.row, ...(index % 2 === 0 ? [localStyles.scheduleBand] : [])]} wrap={false}>
-                <Text style={localStyles.scheduleCell}>{`M${item.month}`}</Text>
+                <Text style={localStyles.scheduleCell}>{isWeekly ? 'Échéance unique' : `M${item.month}`}</Text>
                 <Text style={localStyles.scheduleCell}>{formatDate(item.date)}</Text>
                 <Text style={localStyles.scheduleCell}>{formatAmount(item.payment)}</Text>
               </View>
             ))}
           </View>
           <Text style={[styles.paragraph, { marginTop: 4 }]}>
-            Tout remboursement mensuel portant sur des sommes en dessous de celles prévues dans ledit
-            échéancier est non valable et irrecevable.
+            {isWeekly ? 'Tout remboursement' : 'Tout remboursement mensuel'} portant sur des sommes en dessous de
+            celles prévues dans ledit échéancier est non valable et irrecevable.
           </Text>
         </MutuelleSection>
 
         <MutuelleSection title="ARTICLE 3 : EXIGIBILITÉ DE LA CRÉANCE">
           <Text style={styles.paragraph}>
-            L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur et marque le
-            décompte des intérêts légaux.
+            {isWeekly ? 'L’arrivée de l’échéance' : 'L’arrivée de chaque échéance mensuelle'} vaut d’office mise en
+            demeure du débiteur et marque le décompte des intérêts légaux.
           </Text>
           <Text style={styles.paragraph}>
             Le non-respect des échéanciers expose le membre bénéficiaire à des poursuites judiciaires sous huitaine.
@@ -389,7 +407,9 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
             La caution s’engage sur simple demande adressée par lettre recommandée à exécuter son engagement,
             sans qu’elle use du bénéfice de discussion.
           </Text>
-          <Text style={styles.paragraph}>L’arrivée de chaque échéance mensuelle vaut d’office mise en demeure du débiteur.</Text>
+          <Text style={styles.paragraph}>
+            {isWeekly ? 'L’arrivée de l’échéance' : 'L’arrivée de chaque échéance mensuelle'} vaut d’office mise en demeure du débiteur.
+          </Text>
           <Text style={styles.paragraph}>
             Pour tout litige pouvant naître de l’exécution dudit contrat, les parties donnent compétence
             territoriale au Tribunal de Libreville.

@@ -543,7 +543,7 @@ export type MembershipType = 'adherant' | 'bienfaiteur' | 'sympathisant'
 /**
  * Types de rôles possibles pour un utilisateur
  */
-export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin' | 'SuperAdmin' | 'Secretary'
+export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin' | 'SuperAdmin' | 'Secretary' | 'AgentRecouvrement'
 
 /**
  * Type pour un utilisateur dans la collection users
@@ -1727,6 +1727,12 @@ export interface CreditContractCycle {
 }
 
 /**
+ * Unité de durée d'un crédit : mois (défaut, crédits existants) ou semaines
+ * (crédit spécial court terme de 1 à 3 semaines, remboursé en une seule fois).
+ */
+export type CreditDurationUnit = 'MONTHS' | 'WEEKS'
+
+/**
  * Type pour un contrat de crédit
  */
 export interface CreditContract {
@@ -1746,7 +1752,9 @@ export interface CreditContract {
   interestRate: number
   monthlyPaymentAmount: number
   totalAmount: number // Montant + intérêts
-  duration: number // Durée en mois
+  duration: number // Durée en mois, ou en semaines si `durationUnit` vaut 'WEEKS'
+  /** Absent = 'MONTHS'. 'WEEKS' : une seule échéance, intérêts appliqués une fois. */
+  durationUnit?: CreditDurationUnit
   /** Échéancier personnalisé (simulation personnalisée) : montant par mois. Si présent, le PDF utilise ces montants au lieu de recalculer. */
   customSchedule?: Array<{ month: number; amount: number }>
   firstPaymentDate: Date
@@ -1959,6 +1967,8 @@ export interface StandardSimulation {
   monthlyPayment: number
   firstPaymentDate: Date
   duration: number // Calculé
+  /** Absent = 'MONTHS'. */
+  durationUnit?: CreditDurationUnit
   totalAmount: number // Montant + intérêts
   isValid: boolean // Si respecte les limites (7 mois spéciale, 3 mois aide)
   suggestedMinimumAmount?: number // Si dépasse les limites
@@ -2622,11 +2632,13 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   Sympathisant: 'Sympathisant',
   Admin: 'Administrateur',
   SuperAdmin: 'Super Administrateur',
-  Secretary: 'Secrétaire'
+  Secretary: 'Secrétaire',
+  AgentRecouvrement: 'Agent de recouvrement',
 }
 
 // Rôles considérés comme administrateurs
-export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']
+// L'agent de recouvrement accède à l'espace admin, limité par `AGENT_RECOUVREMENT_PERMISSIONS`.
+export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary', 'AgentRecouvrement']
 
 // Labels pour les statuts de contrats Caisse Imprévue
 export const CONTRACT_CI_STATUS_LABELS: Record<ContractCIStatus, string> = {

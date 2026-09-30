@@ -1,5 +1,5 @@
 import { ICreditSpecialeService, UpdateCreditDemandInput } from "./ICreditSpecialeService";
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, PaymentMode, SignedQuittanceUploadData } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, GuarantorPayment, CreditDemandStatus, CreditContractStatus, CreditDurationUnit, CreditType, CreditPaymentMode, StandardSimulation, CustomSimulation, Notification, PaymentMode, SignedQuittanceUploadData } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -31,6 +31,7 @@ import {
     getNextDueFromCreditSpecialeHistory,
 } from "@/utils/credit-speciale-history";
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
+import { WEEKLY_CREDIT_MAX_WEEKS, isWeeklyCredit } from "@/utils/credit-weekly";
 import {
     buildGuarantorRemunerationDocId,
     getGuarantorRemunerationCycleNumber,
@@ -377,6 +378,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             duration: number;
             firstPaymentDate: Date;
             totalAmount: number;
+            durationUnit?: CreditDurationUnit;
             customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;
             guarantorRemunerationPercentage?: number;
@@ -414,9 +416,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // La prochaine échéance d'un contrat nouvellement créé correspond au premier versement.
         const nextDueAt = new Date(simulationData.firstPaymentDate);
-        const normalizedDuration = demand.creditType === 'SPECIALE'
-            ? Math.min(Math.max(1, simulationData.duration), 7)
-            : simulationData.duration;
+        const isWeekly = demand.creditType === 'SPECIALE' && simulationData.durationUnit === 'WEEKS';
+        const normalizedDuration = isWeekly
+            ? Math.min(Math.max(1, simulationData.duration), WEEKLY_CREDIT_MAX_WEEKS)
+            : demand.creditType === 'SPECIALE'
+                ? Math.min(Math.max(1, simulationData.duration), 7)
+                : simulationData.duration;
         const initialAmountRemaining = demand.creditType === 'SPECIALE'
             ? Math.round(simulationData.amount + (simulationData.amount * simulationData.interestRate / 100))
             : simulationData.totalAmount;
@@ -462,6 +467,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
             totalAmount: simulationData.totalAmount,
             duration: normalizedDuration,
+            ...(isWeekly ? { durationUnit: 'WEEKS' as const } : {}),
             ...(simulationData.customSchedule && simulationData.customSchedule.length > 0
                 ? { customSchedule: simulationData.customSchedule }
                 : {}),
@@ -566,6 +572,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const contract = await this.creditContractRepository.getContractById(creditId);
         if (!contract) {
             throw new Error('Contrat introuvable');
+        }
+        if (isWeeklyCredit(contract)) {
+            throw new Error('Un crédit en semaines ne peut pas avoir de mois de repos.');
         }
         const existing = contract.restMonths ?? [];
         if (existing.some((r) => r.monthNumber === monthNumber)) {
@@ -1314,6 +1323,16 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             remaining = monthHistory.capitalStart;
             interestBeforePayment = monthHistory.interest;
             totalWithInterest = monthHistory.amountDue;
+
+            // Crédit en semaines : les intérêts ne se paient qu'une fois, même si
+            // l'échéance est réglée en plusieurs versements.
+            if (isWeeklyCredit(contract)) {
+                const interestAlreadyPaid = realPayments.reduce(
+                    (sum, existingPayment) => sum + (Number(existingPayment.interestAmount) || 0),
+                    0
+                );
+                interestBeforePayment = Math.max(0, monthHistory.interest - interestAlreadyPaid);
+            }
         }
         
         // Payer d'abord les intérêts, puis le principal (simple crédit: tout en principal)
@@ -1324,7 +1343,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         
         // Générer l'ID personnalisé au format M{mois}_{idContrat}
         // Utiliser l'ID complet du contrat
-        const customPaymentId = buildCreditPaymentId(contract, monthNumber);
+        // Crédit en semaines : un complément sur l'échéance unique ne doit pas
+        // écraser le premier versement, qui porte le même identifiant de mois.
+        const baseCustomPaymentId = buildCreditPaymentId(contract, monthNumber);
+        const existingPaymentIds = new Set(allPayments.map((existingPayment) => existingPayment.id));
+        let customPaymentId = baseCustomPaymentId;
+        if (isWeeklyCredit(contract)) {
+            let suffix = 2;
+            while (existingPaymentIds.has(customPaymentId)) {
+                customPaymentId = `${baseCustomPaymentId}_P${suffix}`;
+                suffix += 1;
+            }
+        }
         console.log('[CreditSpecialeService] ID du paiement généré:', customPaymentId);
         
         // Créer le paiement
@@ -1679,6 +1709,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const cycleNumber = getCurrentCreditContractCycle(contract).cycleNumber;
         const month = getCreditPaymentMonthNumber(contract, payment);
         const installmentKey = `C${cycleNumber}_M${month}`;
+        // Un crédit en semaines peut compter plusieurs versements sur son échéance :
+        // la pénalité de retard et la commission du garant ne tombent que si plus
+        // aucun versement ne reste sur ce mois.
+        const monthKeepsOtherPayments = getCreditPaymentsForCurrentCycle(contract, allPayments).some(
+            (other) => other.id !== payment.id && getCreditPaymentMonthNumber(contract, other) === month
+        );
 
         // Pénalités : celles réglées par ce paiement redeviennent dues ; celle
         // créée pour le retard de ce mois disparaît si elle est impayée (le
@@ -1689,7 +1725,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 if (penalty.paymentId === payment.id) {
                     return this.creditPenaltyRepository.markPenaltyUnpaid(penalty.id, userId);
                 }
-                if (!penalty.paid && penalty.installmentId === installmentKey) {
+                if (!monthKeepsOtherPayments && !penalty.paid && penalty.installmentId === installmentKey) {
                     return this.creditPenaltyRepository.deletePenalty(penalty.id);
                 }
                 return undefined;
@@ -1701,6 +1737,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         await Promise.all(
             remunerations
                 .filter((remuneration) =>
+                    !monthKeepsOtherPayments &&
                     remuneration.month === month &&
                     getGuarantorRemunerationCycleNumber(contract, remuneration) === cycleNumber
                 )
@@ -3157,6 +3194,16 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 return { eligible: false, reason: 'Contrat introuvable', paymentsCount: 0, unpaidPenaltiesCount: 0 };
             }
 
+            if (isWeeklyCredit(contract)) {
+                return {
+                    eligible: false,
+                    reason: 'Un crédit en semaines ne peut pas être augmenté : faites une nouvelle demande.',
+                    currentContract: contract,
+                    paymentsCount: 0,
+                    unpaidPenaltiesCount: 0,
+                };
+            }
+
             // Un seul rajout autorisé par contrat
             if (contract.rajoutEffectue === true) {
                 return {
@@ -3432,6 +3479,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         if (contract.creditType !== 'SPECIALE') {
             throw new Error('Seuls les crédits spéciaux peuvent basculer en partie fixe');
+        }
+
+        if (isWeeklyCredit(contract)) {
+            throw new Error('Un crédit en semaines ne bascule pas en partie fixe.');
         }
 
         const currentCycle = getCreditContractCycles(contract).at(-1);

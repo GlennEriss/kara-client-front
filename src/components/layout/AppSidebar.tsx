@@ -64,6 +64,8 @@ type SidebarItem =
   | {
       title: string;
       url: string;
+      /** Lien de repli quand `url` est interdit (ex. Membres → Anniversaires pour l'agent). */
+      fallbackUrl?: string;
       icon: any;
       children?: undefined;
     }
@@ -92,6 +94,7 @@ const adminMenuItems: SidebarItem[] = [
   {
     title: "Membres",
     url: routes.admin.memberships,
+    fallbackUrl: routes.admin.membershipBirthdays,
     icon: Users,
   },
   {
@@ -340,10 +343,12 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
 
   // Accès de l'admin connecté (superAdmin + permissions fines).
-  const { isSuperAdmin, can } = useMyAccess();
+  const { isSuperAdmin, isAgent, can } = useMyAccess();
 
   // Un item est visible si sa route n'est pas restreinte ou si l'admin a la permission « view ».
+  // L'agent de recouvrement n'a pas de tableau de bord.
   const canSeeUrl = (url: string) => {
+    if (isAgent && (url === "/dashboard" || url.startsWith("/dashboard/"))) return false;
     const required = requiredViewPermissionForPath(url);
     return !required || can(required);
   };
@@ -355,7 +360,8 @@ export function AppSidebar() {
         const children = item.children.filter((c) => canSeeUrl(c.url));
         return children.length > 0 ? { ...item, children } : null;
       }
-      return canSeeUrl(item.url) ? item : null;
+      if (canSeeUrl(item.url)) return item;
+      return item.fallbackUrl && canSeeUrl(item.fallbackUrl) ? { ...item, url: item.fallbackUrl } : null;
     })
     .filter((item): item is SidebarItem => item !== null);
 

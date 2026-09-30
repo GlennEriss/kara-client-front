@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from '@/components/ui/button'
+import { PermissionGate } from '@/components/auth/PermissionGate'
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -189,10 +190,12 @@ export function UpcomingPayoutsList() {
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
             Actualiser
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={payouts.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
+          <PermissionGate permission="calendar.export">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={payouts.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 

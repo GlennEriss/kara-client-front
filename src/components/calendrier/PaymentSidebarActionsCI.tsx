@@ -1,5 +1,6 @@
 "use client"
 
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { Button } from "@/components/ui/button"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
 import { CreditCard, Download, Eye, FileText, Loader2 } from "lucide-react"
@@ -19,6 +20,7 @@ export function PaymentSidebarActionsCI({
   onDownloadReceipt,
   isGeneratingReceipt = false,
 }: PaymentSidebarActionsCIProps) {
+  const { canRecordPayments, canDownloadDocuments } = useMyAccess()
   const isPaid = payment.status === "PAID" || 
                  (payment.status === "PARTIAL" && payment.accumulatedAmount >= payment.targetAmount)
   
@@ -35,26 +37,28 @@ export function PaymentSidebarActionsCI({
             <Eye className="h-5 w-5 mr-2" />
             Voir le reçu
           </Button>
-          <Button
-            onClick={onDownloadReceipt}
-            variant="outline"
-            className="w-full h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-300"
-            disabled={isGeneratingReceipt}
-          >
-            {isGeneratingReceipt ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Génération en cours...
-              </>
-            ) : (
-              <>
-                <Download className="h-5 w-5 mr-2" />
-                Télécharger le reçu PDF
-              </>
-            )}
-          </Button>
+          {canDownloadDocuments && (
+            <Button
+              onClick={onDownloadReceipt}
+              variant="outline"
+              className="w-full h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-300"
+              disabled={isGeneratingReceipt}
+            >
+              {isGeneratingReceipt ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Génération en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="h-5 w-5 mr-2" />
+                  Télécharger le reçu PDF
+                </>
+              )}
+            </Button>
+          )}
         </div>
-      ) : (
+      ) : canRecordPayments ? (
         <div className="space-y-3">
           <Button 
             onClick={onRecordPayment} 
@@ -77,6 +81,11 @@ export function PaymentSidebarActionsCI({
             <span>Une preuve de paiement sera demandée</span>
           </div>
         </div>
+      ) : (
+        // L'agent de recouvrement relance le membre ; l'encaissement reste aux administrateurs.
+        <p className="rounded-xl border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-500">
+          Encaissement réservé aux administrateurs.
+        </p>
       )}
     </div>
   )

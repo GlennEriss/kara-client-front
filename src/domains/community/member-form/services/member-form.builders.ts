@@ -241,6 +241,7 @@ function buildSpecialCreditCycleEntries(params: {
   const cycleContract = {
     amount: cycle.amount,
     creditType: contract.creditType,
+    durationUnit: contract.durationUnit,
     createdAt: cycle.startedAt,
     creditCycles: undefined,
     firstPaymentDate: cycle.firstPaymentDate,

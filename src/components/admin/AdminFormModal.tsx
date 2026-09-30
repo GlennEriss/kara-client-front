@@ -8,7 +8,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { AdminUser } from '@/db/admin.db'
-import { createAdminWithId, updateAdmin } from '@/db/admin.db'
+import { ADMIN_ROLE_LABELS, createAdminWithId, updateAdmin } from '@/db/admin.db'
 import { createFile } from '@/db/upload-image.db'
 import { generateMatricule } from '@/db/user.db'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,6 +16,7 @@ import { cn, compressImage, getImageInfo, IMAGE_COMPRESSION_PRESETS } from '@/li
 import { CivilityEnum, GenderEnum } from '@/schemas/identity.schema'
 import { AdminCreateFormData, adminCreateSchema, AdminRoleEnum } from '@/schemas/schemas'
 import { PermissionsEditor } from '@/components/admin/PermissionsEditor'
+import { AGENT_RECOUVREMENT_PERMISSIONS, PERMISSION_MODULES } from '@/constantes/permissions'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Camera, CheckCircle, Loader2 } from 'lucide-react'
@@ -23,6 +24,22 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+
+/** L'agent de recouvrement a un jeu de permissions fixe (lecture seule). */
+const isAgentRole = (roles?: readonly string[]) => (roles || []).includes('AgentRecouvrement')
+
+/** Permissions enregistrées selon le rôle : aucune pour un superAdmin, jeu fixe pour un agent. */
+const permissionsForRoles = (roles: readonly string[] | undefined, permissions: string[] | undefined) => {
+  if ((roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))) return []
+  if (isAgentRole(roles)) return [...AGENT_RECOUVREMENT_PERMISSIONS]
+  return permissions ?? []
+}
+
+/** Calculé à l'affichage : au chargement du module, les constantes importées peuvent ne pas être encore prêtes. */
+const agentAccessSummary = () =>
+  PERMISSION_MODULES.filter((m) => AGENT_RECOUVREMENT_PERMISSIONS.some((key) => key.startsWith(`${m.key}.`)))
+    .map((m) => m.label)
+    .join(', ')
 
 interface AdminFormModalProps {
   isOpen: boolean
@@ -181,7 +198,6 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
           phone = `+241${phone.replace(/[^\d]/g, '').replace(/^0+/, '')}`
         }
 
-        const isSuperAdminRoleEdit = (values.roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))
         await updateAdmin(values.uid, {
           firstName: values.firstName,
           lastName: values.lastName,
@@ -191,7 +207,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
           email: values.email?.trim() ? values.email.trim() : undefined,
           contacts: phone ? [phone] : [],
           roles: values.roles as any,
-          permissions: isSuperAdminRoleEdit ? [] : (values.permissions ?? []),
+          permissions: permissionsForRoles(values.roles, values.permissions),
           photoURL: values.photoURL,
           photoPath: values.photoPath,
         })
@@ -254,7 +270,6 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
       }
 
       // Créer l'admin dans la collection admins avec l'ID = matricule
-      const isSuperAdminRoleCreate = (values.roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))
       await createAdminWithId(matricule, {
         firstName: values.firstName,
         lastName: values.lastName,
@@ -264,7 +279,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         email: values.email?.trim() ? values.email.trim() : undefined,
         contacts: [phone],
         roles: values.roles as any,
-        permissions: isSuperAdminRoleCreate ? [] : (values.permissions ?? []),
+        permissions: permissionsForRoles(values.roles, values.permissions),
         photoURL: uploadedPhotoURL,
         photoPath: uploadedPhotoPath,
         isActive: true,
@@ -482,7 +497,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                     </FormControl>
                     <SelectContent>
                       {AdminRoleEnum.options.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                        <SelectItem key={r} value={r}>{ADMIN_ROLE_LABELS[r] ?? r}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -499,6 +514,15 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                 return (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                     Les super administrateurs disposent de <strong>tous les droits</strong> — aucune permission à configurer.
+                  </div>
+                )
+              }
+              if (isAgentRole(selectedRoles)) {
+                return (
+                  <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs text-teal-800">
+                    Accès fixe de l&apos;agent de recouvrement : <strong>{agentAccessSummary()}</strong>, en
+                    consultation seulement. Dans le calendrier, il peut appeler les membres et envoyer des rappels, sans
+                    enregistrer de paiement.
                   </div>
                 )
               }

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ListPagination } from '@/components/ui/list-pagination'
 import { StatsCard } from '@/components/ui/stats-card'
 import { useCallLogs } from '@/hooks/useCallLogs'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import {
   CALL_OUTCOME_COLORS,
   CALL_OUTCOME_LABELS,
@@ -35,6 +36,8 @@ import { exportRowsToExcel } from '@/utils/excel-export'
 const PAGE_SIZE = 15
 
 export default function CallLogPage() {
+  // Le journal relève du calendrier : mêmes droits d'export.
+  const canExport = useMyAccess().can('calendar.export')
   const { data: logs = [], isLoading, isFetching, refetch } = useCallLogs(1000)
 
   const searchParams = useSearchParams()
@@ -227,24 +230,28 @@ export default function CallLogPage() {
         subtitle="Tous les appels et messages adressés aux retardataires"
         rightSlot={(
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportExcel}
-              className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Excel
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
-              className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              PDF
-            </Button>
+            {canExport && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Excel
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPdf}
+                className="h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

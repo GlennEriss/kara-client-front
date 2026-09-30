@@ -36,3 +36,12 @@ describe('getCreditContractEndDate', () => {
     expect(getCreditContractEndDate({ firstPaymentDate: 'pas une date', duration: 12 })).toBeNull()
   })
 })
+
+describe('getCreditContractEndDate — crédit en semaines', () => {
+  it('retourne l’échéance unique', () => {
+    const end = getCreditContractEndDate({ firstPaymentDate: '2026-05-17', duration: 2, durationUnit: 'WEEKS' })
+    expect(end?.getFullYear()).toBe(2026)
+    expect(end?.getMonth()).toBe(4)
+    expect(end?.getDate()).toBe(17)
+  })
+})

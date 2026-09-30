@@ -1,6 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
+import { isWeeklyCredit } from '@/utils/credit-weekly'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -1311,7 +1312,8 @@ const ListContrats = ({
       matchesRange(contract.monthlyPaymentAmount, filters.monthlyAmountMin, filters.monthlyAmountMax) &&
       matchesRange(contract.amountPaid, filters.paidAmountMin, filters.paidAmountMax) &&
       matchesRange(contract.amountRemaining, filters.remainingAmountMin, filters.remainingAmountMax) &&
-      matchesRange(contract.duration, filters.durationMonthsMin, filters.durationMonthsMax) &&
+      // Un crédit en semaines dure moins d'un mois : il ne compte pas comme « N mois ».
+      matchesRange(isWeeklyCredit(contract) ? 0 : contract.duration, filters.durationMonthsMin, filters.durationMonthsMax) &&
       matchesRange(contract.interestRate, filters.interestRateMin, filters.interestRateMax)
     )
 

@@ -20,6 +20,7 @@ import type {
     CreditPaymentMode,
     PaymentMode,
     SignedQuittanceUploadData,
+    CreditDurationUnit,
 } from '@/types/types'
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
@@ -192,6 +193,7 @@ export function useCreditContractMutations() {
                 duration: number
                 firstPaymentDate: Date
                 totalAmount: number
+                durationUnit?: CreditDurationUnit
                 customSchedule?: Array<{ month: number; amount: number }>
                 emergencyContact?: EmergencyContact
                 guarantorRemunerationPercentage?: number

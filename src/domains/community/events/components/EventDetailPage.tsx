@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import routes from '@/constantes/routes'
 import { useAuth } from '@/domains/auth/hooks'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -58,6 +59,7 @@ interface Props {
 export function EventDetailPage({ eventId }: Props) {
   const router = useRouter()
   const { user } = useAuth()
+  const { can } = useMyAccess()
   const { data: event, isLoading, isError } = useEvent(eventId)
 
   const publish = usePublishEvent()
@@ -95,11 +97,13 @@ export function EventDetailPage({ eventId }: Props) {
     )
   }
 
-  const canPublish = event.status === 'draft'
-  const canEdit = event.status !== 'cancelled' && event.status !== 'completed'
-  const canDelete = event.status === 'draft'
-  const canCancel = event.status !== 'cancelled' && event.status !== 'completed'
-  const canConfirmLocation = event.status === 'poll_open'
+  // Sans events.manage (ex. agent de recouvrement), l'événement est en lecture seule.
+  const canManage = can('events.manage')
+  const canPublish = canManage && event.status === 'draft'
+  const canEdit = canManage && event.status !== 'cancelled' && event.status !== 'completed'
+  const canDelete = canManage && event.status === 'draft'
+  const canCancel = canManage && event.status !== 'cancelled' && event.status !== 'completed'
+  const canConfirmLocation = canManage && event.status === 'poll_open'
 
   const startLabel = format(event.startDate, "EEEE d MMMM yyyy 'à' HH'h'mm", { locale: fr })
   const endLabel = event.endDate
