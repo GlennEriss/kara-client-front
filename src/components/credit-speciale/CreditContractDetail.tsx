@@ -42,7 +42,7 @@ import {
   getCreditPaymentsForCurrentCycle,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
-import { getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
+import { DELETABLE_PAYMENT_CONTRACT_STATUSES, getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import {
   buildGuarantorCommissionBalance,
@@ -164,7 +164,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -177,34 +177,61 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, actu
     ? Math.max(0, customRound(contract.totalAmount - contract.amount))
     : actualSchedule.reduce((sum, item) => sum + item.interest, 0)
 
-  // Même présentation que le contrat Caisse imprévue : une ligne compacte, montants en FCFA.
-  // Le pourcentage remboursé est porté par la barre de progression juste en dessous.
+  // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
+  const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+  const endDate = getCreditContractEndDate(contract)
   const statsData: Array<{ title: string; value: string; subtitle?: string; tone?: 'accent' | 'danger' }> = [
     { title: 'Montant emprunté', value: fcfa(contract.amount) },
+    {
+      // Durée et période : la fiche n'affichait aucune date d'échéancier.
+      title: 'Durée',
+      value: `${contract.duration} mois`,
+      subtitle: startDate && !Number.isNaN(startDate.getTime()) && endDate
+        ? `du ${startDate.toLocaleDateString('fr-FR')} au ${endDate.toLocaleDateString('fr-FR')}`
+        : undefined,
+    },
     { title: 'Montant versé', value: fcfa(contract.amountPaid), tone: 'accent' },
     { title: 'Montant restant', value: fcfa(realRemainingAmount) },
     {
+      title: 'Pourcentage remboursé',
+      value: totalAmountToRepay > 0
+        ? `${((totalPaidFromSchedule / totalAmountToRepay) * 100).toFixed(1)}%`
+        : '0%',
+      subtitle: totalAmountToRepay > 0
+        ? `${Math.round(totalPaidFromSchedule).toLocaleString('fr-FR')} / ${Math.round(totalAmountToRepay).toLocaleString('fr-FR')} FCFA`
+        : 'Aucun paiement enregistré',
+    },
+    {
       title: isSimpleCredit ? 'Intérêt unique' : 'Total intérêts',
       value: fcfa(totalInterest),
+      subtitle: isSimpleCredit
+        ? 'Appliqué une seule fois au démarrage'
+        : `Somme des intérêts de l'échéancier`,
     },
     {
       title: 'Pénalités impayées',
       value: fcfa(unpaidPenaltiesTotal),
-      subtitle: unpaidPenaltiesCount > 0
+      subtitle: unpaidPenaltiesTotal > 0
         ? `${unpaidPenaltiesCount} pénalité${unpaidPenaltiesCount > 1 ? 's' : ''}`
-        : undefined,
+        : 'Aucune pénalité impayée',
       tone: unpaidPenaltiesTotal > 0 ? 'danger' : undefined,
     },
     ...(totalLosses > 0
-      ? [{ title: 'Manque à gagner', value: fcfa(totalLosses), tone: 'danger' as const }]
+      ? [{
+          title: 'Manque à gagner',
+          value: fcfa(totalLosses),
+          subtitle: contract.creditType === 'FIXE'
+            ? 'Pertes après la durée contractuelle'
+            : 'Manque à gagner en partie fixe',
+          tone: 'danger' as const,
+        }]
       : []),
   ]
 
   return (
     <div className={cn(
-      'grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3',
-      statsData.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+      'grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3 lg:grid-cols-4'
     )}>
       {statsData.map((stat) => (
         <div key={stat.title}>
@@ -2193,6 +2220,8 @@ export default function CreditContractDetail({
             contract={contract}
             penalties={penalties} 
             realRemainingAmount={realRemainingAmount}
+            totalPaidFromSchedule={totalPaidFromSchedule}
+            totalAmountToRepay={totalAmountToRepay}
             actualSchedule={actualSchedule}
             totalLosses={totalLosses}
           />
@@ -2288,10 +2317,15 @@ export default function CreditContractDetail({
                   const isPaymentSufficient = paidAmount >= expectedPayment
                   const percentage = expectedPayment > 0 ? Math.min(100, (paidAmount / expectedPayment) * 100) : 0
                   const paymentForCard = item.status === 'PAID' ? getPaymentForScheduleIndex(index) : null
-                  const canDeletePayment =
-                    isSuperAdmin &&
-                    !!paymentForCard &&
-                    getCreditPaymentDeletionBlocker(contract, payments, paymentForCard) === null
+                  // Seul le dernier mois payé se supprime : les mois suivants dépendent du capital
+                  // de celui-ci. Sur un contrat encore en cours, les mois plus anciens montrent le
+                  // bouton grisé avec l'explication, plutôt que de le masquer sans raison.
+                  const deletionBlocker = isSuperAdmin && paymentForCard
+                    ? getCreditPaymentDeletionBlocker(contract, payments, paymentForCard)
+                    : null
+                  const canDeletePayment = isSuperAdmin && !!paymentForCard && deletionBlocker === null
+                  const showBlockedDeletion =
+                    !!deletionBlocker && DELETABLE_PAYMENT_CONTRACT_STATUSES.includes(contract.status)
 
                   const statusConfig = item.status === 'PAID'
                     ? paidAmount === 0
@@ -2336,7 +2370,7 @@ export default function CreditContractDetail({
                             'rounded-lg px-3 py-1 text-sm font-bold text-white',
                             isRest ? 'bg-blue-600' : 'bg-[#224D62]'
                           )}>
-                            M{item.month}
+                            {isRest ? `Mois ${item.month} – Repos` : `Échéance ${item.month}`}
                           </div>
                           <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
@@ -2351,7 +2385,7 @@ export default function CreditContractDetail({
                               Date d&apos;échéance:
                             </span>
                             <span className="font-semibold text-gray-900">
-                              {new Date(item.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              {format(new Date(item.date), 'dd/MM/yyyy', { locale: fr })}
                             </span>
                           </div>
 
@@ -2378,14 +2412,14 @@ export default function CreditContractDetail({
                           ) : (
                             <>
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">À payer:</span>
+                                <span className="text-gray-600">Montant à payer:</span>
                                 <span className="font-semibold text-gray-900">
                                   {expectedPayment.toLocaleString('fr-FR')} FCFA
                                 </span>
                               </div>
 
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">Versé:</span>
+                                <span className="text-gray-600">Montant versé:</span>
                                 <span className={cn(
                                   'font-semibold',
                                   item.status !== 'PAID' ? 'text-gray-400' : isPaymentSufficient ? 'text-green-600' : 'text-red-600'
@@ -2394,11 +2428,22 @@ export default function CreditContractDetail({
                                 </span>
                               </div>
 
+                              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
+                                <span className="text-gray-600">Montant global:</span>
+                                <span className="font-semibold text-gray-900">{item.principal.toLocaleString('fr-FR')} FCFA</span>
+                              </div>
+                              {!isSimpleCredit && (
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-600">Intérêts:</span>
+                                  <span className="font-semibold text-gray-900">{item.interest.toLocaleString('fr-FR')} FCFA</span>
+                                </div>
+                              )}
+
                               {item.status === 'PAID' && item.paymentDate && (
                                 <div className="space-y-1 pt-1 border-t border-gray-200">
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Payé le:</span>
-                                    <span className="font-semibold text-green-600">{formatDate(item.paymentDate)}</span>
+                                    <span className="font-semibold text-green-600">{format(new Date(item.paymentDate), 'dd/MM/yyyy', { locale: fr })}</span>
                                   </div>
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Payé à:</span>
@@ -2524,6 +2569,24 @@ export default function CreditContractDetail({
                                   <Trash2 className="h-3 w-3 mr-1" />
                                   Supprimer
                                 </Button>
+                              )}
+                              {showBlockedDeletion && (
+                                <div className="space-y-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full border-gray-200 text-gray-400"
+                                    disabled
+                                    title={deletionBlocker ?? undefined}
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Supprimer
+                                  </Button>
+                                  <p className="text-center text-[11px] text-gray-500">
+                                    Seul le dernier mois enregistré peut être supprimé : supprimez d&apos;abord les suivants.
+                                  </p>
+                                </div>
                               )}
                             </div>
                           )}
