@@ -2370,7 +2370,7 @@ export default function CreditContractDetail({
                             'rounded-lg px-3 py-1 text-sm font-bold text-white',
                             isRest ? 'bg-blue-600' : 'bg-[#224D62]'
                           )}>
-                            M{item.month}
+                            {isRest ? `Mois ${item.month} – Repos` : `Échéance ${item.month}`}
                           </div>
                           <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
@@ -2385,7 +2385,7 @@ export default function CreditContractDetail({
                               Date d&apos;échéance:
                             </span>
                             <span className="font-semibold text-gray-900">
-                              {new Date(item.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              {format(new Date(item.date), 'dd/MM/yyyy', { locale: fr })}
                             </span>
                           </div>
 
@@ -2412,14 +2412,14 @@ export default function CreditContractDetail({
                           ) : (
                             <>
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">À payer:</span>
+                                <span className="text-gray-600">Montant à payer:</span>
                                 <span className="font-semibold text-gray-900">
                                   {expectedPayment.toLocaleString('fr-FR')} FCFA
                                 </span>
                               </div>
 
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">Versé:</span>
+                                <span className="text-gray-600">Montant versé:</span>
                                 <span className={cn(
                                   'font-semibold',
                                   item.status !== 'PAID' ? 'text-gray-400' : isPaymentSufficient ? 'text-green-600' : 'text-red-600'
@@ -2428,11 +2428,22 @@ export default function CreditContractDetail({
                                 </span>
                               </div>
 
+                              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
+                                <span className="text-gray-600">Montant global:</span>
+                                <span className="font-semibold text-gray-900">{item.principal.toLocaleString('fr-FR')} FCFA</span>
+                              </div>
+                              {!isSimpleCredit && (
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-600">Intérêts:</span>
+                                  <span className="font-semibold text-gray-900">{item.interest.toLocaleString('fr-FR')} FCFA</span>
+                                </div>
+                              )}
+
                               {item.status === 'PAID' && item.paymentDate && (
                                 <div className="space-y-1 pt-1 border-t border-gray-200">
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Payé le:</span>
-                                    <span className="font-semibold text-green-600">{formatDate(item.paymentDate)}</span>
+                                    <span className="font-semibold text-green-600">{format(new Date(item.paymentDate), 'dd/MM/yyyy', { locale: fr })}</span>
                                   </div>
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Payé à:</span>
