@@ -42,7 +42,7 @@ import {
   getCreditPaymentsForCurrentCycle,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
-import { getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
+import { DELETABLE_PAYMENT_CONTRACT_STATUSES, getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import {
   buildGuarantorCommissionBalance,
@@ -164,7 +164,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -177,34 +177,61 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, actu
     ? Math.max(0, customRound(contract.totalAmount - contract.amount))
     : actualSchedule.reduce((sum, item) => sum + item.interest, 0)
 
-  // Même présentation que le contrat Caisse imprévue : une ligne compacte, montants en FCFA.
-  // Le pourcentage remboursé est porté par la barre de progression juste en dessous.
+  // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
+  const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+  const endDate = getCreditContractEndDate(contract)
   const statsData: Array<{ title: string; value: string; subtitle?: string; tone?: 'accent' | 'danger' }> = [
     { title: 'Montant emprunté', value: fcfa(contract.amount) },
+    {
+      // Durée et période : la fiche n'affichait aucune date d'échéancier.
+      title: 'Durée',
+      value: `${contract.duration} mois`,
+      subtitle: startDate && !Number.isNaN(startDate.getTime()) && endDate
+        ? `du ${startDate.toLocaleDateString('fr-FR')} au ${endDate.toLocaleDateString('fr-FR')}`
+        : undefined,
+    },
     { title: 'Montant versé', value: fcfa(contract.amountPaid), tone: 'accent' },
     { title: 'Montant restant', value: fcfa(realRemainingAmount) },
     {
+      title: 'Pourcentage remboursé',
+      value: totalAmountToRepay > 0
+        ? `${((totalPaidFromSchedule / totalAmountToRepay) * 100).toFixed(1)}%`
+        : '0%',
+      subtitle: totalAmountToRepay > 0
+        ? `${Math.round(totalPaidFromSchedule).toLocaleString('fr-FR')} / ${Math.round(totalAmountToRepay).toLocaleString('fr-FR')} FCFA`
+        : 'Aucun paiement enregistré',
+    },
+    {
       title: isSimpleCredit ? 'Intérêt unique' : 'Total intérêts',
       value: fcfa(totalInterest),
+      subtitle: isSimpleCredit
+        ? 'Appliqué une seule fois au démarrage'
+        : `Somme des intérêts de l'échéancier`,
     },
     {
       title: 'Pénalités impayées',
       value: fcfa(unpaidPenaltiesTotal),
-      subtitle: unpaidPenaltiesCount > 0
+      subtitle: unpaidPenaltiesTotal > 0
         ? `${unpaidPenaltiesCount} pénalité${unpaidPenaltiesCount > 1 ? 's' : ''}`
-        : undefined,
+        : 'Aucune pénalité impayée',
       tone: unpaidPenaltiesTotal > 0 ? 'danger' : undefined,
     },
     ...(totalLosses > 0
-      ? [{ title: 'Manque à gagner', value: fcfa(totalLosses), tone: 'danger' as const }]
+      ? [{
+          title: 'Manque à gagner',
+          value: fcfa(totalLosses),
+          subtitle: contract.creditType === 'FIXE'
+            ? 'Pertes après la durée contractuelle'
+            : 'Manque à gagner en partie fixe',
+          tone: 'danger' as const,
+        }]
       : []),
   ]
 
   return (
     <div className={cn(
-      'grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3',
-      statsData.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+      'grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-3 lg:grid-cols-4'
     )}>
       {statsData.map((stat) => (
         <div key={stat.title}>
@@ -2193,6 +2220,8 @@ export default function CreditContractDetail({
             contract={contract}
             penalties={penalties} 
             realRemainingAmount={realRemainingAmount}
+            totalPaidFromSchedule={totalPaidFromSchedule}
+            totalAmountToRepay={totalAmountToRepay}
             actualSchedule={actualSchedule}
             totalLosses={totalLosses}
           />
@@ -2288,10 +2317,15 @@ export default function CreditContractDetail({
                   const isPaymentSufficient = paidAmount >= expectedPayment
                   const percentage = expectedPayment > 0 ? Math.min(100, (paidAmount / expectedPayment) * 100) : 0
                   const paymentForCard = item.status === 'PAID' ? getPaymentForScheduleIndex(index) : null
-                  const canDeletePayment =
-                    isSuperAdmin &&
-                    !!paymentForCard &&
-                    getCreditPaymentDeletionBlocker(contract, payments, paymentForCard) === null
+                  // Seul le dernier mois payé se supprime : les mois suivants dépendent du capital
+                  // de celui-ci. Sur un contrat encore en cours, les mois plus anciens montrent le
+                  // bouton grisé avec l'explication, plutôt que de le masquer sans raison.
+                  const deletionBlocker = isSuperAdmin && paymentForCard
+                    ? getCreditPaymentDeletionBlocker(contract, payments, paymentForCard)
+                    : null
+                  const canDeletePayment = isSuperAdmin && !!paymentForCard && deletionBlocker === null
+                  const showBlockedDeletion =
+                    !!deletionBlocker && DELETABLE_PAYMENT_CONTRACT_STATUSES.includes(contract.status)
 
                   const statusConfig = item.status === 'PAID'
                     ? paidAmount === 0
@@ -2524,6 +2558,24 @@ export default function CreditContractDetail({
                                   <Trash2 className="h-3 w-3 mr-1" />
                                   Supprimer
                                 </Button>
+                              )}
+                              {showBlockedDeletion && (
+                                <div className="space-y-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full border-gray-200 text-gray-400"
+                                    disabled
+                                    title={deletionBlocker ?? undefined}
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Supprimer
+                                  </Button>
+                                  <p className="text-center text-[11px] text-gray-500">
+                                    Seul le dernier mois enregistré peut être supprimé : supprimez d&apos;abord les suivants.
+                                  </p>
+                                </div>
                               )}
                             </div>
                           )}
