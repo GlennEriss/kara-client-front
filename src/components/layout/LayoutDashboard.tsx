@@ -12,9 +12,9 @@ import { useMyAccess } from "@/hooks/useMyAccess";
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  // L'agent de recouvrement ne voit ni la recherche de membres (elle affiche tous
-  // leurs contrats) ni les notifications des autres modules.
-  const { isAgent } = useMyAccess();
+  // La recherche affiche tous les contrats d'un membre : réservée à qui voit les
+  // membres. L'agent de recouvrement ne reçoit pas les notifications des modules.
+  const { isAgent, can } = useMyAccess();
 
   // À chaque changement de page, on remet le conteneur de contenu tout en haut
   // pour que la page s'ouvre sur son header (et non au milieu, scroll hérité).
@@ -37,7 +37,7 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
             </div>
 
             <div className="min-w-0 flex-1 md:flex-none">
-              {!isAgent && <MemberNavbarSearch />}
+              {can("members.view") && <MemberNavbarSearch />}
             </div>
 
             {!isAgent && <NotificationBell />}

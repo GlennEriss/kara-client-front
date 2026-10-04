@@ -1,5 +1,8 @@
+import { requireAdminCaller } from "@/domains/auth/server/requireAdminCaller";
 import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
+import { generateTemporaryPassword } from "@/domains/auth/server/passwords";
+import { ADMIN_ROLES } from "@/types/types";
 
 function normalizePhoneNumber(value: unknown): string | undefined {
     const raw = typeof value === "string" ? value.trim() : "";
@@ -22,15 +25,26 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    try {
-        const { email, password, uid, role, phoneNumber, photoURL, firstName, lastName, civility, birthDate } = await req.json();
+    // Le middleware ne couvre pas /api : la route vérifie elle-même son appelant.
+    const caller = await requireAdminCaller(req, { superAdmin: true });
+    if (caller instanceof NextResponse) return caller;
 
-        if (!uid || !email || !password) {
+    try {
+        const { email, uid, role, phoneNumber, photoURL, firstName, lastName, civility, birthDate } = await req.json();
+
+        if (!uid || !email) {
             return NextResponse.json(
-                { error: "uid, email et password sont requis" },
+                { error: "uid et email sont requis" },
                 { status: 400 }
             );
         }
+        if (!ADMIN_ROLES.includes(role)) {
+            return NextResponse.json({ error: "Rôle administrateur invalide" }, { status: 400 });
+        }
+
+        // Mot de passe temporaire aléatoire (et non plus le matricule, devinable) :
+        // l'admin devra en choisir un nouveau à sa première connexion.
+        const temporaryPassword = generateTemporaryPassword();
 
         // Préparer les données utilisateur en gérant les champs optionnels.
         const userData: {
@@ -43,7 +57,7 @@ export async function POST(req: NextRequest) {
         } = {
             uid,
             email: String(email).trim().toLowerCase(),
-            password,
+            password: temporaryPassword,
             displayName: `${firstName || ''} ${lastName || ''}`.trim(),
         };
 
@@ -64,7 +78,7 @@ export async function POST(req: NextRequest) {
             birthDate
         })
 
-        return NextResponse.json(user);
+        return NextResponse.json({ uid: user.uid, email: user.email, temporaryPassword });
     } catch (error: any) {
         console.error('[create-admin/by-email] échec:', error);
         const code = typeof error?.code === 'string' ? error.code : '';

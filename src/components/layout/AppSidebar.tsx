@@ -16,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import routes from "@/constantes/routes";
-import { requiredViewPermissionForPath, isOpenToAgent } from "@/constantes/permissions";
+import { requiredViewPermissionForPath, isOpenToRestrictedRole } from "@/constantes/permissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAccess } from "@/hooks/useMyAccess";
 import { useLogout } from "@/domains/auth/hooks";
@@ -350,7 +350,7 @@ export function AppSidebar() {
   const canSeeUrl = (url: string) => {
     if (isAgent && (url === "/dashboard" || url.startsWith("/dashboard/"))) return false;
     const required = requiredViewPermissionForPath(url);
-    if (!required) return !isAgent || isOpenToAgent(url);
+    if (!required) return !isAgent || isOpenToRestrictedRole(url);
     return can(required);
   };
 

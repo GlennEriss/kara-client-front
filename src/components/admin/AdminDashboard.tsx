@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { PageHero } from '@/components/ui/page-hero'
 import { PermissionGate } from '@/components/auth/PermissionGate'
+import { downloadAdminCredentialsPdf } from '@/components/admin/adminCredentialsPdf'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { useAuditLogger } from '@/hooks/useAuditLog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,7 +20,7 @@ import { ADMIN_ROLE_LABELS, AdminRole, AdminUser, updateAdminDeep } from '@/db/a
 import { useAdminMutations, useAdmins } from '@/hooks/useAdmins'
 import { useAuth } from '@/hooks/useAuth'
 import { AdminCreateFormData } from '@/schemas/schemas'
-import { Ban, CheckCircle2, Edit3, Loader2, Mail, Phone, RefreshCw, Search, Shield, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
+import { Ban, Car, CheckCircle2, Edit3, KeyRound, Loader2, Mail, Phone, RefreshCw, Search, Shield, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 // recharts chargé à la demande (hors bundle initial du dashboard)
@@ -39,6 +41,7 @@ function RoleBadge({ role }: { role: AdminRole }) {
     Admin: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
     Secretary: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
     AgentRecouvrement: { bg: 'bg-teal-50', text: 'text-teal-700', dot: 'bg-teal-500' },
+    GestionnaireVehicules: { bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
   }
   const variant = variants[role]
 
@@ -81,6 +84,7 @@ const COLORS = {
   Admin: '#3b82f6',
   Secretary: '#f59e0b',
   AgentRecouvrement: '#14b8a6',
+  GestionnaireVehicules: '#f97316',
   active: '#10b981',
   inactive: '#ef4444'
 }
@@ -97,6 +101,10 @@ export default function AdminDashboard() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [adminToDelete, setAdminToDelete] = useState<AdminUser | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [adminToReset, setAdminToReset] = useState<AdminUser | null>(null)
+  const [isResetting, setIsResetting] = useState(false)
+  // Réinitialiser un mot de passe d'admin est réservé au SuperAdmin (vérifié aussi côté serveur).
+  const { isSuperAdmin } = useMyAccess()
 
   const { data, isLoading, error, refetch } = useAdmins(
     {
@@ -126,6 +134,7 @@ export default function AdminDashboard() {
       Admin: 0,
       Secretary: 0,
       AgentRecouvrement: 0,
+      GestionnaireVehicules: 0,
     }
     let active = 0
     admins.forEach((a) => {
@@ -279,6 +288,48 @@ export default function AdminDashboard() {
     }
   }
 
+  /** Nouveau mot de passe temporaire pour l'admin, remis dans un PDF ; il devra le changer à la connexion. */
+  const confirmResetPassword = async () => {
+    if (!adminToReset) return
+    setIsResetting(true)
+    try {
+      const response = await fetch('/api/auth/admin/reset-admin-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: adminToReset.id }),
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        email?: string | null
+        temporaryPassword?: string
+        error?: string
+      }
+      if (!response.ok || !data.temporaryPassword) {
+        throw new Error(data.error || 'Échec de la réinitialisation')
+      }
+      await downloadAdminCredentialsPdf({
+        matricule: adminToReset.id,
+        email: data.email ?? adminToReset.email ?? null,
+        temporaryPassword: data.temporaryPassword,
+      })
+      toast.success('Mot de passe réinitialisé', {
+        description: "Le PDF des identifiants a été téléchargé : remettez-le à l'administrateur.",
+      })
+      log({
+        action: 'update',
+        module: 'admins',
+        moduleLabel: 'Administration',
+        targetType: 'administrateur',
+        targetId: adminToReset.id,
+        description: `Réinitialisation du mot de passe de ${adminToReset.firstName} ${adminToReset.lastName}`.trim(),
+      })
+      setAdminToReset(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Échec de la réinitialisation')
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
   const handleApplySearch = () => {
     setFilters((prev) => ({ ...prev, searchQuery: search.trim() || undefined }))
   }
@@ -312,7 +363,7 @@ export default function AdminDashboard() {
       />
 
       {/* Statistiques compactes - alignées avec caisse imprévue */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2">
         {[
           { title: 'Total', value: stats.total, color: '#234D65', icon: Users },
           { title: 'Actifs', value: stats.active, color: '#10b981', icon: CheckCircle2 },
@@ -321,6 +372,7 @@ export default function AdminDashboard() {
           { title: 'Admins', value: stats.byRole.Admin, color: '#3b82f6', icon: Shield },
           { title: 'Secrétaires', value: stats.byRole.Secretary, color: '#f59e0b', icon: Edit3 },
           { title: 'Agents', value: stats.byRole.AgentRecouvrement, color: '#14b8a6', icon: Users },
+          { title: 'Véhicules', value: stats.byRole.GestionnaireVehicules, color: '#f97316', icon: Car },
         ].map((stat, i) => (
           <div
             key={i}
@@ -441,6 +493,7 @@ export default function AdminDashboard() {
                   <SelectItem value="Admin">{ADMIN_ROLE_LABELS.Admin}</SelectItem>
                   <SelectItem value="Secretary">{ADMIN_ROLE_LABELS.Secretary}</SelectItem>
                   <SelectItem value="AgentRecouvrement">{ADMIN_ROLE_LABELS.AgentRecouvrement}</SelectItem>
+                  <SelectItem value="GestionnaireVehicules">{ADMIN_ROLE_LABELS.GestionnaireVehicules}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -555,6 +608,17 @@ export default function AdminDashboard() {
                         >
                           <CheckCircle2 className="w-4 h-4" />
                         </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAdminToReset(admin)}
+                            className="h-8 w-8 p-0 text-[#234D65]"
+                            title="Réinitialiser le mot de passe"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -627,6 +691,31 @@ export default function AdminDashboard() {
           initialValues={adminToEdit}
         />
       )}
+
+      {/* Confirmation de réinitialisation du mot de passe */}
+      <Dialog open={!!adminToReset} onOpenChange={(open) => !open && !isResetting && setAdminToReset(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+            <DialogDescription>
+              Un nouveau mot de passe temporaire sera généré pour
+              {adminToReset ? ` ${adminToReset.firstName} ${adminToReset.lastName} (#${adminToReset.id})` : ''} et
+              téléchargé dans un PDF à lui remettre. Son mot de passe actuel ne fonctionnera plus et il devra en
+              choisir un nouveau à sa prochaine connexion.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdminToReset(null)} disabled={isResetting}>Annuler</Button>
+            <Button onClick={confirmResetPassword} disabled={isResetting} className="bg-[#234D65] hover:bg-[#1a3a4d]">
+              {isResetting ? (
+                <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Réinitialisation...</span>
+              ) : (
+                'Réinitialiser'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation de suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>

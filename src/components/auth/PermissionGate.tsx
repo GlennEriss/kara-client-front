@@ -6,8 +6,8 @@ import { ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import {
-  AGENT_RECOUVREMENT_HOME,
-  isOpenToAgent,
+  firstAccessiblePath,
+  isOpenToRestrictedRole,
   requiredActionPermissionForPath,
   requiredViewPermissionForPath,
 } from '@/constantes/permissions'
@@ -89,19 +89,23 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
   const path = pathname || ''
   const required = requiredViewPermissionForPath(path)
   const requiredAction = requiredActionPermissionForPath(path)
-  // L'agent n'a pas de tableau de bord : il arrive sur le calendrier.
-  const redirectAgent = !isLoading && isAgent && isDashboardPath(path)
+  // L'agent n'a pas de tableau de bord : il arrive sur sa première page autorisée
+  // (le calendrier avec le modèle agent).
+  const agentHome = isAgent ? firstAccessiblePath(can) : null
+  const redirectAgent = !isLoading && isAgent && isDashboardPath(path) && !!agentHome
 
   React.useEffect(() => {
-    if (redirectAgent) router.replace(AGENT_RECOUVREMENT_HOME)
-  }, [redirectAgent, router])
+    if (redirectAgent && agentHome) router.replace(agentHome)
+  }, [redirectAgent, agentHome, router])
 
   if (redirectAgent) return null
+  // Agent sans aucune page autorisée : pas de repli sur le tableau de bord.
+  if (!isLoading && isAgent && isDashboardPath(path) && !agentHome) return <AccessDenied />
   // Pas de restriction sur ce chemin → on affiche, sauf pour l'agent : seules
   // ses pages explicitement ouvertes lui sont accessibles.
   if (!required && !requiredAction) {
     if (isLoading) return null
-    if (isAgent && !isOpenToAgent(path)) return <AccessDenied />
+    if (isAgent && !isOpenToRestrictedRole(path)) return <AccessDenied />
     return <>{children}</>
   }
   // On attend la résolution des droits pour éviter un flash « Accès refusé ».

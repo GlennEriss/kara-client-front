@@ -19,13 +19,14 @@ import {
 
 // ================== TYPES POUR LES ADMINS ==================
 
-export type AdminRole = 'SuperAdmin' | 'Admin' | 'Secretary' | 'AgentRecouvrement'
+export type AdminRole = 'SuperAdmin' | 'Admin' | 'Secretary' | 'AgentRecouvrement' | 'GestionnaireVehicules'
 
 export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   SuperAdmin: 'Super Administrateur',
   Admin: 'Administrateur',
   Secretary: 'Secrétaire',
   AgentRecouvrement: 'Agent de recouvrement',
+  GestionnaireVehicules: 'Gestionnaire des véhicules',
 }
 
 export interface AdminUser {
@@ -44,6 +45,10 @@ export interface AdminUser {
   createdAt: Date
   updatedAt: Date
   permissions?: string[]
+  /** Format des permissions (voir PERMISSIONS_VERSION) ; absent = fiche ancienne. */
+  permissionsVersion?: number
+  /** Mot de passe temporaire à remplacer à la prochaine connexion. */
+  mustChangePassword?: boolean
   createdBy?: string
   updatedBy?: string
 }
@@ -113,6 +118,8 @@ function mapAdmin(docSnap: any): AdminUser {
     createdAt: toDate(data.createdAt),
     updatedAt: toDate(data.updatedAt),
     permissions: Array.isArray(data.permissions) ? data.permissions : undefined,
+    permissionsVersion: typeof data.permissionsVersion === 'number' ? data.permissionsVersion : undefined,
+    mustChangePassword: data.mustChangePassword === true,
     createdBy: data.createdBy || 'SuperAdmin',
     updatedBy: data.updatedBy || 'SuperAdmin',
   }
@@ -223,6 +230,8 @@ export interface CreateAdminInput {
   contacts: string[] // longueur=1
   roles: AdminRole[] // longueur>=1
   permissions?: string[] // permissions fines (ignorées pour les superAdmins)
+  permissionsVersion?: number
+  mustChangePassword?: boolean
   photoURL?: string | null
   photoPath?: string | null
   isActive?: boolean
