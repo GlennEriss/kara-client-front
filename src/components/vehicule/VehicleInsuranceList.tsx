@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PageHero } from '@/components/ui/page-hero'
 import { useAllMembers } from '@/hooks/useMembers'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
 import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRenewVehicleInsurance, useUpdateVehicleInsurance, useVehicleInsuranceList, useVehicleInsuranceStats } from '@/hooks/vehicule/useVehicleInsurances'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
@@ -63,6 +64,8 @@ const EXPORT_HEADERS = [
 ]
 
 export function VehicleInsuranceList() {
+  const { can } = useMyAccess()
+  const canExport = can('vehicules.export')
   useVehicleInsurancesRealtimeSync(true)
   // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
   const searchParams = useSearchParams()
@@ -298,26 +301,30 @@ export function VehicleInsuranceList() {
         }
         action={
           <div className="flex flex-wrap gap-2 md:gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleExportExcel}
-              disabled={!allItems.length}
-              className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Exporter Excel
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleExportPdf}
-              disabled={!allItems.length}
-              className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Exporter PDF
-            </Button>
+            {canExport && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExportExcel}
+                disabled={!allItems.length}
+                className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Exporter Excel
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExportPdf}
+                disabled={!allItems.length}
+                className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Exporter PDF
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => { refetch(); refetchMembers() }}
@@ -325,14 +332,16 @@ export function VehicleInsuranceList() {
             >
               Actualiser
             </Button>
-            <Button
-              onClick={openCreateModal}
-              disabled={membersLoading}
-              className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvelle assurance
-            </Button>
+            {can('vehicules.create') && (
+              <Button
+                onClick={openCreateModal}
+                disabled={membersLoading}
+                className="bg-white text-[#234D65] hover:bg-white/90 shadow-md"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvelle assurance
+              </Button>
+            )}
           </div>
         }
       />
@@ -351,12 +360,12 @@ export function VehicleInsuranceList() {
         data={list}
         isLoading={isLoading}
         onView={insurance => setDetailInsurance(insurance)}
-        onEdit={openEditModal}
-        onRenew={insurance => {
+        onEdit={can('vehicules.edit') ? openEditModal : undefined}
+        onRenew={can('vehicules.edit') ? insurance => {
           setCurrentInsurance(insurance)
           setIsRenewDialogOpen(true)
-        }}
-        onDelete={setInsuranceToDelete}
+        } : undefined}
+        onDelete={can('vehicules.delete') ? setInsuranceToDelete : undefined}
         onPageChange={setPage}
         onItemsPerPageChange={limit => {
           setPageSize(limit)

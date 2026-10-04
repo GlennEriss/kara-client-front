@@ -16,7 +16,8 @@ import { cn, compressImage, getImageInfo, IMAGE_COMPRESSION_PRESETS } from '@/li
 import { CivilityEnum, GenderEnum } from '@/schemas/identity.schema'
 import { AdminCreateFormData, adminCreateSchema, AdminRoleEnum } from '@/schemas/schemas'
 import { PermissionsEditor } from '@/components/admin/PermissionsEditor'
-import { AGENT_RECOUVREMENT_PERMISSIONS, PERMISSION_MODULES } from '@/constantes/permissions'
+import { downloadAdminCredentialsPdf } from '@/components/admin/adminCredentialsPdf'
+import { PERMISSIONS_VERSION, RESTRICTED_ROLE_TEMPLATES, effectivePermissions, restrictedRoleOf } from '@/constantes/permissions'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Camera, CheckCircle, Loader2 } from 'lucide-react'
@@ -25,21 +26,12 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-/** L'agent de recouvrement a un jeu de permissions fixe (lecture seule). */
-const isAgentRole = (roles?: readonly string[]) => (roles || []).includes('AgentRecouvrement')
+const isSuperAdminRoles = (roles?: readonly string[]) =>
+  (roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))
 
-/** Permissions enregistrées selon le rôle : aucune pour un superAdmin, jeu fixe pour un agent. */
-const permissionsForRoles = (roles: readonly string[] | undefined, permissions: string[] | undefined) => {
-  if ((roles || []).some((r) => String(r).toLowerCase().includes('superadmin'))) return []
-  if (isAgentRole(roles)) return [...AGENT_RECOUVREMENT_PERMISSIONS]
-  return permissions ?? []
-}
-
-/** Calculé à l'affichage : au chargement du module, les constantes importées peuvent ne pas être encore prêtes. */
-const agentAccessSummary = () =>
-  PERMISSION_MODULES.filter((m) => AGENT_RECOUVREMENT_PERMISSIONS.some((key) => key.startsWith(`${m.key}.`)))
-    .map((m) => m.label)
-    .join(', ')
+/** Permissions enregistrées : aucune pour un superAdmin, les cases cochées sinon. */
+const permissionsForRoles = (roles: readonly string[] | undefined, permissions: string[] | undefined) =>
+  isSuperAdminRoles(roles) ? [] : (permissions ?? [])
 
 interface AdminFormModalProps {
   isOpen: boolean
@@ -108,7 +100,14 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         email: initialValues.email ?? '',
         contacts: initialValues.contacts && initialValues.contacts.length > 0 ? [initialValues.contacts[0]] : [''],
         roles: (initialValues.roles as any) ?? ['Admin'],
-        permissions: (initialValues.permissions as any) ?? [],
+        // Une fiche antérieure au format actuel est affichée avec ses droits effectifs,
+        // pour que l'enregistrer ne retire rien sans qu'on l'ait décoché.
+        permissions: initialValues.permissions
+          ? effectivePermissions(initialValues.permissions, {
+              version: initialValues.permissionsVersion,
+              restrictedRole: restrictedRoleOf(initialValues.roles),
+            })
+          : [],
         photoURL: initialValues.photoURL ?? null,
         photoPath: initialValues.photoPath ?? null,
       })
@@ -208,6 +207,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
           contacts: phone ? [phone] : [],
           roles: values.roles as any,
           permissions: permissionsForRoles(values.roles, values.permissions),
+          permissionsVersion: PERMISSIONS_VERSION,
           photoURL: values.photoURL,
           photoPath: values.photoPath,
         })
@@ -254,7 +254,6 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         body: JSON.stringify({
           uid: matricule,
           email: values.email,
-          password: matricule,
           role: values.roles?.[0] || 'Admin',
           civility: values.civility,
           birthDate: values.birthDate,
@@ -268,6 +267,8 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         const errorData = await authResponse.json().catch(() => ({}))
         throw new Error(errorData.error || 'Création Firebase Auth échouée')
       }
+      // Mot de passe temporaire généré par le serveur, remis à l'admin dans un PDF.
+      const { temporaryPassword } = (await authResponse.json()) as { temporaryPassword: string }
 
       // Créer l'admin dans la collection admins avec l'ID = matricule
       await createAdminWithId(matricule, {
@@ -280,11 +281,22 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         contacts: [phone],
         roles: values.roles as any,
         permissions: permissionsForRoles(values.roles, values.permissions),
+        permissionsVersion: PERMISSIONS_VERSION,
         photoURL: uploadedPhotoURL,
         photoPath: uploadedPhotoPath,
         isActive: true,
+        mustChangePassword: true,
         createdBy: user?.uid || 'SuperAdmin'
       })
+
+      try {
+        await downloadAdminCredentialsPdf({ matricule, email: values.email.trim().toLowerCase(), temporaryPassword })
+        toast.success('Identifiants générés', {
+          description: "Le PDF des identifiants a été téléchargé : remettez-le à l'administrateur.",
+        })
+      } catch {
+        toast.error("Compte créé, mais le PDF n'a pas pu être généré : réinitialisez le mot de passe depuis sa carte.")
+      }
 
       await onSubmit({ ...values, contacts: [phone], photoURL: uploadedPhotoURL, photoPath: uploadedPhotoPath } as AdminCreateFormData)
       // Nettoyage des champs après création
@@ -487,8 +499,16 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
                 <FormItem>
                   <FormLabel>Rôle</FormLabel>
                   <Select
-                    onValueChange={(val) => field.onChange([val as z.infer<typeof AdminRoleEnum>])}
-                    defaultValue={field.value?.[0]}
+                    onValueChange={(val) => {
+                      const previous = restrictedRoleOf(field.value)
+                      field.onChange([val as z.infer<typeof AdminRoleEnum>])
+                      // Passage à un rôle restreint : on pré-coche son modèle d'accès, ajustable ensuite.
+                      const template = RESTRICTED_ROLE_TEMPLATES[val]
+                      if (template && val !== previous) {
+                        form.setValue('permissions', [...template], { shouldDirty: true })
+                      }
+                    }}
+                    value={field.value?.[0]}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -509,31 +529,42 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
             {/* Éditeur d'accès fin (masqué pour les superAdmins : ils ont tous les droits) */}
             {(() => {
               const selectedRoles = form.watch('roles') || []
-              const isSuperAdminRole = selectedRoles.some((r) => String(r).toLowerCase().includes('superadmin'))
-              if (isSuperAdminRole) {
+              if (isSuperAdminRoles(selectedRoles)) {
                 return (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                     Les super administrateurs disposent de <strong>tous les droits</strong> — aucune permission à configurer.
                   </div>
                 )
               }
-              if (isAgentRole(selectedRoles)) {
-                return (
-                  <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs text-teal-800">
-                    Accès fixe de l&apos;agent de recouvrement : <strong>{agentAccessSummary()}</strong>, en
-                    consultation seulement. Dans le calendrier, il peut appeler les membres et envoyer des rappels, sans
-                    enregistrer de paiement.
-                  </div>
-                )
-              }
               if (!canManageAdmins) return null
               const permissions = form.watch('permissions') || []
+              const restrictedRole = restrictedRoleOf(selectedRoles)
               return (
                 <FormItem>
                   <FormLabel>Accès &amp; permissions</FormLabel>
                   <FormDescription>
                     Cochez précisément les sections et actions autorisées pour cet administrateur.
                   </FormDescription>
+                  {restrictedRole && (
+                    <div className="flex flex-col gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs text-teal-800 sm:flex-row sm:items-center sm:justify-between">
+                      <span>
+                        Accès du rôle « {ADMIN_ROLE_LABELS[restrictedRole as keyof typeof ADMIN_ROLE_LABELS]} »
+                        pré-cochés : à ajuster pour cette personne. Pas de tableau de bord ni d&apos;accès aux pages
+                        hors de ces modules.
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 shrink-0 border-teal-300 bg-white text-xs text-teal-800"
+                        onClick={() =>
+                          form.setValue('permissions', [...RESTRICTED_ROLE_TEMPLATES[restrictedRole]], { shouldDirty: true })
+                        }
+                      >
+                        Réappliquer le modèle du rôle
+                      </Button>
+                    </div>
+                  )}
                   <PermissionsEditor
                     value={permissions}
                     onChange={(next) => form.setValue('permissions', next, { shouldDirty: true })}

@@ -3,7 +3,7 @@ import routes from "./constantes/routes";
 
 // Rôles admin (même liste que `ADMIN_ROLES` dans types.ts, recopiée pour ne pas
 // charger ce module dans le middleware Edge).
-const ADMIN_ROLE_CLAIMS = ["Admin", "SuperAdmin", "Secretary", "Administrateur", "AgentRecouvrement"];
+const ADMIN_ROLE_CLAIMS = ["Admin", "SuperAdmin", "Secretary", "Administrateur", "AgentRecouvrement", "GestionnaireVehicules"];
 
 /**
  * Liste des routes publiques (accessibles sans authentification)

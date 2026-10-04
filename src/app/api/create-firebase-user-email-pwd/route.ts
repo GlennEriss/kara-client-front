@@ -6,6 +6,7 @@ import { ServiceFactory } from "@/factories/ServiceFactory";
 import { adminAuth } from "@/firebase/adminAuth";
 import type { MembershipType, User, UserRole } from "@/types/types";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminCaller } from "@/domains/auth/server/requireAdminCaller";
 
 /**
  * Convertit un membershipType en UserRole
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
             { status: 503 }
         );
     }
+
+    // Le middleware ne couvre pas /api : la route vérifie elle-même son appelant.
+    const caller = await requireAdminCaller(req);
+    if (caller instanceof NextResponse) return caller;
 
     try {
         const { requestId, adminId, membershipType, companyName, professionName, adhesionPdfURL } = await req.json();

@@ -55,20 +55,33 @@ const styles = StyleSheet.create({
 
 interface IdentifiantsMembrePDFProps {
   data: IdentifiantsPdfData
+  /** Destinataire du document (membre par défaut, ou administrateur). */
+  recipient?: 'membre' | 'administrateur'
+  /** Adresse de la page de connexion, affichée sur le document. */
+  loginUrl?: string
 }
 
 /**
- * Document PDF des identifiants de connexion du membre (matricule, email, mot de passe).
- * Utilisé après réinitialisation du mot de passe à une valeur aléatoire.
+ * Document PDF des identifiants de connexion (matricule, email, mot de passe
+ * temporaire), remis à un membre ou à un administrateur après création du
+ * compte ou réinitialisation du mot de passe.
  */
-export function IdentifiantsMembrePDF({ data }: IdentifiantsMembrePDFProps) {
+export function IdentifiantsMembrePDF({ data, recipient = 'membre', loginUrl }: IdentifiantsMembrePDFProps) {
+  const destinataire = recipient === 'administrateur' ? "à l'administrateur" : 'au membre'
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>Identifiants de connexion</Text>
         <Text style={styles.subtitle}>
-          Association LE KARA – Document à remettre au membre
+          Association LE KARA – Document à remettre {destinataire}
         </Text>
+
+        {loginUrl && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Adresse de connexion</Text>
+            <Text style={styles.value}>{loginUrl}</Text>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Matricule</Text>
@@ -81,12 +94,16 @@ export function IdentifiantsMembrePDF({ data }: IdentifiantsMembrePDFProps) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mot de passe</Text>
+          <Text style={styles.sectionTitle}>Mot de passe temporaire</Text>
           <Text style={styles.value}>{data.motDePasse}</Text>
         </View>
 
+        <Text style={styles.subtitle}>
+          À la première connexion, il faudra choisir un nouveau mot de passe personnel.
+        </Text>
+
         <Text style={styles.footer}>
-          Ce document contient des informations confidentielles. À remettre au membre en main propre ou par un canal sécurisé.
+          Ce document contient des informations confidentielles. À remettre {destinataire} en main propre ou par un canal sécurisé.
         </Text>
       </Page>
     </Document>

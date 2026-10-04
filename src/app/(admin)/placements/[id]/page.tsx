@@ -41,6 +41,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     ArrowLeft,
+    Calendar,
+    CalendarDays,
     DollarSign,
     FileDown,
     FileText,
@@ -406,16 +408,26 @@ const handleGenerateGlobalFacture = async () => {
           </CardHeader>
         </Card>
 
-        {/* Chiffres clés — bande plate, même gabarit que les fiches contrat */}
+        {/* Chiffres clés — une seule bande, dates en sous-titre, comme la Caisse Imprévue */}
         <StatStrip
           stats={[
             {
               title: 'Capital placé',
               value: `${roundFcfa(placement.amount).toLocaleString('fr-FR')} FCFA`,
+              // Remise des fonds : événement distinct du début, hors échéancier.
+              subtitle: placement.handoverDate
+                ? `remis le ${new Date(placement.handoverDate).toLocaleDateString('fr-FR')}${placement.handoverTime ? ` à ${placement.handoverTime}` : ''}`
+                : undefined,
               accent: true,
             },
             { title: 'Taux', value: `${placement.rate}% / mois` },
-            { title: 'Durée', value: `${placement.periodMonths} mois` },
+            {
+              title: 'Durée',
+              value: `${placement.periodMonths} mois`,
+              subtitle: derivedStart && derivedEnd
+                ? `du ${new Date(derivedStart).toLocaleDateString('fr-FR')} au ${new Date(derivedEnd).toLocaleDateString('fr-FR')}`
+                : undefined,
+            },
             {
               title: 'Commissions versées',
               value: `${commissionStats.paidAmount.toLocaleString('fr-FR')} FCFA`,
@@ -427,39 +439,14 @@ const handleGenerateGlobalFacture = async () => {
               value: `${commissionStats.paidCount} / ${commissions.length || '—'}`,
               subtitle: commissionStats.overdueCount > 0
                 ? `${commissionStats.overdueCount} en retard`
-                : undefined,
+                : hasGeneratedCommissions && derivedNext
+                  ? `${nextCommissionLabel} : ${nextDate}`
+                  : undefined,
+              danger: isNextOverdue,
             },
             {
               title: 'Contrat',
               value: hasContract ? 'Téléversé' : 'En attente',
-            },
-          ]}
-        />
-
-        {/* Dates — même bande plate, pour ne pas empiler des cartes */}
-        <StatStrip
-          className="sm:grid-cols-2 lg:grid-cols-4"
-          stats={[
-            {
-              title: 'Début du placement',
-              value: derivedStart ? new Date(derivedStart).toLocaleDateString('fr-FR') : '—',
-            },
-            {
-              title: 'Fin du placement',
-              value: derivedEnd ? new Date(derivedEnd).toLocaleDateString('fr-FR') : '—',
-            },
-            {
-              // Événement distinct du début : n'entre pas dans l'échéancier.
-              title: 'Remise des fonds',
-              value: placement.handoverDate
-                ? `${new Date(placement.handoverDate).toLocaleDateString('fr-FR')}${placement.handoverTime ? ` à ${placement.handoverTime}` : ''}`
-                : '—',
-            },
-            {
-              title: nextCommissionLabel,
-              value: hasGeneratedCommissions ? nextDate : '—',
-              accent: isNextOverdue,
-              danger: isNextOverdue,
             },
           ]}
         />
@@ -471,138 +458,6 @@ const handleGenerateGlobalFacture = async () => {
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Capital / sortie anticipée */}
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-[#234D65]">Capital / Sortie anticipée</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowFinalQuittance(true)}
-                disabled={placement.status !== 'Closed' && !canClosePlacement}
-              >
-                Procès-verbal de liquidation
-              </Button>
-              <Button
-                variant="default"
-                disabled={!canClosePlacement}
-                onClick={() => setShowCloseModal(true)}
-                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
-              >
-                Clôturer le placement
-              </Button>
-              {!earlyExit && placement.status === 'Active' && (
-                <Button
-                  variant="outline"
-                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                  onClick={() => setShowEarlyExitForm(true)}
-                >
-                  Demander retrait anticipé
-                </Button>
-              )}
-              <Button
-                variant="secondary"
-                onClick={() => setShowEarlyExitQuittance(true)}
-                disabled={!earlyExit}
-              >
-                PV de liquidation anticipée
-              </Button>
-              {earlyExit && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAddendumUpload(true)}
-                >
-                  Avenant retrait anticipé
-                </Button>
-              )}
-            </div>
-            {placement.status !== 'Closed' && !canClosePlacement && (
-              <Alert className="border-amber-200 bg-amber-50">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-sm text-amber-800">
-                  {placement.status !== 'Active'
-                    ? 'Clôture indisponible : le placement doit être actif.'
-                    : commissions.length === 0
-                    ? 'Clôture indisponible : aucune commission n’a encore été générée.'
-                    : `Clôture indisponible : ${unpaidCommissions.length} commission${unpaidCommissions.length > 1 ? 's ne sont' : " n’est"} pas encore au statut payé.`}
-                </AlertDescription>
-              </Alert>
-            )}
-            {!earlyExit && (
-              <p className="text-xs text-gray-500">Aucune sortie anticipée enregistrée.</p>
-            )}
-            {earlyExit && (
-              <div className="space-y-3">
-                <p className="text-sm font-semibold text-[#234D65]">Retrait anticipé enregistré</p>
-                <StatStrip
-                  className="sm:grid-cols-2 lg:grid-cols-4"
-                  stats={[
-                    {
-                      title: 'Montant à verser',
-                      value: `${roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA`,
-                      accent: true,
-                    },
-                    {
-                      title: 'Date du versement',
-                      value: earlyExit.paymentDate
-                        ? new Date(earlyExit.paymentDate).toLocaleDateString('fr-FR')
-                        : '—',
-                    },
-                    {
-                      title: 'Moyen de paiement',
-                      value: paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther),
-                    },
-                    ...(earlyExit.paymentMode === 'airtel_money' || earlyExit.paymentMode === 'mobicash'
-                      ? [{
-                          title: 'Frais mobile money',
-                          value: earlyExit.withFees === true
-                            ? 'Avec frais'
-                            : earlyExit.withFees === false
-                              ? 'Sans frais'
-                              : '—',
-                        }]
-                      : []),
-                  ]}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Documents liés */}
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-[#234D65]">Documents liés</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2 text-sm">
-            {placement.contractDocumentId && (
-              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.contractDocumentId!)}>
-                <FileText className="h-4 w-4 mr-1" /> Contrat
-              </Button>
-            )}
-            {(placement.finalQuittanceDocumentId || finalQuittanceId) && (
-              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.finalQuittanceDocumentId || finalQuittanceId!)}>
-                <FileText className="h-4 w-4 mr-1" /> Quittance finale
-              </Button>
-            )}
-            {(placement.earlyExitQuittanceDocumentId || earlyExitQuittanceId) && (
-              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.earlyExitQuittanceDocumentId || earlyExitQuittanceId!)}>
-                <FileText className="h-4 w-4 mr-1" /> Quittance sortie
-              </Button>
-            )}
-            {(placement.earlyExitAddendumDocumentId || earlyExitAddendumId) && (
-              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.earlyExitAddendumDocumentId || earlyExitAddendumId!)}>
-                <FileText className="h-4 w-4 mr-1" /> Avenant retrait
-              </Button>
-            )}
-            {!placement.contractDocumentId && !finalQuittanceId && !earlyExitQuittanceId && !earlyExitAddendumId && (
-              <span className="text-xs text-gray-500">Aucun document lié pour le moment.</span>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Progression des commissions — les montants et actions sont déjà dans
             la bande de chiffres clés et la barre d'actions. */}
@@ -632,15 +487,19 @@ const handleGenerateGlobalFacture = async () => {
           </Card>
         )}
 
-        <Card className="border-0 shadow-md">
+        {/* Échéancier des commissions — même présentation que l'échéancier Caisse Imprévue */}
+        <Card className="border-0 shadow-xl">
           <Tabs
             value={contractTab}
             onValueChange={(value) => setContractTab(value as 'versements' | 'historique')}
             className="w-full"
           >
-            <CardHeader className="space-y-4">
+            <CardHeader className="space-y-4 border-b bg-gradient-to-r from-indigo-50 to-indigo-100/50">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <CardTitle className="text-[#234D65]">Contrat et versements</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-indigo-700">
+                  <Calendar className="h-5 w-5" />
+                  Échéancier des commissions
+                </CardTitle>
                 {contractTab === 'historique' && paidCommissions.length > 0 && (
                   <Button
                     size="sm"
@@ -664,7 +523,7 @@ const handleGenerateGlobalFacture = async () => {
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="p-6">
               <TabsContent value="versements" className="mt-0 space-y-4">
                 {commissions.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-200 p-6 text-sm text-gray-600">
@@ -700,58 +559,134 @@ const handleGenerateGlobalFacture = async () => {
                     </div>
 
                     {commissionViewFormat === 'cards' && (
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {sortedCommissions.map((c) => {
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {sortedCommissions.map((c, index) => {
                           const isPaid = c.status === 'Paid'
                           const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
+                          const canPay = !isPaid && placement.status === 'Active'
+                          // Comme les mois de la Caisse Imprévue : la carte entière ouvre le
+                          // reçu (payée) ou le paiement (à payer).
+                          const openCard = isPaid
+                            ? c.receiptDocumentId ? () => setViewReceiptCommissionId(c.id) : undefined
+                            : canPay ? () => setPayCommissionId(c.id) : undefined
                           return (
-                            <Card key={`sched-${c.id}`} className="border border-gray-100 shadow-sm">
-                              <CardContent className="space-y-2 p-3">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-xs text-gray-500">Échéance</p>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                      {new Date(c.dueDate).toLocaleDateString('fr-FR')}
-                                    </p>
+                            <Card
+                              key={`sched-${c.id}`}
+                              className={cn(
+                                'border-2 transition-all duration-300',
+                                isPaid
+                                  ? 'border-green-200 bg-green-50/50'
+                                  : isOverdue
+                                  ? 'border-red-200 bg-red-50/40'
+                                  : 'border-gray-200',
+                                openCard
+                                  ? 'cursor-pointer hover:-translate-y-1 hover:shadow-lg'
+                                  : 'cursor-default',
+                                !isPaid && !openCard && 'opacity-70'
+                              )}
+                              onClick={openCard}
+                            >
+                              <CardContent className="p-4">
+                                <div className="mb-3 flex items-center justify-between">
+                                  <div className="rounded-lg bg-[#224D62] px-3 py-1 text-sm font-bold text-white">
+                                    C{index + 1}
                                   </div>
-                                  <span
+                                  <Badge
                                     className={cn(
-                                      'rounded-full px-2 py-1 text-[11px] font-semibold',
+                                      'border',
                                       isPaid
-                                        ? 'bg-green-100 text-green-700'
+                                        ? 'border-green-200 bg-green-100 text-green-700'
                                         : isOverdue
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-amber-100 text-amber-700'
+                                        ? 'border-red-200 bg-red-100 text-red-700'
+                                        : 'border-amber-200 bg-amber-100 text-amber-700'
                                     )}
                                   >
                                     {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
-                                  </span>
+                                  </Badge>
                                 </div>
-                                <p className="text-sm font-semibold text-gray-700">
-                                  Commission : {roundFcfa(c.amount).toLocaleString('fr-FR')} FCFA
-                                </p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {isPaid && c.proofDocumentId && (
-                                    <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewProofId(c.proofDocumentId!)}>
-                                      <FileText className="mr-1 h-4 w-4" /> Voir preuve
-                                    </Button>
+
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                                    <span className="flex items-center gap-1 text-gray-600">
+                                      <CalendarDays className="h-3 w-3" />
+                                      Date d&apos;échéance:
+                                    </span>
+                                    <span className="font-semibold text-gray-900">
+                                      {new Date(c.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">Commission:</span>
+                                    <span className="font-semibold text-gray-900">
+                                      {roundFcfa(c.amount).toLocaleString('fr-FR')} FCFA
+                                    </span>
+                                  </div>
+
+                                  {isPaid && (
+                                    <div className="space-y-1 border-t border-gray-200 pt-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-600">Versé:</span>
+                                        <span className="font-semibold text-green-600">
+                                          {roundFcfa(c.paidAmount ?? c.amount).toLocaleString('fr-FR')} FCFA
+                                        </span>
+                                      </div>
+                                      {c.paidAt && (
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="text-gray-600">Payé le:</span>
+                                          <span className="font-semibold text-green-600">
+                                            {new Date(c.paidAt).toLocaleDateString('fr-FR')}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
-                                  {isPaid && c.receiptDocumentId && (
-                                    <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewReceiptCommissionId(c.id)}>
-                                      <FileText className="mr-1 h-4 w-4" /> Reçu
-                                    </Button>
-                                  )}
-                                  {!isPaid && placement.status === 'Active' && (
-                                    <Button variant="outline" size="sm" className="text-xs" onClick={() => setPayCommissionId(c.id)}>
-                                      Payer
-                                    </Button>
-                                  )}
-                                  {!isPaid && placement.status !== 'Active' && (
-                                    <span className="text-[11px] text-gray-400">Activer pour payer</span>
-                                  )}
-                                  {isPaid && !c.proofDocumentId && (
-                                    <span className="text-[11px] text-gray-400">Preuve manquante</span>
-                                  )}
+
+                                  <div
+                                    className="flex flex-col gap-2 border-t border-gray-200 pt-3"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {isPaid && c.receiptDocumentId && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full border-[#234D65] text-[#234D65] hover:bg-[#234D65]/10"
+                                        onClick={() => setViewReceiptCommissionId(c.id)}
+                                      >
+                                        <Receipt className="mr-1 h-3 w-3" />
+                                        Voir le reçu
+                                      </Button>
+                                    )}
+                                    {isPaid && c.proofDocumentId && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() => setViewProofId(c.proofDocumentId!)}
+                                      >
+                                        <FileText className="mr-1 h-3 w-3" />
+                                        Voir la preuve
+                                      </Button>
+                                    )}
+                                    {canPay && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white"
+                                        onClick={() => setPayCommissionId(c.id)}
+                                      >
+                                        Payer
+                                      </Button>
+                                    )}
+                                    {!isPaid && placement.status !== 'Active' && (
+                                      <span className="text-center text-[11px] text-gray-400">Activer pour payer</span>
+                                    )}
+                                    {isPaid && !c.proofDocumentId && (
+                                      <span className="text-center text-[11px] text-gray-400">Preuve manquante</span>
+                                    )}
+                                  </div>
                                 </div>
                               </CardContent>
                             </Card>
@@ -982,6 +917,138 @@ const handleGenerateGlobalFacture = async () => {
               </TabsContent>
             </CardContent>
           </Tabs>
+        </Card>
+
+        {/* Capital / sortie anticipée */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Capital / Sortie anticipée</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowFinalQuittance(true)}
+                disabled={placement.status !== 'Closed' && !canClosePlacement}
+              >
+                Procès-verbal de liquidation
+              </Button>
+              <Button
+                variant="default"
+                disabled={!canClosePlacement}
+                onClick={() => setShowCloseModal(true)}
+                className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white hover:from-[#1a3a4d] hover:to-[#234D65]"
+              >
+                Clôturer le placement
+              </Button>
+              {!earlyExit && placement.status === 'Active' && (
+                <Button
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  onClick={() => setShowEarlyExitForm(true)}
+                >
+                  Demander retrait anticipé
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => setShowEarlyExitQuittance(true)}
+                disabled={!earlyExit}
+              >
+                PV de liquidation anticipée
+              </Button>
+              {earlyExit && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddendumUpload(true)}
+                >
+                  Avenant retrait anticipé
+                </Button>
+              )}
+            </div>
+            {placement.status !== 'Closed' && !canClosePlacement && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-sm text-amber-800">
+                  {placement.status !== 'Active'
+                    ? 'Clôture indisponible : le placement doit être actif.'
+                    : commissions.length === 0
+                    ? 'Clôture indisponible : aucune commission n’a encore été générée.'
+                    : `Clôture indisponible : ${unpaidCommissions.length} commission${unpaidCommissions.length > 1 ? 's ne sont' : " n’est"} pas encore au statut payé.`}
+                </AlertDescription>
+              </Alert>
+            )}
+            {!earlyExit && (
+              <p className="text-xs text-gray-500">Aucune sortie anticipée enregistrée.</p>
+            )}
+            {earlyExit && (
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-[#234D65]">Retrait anticipé enregistré</p>
+                <StatStrip
+                  className="sm:grid-cols-2 lg:grid-cols-4"
+                  stats={[
+                    {
+                      title: 'Montant à verser',
+                      value: `${roundFcfa(earlyExit.payoutAmount).toLocaleString('fr-FR')} FCFA`,
+                      accent: true,
+                    },
+                    {
+                      title: 'Date du versement',
+                      value: earlyExit.paymentDate
+                        ? new Date(earlyExit.paymentDate).toLocaleDateString('fr-FR')
+                        : '—',
+                    },
+                    {
+                      title: 'Moyen de paiement',
+                      value: paymentModeLabel(earlyExit.paymentMode, earlyExit.paymentMethodOther),
+                    },
+                    ...(earlyExit.paymentMode === 'airtel_money' || earlyExit.paymentMode === 'mobicash'
+                      ? [{
+                          title: 'Frais mobile money',
+                          value: earlyExit.withFees === true
+                            ? 'Avec frais'
+                            : earlyExit.withFees === false
+                              ? 'Sans frais'
+                              : '—',
+                        }]
+                      : []),
+                  ]}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Documents liés */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[#234D65]">Documents liés</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2 text-sm">
+            {placement.contractDocumentId && (
+              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.contractDocumentId!)}>
+                <FileText className="h-4 w-4 mr-1" /> Contrat
+              </Button>
+            )}
+            {(placement.finalQuittanceDocumentId || finalQuittanceId) && (
+              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.finalQuittanceDocumentId || finalQuittanceId!)}>
+                <FileText className="h-4 w-4 mr-1" /> Quittance finale
+              </Button>
+            )}
+            {(placement.earlyExitQuittanceDocumentId || earlyExitQuittanceId) && (
+              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.earlyExitQuittanceDocumentId || earlyExitQuittanceId!)}>
+                <FileText className="h-4 w-4 mr-1" /> Quittance sortie
+              </Button>
+            )}
+            {(placement.earlyExitAddendumDocumentId || earlyExitAddendumId) && (
+              <Button variant="ghost" size="sm" onClick={() => setViewProofId(placement.earlyExitAddendumDocumentId || earlyExitAddendumId!)}>
+                <FileText className="h-4 w-4 mr-1" /> Avenant retrait
+              </Button>
+            )}
+            {!placement.contractDocumentId && !finalQuittanceId && !earlyExitQuittanceId && !earlyExitAddendumId && (
+              <span className="text-xs text-gray-500">Aucun document lié pour le moment.</span>
+            )}
+          </CardContent>
         </Card>
       </div>
 

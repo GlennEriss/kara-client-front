@@ -18,7 +18,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         // Méthode 1 : Vérifier via custom claims (token.role)
         (request.auth.token.role != null && 
-         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement']) ||
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur', 'AgentRecouvrement', 'GestionnaireVehicules']) ||
         // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );

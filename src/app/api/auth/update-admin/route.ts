@@ -1,5 +1,7 @@
+import { requireAdminCaller } from "@/domains/auth/server/requireAdminCaller";
 import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
+import { generateTemporaryPassword } from "@/domains/auth/server/passwords";
 
 function normalizePhoneNumber(value: unknown): string | undefined {
     const raw = typeof value === "string" ? value.trim() : "";
@@ -22,8 +24,12 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    // Le middleware ne couvre pas /api : la route vérifie elle-même son appelant.
+    const caller = await requireAdminCaller(req, { superAdmin: true });
+    if (caller instanceof NextResponse) return caller;
+
     try {
-        const { uid, email, password, role, phoneNumber, photoURL, firstName, lastName, civility, birthDate } = await req.json();
+        const { uid, email, role, phoneNumber, photoURL, firstName, lastName, civility, birthDate } = await req.json();
         
         if (!uid) {
             return NextResponse.json({ error: "UID is required" }, { status: 400 });
@@ -36,10 +42,7 @@ export async function POST(req: NextRequest) {
             updateData.email = email;
         }
         
-        if (password !== undefined) {
-            updateData.password = password;
-        }
-        
+        // Le mot de passe ne se change plus ici : voir /api/auth/admin/reset-admin-password.
         if (firstName && lastName) {
             updateData.displayName = `${firstName} ${lastName}`;
         }
@@ -67,7 +70,8 @@ export async function POST(req: NextRequest) {
             const createData: any = {
                 uid,
                 email: String(email).trim().toLowerCase(),
-                password: password || uid,
+                // Compte réparé : mot de passe aléatoire, à réinitialiser depuis l'administration.
+                password: generateTemporaryPassword(),
                 displayName: `${firstName || ''} ${lastName || ''}`.trim(),
             };
             if (normalizedPhoneNumber) createData.phoneNumber = normalizedPhoneNumber;

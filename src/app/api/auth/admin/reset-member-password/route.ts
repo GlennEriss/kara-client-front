@@ -1,7 +1,8 @@
 import { adminAuth } from '@/firebase/adminAuth'
 import { adminFirestore } from '@/firebase/adminFirestore'
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'node:crypto'
+import { generateTemporaryPassword } from '@/domains/auth/server/passwords'
+import { requireAdminCaller } from '@/domains/auth/server/requireAdminCaller'
 
 /**
  * Email de connexion généré, même schéma que l'ajout d'un membre par l'admin :
@@ -29,21 +30,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const generatePassword = (length: number = 12): string => {
-    // Avoid ambiguous chars and ensure a decent mix.
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?'
-    const pick = () => alphabet[crypto.randomInt(0, alphabet.length)]
-    let pwd = Array.from({ length }, pick).join('')
-
-    // Ensure at least one of each: lower, upper, digit.
-    const hasLower = /[a-z]/.test(pwd)
-    const hasUpper = /[A-Z]/.test(pwd)
-    const hasDigit = /[0-9]/.test(pwd)
-    if (!hasLower || !hasUpper || !hasDigit) {
-      pwd = `${pick()}${pick()}A1a${pwd}`.slice(0, length)
-    }
-    return pwd
-  }
+  // Le middleware ne couvre pas /api : la route vérifie elle-même son appelant.
+  const caller = await requireAdminCaller(req)
+  if (caller instanceof NextResponse) return caller
 
   try {
     const body = await req.json()
@@ -56,7 +45,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const newPassword = generatePassword(12)
+    const newPassword = generateTemporaryPassword()
 
     // Données membre (nom, matricule, email réel) pour générer l'email de connexion.
     let firstName = ''

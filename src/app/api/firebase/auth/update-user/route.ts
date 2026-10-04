@@ -1,3 +1,4 @@
+import { requireAdminCaller } from "@/domains/auth/server/requireAdminCaller";
 import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,6 +12,10 @@ export async function POST(req: NextRequest) {
       { status: 503 }
     );
   }
+
+    // Le middleware ne couvre pas /api : la route vérifie elle-même son appelant.
+    const caller = await requireAdminCaller(req, { superAdmin: true });
+    if (caller instanceof NextResponse) return caller;
 
   try {
     const { uid, phoneNumber, displayName, photoURL, disabled } = await req.json();

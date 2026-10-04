@@ -14,9 +14,10 @@ interface Props {
   data?: VehicleInsuranceListResult
   isLoading: boolean
   onView: (insurance: VehicleInsurance) => void
-  onEdit: (insurance: VehicleInsurance) => void
-  onRenew: (insurance: VehicleInsurance) => void
-  onDelete: (insurance: VehicleInsurance) => void
+  /** Absents = action non autorisée (bouton masqué). */
+  onEdit?: (insurance: VehicleInsurance) => void
+  onRenew?: (insurance: VehicleInsurance) => void
+  onDelete?: (insurance: VehicleInsurance) => void
   onPageChange: (page: number) => void
   onItemsPerPageChange: (limit: number) => void
 }
@@ -169,15 +170,21 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                       <Button variant="ghost" size="icon" onClick={() => onView(item)}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onRenew(item)}>
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => onDelete(item)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {onEdit && (
+                        <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onRenew && (
+                        <Button variant="ghost" size="icon" onClick={() => onRenew(item)}>
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => onDelete(item)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 )

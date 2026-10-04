@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { VehicleInsurance } from '@/types/types'
 import { Download, Phone } from 'lucide-react'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props) {
+  const { canDownloadDocuments } = useMyAccess()
   if (!insurance) return null
 
   const holderFirstName = (insurance.holderType === 'member' ? insurance.memberFirstName : insurance.nonMemberFirstName) || ''
@@ -173,7 +175,7 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
             </>
           )}
 
-          {insurance.attachments && (insurance.attachments.policyUrl || insurance.attachments.receiptUrl) && (
+          {canDownloadDocuments && insurance.attachments && (insurance.attachments.policyUrl || insurance.attachments.receiptUrl) && (
             <>
               <Separator />
               <section className="space-y-2">

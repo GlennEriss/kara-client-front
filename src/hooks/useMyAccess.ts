@@ -6,22 +6,17 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/firebase/firestore'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
-import { AGENT_RECOUVREMENT_PERMISSIONS, moduleViewKey, withImpliedPermissions } from '@/constantes/permissions'
+import { effectivePermissions, moduleViewKey, restrictedRoleOf } from '@/constantes/permissions'
 
 /** Un rôle (string) correspond-il à superAdmin ? (insensible à la casse) */
 function roleIsSuperAdmin(role: unknown): boolean {
   return typeof role === 'string' && role.toLowerCase().replace(/[^a-z]/g, '').includes('superadmin')
 }
 
-function roleIsAgent(role: unknown): boolean {
-  return typeof role === 'string' && role === 'AgentRecouvrement'
-}
-
-function hasAgentRole(data: Record<string, unknown> | undefined): boolean {
-  if (!data) return false
-  const roles = data.roles
-  if (Array.isArray(roles) && roles.some(roleIsAgent)) return true
-  return roleIsAgent(data.role)
+/** Rôle restreint (agent de recouvrement, gestionnaire des véhicules) porté par un document ou un token. */
+function restrictedRoleFrom(data: Record<string, unknown> | undefined): string | null {
+  if (!data) return null
+  return restrictedRoleOf(Array.isArray(data.roles) ? data.roles : null, data.role)
 }
 
 function hasSuperAdmin(data: Record<string, unknown> | undefined): boolean {
@@ -34,9 +29,14 @@ function hasSuperAdmin(data: Record<string, unknown> | undefined): boolean {
 interface AccessData {
   isSuperAdmin: boolean
   isAgent: boolean
+  restrictedRole: string | null
   permissions: string[]
   /** Le champ `permissions` a-t-il été explicitement défini pour cet admin ? */
   permissionsDefined: boolean
+}
+
+function readVersion(data: Record<string, unknown>): number | undefined {
+  return typeof data.permissionsVersion === 'number' ? data.permissionsVersion : undefined
 }
 
 async function getAccountDocs(uid: string, email?: string | null) {
@@ -86,17 +86,19 @@ async function resolveAccess(
   getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>
 ): Promise<AccessData> {
   let isSuperAdmin = false
-  let isAgent = false
+  let restrictedRole: string | null = null
   let permissions: string[] = []
   let permissionsDefined = false
+  let permissionsVersion: number | undefined
 
   const accountDocs = await getAccountDocs(uid, email)
   for (const data of accountDocs) {
     if (hasSuperAdmin(data)) isSuperAdmin = true
-    if (hasAgentRole(data)) isAgent = true
+    restrictedRole = restrictedRole ?? restrictedRoleFrom(data)
     if (Array.isArray(data.permissions) && !permissionsDefined) {
       permissions = (data.permissions as unknown[]).filter((p): p is string => typeof p === 'string')
       permissionsDefined = true
+      permissionsVersion = readVersion(data)
     }
   }
 
@@ -105,29 +107,31 @@ async function resolveAccess(
     try {
       const res = await getIdTokenResult()
       if (hasSuperAdmin(res.claims)) isSuperAdmin = true
-      if (hasAgentRole(res.claims)) isAgent = true
+      restrictedRole = restrictedRole ?? restrictedRoleFrom(res.claims)
     } catch {
       // ignore
     }
   }
 
-  // L'agent de recouvrement a des droits fixes : ils ne dépendent pas de ce qui
-  // est enregistré sur son compte, pour qu'aucune case cochée ne les élargisse.
-  if (isAgent && !isSuperAdmin) {
-    return { isSuperAdmin, isAgent, permissions: [...AGENT_RECOUVREMENT_PERMISSIONS], permissionsDefined: true }
-  }
+  // Un rôle restreint n'a jamais l'accès complet par défaut : sans fiche
+  // explicite, il reçoit son modèle (via effectivePermissions, version absente).
+  if (isSuperAdmin) restrictedRole = null
+  if (restrictedRole) permissionsDefined = true
+  permissions = effectivePermissions(permissions, { version: permissionsVersion, restrictedRole })
 
-  return { isSuperAdmin, isAgent, permissions, permissionsDefined }
+  return { isSuperAdmin, isAgent: !!restrictedRole, restrictedRole, permissions, permissionsDefined }
 }
 
 export interface MyAccess {
   isLoading: boolean
   isSuperAdmin: boolean
-  /** Compte « Agent de recouvrement » : droits fixes, aucun encaissement. */
+  /** Rôle restreint (agent de recouvrement, gestionnaire des véhicules) : pas de tableau de bord ni de pages hors modules. */
   isAgent: boolean
-  /** Peut enregistrer des encaissements (faux pour l'agent, qui ne fait que relancer). */
+  /** Clé du rôle restreint, ou null. */
+  restrictedRole: string | null
+  /** Peut encaisser depuis le calendrier (droit « calendar.payment »). */
   canRecordPayments: boolean
-  /** Peut télécharger des documents (reçus, preuves, médias) — interdit à l'agent pour l'instant. */
+  /** Peut télécharger des documents : reçus, preuves, médias (droit « documents.download »). */
   canDownloadDocuments: boolean
   /** Ensemble des clés de permission accordées (vide pour un superAdmin — utiliser `can`). */
   permissions: Set<string>
@@ -157,11 +161,12 @@ export function useMyAccess(): MyAccess {
 
   const isSuperAdmin = data?.isSuperAdmin ?? false
   const isAgent = !isSuperAdmin && (data?.isAgent ?? false)
+  const restrictedRole = isAgent ? (data?.restrictedRole ?? null) : null
   // Rétro-compatibilité : un admin sans champ `permissions` explicite conserve l'accès
   // complet (comportement d'avant la fonctionnalité). L'enforcement démarre une fois
   // des permissions enregistrées (même un tableau vide = « aucun accès »).
   const permissionsDefined = data?.permissionsDefined ?? false
-  const permissions = useMemo(() => new Set(withImpliedPermissions(data?.permissions ?? [])), [data?.permissions])
+  const permissions = useMemo(() => new Set(data?.permissions ?? []), [data?.permissions])
 
   return useMemo<MyAccess>(() => {
     const can = (key: string) => isSuperAdmin || !permissionsDefined || permissions.has(key)
@@ -169,12 +174,13 @@ export function useMyAccess(): MyAccess {
       isLoading: !!user?.uid && isLoading,
       isSuperAdmin,
       isAgent,
-      canRecordPayments: !isAgent,
-      canDownloadDocuments: !isAgent,
+      restrictedRole,
+      canRecordPayments: can('calendar.payment'),
+      canDownloadDocuments: can('documents.download'),
       permissions,
       can,
       canAny: (keys: string[]) => isSuperAdmin || !permissionsDefined || keys.some((k) => permissions.has(k)),
       canModule: (moduleKey: string) => can(moduleViewKey(moduleKey)),
     }
-  }, [isSuperAdmin, isAgent, permissionsDefined, permissions, isLoading, user?.uid])
+  }, [isSuperAdmin, isAgent, restrictedRole, permissionsDefined, permissions, isLoading, user?.uid])
 }
