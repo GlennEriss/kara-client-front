@@ -242,6 +242,18 @@ export function withImpliedPermissions(permissions: readonly string[]): string[]
   return Array.from(granted)
 }
 
+/**
+ * Pages sans module de permission (donc ouvertes à tout admin) que l'agent
+ * peut tout de même ouvrir. Toutes les autres lui sont fermées : une page
+ * ajoutée sans module ne lui devient pas accessible par défaut.
+ */
+export const AGENT_RECOUVREMENT_OPEN_PREFIXES = ['/statuts']
+
+/** Une page sans module de permission est-elle ouverte à l'agent ? */
+export function isOpenToAgent(pathname: string): boolean {
+  return AGENT_RECOUVREMENT_OPEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+}
+
 /** Page d'arrivée de l'agent : le tableau de bord agrège des données qui ne le concernent pas. */
 export const AGENT_RECOUVREMENT_HOME = '/calendrier'
 

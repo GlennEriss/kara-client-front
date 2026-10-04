@@ -1,5 +1,6 @@
 'use client'
 
+import { findByGeoName } from '../../utils/geoNameMatch'
 import {
     AlertCircle,
     Briefcase,
@@ -226,24 +227,20 @@ export default function CompanyStepV2() {
   // Mettre à jour les champs texte quand les sélections changent (BD)
   useEffect(() => {
     if (addressTab === 'database' && setValue && typeof setValue === 'function') {
+      // Un identifiant vide n'efface pas le nom (adresse saisie depuis l'espace membre).
       if (selectedCompanyProvince) {
         setValue('company.companyAddress.province', selectedCompanyProvince.name, { shouldValidate: true })
-      } else if (!selectedCompanyProvinceId) {
-        setValue('company.companyAddress.province', '', { shouldValidate: true })
       }
     }
-  }, [selectedCompanyProvince, selectedCompanyProvinceId, setValue, addressTab])
+  }, [selectedCompanyProvince, setValue, addressTab])
   
   useEffect(() => {
     if (addressTab === 'database' && setValue && typeof setValue === 'function') {
       if (selectedCompanyCommune) {
         setValue('company.companyAddress.city', selectedCompanyCommune.name, { shouldValidate: true })
-      } else if (!selectedCompanyCommuneId) {
-        setValue('company.companyAddress.city', '', { shouldValidate: true })
-        setValue('company.companyAddress.district', '', { shouldValidate: true })
       }
     }
-  }, [selectedCompanyCommune, selectedCompanyCommuneId, setValue, addressTab])
+  }, [selectedCompanyCommune, setValue, addressTab])
   
   useEffect(() => {
     if (addressTab === 'database' && setValue && typeof setValue === 'function') {
@@ -251,25 +248,31 @@ export default function CompanyStepV2() {
         if (!selectedCompanyQuarterId) {
           setValue('company.companyAddress.district', selectedCompanyDistrict.name, { shouldValidate: true })
         }
-      } else if (!selectedCompanyDistrictId) {
-        if (!selectedCompanyQuarterId) {
-          setValue('company.companyAddress.district', '', { shouldValidate: true })
-        }
       }
     }
-  }, [selectedCompanyDistrict, selectedCompanyDistrictId, setValue, addressTab, selectedCompanyQuarterId])
+  }, [selectedCompanyDistrict, setValue, addressTab, selectedCompanyQuarterId])
   
   useEffect(() => {
     if (addressTab === 'database' && setValue && typeof setValue === 'function') {
       if (selectedCompanyQuarter) {
         setValue('company.companyAddress.district', selectedCompanyQuarter.name, { shouldValidate: true })
-      } else if (!selectedCompanyQuarterId) {
-        if (!selectedCompanyDistrictId) {
-          setValue('company.companyAddress.district', '', { shouldValidate: true })
-        }
       }
     }
-  }, [selectedCompanyQuarter, selectedCompanyQuarterId, setValue, addressTab, selectedCompanyDistrictId])
+  }, [selectedCompanyQuarter, setValue, addressTab])
+
+  // Adresse connue par ses seuls noms : retrouver province et commune pour pré-remplir les listes.
+  const companyProvinceName = watch('company.companyAddress.province')
+  const companyCityName = watch('company.companyAddress.city')
+  useEffect(() => {
+    if (addressTab !== 'database' || selectedCompanyProvinceId) return
+    const match = findByGeoName(sortedCompanyProvinces, companyProvinceName)
+    if (match) (setValue as any)('company.companyAddress.provinceId', match.id)
+  }, [addressTab, selectedCompanyProvinceId, sortedCompanyProvinces, companyProvinceName, setValue])
+  useEffect(() => {
+    if (addressTab !== 'database' || !selectedCompanyProvinceId || selectedCompanyCommuneId) return
+    const match = findByGeoName(allCompanyCommunes, companyCityName)
+    if (match) (setValue as any)('company.companyAddress.communeId', match.id)
+  }, [addressTab, selectedCompanyProvinceId, selectedCompanyCommuneId, allCompanyCommunes, companyCityName, setValue])
   
   // Handlers pour les modals de création
   const handleCompanyCreated = (companyName: string) => {
@@ -314,6 +317,8 @@ export default function CompanyStepV2() {
     ;(setValue as any)('company.companyAddress.communeId', '', { shouldValidate: true })
     ;(setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
     ;(setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
+    setValue('company.companyAddress.city', '', { shouldValidate: true })
+    setValue('company.companyAddress.district', '', { shouldValidate: true })
   }
   
   const handleCompanyCommuneChange = (communeId: string) => {
@@ -321,6 +326,7 @@ export default function CompanyStepV2() {
     // Réinitialiser les niveaux inférieurs
     ;(setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
     ;(setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
+    setValue('company.companyAddress.district', '', { shouldValidate: true })
   }
   
   const handleCompanyDistrictChange = (districtId: string) => {

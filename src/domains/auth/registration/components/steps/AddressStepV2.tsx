@@ -1,5 +1,6 @@
 'use client'
 
+import { findByGeoName } from '../../utils/geoNameMatch'
 import {
     Building2,
     CheckCircle2,
@@ -95,41 +96,51 @@ export default function AddressStepV2() {
   const selectedDistrict = sortedDistricts.find(d => d.id === selectedDistrictId)
   const selectedQuarter = sortedQuarters.find(q => q.id === selectedQuarterId)
 
-  // Mettre à jour les champs texte quand les sélections changent
+  // Mettre à jour les champs texte quand une sélection est trouvée. Un identifiant
+  // vide n'efface pas le nom : les demandes de l'espace membre n'enregistrent que
+  // les noms, et les effacer bloquait la correction à cette étape. Les noms des
+  // niveaux inférieurs sont vidés par les handlers, au changement par l'utilisateur.
   useEffect(() => {
-    if (selectedProvince) {
-      setValue('address.province', selectedProvince.name, { shouldValidate: true })
-    } else if (!selectedProvinceId) {
-      setValue('address.province', '', { shouldValidate: true })
-    }
-  }, [selectedProvince, selectedProvinceId, setValue])
+    if (selectedProvince) setValue('address.province', selectedProvince.name, { shouldValidate: true })
+  }, [selectedProvince, setValue])
 
   useEffect(() => {
-    if (selectedCommune) {
-      setValue('address.city', selectedCommune.name, { shouldValidate: true })
-    } else if (!selectedCommuneId) {
-      setValue('address.city', '', { shouldValidate: true })
-      setValue('address.arrondissement', '', { shouldValidate: true })
-      setValue('address.district', '', { shouldValidate: true })
-    }
-  }, [selectedCommune, selectedCommuneId, setValue])
+    if (selectedCommune) setValue('address.city', selectedCommune.name, { shouldValidate: true })
+  }, [selectedCommune, setValue])
 
   useEffect(() => {
-    if (selectedDistrict) {
-      setValue('address.arrondissement', selectedDistrict.name, { shouldValidate: true })
-    } else if (!selectedDistrictId) {
-      setValue('address.arrondissement', '', { shouldValidate: true })
-      setValue('address.district', '', { shouldValidate: true })
-    }
-  }, [selectedDistrict, selectedDistrictId, setValue])
+    if (selectedDistrict) setValue('address.arrondissement', selectedDistrict.name, { shouldValidate: true })
+  }, [selectedDistrict, setValue])
 
   useEffect(() => {
-    if (selectedQuarter) {
-      setValue('address.district', selectedQuarter.name, { shouldValidate: true })
-    } else if (!selectedQuarterId) {
-      setValue('address.district', '', { shouldValidate: true })
-    }
-  }, [selectedQuarter, selectedQuarterId, setValue])
+    if (selectedQuarter) setValue('address.district', selectedQuarter.name, { shouldValidate: true })
+  }, [selectedQuarter, setValue])
+
+  // Adresse connue par ses seuls noms : retrouver les identifiants pour pré-remplir les listes.
+  const provinceName = watch('address.province')
+  const cityName = watch('address.city')
+  const arrondissementName = watch('address.arrondissement')
+  const quarterName = watch('address.district')
+  useEffect(() => {
+    if (selectedProvinceId) return
+    const match = findByGeoName(sortedProvinces, provinceName)
+    if (match) (setValue as any)('address.provinceId', match.id)
+  }, [selectedProvinceId, sortedProvinces, provinceName, setValue])
+  useEffect(() => {
+    if (!selectedProvinceId || selectedCommuneId) return
+    const match = findByGeoName(filteredCommunes, cityName)
+    if (match) (setValue as any)('address.communeId', match.id)
+  }, [selectedProvinceId, selectedCommuneId, filteredCommunes, cityName, setValue])
+  useEffect(() => {
+    if (!selectedCommuneId || selectedDistrictId) return
+    const match = findByGeoName(sortedDistricts, arrondissementName)
+    if (match) (setValue as any)('address.districtId', match.id)
+  }, [selectedCommuneId, selectedDistrictId, sortedDistricts, arrondissementName, setValue])
+  useEffect(() => {
+    if (!selectedDistrictId || selectedQuarterId) return
+    const match = findByGeoName(sortedQuarters, quarterName)
+    if (match) (setValue as any)('address.quarterId', match.id)
+  }, [selectedDistrictId, selectedQuarterId, sortedQuarters, quarterName, setValue])
 
   // Handlers de changement cascade - stockent les IDs dans le formulaire
   // Note: Utilisation de 'as any' car les nouveaux champs sont ajoutés au schéma mais le type n'est pas encore régénéré
@@ -139,6 +150,9 @@ export default function AddressStepV2() {
     ;(setValue as any)('address.communeId', '', { shouldValidate: true })
     ;(setValue as any)('address.districtId', '', { shouldValidate: true })
     ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
+    setValue('address.city', '', { shouldValidate: true })
+    setValue('address.arrondissement', '', { shouldValidate: true })
+    setValue('address.district', '', { shouldValidate: true })
   }
 
   const handleCommuneChange = (communeId: string) => {
@@ -146,12 +160,15 @@ export default function AddressStepV2() {
     // Réinitialiser les niveaux inférieurs
     ;(setValue as any)('address.districtId', '', { shouldValidate: true })
     ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
+    setValue('address.arrondissement', '', { shouldValidate: true })
+    setValue('address.district', '', { shouldValidate: true })
   }
 
   const handleDistrictChange = (districtId: string) => {
     ;(setValue as any)('address.districtId', districtId, { shouldValidate: true })
     // Réinitialiser le quartier
     ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
+    setValue('address.district', '', { shouldValidate: true })
   }
 
   const handleQuarterChange = (quarterId: string) => {

@@ -16,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import routes from "@/constantes/routes";
-import { requiredViewPermissionForPath } from "@/constantes/permissions";
+import { requiredViewPermissionForPath, isOpenToAgent } from "@/constantes/permissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAccess } from "@/hooks/useMyAccess";
 import { useLogout } from "@/domains/auth/hooks";
@@ -350,7 +350,8 @@ export function AppSidebar() {
   const canSeeUrl = (url: string) => {
     if (isAgent && (url === "/dashboard" || url.startsWith("/dashboard/"))) return false;
     const required = requiredViewPermissionForPath(url);
-    return !required || can(required);
+    if (!required) return !isAgent || isOpenToAgent(url);
+    return can(required);
   };
 
   // Menu principal filtré selon les droits (les parents disparaissent si aucun enfant visible).

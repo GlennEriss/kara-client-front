@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import {
   AGENT_RECOUVREMENT_HOME,
+  isOpenToAgent,
   requiredActionPermissionForPath,
   requiredViewPermissionForPath,
 } from '@/constantes/permissions'
@@ -96,8 +97,13 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
   }, [redirectAgent, router])
 
   if (redirectAgent) return null
-  // Pas de restriction sur ce chemin → on affiche.
-  if (!required && !requiredAction) return <>{children}</>
+  // Pas de restriction sur ce chemin → on affiche, sauf pour l'agent : seules
+  // ses pages explicitement ouvertes lui sont accessibles.
+  if (!required && !requiredAction) {
+    if (isLoading) return null
+    if (isAgent && !isOpenToAgent(path)) return <AccessDenied />
+    return <>{children}</>
+  }
   // On attend la résolution des droits pour éviter un flash « Accès refusé ».
   if (isLoading) return null
   if (required && !can(required)) return <AccessDenied />

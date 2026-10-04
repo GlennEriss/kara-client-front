@@ -5,6 +5,7 @@ import {
   ALL_PERMISSION_KEYS,
   requiredActionPermissionForPath,
   requiredViewPermissionForPath,
+  isOpenToAgent,
   withImpliedPermissions,
 } from '../permissions'
 
@@ -43,6 +44,14 @@ describe('permissions de l’agent de recouvrement', () => {
     expect(agent).not.toContain(requiredViewPermissionForPath('/memberships'))
     expect(agent).not.toContain(requiredViewPermissionForPath('/memberships/abc123'))
     expect(agent).not.toContain('birthdays.export')
+  })
+})
+
+describe('isOpenToAgent', () => {
+  it('n’ouvre à l’agent que les pages sans module explicitement listées', () => {
+    expect(isOpenToAgent('/statuts')).toBe(true)
+    expect(isOpenToAgent('/metiers')).toBe(false)
+    expect(isOpenToAgent('/reinitialisation')).toBe(false)
   })
 })
 
