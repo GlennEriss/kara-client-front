@@ -163,7 +163,7 @@ export class MemberOverviewAggregationService {
           )
           .map((d) => this.buildItem(d, 'creditSpeciale', 'demande')),
         contrats: (creditSpecialeContractsRaw || [])
-          .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditSpeciale.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED'))
+          .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditSpeciale.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED' | 'WRITTEN_OFF'))
           .map((c) => this.buildItem(c, 'creditSpeciale', 'contrat')),
         hasError: creditSpecialeDemandsRaw === null || creditSpecialeContractsRaw === null,
       },
@@ -176,7 +176,7 @@ export class MemberOverviewAggregationService {
           )
           .map((d) => this.buildItem(d, 'creditFixe', 'demande')),
         contrats: (creditFixeContractsRaw || [])
-          .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditFixe.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED'))
+          .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditFixe.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED' | 'WRITTEN_OFF'))
           .map((c) => this.buildItem(c, 'creditFixe', 'contrat')),
         hasError: creditFixeDemandsRaw === null || creditFixeContractsRaw === null,
       },
@@ -189,7 +189,7 @@ export class MemberOverviewAggregationService {
           )
           .map((d) => this.buildItem(d, 'creditAide', 'demande')),
         contrats: (creditAideContractsRaw || [])
-          .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditAide.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED'))
+          .filter((c) => !MEMBER_OVERVIEW_STATUS_FILTERS.creditAide.contratsExcluded.includes((c.status || '') as 'CLOSED' | 'DISCHARGED' | 'WRITTEN_OFF'))
           .map((c) => this.buildItem(c, 'creditAide', 'contrat')),
         hasError: creditAideDemandsRaw === null || creditAideContractsRaw === null,
       },

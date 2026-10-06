@@ -24,6 +24,19 @@ const mapRestMonths = (
         recordedAt: (r.recordedAt as any)?.toDate ? (r.recordedAt as any).toDate() : (r.recordedAt ? new Date(r.recordedAt as string) : new Date()),
     }));
 
+/** Clôture en perte et récupérations : dates Firestore converties. */
+const mapWriteOff = (raw: any) =>
+    raw
+        ? { ...raw, writtenOffAt: toDateValue(raw.writtenOffAt) ?? new Date() }
+        : undefined;
+
+const mapRecoveries = (raw: any[] | undefined) =>
+    raw?.map((recovery) => ({
+        ...recovery,
+        date: toDateValue(recovery.date) ?? new Date(),
+        recordedAt: toDateValue(recovery.recordedAt) ?? new Date(),
+    }));
+
 const mapCreditCycles = (cyclesRaw: any[] | undefined) =>
     cyclesRaw?.map((cycle, index) => ({
         cycleNumber: cycle.cycleNumber ?? index + 1,
@@ -131,6 +144,8 @@ export class CreditContractRepository implements ICreditContractRepository {
                 ...(data as any),
                 creditCycles,
                 restMonths,
+                writeOff: mapWriteOff((data as any).writeOff),
+                writeOffRecoveries: mapRecoveries((data as any).writeOffRecoveries),
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
                 firstPaymentDate: (data.firstPaymentDate as any)?.toDate ? (data.firstPaymentDate as any).toDate() : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : undefined),
@@ -190,6 +205,8 @@ export class CreditContractRepository implements ICreditContractRepository {
             ...(data as any),
             creditCycles,
             restMonths,
+            writeOff: mapWriteOff((data as any).writeOff),
+            writeOffRecoveries: mapRecoveries((data as any).writeOffRecoveries),
             createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
             updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
             firstPaymentDate: (data.firstPaymentDate as any)?.toDate ? (data.firstPaymentDate as any).toDate() : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : undefined),

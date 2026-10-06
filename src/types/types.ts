@@ -1627,6 +1627,7 @@ export type CreditContractStatus =
   | 'BLOCKED'          // Bloqué (pénalités impayées)
   | 'DISCHARGED'       // Déchargé (remboursement complet)
   | 'CLOSED'           // Clos
+  | 'WRITTEN_OFF'      // Clôturé en perte : défaut de paiement, le reste dû est abandonné
   | 'EXTENDED'         // Étendu (remplacé par une augmentation de crédit)
 
 /**
@@ -1735,6 +1736,32 @@ export type CreditDurationUnit = 'MONTHS' | 'WEEKS'
 /**
  * Type pour un contrat de crédit
  */
+/** Clôture d'un contrat de crédit en perte (défaut de paiement, décision SuperAdmin). */
+export interface CreditWriteOff {
+  writtenOffAt: Date
+  writtenOffBy: string
+  writtenOffByName?: string
+  motif: string
+  /** Reste dû (capital + intérêts) au moment de la clôture. */
+  amountRemaining: number
+  /** Pénalités impayées au moment de la clôture. */
+  unpaidPenalties: number
+  /** Commission du garant gagnée mais non versée, annulée par la clôture. */
+  guarantorCommissionCancelled: number
+}
+
+/** Somme récupérée auprès du membre après une clôture en perte : elle réduit la perte. */
+export interface CreditRecovery {
+  id: string
+  amount: number
+  date: Date
+  mode: CreditPaymentMode
+  comment?: string
+  recordedBy: string
+  recordedByName?: string
+  recordedAt: Date
+}
+
 export interface CreditContract {
   id: string
   demandId: string
@@ -1805,6 +1832,10 @@ export interface CreditContract {
   closedAt?: Date // Date de clôture du contrat
   closedBy?: string // Admin UID ayant clôturé le contrat
   motifCloture?: string // Motif de clôture
+  /** Clôture en perte (statut WRITTEN_OFF). */
+  writeOff?: CreditWriteOff
+  /** Sommes récupérées après la clôture en perte. */
+  writeOffRecoveries?: CreditRecovery[]
   activatedAt?: Date
   fundsReleasedAt?: Date
   dischargedAt?: Date

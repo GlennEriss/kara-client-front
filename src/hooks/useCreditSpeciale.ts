@@ -391,6 +391,48 @@ export function useCreditContractMutations() {
         },
     })
 
+    const writeOffContract = useMutation({
+        mutationFn: ({ contractId, motif, guarantorCommissionDue }: { contractId: string; motif: string; guarantorCommissionDue: number }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.writeOffContract(contractId, {
+                motif,
+                guarantorCommissionDue,
+                adminId: user.uid,
+                adminName: user.displayName || undefined,
+            })
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
+            toast.success('Contrat clôturé en perte')
+            log({ action: 'update', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: `Clôture en perte : ${variables.motif}` })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la clôture en perte')
+        },
+    })
+
+    const recordWriteOffRecovery = useMutation({
+        mutationFn: ({ contractId, ...data }: { contractId: string; amount: number; date: Date; mode: CreditPaymentMode; comment?: string }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.recordWriteOffRecovery(contractId, {
+                ...data,
+                adminId: user.uid,
+                adminName: user.displayName || undefined,
+            })
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            toast.success('Récupération enregistrée')
+            log({ action: 'create', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: `Récupération après perte : ${variables.amount} FCFA` })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Erreur lors de l'enregistrement de la récupération")
+        },
+    })
+
     const deleteContract = useMutation({
         mutationFn: (contractId: string) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
@@ -410,7 +452,7 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, deleteContract }
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery, deleteContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
