@@ -30,6 +30,8 @@ import { useRefundsCS } from '@/hooks/caisse-speciale/useRefundsCS'
 import { useDeclaredVersementsCS } from '@/hooks/caisse-speciale/useDeclaredVersementsCS'
 
 import ValidateRefundCSModal from '@/components/caisse-speciale/ValidateRefundCSModal'
+import CancelFinalRefundButton from '@/components/contract/CancelFinalRefundButton'
+import { useQueryClient } from '@tanstack/react-query'
 import MarkAsPaidRefundCSModal from '@/components/caisse-speciale/MarkAsPaidRefundCSModal'
 import ValidateDeclaredVersementCSModal from '@/components/caisse-speciale/ValidateDeclaredVersementCSModal'
 
@@ -81,6 +83,7 @@ export default function ContractCSRefundsPage() {
   const contractId = params.id
   const router = useRouter()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
 
   const { data: contract, isLoading: loadingContract, isError: errorContract } = useCaisseContract(contractId)
   const { data: refunds = [],    isLoading: loadingRefunds,    isError: errorRefunds    } = useRefundsCS(contractId)
@@ -254,6 +257,17 @@ export default function ContractCSRefundsPage() {
                                   <Banknote className="h-3.5 w-3.5" />
                                   Marquer payé
                                 </Button>
+                              )}
+                              {isApproved && refund.type === 'FINAL' && (
+                                <CancelFinalRefundButton
+                                  compact
+                                  contractId={contractId}
+                                  refundId={refund.id}
+                                  onDone={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['refundsCS', contractId] })
+                                    queryClient.invalidateQueries({ queryKey: ['caisse-contract', contractId] })
+                                  }}
+                                />
                               )}
                               {(refund.documentUrl || refund.proofUrl) && (
                                 <a

@@ -820,6 +820,44 @@ export async function cancelEarlyRefund(contractId: string, refundId: string) {
   return true
 }
 
+/**
+ * Refus ou annulation d'un remboursement final non encore payé. La demande est
+ * archivée avec son motif (l'historique est conservé) et le statut du contrat
+ * est recalculé : une nouvelle demande de remboursement final redevient possible.
+ */
+export async function cancelFinalRefund(contractId: string, refundId: string, reason: string) {
+  const motif = reason?.trim()
+  if (!motif) throw new Error('Le motif est obligatoire')
+  const refunds = await listRefunds(contractId)
+  const r = refunds.find((x: any) => x.id === refundId)
+  if (!r) throw new Error('Demande introuvable')
+  if (r.type !== 'FINAL') throw new Error('Seuls les remboursements finaux sont concernés')
+  if (r.status !== 'PENDING' && r.status !== 'APPROVED') {
+    throw new Error('Seuls les remboursements en attente ou approuvés peuvent être annulés')
+  }
+
+  const archivedBy = auth.currentUser?.uid || 'system'
+  let archivedByName = archivedBy
+  try {
+    const admin = await getAdminById(archivedBy)
+    if (admin) archivedByName = `${admin.firstName || ''} ${admin.lastName || ''}`.trim() || archivedBy
+  } catch {
+    // Ne pas bloquer l'annulation si le profil admin est introuvable
+  }
+
+  await updateRefund(contractId, refundId, {
+    status: 'ARCHIVED',
+    archivedBy,
+    archivedByName,
+    archivedAt: new Date(),
+    archiveReason: motif,
+  })
+  // FINAL_REFUND_PENDING → statut déduit des échéances et des demandes restantes
+  const { recomputeNow } = await import('@/services/caisse/readers')
+  await recomputeNow(contractId)
+  return true
+}
+
 export async function updatePaymentContribution(input: {
   contractId: string
   paymentId: string
