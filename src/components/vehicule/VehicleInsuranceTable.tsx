@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { VehicleInsurance, VehicleInsuranceListResult } from '@/types/types'
-import { Building2, Calendar, Car, Eye, MapPin, Pencil, Phone, RefreshCw, Trash2 } from 'lucide-react'
+import { Building2, Calendar, Car, CheckCircle2, Eye, MapPin, Pencil, Phone, RefreshCw, Trash2, XCircle } from 'lucide-react'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
 
@@ -18,6 +18,9 @@ interface Props {
   onEdit?: (insurance: VehicleInsurance) => void
   onRenew?: (insurance: VehicleInsurance) => void
   onDelete?: (insurance: VehicleInsurance) => void
+  /** Déclarations de membres en attente : valider ou refuser. */
+  onValidate?: (insurance: VehicleInsurance) => void
+  onReject?: (insurance: VehicleInsurance) => void
   onPageChange: (page: number) => void
   onItemsPerPageChange: (limit: number) => void
 }
@@ -40,7 +43,7 @@ const ENERGY_LABELS: Record<string, string> = {
   autre: 'Autre',
 }
 
-export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew, onDelete, onPageChange, onItemsPerPageChange }: Props) {
+export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew, onDelete, onValidate, onReject, onPageChange, onItemsPerPageChange }: Props) {
   const paginationInfo = data
     ? {
         currentPage: data.page,
@@ -163,7 +166,16 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                       </div>
                     </TableCell>
                     <TableCell>
-                      <VehicleInsuranceBadge status={item.status} />
+                      {item.declarationStatus === 'pending' ? (
+                        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                          À valider
+                        </span>
+                      ) : (
+                        <VehicleInsuranceBadge status={item.status} />
+                      )}
+                      {item.declarationStatus === 'pending' && item.submittedAt && (
+                        <p className="mt-1 text-xs text-gray-500">envoyée le {item.submittedAt.toLocaleDateString('fr-FR')}</p>
+                      )}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <InsuranceWhatsAppReminderButton insurance={item} iconOnly />
@@ -178,6 +190,16 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                       {onRenew && (
                         <Button variant="ghost" size="icon" onClick={() => onRenew(item)}>
                           <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onValidate && item.declarationStatus === 'pending' && (
+                        <Button variant="ghost" size="icon" className="text-emerald-600 hover:text-emerald-700" title="Valider" onClick={() => onValidate(item)}>
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onReject && item.declarationStatus === 'pending' && (
+                        <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" title="Refuser" onClick={() => onReject(item)}>
+                          <XCircle className="h-4 w-4" />
                         </Button>
                       )}
                       {onDelete && (

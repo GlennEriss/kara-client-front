@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 import { useAuth } from '@/hooks/useAuth'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
+import WrittenOffCreditWarning from './WrittenOffCreditWarning'
 import { useAllMembers } from '@/hooks/useMembers'
 import { creditDemandDefaultValues, creditDemandFormSchema, type CreditDemandFormInput } from '@/schemas/credit-speciale.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -272,6 +273,7 @@ export default function CreateCreditDemandModal({
                         </div>
                       </div>
                     )}
+                    <WrittenOffCreditWarning memberId={selectedClientId} />
 
                     <FormField
                       control={form.control}

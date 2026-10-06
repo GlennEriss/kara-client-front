@@ -4,6 +4,7 @@
  * Centralise la logique de soumission, corrections et brouillons
  */
 
+import { withResolvedBeneficiary } from '@/constantes/beneficiary'
 import type { RegisterFormData } from '@/types/types'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { app } from '@/firebase/app'
@@ -97,7 +98,8 @@ export class MembershipFormService {
         }
       })
 
-      const requestId = await this.membershipRepository.create(formData)
+      // Ayant droit : le membre choisi, sinon INCONNU.
+      const requestId = await this.membershipRepository.create({ ...formData, identity: withResolvedBeneficiary(formData.identity) })
 
       if (!requestId) {
         return {
@@ -183,7 +185,8 @@ export class MembershipFormService {
       })
 
       // Mettre à jour via le repository
-      await this.membershipRepository.update(requestId, formData)
+      // Ayant droit : le membre choisi, sinon INCONNU.
+      await this.membershipRepository.update(requestId, { ...formData, identity: withResolvedBeneficiary(formData.identity) })
 
       return {
         success: true,
@@ -249,7 +252,8 @@ export class MembershipFormService {
       const result = await submitCorrectionsCF({
         requestId,
         securityCode,
-        formData,
+        // Ayant droit : le membre choisi, sinon INCONNU.
+        formData: { ...formData, identity: withResolvedBeneficiary(formData.identity) },
       })
 
       if (!result.data.success) {

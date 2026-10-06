@@ -1,4 +1,5 @@
 'use client'
+import { ENDED_CREDIT_STATUSES, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 import { isWeeklyCredit } from '@/utils/credit-weekly'
@@ -61,7 +62,7 @@ import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 type CreditTypeFilter = CreditType | 'all'
-type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'discharged' | 'overdue'
+type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'discharged' | 'writtenOff' | 'overdue'
 type CreditContractFilterState = {
   search: string
   status: CreditContractStatus | 'all'
@@ -94,11 +95,11 @@ type ContractTabItem = {
   isDanger?: boolean
 }
 
-const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'discharged', 'overdue']
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'discharged', 'writtenOff', 'overdue']
 const isContractTabValue = (value: string | null): value is ContractTabValue =>
   value !== null && CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
-const CLOSED_CREDIT_STATUSES: CreditContractStatus[] = ['CLOSED', 'DISCHARGED']
+const CLOSED_CREDIT_STATUSES: CreditContractStatus[] = ENDED_CREDIT_STATUSES
 
 function getCurrentMonthRange(): { start: Date; end: Date } {
   const now = new Date()
@@ -147,7 +148,7 @@ interface ListContratsProps {
 
 /** Afficher « Modifier contrat signé » : contrat déjà signé et pas DISCHARGED/CLOSED (doc § 2.1–2.2) */
 function canReplaceSignedContract(contract: CreditContract): boolean {
-  return Boolean(contract.signedContractUrl) && !['DISCHARGED', 'CLOSED'].includes(contract.status)
+  return Boolean(contract.signedContractUrl) && !isCreditContractEnded(contract.status)
 }
 
 /** L'accès au détail n'est autorisé qu'après téléversement du contrat signé */
@@ -241,7 +242,7 @@ const ContractFilters = ({
   const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
   const isOverdueTab = activeTab === 'overdue'
   const forcedStatusByTab: CreditContractStatus | null =
-    activeTab === 'closed' ? 'CLOSED' : activeTab === 'discharged' ? 'DISCHARGED' : null
+    activeTab === 'closed' ? 'CLOSED' : activeTab === 'discharged' ? 'DISCHARGED' : activeTab === 'writtenOff' ? 'WRITTEN_OFF' : null
   const isStatusLockedByTab = Boolean(forcedStatusByTab)
   const statusValue = (isStatusLockedByTab ? forcedStatusByTab : safeFilters.status) || 'all'
   const hasCustomStatus = !isStatusLockedByTab && statusValue !== 'all'
@@ -261,6 +262,7 @@ const ContractFilters = ({
     EXTENDED: 'Étendu',
     DISCHARGED: 'Déchargé',
     CLOSED: 'Clos',
+    WRITTEN_OFF: 'Clôturé en perte',
   }
 
   const creditTypeLabels: Record<string, string> = {
@@ -773,6 +775,7 @@ const ListContrats = ({
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'closed', label: 'Clos', icon: Shield },
     { value: 'discharged', label: 'Déchargé', icon: Download },
+    { value: 'writtenOff', label: 'En perte', icon: AlertCircle },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
   ]
 
@@ -804,6 +807,8 @@ const ListContrats = ({
       ? 'CLOSED'
       : activeTab === 'discharged'
       ? 'DISCHARGED'
+      : activeTab === 'writtenOff'
+      ? 'WRITTEN_OFF'
       : statusFilter
 
   const queryFilters: CreditContractFilters = {
@@ -934,6 +939,7 @@ const ListContrats = ({
         currentMonth: 'Mois en cours',
         closed: 'Clos',
         discharged: 'Déchargé',
+        writtenOff: 'En perte',
         overdue: 'Retard',
       }
       const tabLabel = tabLabels[activeTab]
@@ -996,6 +1002,7 @@ const ListContrats = ({
         currentMonth: 'Mois en cours',
         closed: 'Clos',
         discharged: 'Déchargé',
+        writtenOff: 'En perte',
         overdue: 'Retard',
       }
       const tabLabel = tabLabels[activeTab]
@@ -1136,6 +1143,7 @@ const ListContrats = ({
       BLOCKED: 'bg-red-100 text-red-700 border-red-200',
       DISCHARGED: 'bg-gray-100 text-gray-700 border-gray-200',
       CLOSED: 'bg-gray-100 text-gray-700 border-gray-200',
+      WRITTEN_OFF: 'bg-rose-100 text-rose-800 border-rose-200',
       EXTENDED: 'bg-cyan-100 text-cyan-700 border-cyan-200',
     }
     return colors[status] || colors.DRAFT
@@ -1154,6 +1162,7 @@ const ListContrats = ({
       BLOCKED: 'Bloqué',
       DISCHARGED: 'Déchargé',
       CLOSED: 'Clos',
+      WRITTEN_OFF: 'Clôturé en perte',
       EXTENDED: 'Étendu',
     }
     return labels[status] || status
@@ -1172,6 +1181,7 @@ const ListContrats = ({
       BLOCKED:     { dot: 'bg-red-400',    text: 'text-red-700'    },
       DISCHARGED:  { dot: 'bg-gray-400',   text: 'text-gray-500'   },
       CLOSED:      { dot: 'bg-gray-400',   text: 'text-gray-500'   },
+      WRITTEN_OFF: { dot: 'bg-rose-500',   text: 'text-rose-700'   },
       EXTENDED:    { dot: 'bg-cyan-400',   text: 'text-cyan-700'   },
     }
     return dots[status] || dots.DRAFT
@@ -1242,6 +1252,10 @@ const ListContrats = ({
 
     if (activeTab === 'discharged') {
       items = items.filter((contract) => contract.status === 'DISCHARGED')
+    }
+
+    if (activeTab === 'writtenOff') {
+      items = items.filter((contract) => contract.status === 'WRITTEN_OFF')
     }
 
     if (activeTab === 'currentMonth') {
@@ -1777,7 +1791,7 @@ const ListContrats = ({
                             </Button>
                           )}
 
-                          {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                          {!isCreditContractEnded(contract.status) && (
                             <Button
                               onClick={contract.contractUrl
                                 ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
@@ -1916,7 +1930,7 @@ const ListContrats = ({
                                 <User className="h-4 w-4 mr-2" />
                                 Voir toutes les infos
                               </DropdownMenuItem>
-                              {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                              {!isCreditContractEnded(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={contract.contractUrl
                                     ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')

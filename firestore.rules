@@ -1400,16 +1400,35 @@ service cloud.firestore {
         resource.data.memberId is string &&
         isMemberOwner(resource.data.memberId)
       );
-      // Création : admin OU le membre qui déclare son propre véhicule
+      // Création : admin OU le membre qui déclare son propre véhicule, en brouillon
       // (memberId doit pointer vers lui-même + holderType doit être 'member')
       allow create: if isAdmin() || (
         isAuthenticated() &&
         request.resource.data.holderType == 'member' &&
         request.resource.data.memberId is string &&
-        isMemberOwner(request.resource.data.memberId)
+        isMemberOwner(request.resource.data.memberId) &&
+        request.resource.data.declarationStatus == 'draft'
       );
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      // Le membre modifie son brouillon (ou sa déclaration refusée) et l'envoie à
+      // l'administration ; seul l'admin valide ou refuse.
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.memberId is string &&
+        isMemberOwner(resource.data.memberId) &&
+        resource.data.declarationStatus in ['draft', 'rejected'] &&
+        request.resource.data.declarationStatus in ['draft', 'pending'] &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'memberId', 'holderType', 'validatedAt', 'validatedBy', 'rejectedAt', 'rejectedBy',
+          'sponsorMemberId', 'createdBy'
+        ])
+      );
+      // Le membre peut supprimer un brouillon ou une déclaration refusée.
+      allow delete: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.memberId is string &&
+        isMemberOwner(resource.data.memberId) &&
+        resource.data.declarationStatus in ['draft', 'rejected']
+      );
 
       // Sous-collections éventuelles (journal/audit/annexes)
       match /{subCollection=**} {

@@ -198,8 +198,10 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
     loadRefunds()
   }, [contractId, isOpen])
 
-  // Le procès-verbal de liquidation ne devient définitif qu'après le versement.
-  // On privilégie donc le dernier remboursement effectivement payé.
+  // Le remboursement CI est enregistré directement payé, avec le procès-verbal
+  // signé : celui-ci doit donc pouvoir être généré AVANT toute demande (montant
+  // = total versé, date et mode de règlement complétés à la main). Une fois le
+  // remboursement enregistré, on privilégie le dernier effectivement payé.
   const activeRefund = React.useMemo(() => {
     const eligible = refunds.filter((r: any) =>
       (r.type === 'FINAL' || r.type === 'EARLY') &&
@@ -207,7 +209,6 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
     )
     return eligible.find((r: any) => r.status === 'PAID') ?? eligible[0]
   }, [refunds])
-  const canGenerateLiquidation = activeRefund?.status === 'PAID'
 
   useEffect(() => {
     if (!isOpen) return
@@ -249,10 +250,6 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
   )
 
   const handleDownloadPDF = async () => {
-    if (!canGenerateLiquidation) {
-      toast.error('La quittance est disponible une fois le remboursement marqué comme payé.')
-      return
-    }
 
     setIsExporting(true)
 
@@ -321,7 +318,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
           </div>
           <Button
             onClick={handleDownloadPDF}
-            disabled={isExporting || !canGenerateLiquidation}
+            disabled={isExporting}
             className="mr-2 lg:mr-10 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
           >
             {isExporting ? (
@@ -355,16 +352,6 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                     Récupération des informations personnelles
                   </p>
                 </div>
-              </div>
-            </div>
-          ) : !canGenerateLiquidation ? (
-            <div className="flex h-full items-center justify-center bg-amber-50 p-6 text-center">
-              <div className="max-w-md space-y-2">
-                <h3 className="text-lg font-bold text-amber-900">Liquidation en attente de règlement</h3>
-                <p className="text-sm leading-relaxed text-amber-800">
-                  Le procès-verbal devient téléchargeable après l&apos;enregistrement du remboursement
-                  comme payé. Il ne constitue pas un acte de liquidation avant ce versement.
-                </p>
               </div>
             </div>
           ) : (
@@ -409,7 +396,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                       <div className="w-full space-y-2">
                         <Button
                           asChild
-                          disabled={loading || !url || !canGenerateLiquidation}
+                          disabled={loading || !url}
                           className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                         >
                           <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
@@ -420,7 +407,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
 
                         <Button
                           onClick={handleDownloadPDF}
-                          disabled={isExporting || !canGenerateLiquidation}
+                          disabled={isExporting}
                           variant="outline"
                           className="w-full h-11 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-300"
                         >

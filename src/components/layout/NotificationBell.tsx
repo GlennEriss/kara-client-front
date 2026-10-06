@@ -1,5 +1,6 @@
 'use client'
 
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -124,6 +125,9 @@ function NotificationItem({
     } else if (notification.module === 'caisse_imprevue' && notification.type === 'payment_due' && notification.metadata?.contractId) {
       // Navigation vers la page des versements du contrat
       onNavigate(`/caisse-imprevue/contrats/${notification.metadata.contractId}/versements`)
+    } else if (notification.module === 'vehicule') {
+      // Déclaration envoyée par un membre : file « À valider » des véhicules.
+      onNavigate(notification.type === 'vehicle_declared' ? '/vehicules?vue=a-valider' : '/vehicules')
     } else if (notification.module === 'boutique') {
       // Boutique soumise par un membre : l'annuaire l'affiche dans sa file
       // « À valider ».
@@ -167,14 +171,37 @@ function NotificationItem({
   )
 }
 
+/** Module de permission correspondant au module d'une notification. */
+const NOTIFICATION_MODULE_PERMISSION: Record<string, string> = {
+  memberships: 'members',
+  vehicule: 'vehicules',
+  caisse_speciale: 'caisseSpeciale',
+  caisse_imprevue: 'caisseImprevue',
+  bienfaiteur: 'bienfaiteur',
+  placement: 'placements',
+  credit_speciale: 'creditSpeciale',
+  boutique: 'boutiques',
+}
+
 /**
  * Composant principal NotificationBell
  */
 export default function NotificationBell() {
   const router = useRouter()
-  const { data: unreadCount = 0, isLoading: isLoadingCount } = useUnreadCount()
-  const { data: notifications = [], isLoading: isLoadingNotifications } =
+  const { data: allUnreadCount = 0, isLoading: isLoadingCount } = useUnreadCount()
+  const { data: allNotifications = [], isLoading: isLoadingNotifications } =
     useUnreadNotifications(50)
+  // Rôles restreints : seulement les notifications de leurs modules (ex. déclarations
+  // de véhicules pour le gestionnaire des véhicules).
+  const { isAgent, can } = useMyAccess()
+  const notifications = isAgent
+    ? allNotifications.filter((notification) => {
+        const key =
+          notification.type === 'birthday_reminder' ? 'birthdays' : NOTIFICATION_MODULE_PERMISSION[notification.module]
+        return !!key && can(`${key}.view`)
+      })
+    : allNotifications
+  const unreadCount = isAgent ? notifications.filter((notification) => !notification.isRead).length : allUnreadCount
   const markAsReadMutation = useMarkNotificationAsRead()
   const markAllAsReadMutation = useMarkAllNotificationsAsRead()
 
@@ -236,6 +263,12 @@ export default function NotificationBell() {
   }
 
   const handleMarkAllAsRead = () => {
+    // Les notifications admin sont partagées : un rôle restreint ne marque que
+    // celles qu'il voit, pas celles des autres modules.
+    if (isAgent) {
+      notifications.filter((notification) => !notification.isRead).forEach((notification) => markAsReadMutation.mutate(notification.id))
+      return
+    }
     markAllAsReadMutation.mutate()
   }
 

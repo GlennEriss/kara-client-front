@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult } from '@/types/types'
+import { VehicleDeclarationCorrection, VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult } from '@/types/types'
+import { summarizeCorrections } from '@/utils/vehicle-declaration'
 import { useAuth } from '@/hooks/useAuth'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 
@@ -106,3 +107,63 @@ export function useMarkVehicleInsuranceExpired() {
   })
 }
 
+
+/** Prévient le membre de la décision sur sa déclaration (best-effort : ne bloque pas la décision). */
+async function notifyMemberOfDeclaration(insurance: VehicleInsurance, decision: 'validated' | 'rejected', reason?: string) {
+  const recipientId = insurance.memberMatricule || insurance.memberId
+  if (!recipientId) return
+  const vehicle = [insurance.vehicleBrand, insurance.vehicleModel].filter(Boolean).join(' ') || 'votre véhicule'
+  const plate = insurance.plateNumber ? ` (${insurance.plateNumber})` : ''
+  await ServiceFactory.getNotificationService().notifyMember({
+    recipientId,
+    module: 'vehicule',
+    entityId: insurance.id,
+    type: 'status_update',
+    title: decision === 'validated' ? 'Véhicule validé' : 'Déclaration de véhicule refusée',
+    message:
+      decision === 'validated'
+        ? `L'assurance de ${vehicle}${plate} a été vérifiée et validée par l'association.${
+            insurance.declarationCorrections?.length
+              ? ` Informations corrigées d'après l'assureur partenaire : ${summarizeCorrections(insurance.declarationCorrections)}.`
+              : ''
+          }`
+        : `La déclaration de ${vehicle}${plate} n'a pas été validée${reason ? ` : ${reason}` : ''}. Corrigez-la puis envoyez-la à nouveau.`,
+    metadata: { insuranceId: insurance.id, declarationStatus: decision },
+  })
+}
+
+/** Valide une déclaration de membre après vérification chez l'assureur partenaire. */
+export function useValidateVehicleDeclaration() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: async ({ id, corrections = [] }: { id: string; corrections?: VehicleDeclarationCorrection[] }) => {
+      if (!user?.uid) throw new Error('Utilisateur non authentifié')
+      const insurance = await getService().validateDeclaration(id, user.uid, corrections)
+      await notifyMemberOfDeclaration(insurance, 'validated')
+      return insurance
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
+    },
+  })
+}
+
+/** Refuse une déclaration de membre avec un motif. */
+export function useRejectVehicleDeclaration() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      if (!user?.uid) throw new Error('Utilisateur non authentifié')
+      const insurance = await getService().rejectDeclaration(id, reason, user.uid)
+      await notifyMemberOfDeclaration(insurance, 'rejected', reason.trim())
+      return insurance
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
+    },
+  })
+}

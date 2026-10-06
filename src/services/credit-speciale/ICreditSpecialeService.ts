@@ -75,6 +75,10 @@ export interface ICreditSpecialeService {
     uploadSignedQuittance(contractId: string, file: File, adminId: string, data: SignedQuittanceUploadData): Promise<CreditContract>;
     replaceSignedQuittance(contractId: string, file: File, adminId: string, adminDisplayName: string, data: SignedQuittanceUploadData, modificationMotif: string): Promise<CreditContract>;
     closeContract(contractId: string, data: { closedAt: Date; closedBy: string; motifCloture: string }): Promise<CreditContract>;
+    /** Clôture en perte (défaut de paiement), réservée au SuperAdmin. */
+    writeOffContract(contractId: string, data: { motif: string; guarantorCommissionDue: number; adminId: string; adminName?: string }): Promise<CreditContract>;
+    /** Somme récupérée après une clôture en perte. */
+    recordWriteOffRecovery(contractId: string, data: { amount: number; date: Date; mode: CreditPaymentMode; comment?: string; adminId: string; adminName?: string }): Promise<CreditContract>;
     
     // Simulations
     calculateStandardSimulation(amount: number, interestRate: number, monthlyPayment: number, firstPaymentDate: Date, creditType: CreditType): Promise<StandardSimulation>;

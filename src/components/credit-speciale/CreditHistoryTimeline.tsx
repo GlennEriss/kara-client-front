@@ -195,6 +195,7 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
         badgeColor: history.contract.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
                     history.contract.status === 'DISCHARGED' ? 'bg-blue-100 text-blue-700' :
                     history.contract.status === 'TRANSFORMED' ? 'bg-purple-100 text-purple-700' :
+                    history.contract.status === 'WRITTEN_OFF' ? 'bg-rose-100 text-rose-700' :
                     'bg-gray-100 text-gray-700',
       })
     }

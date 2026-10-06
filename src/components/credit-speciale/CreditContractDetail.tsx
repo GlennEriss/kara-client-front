@@ -1,4 +1,11 @@
 'use client'
+import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
+import { PUNCTUALITY_META, getInstallmentPunctuality, getPaymentPunctuality } from '@/utils/credit-payment-punctuality'
+import CreditRecoveryModal from './CreditRecoveryModal'
+import CreditWriteOffModal from './CreditWriteOffModal'
+import CreditWriteOffSection from './CreditWriteOffSection'
+import { useMyAccess } from '@/hooks/useMyAccess'
+import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 import { computeWeeklyCreditTotals, formatCreditDuration, getWeeklyCreditStartDate, isWeeklyCredit } from '@/utils/credit-weekly'
@@ -56,6 +63,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
     AlertCircle,
+    AlertTriangle,
     ArrowLeft,
     Calendar,
     CalendarDays,
@@ -268,6 +276,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
     BLOCKED: { label: 'Bloqué', color: 'text-red-600', bgColor: 'bg-red-100' },
     DISCHARGED: { label: 'Déchargé', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
     CLOSED: { label: 'Contrat clos', color: 'text-white', bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700 shadow-md ring-1 ring-slate-500/30' },
+    WRITTEN_OFF: { label: 'Clôturé en perte', color: 'text-white', bgColor: 'bg-gradient-to-r from-rose-700 to-rose-800 shadow-md ring-1 ring-rose-500/30' },
     EXTENDED: { label: 'Étendu', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   }
   return configs[status] || configs.DRAFT
@@ -330,7 +339,10 @@ export default function CreditContractDetail({
   const [isExportingLossHistoryExcel, setIsExportingLossHistoryExcel] = useState(false)
   const [isGeneratingGuarantorCommissionsPdf, setIsGeneratingGuarantorCommissionsPdf] = useState(false)
   const [isExportingGuarantorCommissionsExcel, setIsExportingGuarantorCommissionsExcel] = useState(false)
-  const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract } = useCreditContractMutations()
+  const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery } = useCreditContractMutations()
+  const [showWriteOffModal, setShowWriteOffModal] = useState(false)
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false)
+  const { can } = useMyAccess()
 
   // Ouvre la modale d'aperçu/téléchargement (mécanisme mobile unifié).
   const openCreditDocument = (contractArg: CreditContract, url: string | undefined | null, label: string, title: string) => {
@@ -355,8 +367,9 @@ export default function CreditContractDetail({
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
+  // Aussi à la clôture en perte : la commission non versée doit être connue pour être annulée.
   const shouldLoadGuarantorTabData =
-    activeTab === 'guarantor' &&
+    (activeTab === 'guarantor' || showWriteOffModal) &&
     !!contract.guarantorId &&
     !!contract.guarantorIsMember &&
     (contract.guarantorRemunerationPercentage ?? 0) > 0
@@ -684,6 +697,29 @@ export default function CreditContractDetail({
     guarantorPaymentsError instanceof Error
       ? guarantorPaymentsError.message
       : 'Impossible de charger l’historique des paiements au garant.'
+  // Échéance de chaque mois (cycle + mois), pour juger la ponctualité d'un versement.
+  const dueDateByCycleMonth = new Map<string, Date>()
+  timelineHistoryRows.forEach((row) => dueDateByCycleMonth.set(`${row.cycleNumber}_${row.cycleMonth}`, new Date(row.date)))
+  const getPaymentDueDate = (payment: CreditPayment): Date | undefined =>
+    dueDateByCycleMonth.get(`${getCreditPaymentCycleNumber(contract, payment)}_${getCreditPaymentMonthNumber(contract, payment)}`)
+
+  /**
+   * Date de remise du versement d'une échéance (celui qui l'a soldée), retrouvée
+   * par la date d'échéance, comme le rattachement des pénalités au mois.
+   */
+  const remittanceDateByDueDay = new Map<number, Date>()
+  timelineHistoryRows.forEach((row) => {
+    if (row.status !== 'PAID' || !row.paymentDate) return
+    const dueDay = new Date(row.date)
+    dueDay.setHours(0, 0, 0, 0)
+    remittanceDateByDueDay.set(dueDay.getTime(), new Date(row.paymentDate))
+  })
+  const getPenaltyRemittanceDate = (penalty: CreditPenalty): Date | undefined => {
+    const dueDay = new Date(penalty.dueDate)
+    dueDay.setHours(0, 0, 0, 0)
+    return remittanceDateByDueDay.get(dueDay.getTime())
+  }
+
   const penaltiesByTimelineKey = new Map<string, number>()
   if (timelineHistoryRows.length > 0) {
     timelineHistoryRows.forEach((row) => {
@@ -1925,6 +1961,17 @@ export default function CreditContractDetail({
                         Date d'échéance : <span className="font-medium text-gray-800">{formatDate(penalty.dueDate)}</span>
                       </p>
                       <p>
+                        Date de remise :{' '}
+                        {(() => {
+                          const remittanceDate = getPenaltyRemittanceDate(penalty)
+                          return remittanceDate ? (
+                            <span className="font-medium text-gray-800">{formatDate(remittanceDate)}</span>
+                          ) : (
+                            <span className="font-medium text-orange-700">Échéance pas encore remise</span>
+                          )
+                        })()}
+                      </p>
+                      <p>
                         Créée le : <span className="font-medium text-gray-800">{formatDateTime(penalty.createdAt, format(new Date(penalty.createdAt), 'HH:mm'))}</span>
                       </p>
                       <p className="sm:col-span-2 xl:col-span-1">
@@ -2034,7 +2081,7 @@ export default function CreditContractDetail({
                           <Eye className="mr-2 h-4 w-4" />
                           Voir la facture
                         </Button>
-                        {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                        {!isCreditContractEnded(contract.status) && (
                           <Button
                             type="button"
                             size="sm"
@@ -2051,7 +2098,7 @@ export default function CreditContractDetail({
                           </Button>
                         )}
                       </>
-                    ) : (
+                    ) : contract.status !== 'WRITTEN_OFF' ? (
                       <Button
                         type="button"
                         size="sm"
@@ -2065,7 +2112,7 @@ export default function CreditContractDetail({
                         <HandCoins className="mr-2 h-4 w-4" />
                         Payer
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -2313,7 +2360,8 @@ export default function CreditContractDetail({
                   // Permettre les paiements si le contrat est ACTIVE, PARTIAL, ou s'il reste des échéances à payer
                   // Même si le contrat est DISCHARGED, on peut avoir des échéances restantes à payer
                   const hasUnpaidInstallments = actualSchedule.some(i => i.status === 'DUE' || i.status === 'FUTURE')
-                  const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments
+                  // Clôturé en perte : plus de paiement ordinaire, seulement des récupérations.
+                  const canMakePayments = contract.status !== 'WRITTEN_OFF' && (contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments)
 
                   // Les échéances se paient dans l'ordre : toutes les précédentes doivent être payées ou en repos.
                   const allPreviousPaid = actualSchedule
@@ -2555,7 +2603,7 @@ export default function CreditContractDetail({
                                 <Eye className="h-3 w-3 mr-1" />
                                 Voir la facture
                               </Button>
-                              {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                              {!isCreditContractEnded(contract.status) && (
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -2642,6 +2690,7 @@ export default function CreditContractDetail({
                           </h3>
                         </div>
                       </div>
+                      <PunctualityLegend />
 
                       {timelineHistoryRows.length === 0 ? (
                         <div className="text-center py-8 text-gray-500 border rounded-lg">
@@ -2670,6 +2719,7 @@ export default function CreditContractDetail({
                                     <TableHead>Mois</TableHead>
                                     <TableHead>Phase</TableHead>
                                     <TableHead>Date</TableHead>
+                                    <TableHead>Ponctualité</TableHead>
                                     <TableHead className="text-right">Capital</TableHead>
                                     <TableHead className="text-right">Commission</TableHead>
                                     <TableHead className="text-right">Intérêts</TableHead>
@@ -2680,8 +2730,13 @@ export default function CreditContractDetail({
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {rows.map((row) => (
-                                    <TableRow key={row.key} className={row.isRest ? 'bg-blue-50/50' : ''}>
+                                  {rows.map((row) => {
+                                    const punctuality = getInstallmentPunctuality(row)
+                                    return (
+                                    <TableRow
+                                      key={row.key}
+                                      className={cn('border-l-4', PUNCTUALITY_META[punctuality.kind].border, row.isRest && 'bg-blue-50/50')}
+                                    >
                                       <TableCell className="font-medium">
                                         {row.isRest ? `M${row.cycleMonth} (repos)` : `M${row.cycleMonth}`}
                                       </TableCell>
@@ -2697,7 +2752,15 @@ export default function CreditContractDetail({
                                           {row.phase === 'FIXE' ? 'Partie fixe' : 'Spéciale'}
                                         </Badge>
                                       </TableCell>
-                                      <TableCell>{formatDate(row.date)}</TableCell>
+                                      <TableCell>
+                                        {formatDate(row.date)}
+                                        {row.status === 'PAID' && row.paymentDate && (
+                                          <span className="block text-xs text-gray-500">versé le {formatDate(row.paymentDate)}</span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        <PunctualityBadge kind={punctuality.kind} daysLate={punctuality.daysLate} />
+                                      </TableCell>
                                       <TableCell className="text-right">{row.capitalStart.toLocaleString('fr-FR')} FCFA</TableCell>
                                       <TableCell className="text-right">{row.commission.toLocaleString('fr-FR')} FCFA</TableCell>
                                       <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
@@ -2706,7 +2769,8 @@ export default function CreditContractDetail({
                                       <TableCell className="text-right">{(penaltiesByTimelineKey.get(row.key) ?? 0).toLocaleString('fr-FR')} FCFA</TableCell>
                                       <TableCell className="text-right font-medium">{row.nextCapitalActual.toLocaleString('fr-FR')} FCFA</TableCell>
                                     </TableRow>
-                                  ))}
+                                    )
+                                  })}
                                 </TableBody>
                               </Table>
                             </div>
@@ -2754,11 +2818,18 @@ export default function CreditContractDetail({
                           .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
                           .map((payment) => {
                             const paymentLabel = getCreditPaymentDisplayMonthLabel(contract, payment)
+                            const paymentDueDate = getPaymentDueDate(payment)
+                            // Un versement de pénalités seules n'a pas d'échéance propre : pas de ponctualité.
+                            const isPenaltyOnly = payment.amount === 0 && !!payment.comment?.includes('Paiement de pénalités uniquement')
+                            const punctuality = paymentDueDate && !isPenaltyOnly ? getPaymentPunctuality(paymentDueDate, payment.paymentDate) : null
 
                             return (
                               <div
                                 key={payment.id}
-                                className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                                className={cn(
+                                  'flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow',
+                                  punctuality && cn('border-l-4', PUNCTUALITY_META[punctuality.kind].border)
+                                )}
                               >
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
@@ -2770,6 +2841,12 @@ export default function CreditContractDetail({
                                       <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
                                         {paymentLabel}
                                       </Badge>
+                                    )}
+                                    {punctuality && paymentDueDate && (
+                                      <>
+                                        <PunctualityBadge kind={punctuality.kind} daysLate={punctuality.daysLate} />
+                                        <span className="text-xs text-gray-500">échéance du {formatDate(paymentDueDate)}</span>
+                                      </>
                                     )}
                                   </div>
                                   <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -2827,7 +2904,7 @@ export default function CreditContractDetail({
                                     <Eye className="h-4 w-4 mr-1" />
                                     Voir la facture
                                   </Button>
-                                  {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                                  {!isCreditContractEnded(contract.status) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -2986,9 +3063,9 @@ export default function CreditContractDetail({
                           </p>
                         </div>
                         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                          <p className="text-xs text-amber-700">Reste à verser</p>
+                          <p className="text-xs text-amber-700">{contract.writeOff ? 'Annulé (clôture en perte)' : 'Reste à verser'}</p>
                           <p className="mt-1 text-xl font-bold text-amber-800">
-                            {guarantorCommissionBalance.remaining.toLocaleString('fr-FR')} FCFA
+                            {(contract.writeOff ? 0 : guarantorCommissionBalance.remaining).toLocaleString('fr-FR')} FCFA
                           </p>
                         </div>
                       </div>
@@ -3113,7 +3190,11 @@ export default function CreditContractDetail({
                             </p>
                           </div>
                         )}
-                        {guarantorCommissionBalance.remaining > 0 ? (
+                        {contract.writeOff ? (
+                          <p className="text-sm text-rose-700 mb-3">
+                            Contrat clôturé en perte : la commission non versée ({contract.writeOff.guarantorCommissionCancelled.toLocaleString('fr-FR')} FCFA) a été annulée.
+                          </p>
+                        ) : guarantorCommissionBalance.remaining > 0 ? (
                           <>
                             <p className="text-sm text-gray-600 mb-3">Enregistrer la preuve du versement effectué au garant.</p>
                             <Button
@@ -3238,6 +3319,38 @@ export default function CreditContractDetail({
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Défaut de paiement : clôture en perte (SuperAdmin) */}
+        {isSuperAdmin && canWriteOffContract(contract) && (
+          <Card className="border-0 border-l-4 border-l-rose-300 bg-white shadow-md">
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-gray-900">Défaut de paiement</p>
+                <p className="text-sm text-gray-600">
+                  Si le membre ne remboursera plus, clôturez le contrat en perte : il sort des relances et le reste dû est
+                  enregistré comme perte.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 border-rose-300 text-rose-700 hover:bg-rose-50"
+                onClick={() => setShowWriteOffModal(true)}
+              >
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Clôturer en perte
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {contract.status === 'WRITTEN_OFF' && (
+          <CreditWriteOffSection
+            contract={contract}
+            canRecordRecovery={isSuperAdmin || can('creditSpeciale.payment')}
+            onRecordRecovery={() => setShowRecoveryModal(true)}
+          />
+        )}
 
         {/* Section Remboursement final - visible quand montant restant = 0 et contrat non déchargé/clos */}
         {realRemainingAmount <= 0.1 &&
@@ -3384,7 +3497,7 @@ export default function CreditContractDetail({
 
               {/* Actions du cycle en cours */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                {!isCreditContractEnded(contract.status) && (
                   <Button
                     variant="outline"
                     className="justify-start"
@@ -3406,7 +3519,7 @@ export default function CreditContractDetail({
                       <FileSignature className="h-4 w-4 mr-2" />
                       Voir contrat
                     </Button>
-                    {!['DISCHARGED', 'CLOSED'].includes(contract.status) && (
+                    {!isCreditContractEnded(contract.status) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -3432,7 +3545,7 @@ export default function CreditContractDetail({
                   <div className="mt-3 space-y-3">
                     {contractDocumentsByCycle.map((cycleDocument) => {
                       const canGenerateCurrentCycleContract =
-                        cycleDocument.isCurrentCycle && !['DISCHARGED', 'CLOSED'].includes(contract.status)
+                        cycleDocument.isCurrentCycle && !isCreditContractEnded(contract.status)
                       const canOpenCycleContract = Boolean(cycleDocument.contractUrl) || canGenerateCurrentCycleContract
 
                       return (
@@ -3833,7 +3946,7 @@ export default function CreditContractDetail({
           }
           dueDate={selectedReceiptDueDate}
           penaltyAmountOverride={selectedReceiptPenaltyAmount}
-          onEditClick={!['DISCHARGED', 'CLOSED'].includes(contract.status) ? () => {
+          onEditClick={!isCreditContractEnded(contract.status) ? () => {
             setPaymentToEdit(selectedPaymentForReceipt)
             setShowReceiptModal(false)
             setSelectedDueIndexForReceipt(null)
@@ -4106,6 +4219,31 @@ export default function CreditContractDetail({
           })
         }}
         isPending={closeContract.isPending}
+      />
+      <CreditWriteOffModal
+        isOpen={showWriteOffModal}
+        onClose={() => setShowWriteOffModal(false)}
+        contract={contract}
+        unpaidPenalties={penalties.filter((penalty) => !penalty.paid).reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), 0)}
+        guarantorCommissionDue={guarantorCommissionBalance.remaining}
+        isLoadingAmounts={shouldLoadGuarantorTabData && (isLoadingRemunerations || isLoadingGuarantorPayments)}
+        onConfirm={async (motif) => {
+          await writeOffContract.mutateAsync({
+            contractId: contract.id,
+            motif,
+            guarantorCommissionDue: guarantorCommissionBalance.remaining,
+          })
+        }}
+        isPending={writeOffContract.isPending}
+      />
+      <CreditRecoveryModal
+        isOpen={showRecoveryModal}
+        onClose={() => setShowRecoveryModal(false)}
+        maxAmount={computeWriteOffLoss(contract).net}
+        onConfirm={async (data) => {
+          await recordWriteOffRecovery.mutateAsync({ contractId: contract.id, ...data })
+        }}
+        isPending={recordWriteOffRecovery.isPending}
       />
       <QuittanceCreditSpecialePDFModal
         isOpen={showQuittanceModal}

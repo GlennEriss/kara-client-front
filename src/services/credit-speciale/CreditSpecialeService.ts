@@ -31,6 +31,7 @@ import {
     getNextDueFromCreditSpecialeHistory,
 } from "@/utils/credit-speciale-history";
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
+import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss } from "@/utils/credit-write-off";
 import { WEEKLY_CREDIT_MAX_WEEKS, isWeeklyCredit } from "@/utils/credit-weekly";
 import {
     buildGuarantorRemunerationDocId,
@@ -1206,6 +1207,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        if (contract.status === 'WRITTEN_OFF') {
+            throw new Error('Contrat clôturé en perte : enregistrez la somme comme récupération');
+        }
 
         // Générer la référence unique du paiement
         const now = new Date(data.paymentDate);
@@ -2321,6 +2325,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!penalty) {
             throw new Error('Pénalité introuvable');
         }
+        const penaltyContract = await this.creditContractRepository.getContractById(penalty.creditId);
+        if (penaltyContract?.status === 'WRITTEN_OFF') {
+            throw new Error('Contrat clôturé en perte : enregistrez la somme comme récupération');
+        }
         if (penalty.paid) {
             throw new Error('Cette pénalité est déjà payée');
         }
@@ -2492,6 +2500,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) throw new Error('Contrat introuvable');
         if (!contract.guarantorId) throw new Error('Ce contrat n\'a pas de garant');
         if (contract.creditType !== 'SPECIALE') throw new Error('Le paiement au garant ne s\'applique qu\'aux contrats crédit spéciale');
+        if (contract.status === 'WRITTEN_OFF') throw new Error('Contrat clôturé en perte : la commission du garant a été annulée');
         if (data.amount <= 0) throw new Error('Le montant doit être strictement positif');
 
         let proofUrl: string | undefined;
@@ -3073,6 +3082,97 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         });
 
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+        return updatedContract;
+    }
+
+    /**
+     * Clôture en perte (défaut de paiement), décision réservée au SuperAdmin :
+     * le contrat sort des échéanciers et des relances, le reste dû et les
+     * pénalités impayées sont enregistrés comme perte, et la commission du
+     * garant non versée est annulée.
+     */
+    async writeOffContract(
+        contractId: string,
+        data: { motif: string; guarantorCommissionDue: number; adminId: string; adminName?: string }
+    ): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        if (!canWriteOffContract(contract)) {
+            throw new Error('Seul un contrat en cours avec un reste à payer peut être clôturé en perte');
+        }
+        const motif = data.motif?.trim() ?? '';
+        if (motif.length < 10 || motif.length > 500) {
+            throw new Error('Le motif doit contenir entre 10 et 500 caractères');
+        }
+
+        const unpaidPenalties = (await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contractId))
+            .reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), 0);
+        const writtenOffAt = new Date();
+
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            status: 'WRITTEN_OFF',
+            writeOff: {
+                writtenOffAt,
+                writtenOffBy: data.adminId,
+                writtenOffByName: data.adminName,
+                motif,
+                ...buildWriteOffAmounts({
+                    amountRemaining: contract.amountRemaining,
+                    unpaidPenalties,
+                    guarantorCommissionDue: contract.guarantorId ? data.guarantorCommissionDue : 0,
+                }),
+            },
+            closedAt: writtenOffAt,
+            closedBy: data.adminId,
+            motifCloture: motif,
+            updatedBy: data.adminId,
+        });
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+        return updatedContract;
+    }
+
+    /** Somme récupérée auprès du membre après une clôture en perte : elle réduit la perte. */
+    async recordWriteOffRecovery(
+        contractId: string,
+        data: { amount: number; date: Date; mode: CreditPaymentMode; comment?: string; adminId: string; adminName?: string }
+    ): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        if (contract.status !== 'WRITTEN_OFF' || !contract.writeOff) {
+            throw new Error('Les récupérations ne concernent que les contrats clôturés en perte');
+        }
+        const amount = Math.round(Number(data.amount) || 0);
+        if (amount <= 0) {
+            throw new Error('Le montant doit être strictement positif');
+        }
+        const { net } = computeWriteOffLoss(contract);
+        if (amount > net) {
+            throw new Error(`Le montant dépasse la perte restante (${net.toLocaleString('fr-FR')} FCFA)`);
+        }
+
+        const recovery = {
+            id: `REC_${Date.now()}`,
+            amount,
+            date: data.date,
+            mode: data.mode,
+            comment: data.comment?.trim() || undefined,
+            recordedBy: data.adminId,
+            recordedByName: data.adminName,
+            recordedAt: new Date(),
+        };
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            writeOffRecoveries: [...(contract.writeOffRecoveries ?? []), recovery],
+            updatedBy: data.adminId,
+        });
         if (!updatedContract) {
             throw new Error('Erreur lors de la mise à jour du contrat');
         }

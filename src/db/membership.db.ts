@@ -3,6 +3,7 @@
  * Database operations for membership requests (demandes d'adhésion)
  */
 
+import { resolveBeneficiary, withResolvedBeneficiary } from '@/constantes/beneficiary'
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 import { RegisterFormData } from "@/schemas/schemas";
 import type { MembershipRequest, MembershipRequestStatus, PaginatedMembershipRequests, Payment } from "@/types/types";
@@ -136,9 +137,10 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
         
         const membershipData: Omit<MembershipRequestDB, 'id' | 'createdAt' | 'updatedAt'> = {
             matricule, // Ajouter le matricule généré
-            identity: {
+            // Ayant droit : le membre choisi, sinon INCONNU.
+            identity: withResolvedBeneficiary({
                 ...identityWithoutPhoto
-            },
+            }),
             address: formData.address,
             company: formData.company,
             documents: {
@@ -893,9 +895,10 @@ export async function updateMembershipRequest(
         const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents;
 
         const updateData: any = {
-            identity: {
+            // Ayant droit : le membre choisi, sinon INCONNU.
+            identity: withResolvedBeneficiary({
                 ...identityWithoutPhoto
-            },
+            }),
             address: formData.address,
             company: formData.company,
             documents: {
@@ -1002,4 +1005,22 @@ export async function deleteMembershipRequest(requestId: string): Promise<boolea
         console.error("Erreur lors de la suppression:", error);
         return false;
     }
+}
+/**
+ * Modifie l'ayant droit d'une demande d'adhésion (dossier du membre), à tout
+ * moment, y compris après validation. Membre choisi, sinon INCONNU.
+ */
+export async function updateMembershipRequestBeneficiary(
+    requestId: string,
+    beneficiary: Parameters<typeof resolveBeneficiary>[0],
+    adminId: string,
+): Promise<void> {
+    const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+    const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+    await updateDoc(docRef, {
+        "identity.beneficiary": resolveBeneficiary(beneficiary),
+        beneficiaryUpdatedBy: adminId,
+        beneficiaryUpdatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
 }

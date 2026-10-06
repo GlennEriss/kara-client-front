@@ -9,15 +9,15 @@ export const MEMBER_OVERVIEW_STATUS_FILTERS = {
   },
   creditSpeciale: {
     demandesIncluded: ['PENDING', 'APPROVED'],
-    contratsExcluded: ['CLOSED', 'DISCHARGED'],
+    contratsExcluded: ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'],
   },
   creditFixe: {
     demandesIncluded: ['PENDING', 'APPROVED'],
-    contratsExcluded: ['CLOSED', 'DISCHARGED'],
+    contratsExcluded: ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'],
   },
   creditAide: {
     demandesIncluded: ['PENDING', 'APPROVED'],
-    contratsExcluded: ['CLOSED', 'DISCHARGED'],
+    contratsExcluded: ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'],
   },
   placement: {
     demandesIncluded: ['PENDING', 'APPROVED'],

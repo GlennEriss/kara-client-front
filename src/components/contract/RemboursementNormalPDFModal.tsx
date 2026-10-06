@@ -221,8 +221,9 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     }
   }
 
-  // Le procès-verbal de liquidation ne devient définitif qu'après le versement.
-  // On privilégie donc le dernier remboursement effectivement payé.
+  // Le procès-verbal est généré dès la demande : imprimé, signé à la remise des
+  // fonds (date et mode de règlement complétés à la main), puis téléversé pour
+  // approuver. On privilégie le dernier remboursement effectivement payé.
   const activeRefund = React.useMemo(() => {
     const eligible = refunds.filter((r: any) =>
       (r.type === 'FINAL' || r.type === 'EARLY') &&
@@ -230,7 +231,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     )
     return eligible.find((r: any) => r.status === 'PAID') ?? eligible[0]
   }, [refunds])
-  const canGenerateLiquidation = activeRefund?.status === 'PAID'
+  const canGenerateLiquidation = activeRefund != null
 
   // Créer un objet contract enrichi avec les données du membre
   const enrichedContract = React.useMemo(() => {
@@ -309,7 +310,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
 
   const handleDownloadPDF = async () => {
     if (!canGenerateLiquidation) {
-      toast.error('Le procès-verbal est disponible une fois le remboursement marqué comme payé.')
+      toast.error('Le procès-verbal est disponible une fois une demande de remboursement enregistrée.')
       return
     }
 
@@ -407,10 +408,10 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
           ) : !canGenerateLiquidation ? (
             <div className="flex h-full items-center justify-center bg-amber-50 p-6 text-center">
               <div className="max-w-md space-y-2">
-                <h3 className="text-lg font-bold text-amber-900">Liquidation en attente de règlement</h3>
+                <h3 className="text-lg font-bold text-amber-900">Aucune demande de remboursement</h3>
                 <p className="text-sm leading-relaxed text-amber-800">
-                  Le procès-verbal devient téléchargeable après l&apos;enregistrement du remboursement
-                  comme payé. Il ne constitue pas un acte de liquidation avant ce versement.
+                  Le procès-verbal devient téléchargeable dès qu&apos;une demande de remboursement
+                  final ou de retrait anticipé est enregistrée.
                 </p>
               </div>
             </div>

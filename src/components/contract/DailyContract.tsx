@@ -40,6 +40,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import PdfDocumentModal from './PdfDocumentModal'
+import CancelFinalRefundButton from "./CancelFinalRefundButton"
 import PdfViewerModal from './PdfViewerModal'
 const RemboursementNormalPDFModal = dynamic(
   () => import('./RemboursementNormalPDFModal'),
@@ -1079,6 +1080,28 @@ export default function DailyContract({ id }: Props) {
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
                 </div>
+
+                  {r.type === 'FINAL' && r.status === 'ARCHIVED' && r.archiveReason && (
+                    <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                      <p className="text-xs text-gray-500 font-medium mb-1">
+                        Annulé{r.archivedByName ? ` par ${r.archivedByName}` : ''}
+                      </p>
+                      <p className="text-gray-700">« {r.archiveReason} »</p>
+                    </div>
+                  )}
+
+                  {r.type === 'FINAL' && (r.status === 'PENDING' || r.status === 'APPROVED') && (
+                    <div className="mb-4">
+                      <CancelFinalRefundButton
+                        contractId={id}
+                        refundId={r.id}
+                        onDone={async () => {
+                          await refetch()
+                          await reloadRefunds()
+                        }}
+                      />
+                    </div>
+                  )}
 
                   {(r.type === 'FINAL' || r.type === 'EARLY') && r.status === 'PAID' && (
                     <div className="mb-4 border-t border-gray-100 pt-3 space-y-2">

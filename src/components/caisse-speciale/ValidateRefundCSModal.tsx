@@ -114,7 +114,11 @@ export default function ValidateRefundCSModal({ open, onClose, contractId, refun
         archivedBy: user.uid,
         archivedByName,
         archiveReason: archiveReason.trim(),
+        archivedAt: new Date(),
       })
+      // Sort le contrat de FINAL/EARLY_REFUND_PENDING : une nouvelle demande redevient possible.
+      const { recomputeNow } = await import('@/services/caisse/readers')
+      await recomputeNow(contractId)
 
       toast.success('Demande de remboursement archivée')
       queryClient.invalidateQueries({ queryKey: ['refundsCS', contractId] })

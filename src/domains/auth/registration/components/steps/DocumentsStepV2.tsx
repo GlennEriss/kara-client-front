@@ -35,6 +35,7 @@ const DOCUMENT_TYPES = [
   { value: 'Passeport', label: 'Passeport', icon: Book },
   { value: 'Carte de séjour', label: 'Carte de séjour', icon: FileText },
   { value: 'Carte consulaire', label: 'Carte consulaire', icon: Landmark },
+  { value: 'Carte scolaire', label: 'Carte scolaire', icon: FileText },
   { value: 'NIP', label: 'NIP', icon: Badge },
   { value: 'Autre', label: 'Autre document', icon: Clipboard },
 ] as const

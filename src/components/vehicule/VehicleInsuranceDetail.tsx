@@ -175,6 +175,24 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
             </>
           )}
 
+          {insurance.declarationCorrections && insurance.declarationCorrections.length > 0 && (
+            <>
+              <Separator />
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase">Corrigé à la validation</h3>
+                <ul className="space-y-1 text-sm">
+                  {insurance.declarationCorrections.map((correction) => (
+                    <li key={correction.field}>
+                      <span className="font-medium text-gray-700">{correction.label} :</span>{' '}
+                      <span className="text-gray-400 line-through">{correction.declared}</span>{' '}
+                      → <span className="font-semibold text-gray-900">{correction.retained}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          )}
+
           {canDownloadDocuments && insurance.attachments && (insurance.attachments.policyUrl || insurance.attachments.receiptUrl) && (
             <>
               <Separator />
