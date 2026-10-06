@@ -2272,7 +2272,37 @@ export interface VehicleInsurance {
   createdBy: string
   updatedAt: Date
   updatedBy?: string
+  /**
+   * Déclaration faite par le membre depuis son espace : brouillon, envoyée à
+   * l'administration (en attente), refusée, ou validée après vérification chez
+   * l'assureur partenaire. Absent = saisie par l'admin, donc validée.
+   */
+  declarationStatus?: VehicleDeclarationStatus
+  submittedAt?: Date
+  validatedAt?: Date
+  validatedBy?: string
+  rejectedAt?: Date
+  rejectedBy?: string
+  rejectionReason?: string
+  /** Champs corrigés par l'admin à la validation (comparaison avec l'assureur partenaire). */
+  declarationCorrections?: VehicleDeclarationCorrection[]
+  /** Copie de la saisie du membre au moment de l'envoi (référence des corrections). */
+  declaredValues?: Partial<Pick<VehicleInsurance, 'plateNumber' | 'vehicleType' | 'vehicleBrand' | 'vehicleModel' | 'vehicleYear' | 'energySource' | 'insuranceCompany' | 'policyNumber' | 'premiumAmount' | 'startDate' | 'endDate'>>
 }
+
+/** Correction d'un champ saisi par le membre : valeur déclarée et valeur retenue, affichables. */
+export interface VehicleDeclarationCorrection {
+  field: string
+  label: string
+  declared: string
+  retained: string
+}
+
+export type VehicleDeclarationStatus = 'draft' | 'pending' | 'rejected' | 'validated'
+
+/** Une assurance compte dans le suivi seulement une fois validée. */
+export const isValidatedVehicleInsurance = (insurance: Pick<VehicleInsurance, 'declarationStatus'>) =>
+  !insurance.declarationStatus || insurance.declarationStatus === 'validated'
 
 export interface VehicleInsuranceFilters {
   status?: VehicleInsuranceStatus | 'all'
@@ -2286,6 +2316,8 @@ export interface VehicleInsuranceFilters {
   limit?: number
   orderByField?: string
   orderByDirection?: 'asc' | 'desc'
+  /** Assurances validées (défaut), déclarations en attente de validation, ou tout. */
+  declaration?: 'validated' | 'pending' | 'all'
 }
 
 export interface VehicleInsuranceListResult {
@@ -2308,6 +2340,8 @@ export interface VehicleInsuranceStats {
   byCompany: Array<{ company: string; count: number }>
   byVehicleType: Array<{ type: VehicleType; count: number }>
   expiringSoonList: VehicleInsurance[]
+  /** Déclarations de membres en attente de validation. */
+  pendingDeclarations: number
 }
 
 export const VEHICLE_INSURANCE_STATUS_LABELS: Record<VehicleInsuranceStatus, string> = {

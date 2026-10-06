@@ -38,6 +38,8 @@ export async function checkAndNotifyVehicleInsuranceExpiring(): Promise<void> {
         const insuranceId = insuranceDoc.id
 
         if (!insurance.endDate) continue
+        // Déclarations de membres pas encore validées : hors suivi des échéances.
+        if (insurance.declarationStatus && insurance.declarationStatus !== 'validated') continue
 
         const endDate = insurance.endDate?.toDate ? insurance.endDate.toDate() : new Date(insurance.endDate)
         endDate.setHours(0, 0, 0, 0)

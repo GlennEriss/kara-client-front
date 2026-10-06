@@ -7,7 +7,9 @@ import { PageHero } from '@/components/ui/page-hero'
 import { useAllMembers } from '@/hooks/useMembers'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { useVehicleInsurancesRealtimeSync } from '@/hooks/vehicule/useVehicleInsurancesRealtimeSync'
-import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRenewVehicleInsurance, useUpdateVehicleInsurance, useVehicleInsuranceList, useVehicleInsuranceStats } from '@/hooks/vehicule/useVehicleInsurances'
+import { useCreateVehicleInsurance, useDeleteVehicleInsurance, useRejectVehicleDeclaration, useRenewVehicleInsurance, useUpdateVehicleInsurance, useValidateVehicleDeclaration, useVehicleInsuranceList, useVehicleInsuranceStats } from '@/hooks/vehicule/useVehicleInsurances'
+import { Textarea } from '@/components/ui/textarea'
+import { diffVehicleDeclaration } from '@/utils/vehicle-declaration'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { VehicleInsurance, VehicleInsuranceFilters } from '@/types/types'
 import { FileSpreadsheet, FileText, Plus, ShieldCheck } from 'lucide-react'
@@ -76,6 +78,8 @@ export function VehicleInsuranceList() {
     ...(searchParams.get('q') ? { searchQuery: searchParams.get('q') as string } : {}),
   }))
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
+  // « À valider » : déclarations envoyées par les membres, à vérifier chez l'assureur partenaire.
+  const [view, setView] = useState<'insurances' | 'pending'>(searchParams.get('vue') === 'a-valider' ? 'pending' : 'insurances')
   const [pageSize, setPageSize] = useState(Number(searchParams.get('limit')) || 10)
 
   // Miroir URL (les valeurs par défaut restent absentes de l'URL).
@@ -85,6 +89,7 @@ export function VehicleInsuranceList() {
     q: filters.searchQuery || null,
     page: page > 1 ? page : null,
     limit: pageSize !== 10 ? pageSize : null,
+    vue: view === 'pending' ? 'a-valider' : null,
   })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
@@ -92,13 +97,22 @@ export function VehicleInsuranceList() {
   const [detailInsurance, setDetailInsurance] = useState<VehicleInsurance | null>(null)
   const [isRenewDialogOpen, setIsRenewDialogOpen] = useState(false)
   const [insuranceToDelete, setInsuranceToDelete] = useState<VehicleInsurance | null>(null)
+  // Validation : le formulaire s'ouvre pour vérifier/compléter, l'enregistrement valide.
+  const [validateAfterSave, setValidateAfterSave] = useState(false)
+  const [declarationToReject, setDeclarationToReject] = useState<VehicleInsurance | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
 
   const { data: stats, isLoading: statsLoading } = useVehicleInsuranceStats()
-  const { data: list, isLoading, refetch } = useVehicleInsuranceList({ ...filters, page, limit: pageSize }, page, pageSize)
+  const { data: list, isLoading, refetch } = useVehicleInsuranceList(
+    { ...filters, page, limit: pageSize, declaration: view === 'pending' ? 'pending' : 'validated' },
+    page,
+    pageSize,
+  )
   // Récupérer TOUS les membres (sans filtre hasCar côté Firestore pour éviter les problèmes d'indexation)
   const { data: membersData, isLoading: membersLoading, refetch: refetchMembers } = useAllMembers({}, 1, 1000)
   // Récupérer toutes les assurances (sans pagination) pour obtenir la liste complète des membres avec assurance
-  const { data: allInsurancesList } = useVehicleInsuranceList({}, 1, 10000)
+  // Déclarations en attente comprises : le formulaire doit retrouver le membre déclarant.
+  const { data: allInsurancesList } = useVehicleInsuranceList({ declaration: 'all' }, 1, 10000)
 
   // Récupérer les IDs des membres qui ont déjà une assurance véhicule
   const memberIdsWithInsurance = useMemo(() => {
@@ -133,7 +147,8 @@ export function VehicleInsuranceList() {
     })
   }, [membersData, memberIdsWithInsurance])
   const companies = useMemo(() => stats?.byCompany.map(item => item.company) || [], [stats])
-  const allItems = allInsurancesList?.items || []
+  // Exports : seulement les assurances validées.
+  const allItems = (allInsurancesList?.items || []).filter((item) => !item.declarationStatus || item.declarationStatus === 'validated')
 
   const buildExportRows = () => {
     return allItems.map(insurance => {
@@ -224,6 +239,27 @@ export function VehicleInsuranceList() {
   const updateMutation = useUpdateVehicleInsurance()
   const renewMutation = useRenewVehicleInsurance()
   const deleteMutation = useDeleteVehicleInsurance()
+  const validateMutation = useValidateVehicleDeclaration()
+  const rejectMutation = useRejectVehicleDeclaration()
+
+  const openValidation = (insurance: VehicleInsurance) => {
+    setFormMode('edit')
+    setCurrentInsurance(insurance)
+    setValidateAfterSave(true)
+    setIsFormOpen(true)
+  }
+
+  const handleReject = async () => {
+    if (!declarationToReject) return
+    try {
+      await rejectMutation.mutateAsync({ id: declarationToReject.id, reason: rejectionReason })
+      toast.success('Déclaration refusée', { description: 'Le membre a été prévenu.' })
+      setDeclarationToReject(null)
+      setRejectionReason('')
+    } catch (error) {
+      toast.error('Refus impossible', { description: error instanceof Error ? error.message : undefined })
+    }
+  }
 
   const openCreateModal = () => {
     setFormMode('create')
@@ -254,10 +290,23 @@ export function VehicleInsuranceList() {
         toast.success('Assurance véhicule créée')
       } else if (currentInsurance) {
         await updateMutation.mutateAsync({ id: currentInsurance.id, updates: enrichedValues })
-        toast.success('Assurance mise à jour')
+        if (validateAfterSave) {
+          // Écarts entre la saisie du membre et les informations de l'assureur partenaire.
+          // Référence : la saisie du membre à l'envoi, même si la fiche a été modifiée depuis.
+          const corrections = diffVehicleDeclaration(currentInsurance.declaredValues ?? currentInsurance, values)
+          await validateMutation.mutateAsync({ id: currentInsurance.id, corrections })
+          toast.success('Déclaration validée', {
+            description: corrections.length
+              ? `${corrections.length} correction${corrections.length > 1 ? 's' : ''} enregistrée${corrections.length > 1 ? 's' : ''} ; le membre a été prévenu.`
+              : 'Le membre a été prévenu.',
+          })
+        } else {
+          toast.success('Assurance mise à jour')
+        }
       }
       setIsFormOpen(false)
       setCurrentInsurance(null)
+      setValidateAfterSave(false)
       refetch()
     } catch (error) {
       toast.error("Impossible d'enregistrer l'assurance", { description: error instanceof Error ? error.message : undefined })
@@ -348,6 +397,33 @@ export function VehicleInsuranceList() {
 
       <VehicleInsuranceStats stats={stats} isLoading={statsLoading} />
 
+      <div className="flex flex-wrap gap-2">
+        {([
+          { value: 'insurances', label: 'Assurances' },
+          { value: 'pending', label: `À valider${stats?.pendingDeclarations ? ` (${stats.pendingDeclarations})` : ''}` },
+        ] as const).map((tab) => (
+          <Button
+            key={tab.value}
+            type="button"
+            size="sm"
+            variant={view === tab.value ? 'default' : 'outline'}
+            className={view === tab.value ? 'bg-[#234D65] hover:bg-[#2c5a73]' : ''}
+            onClick={() => {
+              setView(tab.value)
+              setPage(1)
+            }}
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+      {view === 'pending' && (
+        <p className="text-sm text-gray-600">
+          Véhicules déclarés et envoyés par les membres. Vérifiez chez l&apos;assureur partenaire, complétez la fiche
+          (plaque, ville, parrain) puis validez, ou refusez avec un motif : le membre est prévenu dans les deux cas.
+        </p>
+      )}
+
       <FiltersComponent filters={filters} onChange={next => {
         setFilters(next)
         setPage(1)
@@ -361,11 +437,13 @@ export function VehicleInsuranceList() {
         isLoading={isLoading}
         onView={insurance => setDetailInsurance(insurance)}
         onEdit={can('vehicules.edit') ? openEditModal : undefined}
-        onRenew={can('vehicules.edit') ? insurance => {
+        onRenew={can('vehicules.edit') && view !== 'pending' ? insurance => {
           setCurrentInsurance(insurance)
           setIsRenewDialogOpen(true)
         } : undefined}
         onDelete={can('vehicules.delete') ? setInsuranceToDelete : undefined}
+        onValidate={view === 'pending' && can('vehicules.edit') ? openValidation : undefined}
+        onReject={view === 'pending' && can('vehicules.edit') ? (insurance) => setDeclarationToReject(insurance) : undefined}
         onPageChange={setPage}
         onItemsPerPageChange={limit => {
           setPageSize(limit)
@@ -381,11 +459,17 @@ export function VehicleInsuranceList() {
         setIsFormOpen(open)
         if (!open) {
           setCurrentInsurance(null)
+          setValidateAfterSave(false)
         }
       }}>
         <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90dvh] flex flex-col">
           <DialogHeader className="flex-shrink-0 pb-4 border-b">
-            <DialogTitle className="text-2xl font-bold">{formMode === 'create' ? 'Ajouter une assurance véhicule' : "Modifier l'assurance"}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">{formMode === 'create' ? 'Ajouter une assurance véhicule' : validateAfterSave ? 'Valider la déclaration' : "Modifier l'assurance"}</DialogTitle>
+            {validateAfterSave && (
+              <p className="mt-2 text-sm text-gray-600">
+                Vérifiez les informations auprès de l&apos;assureur partenaire et complétez la fiche : l&apos;enregistrement valide la déclaration.
+              </p>
+            )}
             {formMode === 'create' && (
               <div className="space-y-1 mt-2">
                 <p className="text-sm text-gray-600">
@@ -426,13 +510,15 @@ export function VehicleInsuranceList() {
             <Button 
               type="submit"
               form="vehicle-insurance-form"
-              disabled={createMutation.isPending || updateMutation.isPending || membersWithCar.length === 0}
+              disabled={createMutation.isPending || updateMutation.isPending || validateMutation.isPending || membersWithCar.length === 0}
               className="min-w-[140px] bg-[#234D65] hover:bg-[#2c5a73]"
             >
               {createMutation.isPending || updateMutation.isPending ? (
                 <>Enregistrement...</>
               ) : formMode === 'create' ? (
                 <>Ajouter l'assurance</>
+              ) : validateAfterSave ? (
+                <>Enregistrer et valider</>
               ) : (
                 <>Mettre à jour</>
               )}
@@ -459,6 +545,43 @@ export function VehicleInsuranceList() {
             onSubmit={values => handleRenew(values)}
             isSubmitting={renewMutation.isPending}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!declarationToReject} onOpenChange={open => {
+        if (!open) {
+          setDeclarationToReject(null)
+          setRejectionReason('')
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Refuser la déclaration</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            {declarationToReject?.memberFirstName} {declarationToReject?.memberLastName}
+            {declarationToReject?.plateNumber ? ` — ${declarationToReject.plateNumber}` : ''}. Le motif est envoyé au membre,
+            qui pourra corriger et renvoyer sa déclaration.
+          </p>
+          <Textarea
+            value={rejectionReason}
+            onChange={event => setRejectionReason(event.target.value)}
+            rows={4}
+            placeholder="Ex. : véhicule introuvable chez l'assureur partenaire, numéro de police incorrect…"
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeclarationToReject(null)} disabled={rejectMutation.isPending}>
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleReject}
+              disabled={rejectMutation.isPending || rejectionReason.trim().length < 5}
+            >
+              Refuser
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

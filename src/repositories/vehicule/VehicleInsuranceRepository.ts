@@ -1,11 +1,14 @@
-import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus } from '@/types/types'
+import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus, isValidatedVehicleInsurance } from '@/types/types'
 import { IRepository } from '@/repositories/IRepository'
 
 const getFirestore = () => import('@/firebase/firestore')
 
 const COLLECTION_NAME = 'vehicle-insurances'
 
-type FirestoreVehicleInsurance = Omit<VehicleInsurance, 'id' | 'startDate' | 'endDate' | 'createdAt' | 'updatedAt' | 'lastRenewedAt'> & {
+type FirestoreVehicleInsurance = Omit<VehicleInsurance, 'id' | 'startDate' | 'endDate' | 'createdAt' | 'updatedAt' | 'lastRenewedAt' | 'submittedAt' | 'validatedAt' | 'rejectedAt'> & {
+  submittedAt?: any
+  validatedAt?: any
+  rejectedAt?: any
   startDate: any
   endDate: any
   createdAt: any
@@ -48,6 +51,17 @@ export class VehicleInsuranceRepository implements IRepository {
     const snapshot = await getDocs(q)
 
     let items = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
+
+    // Déclarations des membres : les brouillons ne regardent que le membre ; les
+    // déclarations envoyées attendent la validation et restent hors du suivi.
+    const declaration = filters?.declaration ?? 'validated'
+    if (declaration === 'validated') {
+      items = items.filter(isValidatedVehicleInsurance)
+    } else if (declaration === 'pending') {
+      items = items.filter(item => item.declarationStatus === 'pending')
+    } else {
+      items = items.filter(item => item.declarationStatus !== 'draft')
+    }
 
     // Filtrer par type de titulaire
     if (filters?.holderType && filters.holderType !== 'all') {
@@ -160,7 +174,9 @@ export class VehicleInsuranceRepository implements IRepository {
   async getStats(): Promise<VehicleInsuranceStats> {
     const { collection, getDocs, db } = await getFirestore()
     const snapshot = await getDocs(collection(db, COLLECTION_NAME))
-    const items = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
+    const allItems = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
+    const pendingDeclarations = allItems.filter(item => item.declarationStatus === 'pending').length
+    const items = allItems.filter(isValidatedVehicleInsurance)
     const now = new Date()
     const soonThreshold = new Date()
     soonThreshold.setDate(soonThreshold.getDate() + 30)
@@ -205,6 +221,7 @@ export class VehicleInsuranceRepository implements IRepository {
       byCompany: Array.from(byCompanyMap.entries()).map(([company, count]) => ({ company, count })),
       byVehicleType: Array.from(byVehicleTypeMap.entries()).map(([type, count]) => ({ type: type as any, count })),
       expiringSoonList,
+      pendingDeclarations,
     }
   }
 
@@ -258,6 +275,21 @@ export class VehicleInsuranceRepository implements IRepository {
       createdBy: data.createdBy,
       updatedAt: this.toDate(data.updatedAt),
       updatedBy: data.updatedBy,
+      declarationStatus: data.declarationStatus,
+      submittedAt: data.submittedAt ? this.toDate(data.submittedAt) : undefined,
+      validatedAt: data.validatedAt ? this.toDate(data.validatedAt) : undefined,
+      validatedBy: data.validatedBy,
+      rejectedAt: data.rejectedAt ? this.toDate(data.rejectedAt) : undefined,
+      rejectedBy: data.rejectedBy,
+      rejectionReason: data.rejectionReason,
+      declarationCorrections: data.declarationCorrections,
+      declaredValues: data.declaredValues
+        ? {
+            ...data.declaredValues,
+            startDate: data.declaredValues.startDate ? this.toDate(data.declaredValues.startDate) : undefined,
+            endDate: data.declaredValues.endDate ? this.toDate(data.declaredValues.endDate) : undefined,
+          }
+        : undefined,
     }
   }
 
@@ -268,7 +300,7 @@ export class VehicleInsuranceRepository implements IRepository {
   ): Partial<FirestoreVehicleInsurance> {
     const payload: any = { ...data }
     const originalDates: Record<string, Date> = {}
-    const dateFields: Array<keyof VehicleInsurance> = ['startDate', 'endDate', 'createdAt', 'updatedAt', 'lastRenewedAt']
+    const dateFields: Array<keyof VehicleInsurance> = ['startDate', 'endDate', 'createdAt', 'updatedAt', 'lastRenewedAt', 'submittedAt', 'validatedAt', 'rejectedAt']
     dateFields.forEach(field => {
       if (payload[field]) {
         const dateValue = payload[field] as Date

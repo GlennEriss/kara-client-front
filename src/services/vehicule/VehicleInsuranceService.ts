@@ -2,7 +2,7 @@ import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
 import { NotificationService } from '@/services/notifications/NotificationService'
-import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus } from '@/types/types'
+import { VehicleDeclarationCorrection, VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 
 type CreatePayload = VehicleInsuranceFormValues & {
@@ -262,6 +262,49 @@ export class VehicleInsuranceService {
       updatedAt: new Date(),
       updatedBy: adminId,
     })
+  }
+
+  /**
+   * Valide une déclaration envoyée par un membre, après vérification chez
+   * l'assureur partenaire : elle entre dans le suivi avec le statut de ses dates.
+   */
+  async validateDeclaration(id: string, adminId: string, corrections: VehicleDeclarationCorrection[] = []): Promise<VehicleInsurance> {
+    const current = await this.repository.getById(id)
+    if (!current) throw new Error('Assurance introuvable')
+    if (current.declarationStatus !== 'pending') throw new Error("Cette déclaration n'est pas en attente de validation")
+    if (!current.plateNumber || !current.city || !current.sponsorMemberId) {
+      throw new Error('Complétez la plaque, la ville et le parrain avant de valider')
+    }
+    const now = new Date()
+    await this.repository.update(id, {
+      declarationStatus: 'validated',
+      status: this.computeStatus(current.endDate),
+      validatedAt: now,
+      validatedBy: adminId,
+      declarationCorrections: corrections,
+      updatedAt: now,
+      updatedBy: adminId,
+    })
+    return { ...current, declarationStatus: 'validated', declarationCorrections: corrections }
+  }
+
+  /** Refuse une déclaration : le membre la corrige puis peut l'envoyer à nouveau. */
+  async rejectDeclaration(id: string, reason: string, adminId: string): Promise<VehicleInsurance> {
+    const current = await this.repository.getById(id)
+    if (!current) throw new Error('Assurance introuvable')
+    if (current.declarationStatus !== 'pending') throw new Error("Cette déclaration n'est pas en attente de validation")
+    const motif = reason.trim()
+    if (motif.length < 5) throw new Error('Indiquez le motif du refus')
+    const now = new Date()
+    await this.repository.update(id, {
+      declarationStatus: 'rejected',
+      rejectionReason: motif,
+      rejectedAt: now,
+      rejectedBy: adminId,
+      updatedAt: now,
+      updatedBy: adminId,
+    })
+    return { ...current, declarationStatus: 'rejected', rejectionReason: motif }
   }
 
   deleteInsurance(id: string): Promise<void> {
