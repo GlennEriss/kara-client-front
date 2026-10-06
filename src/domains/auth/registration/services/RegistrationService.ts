@@ -3,6 +3,7 @@
  * Orchestre les opérations entre le repository et le cache
  */
 
+import { normalizeCompanyForCorrection } from '../utils/correctionData'
 import type { RegisterFormData, StepValidationResult } from '@/domains/auth/registration/entities'
 import { STEP_TO_SECTION_MAP } from '@/domains/auth/registration/entities/registration-form.types'
 import { app } from '@/firebase/app'
@@ -255,9 +256,12 @@ export class RegistrationService implements IRegistrationService {
           photoPath: request.identity.photoPath,
         },
         address: request.address,
-        company: request.company,
+        // Demandes de l'espace membre : adresse de l'entreprise à plat, convertie.
+        company: normalizeCompanyForCorrection(request.company),
         documents: {
           identityDocument: request.documents.identityDocument,
+          // Requis quand le type est « Autre » : sans lui, l'étape 4 restait bloquée.
+          customDocumentType: (request.documents as { customDocumentType?: string }).customDocumentType,
           identityDocumentNumber: request.documents.identityDocumentNumber,
           documentPhotoFront: documentPhotoFront,
           documentPhotoBack: documentPhotoBack,

@@ -48,6 +48,10 @@ const STEPS = [
   { id: 4, key: 'documents', title: 'Documents', icon: FileText, color: 'from-purple-500 to-pink-500' },
 ] as const
 
+/** Mode correction : lien `/register?requestId=…` envoyé par l'administration. */
+const isCorrectionUrl = () =>
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('requestId')
+
 export default function RegistrationFormV2() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -183,6 +187,9 @@ export default function RegistrationFormV2() {
   useEffect(() => {
     // Ne pas charger le formulaire si une demande a déjà été soumise
     if (isSubmitted) return
+    // En correction, les données viennent de la demande : le cache local pourrait
+    // ramener une ancienne tentative ou l'inscription d'une autre personne.
+    if (isCorrectionUrl()) return
 
     let isMounted = true
     try {
@@ -212,6 +219,8 @@ export default function RegistrationFormV2() {
 
   // Sauvegarder automatiquement dans le cache
   const saveToCache = useCallback(() => {
+    // Pas de cache en correction : il écraserait le brouillon d'inscription de ce navigateur.
+    if (isCorrectionUrl()) return
     try {
       const data = methods.getValues()
       localStorage.setItem('kara-register-form-v2', JSON.stringify({

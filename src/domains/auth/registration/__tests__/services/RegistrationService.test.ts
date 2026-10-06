@@ -403,7 +403,8 @@ describe('RegistrationService', () => {
       expect(result).not.toBeNull()
       expect(result?.identity).toEqual(mockFormData.identity)
       expect(result?.address).toEqual(mockFormData.address)
-      expect(result?.company).toEqual(mockFormData.company)
+      // L'entreprise est normalisée (format espace membre) : les champs d'origine sont conservés.
+      expect(result?.company).toMatchObject(mockFormData.company)
       expect(result?.documents).toEqual({
         ...mockFormData.documents,
         documentPhotoFront: mockFormData.documents.documentPhotoFront,
