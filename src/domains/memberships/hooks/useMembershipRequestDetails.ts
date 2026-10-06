@@ -14,12 +14,15 @@ import type { MembershipRequest } from '../entities'
 import { resolveAdhesionPdfUrl } from '../utils/details'
 import { getAdminById } from '@/db/admin.db'
 import { useIntermediary } from '@/hooks/useIntermediary'
+import { UNKNOWN_USER_MATRICULE } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 import { MEMBERSHIP_REQUEST_CACHE } from '@/constantes/membership-requests'
 
 export interface MembershipRequestDetailsResult {
   request: MembershipRequest | null
   admin: any | null
   intermediary: any | null
+  /** Membre ayant droit retrouvé par son matricule (null si INCONNU ou introuvable). */
+  beneficiary: { firstName: string; lastName: string; type: 'user' | 'admin' } | null
   adhesionPdfUrlResolved: string | null
   isLoading: boolean
   isError: boolean
@@ -51,6 +54,11 @@ export function useMembershipRequestDetails(requestId: string) {
   })
 
   const intermediaryQuery = useIntermediary(requestQuery.data?.identity?.intermediaryCode)
+  // Ayant droit : même recherche par matricule que le parrain (sauf INCONNU).
+  const beneficiaryMatricule = requestQuery.data?.identity?.beneficiary?.matricule
+  const beneficiaryQuery = useIntermediary(
+    beneficiaryMatricule && beneficiaryMatricule !== UNKNOWN_USER_MATRICULE ? beneficiaryMatricule : undefined,
+  )
 
   const adhesionPdfQuery = useQuery<string | null>({
     queryKey: ['membershipRequest-adhesionPdf', requestId, requestQuery.data?.adhesionPdfURL],
@@ -77,6 +85,7 @@ export function useMembershipRequestDetails(requestId: string) {
     request: requestQuery.data ?? null,
     admin: adminQuery.data ?? null,
     intermediary: intermediaryQuery.data ?? null,
+    beneficiary: beneficiaryQuery.data ?? null,
     adhesionPdfUrlResolved: adhesionPdfQuery.data ?? null,
     isLoading,
     isError,

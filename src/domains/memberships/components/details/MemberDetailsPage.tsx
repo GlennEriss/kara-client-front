@@ -6,6 +6,7 @@
 
 'use client'
 
+import { MemberBeneficiaryCard } from './MemberBeneficiaryCard'
 import { useParams, useRouter } from 'next/navigation'
 import { useMembershipDetails } from '../../hooks/useMembershipDetails'
 import {
@@ -98,6 +99,9 @@ export function MemberDetailsPage() {
 
           {/* Contacts */}
           <MemberContactCard member={member} />
+
+          {/* Ayant droit (lu et modifiable sur le dossier d'adhésion) */}
+          <MemberBeneficiaryCard dossierId={member.dossier} />
 
           {/* Profession */}
           <MemberProfessionCard member={member} />

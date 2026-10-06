@@ -4,6 +4,9 @@
  * Teste la soumission de nouvelles demandes, corrections et gestion des brouillons
  */
 
+import { withResolvedBeneficiary } from '@/constantes/beneficiary'
+// Les services complètent l'ayant droit (membre choisi, sinon INCONNU) avant l'envoi.
+const resolved = <T extends { identity: any }>(data: T) => ({ ...data, identity: withResolvedBeneficiary(data.identity) })
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MembershipFormService } from '../../../services/MembershipFormService'
 import { MembershipRepositoryV2 } from '../../../repositories/MembershipRepositoryV2'
@@ -140,7 +143,7 @@ describe('MembershipFormService', () => {
       expect(result.success).toBe(true)
       expect(result.requestId).toBe(requestId)
       expect(result.error).toBeUndefined()
-      expect(mockRepository.create).toHaveBeenCalledWith(validFormData)
+      expect(mockRepository.create).toHaveBeenCalledWith(resolved(validFormData))
     })
 
     it('devrait supprimer le brouillon après soumission réussie', async () => {
@@ -223,7 +226,7 @@ describe('MembershipFormService', () => {
       const result = await service.submitNewMembership(formDataWithoutFirstName)
 
       expect(result.success).toBe(true)
-      expect(mockRepository.create).toHaveBeenCalledWith(formDataWithoutFirstName)
+      expect(mockRepository.create).toHaveBeenCalledWith(resolved(formDataWithoutFirstName))
     })
   })
 
@@ -243,7 +246,7 @@ describe('MembershipFormService', () => {
       expect(mockSubmitCorrectionsCF).toHaveBeenCalledWith({
         requestId,
         securityCode,
-        formData: validFormData,
+        formData: resolved(validFormData),
       })
     })
 
@@ -313,7 +316,7 @@ describe('MembershipFormService', () => {
 
       expect(result.success).toBe(true)
       expect(result.requestId).toBe(requestId)
-      expect(mockRepository.update).toHaveBeenCalledWith(requestId, validFormData)
+      expect(mockRepository.update).toHaveBeenCalledWith(requestId, resolved(validFormData))
     })
 
     it('devrait échouer si requestId est manquant', async () => {

@@ -2,6 +2,9 @@
  * Tests unitaires pour RegistrationService
  */
 
+import { withResolvedBeneficiary } from '@/constantes/beneficiary'
+// Les services complètent l'ayant droit (membre choisi, sinon INCONNU) avant l'envoi.
+const resolved = <T extends { identity: any }>(data: T) => ({ ...data, identity: withResolvedBeneficiary(data.identity) })
 import type { MembershipRequest } from '@/types/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegisterFormData } from '../../entities'
@@ -142,7 +145,7 @@ describe('RegistrationService', () => {
       expect(mockCallable).toHaveBeenCalledWith({
         requestId: 'test-id-123',
         securityCode: '123456',
-        formData: mockFormData,
+        formData: resolved(mockFormData),
       })
     })
 

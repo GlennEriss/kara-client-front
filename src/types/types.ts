@@ -42,10 +42,14 @@ export interface RegisterFormData {
      * l'introduction de ce champ n'en ont pas.
      */
     beneficiary?: {
-      lastName: string;
+      /** Matricule du membre ayant droit (ou du membre INCONNU). */
+      matricule?: string;
+      lastName?: string;
       firstName?: string;
-      relationship: string;
-      phone: string;
+      isUnknown?: boolean;
+      // Anciennes déclarations (personne saisie à la main)
+      relationship?: string;
+      phone?: string;
       idNumber?: string;
     };
     photo?: string | File;

@@ -4,7 +4,9 @@
 
 'use client'
 
-import { User, Calendar, MapPin, Heart, Building2, CarFront, Users } from 'lucide-react'
+import { User, Calendar, MapPin, Heart, Building2, CarFront, Users, ShieldCheck } from 'lucide-react'
+import { UNKNOWN_USER_MATRICULE } from '@/domains/financial/caisse-imprevue/import/unknownUser'
+import BeneficiaryEditDialog from '../form/BeneficiaryEditDialog'
 import { Badge } from '@/components/ui/badge'
 import { ModernCard } from './shared/ModernCard'
 import { InfoField } from './shared/InfoField'
@@ -16,13 +18,19 @@ interface DetailsIdentityCardProps {
   request: MembershipRequest
   intermediaryInfo?: { firstName: string; lastName: string; type: 'user' | 'admin' } | null
   isLoadingIntermediary?: boolean
+  /** Membre ayant droit retrouvé par son matricule. */
+  beneficiaryInfo?: { firstName: string; lastName: string; type: 'user' | 'admin' } | null
 }
 
 export function DetailsIdentityCard({ 
   request, 
   intermediaryInfo, 
-  isLoadingIntermediary = false 
+  isLoadingIntermediary = false,
+  beneficiaryInfo = null,
 }: DetailsIdentityCardProps) {
+  const beneficiary = request.identity.beneficiary
+  const beneficiaryMatricule = beneficiary?.matricule
+  const isUnknownBeneficiary = !beneficiaryMatricule || beneficiaryMatricule === UNKNOWN_USER_MATRICULE || beneficiary?.isUnknown
   return (
     <ModernCard 
       title="Informations personnelles" 
@@ -101,6 +109,37 @@ export function DetailsIdentityCard({
             />
           </div>
         )}
+
+        {/* Ayant droit : membre retrouvé par son matricule, comme le parrain */}
+        <div className="mt-3 lg:mt-4">
+          <InfoField
+            label="Ayant droit"
+            value={
+              isUnknownBeneficiary ? (
+                beneficiary?.lastName && !beneficiary?.isUnknown && !beneficiaryMatricule ? (
+                  <span className="text-amber-600">
+                    {[beneficiary.lastName, beneficiary.firstName].filter(Boolean).join(' ')} (ancienne saisie, pas un membre)
+                  </span>
+                ) : (
+                  <span>INCONNU</span>
+                )
+              ) : beneficiaryInfo ? (
+                <div className="flex items-center gap-2">
+                  <span>{beneficiaryInfo.firstName} {beneficiaryInfo.lastName}</span>
+                  <Badge variant="outline" className="text-xs">{beneficiaryMatricule}</Badge>
+                </div>
+              ) : (
+                <span className="text-amber-600">Aucun membre avec ce matricule ({beneficiaryMatricule})</span>
+              )
+            }
+            icon={ShieldCheck}
+            color="text-violet-600"
+          />
+          {/* L'admin peut toujours modifier l'ayant droit, même après validation. */}
+          <div className="mt-1 flex justify-end">
+            <BeneficiaryEditDialog requestId={request.id} beneficiary={beneficiary} />
+          </div>
+        </div>
       </div>
 
       <div className="mt-3 lg:mt-4">

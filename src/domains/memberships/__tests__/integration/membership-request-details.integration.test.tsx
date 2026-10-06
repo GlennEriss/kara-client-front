@@ -69,6 +69,11 @@ vi.mock('@/hooks/useAuth', () => ({
   })),
 }))
 
+// Droits de l'admin (bouton « Modifier » de l'ayant droit)
+vi.mock('@/hooks/useMyAccess', () => ({
+  useMyAccess: vi.fn(() => ({ can: () => true, isSuperAdmin: true, isAgent: false, isLoading: false })),
+}))
+
 // Fixtures
 const createRequestFixture = (overrides: any = {}) => ({
   id: 'req-1',

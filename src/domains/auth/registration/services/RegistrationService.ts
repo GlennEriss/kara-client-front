@@ -3,6 +3,7 @@
  * Orchestre les opérations entre le repository et le cache
  */
 
+import { withResolvedBeneficiary } from '@/constantes/beneficiary'
 import { normalizeCompanyForCorrection } from '../utils/correctionData'
 import type { RegisterFormData, StepValidationResult } from '@/domains/auth/registration/entities'
 import { STEP_TO_SECTION_MAP } from '@/domains/auth/registration/entities/registration-form.types'
@@ -48,7 +49,8 @@ export class RegistrationService implements IRegistrationService {
         const result = await submitCorrectionsCF({
           requestId,
           securityCode,
-          formData: data,
+          // Ayant droit : le membre choisi, sinon INCONNU.
+          formData: { ...data, identity: withResolvedBeneficiary(data.identity) },
         })
 
         return result.data.success

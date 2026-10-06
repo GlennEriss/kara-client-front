@@ -38,6 +38,7 @@ export default function MembershipRequestDetails() {
     request,
     admin,
     intermediary,
+    beneficiary,
     adhesionPdfUrlResolved,
     isLoading,
     isError,
@@ -115,6 +116,7 @@ export default function MembershipRequestDetails() {
           <DetailsIdentityCard
             request={request}
             intermediaryInfo={intermediary}
+            beneficiaryInfo={beneficiary}
             isLoadingIntermediary={false} // Le hook gère déjà le loading
           />
 
