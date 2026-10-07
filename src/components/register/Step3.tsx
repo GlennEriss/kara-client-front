@@ -1,5 +1,6 @@
 'use client'
 
+import { findByGeoName } from '@/domains/auth/registration/utils/geoNameMatch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -262,24 +263,20 @@ export default function Step3({ form }: Step3Props) {
   // Mettre à jour les champs texte quand les sélections changent (BD)
   useEffect(() => {
     if (addressTab === 'database') {
+      // Un identifiant vide n'efface pas le nom (adresse saisie depuis l'espace membre).
       if (selectedCompanyProvince) {
         setValue('company.companyAddress.province', selectedCompanyProvince.name, { shouldValidate: true })
-      } else if (!selectedCompanyProvinceId) {
-        setValue('company.companyAddress.province', '', { shouldValidate: true })
       }
     }
-  }, [selectedCompanyProvince, selectedCompanyProvinceId, setValue, addressTab])
+  }, [selectedCompanyProvince, setValue, addressTab])
 
   useEffect(() => {
     if (addressTab === 'database') {
       if (selectedCompanyCommune) {
         setValue('company.companyAddress.city', selectedCompanyCommune.name, { shouldValidate: true })
-      } else if (!selectedCompanyCommuneId) {
-        setValue('company.companyAddress.city', '', { shouldValidate: true })
-        setValue('company.companyAddress.district', '', { shouldValidate: true })
       }
     }
-  }, [selectedCompanyCommune, selectedCompanyCommuneId, setValue, addressTab])
+  }, [selectedCompanyCommune, setValue, addressTab])
 
   useEffect(() => {
     if (addressTab === 'database') {
@@ -288,26 +285,31 @@ export default function Step3({ form }: Step3Props) {
         if (!selectedCompanyQuarterId) {
           setValue('company.companyAddress.district', selectedCompanyDistrict.name, { shouldValidate: true })
         }
-      } else if (!selectedCompanyDistrictId) {
-        if (!selectedCompanyQuarterId) {
-          setValue('company.companyAddress.district', '', { shouldValidate: true })
-        }
       }
     }
-  }, [selectedCompanyDistrict, selectedCompanyDistrictId, setValue, addressTab, selectedCompanyQuarterId])
+  }, [selectedCompanyDistrict, setValue, addressTab, selectedCompanyQuarterId])
 
   useEffect(() => {
     if (addressTab === 'database') {
       if (selectedCompanyQuarter) {
         setValue('company.companyAddress.district', selectedCompanyQuarter.name, { shouldValidate: true })
-      } else if (!selectedCompanyQuarterId) {
-        // Ne pas réinitialiser si un district est sélectionné
-        if (!selectedCompanyDistrictId) {
-          setValue('company.companyAddress.district', '', { shouldValidate: true })
-        }
       }
     }
-  }, [selectedCompanyQuarter, selectedCompanyQuarterId, setValue, addressTab, selectedCompanyDistrictId])
+  }, [selectedCompanyQuarter, setValue, addressTab])
+
+  // Adresse connue par ses seuls noms : retrouver province et ville pour pré-remplir les listes.
+  const companyProvinceName = watch('company.companyAddress.province')
+  const companyCityName = watch('company.companyAddress.city')
+  useEffect(() => {
+    if (addressTab !== 'database' || selectedCompanyProvinceId) return
+    const match = findByGeoName(sortedCompanyProvinces, companyProvinceName)
+    if (match) setValue('company.companyAddress.provinceId', match.id)
+  }, [addressTab, selectedCompanyProvinceId, sortedCompanyProvinces, companyProvinceName, setValue])
+  useEffect(() => {
+    if (addressTab !== 'database' || !selectedCompanyProvinceId || selectedCompanyCommuneId) return
+    const match = findByGeoName(allCompanyCommunes, companyCityName)
+    if (match) setValue('company.companyAddress.communeId', match.id)
+  }, [addressTab, selectedCompanyProvinceId, selectedCompanyCommuneId, allCompanyCommunes, companyCityName, setValue])
 
   // Réinitialiser les sélections en cascade quand un niveau supérieur change (BD)
   const handleCompanyProvinceChange = (provinceId: string) => {
@@ -315,12 +317,15 @@ export default function Step3({ form }: Step3Props) {
     setValue('company.companyAddress.communeId', '', { shouldValidate: true })
     setValue('company.companyAddress.districtId', '', { shouldValidate: true })
     setValue('company.companyAddress.quarterId', '', { shouldValidate: true })
+    setValue('company.companyAddress.city', '', { shouldValidate: true })
+    setValue('company.companyAddress.district', '', { shouldValidate: true })
   }
 
   const handleCompanyCommuneChange = (communeId: string) => {
     setValue('company.companyAddress.communeId', communeId, { shouldValidate: true })
     setValue('company.companyAddress.districtId', '', { shouldValidate: true })
     setValue('company.companyAddress.quarterId', '', { shouldValidate: true })
+    setValue('company.companyAddress.district', '', { shouldValidate: true })
   }
 
   const handleCompanyDistrictChange = (districtId: string) => {
@@ -739,7 +744,8 @@ export default function Step3({ form }: Step3Props) {
                                 errors.company?.companyAddress?.province && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                               )}
                             >
-                              <SelectValue placeholder="Sélectionnez une province..." />
+                              {/* Nom déjà enregistré (ex. demande de l'espace membre) : affiché tel quel. */}
+                              <SelectValue placeholder={companyProvinceName || "Sélectionnez une province..."} />
                             </SelectTrigger>
                             <SelectContent>
                               {isLoadingCompanyProvinces ? (
@@ -792,7 +798,9 @@ export default function Step3({ form }: Step3Props) {
                               )}
                             >
                               <SelectValue placeholder={
-                                !selectedCompanyProvinceId 
+                                companyCityName
+                                  ? companyCityName
+                                  : !selectedCompanyProvinceId 
                                   ? "Sélectionnez d'abord une province..." 
                                   : isLoadingCompanyCommunes || isLoadingCompanyDepartments
                                   ? "Chargement..."
@@ -913,7 +921,9 @@ export default function Step3({ form }: Step3Props) {
                               )}
                             >
                               <SelectValue placeholder={
-                                !selectedCompanyDistrictId 
+                                watch('company.companyAddress.district')
+                                  ? watch('company.companyAddress.district')
+                                  : !selectedCompanyDistrictId 
                                   ? "Sélectionnez d'abord un arrondissement..." 
                                   : isLoadingCompanyQuarters
                                   ? "Chargement..."

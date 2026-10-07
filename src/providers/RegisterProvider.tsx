@@ -1,5 +1,6 @@
 'use client'
 
+import { normalizeCompanyForCorrection } from '@/domains/auth/registration/utils/correctionData'
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -910,7 +911,8 @@ export function RegisterProvider({ children, initialData, requestId: adminReques
               photoPath: request.identity.photoPath,
             },
             address: request.address,
-            company: request.company,
+            // Demandes de l'espace membre : adresse de l'entreprise à plat, convertie.
+            company: normalizeCompanyForCorrection(request.company),
             documents: {
               identityDocument: request.documents.identityDocument,
               identityDocumentNumber: request.documents.identityDocumentNumber,

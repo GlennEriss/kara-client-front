@@ -132,8 +132,9 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
                   "truncate text-sm",
                   !selectedQuarterId && "text-muted-foreground"
                 )}>
+                  {/* Nom déjà enregistré (ex. demande de l'espace membre) : affiché tel quel. */}
                   {!selectedDistrictId 
-                    ? "Sélectionnez d'abord un arrondissement..." 
+                    ? watch('address.district') || "Sélectionnez d'abord un arrondissement..." 
                     : selectedQuarter?.name || watch('address.district') || "Sélectionnez un quartier"}
                 </span>
               </div>

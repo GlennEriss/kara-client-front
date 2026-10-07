@@ -3,6 +3,7 @@
 import Register from '@/components/register/Register'
 import { useMembershipRequest } from '@/domains/memberships/hooks'
 import { RegisterProvider } from '@/providers/RegisterProvider'
+import { normalizeCompanyForCorrection } from '@/domains/auth/registration/utils/correctionData'
 import { Loader2 } from 'lucide-react'
 import { notFound, useParams } from 'next/navigation'
 
@@ -42,6 +43,8 @@ export default function UpdateMembershipPage() {
             ...request.identity,
             photo: request.identity.photoURL, // Mapping critique pour l'affichage de la photo
         },
+        // Demandes de l'espace membre : adresse de l'entreprise à plat, convertie.
+        company: normalizeCompanyForCorrection(request.company),
         documents: {
             ...request.documents,
             documentPhotoFront: request.documents.documentPhotoFrontURL, // Mapping critique pour l'affichage recto

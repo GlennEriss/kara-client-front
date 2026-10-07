@@ -117,6 +117,8 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
     setValue('address.quarterId', '', { shouldValidate: true })
     setValue('address.arrondissement', '', { shouldValidate: true })
     setValue('address.district', '', { shouldValidate: true })
+    setValue('address.arrondissement', '', { shouldValidate: true })
+    setValue('address.district', '', { shouldValidate: true })
     setOpen(false)
     setSearchTerm('')
   }
@@ -154,8 +156,9 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
                   "truncate text-sm",
                   !selectedCommuneId && "text-muted-foreground"
                 )}>
+                  {/* Nom déjà enregistré (ex. demande de l'espace membre) : affiché tel quel. */}
                   {!selectedProvinceId 
-                    ? "Sélectionnez d'abord une province..." 
+                    ? watch('address.city') || "Sélectionnez d'abord une province..." 
                     : selectedCommune?.name || watch('address.city') || "Sélectionnez une ville"}
                 </span>
               </div>

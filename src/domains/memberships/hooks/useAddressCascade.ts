@@ -7,6 +7,7 @@
  * - Réinitialisation en cascade quand un niveau supérieur change
  */
 
+import { findByGeoName } from '@/domains/auth/registration/utils/geoNameMatch'
 import { useEffect } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
@@ -119,45 +120,29 @@ export function useAddressCascade({
   useEffect(() => {
     if (!autoUpdateTextFields) return
 
+    // Un identifiant vide n'efface pas le nom : les demandes de l'espace membre
+    // n'enregistrent que les noms. Les noms des niveaux inférieurs sont vidés par
+    // les Combobox quand l'utilisateur change une sélection.
     if (selectedProvince) {
       setValue('address.province', selectedProvince.name, { shouldValidate: true })
-    } else if (!selectedProvinceId) {
-      setValue('address.province', '', { shouldValidate: true })
     }
-  }, [selectedProvince, selectedProvinceId, setValue, autoUpdateTextFields])
+  }, [selectedProvince, setValue, autoUpdateTextFields])
 
+  // Adresse connue par son seul nom de province : retrouver l'identifiant.
+  const provinceName = watch('address.province')
   useEffect(() => {
-    if (!autoUpdateTextFields) return
-
-    // NOTE V2: selectedCommune est undefined car on ne charge plus toutes les communes
-    // Le nom de la commune est mis à jour directement lors de la sélection dans le Combobox
-    if (!selectedCommuneId) {
-      setValue('address.city', '', { shouldValidate: true })
-      setValue('address.district', '', { shouldValidate: true })
-      setValue('address.arrondissement', '', { shouldValidate: true })
-    }
-  }, [selectedCommuneId, setValue, autoUpdateTextFields])
+    if (selectedProvinceId) return
+    const match = findByGeoName(provinces, provinceName)
+    if (match) setValue('address.provinceId', match.id)
+  }, [selectedProvinceId, provinces, provinceName, setValue])
 
   useEffect(() => {
     if (!autoUpdateTextFields) return
 
     if (selectedDistrict) {
       setValue('address.arrondissement', selectedDistrict.name, { shouldValidate: true })
-    } else if (!selectedDistrictId) {
-      setValue('address.arrondissement', '', { shouldValidate: true })
-      setValue('address.district', '', { shouldValidate: true })
     }
-  }, [selectedDistrict, selectedDistrictId, setValue, autoUpdateTextFields])
-
-  useEffect(() => {
-    if (!autoUpdateTextFields) return
-
-    // NOTE V2: selectedQuarter est undefined car on ne charge plus tous les quarters
-    // Le nom du quarter est mis à jour directement lors de la sélection dans le Combobox
-    if (!selectedQuarterId) {
-      setValue('address.district', '', { shouldValidate: true })
-    }
-  }, [selectedQuarterId, setValue, autoUpdateTextFields])
+  }, [selectedDistrict, setValue, autoUpdateTextFields])
 
   return {
     selectedIds: {
