@@ -36,7 +36,7 @@ export function PaymentReceiptDoc({ contract, payment }: { contract: any; paymen
 }
 
 export function RefundAttestationDoc({ contract, refund }: { contract: any; refund: any }) {
-  const total = (refund.amountNominal||0) + (refund.amountBonus||0)
+  // Le bonus ne figure pas dans les PDF : seul le nominal est attesté.
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -49,8 +49,6 @@ export function RefundAttestationDoc({ contract, refund }: { contract: any; refu
         </View>
         <View style={styles.section}>
           <View style={styles.row}><Text style={styles.label}>Nominal</Text><Text style={styles.value}>{(refund.amountNominal||0).toLocaleString('fr-FR')} FCFA</Text></View>
-          <View style={styles.row}><Text style={styles.label}>Bonus</Text><Text style={styles.value}>{(refund.amountBonus||0).toLocaleString('fr-FR')} FCFA</Text></View>
-          <View style={styles.row}><Text style={styles.label}>Total</Text><Text style={styles.value}>{total.toLocaleString('fr-FR')} FCFA</Text></View>
           <View style={styles.row}><Text style={styles.label}>Date</Text><Text style={styles.value}>{new Date().toLocaleDateString('fr-FR')}</Text></View>
         </View>
         <Text style={{ fontSize: 10, color: '#666', marginTop: 16 }}>Document généré automatiquement — LE KARA</Text>

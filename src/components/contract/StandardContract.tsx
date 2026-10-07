@@ -1,7 +1,7 @@
 "use client"
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
-import { formatBonusPeriod, formatContractPeriod } from '@/services/caisse/contractLabels'
+import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
 import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
@@ -244,8 +244,9 @@ export default function StandardContract({ id }: Props) {
   // Récupérer les paramètres de caisse
   const _settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
-  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
-  const currentBonus = data.bonusAccrued || 0
+  // Bonus calculé comme au remboursement final (barème actif, mois complets retenus).
+  const bonusSummary = contractBonusSummary(data as any, _settings.data, (data as any).payments)
+  const currentBonus = bonusSummary.amount
 
   // Trouver la prochaine échéance à payer (paiement séquentiel)
   const getNextDueMonthIndex = () => {
@@ -495,7 +496,7 @@ export default function StandardContract({ id }: Props) {
             { title: 'Montant mensuel', value: `${formatAmount(data.monthlyAmount || 0)} FCFA`, accent: true },
             { title: 'Durée (mois)', value: data.monthsPlanned || 0, subtitle: formatContractPeriod(data) },
             { title: 'Nominal payé', value: `${formatAmount(data.nominalPaid || 0)} FCFA` },
-            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: formatBonusPeriod(data) },
+            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: bonusSummary.subtitle },
             { title: 'Pénalités cumulées', value: `${formatAmount(data.penaltiesTotal || 0)} FCFA`, danger: (data.penaltiesTotal || 0) > 0 },
             { title: 'Prochaine échéance', value: data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—" },
           ]}

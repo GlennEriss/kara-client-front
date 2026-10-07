@@ -85,9 +85,8 @@ export const buildCaisseSpecialeLiquidationFields = ({ contract: inputContract, 
 
   const totalPaid = Number(contract.nominalPaid ?? refund?.amountNominal ?? 0)
   const nominal = Number(refund?.amountNominal ?? totalPaid)
-  // Le montant effectivement remis reste celui enregistré lors du règlement ;
-  // le bonus n'est pas détaillé comme ligne autonome.
-  const amountPaid = Number(refund?.withdrawalAmount ?? (nominal + Number(refund?.amountBonus ?? 0)))
+  // Le procès-verbal ne porte que le montant nominal : le bonus n'y figure pas.
+  const amountPaid = nominal
   const liquidationType = refund?.type === 'EARLY'
     ? 'Retrait anticipé et clôture du contrat'
     : 'Remboursement final à l’échéance'
@@ -112,8 +111,8 @@ export const buildCaisseSpecialeLiquidationFields = ({ contract: inputContract, 
         field('refund.paymentMode', 'Mode de règlement :', paymentModeLabel(refund ?? undefined)),
       ],
       [
-        field('refund.amountDigits', 'Montant remis (en chiffres) :', `${formatAmount(amountPaid)} FCFA`),
-        field('refund.amountWords', 'Montant remis (en lettres) :', `${numberToWords(amountPaid)} francs CFA`),
+        field('refund.amountDigits', 'Montant nominal remis (en chiffres) :', `${formatAmount(amountPaid)} FCFA`),
+        field('refund.amountWords', 'Montant nominal remis (en lettres) :', `${numberToWords(amountPaid)} francs CFA`),
       ],
     ] as FieldRow[],
     paidDate,

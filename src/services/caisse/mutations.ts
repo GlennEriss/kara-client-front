@@ -3,7 +3,7 @@ import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
 import { computeDueWindow, computePenalty, computeBonus, computeNextDueAt } from './engine'
-import { computeContractBonus } from './bonus'
+import { computeContractBonus, countOnTimeMonthsBeforeFirstUnpaid, sumContractPenalties } from './bonus'
 import { addContractMonths, computeContractEndAt, computeDueAt, PERIOD_DAYS_JOURNALIER } from './contractDates'
 import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
@@ -381,7 +381,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
 
   let penalty = 0
   if (window === 'LATE_WITH_PENALTY') {
-    penalty = computePenalty(contract.monthlyAmount, delayDays, settings as any)
+    // La pénalité se calcule sur le montant du versement en retard.
+    const penaltyBase = typeof input.amount === 'number' && input.amount > 0 ? input.amount : contract.monthlyAmount
+    penalty = computePenalty(penaltyBase, delayDays, settings as any)
   }
 
   // Bonus
@@ -567,6 +569,10 @@ export async function requestFinalRefund(contractId: string, reason?: string) {
     paidMonthsCount,
     totalPaid: amountNominal,
     settings: settings as any,
+    // Après un impayé, figé au dernier mois payé à l'heure.
+    onTimeMonthsCount: countOnTimeMonthsBeforeFirstUnpaid(payments as any[]),
+    // Pénalités retirées du bonus, pas du nominal.
+    penaltiesTotal: sumContractPenalties(payments as any[]),
   }).amount
   // La remise finale est exigible dès le terme du contrat. Les anciens dossiers
   // sans `contractEndAt` sont recalculés avec la même règle que l'échéancier.
@@ -637,6 +643,10 @@ export async function requestEarlyRefund(contractId: string, input?: {
     paidMonthsCount: paidCount,
     totalPaid,
     settings: settings as any,
+    // Après un impayé, figé au dernier mois payé à l'heure.
+    onTimeMonthsCount: countOnTimeMonthsBeforeFirstUnpaid(payments as any[]),
+    // Pénalités retirées du bonus, pas du nominal.
+    penaltiesTotal: sumContractPenalties(payments as any[]),
   }).amount
   const deadlineAt = new Date(Date.now() + 45*86400000)
 
@@ -1201,10 +1211,10 @@ export async function payGroup(input: {
   //   return { status: 'RESCINDED' }
   // }
 
-  // Calculer les pénalités pour cette contribution
+  // Calculer les pénalités pour cette contribution, sur le montant versé
   let penalty = 0
   if (window === 'LATE_WITH_PENALTY') {
-    penalty = computePenalty(contract.monthlyAmount, delayDays, settings as any)
+    penalty = computePenalty(input.amount > 0 ? input.amount : contract.monthlyAmount, delayDays, settings as any)
   }
 
   let proofUrl: string | undefined
