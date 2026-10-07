@@ -48,3 +48,14 @@ describe('QuittanceCaisseSpecialePDF', () => {
     expect(countPages(pdf)).toBe(1)
   }, 60_000)
 })
+
+describe('montant du procès-verbal de liquidation (Caisse Spéciale)', () => {
+  it('ne porte que le montant nominal, sans le bonus', async () => {
+    const { buildCaisseSpecialeLiquidationFields } = await import('../QuittanceCaisseSpecialePDF')
+    const fields = buildCaisseSpecialeLiquidationFields({
+      contract: { id: 'C1', nominalPaid: 1_800_000 },
+      refund: { type: 'FINAL', amountNominal: 1_800_000, amountBonus: 90_000, withdrawalAmount: 1_890_000 },
+    } as never)
+    expect(fields.amountPaid).toBe(1_800_000)
+  })
+})

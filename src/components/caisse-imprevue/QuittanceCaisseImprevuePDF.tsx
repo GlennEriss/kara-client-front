@@ -99,9 +99,8 @@ export const buildCaisseImprevueLiquidationFields = ({
     : Array.isArray(contract.memberContacts) ? contract.memberContacts : []
   const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
   const nominal = Number(refund?.amountNominal ?? totalAmountPaid ?? 0)
-  // Le montant effectivement remis reste celui enregistré lors du règlement ;
-  // la bonification n'est simplement plus détaillée comme ligne autonome.
-  const amountPaid = Number(refund?.withdrawalAmount ?? (nominal + Number(refund?.amountBonus ?? 0)))
+  // Le procès-verbal ne porte que le montant nominal : le bonus n'y figure pas.
+  const amountPaid = nominal
   const liquidationType = refund?.type === 'EARLY' ? 'Retrait anticipé et clôture du contrat' : 'Remboursement final à l’échéance'
   const paidDate = field(
     'refund.paidDate',
@@ -145,8 +144,8 @@ export const buildCaisseImprevueLiquidationFields = ({
         field('refund.paymentMode', 'Mode de règlement :', paymentModeLabel(refund)),
       ],
       [
-        field('refund.amountDigits', 'Montant remis au membre (en chiffres) :', `${formatAmount(amountPaid)} FCFA`),
-        field('refund.amountWords', 'Montant remis au membre (en lettres) :', `${numberToWords(amountPaid)} francs CFA`),
+        field('refund.amountDigits', 'Montant nominal remis au membre (en chiffres) :', `${formatAmount(amountPaid)} FCFA`),
+        field('refund.amountWords', 'Montant nominal remis au membre (en lettres) :', `${numberToWords(amountPaid)} francs CFA`),
       ],
     ] as FieldRow[],
     paidDate,

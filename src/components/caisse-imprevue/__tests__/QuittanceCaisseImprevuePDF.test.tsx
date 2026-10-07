@@ -59,3 +59,14 @@ describe('QuittanceCaisseImprevuePDF', () => {
     expect(countPages(pdf)).toBe(1)
   }, 60_000)
 })
+
+describe('montant du procès-verbal de liquidation (Caisse Imprévue)', () => {
+  it('ne porte que le montant nominal, sans le bonus', async () => {
+    const { buildCaisseImprevueLiquidationFields } = await import('../QuittanceCaisseImprevuePDF')
+    const fields = buildCaisseImprevueLiquidationFields({
+      contract: { id: 'C1' },
+      refund: { type: 'FINAL', amountNominal: 500_000, amountBonus: 25_000, withdrawalAmount: 525_000 },
+    } as never)
+    expect(fields.amountPaid).toBe(500_000)
+  })
+})
