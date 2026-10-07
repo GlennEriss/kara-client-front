@@ -67,6 +67,10 @@ export default function ProvinceCombobox({ form, onAddNew, disabled = false }: P
     setValue('address.communeId', '', { shouldValidate: true })
     setValue('address.districtId', '', { shouldValidate: true })
     setValue('address.quarterId', '', { shouldValidate: true })
+    // Changement de province : les noms des niveaux inférieurs ne valent plus.
+    setValue('address.city', '', { shouldValidate: true })
+    setValue('address.arrondissement', '', { shouldValidate: true })
+    setValue('address.district', '', { shouldValidate: true })
     setOpen(false)
     setSearchQuery('')
   }, [filteredProvinces, setValue])

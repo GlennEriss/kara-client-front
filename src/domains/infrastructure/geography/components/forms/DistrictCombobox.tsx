@@ -66,6 +66,7 @@ export default function DistrictCombobox({ form, communeId, onAddNew, disabled =
     setValue('address.districtId', district.id, { shouldValidate: true })
     // Réinitialiser les sélections en cascade
     setValue('address.quarterId', '', { shouldValidate: true })
+    setValue('address.district', '', { shouldValidate: true })
     setOpen(false)
     setSearchQuery('')
   }
@@ -98,11 +99,12 @@ export default function DistrictCombobox({ form, communeId, onAddNew, disabled =
                   "truncate text-sm",
                   !selectedDistrictId && "text-muted-foreground"
                 )}>
+                  {/* Nom déjà enregistré (ex. demande de l'espace membre) : affiché tel quel. */}
                   {!selectedCommuneId 
-                    ? "Sélectionnez d'abord une ville..." 
+                    ? watch('address.arrondissement') || "Sélectionnez d'abord une ville..." 
                     : isLoading
                     ? "Chargement..."
-                    : selectedDistrict?.name || "Sélectionnez un arrondissement..."}
+                    : selectedDistrict?.name || watch('address.arrondissement') || "Sélectionnez un arrondissement..."}
                 </span>
               </div>
               {isLoading ? (
