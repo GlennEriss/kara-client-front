@@ -26,34 +26,37 @@ describe('formatContractPeriod', () => {
 describe('formatBonusPeriod', () => {
   // Contrat démarré il y a longtemps : les mois écoulés ne plafonnent rien,
   // seul le nombre de mois soldés compte dans ces cas.
+  const old = { ...base, contractStartAt: new Date('2024-01-10T00:00:00') }
+
   it('annonce le point de départ tant que le bonus ne court pas', () => {
-    expect(formatBonusPeriod({ ...base, currentMonthIndex: 0 }))
-      .toBe('0 mois retenu depuis le 10/01/2026 · bonus dès le mois 5')
-    expect(formatBonusPeriod({ ...base, currentMonthIndex: 4 }))
-      .toBe('4 mois retenus depuis le 10/01/2026 · bonus dès le mois 5')
+    expect(formatBonusPeriod({ ...old, currentMonthIndex: 0 }))
+      .toBe('0 mois complet retenu depuis le 10/01/2024 · bonus dès 4 mois complets')
+    expect(formatBonusPeriod({ ...old, currentMonthIndex: 3 }))
+      .toBe('3 mois complets retenus depuis le 10/01/2024 · bonus dès 4 mois complets')
   })
 
-  it('affiche le taux appliqué dès que le bonus court', () => {
-    expect(formatBonusPeriod({ ...base, currentMonthIndex: 5 }))
-      .toBe('5 mois retenus depuis le 10/01/2026 · taux M4')
-    expect(formatBonusPeriod({ ...base, currentMonthIndex: 8 }))
-      .toBe('8 mois retenus depuis le 10/01/2026 · taux M7')
+  it('affiche le taux du nombre de mois complets retenus', () => {
+    expect(formatBonusPeriod({ ...old, currentMonthIndex: 4 }))
+      .toBe('4 mois complets retenus depuis le 10/01/2024 · taux M4')
+    expect(formatBonusPeriod({ ...old, currentMonthIndex: 12 }))
+      .toBe('12 mois complets retenus depuis le 10/01/2024 · taux M12')
   })
 
   it('accorde le singulier', () => {
-    expect(formatBonusPeriod({ ...base, currentMonthIndex: 1 }))
-      .toBe('1 mois retenu depuis le 10/01/2026 · bonus dès le mois 5')
+    expect(formatBonusPeriod({ ...old, currentMonthIndex: 1 }))
+      .toBe('1 mois complet retenu depuis le 10/01/2024 · bonus dès 4 mois complets')
   })
 
   it('plafonne au temps écoulé : payer d\u2019avance ne monte pas le taux', () => {
     const recent = { ...base, contractStartAt: new Date() }
-    // 10 mois soldés mais le contrat vient de démarrer : 1 mois retenu.
+    // 10 mois soldés mais le contrat vient de démarrer : aucun mois complet.
     expect(formatBonusPeriod({ ...recent, currentMonthIndex: 10 }))
-      .toContain('1 mois retenu')
+      .toContain('0 mois complet retenu')
   })
 
   it('se passe de la date de début si elle manque', () => {
+    // Sans date, le mois soldé N est supposé en cours : N - 1 mois complets.
     expect(formatBonusPeriod({ contractStartAt: null, firstPaymentDate: null, currentMonthIndex: 5 }))
-      .toBe('5 mois retenus · taux M4')
+      .toBe('4 mois complets retenus · taux M4')
   })
 })

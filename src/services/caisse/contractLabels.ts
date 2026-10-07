@@ -4,7 +4,7 @@
  */
 
 import { resolveContractEndAt } from './contractDates'
-import { computeContractBonus } from './bonus'
+import { computeContractBonus, countOnTimeMonthsBeforeFirstUnpaid, sumContractPenalties } from './bonus'
 
 /** Premier mois ouvrant droit au bonus (cf. `computeBonus` : index 3). */
 export const BONUS_FIRST_MONTH = 4
@@ -38,28 +38,62 @@ export function formatContractPeriod(contract: ContractLike): string | undefined
 /**
  * Période sur laquelle le bonus court.
  *
- * Le mois retenu n'est pas le nombre d'échéances soldées mais
- * `min(mois écoulés depuis le premier versement, mois soldés)` — cf.
- * `computeContractBonus`. Payer douze mois d'avance ne donne pas le taux du
- * douzième mois, et cesser de payer fige le taux au lieu de le laisser monter.
+ * Le mois retenu est `min(mois complets écoulés depuis le premier versement,
+ * mois soldés)` — cf. `computeContractBonus` — et son taux s'applique : après
+ * 12 mois complets, le taux M12. Payer douze mois d'avance ne donne pas le taux
+ * du douzième mois, et cesser de payer fige le taux.
  */
-export function formatBonusPeriod(contract: ContractLike): string | undefined {
+export function formatBonusPeriod(contract: ContractLike, payments?: Parameters<typeof countOnTimeMonthsBeforeFirstUnpaid>[0]): string | undefined {
   const start = toDate(contract?.contractStartAt ?? contract?.firstPaymentDate)
   // Seul le mois retenu est lu ici : le taux, lui, dépend des paramètres actifs
   // qui ne sont pas disponibles côté libellé.
+  const onTimeMonthsCount = payments ? countOnTimeMonthsBeforeFirstUnpaid(payments) : undefined
   const { monthCount } = computeContractBonus({
     contractStartAt: start,
     paidMonthsCount: contract?.currentMonthIndex ?? 0,
     totalPaid: 0,
+    onTimeMonthsCount,
   })
+  const paidCount = contract?.currentMonthIndex ?? 0
+  const frozen = onTimeMonthsCount !== undefined && onTimeMonthsCount < paidCount
 
   const since = start ? ` depuis le ${start.toLocaleDateString('fr-FR')}` : ''
-  const retained = `${monthCount} mois retenu${monthCount > 1 ? 's' : ''}${since}`
+  const retained = `${monthCount} mois complet${monthCount > 1 ? 's' : ''} retenu${monthCount > 1 ? 's' : ''}${since}`
 
-  // Le premier taux de la table est M4, appliqué le mois suivant : le bonus
-  // n'apparaît donc qu'au 5ᵉ mois retenu.
-  if (monthCount < BONUS_FIRST_MONTH + 1) {
-    return `${retained} · bonus dès le mois ${BONUS_FIRST_MONTH + 1}`
+  // Le premier taux de la table est M4 : le bonus court dès 4 mois complets.
+  // Impayé : le bonus est figé au dernier mois payé à l'heure.
+  const frozenNote = frozen ? ` (figé au dernier mois payé à l'heure, M${onTimeMonthsCount})` : ''
+  if (monthCount < BONUS_FIRST_MONTH) {
+    return frozen ? `${retained}${frozenNote} · pas de bonus` : `${retained} · bonus dès ${BONUS_FIRST_MONTH} mois complets`
   }
-  return `${retained} · taux M${monthCount - 1}`
+  return `${retained}${frozenNote} · taux M${monthCount}`
+}
+
+/**
+ * Bonus affiché sur la fiche : même calcul que le remboursement final
+ * (total versé × taux du mois complet retenu, barème actif), et non le cumul
+ * enregistré versement par versement, qui reste à 0 pour une caisse Libre
+ * payée en une fois par mois.
+ */
+export function contractBonusSummary(
+  contract: ContractLike & { nominalPaid?: number | null },
+  settings?: Parameters<typeof computeContractBonus>[0]['settings'],
+  payments?: Parameters<typeof countOnTimeMonthsBeforeFirstUnpaid>[0],
+): { amount: number; subtitle?: string } {
+  const start = toDate(contract?.contractStartAt ?? contract?.firstPaymentDate)
+  const { amount, ratePercent, rateLabel, grossAmount, penaltiesDeducted } = computeContractBonus({
+    contractStartAt: start,
+    paidMonthsCount: contract?.currentMonthIndex ?? 0,
+    totalPaid: contract?.nominalPaid ?? 0,
+    settings,
+    onTimeMonthsCount: payments ? countOnTimeMonthsBeforeFirstUnpaid(payments) : undefined,
+    penaltiesTotal: payments ? sumContractPenalties(payments as never) : 0,
+  })
+  const period = formatBonusPeriod(contract, payments)
+  const rate = ratePercent > 0 && rateLabel && period ? `${period} : ${ratePercent} %` : period
+  const subtitle =
+    penaltiesDeducted > 0 && rate
+      ? `${rate} · ${grossAmount.toLocaleString('fr-FR')} FCFA moins ${penaltiesDeducted.toLocaleString('fr-FR')} FCFA de pénalités`
+      : rate
+  return { amount, subtitle }
 }

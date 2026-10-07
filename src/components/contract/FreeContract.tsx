@@ -1,7 +1,7 @@
 "use client"
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
-import { formatBonusPeriod, formatContractPeriod } from '@/services/caisse/contractLabels'
+import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
 import { formatPaymentMode } from '@/utils/payment-mode'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
@@ -472,8 +472,9 @@ export default function FreeContract({ id }: Props) {
     return { start, end }
   }, [data])
 
-  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
-  const currentBonus = data.bonusAccrued || 0
+  // Bonus calculé comme au remboursement final (barème actif, mois complets retenus).
+  const bonusSummary = contractBonusSummary(data as any, settings.data, (data as any).payments)
+  const currentBonus = bonusSummary.amount
 
   // Calculer le nominal payé réel : somme de toutes les contributions de tous les paiements payés
   const actualNominalPaid = useMemo(() => {
@@ -554,7 +555,7 @@ export default function FreeContract({ id }: Props) {
             { title: 'Montant mensuel', value: 'Libre', accent: true },
             { title: 'Durée (mois)', value: data.monthsPlanned || 0, subtitle: formatContractPeriod(data) },
             { title: 'Nominal payé', value: `${formatAmount(actualNominalPaid)} FCFA` },
-            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: formatBonusPeriod(data) },
+            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: bonusSummary.subtitle },
             { title: 'Pénalités cumulées', value: `${formatAmount(data.penaltiesTotal || 0)} FCFA`, danger: (data.penaltiesTotal || 0) > 0 },
             { title: 'Prochaine échéance', value: data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString('fr-FR') : '—' },
           ]}

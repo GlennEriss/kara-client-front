@@ -1,7 +1,7 @@
 "use client"
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
-import { formatBonusPeriod, formatContractPeriod } from '@/services/caisse/contractLabels'
+import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
 import { backOr } from '@/lib/backNavigation'
@@ -267,7 +267,9 @@ export default function DailyContract({ id }: Props) {
     let penalty = 0
     if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
       const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
-      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+      // Même base que l'enregistrement : le montant du versement saisi.
+      const penaltyBase = Number(paymentAmount) > 0 ? Number(paymentAmount) : (data.monthlyAmount || 0)
+      penalty = penaltyRate * penaltyBase * daysLate
     }
 
     return {
@@ -327,8 +329,9 @@ export default function DailyContract({ id }: Props) {
   const paidCount = payments.filter((payment: any) => payment.status === 'PAID').length
   const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
 
-  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
-  const currentBonus = data.bonusAccrued || 0
+  // Bonus calculé comme au remboursement final (barème actif, mois complets retenus).
+  const bonusSummary = contractBonusSummary(data as any, settings.data, (data as any).payments)
+  const currentBonus = bonusSummary.amount
 
   const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
   const headerStatusConfig = getContractStatusConfig(data.status)
@@ -734,7 +737,7 @@ export default function DailyContract({ id }: Props) {
             { title: 'Montant mensuel', value: 'Libre', accent: true },
             { title: 'Durée (mois)', value: data.monthsPlanned || 0, subtitle: formatContractPeriod(data) },
             { title: 'Nominal payé', value: `${formatAmount(nominalPaid)} FCFA` },
-            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: formatBonusPeriod(data) },
+            { title: 'Bonus', value: `${formatAmount(currentBonus)} FCFA`, subtitle: bonusSummary.subtitle },
             { title: 'Pénalités cumulées', value: `${formatAmount(data.penaltiesTotal || 0)} FCFA`, danger: (data.penaltiesTotal || 0) > 0 },
             { title: 'Prochaine échéance', value: data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—" },
           ]}
