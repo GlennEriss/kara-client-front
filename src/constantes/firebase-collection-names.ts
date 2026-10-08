@@ -59,6 +59,9 @@ export const firebaseCollectionNames = {
     shopCreditPartners: "shopCreditPartners",
     // Articles des boutiques, validés par l'admin
     shopArticles: "shopArticles",
+    // Assureurs partenaires (taux de commission) et reversements aux membres
+    vehicleInsurancePartners: "vehicleInsurancePartners",
+    vehicleInsuranceRewards: "vehicleInsuranceRewards",
     // Journalisation des actions administrateurs (audit)
     auditLogs: "auditLogs",
     // Comptes rendus d'appels / relances des retardataires

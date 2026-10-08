@@ -444,6 +444,15 @@ service cloud.firestore {
                        (isAuthenticated() && resource.data.submittedBy == request.auth.uid);
     }
 
+    // Assurance véhicule : taux des assureurs partenaires et reversements aux
+    // membres. La commission de l'assureur ne doit pas être visible des membres.
+    match /vehicleInsurancePartners/{partnerId} {
+      allow read, write: if isAdmin();
+    }
+    match /vehicleInsuranceRewards/{rewardId} {
+      allow read, write: if isAdmin();
+    }
+
     // Conditions négociées avec les boutiques partenaires de l'achat à crédit
     // (remise, compte de règlement du vendeur) : jamais visibles des membres.
     match /shopCreditPartners/{shopId} {

@@ -7,6 +7,7 @@ import { useMyAccess } from '@/hooks/useMyAccess'
 import { VehicleInsurance } from '@/types/types'
 import { Download, Phone } from 'lucide-react'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
+import { VehicleRewardsSection } from './VehicleRewards'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',
@@ -33,7 +34,7 @@ interface Props {
 }
 
 export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props) {
-  const { canDownloadDocuments } = useMyAccess()
+  const { canDownloadDocuments, can } = useMyAccess()
   if (!insurance) return null
 
   const holderFirstName = (insurance.holderType === 'member' ? insurance.memberFirstName : insurance.nonMemberFirstName) || ''
@@ -219,6 +220,8 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
               </section>
             </>
           )}
+
+          <VehicleRewardsSection insurance={insurance} canManage={can('vehicules.edit')} />
         </div>
       </DialogContent>
     </Dialog>

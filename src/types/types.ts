@@ -2363,6 +2363,78 @@ export interface VehicleInsurance {
   declaredValues?: Partial<Pick<VehicleInsurance, 'plateNumber' | 'vehicleType' | 'vehicleBrand' | 'vehicleModel' | 'vehicleYear' | 'energySource' | 'insuranceCompany' | 'policyNumber' | 'premiumAmount' | 'startDate' | 'endDate'>>
 }
 
+/**
+ * Assureur partenaire (collection `vehicleInsurancePartners`, admins seulement) :
+ * il verse à LE KARA une commission sur la prime de chaque véhicule assuré, et
+ * LE KARA en reverse une part au membre qui a enregistré le véhicule.
+ */
+export interface VehicleInsurancePartner {
+  id: string
+  /** Nom tel qu'il est saisi sur les assurances (comparaison sans accents ni casse). */
+  name: string
+  /** Commission versée par l'assureur à LE KARA, en % de la prime. */
+  commissionRate: number
+  /** Part de cette commission reversée au membre, en %. */
+  memberSharePercent: number
+  updatedAt?: Date
+  updatedBy?: string
+}
+
+export type VehicleRewardStatus = 'AWAITING_PARTNER' | 'TO_PAY' | 'PAID'
+
+export const VEHICLE_REWARD_STATUS_LABELS: Record<VehicleRewardStatus, string> = {
+  AWAITING_PARTNER: 'Commission à recevoir',
+  TO_PAY: 'À verser au membre',
+  PAID: 'Versé au membre',
+}
+
+/**
+ * Reversement d'une période d'assurance (collection `vehicleInsuranceRewards`,
+ * admins seulement : le membre ne doit pas voir la commission de l'assureur).
+ * Une ligne à la validation, puis une par renouvellement.
+ */
+export interface VehicleInsuranceReward {
+  id: string
+  insuranceId: string
+  /** 0 à la validation, puis numéro du renouvellement. */
+  periodIndex: number
+  plateNumber?: string
+  vehicleLabel?: string
+  insuranceCompany: string
+  startDate: Date
+  endDate: Date
+  premiumAmount: number
+  /** Membre qui a enregistré le véhicule : c'est lui qui reçoit le reversement. */
+  beneficiaryId: string
+  beneficiaryMatricule?: string
+  beneficiaryName: string
+  commissionRate: number
+  memberSharePercent: number
+  /** Commission attendue de l'assureur (prime × taux). */
+  expectedCommission: number
+  /** Montant que le membre peut réclamer (commission × part ; recalculé à réception). */
+  memberAmount: number
+  status: VehicleRewardStatus
+  partnerReceipt?: {
+    amount: number
+    receivedAt: Date
+    reference?: string
+    recordedBy: string
+    recordedByName?: string
+  }
+  memberPayment?: {
+    paidAt: Date
+    mode: PaymentMode
+    reference?: string
+    proofUrl?: string
+    proofPath?: string
+    paidBy: string
+    paidByName?: string
+  }
+  createdAt?: Date
+  createdBy?: string
+}
+
 /** Correction d'un champ saisi par le membre : valeur déclarée et valeur retenue, affichables. */
 export interface VehicleDeclarationCorrection {
   field: string
@@ -3087,8 +3159,11 @@ export interface ShopArticle {
   name: string
   description?: string
   price: number
+  /** Photo principale (= première de `photos`). */
   photoURL?: string
   photoPath?: string
+  /** Toutes les photos de l'article, la première étant la principale. */
+  photos: ShopPhoto[]
   /** En stock : le propriétaire le bascule sans validation. */
   isAvailable: boolean
   status: ShopStatus

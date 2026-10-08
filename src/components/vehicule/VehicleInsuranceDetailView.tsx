@@ -9,6 +9,8 @@ import { useVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
 import Link from 'next/link'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 import { InsuranceWhatsAppReminderButton } from './InsuranceWhatsAppReminderButton'
+import { VehicleRewardsSection } from './VehicleRewards'
+import { useMyAccess } from '@/hooks/useMyAccess'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',
@@ -33,6 +35,7 @@ interface Props {
 }
 
 export function VehicleInsuranceDetailView({ insuranceId }: Props) {
+  const { can } = useMyAccess()
   useVehicleInsurancesRealtimeSync(true)
   const { data, isLoading } = useVehicleInsurance(insuranceId)
 
@@ -141,6 +144,8 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
           <DetailRow label="Renouvellements">{data.renewalCount || 0}</DetailRow>
         </CardContent>
       </Card>
+
+      <VehicleRewardsSection insurance={data} canManage={can('vehicules.edit')} />
 
       {data.notes && (
         <Card>

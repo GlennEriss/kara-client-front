@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { diffVehicleDeclaration } from '@/utils/vehicle-declaration'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { VehicleInsurance, VehicleInsuranceFilters } from '@/types/types'
-import { FileSpreadsheet, FileText, Plus, ShieldCheck } from 'lucide-react'
+import { FileSpreadsheet, FileText, Percent, Plus, ShieldCheck } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ import { VehicleInsuranceForm } from './VehicleInsuranceForm'
 import { VehicleInsuranceRenewForm } from './VehicleInsuranceRenewForm'
 import { VehicleInsuranceStats } from './VehicleInsuranceStats'
 import { VehicleInsuranceTable } from './VehicleInsuranceTable'
+import { InsurancePartnersDialog, VehicleRewardEstimate, VehicleRewardsPanel } from './VehicleRewards'
 
 const DEFAULT_FILTERS: VehicleInsuranceFilters = {
   status: 'all',
@@ -79,7 +80,10 @@ export function VehicleInsuranceList() {
   }))
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
   // « À valider » : déclarations envoyées par les membres, à vérifier chez l'assureur partenaire.
-  const [view, setView] = useState<'insurances' | 'pending'>(searchParams.get('vue') === 'a-valider' ? 'pending' : 'insurances')
+  const [view, setView] = useState<'insurances' | 'pending' | 'rewards'>(
+    searchParams.get('vue') === 'a-valider' ? 'pending' : searchParams.get('vue') === 'reversements' ? 'rewards' : 'insurances',
+  )
+  const [partnersOpen, setPartnersOpen] = useState(false)
   const [pageSize, setPageSize] = useState(Number(searchParams.get('limit')) || 10)
 
   // Miroir URL (les valeurs par défaut restent absentes de l'URL).
@@ -89,7 +93,7 @@ export function VehicleInsuranceList() {
     q: filters.searchQuery || null,
     page: page > 1 ? page : null,
     limit: pageSize !== 10 ? pageSize : null,
-    vue: view === 'pending' ? 'a-valider' : null,
+    vue: view === 'pending' ? 'a-valider' : view === 'rewards' ? 'reversements' : null,
   })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
@@ -294,11 +298,15 @@ export function VehicleInsuranceList() {
           // Écarts entre la saisie du membre et les informations de l'assureur partenaire.
           // Référence : la saisie du membre à l'envoi, même si la fiche a été modifiée depuis.
           const corrections = diffVehicleDeclaration(currentInsurance.declaredValues ?? currentInsurance, values)
-          await validateMutation.mutateAsync({ id: currentInsurance.id, corrections })
+          const { reward } = await validateMutation.mutateAsync({ id: currentInsurance.id, corrections })
+          const rewardNote = reward
+            ? ` ${reward.beneficiaryName} pourra réclamer ${reward.memberAmount.toLocaleString('fr-FR')} FCFA (onglet Reversements).`
+            : ''
           toast.success('Déclaration validée', {
-            description: corrections.length
+            description: (corrections.length
               ? `${corrections.length} correction${corrections.length > 1 ? 's' : ''} enregistrée${corrections.length > 1 ? 's' : ''} ; le membre a été prévenu.`
-              : 'Le membre a été prévenu.',
+              : 'Le membre a été prévenu.') + rewardNote,
+            duration: 8000,
           })
         } else {
           toast.success('Assurance mise à jour')
@@ -374,6 +382,17 @@ export function VehicleInsuranceList() {
                 Exporter PDF
               </Button>
             )}
+            {can('vehicules.edit') && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPartnersOpen(true)}
+                className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex items-center gap-2"
+              >
+                <Percent className="h-4 w-4" />
+                Taux des assureurs
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => { refetch(); refetchMembers() }}
@@ -401,6 +420,7 @@ export function VehicleInsuranceList() {
         {([
           { value: 'insurances', label: 'Assurances' },
           { value: 'pending', label: `À valider${stats?.pendingDeclarations ? ` (${stats.pendingDeclarations})` : ''}` },
+          { value: 'rewards', label: 'Reversements' },
         ] as const).map((tab) => (
           <Button
             key={tab.value}
@@ -424,6 +444,10 @@ export function VehicleInsuranceList() {
         </p>
       )}
 
+      {view === 'rewards' ? (
+        <VehicleRewardsPanel canManage={can('vehicules.edit')} />
+      ) : (
+      <>
       <FiltersComponent filters={filters} onChange={next => {
         setFilters(next)
         setPage(1)
@@ -451,6 +475,11 @@ export function VehicleInsuranceList() {
         }}
       />
 
+      </>
+      )}
+
+      <InsurancePartnersDialog open={partnersOpen} onOpenChange={setPartnersOpen} companies={companies} />
+
       <VehicleInsuranceDetail insurance={detailInsurance} open={!!detailInsurance} onOpenChange={open => {
         if (!open) setDetailInsurance(null)
       }} />
@@ -469,6 +498,14 @@ export function VehicleInsuranceList() {
               <p className="mt-2 text-sm text-gray-600">
                 Vérifiez les informations auprès de l&apos;assureur partenaire et complétez la fiche : l&apos;enregistrement valide la déclaration.
               </p>
+            )}
+            {validateAfterSave && currentInsurance && (
+              <div className="mt-2">
+                <VehicleRewardEstimate
+                  insuranceCompany={currentInsurance.insuranceCompany}
+                  premiumAmount={currentInsurance.premiumAmount}
+                />
+              </div>
             )}
             {formMode === 'create' && (
               <div className="space-y-1 mt-2">
