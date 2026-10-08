@@ -128,7 +128,8 @@ export default function ValidateDemandModal({
                 )}
                 {shopPurchase && (
                   <p>
-                    <strong>Achat en boutique :</strong> {shopPurchase.article} chez « {shopPurchase.shopName} », remboursé en 2 ou 3 mensualités
+                    <strong>Achat en boutique :</strong> {shopPurchase.article} chez « {shopPurchase.shopName} », remboursé en{' '}
+                    {shopPurchase.desiredInstallments ? `${shopPurchase.desiredInstallments} mensualités (choix du membre)` : '2 ou 3 mensualités'}
                   </p>
                 )}
               </div>

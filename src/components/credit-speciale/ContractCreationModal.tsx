@@ -475,6 +475,9 @@ export default function ContractCreationModal({
               : simulation.amount / simulation.duration,
           duration: simulation.duration,
           durationUnit: simulationDurationUnit,
+          ...('installmentsChangeReason' in simulation && simulation.installmentsChangeReason
+            ? { installmentsChangeReason: simulation.installmentsChangeReason }
+            : {}),
           firstPaymentDate: simulation.firstPaymentDate,
           totalAmount: simulation.totalAmount,
           ...(isCustom ? { customSchedule: simulation.monthlyPayments } : {}),

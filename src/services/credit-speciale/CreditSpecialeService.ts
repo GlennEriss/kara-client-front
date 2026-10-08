@@ -390,6 +390,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             firstPaymentDate: Date;
             totalAmount: number;
             durationUnit?: CreditDurationUnit;
+            installmentsChangeReason?: string;
             customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;
             guarantorRemunerationPercentage?: number;
@@ -448,6 +449,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const isWeekly = demand.creditType === 'SPECIALE' && !shopPurchase && simulationData.durationUnit === 'WEEKS';
         if (shopPurchase && Math.round(simulationData.amount) !== Math.round(shopPurchase.price)) {
             throw new Error("Le montant du crédit doit être égal au prix de l'article acheté en boutique");
+        }
+        // Le membre a choisi 2 ou 3 mensualités : un autre choix exige un motif, qu'il verra.
+        if (shopPurchase?.desiredInstallments) {
+            const retained = clampShopCreditInstallments(simulationData.duration);
+            const reason = simulationData.installmentsChangeReason?.trim();
+            if (retained !== shopPurchase.desiredInstallments && !reason) {
+                throw new Error(`Le membre a choisi ${shopPurchase.desiredInstallments} mensualités : indiquez le motif du changement`);
+            }
+            shopPurchase = {
+                ...shopPurchase,
+                installmentsChangeReason: retained !== shopPurchase.desiredInstallments ? reason : undefined,
+            };
         }
         const normalizedDuration = shopPurchase
             ? clampShopCreditInstallments(simulationData.duration)

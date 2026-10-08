@@ -115,6 +115,14 @@ export default function ShopPurchaseSection({
           {purchase.article}
           {purchase.shopOwnerName ? ` · vendeur ${purchase.shopOwnerName}` : ''}
         </p>
+        {purchase.desiredInstallments && (
+          <p className="text-xs text-gray-500">
+            Choix du membre : {purchase.desiredInstallments} mensualités
+            {purchase.desiredInstallments !== contract.duration
+              ? ` · retenu : ${contract.duration}${purchase.installmentsChangeReason ? ` (${purchase.installmentsChangeReason})` : ''}`
+              : ''}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 sm:grid-cols-4">

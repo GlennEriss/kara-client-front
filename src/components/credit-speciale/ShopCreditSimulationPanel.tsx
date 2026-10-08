@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import type { CreditShopPurchase, StandardSimulation } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
 import { useShopCreditPartner } from '@/hooks/useShops'
@@ -41,15 +42,19 @@ export default function ShopCreditSimulationPanel({
   const { data: partner } = useShopCreditPartner(rawPurchase.shopId)
   const purchase = applyShopPartnerTerms(rawPurchase, partner)
   const [interestRate, setInterestRate] = useState<number>(0)
-  const [months, setMonths] = useState<number>(3)
+  // Le membre a choisi 2 ou 3 mensualités : la simulation part de son choix.
+  const desired = rawPurchase.desiredInstallments
+  const [months, setMonths] = useState<number>(desired ?? 3)
+  const [changeReason, setChangeReason] = useState('')
   const [firstDate, setFirstDate] = useState<string>(toInputDate(inOneMonth()))
 
   useEffect(() => {
     if (!isOpen) return
     setInterestRate(0)
-    setMonths(3)
+    setMonths(desired ?? 3)
+    setChangeReason('')
     setFirstDate(toInputDate(inOneMonth()))
-  }, [isOpen])
+  }, [isOpen, desired])
 
   const simulation = useMemo(() => {
     const first = new Date(firstDate)
@@ -59,6 +64,7 @@ export default function ShopCreditSimulationPanel({
   const totals = simulation ? computeWeeklyCreditTotals(simulation.amount, simulation.interestRate) : null
   const schedule = simulation ? splitFlatInstallments(simulation.totalAmount, simulation.duration) : []
   const discount = purchase.price - purchase.vendorAmount
+  const changed = !!desired && months !== desired
 
   return (
     <div className="space-y-6">
@@ -113,15 +119,32 @@ export default function ShopCreditSimulationPanel({
                     onClick={() => setMonths(value)}
                   >
                     {value} mois
+                    {desired === value && <span className="ml-1 text-[10px] opacity-80">(choix du membre)</span>}
                   </Button>
                 ))}
               </div>
+              {!desired && <p className="text-xs text-gray-500">Le membre n&apos;a pas indiqué de préférence.</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="shop-first">Première mensualité</Label>
               <Input id="shop-first" type="date" value={firstDate} onChange={(event) => setFirstDate(event.target.value)} />
             </div>
           </div>
+
+          {changed && (
+            <div className="space-y-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+              <Label htmlFor="shop-change-reason" className="text-amber-900">
+                Le membre a choisi {desired} mensualités : motif du changement (montré au membre) *
+              </Label>
+              <Textarea
+                id="shop-change-reason"
+                rows={2}
+                value={changeReason}
+                onChange={(event) => setChangeReason(event.target.value)}
+                placeholder="Ex : 3 mensualités dépassent votre capacité de remboursement, nous proposons 2."
+              />
+            </div>
+          )}
 
           <Alert>
             <CalendarClock className="h-4 w-4" />
@@ -189,8 +212,10 @@ export default function ShopCreditSimulationPanel({
             <Button
               type="button"
               className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73]"
-              disabled={!simulation.isValid}
-              onClick={() => onUse(simulation)}
+              disabled={!simulation.isValid || (changed && changeReason.trim().length < 5)}
+              onClick={() =>
+                onUse(changed ? { ...simulation, installmentsChangeReason: changeReason.trim() } : simulation)
+              }
             >
               Utiliser cette simulation
             </Button>
