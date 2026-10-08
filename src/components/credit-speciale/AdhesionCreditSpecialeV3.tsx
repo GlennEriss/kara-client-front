@@ -26,7 +26,7 @@ import { getNationalityName } from '@/constantes/nationality'
 import type { CreditContract } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
 import { calculateSchedule } from '@/utils/credit-speciale-calculations'
-import { computeWeeklyCreditTotals, formatCreditDuration, isWeeklyCredit } from '@/utils/credit-weekly'
+import { computeWeeklyCreditTotals, formatCreditDuration, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -185,9 +185,16 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
   const disbursementDate = read(fields.disbursementDate) || EMPTY
 
   const customSchedule = contract.customSchedule && contract.customSchedule.length > 0 ? contract.customSchedule : null
+  // Achat en boutique : intérêts une fois, 2 ou 3 mensualités égales.
+  const isShopPurchase = contract.repaymentModel === 'FLAT' && !isWeekly
   const schedule = firstPaymentDate
     ? isWeekly
       ? [{ month: 1, date: firstPaymentDate, payment: computeWeeklyCreditTotals(contract.amount, contract.interestRate).totalAmount }]
+      : isShopPurchase
+      ? splitFlatInstallments(
+          computeWeeklyCreditTotals(contract.amount, contract.interestRate).totalAmount,
+          contract.duration || 1
+        ).map((payment, index) => ({ month: index + 1, date: addContractMonths(firstPaymentDate, index), payment }))
       : customSchedule
       ? customSchedule.map(({ month, amount }) => ({ month, date: addContractMonths(firstPaymentDate, month - 1), payment: amount }))
       : calculateSchedule({
@@ -234,6 +241,13 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
           <Text style={localStyles.amount}>{formatAmount(creditAmount)} FCFA (chiffres),</Text>
           <Text style={localStyles.amount}>{numberToWords(creditAmount)} FCFA (lettres),</Text>
           <Text style={styles.paragraph}>En date du {disbursementDate}.</Text>
+          {contract.shopPurchase && (
+            <Text style={styles.paragraph}>
+              Cet accompagnement finance l’achat de « {contract.shopPurchase.article} » auprès de la boutique
+              « {contract.shopPurchase.shopName} », membre partenaire de l’Association, qui est réglée
+              directement par l’Association. Les fonds ne sont pas remis au membre.
+            </Text>
+          )}
           <Text style={styles.paragraph}>
             {isWeekly ? (
               <>

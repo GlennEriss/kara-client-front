@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -12,7 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
-import type { Shop, ShopPhoto, ShopStatus } from '@/types/types'
+import { SHOP_PROPOSABLE_FIELDS, type Shop, type ShopArticle, type ShopChangeProposal, type ShopCreditPartner, type ShopPhoto, type ShopStatus } from '@/types/types'
 
 const COL = firebaseCollectionNames.shops
 
@@ -62,6 +63,11 @@ function mapShop(id: string, data: any): Shop {
     reviewedBy: data.reviewedBy ?? '',
     reviewedAt: toDate(data.reviewedAt),
     rejectionReason: data.rejectionReason ?? '',
+    acceptsCredit: data.acceptsCredit === true,
+    pendingChanges: data.pendingChanges && typeof data.pendingChanges === 'object' ? data.pendingChanges : null,
+    pendingChangesSubmittedAt: toDate(data.pendingChangesSubmittedAt),
+    pendingChangesSubmittedBy: data.pendingChangesSubmittedBy ?? '',
+    pendingChangesRejectionReason: data.pendingChangesRejectionReason ?? '',
     createdAt: toDate(data.createdAt) ?? new Date(),
     createdBy: data.createdBy ?? '',
     updatedAt: toDate(data.updatedAt) ?? new Date(),
@@ -133,4 +139,161 @@ export async function reviewShop(
     updatedAt: serverTimestamp(),
     updatedBy: adminId,
   })
+}
+
+const PARTNERS_COL = firebaseCollectionNames.shopCreditPartners
+
+function mapPartner(id: string, data: any): ShopCreditPartner {
+  return {
+    shopId: id,
+    enabled: data.enabled === true,
+    discountPercent: Number(data.discountPercent) || 0,
+    payoutMode: data.payoutMode || undefined,
+    payoutAccount: data.payoutAccount || undefined,
+    agreementSigned: data.agreementSigned === true,
+    agreementUrl: data.agreementUrl || undefined,
+    agreementPath: data.agreementPath || undefined,
+    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : undefined,
+    updatedBy: data.updatedBy || undefined,
+  }
+}
+
+/** Conditions de partenariat « achat à crédit » de toutes les boutiques. */
+export async function listShopCreditPartners(): Promise<ShopCreditPartner[]> {
+  const snap = await getDocs(collection(db, PARTNERS_COL))
+  return snap.docs.map((d) => mapPartner(d.id, d.data()))
+}
+
+export async function getShopCreditPartner(shopId: string): Promise<ShopCreditPartner | null> {
+  const s = await getDoc(doc(db, PARTNERS_COL, shopId))
+  return s.exists() ? mapPartner(s.id, s.data()) : null
+}
+
+/**
+ * Enregistre les conditions d'une boutique partenaire et répercute sur la
+ * fiche publique le seul fait qu'elle accepte le crédit.
+ */
+export async function saveShopCreditPartner(
+  partner: Omit<ShopCreditPartner, 'updatedAt' | 'updatedBy'>,
+  adminId: string,
+): Promise<void> {
+  const { shopId, ...rest } = partner
+  await setDoc(doc(db, PARTNERS_COL, shopId), {
+    ...clean(rest as Record<string, unknown>),
+    updatedAt: serverTimestamp(),
+    updatedBy: adminId,
+  })
+  await updateDoc(doc(db, COL, shopId), {
+    acceptsCredit: partner.enabled,
+    updatedAt: serverTimestamp(),
+    updatedBy: adminId,
+  })
+}
+
+/** Ne garde que les champs qu'un membre a le droit de faire modifier. */
+export function pickProposableChanges(changes: Record<string, unknown> | null | undefined): ShopChangeProposal {
+  const out: Record<string, unknown> = {}
+  if (!changes) return out
+  for (const key of SHOP_PROPOSABLE_FIELDS) {
+    if (changes[key] !== undefined) out[key] = changes[key]
+  }
+  return out as ShopChangeProposal
+}
+
+const CLEAR_PROPOSAL = {
+  pendingChanges: deleteField(),
+  pendingChangesSubmittedAt: deleteField(),
+  pendingChangesSubmittedBy: deleteField(),
+}
+
+/** Reporte sur la fiche publiée la modification proposée par le membre. */
+export async function approveShopChanges(shop: Shop, adminId: string): Promise<void> {
+  const changes = pickProposableChanges(shop.pendingChanges as Record<string, unknown>)
+  await updateDoc(doc(db, COL, shop.id), {
+    ...clean(changes as Record<string, unknown>),
+    ...CLEAR_PROPOSAL,
+    pendingChangesRejectionReason: '',
+    reviewedBy: adminId,
+    reviewedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: adminId,
+  })
+}
+
+/** Refuse la modification proposée : la fiche publiée reste telle quelle. */
+export async function rejectShopChanges(shopId: string, adminId: string, reason: string): Promise<void> {
+  await updateDoc(doc(db, COL, shopId), {
+    ...CLEAR_PROPOSAL,
+    pendingChangesRejectionReason: reason.trim(),
+    reviewedBy: adminId,
+    reviewedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: adminId,
+  })
+}
+
+const ARTICLES_COL = firebaseCollectionNames.shopArticles
+
+function mapArticle(id: string, data: any): ShopArticle {
+  const toDate = (v: any) => (v?.toDate ? v.toDate() : v ? new Date(v) : undefined)
+  return {
+    id,
+    shopId: data.shopId ?? '',
+    shopName: data.shopName ?? '',
+    ownerMatricule: data.ownerMatricule ?? '',
+    submittedBy: data.submittedBy ?? '',
+    submittedByName: data.submittedByName ?? '',
+    name: data.name ?? '',
+    description: data.description ?? '',
+    price: Number(data.price) || 0,
+    photoURL: data.photoURL ?? '',
+    photoPath: data.photoPath ?? '',
+    // Anciens articles : une seule photo, dans `photoURL`.
+    photos: Array.isArray(data.photos)
+      ? (data.photos as ShopPhoto[]).filter((p) => p && typeof p.url === 'string' && p.url)
+      : data.photoURL
+        ? [{ url: data.photoURL, path: data.photoPath || '' }]
+        : [],
+    isAvailable: data.isAvailable !== false,
+    status: (data.status as ShopStatus) ?? 'pending',
+    rejectionReason: data.rejectionReason ?? '',
+    submittedAt: toDate(data.submittedAt),
+    reviewedBy: data.reviewedBy ?? '',
+    reviewedAt: toDate(data.reviewedAt),
+    createdAt: toDate(data.createdAt),
+    updatedAt: toDate(data.updatedAt),
+  }
+}
+
+/** Tous les articles des boutiques (catalogues et file de validation). */
+export async function listShopArticles(): Promise<ShopArticle[]> {
+  const snap = await getDocs(collection(db, ARTICLES_COL))
+  return snap.docs
+    .map((d) => mapArticle(d.id, d.data()))
+    .sort((a, b) => a.shopName.localeCompare(b.shopName, 'fr') || a.name.localeCompare(b.name, 'fr'))
+}
+
+export async function getShopArticle(id: string): Promise<ShopArticle | null> {
+  const s = await getDoc(doc(db, ARTICLES_COL, id))
+  return s.exists() ? mapArticle(s.id, s.data()) : null
+}
+
+/** Valide ou refuse un article proposé par le propriétaire de la boutique. */
+export async function reviewShopArticle(
+  id: string,
+  decision: Extract<ShopStatus, 'approved' | 'rejected'>,
+  adminId: string,
+  rejectionReason?: string,
+): Promise<void> {
+  await updateDoc(doc(db, ARTICLES_COL, id), {
+    status: decision,
+    rejectionReason: decision === 'rejected' ? (rejectionReason || '').trim() : '',
+    reviewedBy: adminId,
+    reviewedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteShopArticle(id: string): Promise<void> {
+  await deleteDoc(doc(db, ARTICLES_COL, id))
 }

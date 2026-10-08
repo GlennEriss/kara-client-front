@@ -13,6 +13,7 @@ import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 import { useAuth } from '@/hooks/useAuth'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
 import WrittenOffCreditWarning from './WrittenOffCreditWarning'
+import ShopPurchaseFields from './ShopPurchaseFields'
 import { useAllMembers } from '@/hooks/useMembers'
 import { creditDemandDefaultValues, creditDemandFormSchema, type CreditDemandFormInput } from '@/schemas/credit-speciale.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -65,6 +66,7 @@ export default function CreateCreditDemandModal({
 
   const selectedCreditType = form.watch('creditType')
   const isSimpleCredit = selectedCreditType === 'FIXE' || selectedCreditType === 'AIDE'
+  const isShopPurchase = !!form.watch('shopPurchase')
 
   useEffect(() => {
     if (isSimpleCredit) {
@@ -126,7 +128,7 @@ export default function CreateCreditDemandModal({
       
       await create.mutateAsync({
         ...data,
-        monthlyPaymentAmount: (data.creditType === 'FIXE' || data.creditType === 'AIDE') ? undefined : data.monthlyPaymentAmount,
+        monthlyPaymentAmount: (data.creditType === 'FIXE' || data.creditType === 'AIDE' || data.shopPurchase) ? undefined : data.monthlyPaymentAmount,
         createdBy: user.uid,
         guarantorIsMember: data.guarantorIsMember ?? false,
       })
@@ -290,6 +292,8 @@ export default function CreateCreditDemandModal({
                 </CardContent>
               </Card>
 
+              {selectedCreditType === 'SPECIALE' && <ShopPurchaseFields form={form} />}
+
               {/* Informations du crédit */}
               <Card className="border border-slate-200/80 bg-white shadow-sm">
                 <CardContent className="space-y-4 p-4 md:p-5">
@@ -308,6 +312,7 @@ export default function CreateCreditDemandModal({
                               placeholder="Ex: 500000"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              disabled={isShopPurchase}
                               className="h-11 rounded-xl border-2 border-slate-200 bg-white focus-visible:border-[#234D65] focus-visible:ring-0"
                             />
                           </FormControl>
@@ -316,7 +321,7 @@ export default function CreateCreditDemandModal({
                       )}
                     />
 
-                    {!isSimpleCredit && (
+                    {!isSimpleCredit && !isShopPurchase && (
                       <FormField
                         control={form.control}
                         name="monthlyPaymentAmount"

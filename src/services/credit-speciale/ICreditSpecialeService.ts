@@ -79,6 +79,10 @@ export interface ICreditSpecialeService {
     writeOffContract(contractId: string, data: { motif: string; guarantorCommissionDue: number; adminId: string; adminName?: string }): Promise<CreditContract>;
     /** Somme récupérée après une clôture en perte. */
     recordWriteOffRecovery(contractId: string, data: { amount: number; date: Date; mode: CreditPaymentMode; comment?: string; adminId: string; adminName?: string }): Promise<CreditContract>;
+    /** Achat en boutique : règlement du vendeur (prix − remise). */
+    recordShopVendorPayment(contractId: string, data: { paidAt: Date; mode: PaymentMode; reference?: string; proofFile?: File; adminId: string; adminName?: string }): Promise<CreditContract>;
+    /** Achat en boutique : confirmation de la livraison de l'article. */
+    confirmShopPurchaseDelivery(contractId: string, data: { deliveredAt: Date; comment?: string; adminId: string; adminName?: string }): Promise<CreditContract>;
     
     // Simulations
     calculateStandardSimulation(amount: number, interestRate: number, monthlyPayment: number, firstPaymentDate: Date, creditType: CreditType): Promise<StandardSimulation>;

@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -830,7 +831,8 @@ export default function CreditPaymentModal({
             </Card>
           )}
 
-          <div>
+          {/* Note suspendue : la note automatique reste enregistrée sans être saisie. */}
+          <div className={CREDIT_SCORING_ENABLED ? undefined : 'hidden'}>
             <Label htmlFor="note" className="mb-2">Note (sur 10)</Label>
             <Input
               id="note"

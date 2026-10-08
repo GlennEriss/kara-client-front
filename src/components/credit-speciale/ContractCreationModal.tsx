@@ -39,7 +39,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
-import { computeWeeklyCreditTotals, formatCreditDuration } from '@/utils/credit-weekly'
+import ShopPurchaseDemandSummary from './ShopPurchaseDemandSummary'
+import { clampShopCreditInstallments, computeWeeklyCreditTotals, formatCreditDuration, splitFlatInstallments } from '@/utils/credit-weekly'
 
 interface ContractCreationModalProps {
   isOpen: boolean
@@ -186,6 +187,19 @@ export default function ContractCreationModal({
     if ('durationUnit' in result && result.durationUnit === 'WEEKS') {
       const { interest, totalAmount } = computeWeeklyCreditTotals(result.amount, result.interestRate)
       return [{ month: 1, date: firstDate, payment: totalAmount, interest, remaining: 0 }]
+    }
+
+    // Achat en boutique : intérêts une fois, 2 ou 3 mensualités égales.
+    if (demand.shopPurchase && demand.creditType === 'SPECIALE') {
+      const months = clampShopCreditInstallments(result.duration)
+      const { interest, totalAmount } = computeWeeklyCreditTotals(result.amount, result.interestRate)
+      const payments = splitFlatInstallments(totalAmount, months)
+      const interests = splitFlatInstallments(interest, months)
+      let remaining = totalAmount
+      return payments.map((payment, index) => {
+        remaining = Math.max(0, remaining - payment)
+        return { month: index + 1, date: addContractMonths(firstDate, index), payment, interest: interests[index], remaining }
+      })
     }
 
     const items: Array<{
@@ -829,8 +843,14 @@ export default function ContractCreationModal({
           <div className="space-y-6">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-[#234D65]">Moyen de remise</h3>
-              <p className="text-gray-600 text-sm">Indiquez comment les fonds seront remis au membre</p>
+              <p className="text-gray-600 text-sm">
+                {demand.shopPurchase
+                  ? 'Achat en boutique : les fonds ne sont pas remis au membre, l’association règle le vendeur'
+                  : 'Indiquez comment les fonds seront remis au membre'}
+              </p>
             </div>
+
+            {demand.shopPurchase && <ShopPurchaseDemandSummary purchase={demand.shopPurchase} compact />}
 
             <Card className="border-[#234D65]/20">
               <CardContent className="space-y-6">

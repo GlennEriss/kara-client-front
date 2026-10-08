@@ -25,7 +25,7 @@ import {
     type ProposedSimulationFormData,
     type StandardSimulationFormData
 } from '@/schemas/credit-speciale.schema'
-import type { CreditType, CustomSimulation, StandardSimulation } from '@/types/types'
+import type { CreditShopPurchase, CreditType, CustomSimulation, StandardSimulation } from '@/types/types'
 import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -41,6 +41,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
 import WeeklyCreditSimulationPanel from './WeeklyCreditSimulationPanel'
+import ShopCreditSimulationPanel from './ShopCreditSimulationPanel'
 
 interface CreditSimulationModalProps {
   isOpen: boolean
@@ -49,6 +50,8 @@ interface CreditSimulationModalProps {
   initialAmount?: number
   initialMonthlyPayment?: number
   lockAmount?: boolean
+  /** Achat en boutique partenaire : seule la simulation en 2 ou 3 mensualités est proposée. */
+  shopPurchase?: CreditShopPurchase
   onSimulationComplete?: (simulation: StandardSimulation | CustomSimulation) => void
 }
 
@@ -59,6 +62,7 @@ export default function CreditSimulationModal({
   initialAmount,
   initialMonthlyPayment,
   lockAmount = false,
+  shopPurchase,
   onSimulationComplete
 }: CreditSimulationModalProps) {
   const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed' | 'weekly'>('standard')
@@ -208,6 +212,16 @@ export default function CreditSimulationModal({
           </DialogDescription>
         </DialogHeader>
 
+        {shopPurchase ? (
+          <ShopCreditSimulationPanel
+            isOpen={isOpen}
+            purchase={shopPurchase}
+            onUse={(simulation) => {
+              onSimulationComplete?.(simulation)
+              onClose()
+            }}
+          />
+        ) : (
         <Tabs value={simulationType} onValueChange={(v) => {
           setSimulationType(v as 'standard' | 'custom' | 'proposed' | 'weekly')
           setShowResults(false)
@@ -649,6 +663,7 @@ export default function CreditSimulationModal({
             </TabsContent>
           )}
         </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   )

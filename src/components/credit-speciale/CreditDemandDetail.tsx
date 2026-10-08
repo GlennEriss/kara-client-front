@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import WrittenOffCreditWarning from './WrittenOffCreditWarning'
 import { formatCreditDuration, isWeeklyCredit } from '@/utils/credit-weekly'
 
@@ -48,6 +49,7 @@ import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import ContractCreationModal from './ContractCreationModal'
+import ShopPurchaseDemandSummary from './ShopPurchaseDemandSummary'
 import CreditSimulationModal from './CreditSimulationModal'
 import DeleteCreditDemandModal from './DeleteCreditDemandModal'
 import EditCreditDemandModal from './EditCreditDemandModal'
@@ -447,6 +449,8 @@ export default function CreditDemandDetail({
                 </p>
               </div>
 
+              {demand.shopPurchase && <ShopPurchaseDemandSummary purchase={demand.shopPurchase} />}
+
               {demand.adminComments && (
                 <div
                   className={cn(
@@ -779,7 +783,7 @@ export default function CreditDemandDetail({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {demand.score !== undefined && (
+              {CREDIT_SCORING_ENABLED && demand.score !== undefined && (
                 <div className={cn(infoBoxClass, 'space-y-2')}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Score de fiabilité</p>
                   <Badge className={cn('border px-3 py-1 text-base font-bold', getScoreBadgeStyle(demand.score))}>
@@ -974,6 +978,7 @@ export default function CreditDemandDetail({
           initialAmount={demand.amount}
           initialMonthlyPayment={demand.monthlyPaymentAmount}
           lockAmount
+          shopPurchase={demand.shopPurchase}
           onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
             // Fermer le modal de simulation et ouvrir le modal de création de contrat
             setSimulationModalState({ isOpen: false })

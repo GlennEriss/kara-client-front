@@ -452,7 +452,39 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery, deleteContract }
+    const recordShopVendorPayment = useMutation({
+        mutationFn: ({ contractId, ...data }: { contractId: string; paidAt: Date; mode: PaymentMode; reference?: string; proofFile?: File }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.recordShopVendorPayment(contractId, { ...data, adminId: user.uid, adminName: user.displayName || undefined })
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            toast.success('Règlement du vendeur enregistré')
+            log({ action: 'update', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: 'Achat en boutique : vendeur réglé' })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Erreur lors de l'enregistrement du règlement")
+        },
+    })
+
+    const confirmShopPurchaseDelivery = useMutation({
+        mutationFn: ({ contractId, ...data }: { contractId: string; deliveredAt: Date; comment?: string }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.confirmShopPurchaseDelivery(contractId, { ...data, adminId: user.uid, adminName: user.displayName || undefined })
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            toast.success('Livraison confirmée')
+            log({ action: 'update', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: 'Achat en boutique : article livré' })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la confirmation de livraison')
+        },
+    })
+
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery, recordShopVendorPayment, confirmShopPurchaseDelivery, deleteContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================

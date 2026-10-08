@@ -2,6 +2,7 @@ import { CreditContract, CreditContractCycle, CreditPayment } from '@/types/type
 import { customRound } from './credit-speciale-calculations'
 import { getLogicalMonthIndex } from './credit-speciale-rest-months'
 import { addContractMonths } from '@/utils/contract-months'
+import { getFlatInstallmentCount, isFlatCredit, splitFlatInstallments } from './credit-weekly'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
 export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 60
@@ -327,52 +328,99 @@ export function getCreditSpecialeLastRecordedMonth(
 }
 
 /**
- * Crédit en semaines : une seule échéance à `firstPaymentDate`. Les intérêts
- * s'appliquent une fois ; un paiement partiel laisse le reste dû sur cette même
- * échéance, sans intérêts supplémentaires (le retard relève des pénalités).
+ * Crédit à intérêts uniques : crédit en semaines (une échéance à
+ * `firstPaymentDate`) ou achat en boutique (N mensualités égales à partir de
+ * `firstPaymentDate`). Les intérêts s'appliquent une fois sur le capital ; le
+ * total est découpé en échéances égales. Les versements sont imputés dans
+ * l'ordre des échéances : un paiement partiel laisse le reste dû sur la même
+ * échéance, un excédent passe à la suivante, sans intérêts supplémentaires (le
+ * retard relève des pénalités).
  *
  * `amountDue` et `expectedPayment` portent ce qu'il reste à payer tant que
  * l'échéance n'est pas soldée, afin que le reste dû du contrat et le montant
  * proposé au paiement suivant soient justes.
  */
-function buildWeeklyCreditHistory(
-  contract: Pick<CreditContract, 'amount' | 'interestRate' | 'guarantorRemunerationPercentage' | 'firstPaymentDate'>,
+function buildFlatCreditHistory(
+  contract: Pick<
+    CreditContract,
+    'amount' | 'interestRate' | 'guarantorRemunerationPercentage' | 'firstPaymentDate' | 'duration' | 'durationUnit' | 'repaymentModel'
+  >,
   payments: CreditPayment[]
 ): CreditSpecialeHistoryMonth[] {
   const capital = customRound(contract.amount)
   const interest = customRound(capital * (contract.interestRate / 100))
   const commission = customRound(capital * ((contract.guarantorRemunerationPercentage ?? 0) / 100))
   const totalDue = customRound(capital + interest)
+  const count = getFlatInstallmentCount(contract)
+  const installments = splitFlatInstallments(totalDue, count)
+  const interests = splitFlatInstallments(interest, count)
+  const firstDate = new Date(contract.firstPaymentDate)
 
   const recorded = payments
     .filter(isRecordedMonthlyPayment)
     .sort((left, right) => new Date(left.paymentDate).getTime() - new Date(right.paymentDate).getTime())
-  const actualPayment = customRound(recorded.reduce((sum, payment) => sum + payment.amount, 0))
-  const remaining = Math.max(0, customRound(totalDue - actualPayment))
-  const isSettled = recorded.length > 0 && remaining <= 0
-  const lastPayment = recorded.at(-1)
+  const totalPaid = customRound(recorded.reduce((sum, payment) => sum + payment.amount, 0))
 
-  return [
-    {
-      month: 1,
-      logicalMonth: 1,
-      date: new Date(contract.firstPaymentDate),
+  const history: CreditSpecialeHistoryMonth[] = []
+  let dueBefore = 0
+  let capitalStart = capital
+  let nextDueAssigned = false
+
+  for (let index = 0; index < count; index++) {
+    const month = index + 1
+    const isLast = index === count - 1
+    const due = installments[index]
+    const dueThrough = customRound(dueBefore + due)
+    const paidOnRow = Math.max(0, customRound(Math.min(totalPaid, isLast ? Number.POSITIVE_INFINITY : dueThrough) - dueBefore))
+    const remainingOnRow = Math.max(0, customRound(due - paidOnRow))
+    const isSettled = recorded.length > 0 && remainingOnRow <= 0
+
+    // Dernier versement ayant alimenté cette échéance (imputation dans l'ordre).
+    let cumulative = 0
+    let lastContributing: CreditPayment | undefined
+    for (const payment of recorded) {
+      const before = cumulative
+      cumulative = customRound(cumulative + payment.amount)
+      const touchesRow = cumulative > dueBefore && (isLast || before < dueThrough)
+      const zeroPaymentOnRow = payment.amount === 0 && getCreditPaymentMonthNumber(contract as CreditContract, payment) === month
+      if (touchesRow || zeroPaymentOnRow) lastContributing = payment
+    }
+
+    let status: CreditSpecialeHistoryMonth['status']
+    if (isSettled) {
+      status = 'PAID'
+    } else if (!nextDueAssigned) {
+      status = 'DUE'
+      nextDueAssigned = true
+    } else {
+      status = 'FUTURE'
+    }
+
+    history.push({
+      month,
+      logicalMonth: month,
+      date: count === 1 ? firstDate : addContractMonths(firstDate, index),
       phase: 'SPECIALE',
       isRest: false,
-      capitalStart: capital,
-      commission,
-      interest,
-      amountDue: isSettled ? totalDue : remaining,
-      expectedPayment: isSettled ? totalDue : remaining,
-      actualPayment,
-      hasPaymentRecord: recorded.length > 0,
-      paymentDate: lastPayment ? new Date(lastPayment.paymentDate) : undefined,
-      paymentTime: lastPayment?.paymentTime,
-      nextCapitalActual: remaining,
-      nextCapitalProjected: remaining,
-      status: isSettled ? 'PAID' : 'DUE',
-    },
-  ]
+      capitalStart: customRound(capitalStart),
+      commission: index === 0 ? commission : 0,
+      interest: interests[index],
+      amountDue: isSettled ? due : remainingOnRow,
+      expectedPayment: isSettled ? due : remainingOnRow,
+      actualPayment: paidOnRow,
+      hasPaymentRecord: !!lastContributing,
+      paymentDate: lastContributing ? new Date(lastContributing.paymentDate) : undefined,
+      paymentTime: lastContributing?.paymentTime,
+      nextCapitalActual: Math.max(0, customRound(totalDue - Math.min(totalPaid, isLast ? totalPaid : dueThrough))),
+      nextCapitalProjected: Math.max(0, customRound(totalDue - dueThrough)),
+      status,
+    })
+
+    capitalStart = Math.max(0, customRound(capitalStart - (due - interests[index])))
+    dueBefore = dueThrough
+  }
+
+  return history
 }
 
 export function buildCreditSpecialeHistory(
@@ -394,6 +442,7 @@ export function buildCreditSpecialeHistory(
     | 'totalAmount'
     | 'duration'
     | 'durationUnit'
+    | 'repaymentModel'
     | 'restMonths'
   >,
   payments: CreditPayment[],
@@ -403,8 +452,8 @@ export function buildCreditSpecialeHistory(
     return []
   }
 
-  if (contract.durationUnit === 'WEEKS') {
-    return buildWeeklyCreditHistory(contract, payments)
+  if (isFlatCredit(contract)) {
+    return buildFlatCreditHistory(contract, payments)
   }
 
   const firstDate = new Date(contract.firstPaymentDate)
@@ -552,6 +601,7 @@ export function buildCreditSpecialeTimelineHistory(
     | 'restMonths'
     | 'totalAmount'
     | 'durationUnit'
+    | 'repaymentModel'
   >,
   payments: CreditPayment[]
 ): CreditSpecialeTimelineMonth[] {
@@ -566,6 +616,7 @@ export function buildCreditSpecialeTimelineHistory(
       amount: cycle.amount,
       creditType: contract.creditType,
       durationUnit: contract.durationUnit,
+      repaymentModel: contract.repaymentModel,
       createdAt: cycle.startedAt,
       creditCycles: undefined,
       firstPaymentDate: cycle.firstPaymentDate,

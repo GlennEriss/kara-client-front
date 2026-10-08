@@ -32,7 +32,9 @@ import {
 } from "@/utils/credit-speciale-history";
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss } from "@/utils/credit-write-off";
-import { WEEKLY_CREDIT_MAX_WEEKS, isWeeklyCredit } from "@/utils/credit-weekly";
+import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, splitFlatInstallments } from "@/utils/credit-weekly";
+import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
+import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
 import {
     buildGuarantorRemunerationDocId,
     getGuarantorRemunerationCycleNumber,
@@ -197,6 +199,14 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Ajouter le score initial à la demande
         const demandData = {
             ...data,
+            // Firestore refuse les champs imbriqués à `undefined`.
+            ...(data.shopPurchase
+                ? {
+                    shopPurchase: Object.fromEntries(
+                        Object.entries(data.shopPurchase).filter(([, value]) => value !== undefined)
+                    ) as CreditDemand['shopPurchase'],
+                }
+                : {}),
             score: initialScore,
             scoreUpdatedAt: new Date(),
         };
@@ -417,8 +427,31 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // La prochaine échéance d'un contrat nouvellement créé correspond au premier versement.
         const nextDueAt = new Date(simulationData.firstPaymentDate);
-        const isWeekly = demand.creditType === 'SPECIALE' && simulationData.durationUnit === 'WEEKS';
-        const normalizedDuration = isWeekly
+        // Achat en boutique partenaire : intérêts une fois, 2 ou 3 mensualités égales.
+        // La remise et le montant versé au vendeur suivent la convention en vigueur.
+        let shopPurchase = demand.creditType === 'SPECIALE' ? demand.shopPurchase : undefined;
+        if (shopPurchase) {
+            const partner = await getShopCreditPartner(shopPurchase.shopId);
+            if (!partner?.enabled) {
+                throw new Error(`La boutique « ${shopPurchase.shopName} » n'est plus partenaire de l'achat à crédit`);
+            }
+            // Article du catalogue : il doit être encore publié. Le prix reste celui
+            // de la demande, convenu au moment où le membre l'a faite.
+            if (shopPurchase.articleId) {
+                const article = await getShopArticle(shopPurchase.articleId);
+                if (!article || article.status !== 'approved') {
+                    throw new Error(`L'article « ${shopPurchase.article} » n'est plus publié dans la boutique`);
+                }
+            }
+            shopPurchase = applyShopPartnerTerms(shopPurchase, partner);
+        }
+        const isWeekly = demand.creditType === 'SPECIALE' && !shopPurchase && simulationData.durationUnit === 'WEEKS';
+        if (shopPurchase && Math.round(simulationData.amount) !== Math.round(shopPurchase.price)) {
+            throw new Error("Le montant du crédit doit être égal au prix de l'article acheté en boutique");
+        }
+        const normalizedDuration = shopPurchase
+            ? clampShopCreditInstallments(simulationData.duration)
+            : isWeekly
             ? Math.min(Math.max(1, simulationData.duration), WEEKLY_CREDIT_MAX_WEEKS)
             : demand.creditType === 'SPECIALE'
                 ? Math.min(Math.max(1, simulationData.duration), 7)
@@ -465,11 +498,19 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             creditType: demand.creditType,
             amount: simulationData.amount,
             interestRate: simulationData.interestRate,
-            monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
-            totalAmount: simulationData.totalAmount,
+            monthlyPaymentAmount: shopPurchase
+                ? splitFlatInstallments(initialAmountRemaining, normalizedDuration)[0]
+                : simulationData.monthlyPaymentAmount,
+            totalAmount: shopPurchase ? initialAmountRemaining : simulationData.totalAmount,
             duration: normalizedDuration,
             ...(isWeekly ? { durationUnit: 'WEEKS' as const } : {}),
-            ...(simulationData.customSchedule && simulationData.customSchedule.length > 0
+            ...(shopPurchase
+                ? {
+                    repaymentModel: 'FLAT' as const,
+                    shopPurchase: { ...shopPurchase, vendorStatus: 'PENDING' as const },
+                }
+                : {}),
+            ...(!shopPurchase && simulationData.customSchedule && simulationData.customSchedule.length > 0
                 ? { customSchedule: simulationData.customSchedule }
                 : {}),
             firstPaymentDate: simulationData.firstPaymentDate,
@@ -574,8 +615,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
-        if (isWeeklyCredit(contract)) {
-            throw new Error('Un crédit en semaines ne peut pas avoir de mois de repos.');
+        if (isFlatCredit(contract)) {
+            throw new Error('Un crédit en semaines ou un achat en boutique ne peut pas avoir de mois de repos.');
         }
         const existing = contract.restMonths ?? [];
         if (existing.some((r) => r.monthNumber === monthNumber)) {
@@ -1328,14 +1369,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             interestBeforePayment = monthHistory.interest;
             totalWithInterest = monthHistory.amountDue;
 
-            // Crédit en semaines : les intérêts ne se paient qu'une fois, même si
-            // l'échéance est réglée en plusieurs versements.
-            if (isWeeklyCredit(contract)) {
+            // Intérêts appliqués une fois (crédit en semaines, achat en boutique) :
+            // on paie la part d'intérêts des échéances jusqu'à celle-ci, moins ce
+            // qui a déjà été payé, même si une échéance est réglée en plusieurs fois.
+            if (isFlatCredit(contract)) {
                 const interestAlreadyPaid = realPayments.reduce(
                     (sum, existingPayment) => sum + (Number(existingPayment.interestAmount) || 0),
                     0
                 );
-                interestBeforePayment = Math.max(0, monthHistory.interest - interestAlreadyPaid);
+                const interestThroughMonth = historyBeforePayment
+                    .filter((row) => row.month <= monthNumber)
+                    .reduce((sum, row) => sum + row.interest, 0);
+                interestBeforePayment = Math.max(0, interestThroughMonth - interestAlreadyPaid);
             }
         }
         
@@ -1347,12 +1392,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         
         // Générer l'ID personnalisé au format M{mois}_{idContrat}
         // Utiliser l'ID complet du contrat
-        // Crédit en semaines : un complément sur l'échéance unique ne doit pas
+        // Crédit à intérêts uniques : un complément sur une échéance ne doit pas
         // écraser le premier versement, qui porte le même identifiant de mois.
         const baseCustomPaymentId = buildCreditPaymentId(contract, monthNumber);
         const existingPaymentIds = new Set(allPayments.map((existingPayment) => existingPayment.id));
         let customPaymentId = baseCustomPaymentId;
-        if (isWeeklyCredit(contract)) {
+        if (isFlatCredit(contract)) {
             let suffix = 2;
             while (existingPaymentIds.has(customPaymentId)) {
                 customPaymentId = `${baseCustomPaymentId}_P${suffix}`;
@@ -1500,7 +1545,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     });
 
                     // Alerte score si variation forte (>= 2 points ou <= -2 points)
-                    if (Math.abs(scoreVariation) >= 2) {
+                    if (CREDIT_SCORING_ENABLED && Math.abs(scoreVariation) >= 2) {
                         const variationLabel = scoreVariation > 0 ? 'augmentation' : 'baisse';
                         const variationEmoji = scoreVariation > 0 ? '📈' : '📉';
                         await this.notificationService.createNotification({
@@ -3180,6 +3225,99 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     }
 
     /**
+     * Achat en boutique : l'association règle le vendeur (prix − remise), une
+     * fois le contrat signé. La preuve est conservée sur le contrat.
+     */
+    async recordShopVendorPayment(
+        contractId: string,
+        data: { paidAt: Date; mode: PaymentMode; reference?: string; proofFile?: File; adminId: string; adminName?: string }
+    ): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        const purchase = contract.shopPurchase;
+        if (!purchase) {
+            throw new Error("Ce contrat n'est pas un achat en boutique");
+        }
+        if (contract.status === 'PENDING' || contract.status === 'DRAFT') {
+            throw new Error('Le contrat doit être signé avant de régler le vendeur');
+        }
+        if (purchase.vendorStatus !== 'PENDING') {
+            throw new Error('Le vendeur a déjà été réglé');
+        }
+
+        let proofUrl: string | undefined;
+        let proofPath: string | undefined;
+        if (data.proofFile) {
+            const uploaded = await this.documentRepository.uploadDocumentFile(
+                data.proofFile,
+                contract.clientId,
+                'CREDIT_SHOP_VENDOR_PAYMENT'
+            );
+            proofUrl = uploaded.url;
+            proofPath = uploaded.path;
+        }
+
+        const updated = await this.creditContractRepository.updateContract(contractId, {
+            shopPurchase: {
+                ...purchase,
+                vendorStatus: 'PAID',
+                vendorPayment: {
+                    paidAt: data.paidAt,
+                    mode: data.mode,
+                    reference: data.reference?.trim() || undefined,
+                    proofUrl,
+                    proofPath,
+                    paidBy: data.adminId,
+                    paidByName: data.adminName,
+                },
+            },
+            updatedBy: data.adminId,
+        });
+        if (!updated) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+        return updated;
+    }
+
+    /** Achat en boutique : le membre a bien reçu l'article. */
+    async confirmShopPurchaseDelivery(
+        contractId: string,
+        data: { deliveredAt: Date; comment?: string; adminId: string; adminName?: string }
+    ): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        const purchase = contract.shopPurchase;
+        if (!purchase) {
+            throw new Error("Ce contrat n'est pas un achat en boutique");
+        }
+        if (purchase.vendorStatus !== 'PAID') {
+            throw new Error(purchase.vendorStatus === 'DELIVERED' ? 'La livraison est déjà confirmée' : "Réglez d'abord le vendeur");
+        }
+
+        const updated = await this.creditContractRepository.updateContract(contractId, {
+            shopPurchase: {
+                ...purchase,
+                vendorStatus: 'DELIVERED',
+                delivery: {
+                    deliveredAt: data.deliveredAt,
+                    confirmedBy: data.adminId,
+                    confirmedByName: data.adminName,
+                    comment: data.comment?.trim() || undefined,
+                },
+            },
+            updatedBy: data.adminId,
+        });
+        if (!updated) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+        return updated;
+    }
+
+    /**
      * Clôture le contrat - Phase 4
      * Précondition : contrat DISCHARGED et quittance signée téléversée
      */
@@ -3294,10 +3432,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 return { eligible: false, reason: 'Contrat introuvable', paymentsCount: 0, unpaidPenaltiesCount: 0 };
             }
 
-            if (isWeeklyCredit(contract)) {
+            if (isFlatCredit(contract)) {
                 return {
                     eligible: false,
-                    reason: 'Un crédit en semaines ne peut pas être augmenté : faites une nouvelle demande.',
+                    reason: 'Un crédit en semaines ou un achat en boutique ne peut pas être augmenté : faites une nouvelle demande.',
                     currentContract: contract,
                     paymentsCount: 0,
                     unpaidPenaltiesCount: 0,
@@ -3581,8 +3719,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw new Error('Seuls les crédits spéciaux peuvent basculer en partie fixe');
         }
 
-        if (isWeeklyCredit(contract)) {
-            throw new Error('Un crédit en semaines ne bascule pas en partie fixe.');
+        if (isFlatCredit(contract)) {
+            throw new Error('Un crédit en semaines ou un achat en boutique ne bascule pas en partie fixe.');
         }
 
         const currentCycle = getCreditContractCycles(contract).at(-1);

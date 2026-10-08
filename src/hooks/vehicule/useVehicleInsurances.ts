@@ -6,8 +6,23 @@ import { VehicleDeclarationCorrection, VehicleInsurance, VehicleInsuranceFilters
 import { summarizeCorrections } from '@/utils/vehicle-declaration'
 import { useAuth } from '@/hooks/useAuth'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
+import { openCurrentRewardPeriod } from './useVehicleRewards'
 
 const getService = () => ServiceFactory.getVehicleInsuranceService()
+
+/**
+ * Ouvre le reversement de la période en cours. Un échec ne bloque pas la
+ * validation : la fiche propose alors de l'ouvrir à la main.
+ */
+async function openRewardSafely(insuranceId: string, adminId: string) {
+  try {
+    const insurance = await getService().getById(insuranceId)
+    return insurance ? await openCurrentRewardPeriod(insurance, adminId) : null
+  } catch (error) {
+    console.error('[vehicule] ouverture du reversement impossible:', error)
+    return null
+  }
+}
 
 export function useVehicleInsuranceList(filters?: VehicleInsuranceFilters, page: number = 1, pageSize: number = 12) {
   return useQuery<VehicleInsuranceListResult>({
@@ -41,10 +56,15 @@ export function useCreateVehicleInsurance() {
   return useMutation({
     mutationFn: (payload: VehicleInsuranceFormValues) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
-      return getService().createInsurance(payload, user.uid)
+      return getService().createInsurance(payload, user.uid).then(async (id) => {
+        // Saisie admin = assurance validée : on ouvre son reversement.
+        await openRewardSafely(id, user.uid)
+        return id
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicle-rewards'] })
     },
   })
 }
@@ -72,7 +92,10 @@ export function useRenewVehicleInsurance() {
   return useMutation({
     mutationFn: ({ id, startDate, endDate, premiumAmount, policyNumber }: { id: string; startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string }) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
-      return getService().renewInsurance(id, { startDate, endDate, premiumAmount, policyNumber }, user.uid)
+      return getService()
+        .renewInsurance(id, { startDate, endDate, premiumAmount, policyNumber }, user.uid)
+        // Nouvelle période d'assurance : nouveau reversement.
+        .then(() => openRewardSafely(id, user.uid))
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', variables.id] })
@@ -142,10 +165,12 @@ export function useValidateVehicleDeclaration() {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       const insurance = await getService().validateDeclaration(id, user.uid, corrections)
       await notifyMemberOfDeclaration(insurance, 'validated')
-      return insurance
+      const reward = await openRewardSafely(id, user.uid)
+      return { insurance, reward }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicle-rewards'] })
     },
   })
 }

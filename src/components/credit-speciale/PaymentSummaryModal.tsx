@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
@@ -115,7 +116,7 @@ export default function PaymentSummaryModal({
     { label: 'MONTANT REMIS', value: `${formatAmount(payment.amount)} FCFA`, highlight: 'red' },
     { label: 'PENALITE', value: `${formatAmount(payment.penaltyAmount || 0)} FCFA`, highlight: 'blue' },
     { label: 'REMARQUE', value: payment.comment || 'PAS DE VERSEMENT', highlight: 'blue' },
-    { label: 'NOTE', value: payment.note?.toString() || '0', highlight: 'blue' },
+    ...(CREDIT_SCORING_ENABLED ? [{ label: 'NOTE', value: payment.note?.toString() || '0', highlight: 'blue' as const }] : []),
     { label: 'NOUVEAU CAPITAL', value: `${formatAmount(newCapitalAfterPrincipal)} FCFA`, highlight: 'red' },
     { label: 'MONTANT GLOBAL MOIS PROCHAIN', value: `${formatAmount(newCapitalTotal)} FCFA`, highlight: 'red' },
   ]
