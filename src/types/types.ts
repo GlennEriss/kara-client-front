@@ -1777,6 +1777,10 @@ export interface CreditShopPurchase {
   unitPrice?: number
   /** Prix public payé par le membre (montant financé) : prix unitaire × quantité. */
   price: number
+  /** Nombre de mensualités choisi par le membre dans sa demande. */
+  desiredInstallments?: 2 | 3
+  /** Motif, montré au membre, quand l'admin retient un autre nombre de mensualités. */
+  installmentsChangeReason?: string
   /** Remise accordée par la boutique à l'association, en % (copiée de la boutique). */
   discountPercent: number
   /** Montant versé au vendeur : prix − remise. */
@@ -2073,6 +2077,8 @@ export interface StandardSimulation {
   duration: number // Calculé
   /** Absent = 'MONTHS'. */
   durationUnit?: CreditDurationUnit
+  /** Achat en boutique : motif si le nombre de mensualités diffère du choix du membre. */
+  installmentsChangeReason?: string
   totalAmount: number // Montant + intérêts
   isValid: boolean // Si respecte les limites (7 mois spéciale, 3 mois aide)
   suggestedMinimumAmount?: number // Si dépasse les limites

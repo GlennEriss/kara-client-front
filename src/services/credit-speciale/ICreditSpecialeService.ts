@@ -45,6 +45,7 @@ export interface ICreditSpecialeService {
             totalAmount: number;
             /** 'WEEKS' : crédit spécial court terme (1 à 3 semaines, échéance unique). */
             durationUnit?: CreditDurationUnit;
+            installmentsChangeReason?: string;
             /** Échéancier personnalisé (simulation personnalisée uniquement) */
             customSchedule?: Array<{ month: number; amount: number }>;
             emergencyContact?: EmergencyContact;

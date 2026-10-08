@@ -39,6 +39,7 @@ export default function ShopPurchaseDemandSummary({
   if (compact) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-sm text-emerald-900">
+        {purchase.desiredInstallments ? `Le membre a choisi ${purchase.desiredInstallments} mensualités. ` : ''}
         Vendeur « {purchase.shopName} » : {fcfa(purchase.vendorAmount)} (prix {fcfa(purchase.price)} − remise{' '}
         {purchase.discountPercent} %). Le règlement et la livraison se confirment ensuite sur la fiche du contrat.
         {notPartner && (
@@ -52,7 +53,8 @@ export default function ShopPurchaseDemandSummary({
   return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-        Achat en boutique partenaire · 2 ou 3 mensualités
+        Achat en boutique partenaire ·{' '}
+        {purchase.desiredInstallments ? `${purchase.desiredInstallments} mensualités choisies par le membre` : '2 ou 3 mensualités'}
       </p>
       <p className="mt-2 text-sm font-semibold text-slate-900">
         {purchase.article}

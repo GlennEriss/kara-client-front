@@ -194,6 +194,7 @@ export function useCreditContractMutations() {
                 firstPaymentDate: Date
                 totalAmount: number
                 durationUnit?: CreditDurationUnit
+                installmentsChangeReason?: string
                 customSchedule?: Array<{ month: number; amount: number }>
                 emergencyContact?: EmergencyContact
                 guarantorRemunerationPercentage?: number
