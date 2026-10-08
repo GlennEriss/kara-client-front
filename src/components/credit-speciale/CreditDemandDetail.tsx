@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import WrittenOffCreditWarning from './WrittenOffCreditWarning'
 import { formatCreditDuration, isWeeklyCredit } from '@/utils/credit-weekly'
 
@@ -782,7 +783,7 @@ export default function CreditDemandDetail({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {demand.score !== undefined && (
+              {CREDIT_SCORING_ENABLED && demand.score !== undefined && (
                 <div className={cn(infoBoxClass, 'space-y-2')}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Score de fiabilité</p>
                   <Badge className={cn('border px-3 py-1 text-base font-bold', getScoreBadgeStyle(demand.score))}>

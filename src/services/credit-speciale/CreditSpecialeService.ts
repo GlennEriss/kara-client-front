@@ -34,6 +34,7 @@ import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss } from "@/utils/credit-write-off";
 import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, splitFlatInstallments } from "@/utils/credit-weekly";
 import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
+import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
 import {
     buildGuarantorRemunerationDocId,
     getGuarantorRemunerationCycleNumber,
@@ -1544,7 +1545,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     });
 
                     // Alerte score si variation forte (>= 2 points ou <= -2 points)
-                    if (Math.abs(scoreVariation) >= 2) {
+                    if (CREDIT_SCORING_ENABLED && Math.abs(scoreVariation) >= 2) {
                         const variationLabel = scoreVariation > 0 ? 'augmentation' : 'baisse';
                         const variationEmoji = scoreVariation > 0 ? '📈' : '📉';
                         await this.notificationService.createNotification({

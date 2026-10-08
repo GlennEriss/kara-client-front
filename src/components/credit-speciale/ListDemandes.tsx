@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -1447,6 +1448,7 @@ const ListDemandes = ({
                             : '—'}
                         </p>
                       </div>
+                      {CREDIT_SCORING_ENABLED && (
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Score</p>
                         <p className={cn("font-bold tabular-nums text-sm",
@@ -1458,6 +1460,7 @@ const ListDemandes = ({
                           {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
                         </p>
                       </div>
+                      )}
                     </div>
 
                     {/* Actions alignées verticalement */}
@@ -1546,7 +1549,7 @@ const ListDemandes = ({
                         <TableHead className="min-w-[220px] font-semibold text-[#234D65]">Client</TableHead>
                         <TableHead className="min-w-[170px] font-semibold text-[#234D65]">Montant / Date</TableHead>
                         <TableHead className="min-w-[180px] font-semibold text-[#234D65]">Garant</TableHead>
-                        <TableHead className="min-w-[120px] font-semibold text-[#234D65]">Score</TableHead>
+                        {CREDIT_SCORING_ENABLED && <TableHead className="min-w-[120px] font-semibold text-[#234D65]">Score</TableHead>}
                         <TableHead className="min-w-[320px] font-semibold text-[#234D65]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1600,6 +1603,7 @@ const ListDemandes = ({
                               </p>
                             </div>
                           </TableCell>
+                          {CREDIT_SCORING_ENABLED && (
                           <TableCell>
                             <Badge className={cn(
                               "font-bold text-xs px-2 py-1",
@@ -1611,6 +1615,7 @@ const ListDemandes = ({
                               {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
                             </Badge>
                           </TableCell>
+                          )}
                           <TableCell>
                             <div className="flex flex-wrap gap-2">
                               {demande.status === 'PENDING' && (

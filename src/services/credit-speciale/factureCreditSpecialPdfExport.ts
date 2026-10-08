@@ -3,6 +3,7 @@
  * - Page 1 : identique au PDF caisse imprévue (logo, titre, infos membre, contact urgence).
  * - Page 2 : tableau VERSEMENT (blanc + bleu léger, même style que la page 1).
  */
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import type { FactureCreditSpecialPDFData } from '@/components/credit-speciale/FactureCreditSpecialPDF'
 import type jsPDF from 'jspdf'
 
@@ -89,6 +90,7 @@ const BASE_ROW_CONFIG: Array<{
 
 const getRowConfig = (data: FactureCreditSpecialPDFData) =>
   BASE_ROW_CONFIG.filter((row) => {
+    if (!CREDIT_SCORING_ENABLED && row.key === 'note') return false
     if (!data.isFixedExtensionMonth) return true
     return !['capital', 'taux', 'interets'].includes(String(row.key))
   })

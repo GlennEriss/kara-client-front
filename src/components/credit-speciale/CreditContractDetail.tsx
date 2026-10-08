@@ -1,4 +1,5 @@
 'use client'
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
 import { PUNCTUALITY_META, getInstallmentPunctuality, getPaymentPunctuality } from '@/utils/credit-payment-punctuality'
 import CreditRecoveryModal from './CreditRecoveryModal'
@@ -2864,7 +2865,7 @@ export default function CreditContractDetail({
                                           Pénalités uniquement
                                         </Badge>
                                         <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
-                                        {payment.note !== undefined && (
+                                        {CREDIT_SCORING_ENABLED && payment.note !== undefined && (
                                           <span>Note pénalités : {payment.note}/10</span>
                                         )}
                                       </>
@@ -2872,7 +2873,7 @@ export default function CreditContractDetail({
                                       <>
                                         <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
                                         <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
-                                        {payment.note !== undefined && (
+                                        {CREDIT_SCORING_ENABLED && payment.note !== undefined && (
                                           <span>Note : {payment.note}/10</span>
                                         )}
                                       </>

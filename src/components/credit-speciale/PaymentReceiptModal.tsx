@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -261,7 +262,7 @@ export default function PaymentReceiptModal({
                     <span className="font-mono text-sm">{payment.reference}</span>
                   </div>
                 )}
-                {payment.note !== undefined && (
+                {CREDIT_SCORING_ENABLED && payment.note !== undefined && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Note</span>
                     <Badge variant="outline">{payment.note}/10</Badge>

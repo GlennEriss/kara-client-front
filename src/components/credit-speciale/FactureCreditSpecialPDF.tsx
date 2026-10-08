@@ -1,5 +1,6 @@
 'use client'
 
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import React from 'react'
 
 export interface FactureCreditSpecialPDFData {
@@ -82,6 +83,7 @@ const BASE_ROW_CONFIG: Array<{
 
 const getRowConfig = (data: FactureCreditSpecialPDFData) =>
   BASE_ROW_CONFIG.filter((row) => {
+    if (!CREDIT_SCORING_ENABLED && row.key === 'note') return false
     if (!data.isFixedExtensionMonth) return true
     return !['capital', 'taux', 'interets'].includes(String(row.key))
   })

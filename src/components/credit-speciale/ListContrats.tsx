@@ -1,4 +1,5 @@
 'use client'
+import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { ENDED_CREDIT_STATUSES, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
@@ -1725,7 +1726,7 @@ const ListContrats = ({
                         </div>
                         <p className="text-[11px] text-gray-400 tabular-nums">
                           Reste {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
-                          {scoreValue !== undefined && <> · Score {scoreValue}/10</>}
+                          {CREDIT_SCORING_ENABLED && scoreValue !== undefined && <> · Score {scoreValue}/10</>}
                         </p>
                       </div>
 
