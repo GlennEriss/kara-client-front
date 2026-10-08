@@ -121,6 +121,22 @@ export default function ShopArticlesModal({ open, onClose, shop }: Props) {
                       <p className="text-sm font-semibold text-[#234D65]">{fcfa(article.price)}</p>
                       {!shop && <p className="text-xs text-gray-500">Boutique « {article.shopName} »</p>}
                       {article.description && <p className="mt-1 text-sm text-gray-600">{article.description}</p>}
+                      {article.photos.length > 1 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {article.photos.map((photo) => (
+                            <a key={photo.path || photo.url} href={photo.url} target="_blank" rel="noreferrer">
+                              <Image
+                                src={photo.url}
+                                alt=""
+                                width={48}
+                                height={48}
+                                className="h-12 w-12 rounded border object-cover hover:opacity-80"
+                                unoptimized
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       {article.status === 'rejected' && article.rejectionReason && (
                         <p className="mt-1 text-xs text-red-700">Motif : {article.rejectionReason}</p>
                       )}

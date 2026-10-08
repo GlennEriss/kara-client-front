@@ -248,6 +248,12 @@ function mapArticle(id: string, data: any): ShopArticle {
     price: Number(data.price) || 0,
     photoURL: data.photoURL ?? '',
     photoPath: data.photoPath ?? '',
+    // Anciens articles : une seule photo, dans `photoURL`.
+    photos: Array.isArray(data.photos)
+      ? (data.photos as ShopPhoto[]).filter((p) => p && typeof p.url === 'string' && p.url)
+      : data.photoURL
+        ? [{ url: data.photoURL, path: data.photoPath || '' }]
+        : [],
     isAvailable: data.isAvailable !== false,
     status: (data.status as ShopStatus) ?? 'pending',
     rejectionReason: data.rejectionReason ?? '',

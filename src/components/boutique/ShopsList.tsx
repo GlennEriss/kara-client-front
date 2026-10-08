@@ -123,6 +123,14 @@ export default function ShopsList() {
     }
     return counts
   }, [articles])
+  const publishedArticlesByShop = useMemo(() => {
+    const byShop = new Map<string, typeof articles>()
+    for (const article of articles) {
+      if (article.status !== 'approved') continue
+      byShop.set(article.shopId, [...(byShop.get(article.shopId) ?? []), article])
+    }
+    return byShop
+  }, [articles])
   const { data: creditPartners } = useShopCreditPartners()
 
   const filtered = useMemo(() => {
@@ -162,7 +170,7 @@ export default function ShopsList() {
     const published = shops.filter(isPublished).length
     const pending = shops.filter((s) => (s.status ?? 'approved') === 'pending').length
     const categories = new Set(shops.map((s) => s.category?.trim()).filter(Boolean)).size
-    const withPhotos = shops.filter((s) => (s.gallery?.length ?? 0) > 0).length
+    const withArticles = shops.filter((s) => publishedArticlesByShop.has(s.id)).length
     const changes = shops.filter(hasPendingChanges).length
     return {
       changes,
@@ -171,9 +179,9 @@ export default function ShopsList() {
       pending,
       hidden: shops.length - published - pending,
       categories,
-      withPhotos,
+      withArticles,
     }
-  }, [shops])
+  }, [shops, publishedArticlesByShop])
 
   const handleDelete = async (shop: Shop) => {
     if (!confirm(`Supprimer la boutique « ${shop.name} » ?`)) return
@@ -207,7 +215,7 @@ export default function ShopsList() {
             <ShopStatCard icon={CheckCircle2} label="Publiées" value={stats.published} color="#10b981" />
             <ShopStatCard icon={EyeOff} label="Masquées" value={stats.hidden} color="#6b7280" />
             <ShopStatCard icon={Tag} label="Catégories" value={stats.categories} color="#3b82f6" />
-            <ShopStatCard icon={Images} label="Avec photos" value={stats.withPhotos} color="#e87ba4" />
+            <ShopStatCard icon={Package} label="Avec articles" value={stats.withArticles} color="#e87ba4" />
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
@@ -395,24 +403,33 @@ export default function ShopsList() {
                     )}
                   </div>
                 </div>
-                {/* Aperçu de la galerie : montre d'un coup d'œil les fiches
-                    déjà illustrées et celles qui restent à compléter. */}
-                {shop.gallery && shop.gallery.length > 0 && (
+                {/* Articles publiés : photo et prix, à la place de l'ancienne galerie. */}
+                {(publishedArticlesByShop.get(shop.id)?.length ?? 0) > 0 && (
                   <div className="mt-3 flex items-center gap-1.5">
-                    {shop.gallery.slice(0, 4).map((photo) => (
-                      <Image
-                        key={photo.path || photo.url}
-                        src={photo.url}
-                        alt=""
-                        width={40}
-                        height={40}
-                        className="h-10 w-10 rounded border object-cover"
-                        unoptimized
-                      />
+                    {publishedArticlesByShop.get(shop.id)!.slice(0, 4).map((article) => (
+                      <div key={article.id} className="w-14 text-center" title={article.name}>
+                        {article.photoURL ? (
+                          <Image
+                            src={article.photoURL}
+                            alt={article.name}
+                            width={56}
+                            height={40}
+                            className="h-10 w-14 rounded border object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex h-10 w-14 items-center justify-center rounded border bg-gray-50 text-gray-300">
+                            <Package className="h-4 w-4" />
+                          </div>
+                        )}
+                        <p className="mt-0.5 truncate text-[10px] font-semibold text-[#234D65]">
+                          {Math.round(article.price).toLocaleString('fr-FR')}
+                        </p>
+                      </div>
                     ))}
-                    {shop.gallery.length > 4 && (
+                    {publishedArticlesByShop.get(shop.id)!.length > 4 && (
                       <span className="text-xs font-medium text-gray-500">
-                        +{shop.gallery.length - 4}
+                        +{publishedArticlesByShop.get(shop.id)!.length - 4}
                       </span>
                     )}
                   </div>

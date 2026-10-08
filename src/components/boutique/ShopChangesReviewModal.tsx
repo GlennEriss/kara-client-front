@@ -33,7 +33,6 @@ const FIELD_LABELS: Record<string, string> = {
   address: 'Adresse',
   openingHours: 'Horaires',
   photoURL: 'Photo principale',
-  gallery: 'Galerie',
 }
 
 const formatHours = (hours?: ShopDayHours[]) =>
