@@ -1,4 +1,4 @@
-import type { CreditDurationUnit, StandardSimulation } from '@/types/types'
+import type { CreditDurationUnit, CreditRepaymentModel, CreditShopPurchase, ShopCreditPartner, StandardSimulation } from '@/types/types'
 import { customRound } from './credit-speciale-calculations'
 
 /**
@@ -65,4 +65,77 @@ export const buildWeeklyCreditSimulation = (params: {
     totalAmount,
     isValid: params.amount > 0 && params.interestRate >= 0,
   }
+}
+
+/**
+ * Achat à crédit en boutique partenaire : même principe que le crédit en
+ * semaines (taux appliqué une fois), mais remboursé en 2 ou 3 mensualités
+ * égales. Ni partie fixe, ni mois de repos, ni rajout.
+ */
+export const SHOP_CREDIT_INSTALLMENT_OPTIONS = [2, 3] as const
+export const SHOP_CREDIT_MIN_INSTALLMENTS = 2
+export const SHOP_CREDIT_MAX_INSTALLMENTS = 3
+
+export const clampShopCreditInstallments = (value: number): number =>
+  Math.min(Math.max(SHOP_CREDIT_MIN_INSTALLMENTS, Math.round(Number(value) || 0)), SHOP_CREDIT_MAX_INSTALLMENTS)
+
+type FlatCreditLike = {
+  durationUnit?: CreditDurationUnit
+  repaymentModel?: CreditRepaymentModel
+  duration?: number
+} | null | undefined
+
+/** Intérêts appliqués une seule fois : crédit en semaines ou achat en boutique. */
+export const isFlatCredit = (contract?: FlatCreditLike): boolean =>
+  isWeeklyCredit(contract) || contract?.repaymentModel === 'FLAT'
+
+/** Nombre d'échéances d'un crédit à intérêts uniques (1 pour un crédit en semaines). */
+export const getFlatInstallmentCount = (contract?: FlatCreditLike): number => {
+  if (isWeeklyCredit(contract)) return 1
+  return Math.max(1, Math.round(Number(contract?.duration) || 1))
+}
+
+/** Découpe un total en N mensualités égales ; la dernière absorbe l'arrondi. */
+export const splitFlatInstallments = (total: number, count: number): number[] => {
+  const n = Math.max(1, Math.round(count))
+  const base = customRound(total / n)
+  const amounts = Array.from({ length: n }, () => base)
+  amounts[n - 1] = customRound(total - base * (n - 1))
+  return amounts
+}
+
+/** Simulation d'un achat à crédit en boutique, au format des simulations standard. */
+export const buildShopCreditSimulation = (params: {
+  amount: number
+  interestRate: number
+  months: number
+  firstPaymentDate: Date
+}): StandardSimulation => {
+  const months = clampShopCreditInstallments(params.months)
+  const { totalAmount } = computeWeeklyCreditTotals(params.amount, params.interestRate)
+  return {
+    amount: params.amount,
+    interestRate: params.interestRate,
+    monthlyPayment: splitFlatInstallments(totalAmount, months)[0],
+    firstPaymentDate: params.firstPaymentDate,
+    duration: months,
+    durationUnit: 'MONTHS',
+    totalAmount,
+    isValid: params.amount > 0 && params.interestRate >= 0,
+  }
+}
+
+/**
+ * Applique à un achat en boutique la remise de la convention en vigueur. Les
+ * demandes saisies par les membres arrivent sans remise (la convention leur
+ * est illisible) : c'est la convention qui fait foi pour le montant versé au
+ * vendeur.
+ */
+export const applyShopPartnerTerms = (
+  purchase: CreditShopPurchase,
+  partner?: Pick<ShopCreditPartner, 'enabled' | 'discountPercent'> | null,
+): CreditShopPurchase => {
+  const discountPercent = partner?.enabled ? partner.discountPercent : purchase.discountPercent
+  const vendorAmount = customRound(purchase.price - (purchase.price * discountPercent) / 100)
+  return { ...purchase, discountPercent, vendorAmount }
 }
