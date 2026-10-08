@@ -1819,6 +1819,7 @@ const ListDemandes = ({
             initialAmount={simulationModalState.demand.amount}
             initialMonthlyPayment={simulationModalState.demand.monthlyPaymentAmount}
             lockAmount
+            shopPurchase={simulationModalState.demand.shopPurchase}
             onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
               // Fermer le modal de simulation et ouvrir le modal de création de contrat
               setSimulationModalState({ isOpen: false, demand: null })

@@ -7,7 +7,10 @@ import {
   CheckCircle2,
   Clock,
   EyeOff,
+  FilePenLine,
+  HandCoins,
   Images,
+  Package,
   MapPin,
   Pencil,
   Plus,
@@ -24,9 +27,13 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useShops, useShopMutations } from '@/hooks/useShops'
+import { useShopArticles, useShopCreditPartners, useShops, useShopMutations } from '@/hooks/useShops'
 import ShopFormModal from './ShopFormModal'
 import ShopReviewModal from './ShopReviewModal'
+import ShopCreditPartnerModal from './ShopCreditPartnerModal'
+import ShopCreditSales from './ShopCreditSales'
+import ShopChangesReviewModal from './ShopChangesReviewModal'
+import ShopArticlesModal from './ShopArticlesModal'
 import { StatsBreakdownBar } from '@/components/ui/stats-breakdown-bar'
 import { cn } from '@/lib/utils'
 import type { Shop } from '@/types/types'
@@ -49,11 +56,14 @@ function isPublished(shop: Shop): boolean {
   return (shop.status ?? 'approved') === 'approved' && shop.isActive
 }
 
+/** Fiche publiée dont le propriétaire a proposé une modification. */
+const hasPendingChanges = (shop: Shop) => !!shop.pendingChanges
+
 function matchesTab(shop: Shop, tab: ShopTab): boolean {
   const status = shop.status ?? 'approved'
   switch (tab) {
     case 'pending':
-      return status === 'pending'
+      return status === 'pending' || hasPendingChanges(shop)
     case 'published':
       return isPublished(shop)
     case 'hidden':
@@ -97,6 +107,23 @@ export default function ShopsList() {
   const [editing, setEditing] = useState<Shop | null>(null)
   const [tab, setTab] = useState<ShopTab>('all')
   const [reviewing, setReviewing] = useState<{ shop: Shop; decision: 'approved' | 'rejected' } | null>(null)
+  const [creditShop, setCreditShop] = useState<Shop | null>(null)
+  const [changesShop, setChangesShop] = useState<Shop | null>(null)
+  // `null` : fermé ; 'pending' : file des articles à valider ; sinon catalogue d'une boutique.
+  const [articlesView, setArticlesView] = useState<Shop | 'pending' | null>(null)
+  const { data: articles = [] } = useShopArticles()
+  const pendingArticles = articles.filter((a) => a.status === 'pending').length
+  const articleCountByShop = useMemo(() => {
+    const counts = new Map<string, { total: number; pending: number }>()
+    for (const article of articles) {
+      const entry = counts.get(article.shopId) ?? { total: 0, pending: 0 }
+      entry.total += 1
+      if (article.status === 'pending') entry.pending += 1
+      counts.set(article.shopId, entry)
+    }
+    return counts
+  }, [articles])
+  const { data: creditPartners } = useShopCreditPartners()
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -136,7 +163,9 @@ export default function ShopsList() {
     const pending = shops.filter((s) => (s.status ?? 'approved') === 'pending').length
     const categories = new Set(shops.map((s) => s.category?.trim()).filter(Boolean)).size
     const withPhotos = shops.filter((s) => (s.gallery?.length ?? 0) > 0).length
+    const changes = shops.filter(hasPendingChanges).length
     return {
+      changes,
       total: shops.length,
       published,
       pending,
@@ -194,8 +223,47 @@ export default function ShopsList() {
         </div>
       )}
 
+      <ShopCreditSales />
+
       {/* La file d'attente ne doit pas dépendre d'un onglet qu'on pense à
           ouvrir : on la signale tant qu'elle n'est pas vide. */}
+      {pendingArticles > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-violet-900">
+            <span className="font-semibold">{pendingArticles}</span>{' '}
+            {pendingArticles > 1 ? 'articles ajoutés par des membres attendent' : 'article ajouté par un membre attend'} votre
+            validation.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-violet-300 bg-white text-violet-900 hover:bg-violet-100 sm:shrink-0"
+            onClick={() => setArticlesView('pending')}
+          >
+            Voir les articles
+          </Button>
+        </div>
+      )}
+
+      {!isLoading && stats.changes > 0 && tab !== 'pending' && (
+        <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-blue-900">
+            <span className="font-semibold">{stats.changes}</span>{' '}
+            {stats.changes > 1
+              ? 'boutiques publiées ont une modification proposée par leur propriétaire.'
+              : 'boutique publiée a une modification proposée par son propriétaire.'}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-blue-300 bg-white text-blue-900 hover:bg-blue-100 sm:shrink-0"
+            onClick={() => setTab('pending')}
+          >
+            Voir les modifications
+          </Button>
+        </div>
+      )}
+
       {!isLoading && stats.pending > 0 && tab !== 'pending' && (
         <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-amber-900">
@@ -309,6 +377,12 @@ export default function ShopsList() {
                       )}
                     </div>
                     <p className="truncate text-sm text-[#234D65]">{shop.category}</p>
+                    {creditPartners?.get(shop.id)?.enabled && (
+                      <Badge className="mt-1 bg-emerald-100 text-xs text-emerald-800 hover:bg-emerald-100">
+                        <HandCoins className="mr-1 h-3 w-3" />
+                        Crédit · remise {creditPartners.get(shop.id)?.discountPercent ?? 0} %
+                      </Badge>
+                    )}
                     {shop.ownerName && (
                       <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500">
                         <User className="h-3 w-3" /> {shop.ownerName}
@@ -352,6 +426,22 @@ export default function ShopsList() {
                   </p>
                 )}
 
+                {hasPendingChanges(shop) && (
+                  <div className="mt-3 flex flex-col gap-2 rounded-lg bg-blue-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-blue-900">
+                      Modification proposée
+                      {shop.pendingChangesSubmittedAt ? ` le ${shop.pendingChangesSubmittedAt.toLocaleDateString('fr-FR')}` : ''}
+                    </p>
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setChangesShop(shop)}
+                    >
+                      <FilePenLine className="mr-1 h-4 w-4" /> Examiner
+                    </Button>
+                  </div>
+                )}
+
                 {(shop.status ?? 'approved') === 'pending' && (
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <Button
@@ -373,6 +463,30 @@ export default function ShopsList() {
                 )}
 
                 <div className="mt-3 flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="relative text-[#234D65]"
+                    onClick={() => setArticlesView(shop)}
+                    title="Articles"
+                  >
+                    <Package className="mr-1 h-4 w-4" />
+                    {articleCountByShop.get(shop.id)?.total ?? 0}
+                    {(articleCountByShop.get(shop.id)?.pending ?? 0) > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-violet-500" />
+                    )}
+                  </Button>
+                  {(shop.status ?? 'approved') === 'approved' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-emerald-700 hover:text-emerald-800"
+                      onClick={() => setCreditShop(shop)}
+                      title="Achat à crédit"
+                    >
+                      <HandCoins className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => openEdit(shop)} title="Modifier">
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -393,6 +507,13 @@ export default function ShopsList() {
       )}
 
       <ShopFormModal open={modalOpen} onClose={() => setModalOpen(false)} shop={editing} />
+      <ShopArticlesModal
+        open={!!articlesView}
+        onClose={() => setArticlesView(null)}
+        shop={articlesView && articlesView !== 'pending' ? articlesView : null}
+      />
+      <ShopChangesReviewModal open={!!changesShop} onClose={() => setChangesShop(null)} shop={changesShop} />
+      <ShopCreditPartnerModal open={!!creditShop} onClose={() => setCreditShop(null)} shop={creditShop} />
       <ShopReviewModal
         open={!!reviewing}
         onClose={() => setReviewing(null)}

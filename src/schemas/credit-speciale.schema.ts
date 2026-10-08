@@ -126,7 +126,37 @@ export const creditDemandFormSchema = z.object({
     .min(0, 'Le score minimum est 0')
     .max(10, 'Le score maximum est 10')
     .optional(),
+
+  // Achat à crédit en boutique partenaire (crédit spécial en 2 ou 3 mensualités)
+  shopPurchase: z.object({
+    shopId: z.string().min(1, 'Choisissez la boutique'),
+    shopName: z.string(),
+    shopOwnerMemberId: z.string().optional(),
+    shopOwnerName: z.string().optional(),
+    article: z.string().trim().min(2, "Décrivez l'article acheté").max(200),
+    price: z.number().min(1000, 'Le prix minimum est de 1 000 FCFA'),
+    discountPercent: z.number().min(0).max(99),
+    vendorAmount: z.number().min(0),
+    vendorStatus: z.enum(['PENDING', 'PAID', 'DELIVERED']),
+  }).optional(),
 }).superRefine((data, ctx) => {
+  if (data.shopPurchase) {
+    if (data.creditType !== 'SPECIALE') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "L'achat en boutique se fait en crédit spécial",
+        path: ['creditType'],
+      })
+    }
+    if (data.shopPurchase.shopOwnerMemberId && data.shopPurchase.shopOwnerMemberId === data.clientId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le membre ne peut pas acheter à crédit dans sa propre boutique',
+        path: ['shopPurchase', 'shopId'],
+      })
+    }
+  }
+
   // Validation : garant obligatoire (prénom optionnel)
   if (!data.guarantorId || !data.guarantorLastName || !data.guarantorRelation) {
     ctx.addIssue({

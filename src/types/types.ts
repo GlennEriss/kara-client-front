@@ -321,6 +321,9 @@ export type NotificationType =
   | 'credit_demand_created' // Nouvelle demande de crédit créée (depuis kara-members-front)
   | 'charity_contribution_created' // Nouvelle contribution charité (bienfaiteur, depuis kara-members-front)
   | 'vehicle_declared' // Nouvelle déclaration de véhicule (depuis kara-members-front)
+  | 'shop_submitted' // Boutique soumise par un membre (depuis kara-members-front)
+  | 'shop_change_proposed' // Modification d'une boutique publiée proposée par son propriétaire
+  | 'shop_article_submitted' // Article de boutique ajouté ou modifié, à valider
 
 /**
  * Filtres pour les requêtes de notifications
@@ -1682,6 +1685,8 @@ export interface CreditDemand {
   score?: number // Score de fiabilité (0-10, admin-only)
   scoreUpdatedAt?: Date
   contractId?: string // Relation 1:1 avec le contrat (une demande = un seul contrat)
+  /** Achat à crédit en boutique partenaire (crédit spécial remboursé en 2 ou 3 mensualités). */
+  shopPurchase?: CreditShopPurchase
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1738,6 +1743,66 @@ export interface CreditContractCycle {
 export type CreditDurationUnit = 'MONTHS' | 'WEEKS'
 
 /**
+ * Mode de remboursement d'un crédit spécial :
+ * - absent / 'DEGRESSIVE' : intérêts mensuels sur le capital restant (crédit spécial classique) ;
+ * - 'FLAT' : intérêts appliqués une seule fois, remboursés en N mensualités égales
+ *   (achat à crédit en boutique partenaire, 2 ou 3 mois).
+ */
+export type CreditRepaymentModel = 'DEGRESSIVE' | 'FLAT'
+
+/** Statut du règlement du vendeur (boutique partenaire) par l'association. */
+export type ShopPurchaseVendorStatus = 'PENDING' | 'PAID' | 'DELIVERED'
+
+export const SHOP_PURCHASE_VENDOR_STATUS_LABELS: Record<ShopPurchaseVendorStatus, string> = {
+  PENDING: 'Vendeur à régler',
+  PAID: 'Vendeur réglé',
+  DELIVERED: 'Article livré',
+}
+
+/**
+ * Achat à crédit dans la boutique d'un membre partenaire. L'association règle
+ * le vendeur (prix moins la remise négociée), le membre rembourse l'association.
+ */
+export interface CreditShopPurchase {
+  shopId: string
+  shopName: string
+  shopOwnerMemberId?: string
+  shopOwnerName?: string
+  /** Article(s) acheté(s). */
+  article: string
+  /** Article du catalogue de la boutique (absent pour les achats saisis à la main par l'admin). */
+  articleId?: string
+  quantity?: number
+  /** Prix unitaire de l'article au moment de la demande. */
+  unitPrice?: number
+  /** Prix public payé par le membre (montant financé) : prix unitaire × quantité. */
+  price: number
+  /** Remise accordée par la boutique à l'association, en % (copiée de la boutique). */
+  discountPercent: number
+  /** Montant versé au vendeur : prix − remise. */
+  vendorAmount: number
+  /** Devis / facture pro forma du vendeur. */
+  quoteUrl?: string
+  quotePath?: string
+  vendorStatus: ShopPurchaseVendorStatus
+  vendorPayment?: {
+    paidAt: Date
+    mode: PaymentMode
+    reference?: string
+    proofUrl?: string
+    proofPath?: string
+    paidBy: string
+    paidByName?: string
+  }
+  delivery?: {
+    deliveredAt: Date
+    confirmedBy: string
+    confirmedByName?: string
+    comment?: string
+  }
+}
+
+/**
  * Type pour un contrat de crédit
  */
 /** Clôture d'un contrat de crédit en perte (défaut de paiement, décision SuperAdmin). */
@@ -1786,6 +1851,10 @@ export interface CreditContract {
   duration: number // Durée en mois, ou en semaines si `durationUnit` vaut 'WEEKS'
   /** Absent = 'MONTHS'. 'WEEKS' : une seule échéance, intérêts appliqués une fois. */
   durationUnit?: CreditDurationUnit
+  /** Absent = 'DEGRESSIVE'. 'FLAT' : intérêts une fois, N mensualités égales. */
+  repaymentModel?: CreditRepaymentModel
+  /** Achat à crédit en boutique partenaire. */
+  shopPurchase?: CreditShopPurchase
   /** Échéancier personnalisé (simulation personnalisée) : montant par mois. Si présent, le PDF utilise ces montants au lieu de recalculer. */
   customSchedule?: Array<{ month: number; amount: number }>
   firstPaymentDate: Date
@@ -2983,9 +3052,92 @@ export interface Shop {
   reviewedAt?: Date
   /** Motif communiqué au membre en cas de refus. */
   rejectionReason?: string
+  /**
+   * Modification proposée par le membre sur sa fiche publiée. La fiche publiée
+   * ne change qu'à la validation par l'admin.
+   */
+  pendingChanges?: ShopChangeProposal | null
+  pendingChangesSubmittedAt?: Date
+  pendingChangesSubmittedBy?: string
+  /** Motif du refus de la dernière modification proposée. */
+  pendingChangesRejectionReason?: string
+  /**
+   * Boutique partenaire de l'achat à crédit (visible des membres). Les
+   * conditions négociées sont dans `shopCreditPartners`, réservée aux admins.
+   */
+  acceptsCredit?: boolean
   createdAt: Date
   createdBy: string
   updatedAt: Date
+  updatedBy?: string
+}
+
+/**
+ * Article d'une boutique (collection `shopArticles`). Ajouté par le
+ * propriétaire, publié après validation de l'admin ; c'est ce qu'un autre
+ * membre peut payer en 2 ou 3 fois.
+ */
+export interface ShopArticle {
+  id: string
+  shopId: string
+  shopName: string
+  ownerMatricule?: string
+  submittedBy: string
+  submittedByName?: string
+  name: string
+  description?: string
+  price: number
+  photoURL?: string
+  photoPath?: string
+  /** En stock : le propriétaire le bascule sans validation. */
+  isAvailable: boolean
+  status: ShopStatus
+  rejectionReason?: string
+  submittedAt?: Date
+  reviewedBy?: string
+  reviewedAt?: Date
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+/** Champs qu'un membre peut proposer de modifier sur sa boutique publiée. */
+export const SHOP_PROPOSABLE_FIELDS = [
+  'name',
+  'category',
+  'description',
+  'phone',
+  'whatsapp',
+  'email',
+  'province',
+  'city',
+  'district',
+  'address',
+  'openingHours',
+  'photoURL',
+  'photoPath',
+  'gallery',
+] as const
+
+export type ShopChangeProposal = Partial<Pick<Shop, (typeof SHOP_PROPOSABLE_FIELDS)[number]>>
+
+/**
+ * Conditions négociées avec une boutique partenaire de l'achat à crédit
+ * (collection `shopCreditPartners`, id = id de la boutique, admins seulement).
+ */
+export interface ShopCreditPartner {
+  shopId: string
+  enabled: boolean
+  /** Remise consentie à l'association sur chaque vente à crédit, en %. */
+  discountPercent: number
+  /** Moyen de règlement du vendeur. */
+  payoutMode?: PaymentMode
+  /** Numéro Airtel Money / Mobicash ou RIB du vendeur. */
+  payoutAccount?: string
+  /** Le vendeur rembourse l'association si l'article est défectueux (convention signée). */
+  agreementSigned?: boolean
+  agreementUrl?: string
+  agreementPath?: string
+  updatedAt?: Date
   updatedBy?: string
 }
 

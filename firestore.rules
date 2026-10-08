@@ -387,9 +387,67 @@ service cloud.firestore {
                request.resource.data.submittedBy == resource.data.submittedBy;
       }
 
+      // Boutique publiée (soumise par le membre ou créée pour lui par l'admin) :
+      // le membre ne touche pas à la fiche publiée, il propose une modification
+      // que l'admin valide ou refuse. Seuls les champs de la proposition bougent.
+      function isOwnChangeProposal() {
+        return isAuthenticated() &&
+               resource.data.get('status', 'approved') == 'approved' &&
+               (resource.data.get('submittedBy', '') == request.auth.uid ||
+                (resource.data.get('ownerMatricule', '') != '' &&
+                 isCaisseImprevueMember(resource.data.ownerMatricule))) &&
+               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                 'pendingChanges', 'pendingChangesSubmittedAt', 'pendingChangesSubmittedBy',
+                 'pendingChangesRejectionReason'
+               ]);
+      }
+
       allow create: if isAdmin() || isOwnSubmission();
-      allow update: if isAdmin() || (isOwnPendingEdit() && isOwnSubmission());
+      allow update: if isAdmin() || (isOwnPendingEdit() && isOwnSubmission()) || isOwnChangeProposal();
       allow delete: if isAdmin();
+    }
+
+    // Articles des boutiques : ajoutés par le propriétaire, publiés après
+    // validation de l'admin (le prix engage l'association, qui paie le vendeur).
+    match /shopArticles/{articleId} {
+      function ownsShop(shopId) {
+        let shop = get(/databases/$(database)/documents/shops/$(shopId)).data;
+        return shop.get('submittedBy', '') == request.auth.uid ||
+               (shop.get('ownerMatricule', '') != '' && isCaisseImprevueMember(shop.ownerMatricule));
+      }
+
+      allow read: if isAdmin() ||
+                     (isAuthenticated() && (resource.data.status == 'approved' ||
+                                            resource.data.submittedBy == request.auth.uid));
+
+      // Création ou modification de contenu : l'article (re)part en attente.
+      allow create: if isAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.submittedBy == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.price is number && request.resource.data.price > 0 &&
+        ownsShop(request.resource.data.shopId)
+      );
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.submittedBy == request.auth.uid &&
+        request.resource.data.submittedBy == resource.data.submittedBy &&
+        request.resource.data.shopId == resource.data.shopId &&
+        (
+          // Disponibilité (en stock / en rupture) : sans validation.
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAvailable', 'updatedAt']) ||
+          (request.resource.data.status == 'pending' &&
+           request.resource.data.price is number && request.resource.data.price > 0)
+        )
+      );
+      allow delete: if isAdmin() ||
+                       (isAuthenticated() && resource.data.submittedBy == request.auth.uid);
+    }
+
+    // Conditions négociées avec les boutiques partenaires de l'achat à crédit
+    // (remise, compte de règlement du vendeur) : jamais visibles des membres.
+    match /shopCreditPartners/{shopId} {
+      allow read, write: if isAdmin();
     }
     
     // ==========================================

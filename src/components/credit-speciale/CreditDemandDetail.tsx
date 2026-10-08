@@ -48,6 +48,7 @@ import { backOr } from '@/lib/backNavigation'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import ContractCreationModal from './ContractCreationModal'
+import ShopPurchaseDemandSummary from './ShopPurchaseDemandSummary'
 import CreditSimulationModal from './CreditSimulationModal'
 import DeleteCreditDemandModal from './DeleteCreditDemandModal'
 import EditCreditDemandModal from './EditCreditDemandModal'
@@ -446,6 +447,8 @@ export default function CreditDemandDetail({
                   {demand.cause || 'Aucun motif renseigné.'}
                 </p>
               </div>
+
+              {demand.shopPurchase && <ShopPurchaseDemandSummary purchase={demand.shopPurchase} />}
 
               {demand.adminComments && (
                 <div
@@ -974,6 +977,7 @@ export default function CreditDemandDetail({
           initialAmount={demand.amount}
           initialMonthlyPayment={demand.monthlyPaymentAmount}
           lockAmount
+          shopPurchase={demand.shopPurchase}
           onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
             // Fermer le modal de simulation et ouvrir le modal de création de contrat
             setSimulationModalState({ isOpen: false })

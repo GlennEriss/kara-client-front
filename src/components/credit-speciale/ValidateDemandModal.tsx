@@ -76,7 +76,7 @@ export default function ValidateDemandModal({
         comments: comments.trim(),
         ...(action === 'approve' && {
           amount: Number(amount),
-          ...(monthlyPaymentAmount && { monthlyPaymentAmount: Number(monthlyPaymentAmount) }),
+          ...(monthlyPaymentAmount && !demand.shopPurchase && { monthlyPaymentAmount: Number(monthlyPaymentAmount) }),
         }),
       })
       
@@ -96,6 +96,9 @@ export default function ValidateDemandModal({
   }
 
   if (!demand) return null
+
+  // Achat en boutique : le montant est le prix de l'article, fixé par la demande.
+  const shopPurchase = demand.shopPurchase
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -123,6 +126,11 @@ export default function ValidateDemandModal({
                 {demand.guarantorId && (
                   <p><strong>Garant:</strong> {demand.guarantorFirstName} {demand.guarantorLastName}</p>
                 )}
+                {shopPurchase && (
+                  <p>
+                    <strong>Achat en boutique :</strong> {shopPurchase.article} chez « {shopPurchase.shopName} », remboursé en 2 ou 3 mensualités
+                  </p>
+                )}
               </div>
             </AlertDescription>
           </Alert>
@@ -140,10 +148,16 @@ export default function ValidateDemandModal({
                   min={0}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  disabled={!!shopPurchase}
                   placeholder="Ex : 500000"
                   className="border-gray-300 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65]"
                 />
               </div>
+              {shopPurchase ? (
+                <p className="self-end text-xs text-gray-500">
+                  Montant = prix de l&apos;article. Le nombre de mensualités (2 ou 3) et le taux se fixent à la simulation.
+                </p>
+              ) : (
               <div className="space-y-2">
                 <Label htmlFor="monthlyPaymentAmount" className="text-sm font-semibold text-gray-900">
                   Mensualité (FCFA)
@@ -158,6 +172,7 @@ export default function ValidateDemandModal({
                   className="border-gray-300 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65]"
                 />
               </div>
+              )}
             </div>
           )}
 
