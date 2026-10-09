@@ -1,4 +1,5 @@
 'use client'
+import { latestCaisseImprevueVersement } from '@/utils/payment-deletion-order'
 import dynamic from 'next/dynamic'
 import { getContractEndDate } from '@/utils/caisse-imprevue-utils'
 import { formatPaymentMode } from '@/utils/payment-mode'
@@ -250,6 +251,8 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [] } = usePaymentsCI(contract.id)
+  // Seul le dernier versement se supprime (puis le précédent) : comme au crédit spécial.
+  const latestVersement = latestCaisseImprevueVersement(payments)
   const createVersementMutation = useCreateVersement()
   const updateVersementMutation = useUpdateVersement()
   const deleteVersementMutation = useDeleteVersement()
@@ -903,7 +906,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                       Modifier
                                     </Button>
                                   )}
-                                  {!isContractTerminated && isSuperAdmin && (
+                                  {!isContractTerminated && isSuperAdmin && latestVersement?.monthIndex === monthPayment?.monthIndex && (
                                     <Button
                                       type="button"
                                       variant="outline"
@@ -916,7 +919,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
                                           await deleteVersementMutation.mutateAsync({
                                             contractId: contract.id,
                                             monthIndex: monthPayment!.monthIndex,
-                                            versementId: lastVersement.id,
+                                            versementId: latestVersement?.versementId ?? lastVersement.id,
                                           })
                                         } catch {
                                           // Erreur gérée par le hook (toast)

@@ -1,4 +1,5 @@
 'use client'
+import { isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
 import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -979,6 +980,8 @@ function ContractCSGridCard({
 
   const isSigned            = contract.memberSignedStatus === 'VALIDATED'
   const isPendingValidation = contract.memberSignedStatus === 'PENDING_ADMIN'
+  // Clôturé ou résilié : lecture seule (ni téléversement ni suppression).
+  const isLocked            = isCaisseSpecialeContractLocked(contract.status)
   const isRejected          = contract.memberSignedStatus === 'REJECTED'
 
   const paid     = contract.currentMonthIndex ?? 0
@@ -1136,7 +1139,7 @@ function ContractCSGridCard({
               className="h-8 cursor-pointer rounded-lg border-blue-300 px-3 text-xs text-blue-700 hover:bg-blue-600 hover:text-white">
               <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Valider
             </Button>
-          ) : (
+          ) : isLocked ? null : (
             <Button variant="outline" size="sm" onClick={onUpload}
               className="h-8 cursor-pointer rounded-lg border-orange-300 px-3 text-xs text-orange-600 hover:bg-orange-500 hover:text-white">
               <Plus className="mr-1.5 h-3.5 w-3.5" />Téléverser
@@ -1176,10 +1179,12 @@ function ContractCSGridCard({
             </Button>
           )}
 
+          {!isLocked && (
           <Button variant="outline" size="sm" onClick={onDelete}
             className="h-8 cursor-pointer rounded-lg border-red-200 px-3 text-xs text-red-600 hover:bg-red-600 hover:text-white">
             <Trash2 className="mr-1.5 h-3.5 w-3.5" />Supprimer
           </Button>
+          )}
           </div>
         </div>
       </CardContent>
@@ -2509,7 +2514,7 @@ const ListContracts = () => {
                                       </DropdownMenuItem>
                                     )}
                                   </>
-                                ) : (
+                                ) : isCaisseSpecialeContractLocked(contract.status) ? null : (
                                   <DropdownMenuItem
                                     onClick={() => handleUploadPDF(contract)}
                                     className="cursor-pointer"
@@ -2552,6 +2557,7 @@ const ListContracts = () => {
                                     Valider contrat signé
                                   </DropdownMenuItem>
                                 )}
+                                {!isCaisseSpecialeContractLocked(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={() => setContractToDelete(contract)}
                                   className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -2559,6 +2565,7 @@ const ListContracts = () => {
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Supprimer
                                 </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

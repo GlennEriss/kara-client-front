@@ -1,4 +1,5 @@
 "use client"
+import { isPlacementLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
 import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
@@ -1591,7 +1592,7 @@ export default function PlacementList() {
                         setEditingPlacementId(p.id)
                         setIsCreateOpen(true)
                       } : undefined}
-                      onDeleteClick={can('placements.delete') ? () => setDeletePlacementId(p.id) : undefined}
+                      onDeleteClick={can('placements.delete') && !isPlacementLocked(p.status) ? () => setDeletePlacementId(p.id) : undefined}
                       onUploadContractClick={!p.contractDocumentId ? () => setUploadContractPlacementId(p.id) : undefined}
                       onDownloadContractClick={() => openPlacementContractModal(p)}
                       onViewContractClick={p.contractDocumentId ? () => {

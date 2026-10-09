@@ -1,5 +1,6 @@
 'use client'
 
+import { isCaisseImprevueContractLocked } from '@/utils/contract-lock'
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -50,7 +51,8 @@ export default function ContractCIMemberInfoDialog({ contract }: Props) {
     phone2: '',
   })
 
-  if (!isSuperAdmin || !contract?.id) return null
+  // Contrat terminé ou résilié : lecture seule.
+  if (!isSuperAdmin || !contract?.id || isCaisseImprevueContractLocked(contract.status)) return null
 
   const startEdit = () => {
     setForm({

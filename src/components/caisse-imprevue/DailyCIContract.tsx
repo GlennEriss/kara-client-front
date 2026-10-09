@@ -1,4 +1,5 @@
 'use client'
+import { latestCaisseImprevueVersement } from '@/utils/payment-deletion-order'
 import dynamic from 'next/dynamic'
 
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
@@ -181,6 +182,8 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [] } = usePaymentsCI(contract.id)
+  // Seul le dernier versement se supprime (puis le précédent) : comme au crédit spécial.
+  const latestVersement = latestCaisseImprevueVersement(payments)
   const createVersementMutation = useCreateVersement()
   const updateVersementMutation = useUpdateVersement()
   const deleteVersementMutation = useDeleteVersement()
@@ -1347,7 +1350,13 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 setShowPaymentModal(true)
               }
             } : undefined}
-            onDeleteClick={!isContractTerminated && isSuperAdmin ? async () => {
+            onDeleteClick={!isContractTerminated && isSuperAdmin && (() => {
+              if (!selectedDate || !latestVersement) return false
+              const mi = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+              const payment = payments.find((p: any) => p.monthIndex === mi)
+              const versement = payment?.versements?.find((v: any) => v.date === formatDateKey(selectedDate))
+              return latestVersement.monthIndex === mi && latestVersement.versementId === versement?.id
+            })() ? async () => {
               if (!selectedDate) return
               const payment = getSelectedPaymentWithVersement()
               if (!payment) return

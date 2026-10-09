@@ -1,4 +1,6 @@
 import { User, Admin, ContractCI, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
+import { getCaisseImprevueVersementDeletionBlocker } from '@/utils/payment-deletion-order'
+import { assertContractUnlocked, isCaisseImprevueContractLocked } from '@/utils/contract-lock'
 import { Document } from "@/domains/infrastructure/documents/entities/document.types";
 import { ICaisseImprevueService, VersementFormData } from "./ICaisseImprevueService";
 import { planVersementSpread } from "./versementSpread";
@@ -126,6 +128,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     }
 
     async uploadContractDocument(file: File, contractId: string, memberId: string, userId: string, onProgress?: (percent: number) => void): Promise<{ documentId: string; contract: ContractCI }> {
+        const lockedContract = await this.contractCIRepository.getContractById(contractId)
+        assertContractUnlocked(isCaisseImprevueContractLocked(lockedContract?.status))
         // 1. Upload du fichier vers Firebase Storage
         const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, memberId, 'ADHESION_CI', onProgress)
 
@@ -232,6 +236,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             if (!contract) {
                 throw new Error(`Contrat ${contractId} introuvable`)
             }
+            assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
 
             // 2. Vérifier s'il y a un support actif
             const activeSupport = await this.getActiveSupport(contractId)
@@ -397,6 +402,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         modificationReason: string,
         userId: string
     ): Promise<PaymentCI> {
+        const lockedContract = await this.contractCIRepository.getContractById(contractId)
+        assertContractUnlocked(isCaisseImprevueContractLocked(lockedContract?.status))
         const payment = await this.paymentCIRepository.getPaymentByMonth(contractId, monthIndex)
         if (!payment) throw new Error('Paiement du mois non trouvé')
         const existing = payment.versements.find((v) => v.id === versementId)
@@ -473,6 +480,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         if (!payment) throw new Error('Paiement du mois non trouvé')
         const versement = payment.versements?.find((v) => v.id === versementId)
         if (!versement) throw new Error('Versement non trouvé')
+        // Comme au crédit spécial : le dernier versement d'abord, puis le précédent.
+        const allPayments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
+        const orderBlocker = getCaisseImprevueVersementDeletionBlocker(allPayments, monthIndex, versementId)
+        if (orderBlocker) throw new Error(orderBlocker)
 
         const updatedPayment = await this.paymentCIRepository.deleteVersement(contractId, monthIndex, versementId, userId)
         if (!updatedPayment) throw new Error('Échec de la suppression du versement')
@@ -491,6 +502,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             if (!contract) {
                 throw new Error('Contrat non trouvé')
             }
+            assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
 
             // 2. Vérifier l'éligibilité
             const isEligible = await this.checkEligibilityForSupport(contractId)

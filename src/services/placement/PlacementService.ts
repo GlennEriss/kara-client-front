@@ -1,4 +1,5 @@
 import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementCommissionConvention, PlacementDocumentType, User, PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
+import { assertContractUnlocked, isPlacementLocked } from '@/utils/contract-lock'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { DocumentService } from '@/domains/infrastructure/documents/services/DocumentService'
@@ -324,6 +325,7 @@ export class PlacementService {
   }
 
   async updatePlacement(id: string, data: Partial<Placement>, adminId: string): Promise<Placement> {
+    assertContractUnlocked(isPlacementLocked((await this.placementRepository.getById(id))?.status))
     const amount = data.amount !== undefined ? this.validatePlacementAmount(data.amount) : undefined
     const rate = data.rate !== undefined ? this.validatePlacementRate(data.rate) : undefined
     const periodMonths = data.periodMonths !== undefined
@@ -375,6 +377,7 @@ export class PlacementService {
    */
   async deletePlacement(id: string): Promise<void> {
     const placement = await this.placementRepository.getById(id)
+    assertContractUnlocked(isPlacementLocked(placement?.status))
 
     // Documents liés : fichier Storage puis fiche `documents`. Chaque échec est
     // journalisé sans interrompre : un fichier résiduel est moins grave qu'une
@@ -408,6 +411,7 @@ export class PlacementService {
   }
 
   async payCommission(placementId: string, commissionId: string, data: Partial<CommissionPaymentPlacement>, adminId: string): Promise<CommissionPaymentPlacement> {
+    assertContractUnlocked(isPlacementLocked((await this.placementRepository.getById(placementId))?.status))
     const existing = (await this.placementRepository.listCommissions(placementId)).find(c => c.id === commissionId)
     if (!existing) throw new Error('Commission introuvable')
 
@@ -667,6 +671,7 @@ export class PlacementService {
   ): Promise<{ documentId: string; placement: Placement }> {
     // Verrou : si au moins une commission payée, on bloque la modification du contrat
     if (documentType === 'PLACEMENT_CONTRACT') {
+      assertContractUnlocked(isPlacementLocked((await this.placementRepository.getById(placementId))?.status))
       const commissions = await this.placementRepository.listCommissions(placementId)
       const hasPaid = commissions.some(c => c.status === 'Paid')
       if (hasPaid) {
@@ -787,6 +792,7 @@ export class PlacementService {
     benefactorId: string,
     adminId: string
   ): Promise<{ documentId: string; commission: CommissionPaymentPlacement }> {
+    assertContractUnlocked(isPlacementLocked((await this.placementRepository.getById(placementId))?.status))
     // Upload du document (peut être image ou PDF)
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, 'PLACEMENT_COMMISSION_PROOF')
     

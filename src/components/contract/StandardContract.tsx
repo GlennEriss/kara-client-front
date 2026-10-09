@@ -1,4 +1,5 @@
 "use client"
+import { latestCaisseSpecialePayment } from '@/utils/payment-deletion-order'
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
 import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
@@ -237,6 +238,8 @@ export default function StandardContract({ id }: Props) {
   const { data: groupMembers } = useGroupMembers(groupeId, isGroupContract)
 
   const payments = data.payments || []
+  // Seul le dernier versement se supprime (puis le précédent) : comme au crédit spécial.
+  const latestPayment = latestCaisseSpecialePayment(payments)
   const paidCount = payments.filter((x: any) => x.status === 'PAID').length
   const totalMonths = data.monthsPlanned || 0
   const progress = totalMonths > 0 ? (paidCount / totalMonths) * 100 : 0
@@ -395,7 +398,9 @@ export default function StandardContract({ id }: Props) {
       await deletePaymentMutation.mutateAsync({
         contractId: id,
         paymentId: payment.id,
-        contributionId: contribs.length > 1 ? contribs[contribs.length - 1]?.id : contribs[0]?.id,
+        contributionId: latestPayment && latestPayment.paymentId === payment.id && latestPayment.contributionId
+          ? latestPayment.contributionId
+          : contribs.length > 1 ? contribs[contribs.length - 1]?.id : contribs[0]?.id,
       })
       await refetch()
     } catch {
@@ -726,7 +731,7 @@ export default function StandardContract({ id }: Props) {
                                     Modifier
                                   </Button>
                                 )}
-                                {!isClosed && isSuperAdmin && (
+                                {!isClosed && isSuperAdmin && latestPayment?.paymentId === p.id && (
                                   <Button
                                     type="button"
                                     size="sm"
@@ -839,7 +844,7 @@ export default function StandardContract({ id }: Props) {
                     <Button
                       variant="outline"
                       className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                      disabled={isRefunding || !allPaid || hasFinalRefund}
+                      disabled={isClosed || isRefunding || !allPaid || hasFinalRefund}
                       onClick={() => {
                         setRefundType('FINAL')
                         setRefundReasonInput('')
@@ -852,7 +857,7 @@ export default function StandardContract({ id }: Props) {
                     <Button
                       variant="outline"
                       className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-                      disabled={isRefunding || !canEarly || hasEarlyRefund}
+                      disabled={isClosed || isRefunding || !canEarly || hasEarlyRefund}
                       onClick={() => setShowEarlyRefundModal(true)}
                     >
                       <Download className="h-5 w-5" />

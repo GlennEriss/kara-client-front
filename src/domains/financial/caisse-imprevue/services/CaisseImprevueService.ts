@@ -5,6 +5,7 @@
  * avec traçabilité complète selon le workflow V2.
  */
 
+import { assertContractUnlocked, isCaisseImprevueContractLocked } from '@/utils/contract-lock'
 import { DemandCIRepository } from '../repositories/DemandCIRepository'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
@@ -393,6 +394,7 @@ export class CaisseImprevueService {
     if (!contract) {
       throw new Error('Contrat introuvable')
     }
+    assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
     const documentRepository = RepositoryFactory.getDocumentRepository()
 
     // 1) Sous-collections + fichiers de preuve (versements, aides, remboursements).
@@ -569,6 +571,7 @@ export class CaisseImprevueService {
     if (!contract) {
       throw new Error('Contrat introuvable')
     }
+    assertContractUnlocked(isCaisseImprevueContractLocked(contract.status))
     const subscriptionRepository = RepositoryFactory.getSubscriptionCIRepository()
     const subscription = await subscriptionRepository.getSubscriptionById(newSubscriptionId)
     if (!subscription) {

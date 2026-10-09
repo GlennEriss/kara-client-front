@@ -1,4 +1,5 @@
 'use client'
+import { isCreditContractLocked } from '@/utils/contract-lock'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
 import { PUNCTUALITY_META, getInstallmentPunctuality, getPaymentPunctuality } from '@/utils/credit-payment-punctuality'
@@ -7,7 +8,7 @@ import CreditWriteOffModal from './CreditWriteOffModal'
 import CreditWriteOffSection from './CreditWriteOffSection'
 import ShopPurchaseSection from './ShopPurchaseSection'
 import { useMyAccess } from '@/hooks/useMyAccess'
-import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from '@/utils/credit-write-off'
+import { canWriteOffContract, computeWriteOffLoss } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 import { computeWeeklyCreditTotals, formatCreditDuration, getFlatInstallmentCount, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
@@ -2086,7 +2087,7 @@ export default function CreditContractDetail({
                           <Eye className="mr-2 h-4 w-4" />
                           Voir la facture
                         </Button>
-                        {!isCreditContractEnded(contract.status) && (
+                        {!isCreditContractLocked(contract.status) && (
                           <Button
                             type="button"
                             size="sm"
@@ -2370,7 +2371,8 @@ export default function CreditContractDetail({
                   // Même si le contrat est DISCHARGED, on peut avoir des échéances restantes à payer
                   const hasUnpaidInstallments = actualSchedule.some(i => i.status === 'DUE' || i.status === 'FUTURE')
                   // Clôturé en perte : plus de paiement ordinaire, seulement des récupérations.
-                  const canMakePayments = contract.status !== 'WRITTEN_OFF' && (contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments)
+                  // Contrat terminé ou résilié : lecture seule.
+                  const canMakePayments = !isCreditContractLocked(contract.status) && (contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments)
 
                   // Les échéances se paient dans l'ordre : toutes les précédentes doivent être payées ou en repos.
                   const allPreviousPaid = actualSchedule
@@ -2396,7 +2398,7 @@ export default function CreditContractDetail({
                   const deletionBlocker = isSuperAdmin && paymentForCard
                     ? getCreditPaymentDeletionBlocker(contract, payments, paymentForCard)
                     : null
-                  const canDeletePayment = isSuperAdmin && !!paymentForCard && deletionBlocker === null
+                  const canDeletePayment = isSuperAdmin && !!paymentForCard && deletionBlocker === null && !isCreditContractLocked(contract.status)
                   const showBlockedDeletion =
                     !!deletionBlocker && DELETABLE_PAYMENT_CONTRACT_STATUSES.includes(contract.status)
 
@@ -2612,7 +2614,7 @@ export default function CreditContractDetail({
                                 <Eye className="h-3 w-3 mr-1" />
                                 Voir la facture
                               </Button>
-                              {!isCreditContractEnded(contract.status) && (
+                              {!isCreditContractLocked(contract.status) && (
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -2913,7 +2915,7 @@ export default function CreditContractDetail({
                                     <Eye className="h-4 w-4 mr-1" />
                                     Voir la facture
                                   </Button>
-                                  {!isCreditContractEnded(contract.status) && (
+                                  {!isCreditContractLocked(contract.status) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -3262,6 +3264,7 @@ export default function CreditContractDetail({
                                         )}
                                       </TableCell>
                                       <TableCell>
+                                        {!isCreditContractLocked(contract.status) && (
                                         <Button
                                           type="button"
                                           variant="ghost"
@@ -3272,6 +3275,7 @@ export default function CreditContractDetail({
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
+                                        )}
                                       </TableCell>
                                     </TableRow>
                                   ))}
@@ -3506,7 +3510,7 @@ export default function CreditContractDetail({
 
               {/* Actions du cycle en cours */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {!isCreditContractEnded(contract.status) && (
+                {!isCreditContractLocked(contract.status) && (
                   <Button
                     variant="outline"
                     className="justify-start"
@@ -3528,7 +3532,7 @@ export default function CreditContractDetail({
                       <FileSignature className="h-4 w-4 mr-2" />
                       Voir contrat
                     </Button>
-                    {!isCreditContractEnded(contract.status) && (
+                    {!isCreditContractLocked(contract.status) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -3554,7 +3558,7 @@ export default function CreditContractDetail({
                   <div className="mt-3 space-y-3">
                     {contractDocumentsByCycle.map((cycleDocument) => {
                       const canGenerateCurrentCycleContract =
-                        cycleDocument.isCurrentCycle && !isCreditContractEnded(contract.status)
+                        cycleDocument.isCurrentCycle && !isCreditContractLocked(contract.status)
                       const canOpenCycleContract = Boolean(cycleDocument.contractUrl) || canGenerateCurrentCycleContract
 
                       return (
@@ -3958,7 +3962,7 @@ export default function CreditContractDetail({
           }
           dueDate={selectedReceiptDueDate}
           penaltyAmountOverride={selectedReceiptPenaltyAmount}
-          onEditClick={!isCreditContractEnded(contract.status) ? () => {
+          onEditClick={!isCreditContractLocked(contract.status) ? () => {
             setPaymentToEdit(selectedPaymentForReceipt)
             setShowReceiptModal(false)
             setSelectedDueIndexForReceipt(null)

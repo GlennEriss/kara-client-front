@@ -1,4 +1,6 @@
 import type { CaisseContract } from '@/types/types'
+import { getCaisseSpecialePaymentDeletionBlocker } from '@/utils/payment-deletion-order'
+import { assertContractUnlocked, isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import { CaisseContractsRepository } from '../repositories/CaisseContractsRepository'
 import type { ContractFilters, PaginationParams, PaginatedContracts, ContractStats } from '../entities/contract-filters.types'
 import type { ContractPayment, CreateCaisseContractInput, ContractPdfMetadata, UploadContractPdfInput } from '../entities/contract.types'
@@ -45,6 +47,8 @@ export class CaisseContractsService {
   }
 
   async uploadContractPdf(input: UploadContractPdfInput): Promise<ContractPdfMetadata> {
+    const contract = await this.repo.getContractById(input.contractId)
+    assertContractUnlocked(isCaisseSpecialeContractLocked(contract?.status))
     return this.repo.uploadContractPdf(input)
   }
 
@@ -88,6 +92,9 @@ export class CaisseContractsService {
     if (!payment) {
       throw new Error('Versement introuvable')
     }
+    // Comme au crédit spécial : le dernier versement d'abord, puis le précédent.
+    const orderBlocker = getCaisseSpecialePaymentDeletionBlocker(payments as any[], paymentId, contributionId)
+    if (orderBlocker) throw new Error(orderBlocker)
 
     const contribs = Array.isArray((payment as any).contribs) ? (payment as any).contribs : []
 
@@ -299,6 +306,7 @@ export class CaisseContractsService {
     if (!contract) {
       throw new Error('Contrat introuvable')
     }
+    assertContractUnlocked(isCaisseSpecialeContractLocked(contract.status))
 
     const demandRepo = RepositoryFactory.getCaisseSpecialeDemandRepository()
     const demand = await demandRepo.getByContractId(contractId)
