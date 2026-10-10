@@ -27,6 +27,18 @@ import { useRouter } from 'next/navigation'
 import React from 'react'
 import { toast } from 'sonner'
 
+/** Libellés des champs du contact d'urgence, pour les messages d'erreur. */
+const EMERGENCY_FIELD_LABELS: Record<string, string> = {
+  lastName: 'Nom',
+  firstName: 'Prénom',
+  phone1: 'Téléphone',
+  phone2: 'Téléphone 2',
+  relationship: 'Lien de parenté',
+  typeId: 'Type de pièce',
+  idNumber: 'N° de pièce',
+  documentPhotoUrl: 'Photo de la pièce',
+}
+
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()
   const { formData } = state
@@ -75,8 +87,9 @@ export function Step3ContractCreation() {
         isEmergencyContactValid = true
       } catch (error: any) {
         console.log('❌ Contact d\'urgence invalide:', error)
-        if (error?.errors && Array.isArray(error.errors)) {
-          console.log('Détails des erreurs:', error.errors.map((err: any) => ({
+        const issues = error?.issues ?? error?.errors
+        if (Array.isArray(issues)) {
+          console.log('Détails des erreurs:', issues.map((err: any) => ({
             champ: err.path?.[0],
             message: err.message
           })))
@@ -130,14 +143,12 @@ export function Step3ContractCreation() {
         console.error('❌ Erreur de validation du contact d\'urgence:', error)
         
         // Extraire les messages d'erreur détaillés
-        const errorMessages: string[] = []
-        if (error?.errors && Array.isArray(error.errors)) {
-          error.errors.forEach((err: any) => {
-            const field = err.path?.[0] || 'champ'
-            const message = err.message || 'est invalide'
-            errorMessages.push(`${field}: ${message}`)
-          })
-        }
+        // Zod 4 : le détail est dans `issues` (`errors` n'existe plus).
+        const issues: any[] = error?.issues ?? error?.errors ?? []
+        const errorMessages: string[] = issues.map((err: any) => {
+          const field = EMERGENCY_FIELD_LABELS[String(err.path?.[0] ?? '')] ?? String(err.path?.[0] ?? 'Champ')
+          return `${field} : ${err.message || 'invalide'}`
+        })
         
         const errorMessage = errorMessages.length > 0
           ? `Les informations du contact d'urgence sont incomplètes ou invalides:\n${errorMessages.join('\n')}`

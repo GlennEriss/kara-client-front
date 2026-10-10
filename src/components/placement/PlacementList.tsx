@@ -1902,7 +1902,7 @@ export default function PlacementList() {
               />
 
               {/* Contact d'urgence (optionnel) — même saisie que la Caisse Imprévue :
-                  recherche de membre, auto-remplissage de la pièce, bouton « Contact inconnu ». */}
+                  recherche de membre, auto-remplissage de la pièce. */}
               <EmergencyContactMemberSelector
                 memberId={urgentMemberId}
                 lastName={form.watch('urgentName')}
