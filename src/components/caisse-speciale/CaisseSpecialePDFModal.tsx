@@ -1,5 +1,6 @@
 'use client'
 
+import { useWithIdentityIssuingDate } from '@/hooks/useMemberIdentityIssuingDate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -176,7 +177,9 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre
-  const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId)
+  const { data: rawMemberData, isLoading: memberLoading } = useMember(contractData?.memberId)
+  // Date de délivrance de la pièce : dans le dossier d'adhésion, comme sur la fiche.
+  const memberData = useWithIdentityIssuingDate(rawMemberData)
 
   // Fonction pour calculer l'âge à partir de la date de naissance
   const calculateAge = (birthDate: string | Date) => {

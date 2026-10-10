@@ -1,4 +1,5 @@
 "use client"
+import { isPlacementLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
 
 import { backOr } from '@/lib/backNavigation'
@@ -356,7 +357,7 @@ const handleGenerateGlobalFacture = async () => {
               </Button>
             )}
 
-            {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
+            {!hasContract && !isPlacementLocked(placement.status) && (
               <Button
                 variant="outline"
                 onClick={() => setIsUploadOpen(true)}

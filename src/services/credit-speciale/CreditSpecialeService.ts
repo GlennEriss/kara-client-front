@@ -35,6 +35,7 @@ import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss } from "
 import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, splitFlatInstallments } from "@/utils/credit-weekly";
 import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
 import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
+import { assertContractUnlocked, isCreditContractLocked } from "@/utils/contract-lock";
 import {
     buildGuarantorRemunerationDocId,
     getGuarantorRemunerationCycleNumber,
@@ -628,6 +629,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        assertContractUnlocked(isCreditContractLocked(contract.status));
         if (isFlatCredit(contract)) {
             throw new Error('Un crédit en semaines ou un achat en boutique ne peut pas avoir de mois de repos.');
         }
@@ -675,6 +677,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        assertContractUnlocked(isCreditContractLocked(contract.status));
         const demandId = contract.demandId;
 
         // 1) Cascade complète : échéances, paiements, pénalités, rémunérations/paiements
@@ -1264,6 +1267,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (contract.status === 'WRITTEN_OFF') {
             throw new Error('Contrat clôturé en perte : enregistrez la somme comme récupération');
         }
+        assertContractUnlocked(isCreditContractLocked(contract.status));
 
         // Générer la référence unique du paiement
         const now = new Date(data.paymentDate);
@@ -1724,6 +1728,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!payment) throw new Error('Paiement introuvable');
         const contract = await this.creditContractRepository.getContractById(payment.creditId);
         if (!contract) throw new Error('Contrat introuvable');
+        assertContractUnlocked(isCreditContractLocked(contract.status));
 
         let proofUrl: string | undefined = payment.proofUrl;
         if (proofFile) {
@@ -1763,6 +1768,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!payment) throw new Error('Paiement introuvable');
         const contract = await this.creditContractRepository.getContractById(payment.creditId);
         if (!contract) throw new Error('Contrat introuvable');
+        assertContractUnlocked(isCreditContractLocked(contract.status));
 
         const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
         const blocker = getCreditPaymentDeletionBlocker(contract, allPayments, payment);
@@ -2387,6 +2393,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (penaltyContract?.status === 'WRITTEN_OFF') {
             throw new Error('Contrat clôturé en perte : enregistrez la somme comme récupération');
         }
+        assertContractUnlocked(isCreditContractLocked(penaltyContract?.status));
         if (penalty.paid) {
             throw new Error('Cette pénalité est déjà payée');
         }
@@ -2470,6 +2477,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!penalty.paid) {
             throw new Error('Cette pénalité doit être payée avant d’être modifiée');
         }
+        const lockedContract = await this.creditContractRepository.getContractById(penalty.creditId);
+        assertContractUnlocked(isCreditContractLocked(lockedContract?.status));
 
         const expectedAmount = Math.round(penalty.amount);
         const receivedAmount = Math.round(data.amount);
@@ -2596,6 +2605,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     async deleteGuarantorPayment(paymentId: string): Promise<void> {
         const payment = await this.guarantorPaymentRepository.getPaymentById(paymentId);
         if (!payment) throw new Error('Versement au garant introuvable');
+        const guarantorContract = await this.creditContractRepository.getContractById(payment.creditId);
+        assertContractUnlocked(isCreditContractLocked(guarantorContract?.status));
 
         await this.guarantorPaymentRepository.deletePayment(paymentId);
 
@@ -2776,6 +2787,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        assertContractUnlocked(isCreditContractLocked(contract.status));
 
         // Upload du contrat signé
         const { url, path } = await this.documentRepository.uploadDocumentFile(
@@ -2849,9 +2861,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
-        if (['DISCHARGED', 'CLOSED'].includes(contract.status)) {
-            throw new Error('Contrat clôturé : remplacement interdit');
-        }
+        assertContractUnlocked(isCreditContractLocked(contract.status));
         if (!contract.signedContractUrl) {
             throw new Error('Aucun contrat signé à remplacer');
         }
@@ -3727,6 +3737,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
+        assertContractUnlocked(isCreditContractLocked(contract.status));
 
         if (contract.creditType !== 'SPECIALE') {
             throw new Error('Seuls les crédits spéciaux peuvent basculer en partie fixe');

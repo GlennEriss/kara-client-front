@@ -61,15 +61,15 @@ export const emergencyContactSchema = z
     memberId: z.string().optional(),
 
     // Nom obligatoire
+    // Lettres seulement : vérifié dans superRefine, sauf pour le contact INCONNU
+    // dont la fiche s'appelle « INCONNU(E) ».
     lastName: z.string()
       .min(1, 'Le nom du contact d\'urgence est obligatoire')
-      .max(50, 'Le nom ne peut pas dépasser 50 caractères')
-      .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
+      .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
 
     // Prénom optionnel
     firstName: z.string()
       .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
-      .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
       .optional()
       .or(z.literal('')),
 
@@ -81,26 +81,40 @@ export const emergencyContactSchema = z
       .optional()
       .or(z.literal('')),
 
-    // Lien de parenté obligatoire
-    relationship: RelationshipEnum,
-
-    // Type de document d'identité obligatoire
-    typeId: z.string()
-      .min(1, 'Le type de document est obligatoire'),
-
-    // Numéro de document d'identité obligatoire
-    idNumber: z.string()
-      .min(1, 'Le numéro de document est obligatoire')
-      .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
-
-    // URL de la photo du document obligatoire
-    documentPhotoUrl: z.string()
-      .min(1, 'La photo du document est obligatoire')
-      .url('L\'URL de la photo doit être valide')
+    // Lien, pièce et photo : obligatoires sauf pour le contact INCONNU
+    // (vérifiés dans superRefine, qui sait reconnaître ce cas).
+    relationship: z.string(),
+    typeId: z.string(),
+    idNumber: z.string().max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
+    documentPhotoUrl: z.string(),
   })
   .superRefine((d, ctx) => {
+    // Contact INCONNU (choisi dans la recherche) : aucune autre exigence.
     if (isUnknownEmergencyContact(d)) return
 
+    if (!/^[a-zA-ZÀ-ÿ\s\-']+$/.test(d.lastName)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['lastName'], message: 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes' })
+    }
+    if (d.firstName && !/^[a-zA-ZÀ-ÿ\s\-']*$/.test(d.firstName)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['firstName'], message: 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes' })
+    }
+
+    if (!RelationshipEnum.safeParse(d.relationship).success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['relationship'], message: 'Le lien de parenté est obligatoire' })
+    }
+    if (d.typeId.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['typeId'], message: 'Le type de document est obligatoire' })
+    }
+    if (d.idNumber.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['idNumber'], message: 'Le numéro de document est obligatoire' })
+    }
+    if (d.documentPhotoUrl.trim().length < 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['documentPhotoUrl'], message: 'La photo du document est obligatoire' })
+    } else if (!/^https?:\/\//.test(d.documentPhotoUrl)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['documentPhotoUrl'], message: "L'URL de la photo doit être valide" })
+    }
+
+    // Contact rattaché à un membre : son téléphone vient de sa fiche, format historique accepté.
     const isMemberLinked = !!(d.memberId && d.memberId.trim())
     if (isMemberLinked) return
 
@@ -148,9 +162,10 @@ export function isValidGabonEmergencyPhone(phone: string): boolean {
  */
 const UNKNOWN_CONTACT_IDS = new Set(['INCONNU', '2548.MK.290126'])
 function isUnknownEmergencyContact(d: { lastName?: string; memberId?: string }): boolean {
+  // « INCONNU », « INCONNU(E) »… ou le compte INCONNU lui-même.
   const lastName = (d.lastName || '').trim().toUpperCase()
   const memberId = (d.memberId || '').trim()
-  return lastName === 'INCONNU' || UNKNOWN_CONTACT_IDS.has(memberId)
+  return lastName.startsWith('INCONNU') || UNKNOWN_CONTACT_IDS.has(memberId)
 }
 
 // Schéma pour un contact d'urgence Caisse Imprévue (structure différente).

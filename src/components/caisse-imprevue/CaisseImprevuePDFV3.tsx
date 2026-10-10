@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
   FieldTable,
@@ -12,7 +13,6 @@ import {
   field,
   formatAmount,
   formatDate,
-  fullNameFrom,
   mutuelleStyles as styles,
   readField,
   toDate,
@@ -78,36 +78,29 @@ export const buildCaisseImprevueContractFields = (inputContract?: ContractCI | n
   const contacts = Array.isArray(member.contacts) && member.contacts.length > 0
     ? member.contacts
     : Array.isArray(contract?.memberContacts) ? contract.memberContacts : []
-  const memberAddress = member.address && typeof member.address === 'object'
-    ? (member.address as Record<string, unknown>).district
-      ?? (member.address as Record<string, unknown>).arrondissement
-      ?? (member.address as Record<string, unknown>).city
-    : member.address
   const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
   const periodicAmount = Number(contract?.subscriptionCIAmountPerMonth ?? 0)
   const nominal = Number(contract?.subscriptionCINominal ?? 0)
   const duration = Number(contract?.subscriptionCIDuration ?? 0)
 
   return {
+    // Identification identique à la fiche d'adhésion, puis références du contrat.
     member: [
-      [field('member.lastName', 'Nom(s) :', lastName.toUpperCase()), field('member.firstName', 'Prénom(s) :', firstName)],
-      [field('member.matricule', 'Matricule / N° d’adhérent :', contract?.memberId), field('contract.id', 'Référence du contrat :', contract?.id)],
-      [
-        field('member.birthDate', 'Date de naissance :', optionalDate(member.birthDate || contract?.memberBirthDate), 'date'),
-        field('member.birthPlace', 'Lieu de naissance :', member.birthPlace ?? contract?.memberBirthPlace),
-      ],
-      [
-        field('member.identityDocumentNumber', 'N° CNI/Passeport :', member.identityDocumentNumber ?? contract?.memberIdentityDocumentNumber),
-        field('member.nationality', 'Nationalité :', member.nationality || contract?.memberNationality),
-      ],
-      [
-        field('member.address', 'Adresse / Quartier :', memberAddress || contract?.memberAddress),
-        field('member.profession', 'Profession / Employeur :', member.profession || member.companyName || contract?.memberProfession),
-      ],
-      [
-        field('member.phones', 'Téléphone / WhatsApp :', contacts.filter(Boolean).join(' / ')),
-        field('member.email', 'Email :', member.email || contract?.memberEmail),
-      ],
+      ...buildMemberIdentificationRows({
+        lastName,
+        firstName,
+        birthDate: member.birthDate || contract?.memberBirthDate,
+        birthPlace: (member.birthPlace as string) ?? contract?.memberBirthPlace,
+        identityDocumentNumber: (member.identityDocumentNumber as string) ?? contract?.memberIdentityDocumentNumber,
+        identityDocumentIssuingDate: member.identityDocumentIssuingDate,
+        address: (member.address as any) || contract?.memberAddress,
+        contacts: contacts as string[],
+        whatsappNumber: member.whatsappNumber as string,
+        email: (member.email as string) || contract?.memberEmail,
+        profession: (member.profession as string) || contract?.memberProfession,
+        companyName: member.companyName as string,
+      }),
+      buildMemberContractRow(contract?.memberId, contract?.id),
     ] as FieldRow[],
     engagements: [
       [
@@ -159,8 +152,7 @@ const CaisseImprevuePDFV3 = ({
 }) => {
   const resolvedFillData = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseImprevueContractFields(contract)
-  const [[lastNameField, firstNameField]] = fields.member
-  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
+  const memberName = readField(fields.member[0][0], completion)
 
   return (
     <Document>

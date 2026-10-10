@@ -1,5 +1,6 @@
 'use client'
 
+import { formatMemberAddress, formatMemberFullName, formatMemberPhones, formatMemberProfession } from '@/components/pdf/mutuelle/memberIdentification'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -425,29 +426,20 @@ const formatDate = (date: Date | string | any): string => {
 }
 
 const buildDocumentFields = (request: MembershipRequest): AdhesionDocumentFields => {
-  const address = request.address || ({} as MembershipRequest['address'])
-  const contacts = (request.identity?.contacts || []).filter(Boolean)
-  const whatsapp = request.identity?.whatsappNumber
-  const phones = whatsapp && !contacts.includes(whatsapp) ? [...contacts, whatsapp] : contacts
   const beneficiary = request.identity?.beneficiary
 
+  // Mêmes mises en forme que le bloc d'identification des contrats
+  // (memberIdentification.ts) : la fiche et les contrats restent identiques.
   return {
-    memberFullName: [request.identity?.lastName?.toUpperCase(), request.identity?.firstName]
-      .filter(Boolean)
-      .join(' ')
-      .trim(),
+    memberFullName: formatMemberFullName(request.identity?.lastName, request.identity?.firstName),
     birthDate: formatDate(request.identity?.birthDate),
     birthPlace: request.identity?.birthPlace?.toUpperCase() || '',
     identityDocumentNumber: request.documents?.identityDocumentNumber || '',
     identityDocumentIssuingDate: formatDate(request.documents?.issuingDate),
-    addressLine: [address.district, address.arrondissement, address.city, address.province]
-      .filter(Boolean)
-      .join(', '),
-    phoneLine: phones.join(' / '),
+    addressLine: formatMemberAddress(request.address),
+    phoneLine: formatMemberPhones(request.identity?.contacts, request.identity?.whatsappNumber),
     email: request.identity?.email || '',
-    professionLine: [request.company?.profession, request.company?.companyName]
-      .filter(Boolean)
-      .join(' / '),
+    professionLine: formatMemberProfession(request.company?.profession, request.company?.companyName),
     beneficiaryFullName: [beneficiary?.lastName?.toUpperCase(), beneficiary?.firstName]
       .filter(Boolean)
       .join(' ')

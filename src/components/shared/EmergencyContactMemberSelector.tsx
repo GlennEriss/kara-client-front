@@ -1,5 +1,7 @@
 'use client'
 
+import { getUserById } from '@/db/user.db'
+import { UNKNOWN_USER_MATRICULE } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import SelectApp from '@/components/forms/SelectApp'
 import { Badge } from '@/components/ui/badge'
@@ -182,6 +184,26 @@ export default function EmergencyContactMemberSelector({
     }
   }, [phone1, onUpdate])
 
+  // « Contact inconnu » : la vraie fiche du membre INCONNU (matricule fixe),
+  // sélectionnée comme depuis la recherche.
+  const [loadingUnknown, setLoadingUnknown] = useState(false)
+  const handleSelectUnknown = async () => {
+    setLoadingUnknown(true)
+    try {
+      const unknown =
+        members.find((m) => m.id === UNKNOWN_USER_MATRICULE || m.matricule === UNKNOWN_USER_MATRICULE) ??
+        (await getUserById(UNKNOWN_USER_MATRICULE))
+      if (!unknown) {
+        toast.error(`Membre INCONNU introuvable (matricule ${UNKNOWN_USER_MATRICULE})`)
+        return
+      }
+      setSearchQuery('')
+      await handleMemberSelect(unknown)
+    } finally {
+      setLoadingUnknown(false)
+    }
+  }
+
   // Gérer la sélection d'un membre
   const handleMemberSelect = async (member: any) => {
     console.log('🔍 Membre sélectionné:', member)
@@ -299,29 +321,12 @@ export default function EmergencyContactMemberSelector({
     handleChange('relationship', value)
   }
 
-  // Contact d'urgence INCONNU : compte placeholder, sans téléphone ni pièce.
+  // Contact d'urgence INCONNU (choisi dans la recherche) : sans téléphone ni pièce.
   const UNKNOWN_MEMBER_ID = '2548.MK.290126'
   const isUnknown =
-    (lastName || '').trim().toUpperCase() === 'INCONNU' ||
+    (lastName || '').trim().toUpperCase().startsWith('INCONNU') ||
     [UNKNOWN_MEMBER_ID, 'INCONNU'].includes((memberId || selectedMemberId || '').trim())
   const isMemberLinked = !isUnknown && !!(memberId || selectedMemberId || '').trim()
-
-  const handleSelectUnknown = () => {
-    setSelectedMemberId(UNKNOWN_MEMBER_ID)
-    onUpdate('memberId', UNKNOWN_MEMBER_ID)
-    onUpdate('lastName', 'INCONNU')
-    onUpdate('firstName', '')
-    onUpdate('phone1', '')
-    onUpdate('phone2', '')
-    onUpdate('relationship', 'INCONNU')
-    onUpdate('typeId', 'INCONNU')
-    onUpdate('idNumber', 'INCONNU')
-    onUpdate('documentPhotoUrl', 'INCONNU')
-    setRelationshipOption('')
-    setCustomRelationship('')
-    setErrors({})
-    setSearchQuery('')
-  }
 
   // Valider un champ
   const validateField = (field: string, value: string) => {
@@ -525,9 +530,11 @@ export default function EmergencyContactMemberSelector({
               type="button"
               variant="outline"
               onClick={handleSelectUnknown}
+              disabled={loadingUnknown}
               className="shrink-0 border-gray-300 text-gray-700 hover:bg-gray-50"
-              title="Utiliser le contact d'urgence INCONNU (aucune information disponible)"
+              title={`Sélectionner le membre INCONNU (matricule ${UNKNOWN_USER_MATRICULE})`}
             >
+              {loadingUnknown && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
               Contact inconnu
             </Button>
           </div>

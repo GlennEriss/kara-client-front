@@ -1,6 +1,7 @@
 'use client'
+import { isCreditContractLocked } from '@/utils/contract-lock'
 import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
-import { ENDED_CREDIT_STATUSES, isCreditContractEnded } from '@/utils/credit-write-off'
+import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 import { isWeeklyCredit } from '@/utils/credit-weekly'
@@ -149,7 +150,7 @@ interface ListContratsProps {
 
 /** Afficher « Modifier contrat signé » : contrat déjà signé et pas DISCHARGED/CLOSED (doc § 2.1–2.2) */
 function canReplaceSignedContract(contract: CreditContract): boolean {
-  return Boolean(contract.signedContractUrl) && !isCreditContractEnded(contract.status)
+  return Boolean(contract.signedContractUrl) && !isCreditContractLocked(contract.status)
 }
 
 /** L'accès au détail n'est autorisé qu'après téléversement du contrat signé */
@@ -1792,7 +1793,7 @@ const ListContrats = ({
                             </Button>
                           )}
 
-                          {!isCreditContractEnded(contract.status) && (
+                          {!isCreditContractLocked(contract.status) && (
                             <Button
                               onClick={contract.contractUrl
                                 ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
@@ -1828,6 +1829,7 @@ const ListContrats = ({
                             Infos
                           </Button>
 
+                          {!isCreditContractLocked(contract.status) && (
                           <Button
                             onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
                             variant="outline"
@@ -1837,6 +1839,7 @@ const ListContrats = ({
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                             Supprimer
                           </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -1931,7 +1934,7 @@ const ListContrats = ({
                                 <User className="h-4 w-4 mr-2" />
                                 Voir toutes les infos
                               </DropdownMenuItem>
-                              {!isCreditContractEnded(contract.status) && (
+                              {!isCreditContractLocked(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={contract.contractUrl
                                     ? () => openCreditDocument(contract, contract.contractUrl, 'CONTRAT', 'Contrat')
@@ -1966,6 +1969,7 @@ const ListContrats = ({
                                   Modifier contrat signé
                                 </DropdownMenuItem>
                               )}
+                              {!isCreditContractLocked(contract.status) && (
                               <DropdownMenuItem
                                 onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractModal(true) }}
                                 className="cursor-pointer text-red-700 focus:text-red-700"
@@ -1973,6 +1977,7 @@ const ListContrats = ({
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Supprimer
                               </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

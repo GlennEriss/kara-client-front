@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
   FieldTable,
@@ -12,7 +13,6 @@ import {
   field,
   formatAmount,
   formatDate,
-  fullNameFrom,
   mutuelleStyles as styles,
   readField,
   toDate,
@@ -20,7 +20,6 @@ import {
   type DocumentField,
   type FieldRow,
 } from '@/components/pdf/mutuelle/MutuelleDocumentKit'
-import { getNationalityName } from '@/constantes/nationality'
 import { resolveContractEndAt } from '@/services/caisse/contractDates'
 import { Document, Page, Text } from '@react-pdf/renderer'
 import React from 'react'
@@ -66,9 +65,6 @@ export const buildCaisseSpecialeContractFields = (inputContract?: any) => {
   const member = (contract.member ?? {}) as Record<string, any>
   const emergencyContact = (contract.emergencyContact ?? {}) as Record<string, any>
   const contacts: string[] = Array.isArray(member.contacts) ? member.contacts.filter(Boolean) : []
-  const memberAddress = member.address && typeof member.address === 'object'
-    ? member.address.district ?? member.address.arrondissement ?? member.address.city
-    : member.address
 
   const caisseType = String(contract.caisseType ?? '')
   const isChangeable = CHANGEABLE_TYPES.has(caisseType)
@@ -86,16 +82,23 @@ export const buildCaisseSpecialeContractFields = (inputContract?: any) => {
   const optionalDate = (value: unknown) => (toDate(value) ? formatDate(value) : '')
 
   return {
+    // Identification identique à la fiche d'adhésion, puis références du contrat.
     member: [
-      [field('member.lastName', 'Nom(s) :', String(member.lastName ?? '').toUpperCase()), field('member.firstName', 'Prénom(s) :', member.firstName)],
-      [field('member.matricule', 'Matricule / N° d’adhérent :', member.matricule || contract.memberId), field('contract.id', 'Référence du contrat :', contract.id)],
-      [field('member.birthDate', 'Date de naissance :', optionalDate(member.birthDate), 'date'), field('member.birthPlace', 'Lieu de naissance :', member.birthPlace)],
-      [
-        field('member.identityDocumentNumber', 'N° CNI/Passeport :', member.identityDocumentNumber),
-        field('member.nationality', 'Nationalité :', member.nationality ? getNationalityName(member.nationality) : ''),
-      ],
-      [field('member.address', 'Adresse / Quartier :', memberAddress), field('member.profession', 'Profession / Employeur :', member.profession || member.companyName)],
-      [field('member.phones', 'Téléphone / WhatsApp :', contacts.join(' / ')), field('member.email', 'Email :', member.email)],
+      ...buildMemberIdentificationRows({
+        lastName: member.lastName,
+        firstName: member.firstName,
+        birthDate: member.birthDate,
+        birthPlace: member.birthPlace,
+        identityDocumentNumber: member.identityDocumentNumber,
+        identityDocumentIssuingDate: member.identityDocumentIssuingDate,
+        address: member.address,
+        contacts,
+        whatsappNumber: member.whatsappNumber,
+        email: member.email,
+        profession: member.profession,
+        companyName: member.companyName,
+      }),
+      buildMemberContractRow(member.matricule || contract.memberId, contract.id),
     ] as FieldRow[],
     engagements: [
       [
@@ -142,8 +145,7 @@ const CaisseSpecialePDFV3 = ({
 }) => {
   const signatures = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseSpecialeContractFields(contract)
-  const [[lastNameField, firstNameField]] = fields.member
-  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
+  const memberName = readField(fields.member[0][0], completion)
 
   return (
     <Document>

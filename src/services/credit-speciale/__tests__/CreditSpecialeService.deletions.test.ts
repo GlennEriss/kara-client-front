@@ -40,6 +40,7 @@ import { CreditSpecialeService } from '../CreditSpecialeService'
 describe('CreditSpecialeService - deleteGuarantorPayment', () => {
   let service: CreditSpecialeService
   let guarantorPaymentRepository: Partial<IGuarantorPaymentRepository>
+  let contractRepository: { getContractById: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -47,9 +48,10 @@ describe('CreditSpecialeService - deleteGuarantorPayment', () => {
       getPaymentById: vi.fn(),
       deletePayment: vi.fn(),
     }
+    contractRepository = { getContractById: vi.fn().mockResolvedValue({ id: 'c-1', status: 'ACTIVE' }) }
     service = new CreditSpecialeService(
       {} as ICreditDemandRepository,
-      {} as ICreditContractRepository,
+      contractRepository as unknown as ICreditContractRepository,
       {} as ICreditPaymentRepository,
       {} as ICreditPenaltyRepository,
       {} as IGuarantorRemunerationRepository,
@@ -78,6 +80,14 @@ describe('CreditSpecialeService - deleteGuarantorPayment', () => {
 
     await expect(service.deleteGuarantorPayment('gp-1')).resolves.toBeUndefined()
     expect(guarantorPaymentRepository.deletePayment).toHaveBeenCalledWith('gp-1')
+  })
+
+  it('refuse sur un contrat terminé', async () => {
+    vi.mocked(guarantorPaymentRepository.getPaymentById!).mockResolvedValue({ id: 'gp-1', creditId: 'c-1' } as any)
+    contractRepository.getContractById.mockResolvedValue({ id: 'c-1', status: 'CLOSED' })
+
+    await expect(service.deleteGuarantorPayment('gp-1')).rejects.toThrow('terminé ou résilié')
+    expect(guarantorPaymentRepository.deletePayment).not.toHaveBeenCalled()
   })
 
   it('refuse un versement introuvable', async () => {
@@ -147,6 +157,14 @@ describe('CreditSpecialeService - deletePayment', () => {
       remunerationRepository as IGuarantorRemunerationRepository,
       {} as IGuarantorPaymentRepository
     )
+  })
+
+  it('refuse de supprimer un versement sur un contrat soldé ou clos', async () => {
+    for (const status of ['DISCHARGED', 'CLOSED', 'WRITTEN_OFF']) {
+      vi.mocked(contractRepository.getContractById!).mockResolvedValueOnce({ ...contract, status } as any)
+      await expect(service.deletePayment('M2_credit-1', 'admin-1')).rejects.toThrow('terminé ou résilié')
+    }
+    expect(paymentRepository.deletePayment).not.toHaveBeenCalled()
   })
 
   it('supprime le dernier paiement et défait ses effets', async () => {

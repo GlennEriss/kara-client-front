@@ -1,5 +1,6 @@
 'use client'
 
+import { useWithIdentityIssuingDate } from '@/hooks/useMemberIdentityIssuingDate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -176,7 +177,9 @@ const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps
   const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre
-  const { data: memberData, isLoading: memberLoading } = useMember(contract.clientId)
+  const { data: rawMemberData, isLoading: memberLoading } = useMember(contract.clientId)
+  // Date de délivrance de la pièce : dans le dossier d'adhésion, comme sur la fiche.
+  const memberData = useWithIdentityIssuingDate(rawMemberData)
 
   // Récupérer les informations du garant si c'est un membre
   const { data: guarantorData } = useMember(

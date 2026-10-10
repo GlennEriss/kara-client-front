@@ -1,5 +1,6 @@
 'use client'
 
+import { useWithIdentityIssuingDate } from '@/hooks/useMemberIdentityIssuingDate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -175,7 +176,9 @@ export default function ViewContractCIModal({ isOpen, onClose, contract }: ViewC
   const { completion, setCompletion, previewCompletion } = useDocumentCompletion(isOpen, contract?.id)
   const skipDebouncePreviewRef = useRef(false)
 
-  const { data: member, isLoading: memberLoading } = useMemberById(contract?.memberId)
+  const { data: rawMember, isLoading: memberLoading } = useMemberById(contract?.memberId)
+  // Date de délivrance de la pièce : dans le dossier d'adhésion, comme sur la fiche.
+  const member = useWithIdentityIssuingDate(rawMember)
 
   const contractWithMember = useMemo(() => {
     if (!contract) return null

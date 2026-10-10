@@ -1,5 +1,6 @@
 'use client'
 
+import { useWithIdentityIssuingDate } from '@/hooks/useMemberIdentityIssuingDate'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
@@ -27,7 +28,9 @@ export default function DownloadContractCIModal({
   contract
 }: DownloadContractCIModalProps) {
   const [isGenerating, setIsGenerating] = useState(false)
-  const { data: member } = useMemberById(contract?.memberId)
+  const { data: rawMember } = useMemberById(contract?.memberId)
+  // Date de délivrance de la pièce : dans le dossier d'adhésion, comme sur la fiche.
+  const member = useWithIdentityIssuingDate(rawMember)
   const contractWithMember = useMemo(() => {
     if (!contract) return null
     return { ...contract, member: member ?? undefined }

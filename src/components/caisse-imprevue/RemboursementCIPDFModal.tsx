@@ -1,5 +1,6 @@
 'use client'
 
+import { useWithIdentityIssuingDate } from '@/hooks/useMemberIdentityIssuingDate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -178,7 +179,9 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
   const skipDebouncePreviewRef = useRef(false)
 
   // Récupérer les informations du membre si memberId est disponible
-  const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId || '')
+  const { data: rawMemberData, isLoading: memberLoading } = useMember(contractData?.memberId || '')
+  // Date de délivrance de la pièce : dans le dossier d'adhésion, comme sur la fiche.
+  const memberData = useWithIdentityIssuingDate(rawMemberData)
   
   // Récupérer les statistiques de paiement pour obtenir le montant total versé
   const { data: paymentStats } = useContractPaymentStats(contractId)

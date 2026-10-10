@@ -52,8 +52,10 @@ describe('complétion des documents', () => {
       }),
     ).map((item) => item.key)
 
-    expect(missing).toEqual(expect.arrayContaining(['member.email', 'member.birthDate', 'emergency.lastName']))
-    expect(missing).not.toContain('member.lastName')
+    expect(missing).toEqual(
+      expect.arrayContaining(['member.email', 'member.birth', 'member.identityDocumentIssuingDate', 'emergency.lastName']),
+    )
+    expect(missing).not.toContain('member.fullName')
     expect(missing).not.toContain('signedAt')
   })
 

@@ -1,4 +1,5 @@
 'use client'
+import { isCaisseImprevueContractLocked } from '@/utils/contract-lock'
 import dynamic from 'next/dynamic'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -379,7 +380,7 @@ function ContractCIGridCard({
               <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
               Valider
             </Button>
-          ) : (
+          ) : isCaisseImprevueContractLocked(contract.status) ? null : (
             <Button
               variant="outline"
               size="sm"
@@ -437,6 +438,7 @@ function ContractCIGridCard({
             </Button>
           )}
 
+          {!isCaisseImprevueContractLocked(contract.status) && (
           <Button
             variant="outline"
             size="sm"
@@ -446,6 +448,7 @@ function ContractCIGridCard({
             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
             Supprimer
           </Button>
+          )}
           </div>
         </div>
       </CardContent>
@@ -1407,7 +1410,7 @@ export default function ListContractsCISection() {
                                     <CheckCircle className="h-4 w-4 mr-2" />
                                     Valider la signature
                                   </DropdownMenuItem>
-                                ) : (
+                                ) : isCaisseImprevueContractLocked(contract.status) ? null : (
                                   <DropdownMenuItem
                                     onClick={() => handleUploadContract(contract)}
                                     className="cursor-pointer"
@@ -1441,6 +1444,7 @@ export default function ListContractsCISection() {
                                     Contrat de résiliation
                                   </DropdownMenuItem>
                                 )}
+                                {!isCaisseImprevueContractLocked(contract.status) && (
                                 <DropdownMenuItem
                                   onClick={() => { setSelectedContractForDelete(contract); setShowDeleteContractCIModal(true) }}
                                   className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -1448,6 +1452,7 @@ export default function ListContractsCISection() {
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Supprimer
                                 </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

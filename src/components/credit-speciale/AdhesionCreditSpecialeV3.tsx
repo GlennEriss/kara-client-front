@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
   FieldTable,
@@ -21,7 +22,7 @@ import {
   type FieldRow,
   type MutuelleSigner,
 } from '@/components/pdf/mutuelle/MutuelleDocumentKit'
-import { calculateAgeFromBirthDate, getIdentityDocumentLabel } from '@/components/pdf/MemberInfoRows'
+import { getIdentityDocumentLabel } from '@/components/pdf/MemberInfoRows'
 import { getNationalityName } from '@/constantes/nationality'
 import type { CreditContract } from '@/types/types'
 import { addContractMonths } from '@/utils/contract-months'
@@ -113,35 +114,23 @@ export const buildCreditContractFields = ({ contract, memberData, guarantorData 
     : String(guarantorData?.address ?? '')
 
   return {
+    // Identification identique à la fiche d'adhésion, puis références du contrat.
     member: [
-      [
-        field('member.lastName', 'Nom(s) :', String(memberData?.lastName || contract.clientLastName || '').toUpperCase()),
-        field('member.firstName', 'Prénom(s) :', memberData?.firstName || contract.clientFirstName),
-      ],
-      [
-        field('member.matricule', 'Matricule / N° d’adhérent :', memberData?.matricule || memberData?.id || contract.clientId),
-        field('contract.id', 'Référence du contrat :', contract.id),
-      ],
-      [
-        field('member.birthDate', 'Date de naissance :', optionalDate(memberData?.birthDate), 'date'),
-        field('member.birthPlace', 'Lieu de naissance :', memberData?.birthPlace),
-      ],
-      [
-        field(
-          'member.identityDocumentNumber',
-          memberData?.identityDocument ? `${getIdentityDocumentLabel(memberData.identityDocument)} n° :` : 'N° CNI/Passeport :',
-          memberData?.identityDocumentNumber,
-        ),
-        field('member.nationality', 'Nationalité :', memberData?.nationality ? getNationalityName(memberData.nationality) : ''),
-      ],
-      [
-        field('member.age', 'Âge :', memberData?.birthDate ? calculateAgeFromBirthDate(memberData.birthDate) : ''),
-        field('member.profession', 'Profession :', memberData?.profession),
-      ],
-      [
-        field('member.quarter', 'Quartier :', memberData?.address?.district || memberData?.address?.arrondissement),
-        field('member.phones', 'Téléphone(s) :', memberPhones.join(' / ')),
-      ],
+      ...buildMemberIdentificationRows({
+        lastName: memberData?.lastName || contract.clientLastName,
+        firstName: memberData?.firstName || contract.clientFirstName,
+        birthDate: memberData?.birthDate,
+        birthPlace: memberData?.birthPlace,
+        identityDocumentNumber: memberData?.identityDocumentNumber,
+        identityDocumentIssuingDate: (memberData as { identityDocumentIssuingDate?: unknown } | undefined)?.identityDocumentIssuingDate,
+        address: memberData?.address,
+        contacts: memberPhones,
+        whatsappNumber: memberData?.whatsappNumber,
+        email: memberData?.email,
+        profession: memberData?.profession,
+        companyName: memberData?.companyName,
+      }),
+      buildMemberContractRow(memberData?.matricule || memberData?.id || contract.clientId, contract.id),
     ] as FieldRow[],
     guarantor: [
       [
@@ -165,13 +154,13 @@ const AdhesionCreditSpecialeV3 = ({ contract, memberData, guarantorData, fillDat
   const filled = { ...EMPTY_ADHESION_CREDIT_SPECIALE_FILL_DATA, ...fillData }
   const fields = buildCreditContractFields({ contract, memberData, guarantorData })
   const read = (target: DocumentField) => readField(target, completion)
-  const [[lastNameField, firstNameField]] = fields.member
-  const memberName = fullNameFrom(read(lastNameField), read(firstNameField))
+  const memberName = read(fields.member[0][0])
   const [[guarantorLastNameField, guarantorFirstNameField]] = fields.guarantor
   const guarantorName = fullNameFrom(read(guarantorLastNameField), read(guarantorFirstNameField))
-  const memberNationality = read(fields.member[3][1])
-  const memberQuarter = read(fields.member[5][0])
-  const memberPhone = read(fields.member[5][1]).split(' / ')[0]
+  // Hors du tableau (absents de la fiche d'adhésion) mais repris dans le texte du contrat.
+  const memberNationality = memberData?.nationality ? getNationalityName(memberData.nationality) : ''
+  const memberQuarter = memberData?.address?.district || memberData?.address?.arrondissement || ''
+  const memberPhone = read(fields.member[2][1]).split(' / ')[0]
 
   const creditAmount = contract.totalAmount ?? contract.amount
   const guaranteeAmount = contract.totalAmount || contract.amount

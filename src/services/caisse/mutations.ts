@@ -1,4 +1,5 @@
 import { createContract, getContract, updateContract } from '@/db/caisse/contracts.db'
+import { assertContractUnlocked, isCaisseSpecialeContractLocked } from '@/utils/contract-lock'
 import { addPayment, listPayments, updatePayment } from '@/db/caisse/payments.db'
 import { addRefund, listRefunds, updateRefund, deleteRefund } from '@/db/caisse/refunds.db'
 import { getActiveSettings } from '@/db/caisse/settings.db'
@@ -275,6 +276,7 @@ function getContractStartDate(contract: any): Date | null {
 export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; withFees?: boolean; paymentMethodOther?: string; agentRecouvrementId?: string }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
+  assertContractUnlocked(isCaisseSpecialeContractLocked(contract.status))
   const [settings, payments] = await Promise.all([
     getActiveSettings((contract as any).caisseType),
     listPayments(input.contractId),
@@ -545,6 +547,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
 export async function requestFinalRefund(contractId: string, reason?: string) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
+  assertContractUnlocked(isCaisseSpecialeContractLocked(c.status))
   // Vérifier que tout est payé
   const payments = await listPayments(contractId)
   const allPaid = payments.length > 0 && payments.every((p: any) => p.status === 'PAID')
@@ -598,6 +601,7 @@ export async function requestEarlyRefund(contractId: string, input?: {
 }) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
+  assertContractUnlocked(isCaisseSpecialeContractLocked(c.status))
   // Verrou M4: compter les paiements effectués
   const payments = await listPayments(contractId)
   const paidCount = payments.filter((p: any)=> p.status === 'PAID').length
@@ -887,6 +891,8 @@ export async function updatePaymentContribution(input: {
   }
 }) {
   const { contractId, paymentId, contributionId, updates } = input
+  const lockedContract = await getContract(contractId)
+  assertContractUnlocked(isCaisseSpecialeContractLocked(lockedContract?.status))
   
   // Récupérer le paiement et la contribution
   const payments = await listPayments(contractId)
@@ -1143,6 +1149,7 @@ export async function payGroup(input: {
 }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
+  assertContractUnlocked(isCaisseSpecialeContractLocked(contract.status))
   
   // Vérifier que c'est bien un contrat de groupe
   const isGroupContract = contract.contractType === 'GROUP' || (contract as any).groupeId

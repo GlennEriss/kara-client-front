@@ -1,4 +1,5 @@
 "use client"
+import { latestCaisseSpecialePayment } from '@/utils/payment-deletion-order'
 import dynamic from 'next/dynamic'
 import { StatStrip } from '@/components/ui/stat-strip'
 import { contractBonusSummary, formatContractPeriod } from '@/services/caisse/contractLabels'
@@ -326,6 +327,8 @@ export default function DailyContract({ id }: Props) {
 
   // Calculer la progression des mois payés
   const payments = data?.payments || []
+  // Seul le dernier versement se supprime (puis le précédent) : comme au crédit spécial.
+  const latestPayment = latestCaisseSpecialePayment(payments)
   const paidCount = payments.filter((payment: any) => payment.status === 'PAID').length
   const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
 
@@ -976,7 +979,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                       variant="outline"
                       className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                  disabled={isRefunding || !allPaid || hasFinalRefund}
+                  disabled={isClosed || isRefunding || !allPaid || hasFinalRefund}
                   onClick={() => {
                     setRefundType('FINAL')
                     setRefundReasonInput('')
@@ -990,7 +993,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   variant="outline"
                       className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-                  disabled={isRefunding || !canEarly || hasEarlyRefund}
+                  disabled={isClosed || isRefunding || !canEarly || hasEarlyRefund}
                   onClick={() => setShowEarlyRefundModal(true)}
                 >
                       <Download className="h-5 w-5" />
@@ -2032,7 +2035,7 @@ export default function DailyContract({ id }: Props) {
                 return contribDate.getTime() === selected.getTime()
               }) || payment.contribs[0]
 
-              if (!isSuperAdmin) return null
+              if (!isSuperAdmin || isClosed) return null
               return (
                 <Button
                   onClick={() => {
@@ -2059,20 +2062,24 @@ export default function DailyContract({ id }: Props) {
             })()}
 
             {/* Bouton Supprimer le versement (après Modifier) : autorisé seulement si contrat actif */}
-            {isSuperAdmin && !isGroupContract && paymentDetails?.status === 'PAID' && paymentDetails?.id && canDeletePayment(data ?? null) && (
+            {isSuperAdmin && !isGroupContract && paymentDetails?.status === 'PAID' && paymentDetails?.id && canDeletePayment(data ?? null) && (() => {
+              const payment = paymentDetails
+              const contribution = payment?.contribs?.find((c: any) => {
+                if (!c?.paidAt || !selectedDate) return false
+                const contribDate = typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+                contribDate.setHours(0, 0, 0, 0)
+                const selected = new Date(selectedDate)
+                selected.setHours(0, 0, 0, 0)
+                return contribDate.getTime() === selected.getTime()
+              }) || payment?.contribs?.[0]
+              // Uniquement le versement le plus récent du contrat.
+              const isLatest = !!latestPayment && latestPayment.paymentId === payment.id &&
+                (!latestPayment.contributionId || String(contribution?.id ?? '') === latestPayment.contributionId)
+              if (!isLatest) return null
+              return (
               <Button
                 variant="outline"
                 onClick={() => {
-                  const payment = paymentDetails
-                  const contribution = payment?.contribs?.find((c: any) => {
-                    if (!c?.paidAt || !selectedDate) return false
-                    const contribDate = typeof c.paidAt?.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
-                    contribDate.setHours(0, 0, 0, 0)
-                    const selected = new Date(selectedDate)
-                    selected.setHours(0, 0, 0, 0)
-                    return contribDate.getTime() === selected.getTime()
-                  }) || payment?.contribs?.[0]
-
                   setConfirmDeletePayment({
                     paymentId: paymentDetails.id,
                     contributionId: contribution?.id,
@@ -2084,7 +2091,8 @@ export default function DailyContract({ id }: Props) {
                 <Trash2 className="h-4 w-4" />
                 Supprimer
               </Button>
-            )}
+              )
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
