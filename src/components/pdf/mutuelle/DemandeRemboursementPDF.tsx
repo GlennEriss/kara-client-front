@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows, type MemberIdentitySource } from './memberIdentification'
 import { Document, Page, Text } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -46,11 +47,10 @@ export interface RefundRequestPdfData {
   /** « Caisse Imprévue », « Caisse Spéciale »… */
   productLabel: string
   type: 'FINAL' | 'EARLY'
-  member: {
-    lastName?: string
-    firstName?: string
+  /** Identité du membre, mêmes rubriques que la fiche d'adhésion. */
+  member: MemberIdentitySource & {
     matricule?: string
-    identityDocumentNumber?: string
+    /** Ancien champ (un seul numéro), utilisé si `contacts` est vide. */
     phone?: string
   }
   contract: {
@@ -81,18 +81,18 @@ export default function DemandeRemboursementPDF({ data }: { data: RefundRequestP
     ? `DEMANDE DE RETRAIT ANTICIPÉ — CONTRAT DE ${product.toUpperCase()}`
     : `DEMANDE DE REMBOURSEMENT FINAL — CONTRAT DE ${product.toUpperCase()}`
 
+  // Identification identique à la fiche d'adhésion, puis le contrat.
   const identification: FieldRow[] = [
-    [
-      field('member.lastName', 'Nom(s) du membre :', String(data.member.lastName ?? '').toUpperCase()),
-      field('member.firstName', 'Prénom(s) du membre :', data.member.firstName),
-    ],
-    [field('member.matricule', 'Matricule / N° d’Adhérent :', data.member.matricule), field('contract.id', 'Référence du contrat :', data.contract.id)],
+    ...buildMemberIdentificationRows({
+      ...data.member,
+      contacts: data.member.contacts?.length ? data.member.contacts : [data.member.phone],
+    }),
+    buildMemberContractRow(data.member.matricule, data.contract.id),
     [
       field('contract.formula', `Formule de ${product} :`, data.contract.formula),
       field('contract.duration', 'Durée du contrat :', data.contract.durationMonths ? `${data.contract.durationMonths} mois` : ''),
     ],
     [field('contract.startDate', 'Date de début :', optionalDate(data.contract.startDate)), field('contract.endDate', 'Date de fin :', optionalDate(data.contract.endDate))],
-    [field('member.identityDocumentNumber', 'N° CNI/Passeport :', data.member.identityDocumentNumber), field('member.phone', 'Téléphone :', data.member.phone)],
   ]
   const request: FieldRow[] = [
     [

@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows, type MemberIdentitySource } from '@/components/pdf/mutuelle/memberIdentification'
 import { Document, Page, Text } from '@react-pdf/renderer'
 import React from 'react'
 
@@ -16,7 +17,6 @@ import {
   field,
   formatAmount,
   formatDate,
-  fullNameFrom,
   mutuelleStyles as styles,
   numberToWords,
   readField,
@@ -65,7 +65,7 @@ export interface QuittanceCaisseImprevuePdfFillData {
   memberSignature: string | null
 }
 
-interface LiquidationMemberData {
+interface LiquidationMemberData extends MemberIdentitySource {
   id?: string
   matricule?: string
   lastName?: string
@@ -112,14 +112,22 @@ export const buildCaisseImprevueLiquidationFields = ({
   return {
     amountPaid,
     member: [
-      [
-        field('member.lastName', 'Nom(s) du membre :', String(memberData?.lastName ?? contract.memberLastName ?? '').toUpperCase()),
-        field('member.firstName', 'Prénom(s) du membre :', memberData?.firstName ?? contract.memberFirstName),
-      ],
-      [
-        field('member.matricule', 'Matricule / N° d’Adhérent :', memberData?.matricule ?? memberData?.id ?? contract.memberId),
-        field('contract.id', 'Référence du contrat :', contract.id),
-      ],
+      // Identification identique à la fiche d'adhésion, puis le contrat.
+      ...buildMemberIdentificationRows({
+        lastName: memberData?.lastName ?? (contract.memberLastName as string),
+        firstName: memberData?.firstName ?? (contract.memberFirstName as string),
+        birthDate: memberData?.birthDate,
+        birthPlace: memberData?.birthPlace,
+        identityDocumentNumber: memberData?.identityDocumentNumber,
+        identityDocumentIssuingDate: memberData?.identityDocumentIssuingDate,
+        address: memberData?.address,
+        contacts: contacts as string[],
+        whatsappNumber: memberData?.whatsappNumber,
+        email: memberData?.email,
+        profession: memberData?.profession,
+        companyName: memberData?.companyName,
+      }),
+      buildMemberContractRow(memberData?.matricule ?? memberData?.id ?? contract.memberId, contract.id),
       [
         field('contract.formula', 'Formule de Caisse Imprévue :', contract.subscriptionCILabel ?? contract.subscriptionCICode),
         field('contract.frequency', 'Fréquence de cotisation :', frequencyLabel(contract.paymentFrequency)),
@@ -130,10 +138,6 @@ export const buildCaisseImprevueLiquidationFields = ({
       ],
       [
         field('contract.duration', 'Durée du contrat :', contract.subscriptionCIDuration ? `${contract.subscriptionCIDuration} mois` : ''),
-        field('member.phone', 'Téléphone :', contacts[0]),
-      ],
-      [
-        field('member.identityDocumentNumber', 'N° CNI/Passeport :', memberData?.identityDocumentNumber),
         field('signer.role', 'Qualité du signataire :', 'Membre / Réceptionnaire'),
       ],
     ] as FieldRow[],
@@ -170,8 +174,7 @@ const QuittanceCaisseImprevuePDF = ({
 }) => {
   const signatures = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseImprevueLiquidationFields({ contract, refund, memberData, totalAmountPaid })
-  const [[lastNameField, firstNameField]] = fields.member
-  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
+  const memberName = readField(fields.member[0][0], completion)
   const paidDate = readField(fields.paidDate, completion) || EMPTY
   const amountPaid = fields.amountPaid
 

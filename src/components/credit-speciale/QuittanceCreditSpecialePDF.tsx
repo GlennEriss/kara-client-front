@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
   FieldTable,
@@ -13,7 +14,6 @@ import {
   field,
   formatAmount,
   formatDate,
-  fullNameFrom,
   mutuelleStyles as styles,
   numberToWords,
   readField,
@@ -78,18 +78,25 @@ export const buildCreditLiquidationFields = ({ contract, guarantorPhone, memberD
     totalAmount,
     debtAmount,
     member: [
-      [
-        field('member.lastName', 'Nom(s) du membre :', String(memberData?.lastName || contract.clientLastName || '').toUpperCase()),
-        field('member.firstName', 'Prénom(s) du membre :', memberData?.firstName || contract.clientFirstName),
-      ],
-      [field('member.matricule', 'Matricule / N° d’Adhérent :', memberData?.matricule || contract.clientId), field('contract.id', 'Référence du contrat :', contract.id)],
+      // Identification identique à la fiche d'adhésion, puis le crédit.
+      ...buildMemberIdentificationRows({
+        lastName: memberData?.lastName || contract.clientLastName,
+        firstName: memberData?.firstName || contract.clientFirstName,
+        birthDate: memberData?.birthDate,
+        birthPlace: memberData?.birthPlace,
+        identityDocumentNumber: memberData?.identityDocumentNumber,
+        identityDocumentIssuingDate: (memberData as { identityDocumentIssuingDate?: unknown } | undefined)?.identityDocumentIssuingDate,
+        address: memberData?.address,
+        contacts: memberData?.contacts?.length ? memberData.contacts : contract.clientContacts,
+        whatsappNumber: memberData?.whatsappNumber,
+        email: memberData?.email,
+        profession: memberData?.profession,
+        companyName: memberData?.companyName,
+      }),
+      buildMemberContractRow(memberData?.matricule || contract.clientId, contract.id),
       [
         field('contract.creditType', 'Nature du crédit :', CREDIT_TYPE_LABELS[contract.creditType]),
         field('contract.startDate', 'Date de début :', optionalDate(contract.firstPaymentDate), 'date'),
-      ],
-      [
-        field('member.identityDocumentNumber', 'N° CNI/Passeport :', memberData?.identityDocumentNumber),
-        field('member.phone', 'Téléphone :', memberData?.contacts?.[0] || contract.clientContacts?.[0]),
       ],
       [
         field('guarantor.name', 'Caution solidaire :', guarantorName),
@@ -122,9 +129,8 @@ const QuittanceCreditSpecialePDF = ({
 }: QuittanceCreditSpecialePDFProps) => {
   const signatures = { ...EMPTY_QUITTANCE_CREDIT_SPECIALE_FILL_DATA, ...fillData }
   const fields = buildCreditLiquidationFields({ contract, guarantorPhone, memberData, guarantorData })
-  const [[lastNameField, firstNameField]] = fields.member
-  const clientName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
-  const guarantorName = readField(fields.member[4][0], completion)
+  const clientName = readField(fields.member[0][0], completion)
+  const guarantorName = readField(fields.member.flat().find((f) => f.key === 'guarantor.name')!, completion)
   const { totalAmount, debtAmount } = fields
   const quittanceDate = readField(fields.settledAt, completion) || EMPTY
 

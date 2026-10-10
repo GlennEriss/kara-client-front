@@ -1,5 +1,6 @@
 'use client'
 
+import { buildMemberContractRow, buildMemberIdentificationRows } from '@/components/pdf/mutuelle/memberIdentification'
 import {
   EMPTY,
   FieldTable,
@@ -13,7 +14,6 @@ import {
   field,
   formatAmount,
   formatDate,
-  fullNameFrom,
   mutuelleStyles as styles,
   numberToWords,
   readField,
@@ -95,14 +95,27 @@ export const buildCaisseSpecialeLiquidationFields = ({ contract: inputContract, 
   return {
     amountPaid,
     member: [
-      [field('member.lastName', 'Nom(s) du membre :', String(member.lastName ?? '').toUpperCase()), field('member.firstName', 'Prénom(s) du membre :', member.firstName)],
-      [field('member.matricule', 'Matricule / N° d’Adhérent :', member.matricule || contract.memberId), field('contract.id', 'Référence du contrat :', contract.id)],
+      // Identification identique à la fiche d'adhésion, puis le contrat.
+      ...buildMemberIdentificationRows({
+        lastName: member.lastName,
+        firstName: member.firstName,
+        birthDate: member.birthDate,
+        birthPlace: member.birthPlace,
+        identityDocumentNumber: member.identityDocumentNumber,
+        identityDocumentIssuingDate: member.identityDocumentIssuingDate,
+        address: member.address,
+        contacts,
+        whatsappNumber: member.whatsappNumber,
+        email: member.email,
+        profession: member.profession,
+        companyName: member.companyName,
+      }),
+      buildMemberContractRow(member.matricule || contract.memberId, contract.id),
       [
         field('contract.caisseType', 'Type de Caisse Spéciale :', CAISSE_TYPE_LABELS[caisseType] ?? caisseType),
         field('contract.duration', 'Durée du contrat :', durationMonths > 0 ? `${durationMonths} mois` : ''),
       ],
       [field('contract.startDate', 'Date de début :', optionalDate(startDate), 'date'), field('contract.endDate', 'Date de fin :', optionalDate(endDate), 'date')],
-      [field('member.identityDocumentNumber', 'N° CNI/Passeport :', member.identityDocumentNumber), field('member.phone', 'Téléphone :', contacts[0])],
     ] as FieldRow[],
     liquidation: [
       [field('refund.type', 'Nature de la liquidation :', liquidationType), paidDate],
@@ -135,8 +148,7 @@ const QuittanceCaisseSpecialePDF = ({
 }) => {
   const signatures = fillData ?? DEFAULT_FILL_DATA
   const fields = buildCaisseSpecialeLiquidationFields({ contract, refund })
-  const [[lastNameField, firstNameField]] = fields.member
-  const memberName = fullNameFrom(readField(lastNameField, completion), readField(firstNameField, completion))
+  const memberName = readField(fields.member[0][0], completion)
   const paidDate = readField(fields.paidDate, completion) || EMPTY
   const amountPaid = fields.amountPaid
 

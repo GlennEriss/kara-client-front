@@ -1,5 +1,6 @@
 'use client'
 
+import { useWithIdentityIssuingDate } from '@/hooks/useMemberIdentityIssuingDate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -178,7 +179,9 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
   const guarantorPhone = guarantorData?.contacts?.[0] || '—'
 
   // Récupérer les informations complètes du membre (client)
-  const { data: memberData } = useMember(contract.clientId)
+  const { data: rawMemberData } = useMember(contract.clientId)
+  // Date de délivrance de la pièce : dans le dossier d'adhésion, comme sur la fiche.
+  const memberData = useWithIdentityIssuingDate(rawMemberData)
 
   // Nom du fichier : Quittance_Empunt_Nom_Prenom_du_membre.pdf
   const lastName = (contract.clientLastName || 'Membre').replace(/[\s/\\?*:|"<>]/g, '_').trim()
