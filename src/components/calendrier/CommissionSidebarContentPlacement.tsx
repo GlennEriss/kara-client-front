@@ -10,6 +10,7 @@ import { roundFcfa } from "@/utils/placementMoney"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AlertCircle, BarChart3, Calendar, CheckCircle2, Clock, History, TrendingUp } from "lucide-react"
+import { useShownAmount } from "./useShownAmount"
 
 interface CommissionSidebarContentPlacementProps {
   commission: CalendarCommissionItem
@@ -67,6 +68,7 @@ export function CommissionSidebarContentPlacement({
   showReceipt,
   receiptUrl,
 }: CommissionSidebarContentPlacementProps) {
+  const shownAmount = useShownAmount()
   const { canDownloadDocuments } = useMyAccess()
   const { data: allCommissions = [], isLoading } = usePlacementCommissions(
     commission.placement.id
@@ -135,7 +137,7 @@ export function CommissionSidebarContentPlacement({
               <span className="text-sm">{isCapital ? "Capital à restituer" : "Montant"}</span>
             </div>
             <span className={cn("text-lg font-bold", colorConfig.text)}>
-              {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
+              {shownAmount(roundFcfa(commission.paidAmount ?? commission.amount))} FCFA
             </span>
           </div>
 
@@ -178,7 +180,7 @@ export function CommissionSidebarContentPlacement({
             <div className="bg-white rounded-xl p-3 border border-gray-100">
               <div className="text-xs text-gray-500">Total payé</div>
               <div className="text-lg font-bold text-emerald-600">
-                {totalPaid.toLocaleString("fr-FR")} F
+                {shownAmount(totalPaid)} F
               </div>
             </div>
             <div className="bg-white rounded-xl p-3 border border-gray-100">
@@ -226,7 +228,7 @@ export function CommissionSidebarContentPlacement({
                             {format(c.dueDate, "dd MMM yyyy", { locale: fr })}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {roundFcfa(c.paidAmount ?? c.amount).toLocaleString("fr-FR")} FCFA
+                            {shownAmount(roundFcfa(c.paidAmount ?? c.amount))} FCFA
                           </div>
                         </div>
                         <span className={cn(
@@ -261,7 +263,7 @@ export function CommissionSidebarContentPlacement({
                             {format(c.dueDate, "dd MMM yyyy", { locale: fr })}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {roundFcfa(c.paidAmount ?? c.amount).toLocaleString("fr-FR")} FCFA
+                            {shownAmount(roundFcfa(c.paidAmount ?? c.amount))} FCFA
                           </div>
                         </div>
                         <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-100 text-blue-700">

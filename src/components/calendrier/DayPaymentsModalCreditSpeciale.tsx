@@ -5,6 +5,7 @@ import type {
   CalendarPaymentItemCredit,
   DayPaymentsCredit,
 } from "@/hooks/useCalendarCreditSpeciale"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -69,6 +70,7 @@ export function DayPaymentsModalCreditSpeciale({
   dayPayments,
   onPaymentClick,
 }: DayPaymentsModalCreditSpecialeProps) {
+  const { canSeeAmounts } = useMyAccess()
   const progressPercentage =
     dayPayments.totalAmount > 0 ? (dayPayments.paidAmount / dayPayments.totalAmount) * 100 : 0
 
@@ -92,29 +94,31 @@ export function DayPaymentsModalCreditSpeciale({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
-              <div className="text-xl font-bold mt-1">
-                {dayPayments.totalAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
+          {canSeeAmounts && (
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
+                <div className="text-xl font-bold mt-1">
+                  {dayPayments.totalAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
+                <div className="text-xl font-bold text-emerald-300 mt-1">
+                  {dayPayments.paidAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
+                <div className="text-xl font-bold text-orange-300 mt-1">
+                  {dayPayments.remainingAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
-              <div className="text-xl font-bold text-emerald-300 mt-1">
-                {dayPayments.paidAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
-              <div className="text-xl font-bold text-orange-300 mt-1">
-                {dayPayments.remainingAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           <div className="mt-4">
             <div className="flex items-center justify-between text-xs text-white/60 mb-2">
@@ -171,10 +175,14 @@ export function DayPaymentsModalCreditSpeciale({
                           </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-sm">
-                          <span className={cn("font-bold", colorConfig.text)}>
-                            {payment.amount.toLocaleString("fr-FR")} FCFA
-                          </span>
-                          <span className="text-gray-400">•</span>
+                          {canSeeAmounts && (
+                            <>
+                              <span className={cn("font-bold", colorConfig.text)}>
+                                {payment.amount.toLocaleString("fr-FR")} FCFA
+                              </span>
+                              <span className="text-gray-400">•</span>
+                            </>
+                          )}
                           <span className="text-gray-500 text-xs">
                             Échéance {payment.installment.installmentNumber}
                           </span>

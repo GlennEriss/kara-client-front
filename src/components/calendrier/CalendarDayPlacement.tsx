@@ -1,6 +1,7 @@
 "use client"
 
 import type { DayCommissions } from "@/hooks/useCalendarPlacement"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -44,6 +45,7 @@ export function CalendarDayPlacement({
   isToday,
   onClick,
 }: CalendarDayPlacementProps) {
+  const { canSeeAmounts } = useMyAccess()
   const hasCommissions = dayCommissions && dayCommissions.count > 0
   const color = dayCommissions?.color || "gray"
 
@@ -90,12 +92,14 @@ export function CalendarDayPlacement({
       {/* Informations des commissions */}
       {hasCommissions && (
         <div className="space-y-1.5">
-          <div className={cn(
-            "text-xs font-semibold",
-            COLOR_TEXT_CLASSES[color]
-          )}>
-            {dayCommissions.totalAmount.toLocaleString("fr-FR")} F
-          </div>
+          {canSeeAmounts && (
+            <div className={cn(
+              "text-xs font-semibold",
+              COLOR_TEXT_CLASSES[color]
+            )}>
+              {dayCommissions.totalAmount.toLocaleString("fr-FR")} F
+            </div>
+          )}
           
           {/* Barre de progression */}
           <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
@@ -117,18 +121,20 @@ export function CalendarDayPlacement({
           </div>
 
           {/* Détails */}
-          <div className="flex items-center justify-between text-[10px]">
-            {dayCommissions.paidAmount > 0 && (
-              <span className="text-emerald-600 font-medium">
-                ✓ {dayCommissions.paidAmount.toLocaleString("fr-FR")}
-              </span>
-            )}
-            {dayCommissions.remainingAmount > 0 && (
-              <span className="text-orange-600 font-medium">
-                ◷ {dayCommissions.remainingAmount.toLocaleString("fr-FR")}
-              </span>
-            )}
-          </div>
+          {canSeeAmounts && (
+            <div className="flex items-center justify-between text-[10px]">
+              {dayCommissions.paidAmount > 0 && (
+                <span className="text-emerald-600 font-medium">
+                  ✓ {dayCommissions.paidAmount.toLocaleString("fr-FR")}
+                </span>
+              )}
+              {dayCommissions.remainingAmount > 0 && (
+                <span className="text-orange-600 font-medium">
+                  ◷ {dayCommissions.remainingAmount.toLocaleString("fr-FR")}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

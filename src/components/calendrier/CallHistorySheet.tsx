@@ -13,6 +13,7 @@ import {
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { CalendarClock, MessageCircle, Phone, Users } from 'lucide-react'
+import { useShownAmount } from './useShownAmount'
 
 interface CallHistorySheetProps {
   open: boolean
@@ -22,6 +23,7 @@ interface CallHistorySheetProps {
 }
 
 export function CallHistorySheet({ open, onOpenChange, personKey, name }: CallHistorySheetProps) {
+  const shownAmount = useShownAmount()
   const { history, isLoading } = useCallLogsForPerson(open ? personKey : undefined)
 
   return (
@@ -73,7 +75,7 @@ export function CallHistorySheet({ open, onOpenChange, personKey, name }: CallHi
                   <p className="flex items-center gap-1.5 text-xs text-amber-700">
                     <CalendarClock className="h-3.5 w-3.5 shrink-0" />
                     Promesse pour le {format(log.promiseToPayAt, 'dd/MM/yyyy', { locale: fr })}
-                    {log.promiseAmount ? ` — ${log.promiseAmount.toLocaleString('fr-FR')} FCFA` : ''}
+                    {log.promiseAmount ? ` — ${shownAmount(log.promiseAmount)} FCFA` : ''}
                   </p>
                 )}
 
@@ -81,7 +83,7 @@ export function CallHistorySheet({ open, onOpenChange, personKey, name }: CallHi
                   <Users className="h-3.5 w-3.5 shrink-0" />
                   {log.adminName}
                   {' • '}
-                  {log.totalOverdue.toLocaleString('fr-FR')} FCFA dus à ce moment-là
+                  {shownAmount(log.totalOverdue)} FCFA dus à ce moment-là
                 </p>
               </div>
             ))}

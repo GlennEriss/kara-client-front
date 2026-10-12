@@ -7,6 +7,7 @@ import type { CalendarPaymentItemCredit } from "@/hooks/useCalendarCreditSpecial
 import { useQueryClient } from "@tanstack/react-query"
 import { Calendar, CreditCard, User, X } from "lucide-react"
 import { useState } from "react"
+import { useShownAmount } from "./useShownAmount"
 
 interface PaymentSidebarCreditSpecialeProps {
   payment: CalendarPaymentItemCredit
@@ -25,6 +26,7 @@ export function PaymentSidebarCreditSpeciale({
   payment,
   onClose,
 }: PaymentSidebarCreditSpecialeProps) {
+  const shownAmount = useShownAmount()
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const queryClient = useQueryClient()
   const { canRecordPayments } = useMyAccess()
@@ -79,13 +81,13 @@ export function PaymentSidebarCreditSpeciale({
             <div className="rounded-xl border border-gray-200 p-4">
               <div className="text-xs uppercase text-gray-500">Montant dû</div>
               <div className="text-base font-semibold text-gray-900 mt-1">
-                {payment.amount.toLocaleString("fr-FR")} FCFA
+                {shownAmount(payment.amount)} FCFA
               </div>
             </div>
             <div className="rounded-xl border border-gray-200 p-4">
               <div className="text-xs uppercase text-gray-500">Reste</div>
               <div className="text-base font-semibold text-amber-700 mt-1">
-                {payment.remainingAmount.toLocaleString("fr-FR")} FCFA
+                {shownAmount(payment.remainingAmount)} FCFA
               </div>
             </div>
           </div>

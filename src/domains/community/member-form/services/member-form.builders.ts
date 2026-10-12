@@ -261,16 +261,15 @@ function buildSpecialCreditCycleEntries(params: {
 
   return history.flatMap((row) => {
     if (nextCycle && row.date.getTime() >= nextCycle.startedAt.getTime()) return []
-    const paymentsForMonth = payments.filter(
-      (payment) => getCreditPaymentMonthNumber(contract, payment) === row.month,
-    )
-    const paidAt = row.isRest ? null : paymentCompletionDate(paymentsForMonth, row.expectedPayment)
+    // Crédit spécial : un versement, même partiel, honore le mois (le reste est
+    // reporté sur le capital). Il est à l'heure ou en retard selon sa date.
+    const paidAt = !row.isRest && row.hasPaymentRecord && row.paymentDate ? row.paymentDate : null
     const entry = createEntry({
       key: `credit-${contract.id}-c${cycle.cycleNumber}-m${row.month}`,
       product: CREDIT_PRODUCT[contract.creditType],
       dueAt: row.date,
       paidAt,
-      amount: row.expectedPayment,
+      amount: row.hasPaymentRecord ? row.actualPayment : row.expectedPayment,
       isExcused: row.isRest,
       now,
       contractId: contract.id,

@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, startOfMonth, startOfWeek, subMonths } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -23,6 +24,7 @@ export function CalendarViewPlacement({
   daysCommissions,
   isLoading,
 }: CalendarViewPlacementProps) {
+  const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedCommission, setSelectedCommission] = useState<CalendarCommissionItem | null>(null)
 
@@ -100,24 +102,28 @@ export function CalendarViewPlacement({
   return (
     <div className="space-y-6">
       {/* Statistiques du mois */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-          <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">À remettre ce mois</div>
-          <div className="text-xl font-bold text-blue-900 mt-1">
-            {monthStats.totalAmount.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
-          </div>
-          {monthStats.capitalAmount > 0 && (
-            <div className="text-[11px] text-blue-700/80 mt-1">
-              dont {monthStats.capitalAmount.toLocaleString("fr-FR")} F de capital
+      <div className={`grid grid-cols-2 gap-4 ${canSeeAmounts ? "md:grid-cols-4" : "md:grid-cols-2"}`}>
+        {canSeeAmounts && (
+          <>
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+              <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">À remettre ce mois</div>
+              <div className="text-xl font-bold text-blue-900 mt-1">
+                {monthStats.totalAmount.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
+              </div>
+              {monthStats.capitalAmount > 0 && (
+                <div className="text-[11px] text-blue-700/80 mt-1">
+                  dont {monthStats.capitalAmount.toLocaleString("fr-FR")} F de capital
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100">
-          <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Montant payé</div>
-          <div className="text-xl font-bold text-emerald-900 mt-1">
-            {monthStats.paidAmount.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
-          </div>
-        </div>
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100">
+              <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Montant payé</div>
+              <div className="text-xl font-bold text-emerald-900 mt-1">
+                {monthStats.paidAmount.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
+              </div>
+            </div>
+          </>
+        )}
         <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-100">
           <div className="text-xs font-medium text-purple-600 uppercase tracking-wide">Échéances</div>
           <div className="text-xl font-bold text-purple-900 mt-1">

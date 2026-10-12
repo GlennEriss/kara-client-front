@@ -8,6 +8,7 @@ import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
 import { roundFcfa } from "@/utils/placementMoney"
 import { CreditCard, Download, ExternalLink, Eye, FileText, Info, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useShownAmount } from "./useShownAmount"
 
 interface CommissionSidebarActionsPlacementProps {
   commission: CalendarCommissionItem
@@ -24,6 +25,7 @@ export function CommissionSidebarActionsPlacement({
   onDownloadReceipt,
   isGeneratingReceipt = false,
 }: CommissionSidebarActionsPlacementProps) {
+  const shownAmount = useShownAmount()
   const { canRecordPayments, canDownloadDocuments } = useMyAccess()
   const isPaid = commission.status === "Paid"
 
@@ -38,7 +40,7 @@ export function CommissionSidebarActionsPlacement({
           <div className="text-sm text-indigo-900">
             <p className="font-semibold">Restitution du capital</p>
             <p className="mt-1 text-indigo-800">
-              {roundFcfa(commission.amount).toLocaleString("fr-FR")} FCFA à remettre au bienfaiteur.
+              {shownAmount(roundFcfa(commission.amount))} FCFA à remettre au bienfaiteur.
               Elle s&apos;enregistre depuis la fiche du placement, à la clôture, avec le motif et la
               quittance finale signée.
             </p>
@@ -95,7 +97,7 @@ export function CommissionSidebarActionsPlacement({
             <CreditCard className="h-5 w-5 mr-2" />
             <div className="text-left">
               <div className="font-semibold">Enregistrer le paiement</div>
-              <div className="text-xs text-white/80">{roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA</div>
+              <div className="text-xs text-white/80">{shownAmount(roundFcfa(commission.paidAmount ?? commission.amount))} FCFA</div>
             </div>
           </Button>
           

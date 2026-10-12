@@ -64,7 +64,7 @@ import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 type CreditTypeFilter = CreditType | 'all'
-type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'discharged' | 'writtenOff' | 'overdue'
+type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'writtenOff' | 'overdue'
 type CreditContractFilterState = {
   search: string
   status: CreditContractStatus | 'all'
@@ -97,7 +97,7 @@ type ContractTabItem = {
   isDanger?: boolean
 }
 
-const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'discharged', 'writtenOff', 'overdue']
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'writtenOff', 'overdue']
 const isContractTabValue = (value: string | null): value is ContractTabValue =>
   value !== null && CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
@@ -244,7 +244,7 @@ const ContractFilters = ({
   const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
   const isOverdueTab = activeTab === 'overdue'
   const forcedStatusByTab: CreditContractStatus | null =
-    activeTab === 'closed' ? 'CLOSED' : activeTab === 'discharged' ? 'DISCHARGED' : activeTab === 'writtenOff' ? 'WRITTEN_OFF' : null
+    activeTab === 'closed' ? 'CLOSED' : activeTab === 'writtenOff' ? 'WRITTEN_OFF' : null
   const isStatusLockedByTab = Boolean(forcedStatusByTab)
   const statusValue = (isStatusLockedByTab ? forcedStatusByTab : safeFilters.status) || 'all'
   const hasCustomStatus = !isStatusLockedByTab && statusValue !== 'all'
@@ -776,7 +776,6 @@ const ListContrats = ({
     { value: 'active', label: 'Actif', icon: CheckCircle2 },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
     { value: 'closed', label: 'Clos', icon: Shield },
-    { value: 'discharged', label: 'Déchargé', icon: Download },
     { value: 'writtenOff', label: 'En perte', icon: AlertCircle },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
   ]
@@ -807,8 +806,6 @@ const ListContrats = ({
   const tabStatusFilter: CreditContractStatus | 'all' =
     activeTab === 'closed'
       ? 'CLOSED'
-      : activeTab === 'discharged'
-      ? 'DISCHARGED'
       : activeTab === 'writtenOff'
       ? 'WRITTEN_OFF'
       : statusFilter
@@ -940,7 +937,6 @@ const ListContrats = ({
         active: 'Actif',
         currentMonth: 'Mois en cours',
         closed: 'Clos',
-        discharged: 'Déchargé',
         writtenOff: 'En perte',
         overdue: 'Retard',
       }
@@ -1003,7 +999,6 @@ const ListContrats = ({
         active: 'Actif',
         currentMonth: 'Mois en cours',
         closed: 'Clos',
-        discharged: 'Déchargé',
         writtenOff: 'En perte',
         overdue: 'Retard',
       }
@@ -1252,10 +1247,6 @@ const ListContrats = ({
       items = items.filter((contract) => contract.status === 'CLOSED')
     }
 
-    if (activeTab === 'discharged') {
-      items = items.filter((contract) => contract.status === 'DISCHARGED')
-    }
-
     if (activeTab === 'writtenOff') {
       items = items.filter((contract) => contract.status === 'WRITTEN_OFF')
     }
@@ -1272,7 +1263,7 @@ const ListContrats = ({
       items = items.filter((contract) => isContractOverdue(contract))
     }
 
-    if (filters.status !== 'all' && activeTab !== 'closed' && activeTab !== 'discharged') {
+    if (filters.status !== 'all' && activeTab !== 'closed' && activeTab !== 'writtenOff') {
       items = items.filter((contract) => contract.status === filters.status)
     }
 

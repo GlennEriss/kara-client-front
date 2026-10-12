@@ -4,6 +4,7 @@ import { useMyAccess } from "@/hooks/useMyAccess"
 import { Button } from "@/components/ui/button"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
 import { CreditCard, Download, Eye, FileText, Loader2 } from "lucide-react"
+import { useShownAmount } from "./useShownAmount"
 
 interface PaymentSidebarActionsCIProps {
   payment: CalendarPaymentItemCI
@@ -20,6 +21,7 @@ export function PaymentSidebarActionsCI({
   onDownloadReceipt,
   isGeneratingReceipt = false,
 }: PaymentSidebarActionsCIProps) {
+  const shownAmount = useShownAmount()
   const { canRecordPayments, canDownloadDocuments } = useMyAccess()
   const isPaid = payment.status === "PAID" || 
                  (payment.status === "PARTIAL" && payment.accumulatedAmount >= payment.targetAmount)
@@ -69,8 +71,8 @@ export function PaymentSidebarActionsCI({
               <div className="font-semibold">Faire un versement</div>
               <div className="text-xs text-white/80">
                 {remainingAmount > 0 
-                  ? `Reste: ${remainingAmount.toLocaleString("fr-FR")} FCFA`
-                  : `${payment.targetAmount.toLocaleString("fr-FR")} FCFA`
+                  ? `Reste: ${shownAmount(remainingAmount)} FCFA`
+                  : `${shownAmount(payment.targetAmount)} FCFA`
                 }
               </div>
             </div>

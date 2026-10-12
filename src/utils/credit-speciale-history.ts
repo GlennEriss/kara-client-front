@@ -502,7 +502,8 @@ export function buildCreditSpecialeHistory(
     const phase: CreditSpecialeHistoryMonth['phase'] = isFixedPhase ? 'FIXE' : 'SPECIALE'
 
     const capitalStart = customRound(capital)
-    const interest = isFixedPhase ? 0 : customRound(capitalStart * monthlyRate)
+    // Mois de repos : ni intérêt ni commission, le capital reste inchangé.
+    const interest = restEntry || isFixedPhase ? 0 : customRound(capitalStart * monthlyRate)
     const commission = restEntry || isFixedPhase ? 0 : customRound(capitalStart * guarantorRate)
     const amountDue = customRound(capitalStart + interest)
     const expectedPayment = restEntry

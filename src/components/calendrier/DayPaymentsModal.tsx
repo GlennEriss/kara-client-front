@@ -7,6 +7,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import type { CalendarPaymentItem, DayPayments } from "@/hooks/useCalendarCaisseSpeciale"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
 import type { CaisseType } from "@/services/caisse/types"
 import { format } from "date-fns"
@@ -79,6 +80,7 @@ export function DayPaymentsModal({
   dayPayments,
   onPaymentClick,
 }: DayPaymentsModalProps) {
+  const { canSeeAmounts } = useMyAccess()
   // Grouper les versements par type de contrat
   const groupedByType = dayPayments.payments.reduce(
     (acc, payment) => {
@@ -118,29 +120,31 @@ export function DayPaymentsModal({
           </DialogHeader>
 
           {/* Statistiques */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
-              <div className="text-xl font-bold mt-1">
-                {dayPayments.totalAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
+          {canSeeAmounts && (
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
+                <div className="text-xl font-bold mt-1">
+                  {dayPayments.totalAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
+                <div className="text-xl font-bold text-emerald-300 mt-1">
+                  {dayPayments.paidAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
+                <div className="text-xl font-bold text-orange-300 mt-1">
+                  {dayPayments.remainingAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
-              <div className="text-xl font-bold text-emerald-300 mt-1">
-                {dayPayments.paidAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
-              <div className="text-xl font-bold text-orange-300 mt-1">
-                {dayPayments.remainingAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Barre de progression */}
           <div className="mt-4">
@@ -230,9 +234,13 @@ export function DayPaymentsModal({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-3 mt-1 text-sm">
-                                  <span className={cn("font-bold", colorConfig.text)}>
-                                    {payment.amount.toLocaleString("fr-FR")} FCFA
-                                  </span>
+                                  {canSeeAmounts && (
+                                    <>
+                                      <span className={cn("font-bold", colorConfig.text)}>
+                                        {payment.amount.toLocaleString("fr-FR")} FCFA
+                                      </span>
+                                    </>
+                                  )}
                                   {payment.dueMonthIndex !== undefined && (
                                     <>
                                       <span className="text-gray-400">•</span>

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AlertTriangle, Calendar, CheckCircle2, Clock, CreditCard, PiggyBank } from "lucide-react"
+import { useShownAmount } from "./useShownAmount"
 
 interface PaymentSidebarContentProps {
   payment: CalendarPaymentItem
@@ -42,6 +43,7 @@ export function PaymentSidebarContent({
   showReceipt,
   receiptUrl,
 }: PaymentSidebarContentProps) {
+  const shownAmount = useShownAmount()
   const { canDownloadDocuments } = useMyAccess()
   const { payments: allPayments, isLoading } = useContractPayments(
     payment.contract.id || ""
@@ -117,7 +119,7 @@ export function PaymentSidebarContent({
               Montant
             </span>
             <span className={cn("text-lg font-bold", isPaid ? "text-emerald-900" : "text-orange-900")}>
-              {payment.amount.toLocaleString("fr-FR")} FCFA
+              {shownAmount(payment.amount)} FCFA
             </span>
           </div>
 
@@ -151,7 +153,7 @@ export function PaymentSidebarContent({
               </div>
               {payment.penaltyApplied && payment.penaltyApplied > 0 && (
                 <div className="text-sm text-red-600 mt-1">
-                  Pénalité: {payment.penaltyApplied.toLocaleString("fr-FR")} FCFA
+                  Pénalité: {shownAmount(payment.penaltyApplied)} FCFA
                 </div>
               )}
             </div>
@@ -184,19 +186,19 @@ export function PaymentSidebarContent({
           <div className="text-center p-3 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl">
             <div className="text-xs text-emerald-600 mb-1">Payé</div>
             <div className="text-sm font-bold text-emerald-900">
-              {payment.contract.nominalPaid.toLocaleString("fr-FR")}
+              {shownAmount(payment.contract.nominalPaid)}
             </div>
           </div>
           <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
             <div className="text-xs text-blue-600 mb-1">Bonus</div>
             <div className="text-sm font-bold text-blue-900">
-              {payment.contract.bonusAccrued.toLocaleString("fr-FR")}
+              {shownAmount(payment.contract.bonusAccrued)}
             </div>
           </div>
           <div className="text-center p-3 bg-gradient-to-br from-red-50 to-rose-50 rounded-xl">
             <div className="text-xs text-red-600 mb-1">Pénalités</div>
             <div className="text-sm font-bold text-red-900">
-              {payment.contract.penaltiesTotal.toLocaleString("fr-FR")}
+              {shownAmount(payment.contract.penaltiesTotal)}
             </div>
           </div>
         </div>
