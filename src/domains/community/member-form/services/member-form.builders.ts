@@ -243,6 +243,24 @@ function cycleCutoff(nextCycle?: CreditContractCycle): number | null {
   return times.length > 0 ? Math.min(...times) : null
 }
 
+/**
+ * Dernier mois d'un cycle remplacé par une augmentation : le dernier versement
+ * ou mois de repos enregistré dans ce cycle. Les mois suivants n'ont jamais été
+ * dus, le reste ayant été repris dans le capital du nouveau cycle (même règle
+ * que l'onglet Historique du contrat).
+ */
+function lastMonthOfReplacedCycle(
+  contract: CreditContract,
+  cycle: CreditContractCycle,
+  nextCycle: CreditContractCycle | undefined,
+  payments: CreditPayment[],
+): number | null {
+  if (!nextCycle) return null
+  const months = payments.map((payment) => getCreditPaymentMonthNumber(contract, payment))
+  const restMonths = (cycle.restMonths ?? []).map((item) => item.monthNumber)
+  return Math.max(0, ...months, ...restMonths)
+}
+
 function buildSpecialCreditCycleEntries(params: {
   contract: CreditContract
   cycle: CreditContractCycle
@@ -273,9 +291,11 @@ function buildSpecialCreditCycleEntries(params: {
     restMonths: cycle.restMonths ?? [],
   }
   const history = buildCreditSpecialeHistory(cycleContract, payments, { projectUntilZero: true })
+  const lastMonth = lastMonthOfReplacedCycle(contract, cycle, nextCycle, payments)
 
   return history.flatMap((row) => {
     if (cutoff !== null && row.date.getTime() >= cutoff) return []
+    if (lastMonth !== null && row.month > lastMonth) return []
     // Crédit spécial : un versement, même partiel, honore le mois (le reste est
     // reporté sur le capital). Il est à l'heure ou en retard selon sa date.
     const paidAt = !row.isRest && row.hasPaymentRecord && row.paymentDate ? row.paymentDate : null
@@ -308,6 +328,7 @@ function buildSimpleCreditCycleEntries(params: {
   const cutoff = cycleCutoff(nextCycle)
   const payments = cyclePayments(contract, cycle, params.payments)
   const product = CREDIT_PRODUCT[contract.creditType]
+  const lastMonth = lastMonthOfReplacedCycle(contract, cycle, nextCycle, payments)
   const duration = Math.max(
     1,
     Number(cycle.duration) || 0,
@@ -331,6 +352,7 @@ function buildSimpleCreditCycleEntries(params: {
   for (let month = 1; month <= duration; month++) {
     const dueAt = addMonths(cycle.firstPaymentDate, month - 1)
     if (cutoff !== null && dueAt.getTime() >= cutoff) continue
+    if (lastMonth !== null && month > lastMonth) continue
     const rest = (cycle.restMonths ?? []).some((item) => item.monthNumber === month)
     const target = rest ? 0 : plannedByMonth.get(month) ?? cycle.monthlyPaymentAmount
     const paymentsForMonth = payments.filter(

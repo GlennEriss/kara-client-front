@@ -156,6 +156,42 @@ describe('member form builders', () => {
     expect(cycleOne.every((entry) => entry.outcome === 'onTime')).toBe(true)
   })
 
+  it('n’affiche pas les mois d’un ancien cycle après son dernier versement, même datés avant le nouveau cycle', () => {
+    const now = new Date('2026-10-12T10:00:00')
+    const contract = {
+      id: 'credit-aug2',
+      clientId: 'member-1',
+      creditType: 'SPECIALE',
+      durationUnit: 'MONTHS',
+      amount: 4_000_000,
+      interestRate: 10,
+      monthlyPaymentAmount: 1_000_000,
+      duration: 7,
+      createdAt: new Date('2025-12-01'),
+      creditCycles: [
+        {
+          cycleNumber: 1, type: 'INITIAL', amount: 3_000_000, interestRate: 10, monthlyPaymentAmount: 750_000,
+          totalAmount: 4_000_000, duration: 7, firstPaymentDate: new Date('2025-12-20'), startedAt: new Date('2025-12-01'),
+          restMonths: [],
+        },
+        {
+          cycleNumber: 2, type: 'AUGMENTATION', amount: 4_000_000, interestRate: 10, monthlyPaymentAmount: 1_000_000,
+          totalAmount: 5_000_000, duration: 7, firstPaymentDate: new Date('2026-05-25'), startedAt: now,
+          restMonths: [],
+        },
+      ],
+    } as unknown as CreditContract
+    const payments = [1, 2, 3, 4, 5].map((month) => ({
+      id: `C1_M${month}_credit-aug2`, creditId: 'credit-aug2', amount: 750_000,
+      paymentDate: new Date(2025, 10 + month, 20), comment: '',
+    })) as CreditPayment[]
+
+    const entries = buildCreditEntries([{ contract, payments }], now)
+    const cycleOne = entries.filter((entry) => !entry.label?.startsWith('Cycle 2'))
+
+    expect(cycleOne.map((entry) => entry.label)).toEqual([1, 2, 3, 4, 5].map((month) => `Échéance ${month}`))
+  })
+
   it('garde les dix dernières échéances de chaque produit séparément', () => {
     const csContract = { id: 'cs-many', monthlyAmount: 5_000 } as CaisseContract & { id: string }
     const csPayments = Array.from({ length: 12 }, (_, index) => ({
