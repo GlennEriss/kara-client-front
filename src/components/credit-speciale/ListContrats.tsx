@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
+import { useCreditContractsLosses, type CreditContractLoss } from '@/hooks/credit-speciale/useCreditContractsLosses'
 import { useCreditContractMutations, useCreditContracts } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
@@ -244,7 +245,7 @@ const ContractFilters = ({
   const isNextDueRangeActive = Boolean(safeFilters.nextDueAtFrom || safeFilters.nextDueAtTo)
   const isOverdueTab = activeTab === 'overdue'
   const forcedStatusByTab: CreditContractStatus | null =
-    activeTab === 'closed' ? 'CLOSED' : activeTab === 'writtenOff' ? 'WRITTEN_OFF' : null
+    activeTab === 'closed' ? 'CLOSED' : null
   const isStatusLockedByTab = Boolean(forcedStatusByTab)
   const statusValue = (isStatusLockedByTab ? forcedStatusByTab : safeFilters.status) || 'all'
   const hasCustomStatus = !isStatusLockedByTab && statusValue !== 'all'
@@ -714,6 +715,24 @@ const ContractFilters = ({
 }
 
 // Composant principal
+/** Pertes d'un contrat terminé (onglet « En perte »). */
+const ContractLossSummary = ({ loss }: { loss?: CreditContractLoss }) => {
+  if (!loss || (loss.unpaidPenalties <= 0 && loss.missedEarnings <= 0)) return null
+  return (
+    <div className="mt-1 space-y-0.5 text-[11px] font-medium text-rose-700 tabular-nums">
+      {loss.unpaidPenalties > 0 && (
+        <p>
+          Pénalités impayées {Math.round(loss.unpaidPenalties).toLocaleString('fr-FR')} FCFA
+          {' '}({loss.unpaidPenaltiesCount} pénalité{loss.unpaidPenaltiesCount > 1 ? 's' : ''})
+        </p>
+      )}
+      {loss.missedEarnings > 0 && (
+        <p>Manque à gagner {Math.round(loss.missedEarnings).toLocaleString('fr-FR')} FCFA</p>
+      )}
+    </div>
+  )
+}
+
 const ListContrats = ({
   forcedCreditType,
   contractDetailsBasePath = routes.admin.creditSpecialeContrats,
@@ -807,7 +826,7 @@ const ListContrats = ({
     activeTab === 'closed'
       ? 'CLOSED'
       : activeTab === 'writtenOff'
-      ? 'WRITTEN_OFF'
+      ? 'all'
       : statusFilter
 
   const queryFilters: CreditContractFilters = {
@@ -824,7 +843,20 @@ const ListContrats = ({
     orderByDirection: 'desc',
   }
 
-  const { data: contrats = [], isLoading, error } = useCreditContracts(queryFilters)
+  const { data: contrats = [], isLoading: isLoadingContracts, error } = useCreditContracts(queryFilters)
+
+  // Onglet « En perte » : contrats terminés avec des pénalités impayées ou un
+  // manque à gagner, et ceux clôturés en perte. Les pertes se calculent à
+  // partir des versements et pénalités, chargés pour les seuls contrats terminés.
+  const isLossTab = activeTab === 'writtenOff'
+  const endedContrats = React.useMemo(
+    () => (isLossTab ? contrats.filter((contract) => ENDED_CREDIT_STATUSES.includes(contract.status)) : []),
+    [contrats, isLossTab]
+  )
+  const { data: lossesById, isLoading: isLoadingLosses } = useCreditContractsLosses(endedContrats, isLossTab)
+  const isLoading = isLoadingContracts || (isLossTab && endedContrats.length > 0 && isLoadingLosses)
+  const getContractLoss = (contractId: string): CreditContractLoss | undefined =>
+    isLossTab ? lossesById?.get(contractId) : undefined
   const { uploadSignedContract, replaceSignedContract } = useCreditContractMutations()
   
   // États pour les modals
@@ -1248,7 +1280,12 @@ const ListContrats = ({
     }
 
     if (activeTab === 'writtenOff') {
-      items = items.filter((contract) => contract.status === 'WRITTEN_OFF')
+      items = items.filter((contract) => {
+        if (!ENDED_CREDIT_STATUSES.includes(contract.status)) return false
+        if (contract.status === 'WRITTEN_OFF') return true
+        const loss = lossesById?.get(contract.id)
+        return Boolean(loss && (loss.unpaidPenalties > 0 || loss.missedEarnings > 0))
+      })
     }
 
     if (activeTab === 'currentMonth') {
@@ -1263,7 +1300,7 @@ const ListContrats = ({
       items = items.filter((contract) => isContractOverdue(contract))
     }
 
-    if (filters.status !== 'all' && activeTab !== 'closed' && activeTab !== 'writtenOff') {
+    if (filters.status !== 'all' && activeTab !== 'closed') {
       items = items.filter((contract) => contract.status === filters.status)
     }
 
@@ -1325,7 +1362,7 @@ const ListContrats = ({
     )
 
     return items
-  }, [activeTab, contrats, filters, isCreditTypeLocked])
+  }, [activeTab, contrats, filters, isCreditTypeLocked, lossesById])
 
   // Fonction pour construire les lignes d'export
   const formatAmount = (amount: number): string => {
@@ -1720,6 +1757,7 @@ const ListContrats = ({
                           Reste {Math.round(contract.amountRemaining || 0).toLocaleString('fr-FR')} FCFA
                           {CREDIT_SCORING_ENABLED && scoreValue !== undefined && <> · Score {scoreValue}/10</>}
                         </p>
+                        <ContractLossSummary loss={getContractLoss(contract.id)} />
                       </div>
 
                       {/* Statut du document, en pastille — comme les cartes de caisse */}
@@ -1894,7 +1932,10 @@ const ListContrats = ({
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-green-700">{contract.amount.toLocaleString('fr-FR')} FCFA</td>
                       <td className="px-4 py-3 text-right">{contract.amountPaid.toLocaleString('fr-FR')} FCFA</td>
-                      <td className="px-4 py-3 text-right font-medium text-orange-600">{Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA</td>
+                      <td className="px-4 py-3 text-right font-medium text-orange-600">
+                        {Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA
+                        <ContractLossSummary loss={getContractLoss(contract.id)} />
+                      </td>
                       <td className="px-4 py-3 text-right text-gray-700">
                         {contract.nextDueAt ? (contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')) : '—'}
                       </td>

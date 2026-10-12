@@ -119,6 +119,7 @@ import RestMonthModal from './RestMonthModal'
 import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 import SwitchToFixedPhaseModal from './SwitchToFixedPhaseModal'
 import { addContractMonths } from '@/utils/contract-months'
+import { buildSimpleCreditSchedule } from '@/utils/credit-losses'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -176,7 +177,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -184,10 +185,11 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
   const unpaidPenaltiesCount = penalties.filter(p => !p.paid).length
 
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
-  // Crédit fixe: intérêt unique appliqué une seule fois
+  // Crédit fixe: intérêt unique appliqué une seule fois. Crédit spécial : les
+  // intérêts déjà générés, ceux de l'onglet Historique (tous cycles).
   const totalInterest = isSimpleCredit
     ? Math.max(0, customRound(contract.totalAmount - contract.amount))
-    : actualSchedule.reduce((sum, item) => sum + item.interest, 0)
+    : historyInterestTotal
 
   // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
@@ -228,7 +230,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
       value: fcfa(totalInterest),
       subtitle: isSimpleCredit
         ? 'Appliqué une seule fois au démarrage'
-        : `Somme des intérêts de l'échéancier`,
+        : `Somme des intérêts de l'historique`,
     },
     {
       title: 'Pénalités impayées',
@@ -634,6 +636,8 @@ export default function CreditContractDetail({
     })
   }, [contract, contract.creditType, contractCycles, payments])
 
+  const historyInterestTotal = timelineHistoryRows.reduce((sum, row) => sum + row.interest, 0)
+
   const timelineHistoryByCycle = timelineHistoryRows.reduce((acc, row) => {
     const existing = acc.get(row.cycleNumber) ?? []
     existing.push(row)
@@ -897,114 +901,8 @@ export default function CreditContractDetail({
 
   // Calculer l'échéancier actuel basé sur les versements réels
   const calculateActualSchedule = (): DueItem[] => {
-    const firstDate = new Date(contract.firstPaymentDate)
-    const maxDuration = contract.duration
-    const defaultMonthlyPayment = contract.monthlyPaymentAmount
-    const hasCustomSchedule = contract.customSchedule && contract.customSchedule.length > 0
-
-    const customPaymentByMonth = new Map<number, number>()
-    if (hasCustomSchedule) {
-      contract.customSchedule!.forEach((entry) => {
-        customPaymentByMonth.set(entry.month, entry.amount)
-      })
-    }
-
-    const items: DueItem[] = []
-    const paymentsByMonthMap = getPaymentsByMonth()
-
-    const sortedPayments = [...paymentsForSchedule]
-      .filter(
-        (p) =>
-          p.amount > 0 ||
-          p.comment?.includes('Paiement de 0 FCFA') ||
-          (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
-      )
-      .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
-
-    // Crédit fixe: intérêt unique, pas d'intérêt mensuel composé
     if (isSimpleCredit) {
-      const totalAmount = customRound(contract.totalAmount)
-      const plannedDuration = hasCustomSchedule
-        ? Math.max(maxDuration, ...contract.customSchedule!.map((entry, index) => entry.month || index + 1))
-        : Math.max(1, maxDuration)
-
-      let currentRemaining = totalAmount
-      let monthIndex = 0
-
-      while (currentRemaining > 0 && monthIndex < 20) {
-        const currentMonth = monthIndex + 1
-        const date = addContractMonths(firstDate, monthIndex)
-
-        let plannedPayment = hasCustomSchedule
-          ? (customPaymentByMonth.get(currentMonth) ?? defaultMonthlyPayment)
-          : defaultMonthlyPayment
-
-        if (!hasCustomSchedule && currentMonth <= plannedDuration) {
-          const basePayment = Math.floor(totalAmount / plannedDuration)
-          if (currentMonth < plannedDuration) {
-            plannedPayment = basePayment
-          } else if (currentMonth === plannedDuration) {
-            const alreadyPlanned = basePayment * (plannedDuration - 1)
-            plannedPayment = Math.max(0, totalAmount - alreadyPlanned)
-          }
-        }
-
-        if (plannedPayment <= 0 && currentRemaining > 0) {
-          plannedPayment = currentRemaining
-        }
-
-        const theoreticalPayment = Math.min(plannedPayment, currentRemaining)
-        const actualPayment = paymentsByMonthMap.get(currentMonth) || 0
-        const hasPayment = hasPaymentForMonth(currentMonth)
-        const displayedPayment = hasPayment ? actualPayment : theoreticalPayment
-
-        const paymentApplied = hasPayment ? actualPayment : theoreticalPayment
-        const remaining = Math.max(0, customRound(currentRemaining - paymentApplied))
-
-        let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
-        let paymentDate: Date | undefined
-        let paymentTime: string | undefined
-
-        if (hasPayment) {
-          status = 'PAID'
-          const paymentForThisMonth = sortedPayments.find((payment) => getCreditPaymentMonthNumber(contract, payment) === currentMonth)
-          if (paymentForThisMonth) {
-            paymentDate = new Date(paymentForThisMonth.paymentDate)
-            paymentTime = (paymentForThisMonth as { paymentTime?: string }).paymentTime
-          }
-        } else {
-          let allPreviousPaid = true
-          for (let previousMonth = 1; previousMonth < currentMonth; previousMonth++) {
-            if (!hasPaymentForMonth(previousMonth)) {
-              allPreviousPaid = false
-              break
-            }
-          }
-          status = allPreviousPaid ? 'DUE' : 'FUTURE'
-        }
-
-        items.push({
-          month: currentMonth,
-          date,
-          payment: customRound(displayedPayment),
-          interest: 0,
-          principal: customRound(currentRemaining),
-          remaining,
-          status,
-          paidAmount: hasPayment ? actualPayment : undefined,
-          paymentDate,
-          paymentTime,
-        })
-
-        currentRemaining = remaining
-        monthIndex++
-
-        if (remaining <= 0 && monthIndex >= plannedDuration) {
-          break
-        }
-      }
-
-      return items.filter((item) => item.status === 'PAID' || item.payment > 0)
+      return buildSimpleCreditSchedule(contract, paymentsForSchedule)
     }
 
     return specialHistory.map((row) => ({
@@ -2295,8 +2193,8 @@ export default function CreditContractDetail({
             realRemainingAmount={realRemainingAmount}
             totalPaidFromSchedule={totalPaidFromSchedule}
             totalAmountToRepay={totalAmountToRepay}
-            actualSchedule={actualSchedule}
             totalLosses={totalLosses}
+            historyInterestTotal={historyInterestTotal}
           />
         </div>
 
