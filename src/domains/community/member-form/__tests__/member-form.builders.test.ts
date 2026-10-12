@@ -119,6 +119,43 @@ describe('member form builders', () => {
     expect(entries[2]).toMatchObject({ outcome: 'missed' })
   })
 
+  it('ignore les échéances de l’ancien cycle remplacées par une augmentation saisie après coup', () => {
+    const now = new Date('2026-10-12T10:00:00')
+    const contract = {
+      id: 'credit-aug',
+      clientId: 'member-1',
+      creditType: 'SPECIALE',
+      durationUnit: 'MONTHS',
+      amount: 1_603_500,
+      interestRate: 10,
+      monthlyPaymentAmount: 450_000,
+      duration: 5,
+      createdAt: new Date('2026-03-01'),
+      creditCycles: [
+        {
+          cycleNumber: 1, type: 'INITIAL', amount: 1_000_000, interestRate: 10, monthlyPaymentAmount: 300_000,
+          totalAmount: 1_300_000, duration: 5, firstPaymentDate: new Date('2026-04-10'), startedAt: new Date('2026-03-01'),
+          restMonths: [],
+        },
+        {
+          cycleNumber: 2, type: 'AUGMENTATION', amount: 1_603_500, interestRate: 10, monthlyPaymentAmount: 450_000,
+          totalAmount: 2_085_158, duration: 5, firstPaymentDate: new Date('2026-07-10'), startedAt: now,
+          restMonths: [{ monthNumber: 1, reason: 'Repos' }],
+        },
+      ],
+    } as unknown as CreditContract
+    const payments = [1, 2, 3].map((month) => ({
+      id: `C1_M${month}_credit-aug`, creditId: 'credit-aug', amount: 300_000,
+      paymentDate: new Date(2026, 2 + month, 10), comment: '',
+    })) as CreditPayment[]
+
+    const entries = buildCreditEntries([{ contract, payments }], now)
+    const cycleOne = entries.filter((entry) => !entry.label?.startsWith('Cycle 2'))
+
+    expect(cycleOne.map((entry) => entry.label)).toEqual(['Échéance 1', 'Échéance 2', 'Échéance 3'])
+    expect(cycleOne.every((entry) => entry.outcome === 'onTime')).toBe(true)
+  })
+
   it('garde les dix dernières échéances de chaque produit séparément', () => {
     const csContract = { id: 'cs-many', monthlyAmount: 5_000 } as CaisseContract & { id: string }
     const csPayments = Array.from({ length: 12 }, (_, index) => ({
