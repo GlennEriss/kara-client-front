@@ -475,9 +475,6 @@ export default function CreditContractDetail({
 
   const statusConfig = getStatusConfig(contract.status)
   const isUploadActivationFlow = contract.status === 'PENDING'
-  const progressPercentage = contract.totalAmount > 0 
-    ? (contract.amountPaid / contract.totalAmount) * 100 
-    : 0
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return 'N/A'
@@ -1057,6 +1054,11 @@ export default function CreditContractDetail({
   const realRemainingAmount = isSimpleCredit || isFlat
     ? Math.max(0, totalAmountToRepay - totalPaidFromSchedule)
     : totalAmountToRepay - totalPaidFromSchedule
+
+  // Barre de progression : montant versé + montant restant, comme les cartes
+  // « Montant versé » et « Montant restant » (le total évolue avec les intérêts).
+  const progressTotal = contract.amountPaid + Math.max(0, realRemainingAmount)
+  const progressPercentage = progressTotal > 0 ? (contract.amountPaid / progressTotal) * 100 : 0
 
   const lossHistoryRows = React.useMemo(() => {
     if (contract.creditType === 'FIXE' || contract.creditType === 'AIDE') {
@@ -2317,7 +2319,7 @@ export default function CreditContractDetail({
               />
             </div>
             <div className="text-sm text-slate-700">
-              Montant payé&nbsp;: <b>{contract.amountPaid.toLocaleString('fr-FR')} FCFA</b> / {contract.totalAmount.toLocaleString('fr-FR')} FCFA
+              Montant payé&nbsp;: <b>{contract.amountPaid.toLocaleString('fr-FR')} FCFA</b> / {Math.round(progressTotal).toLocaleString('fr-FR')} FCFA
             </div>
           </CardContent>
         </Card>
