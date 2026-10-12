@@ -17,6 +17,7 @@ import { fr } from 'date-fns/locale'
 import { AlertTriangle, Building2, Calendar, ChevronDown, ChevronRight, Download, History, MessageCircle, Phone, PhoneCall, RefreshCw, User } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { useShownAmount } from './useShownAmount'
 
 interface OverdueCaissePaymentsListProps {
   /** Produit (caisse) dont on affiche les retards */
@@ -179,6 +180,7 @@ function reminderTemplateFor(group: OverdueGroup): { key: string; variables: Rec
 }
 
 export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsListProps) {
+  const shownAmount = useShownAmount()
   const { data: items = [], isLoading, isError, refetch, isFetching } = useOverduePayments([product])
   // Textes de relance personnalisables (Système → Modèles de messages).
   const renderMessage = useRenderMessageTemplate()
@@ -392,7 +394,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       {!isLoading && groups.length > 0 && (
         <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm">
           <span className="text-gray-600">Total dû en retard : </span>
-          <span className="font-bold text-red-700 tabular-nums">{totalAmount.toLocaleString('fr-FR')} FCFA</span>
+          <span className="font-bold text-red-700 tabular-nums">{shownAmount(totalAmount)} FCFA</span>
           <span className="text-gray-500"> • {items.length} versement{items.length !== 1 ? 's' : ''} sur {groups.length} retardataire{groups.length !== 1 ? 's' : ''}</span>
         </div>
       )}
@@ -505,7 +507,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                             </span>
                           </TableCell>
                           <TableCell className="text-right font-semibold text-gray-900 tabular-nums">
-                            {g.totalAmount.toLocaleString('fr-FR')} FCFA
+                            {shownAmount(g.totalAmount)} FCFA
                           </TableCell>
                           <TableCell>
                             <span className="flex items-center gap-1.5 text-sm text-gray-700">
@@ -604,7 +606,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                                         {format(p.dueAt, 'dd/MM/yyyy', { locale: fr })}
                                       </span>
                                       <span className="font-semibold text-gray-900 tabular-nums">
-                                        {p.amount.toLocaleString('fr-FR')} FCFA
+                                        {shownAmount(p.amount)} FCFA
                                       </span>
                                       <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums">
                                         {p.daysOverdue} j

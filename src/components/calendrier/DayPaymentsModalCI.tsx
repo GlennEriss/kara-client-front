@@ -7,6 +7,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import type { CalendarPaymentItemCI, DayPaymentsCI } from "@/hooks/useCalendarCaisseImprevue"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
 import type { CaisseImprevuePaymentFrequency } from "@/types/types"
 import { format } from "date-fns"
@@ -75,6 +76,7 @@ export function DayPaymentsModalCI({
   dayPayments,
   onPaymentClick,
 }: DayPaymentsModalCIProps) {
+  const { canSeeAmounts } = useMyAccess()
   // Grouper les versements par type de contrat
   const groupedByFrequency = dayPayments.payments.reduce(
     (acc, payment) => {
@@ -114,29 +116,31 @@ export function DayPaymentsModalCI({
           </DialogHeader>
 
           {/* Statistiques */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
-              <div className="text-xl font-bold mt-1">
-                {dayPayments.totalAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
+          {canSeeAmounts && (
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
+                <div className="text-xl font-bold mt-1">
+                  {dayPayments.totalAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
+                <div className="text-xl font-bold text-emerald-300 mt-1">
+                  {dayPayments.paidAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
+                <div className="text-xl font-bold text-orange-300 mt-1">
+                  {dayPayments.remainingAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
-              <div className="text-xl font-bold text-emerald-300 mt-1">
-                {dayPayments.paidAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
-              <div className="text-xl font-bold text-orange-300 mt-1">
-                {dayPayments.remainingAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Barre de progression */}
           <div className="mt-4">
@@ -220,15 +224,19 @@ export function DayPaymentsModalCI({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
-                                  <span className={cn("font-bold", colorConfig.text)}>
-                                    Objectif: {payment.targetAmount.toLocaleString("fr-FR")} F
-                                  </span>
-                                  {payment.accumulatedAmount > 0 && (
+                                  {canSeeAmounts && (
                                     <>
-                                      <span className="text-gray-400">•</span>
-                                      <span className="text-emerald-600 text-xs font-medium">
-                                        Accumulé: {payment.accumulatedAmount.toLocaleString("fr-FR")} F
+                                      <span className={cn("font-bold", colorConfig.text)}>
+                                        Objectif: {payment.targetAmount.toLocaleString("fr-FR")} F
                                       </span>
+                                      {payment.accumulatedAmount > 0 && (
+                                        <>
+                                          <span className="text-gray-400">•</span>
+                                          <span className="text-emerald-600 text-xs font-medium">
+                                            Accumulé: {payment.accumulatedAmount.toLocaleString("fr-FR")} F
+                                          </span>
+                                        </>
+                                      )}
                                     </>
                                   )}
                                   {payment.monthIndex !== undefined && (

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import type { CaisseType } from "@/services/caisse/types"
 import { translateContractStatus } from "@/utils/contract-status"
 import { FileText, Phone, TrendingUp, Wallet, X } from "lucide-react"
+import { useShownAmount } from "./useShownAmount"
 
 interface PaymentSidebarHeaderProps {
   payment: CalendarPaymentItem
@@ -41,6 +42,7 @@ export function PaymentSidebarHeader({
   memberContacts,
   onClose,
 }: PaymentSidebarHeaderProps) {
+  const shownAmount = useShownAmount()
   const contract = payment.contract
   const displayName =
     memberName ||
@@ -154,7 +156,7 @@ export function PaymentSidebarHeader({
             <div>
               <div className="text-xs text-blue-600 font-medium">Montant</div>
               <div className="text-sm font-bold text-blue-900">
-                {contract.monthlyAmount.toLocaleString("fr-FR")} F
+                {shownAmount(contract.monthlyAmount)} F
               </div>
             </div>
           </div>

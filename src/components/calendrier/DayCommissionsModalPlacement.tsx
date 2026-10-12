@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import type { CalendarCommissionItem, DayCommissions } from "@/hooks/useCalendarPlacement"
 import { isCapitalRestitution } from "@/hooks/useCalendarPlacement"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
 import { roundFcfa } from "@/utils/placementMoney"
@@ -78,6 +79,7 @@ export function DayCommissionsModalPlacement({
   dayCommissions,
   onCommissionClick,
 }: DayCommissionsModalPlacementProps) {
+  const { canSeeAmounts } = useMyAccess()
   // Grouper les commissions par mode de règlement
   const groupedByMode = dayCommissions.commissions.reduce(
     (acc, commission) => {
@@ -111,7 +113,7 @@ export function DayCommissionsModalPlacement({
                 </div>
                 <div className="text-sm text-white/70 font-normal mt-0.5">
                   {dayCommissions.count} échéance{dayCommissions.count > 1 ? 's' : ''} à traiter
-                  {dayCommissions.capitalAmount > 0 && (
+                  {canSeeAmounts && dayCommissions.capitalAmount > 0 && (
                     <> · dont {roundFcfa(dayCommissions.capitalAmount).toLocaleString("fr-FR")} F de capital</>
                   )}
                 </div>
@@ -120,29 +122,31 @@ export function DayCommissionsModalPlacement({
           </DialogHeader>
 
           {/* Statistiques */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
-              <div className="text-xl font-bold mt-1">
-                {dayCommissions.totalAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
+          {canSeeAmounts && (
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
+                <div className="text-xl font-bold mt-1">
+                  {dayCommissions.totalAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
+                <div className="text-xl font-bold text-emerald-300 mt-1">
+                  {dayCommissions.paidAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
+                <div className="text-xl font-bold text-orange-300 mt-1">
+                  {dayCommissions.remainingAmount.toLocaleString("fr-FR")}
+                  <span className="text-sm font-normal ml-1">F</span>
+                </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
-              <div className="text-xl font-bold text-emerald-300 mt-1">
-                {dayCommissions.paidAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
-              <div className="text-xl font-bold text-orange-300 mt-1">
-                {dayCommissions.remainingAmount.toLocaleString("fr-FR")}
-                <span className="text-sm font-normal ml-1">F</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Barre de progression */}
           <div className="mt-4">
@@ -238,10 +242,14 @@ export function DayCommissionsModalPlacement({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-3 mt-1 text-sm">
-                                  <span className={cn("font-bold", colorConfig.text)}>
-                                    {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
-                                  </span>
-                                  <span className="text-gray-400">•</span>
+                                  {canSeeAmounts && (
+                                    <>
+                                      <span className={cn("font-bold", colorConfig.text)}>
+                                        {roundFcfa(commission.paidAmount ?? commission.amount).toLocaleString("fr-FR")} FCFA
+                                      </span>
+                                      <span className="text-gray-400">•</span>
+                                    </>
+                                  )}
                                   <span className="text-gray-500 text-xs">
                                     Placement #{commission.placement.id.slice(-8)}
                                   </span>

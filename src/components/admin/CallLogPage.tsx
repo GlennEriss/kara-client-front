@@ -32,10 +32,12 @@ import { fr } from 'date-fns/locale'
 import { AlertTriangle, CalendarClock, Download, PhoneCall, RefreshCw, Search, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportRowsToExcel } from '@/utils/excel-export'
+import { useShownAmount } from '@/components/calendrier/useShownAmount'
 
 const PAGE_SIZE = 15
 
 export default function CallLogPage() {
+  const shownAmount = useShownAmount()
   // Le journal relève du calendrier : mêmes droits d'export.
   const canExport = useMyAccess().can('calendar.export')
   const { data: logs = [], isLoading, isFetching, refetch } = useCallLogs(1000)
@@ -285,7 +287,7 @@ export default function CallLogPage() {
             {stats.brokenPromises > 1 ? 's' : ''} sans règlement enregistré —{' '}
           </span>
           <span className="font-bold text-red-700 tabular-nums">
-            {stats.brokenAmount.toLocaleString('fr-FR')} FCFA
+            {shownAmount(stats.brokenAmount)} FCFA
           </span>
           <span className="text-gray-600"> à relancer en priorité.</span>
         </div>

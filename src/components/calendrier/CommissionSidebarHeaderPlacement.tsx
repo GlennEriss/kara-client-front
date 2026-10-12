@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import type { PayoutMode } from "@/types/types"
 import { roundFcfa } from "@/utils/placementMoney"
 import { Calendar, Clock, Percent, Phone, PiggyBank, TrendingUp, Wallet, X } from "lucide-react"
+import { useShownAmount } from "./useShownAmount"
 
 interface CommissionSidebarHeaderPlacementProps {
   commission: CalendarCommissionItem
@@ -30,6 +31,7 @@ export function CommissionSidebarHeaderPlacement({
   commission,
   onClose,
 }: CommissionSidebarHeaderPlacementProps) {
+  const shownAmount = useShownAmount()
   const placement = commission.placement
   const benefactorDisplayName = commission.benefactorDisplayName
   const benefactorPhone = placement.benefactorPhone
@@ -129,7 +131,7 @@ export function CommissionSidebarHeaderPlacement({
             <div>
               <div className="text-xs text-blue-600 font-medium">Capital</div>
               <div className="text-sm font-bold text-blue-900">
-                {roundFcfa(placement.amount).toLocaleString("fr-FR")} F
+                {shownAmount(roundFcfa(placement.amount))} F
               </div>
             </div>
           </div>

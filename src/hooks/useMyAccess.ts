@@ -133,6 +133,11 @@ export interface MyAccess {
   canRecordPayments: boolean
   /** Peut télécharger des documents : reçus, preuves, médias (droit « documents.download »). */
   canDownloadDocuments: boolean
+  /**
+   * Voit les montants du calendrier et les remises à venir. L'agent de
+   * recouvrement relance les membres sans connaître les sommes en jeu.
+   */
+  canSeeAmounts: boolean
   /** Ensemble des clés de permission accordées (vide pour un superAdmin — utiliser `can`). */
   permissions: Set<string>
   /** L'admin peut-il effectuer cette action ? (superAdmin → toujours vrai) */
@@ -177,6 +182,7 @@ export function useMyAccess(): MyAccess {
       restrictedRole,
       canRecordPayments: can('calendar.payment'),
       canDownloadDocuments: can('documents.download'),
+      canSeeAmounts: restrictedRole !== 'AgentRecouvrement',
       permissions,
       can,
       canAny: (keys: string[]) => isSuperAdmin || !permissionsDefined || keys.some((k) => permissions.has(k)),

@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import type {
   CalendarPaymentItemCredit,
   DayPaymentsCredit,
@@ -43,6 +44,7 @@ export function CalendarViewCreditSpeciale({
   daysPayments,
   isLoading,
 }: CalendarViewCreditSpecialeProps) {
+  const { canSeeAmounts } = useMyAccess()
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedPayment, setSelectedPayment] =
     useState<CalendarPaymentItemCredit | null>(null)
@@ -73,19 +75,23 @@ export function CalendarViewCreditSpeciale({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-          <div className="text-xs font-medium text-blue-600 uppercase">Total du mois</div>
-          <div className="text-xl font-bold text-blue-900 mt-1">
-            {monthStats.totalAmount.toLocaleString("fr-FR")} FCFA
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100">
-          <div className="text-xs font-medium text-emerald-600 uppercase">Montant payé</div>
-          <div className="text-xl font-bold text-emerald-900 mt-1">
-            {monthStats.paidAmount.toLocaleString("fr-FR")} FCFA
-          </div>
-        </div>
+      <div className={`grid grid-cols-2 gap-4 ${canSeeAmounts ? "md:grid-cols-3" : "md:grid-cols-1"}`}>
+        {canSeeAmounts && (
+          <>
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+              <div className="text-xs font-medium text-blue-600 uppercase">Total du mois</div>
+              <div className="text-xl font-bold text-blue-900 mt-1">
+                {monthStats.totalAmount.toLocaleString("fr-FR")} FCFA
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100">
+              <div className="text-xs font-medium text-emerald-600 uppercase">Montant payé</div>
+              <div className="text-xl font-bold text-emerald-900 mt-1">
+                {monthStats.paidAmount.toLocaleString("fr-FR")} FCFA
+              </div>
+            </div>
+          </>
+        )}
         <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-100">
           <div className="text-xs font-medium text-purple-600 uppercase">Échéances</div>
           <div className="text-xl font-bold text-purple-900 mt-1">{monthStats.totalCount}</div>
@@ -155,9 +161,11 @@ export function CalendarViewCreditSpeciale({
                       <div className="text-[11px] text-gray-700 font-medium">
                         {dayPayments.count} échéance{dayPayments.count > 1 ? "s" : ""}
                       </div>
-                      <div className="text-[11px] text-gray-600">
-                        {dayPayments.totalAmount.toLocaleString("fr-FR")} FCFA
-                      </div>
+                      {canSeeAmounts && (
+                        <div className="text-[11px] text-gray-600">
+                          {dayPayments.totalAmount.toLocaleString("fr-FR")} FCFA
+                        </div>
+                      )}
                     </div>
                   ) : null}
                 </button>

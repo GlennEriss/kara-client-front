@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Calendar, CheckCircle2, Clock, CreditCard, PiggyBank, Receipt, User } from "lucide-react"
+import { useShownAmount } from "./useShownAmount"
 
 interface PaymentSidebarContentCIProps {
   payment: CalendarPaymentItemCI
@@ -34,6 +35,7 @@ export function PaymentSidebarContentCI({
   showReceipt,
   receiptUrl,
 }: PaymentSidebarContentCIProps) {
+  const shownAmount = useShownAmount()
   const { canDownloadDocuments } = useMyAccess()
   const { data: allPayments = [], isLoading } = usePaymentsCI(
     payment.contract.id
@@ -130,7 +132,7 @@ export function PaymentSidebarContentCI({
               Objectif
             </span>
             <span className={cn("text-lg font-bold", isPaid ? "text-emerald-900" : "text-orange-900")}>
-              {payment.targetAmount.toLocaleString("fr-FR")} FCFA
+              {shownAmount(payment.targetAmount)} FCFA
             </span>
           </div>
 
@@ -138,7 +140,7 @@ export function PaymentSidebarContentCI({
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className={isPaid ? "text-emerald-600" : "text-orange-600"}>
-                Accumulé: {payment.accumulatedAmount.toLocaleString("fr-FR")} F
+                Accumulé: {shownAmount(payment.accumulatedAmount)} F
               </span>
               <span className={isPaid ? "text-emerald-600" : "text-orange-600"}>
                 {Math.round(progressPercent)}%
@@ -161,7 +163,7 @@ export function PaymentSidebarContentCI({
             <div className="flex items-center justify-between p-3 bg-orange-100 rounded-lg border border-orange-200">
               <span className="text-sm text-orange-700">Reste à payer</span>
               <span className="text-sm font-bold text-orange-900">
-                {(payment.targetAmount - payment.accumulatedAmount).toLocaleString("fr-FR")} FCFA
+                {shownAmount((payment.targetAmount - payment.accumulatedAmount))} FCFA
               </span>
             </div>
           )}
@@ -202,11 +204,11 @@ export function PaymentSidebarContentCI({
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold text-emerald-700">
-                    {versement.amount.toLocaleString("fr-FR")} F
+                    {shownAmount(versement.amount)} F
                   </div>
                   {versement.penalty && versement.penalty > 0 && (
                     <div className="text-xs text-red-600">
-                      +{versement.penalty.toLocaleString("fr-FR")} F pénalité
+                      +{shownAmount(versement.penalty)} F pénalité
                     </div>
                   )}
                 </div>
@@ -241,7 +243,7 @@ export function PaymentSidebarContentCI({
           <div className="text-center p-3 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl">
             <div className="text-xs text-emerald-600 mb-1">Total payé</div>
             <div className="text-sm font-bold text-emerald-900">
-              {totalPaid.toLocaleString("fr-FR")} F
+              {shownAmount(totalPaid)} F
             </div>
           </div>
           <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">

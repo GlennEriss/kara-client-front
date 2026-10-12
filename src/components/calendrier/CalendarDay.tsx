@@ -1,6 +1,7 @@
 "use client"
 
 import type { DayPayments } from "@/hooks/useCalendarCaisseSpeciale"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -44,6 +45,7 @@ export function CalendarDay({
   isToday,
   onClick,
 }: CalendarDayProps) {
+  const { canSeeAmounts } = useMyAccess()
   const hasPayments = dayPayments && dayPayments.count > 0
   const color = dayPayments?.color || "gray"
 
@@ -90,12 +92,14 @@ export function CalendarDay({
       {/* Informations des versements */}
       {hasPayments && (
         <div className="space-y-1.5">
-          <div className={cn(
-            "text-xs font-semibold",
-            COLOR_TEXT_CLASSES[color]
-          )}>
-            {dayPayments.totalAmount.toLocaleString("fr-FR")} F
-          </div>
+          {canSeeAmounts && (
+            <div className={cn(
+              "text-xs font-semibold",
+              COLOR_TEXT_CLASSES[color]
+            )}>
+              {dayPayments.totalAmount.toLocaleString("fr-FR")} F
+            </div>
+          )}
           
           {/* Barre de progression */}
           <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
@@ -117,18 +121,20 @@ export function CalendarDay({
           </div>
 
           {/* Détails */}
-          <div className="flex items-center justify-between text-[10px]">
-            {dayPayments.paidAmount > 0 && (
-              <span className="text-emerald-600 font-medium">
-                ✓ {dayPayments.paidAmount.toLocaleString("fr-FR")}
-              </span>
-            )}
-            {dayPayments.remainingAmount > 0 && (
-              <span className="text-orange-600 font-medium">
-                ◷ {dayPayments.remainingAmount.toLocaleString("fr-FR")}
-              </span>
-            )}
-          </div>
+          {canSeeAmounts && (
+            <div className="flex items-center justify-between text-[10px]">
+              {dayPayments.paidAmount > 0 && (
+                <span className="text-emerald-600 font-medium">
+                  ✓ {dayPayments.paidAmount.toLocaleString("fr-FR")}
+                </span>
+              )}
+              {dayPayments.remainingAmount > 0 && (
+                <span className="text-orange-600 font-medium">
+                  ◷ {dayPayments.remainingAmount.toLocaleString("fr-FR")}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

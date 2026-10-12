@@ -34,6 +34,7 @@ import { fr } from 'date-fns/locale'
 import { Loader2, Phone } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { useShownAmount } from './useShownAmount'
 
 /** Le retardataire concerné, tel que le tableau des retards le connaît. */
 export interface CallTarget {
@@ -74,6 +75,7 @@ const OUTCOME_ORDER: CallOutcome[] = [
 const SUMMARY_MIN_LENGTH = 5
 
 export function LogCallModal({ open, target, channel, onRecorded, onCancel }: LogCallModalProps) {
+  const shownAmount = useShownAmount()
   const { record, isPending } = useRecordCall()
 
   const [outcome, setOutcome] = useState<CallOutcome | ''>('')
@@ -145,7 +147,7 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
             Compte rendu — {CONTACT_CHANNEL_LABELS[channel]}
           </DialogTitle>
           <DialogDescription>
-            {target.name} • {target.product} • {target.totalOverdue.toLocaleString('fr-FR')} FCFA dus
+            {target.name} • {target.product} • {shownAmount(target.totalOverdue)} FCFA dus
             {' '}({target.overdueCount} versement{target.overdueCount > 1 ? 's' : ''}, {target.maxDaysOverdue} j de retard)
           </DialogDescription>
         </DialogHeader>

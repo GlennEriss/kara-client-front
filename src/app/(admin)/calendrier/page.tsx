@@ -15,12 +15,14 @@ import { useCalendarCaisseImprevue } from "@/hooks/useCalendarCaisseImprevue"
 import { useCalendarCaisseSpeciale } from "@/hooks/useCalendarCaisseSpeciale"
 import { useCalendarCreditSpeciale } from "@/hooks/useCalendarCreditSpeciale"
 import { useCalendarPlacement } from "@/hooks/useCalendarPlacement"
+import { useMyAccess } from "@/hooks/useMyAccess"
 import type { CaisseType } from "@/services/caisse/types"
 import type { CaisseImprevuePaymentFrequency, PayoutMode } from "@/types/types"
 import { Banknote, Calendar, PiggyBank, TrendingUp, Wallet } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function CalendrierPage() {
+  const { canSeeAmounts } = useMyAccess()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [activeTab, setActiveTab] = useState<
     | "caisse-speciale"
@@ -317,10 +319,12 @@ export default function CalendrierPage() {
 
       {/* Remises d'argent à venir (CS + CI + Placement) : dues 30 jours après le
           dernier versement (contrat cotisé), la fin du placement, ou la demande
-          de retrait anticipé. */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <UpcomingPayoutsList />
-      </div>
+          de retrait anticipé. Masquées à l'agent de recouvrement. */}
+      {canSeeAmounts && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <UpcomingPayoutsList />
+        </div>
+      )}
     </div>
   )
 }
