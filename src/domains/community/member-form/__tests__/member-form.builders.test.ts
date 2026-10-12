@@ -92,6 +92,33 @@ describe('member form builders', () => {
     expect(entries[0].contractHref).toBe('/credit-fixe/contrats/credit-1')
   })
 
+  it('compte un versement partiel de Crédit Spécial comme payé, selon sa date', () => {
+    const contract = {
+      id: 'credit-s',
+      clientId: 'member-1',
+      creditType: 'SPECIALE',
+      durationUnit: 'MONTHS',
+      amount: 100_000,
+      totalAmount: 130_000,
+      monthlyPaymentAmount: 40_000,
+      duration: 3,
+      interestRate: 10,
+      firstPaymentDate: new Date('2026-06-01'),
+      createdAt: new Date('2026-05-15'),
+      restMonths: [],
+    } as unknown as CreditContract
+    const payments = [
+      { id: 'M1_credit-s', creditId: 'credit-s', amount: 15_000, paymentDate: new Date('2026-06-01'), comment: '' },
+      { id: 'M2_credit-s', creditId: 'credit-s', amount: 10_000, paymentDate: new Date('2026-07-05'), comment: '' },
+    ] as CreditPayment[]
+
+    const entries = buildCreditEntries([{ contract, payments }], NOW)
+
+    expect(entries[0]).toMatchObject({ outcome: 'onTime', amount: 15_000 })
+    expect(entries[1]).toMatchObject({ outcome: 'late', daysLate: 4, amount: 10_000 })
+    expect(entries[2]).toMatchObject({ outcome: 'missed' })
+  })
+
   it('garde les dix dernières échéances de chaque produit séparément', () => {
     const csContract = { id: 'cs-many', monthlyAmount: 5_000 } as CaisseContract & { id: string }
     const csPayments = Array.from({ length: 12 }, (_, index) => ({
