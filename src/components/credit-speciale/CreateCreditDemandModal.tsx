@@ -15,6 +15,8 @@ import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
 import WrittenOffCreditWarning from './WrittenOffCreditWarning'
 import ShopPurchaseFields from './ShopPurchaseFields'
 import { useAllMembers } from '@/hooks/useMembers'
+import { getUserById } from '@/db/user.db'
+import { UNKNOWN_USER_MATRICULE } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 import { creditDemandDefaultValues, creditDemandFormSchema, type CreditDemandFormInput } from '@/schemas/credit-speciale.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Calendar, CheckCircle, Loader2, Search, User } from 'lucide-react'
@@ -116,6 +118,32 @@ export default function CreateCreditDemandModal({
       form.setValue('guarantorLastName', member.lastName)
       form.setValue('guarantorIsMember', true)
       setGuarantorSearch('')
+    }
+  }
+
+  // « Contact inconnu » : la fiche du membre INCONNU (matricule fixe), comme en
+  // Caisse Spéciale, avec le lien « Autre ». Il n'est pas compté comme membre
+  // garant : aucune rémunération ne lui sera proposée au contrat.
+  const [loadingUnknownGuarantor, setLoadingUnknownGuarantor] = useState(false)
+  const handleUnknownGuarantor = async () => {
+    setLoadingUnknownGuarantor(true)
+    try {
+      const unknown =
+        members.find((m) => m.id === UNKNOWN_USER_MATRICULE || m.matricule === UNKNOWN_USER_MATRICULE) ??
+        (await getUserById(UNKNOWN_USER_MATRICULE))
+      if (!unknown) {
+        toast.error(`Membre INCONNU introuvable (matricule ${UNKNOWN_USER_MATRICULE})`)
+        return
+      }
+      setSelectedGuarantorId(unknown.id)
+      form.setValue('guarantorId', unknown.id, { shouldValidate: true })
+      form.setValue('guarantorFirstName', unknown.firstName || '')
+      form.setValue('guarantorLastName', unknown.lastName || 'INCONNU', { shouldValidate: true })
+      form.setValue('guarantorRelation', 'Autre', { shouldValidate: true })
+      form.setValue('guarantorIsMember', false)
+      setGuarantorSearch('')
+    } finally {
+      setLoadingUnknownGuarantor(false)
     }
   }
 
@@ -396,14 +424,27 @@ export default function CreateCreditDemandModal({
                   <div className="space-y-4">
                     <div>
                       <label className="mb-2 block text-sm font-medium text-slate-700">Rechercher un garant</label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          placeholder="Nom, prénom ou matricule..."
-                          value={guarantorSearch}
-                          onChange={(e) => setGuarantorSearch(e.target.value)}
-                          className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
-                        />
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            placeholder="Nom, prénom ou matricule..."
+                            value={guarantorSearch}
+                            onChange={(e) => setGuarantorSearch(e.target.value)}
+                            className="h-11 rounded-xl border-2 border-slate-200 bg-white pl-10 focus-visible:border-[#234D65] focus-visible:ring-0"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleUnknownGuarantor}
+                          disabled={loadingUnknownGuarantor}
+                          className="h-11 shrink-0 rounded-xl border-2 border-slate-200 text-slate-700"
+                          title={`Sélectionner le membre INCONNU (matricule ${UNKNOWN_USER_MATRICULE})`}
+                        >
+                          {loadingUnknownGuarantor && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                          Contact inconnu
+                        </Button>
                       </div>
 
                       {guarantorSearch && filteredGuarantors.length > 0 && (
