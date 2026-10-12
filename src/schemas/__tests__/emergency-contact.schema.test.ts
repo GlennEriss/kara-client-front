@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
+import { emergencyContactErrors, emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 
 const complete = {
   lastName: 'Ndong',
@@ -54,5 +54,24 @@ describe('contact d’urgence de la caisse spéciale', () => {
     expect(result.success).toBe(false)
     const fields = result.success ? [] : result.error.issues.map((issue) => issue.path[0])
     expect(fields).toEqual(expect.arrayContaining(['relationship', 'documentPhotoUrl']))
+  })
+})
+
+describe('emergencyContactErrors (contrat de crédit spécial)', () => {
+  it('ne signale rien pour le membre INCONNU choisi via « Contact inconnu »', () => {
+    expect(emergencyContactErrors({ memberId: '2548.MK.290126', lastName: 'INCONNU', firstName: 'INCONNU' })).toEqual([])
+  })
+
+  it('accepte un contact complet, téléphone saisi avec espaces', () => {
+    expect(emergencyContactErrors({ ...complete, phone1: '+241 77 89 89 09' })).toEqual([])
+  })
+
+  it('nomme les champs manquants pour un contact ordinaire', () => {
+    const errors = emergencyContactErrors({ lastName: 'Ndong' })
+    expect(errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^Lien de parenté : /),
+      expect.stringMatching(/^N° de pièce : /),
+      expect.stringMatching(/^Téléphone : /),
+    ]))
   })
 })

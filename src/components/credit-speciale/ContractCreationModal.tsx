@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import routes from '@/constantes/routes'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
-import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import { EmergencyContact, emergencyContactErrors } from '@/schemas/emergency-contact.schema'
 import type { CreditDemand, CustomSimulation, StandardSimulation, PaymentMode } from '@/types/types'
 import {
     ArrowLeft,
@@ -391,17 +391,10 @@ export default function ContractCreationModal({
     0
   )
 
-  // Validation du contact d'urgence
-  const isEmergencyContactValid = useMemo(() => {
-    return (
-      emergencyContact.lastName?.trim() &&
-      emergencyContact.phone1?.trim() &&
-      emergencyContact.relationship?.trim() &&
-      emergencyContact.typeId?.trim() &&
-      emergencyContact.idNumber?.trim() &&
-      emergencyContact.documentPhotoUrl?.trim()
-    )
-  }, [emergencyContact])
+  // Validation du contact d'urgence : mêmes règles qu'en Caisse Spéciale
+  // (le contact INCONNU passe sans téléphone, lien ni pièce).
+  const emergencyErrors = useMemo(() => emergencyContactErrors(emergencyContact), [emergencyContact])
+  const isEmergencyContactValid = emergencyErrors.length === 0
 
   const isPaymentStepValid = () => {
     if (!paymentMode) return false
@@ -457,7 +450,7 @@ export default function ContractCreationModal({
   // Créer le contrat
   const handleCreateContract = async () => {
     if (!isEmergencyContactValid) {
-      toast.error('Veuillez remplir tous les champs du contact d\'urgence')
+      toast.error(`Les informations du contact d'urgence sont incomplètes ou invalides :\n${emergencyErrors.join('\n')}`)
       return
     }
 

@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 import { cn } from '@/lib/utils'
 import { useContractForm } from '@/providers/ContractFormProvider'
-import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
+import { EMERGENCY_FIELD_LABELS, emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 import {
     AlertCircle,
     ArrowLeft,
@@ -26,18 +26,6 @@ import {
 import { useRouter } from 'next/navigation'
 import React from 'react'
 import { toast } from 'sonner'
-
-/** Libellés des champs du contact d'urgence, pour les messages d'erreur. */
-const EMERGENCY_FIELD_LABELS: Record<string, string> = {
-  lastName: 'Nom',
-  firstName: 'Prénom',
-  phone1: 'Téléphone',
-  phone2: 'Téléphone 2',
-  relationship: 'Lien de parenté',
-  typeId: 'Type de pièce',
-  idNumber: 'N° de pièce',
-  documentPhotoUrl: 'Photo de la pièce',
-}
 
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()

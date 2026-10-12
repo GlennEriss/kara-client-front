@@ -231,5 +231,39 @@ export const emergencyContactCISchema = z
 
 // Type TypeScript
 export type EmergencyContact = z.infer<typeof emergencyContactSchema>
+
+/** Libellés des champs du contact d'urgence, pour les messages d'erreur. */
+export const EMERGENCY_FIELD_LABELS: Record<string, string> = {
+  lastName: 'Nom',
+  firstName: 'Prénom',
+  phone1: 'Téléphone',
+  phone2: 'Téléphone 2',
+  relationship: 'Lien de parenté',
+  typeId: 'Type de pièce',
+  idNumber: 'N° de pièce',
+  documentPhotoUrl: 'Photo de la pièce',
+}
+
+/**
+ * Erreurs du contact d'urgence saisi (« Champ : message »), vide s'il est
+ * valide. Le contact INCONNU passe sans téléphone, lien ni pièce.
+ */
+export function emergencyContactErrors(contact: Partial<EmergencyContact>): string[] {
+  const result = emergencyContactSchema.safeParse({
+    ...contact,
+    lastName: contact.lastName ?? '',
+    phone1: contact.phone1?.replace(/\s/g, '') ?? '',
+    phone2: contact.phone2?.replace(/\s/g, '') ?? '',
+    relationship: contact.relationship ?? '',
+    typeId: contact.typeId ?? '',
+    idNumber: contact.idNumber ?? '',
+    documentPhotoUrl: contact.documentPhotoUrl ?? '',
+  })
+  if (result.success) return []
+  return result.error.issues.map((issue) => {
+    const key = String(issue.path[0] ?? '')
+    return `${EMERGENCY_FIELD_LABELS[key] ?? (key || 'Champ')} : ${issue.message || 'invalide'}`
+  })
+}
 export type EmergencyContactCI = z.infer<typeof emergencyContactCISchema>
 export type Relationship = z.infer<typeof RelationshipEnum>
