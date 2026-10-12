@@ -197,6 +197,11 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
       : new Date(contract.firstPaymentDate)
     : null
   const endDate = getCreditContractEndDate(contract)
+  // Le manque à gagner ne s'affiche qu'une fois la date de fin prévue passée,
+  // que le contrat soit clôturé ou non.
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const isPastEndDate = !!endDate && today > endDate
   const statsData: Array<{ title: string; value: string; subtitle?: string; tone?: 'accent' | 'danger' }> = [
     { title: 'Montant emprunté', value: fcfa(contract.amount) },
     {
@@ -233,7 +238,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
         : 'Aucune pénalité impayée',
       tone: unpaidPenaltiesTotal > 0 ? 'danger' : undefined,
     },
-    ...(totalLosses > 0
+    ...(totalLosses > 0 && isPastEndDate
       ? [{
           title: 'Manque à gagner',
           value: fcfa(totalLosses),
