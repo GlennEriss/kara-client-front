@@ -17,6 +17,7 @@ import { getGroupById } from '@/db/group.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CaisseContract, CaissePayment, CaisseType } from '@/services/caisse/types'
 import type { ContractCI, CreditContract, CreditInstallment, CreditType, PaymentCI, Placement } from '@/types/types'
+import { computeCreditInstallments } from '@/utils/credit-installments'
 
 export type OverdueProduct =
   | 'Caisse Spéciale'
@@ -264,7 +265,9 @@ async function fetchOverdueCredit(product: OverdueProduct, today: Date): Promise
   const perContract = await Promise.all(
     contracts.map(async (contract): Promise<OverduePayment[]> => {
       try {
-        const installments: CreditInstallment[] = await service.getInstallmentsByCreditId(contract.id)
+        // Échéances calculées comme sur la fiche du contrat (aucune n'est enregistrée en base).
+        const payments = await service.getPaymentsByCreditId(contract.id)
+        const installments: CreditInstallment[] = computeCreditInstallments(contract, payments, today)
         const overdue = installments.filter((inst) => {
           if (inst.status === 'PAID' || inst.status === 'PENDING') return false
           const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate)

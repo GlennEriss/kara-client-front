@@ -126,7 +126,6 @@ export function PaymentSidebarCreditSpeciale({
         creditId={payment.contract.id}
         defaultAmount={Math.max(payment.remainingAmount, 0)}
         defaultPaymentDate={new Date(payment.dueDate)}
-        installmentId={payment.installment.id}
         installmentNumber={payment.installment.installmentNumber}
         onSuccess={async () => {
           await Promise.all([

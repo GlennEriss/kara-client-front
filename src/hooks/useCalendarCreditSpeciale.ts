@@ -9,6 +9,7 @@ import type {
   CreditInstallment,
   CreditType,
 } from "@/types/types"
+import { computeCreditInstallments } from "@/utils/credit-installments"
 
 export interface CalendarPaymentItemCredit {
   contract: CreditContract
@@ -115,7 +116,8 @@ export function useCalendarCreditSpeciale(month: Date, creditType: CreditType, e
       const itemChunks = await Promise.all(
         activeContracts.map(async (contract): Promise<CalendarPaymentItemCredit[]> => {
           try {
-            const installments = await service.getInstallmentsByCreditId(contract.id)
+            const payments = await service.getPaymentsByCreditId(contract.id)
+            const installments = computeCreditInstallments(contract, payments, today)
             const chunk: CalendarPaymentItemCredit[] = []
             for (const installment of installments) {
               const dueDate =
