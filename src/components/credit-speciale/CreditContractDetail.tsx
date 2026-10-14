@@ -4,11 +4,13 @@ import { CREDIT_SCORING_ENABLED } from '@/constantes/credit-scoring'
 import { PunctualityBadge, PunctualityLegend } from './PaymentPunctuality'
 import { PUNCTUALITY_META, getInstallmentPunctuality, getPaymentPunctuality } from '@/utils/credit-payment-punctuality'
 import CreditRecoveryModal from './CreditRecoveryModal'
+import MissedEarningsPaymentModal from './MissedEarningsPaymentModal'
+import MissedEarningsReceiptModal from './MissedEarningsReceiptModal'
 import CreditWriteOffModal from './CreditWriteOffModal'
 import CreditWriteOffSection from './CreditWriteOffSection'
 import ShopPurchaseSection from './ShopPurchaseSection'
 import { useMyAccess } from '@/hooks/useMyAccess'
-import { canWriteOffContract, computeWriteOffLoss } from '@/utils/credit-write-off'
+import { canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 import { computeWeeklyCreditTotals, formatCreditDuration, getFlatInstallmentCount, getWeeklyCreditStartDate, isFlatCredit, isWeeklyCredit, splitFlatInstallments } from '@/utils/credit-weekly'
@@ -41,7 +43,7 @@ import {
 import { generateGlobalFactureCreditSpecialPDF } from '@/services/credit-speciale/factureCreditSpecialPdfExport'
 import { generateCreditSpecialGuarantorCommissionHistoryPDF } from '@/services/credit-speciale/guarantorCommissionHistoryCreditSpecialPdfExport'
 import { generateCreditSpecialLossHistoryPDF } from '@/services/credit-speciale/lossHistoryCreditSpecialPdfExport'
-import { CreditContract, CreditContractStatus, CreditPayment, CreditPenalty, GuarantorPayment } from '@/types/types'
+import { CreditContract, CreditContractStatus, CreditPayment, CreditMissedEarningsPayment, CreditPenalty, GuarantorPayment } from '@/types/types'
 import {
   getCreditContractCycles,
   buildCreditSpecialeHistory,
@@ -119,7 +121,7 @@ import RestMonthModal from './RestMonthModal'
 import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
 import SwitchToFixedPhaseModal from './SwitchToFixedPhaseModal'
 import { addContractMonths } from '@/utils/contract-months'
-import { buildSimpleCreditSchedule } from '@/utils/credit-losses'
+import { buildSimpleCreditSchedule, missedEarningsPaid } from '@/utils/credit-losses'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -177,7 +179,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, missedEarningsCollected = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; missedEarningsCollected?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -243,10 +245,12 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
     ...(totalLosses > 0 && isPastEndDate
       ? [{
           title: 'Manque à gagner',
-          value: fcfa(totalLosses),
-          subtitle: contract.creditType === 'FIXE'
-            ? 'Pertes après la durée contractuelle'
-            : 'Manque à gagner en partie fixe',
+          value: fcfa(Math.max(0, totalLosses - missedEarningsCollected)),
+          subtitle: missedEarningsCollected > 0
+            ? `Restant · ${fcfa(missedEarningsCollected)} déjà encaissé`
+            : contract.creditType === 'FIXE'
+              ? 'Pertes après la durée contractuelle'
+              : 'Manque à gagner en partie fixe',
           tone: 'danger' as const,
         }]
       : []),
@@ -354,6 +358,8 @@ export default function CreditContractDetail({
   const [isExportingGuarantorCommissionsExcel, setIsExportingGuarantorCommissionsExcel] = useState(false)
   const { uploadSignedContract, replaceSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery } = useCreditContractMutations()
   const [showWriteOffModal, setShowWriteOffModal] = useState(false)
+  const [showMissedEarningsModal, setShowMissedEarningsModal] = useState(false)
+  const [missedEarningsReceipt, setMissedEarningsReceipt] = useState<CreditMissedEarningsPayment | null>(null)
   const [showRecoveryModal, setShowRecoveryModal] = useState(false)
   const { can } = useMyAccess()
 
@@ -991,6 +997,18 @@ export default function CreditContractDetail({
     () => customRound(lossHistoryRows.reduce((sum, row) => sum + row.lossAmount, 0)),
     [lossHistoryRows]
   )
+  // Manque à gagner encaissé après la fin du contrat (le contrat reste terminé).
+  const missedEarningsCollectedTotal = missedEarningsPaid(contract)
+  const missedEarningsRemaining = Math.max(0, totalLosses - missedEarningsCollectedTotal)
+  // Versement après clôture : manque à gagner, ou pénalité impayée d'un contrat
+  // soldé ou clos (en perte, les pénalités passent par les récupérations).
+  const afterClosurePenalties =
+    contract.status === 'DISCHARGED' || contract.status === 'CLOSED' ? penalties.filter((penalty) => !penalty.paid) : []
+  const afterClosurePenaltiesTotal = afterClosurePenalties.reduce((sum, penalty) => sum + penalty.amount, 0)
+  const canPayAfterClosure =
+    isCreditContractEnded(contract.status) &&
+    (missedEarningsRemaining > 0 || afterClosurePenalties.length > 0) &&
+    (isSuperAdmin || can('creditSpeciale.payment'))
   const shouldShowLossesTab =
     contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
       ? lossHistoryRows.length > 0
@@ -2009,7 +2027,7 @@ export default function CreditContractDetail({
                           </Button>
                         )}
                       </>
-                    ) : contract.status !== 'WRITTEN_OFF' ? (
+                    ) : !isCreditContractLocked(contract.status) ? (
                       <Button
                         type="button"
                         size="sm"
@@ -2195,8 +2213,37 @@ export default function CreditContractDetail({
             totalAmountToRepay={totalAmountToRepay}
             totalLosses={totalLosses}
             historyInterestTotal={historyInterestTotal}
+            missedEarningsCollected={missedEarningsCollectedTotal}
           />
         </div>
+
+        {/* Versement après clôture : manque à gagner ou pénalité impayée */}
+        {canPayAfterClosure && (
+          <Card className="border border-amber-200 bg-amber-50/60 shadow-sm">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div className="text-sm text-amber-900">
+                <p className="font-semibold">Contrat terminé : sommes encore dues</p>
+                <p>
+                  Manque à gagner restant : <b>{missedEarningsRemaining.toLocaleString('fr-FR')} FCFA</b>
+                  {afterClosurePenalties.length > 0 && (
+                    <>
+                      {' · '}Pénalités impayées : <b>{afterClosurePenaltiesTotal.toLocaleString('fr-FR')} FCFA</b>
+                      {' '}({afterClosurePenalties.length})
+                    </>
+                  )}
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="bg-[#234D65] hover:bg-[#1b3c4f]"
+                onClick={() => setShowMissedEarningsModal(true)}
+              >
+                <HandCoins className="mr-2 h-4 w-4" />
+                Versement après clôture
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Barre de progression */}
         <Card className="border-0 shadow-md">
@@ -2925,6 +2972,55 @@ export default function CreditContractDetail({
                           </TableRow>
                         </TableBody>
                       </Table>
+                    </div>
+
+                    {/* Encaissements après la fin du contrat */}
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">Encaissements du manque à gagner</h4>
+                          <p className="text-sm text-gray-500">
+                            Encaissé : <b>{missedEarningsCollectedTotal.toLocaleString('fr-FR')} FCFA</b>
+                            {' · '}Restant : <b className="text-red-700">{missedEarningsRemaining.toLocaleString('fr-FR')} FCFA</b>
+                          </p>
+                          {!isCreditContractEnded(contract.status) && (
+                            <p className="mt-1 text-xs text-gray-400">
+                              Le manque à gagner s’encaisse une fois le contrat terminé (soldé, clos ou en perte).
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {(contract.missedEarningsPayments?.length ?? 0) > 0 && (
+                        <div className="rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead className="text-right">Montant (FCFA)</TableHead>
+                                <TableHead>Enregistré par</TableHead>
+                                <TableHead className="text-right">Facture</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {contract.missedEarningsPayments!.map((payment) => (
+                                <TableRow key={payment.id}>
+                                  <TableCell>{formatDate(payment.date)}</TableCell>
+                                  <TableCell className="text-right font-semibold text-emerald-700">
+                                    {payment.amount.toLocaleString('fr-FR')}
+                                  </TableCell>
+                                  <TableCell>{payment.recordedByName || payment.recordedBy}</TableCell>
+                                  <TableCell className="text-right">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => setMissedEarningsReceipt(payment)}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      Voir la facture
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
@@ -4165,6 +4261,18 @@ export default function CreditContractDetail({
           await recordWriteOffRecovery.mutateAsync({ contractId: contract.id, ...data })
         }}
         isPending={recordWriteOffRecovery.isPending}
+      />
+      <MissedEarningsPaymentModal
+        isOpen={showMissedEarningsModal}
+        onClose={() => setShowMissedEarningsModal(false)}
+        contractId={contract.id}
+        maxAmount={missedEarningsRemaining}
+        unpaidPenalties={afterClosurePenalties}
+      />
+      <MissedEarningsReceiptModal
+        contract={contract}
+        payment={missedEarningsReceipt}
+        onClose={() => setMissedEarningsReceipt(null)}
       />
       <QuittanceCreditSpecialePDFModal
         isOpen={showQuittanceModal}

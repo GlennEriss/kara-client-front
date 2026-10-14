@@ -2,14 +2,14 @@
 
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { CreditContract } from '@/types/types'
-import { computeCreditLossTotal } from '@/utils/credit-losses'
+import { computeMissedEarningsBalance } from '@/utils/credit-losses'
 import { useQuery } from '@tanstack/react-query'
 
 export interface CreditContractLoss {
   /** Somme des pénalités non réglées. */
   unpaidPenalties: number
   unpaidPenaltiesCount: number
-  /** Manque à gagner (même calcul que la fiche du contrat). */
+  /** Manque à gagner restant, après les encaissements (même calcul que la fiche du contrat). */
   missedEarnings: number
 }
 
@@ -38,7 +38,7 @@ export function useCreditContractsLosses(contracts: CreditContract[], enabled = 
             {
               unpaidPenalties: penalties.reduce((sum, penalty) => sum + (Number(penalty.amount) || 0), 0),
               unpaidPenaltiesCount: penalties.length,
-              missedEarnings: computeCreditLossTotal(contract, payments),
+              missedEarnings: computeMissedEarningsBalance(contract, payments).net,
             },
           ]
         }),
