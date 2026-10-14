@@ -811,6 +811,51 @@ function CustomPaymentsInput({
   )
 }
 
+/** Taux de commission du garant proposé par défaut (modifiable de 0 à 5 %). */
+const DEFAULT_GUARANTOR_RATE = 2
+
+/**
+ * Commission du garant par mois : taux × reste dû au début du mois (le montant
+ * emprunté au 1er mois), sur 7 mois au plus — même calcul qu'à la création du contrat.
+ */
+function guarantorCommissionByMonth(
+  schedule: Array<{ month: number; remaining: number }>,
+  amount: number,
+  rate: number
+): Map<number, number> {
+  const commissions = new Map<number, number>()
+  schedule.slice(0, 7).forEach((row, index) => {
+    const remainingAtStart = index === 0 ? amount : schedule[index - 1].remaining
+    commissions.set(row.month, customRound((remainingAtStart * rate) / 100))
+  })
+  return commissions
+}
+
+/** Choix du taux de commission du garant dans la simulation. */
+function GuarantorRateField({ rate, onChange }: { rate: number; onChange: (rate: number) => void }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+      <label htmlFor="simulation-guarantor-rate" className="font-medium text-gray-700">
+        Taux de commission du garant
+      </label>
+      <Input
+        id="simulation-guarantor-rate"
+        type="number"
+        min={0}
+        max={5}
+        step={0.5}
+        value={rate}
+        onChange={(e) => {
+          const value = Number(e.target.value)
+          onChange(Number.isFinite(value) ? Math.min(5, Math.max(0, value)) : 0)
+        }}
+        className="h-9 w-24"
+      />
+      <span className="text-gray-500">% (de 0 à 5 %)</span>
+    </div>
+  )
+}
+
 // Composant pour afficher les résultats de simulation standard
 function StandardSimulationResults({
   result,
@@ -824,6 +869,8 @@ function StandardSimulationResults({
   isProposed?: boolean
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
+  const showGuarantor = creditType === 'SPECIALE'
+  const [guarantorRate, setGuarantorRate] = useState(DEFAULT_GUARANTOR_RATE)
   
   // Calculer l'échéancier en utilisant la fonction utilitaire partagée
   const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity)
@@ -837,6 +884,8 @@ function StandardSimulationResults({
   
   // La durée réelle est le nombre de lignes dans l'échéancier (avec paiements non nuls)
   const displayDuration = schedule.length
+  const guarantorCommissions = guarantorCommissionByMonth(schedule, result.amount, guarantorRate)
+  const totalGuarantorCommission = Array.from(guarantorCommissions.values()).reduce((sum, value) => sum + value, 0)
 
   // Calculer les stats pour l'échéancier calculé
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
@@ -1039,6 +1088,7 @@ function StandardSimulationResults({
               <TableIcon className="h-4 w-4" />
               Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)
             </h4>
+            {showGuarantor && <GuarantorRateField rate={guarantorRate} onChange={setGuarantorRate} />}
             <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1049,6 +1099,9 @@ function StandardSimulationResults({
                     <TableHead className="text-right">Intérêts</TableHead>
                     <TableHead className="text-right">Montant global</TableHead>
                     <TableHead className="text-right">Reste dû</TableHead>
+                    {showGuarantor && (
+                      <TableHead className="text-right">Commission garant ({guarantorRate} %)</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1062,11 +1115,24 @@ function StandardSimulationResults({
                       <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                       <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                       <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                      {showGuarantor && (
+                        <TableCell className="text-right">
+                          {guarantorCommissions.has(row.month)
+                            ? `${(guarantorCommissions.get(row.month) ?? 0).toLocaleString('fr-FR')} FCFA`
+                            : '—'}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+            {showGuarantor && (
+              <p className="mt-2 text-right text-sm text-gray-700">
+                Total commission du garant ({guarantorRate} %) :{' '}
+                <span className="font-semibold">{totalGuarantorCommission.toLocaleString('fr-FR')} FCFA</span>
+              </p>
+            )}
           </div>
 
           {/* Tableau référence 7 mois (pour crédit spéciale uniquement) */}
@@ -1122,6 +1188,8 @@ function CustomSimulationResults({
   onUse: () => void
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
+  const showGuarantor = creditType === 'SPECIALE'
+  const [guarantorRate, setGuarantorRate] = useState(DEFAULT_GUARANTOR_RATE)
   
   // Calculer l'échéancier personnalisé
   const schedule: Array<{
@@ -1162,6 +1230,9 @@ function CustomSimulationResults({
 
   // Calculer l'échéancier référence (exactement maxDuration mois)
   // Même logique que dans la simulation standard
+  const guarantorCommissions = guarantorCommissionByMonth(schedule, result.amount, guarantorRate)
+  const totalGuarantorCommission = Array.from(guarantorCommissions.values()).reduce((sum, value) => sum + value, 0)
+
   const referenceSchedule: Array<{
     month: number
     date: Date
@@ -1327,6 +1398,7 @@ function CustomSimulationResults({
               <TableIcon className="h-4 w-4" />
               Échéancier personnalisé
             </h4>
+            {showGuarantor && <GuarantorRateField rate={guarantorRate} onChange={setGuarantorRate} />}
             <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1337,6 +1409,9 @@ function CustomSimulationResults({
                     <TableHead className="text-right">Intérêts</TableHead>
                     <TableHead className="text-right">Montant global</TableHead>
                     <TableHead className="text-right">Reste dû</TableHead>
+                    {showGuarantor && (
+                      <TableHead className="text-right">Commission garant ({guarantorRate} %)</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1350,11 +1425,24 @@ function CustomSimulationResults({
                       <TableCell className="text-right">{customRound(row.interest).toLocaleString('fr-FR')} FCFA</TableCell>
                       <TableCell className="text-right">{customRound(row.principal).toLocaleString('fr-FR')} FCFA</TableCell>
                       <TableCell className="text-right">{customRound(row.remaining).toLocaleString('fr-FR')} FCFA</TableCell>
+                      {showGuarantor && (
+                        <TableCell className="text-right">
+                          {guarantorCommissions.has(row.month)
+                            ? `${(guarantorCommissions.get(row.month) ?? 0).toLocaleString('fr-FR')} FCFA`
+                            : '—'}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+            {showGuarantor && (
+              <p className="mt-2 text-right text-sm text-gray-700">
+                Total commission du garant ({guarantorRate} %) :{' '}
+                <span className="font-semibold">{totalGuarantorCommission.toLocaleString('fr-FR')} FCFA</span>
+              </p>
+            )}
           </div>
 
           {/* Échéancier référence (maxDuration mois) */}
