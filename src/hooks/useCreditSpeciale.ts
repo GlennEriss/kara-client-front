@@ -414,6 +414,27 @@ export function useCreditContractMutations() {
         },
     })
 
+    const recordMissedEarningsPayment = useMutation({
+        mutationFn: ({ contractId, ...data }: { contractId: string; amount: number; date: Date; paymentTime?: string; mode: CreditPaymentMode; withFees?: boolean; agentRecouvrementId?: string; comment?: string; proofFile?: File }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.recordMissedEarningsPayment(contractId, {
+                ...data,
+                adminId: user.uid,
+                adminName: user.displayName || undefined,
+            })
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            qc.invalidateQueries({ queryKey: ['creditContractsLosses'] })
+            toast.success('Manque à gagner encaissé')
+            log({ action: 'create', ...CREDIT_MODULE, targetType: 'contrat de crédit', targetId: variables.contractId, description: `Manque à gagner encaissé après la fin du contrat : ${variables.amount} FCFA` })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Erreur lors de l'encaissement du manque à gagner")
+        },
+    })
+
     const recordWriteOffRecovery = useMutation({
         mutationFn: ({ contractId, ...data }: { contractId: string; amount: number; date: Date; mode: CreditPaymentMode; comment?: string }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
@@ -485,7 +506,7 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery, recordShopVendorPayment, confirmShopPurchaseDelivery, deleteContract }
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, replaceSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, replaceSignedQuittance, closeContract, writeOffContract, recordWriteOffRecovery, recordMissedEarningsPayment, recordShopVendorPayment, confirmShopPurchaseDelivery, deleteContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
@@ -673,6 +694,7 @@ export function usePayCreditPenalty() {
                 qc.invalidateQueries({ queryKey: ['creditContract', variables.creditId] }),
                 qc.invalidateQueries({ queryKey: ['creditContracts'] }),
                 qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsLosses'] }),
             ])
             toast.success('Pénalité payée avec succès')
         },

@@ -193,3 +193,15 @@ export function computeCreditLossTotal(contract: CreditContract, payments: Credi
       .reduce((sum, row) => sum + customRound(row.capitalStart * monthlyRate), 0),
   )
 }
+
+/** Manque à gagner déjà encaissé après la fin du contrat. */
+export function missedEarningsPaid(contract: Pick<CreditContract, 'missedEarningsPayments'>): number {
+  return (contract.missedEarningsPayments ?? []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0)
+}
+
+/** Manque à gagner calculé, encaissé, et restant à encaisser. */
+export function computeMissedEarningsBalance(contract: CreditContract, payments: CreditPayment[]) {
+  const gross = computeCreditLossTotal(contract, payments)
+  const paid = missedEarningsPaid(contract)
+  return { gross, paid, net: Math.max(0, gross - paid) }
+}

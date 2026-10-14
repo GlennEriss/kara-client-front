@@ -1835,6 +1835,16 @@ export interface CreditRecovery {
   recordedAt: Date
 }
 
+/** Versement de manque à gagner sur un contrat terminé (même saisie qu'un versement). */
+export interface CreditMissedEarningsPayment extends CreditRecovery {
+  /** Heure du versement (HH:mm). */
+  paymentTime?: string
+  withFees?: boolean
+  agentRecouvrementId?: string
+  proofUrl?: string
+  proofPath?: string
+}
+
 export interface CreditContract {
   id: string
   demandId: string
@@ -1913,6 +1923,8 @@ export interface CreditContract {
   writeOff?: CreditWriteOff
   /** Sommes récupérées après la clôture en perte. */
   writeOffRecoveries?: CreditRecovery[]
+  /** Manque à gagner encaissé après la fin du contrat (le contrat reste clôturé). */
+  missedEarningsPayments?: CreditMissedEarningsPayment[]
   activatedAt?: Date
   fundsReleasedAt?: Date
   dischargedAt?: Date

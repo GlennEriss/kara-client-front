@@ -31,7 +31,8 @@ import {
     getNextDueFromCreditSpecialeHistory,
 } from "@/utils/credit-speciale-history";
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
-import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss } from "@/utils/credit-write-off";
+import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from "@/utils/credit-write-off";
+import { computeMissedEarningsBalance } from "@/utils/credit-losses";
 import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, splitFlatInstallments } from "@/utils/credit-weekly";
 import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
 import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
@@ -2393,7 +2394,11 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (penaltyContract?.status === 'WRITTEN_OFF') {
             throw new Error('Contrat clôturé en perte : enregistrez la somme comme récupération');
         }
-        assertContractUnlocked(isCreditContractLocked(penaltyContract?.status));
+        // Contrat soldé ou clos : il reste verrouillé, mais une pénalité impayée
+        // peut encore être réglée par un versement après clôture (le paiement
+        // ne modifie que la pénalité).
+        const settledContract = penaltyContract?.status === 'DISCHARGED' || penaltyContract?.status === 'CLOSED';
+        assertContractUnlocked(isCreditContractLocked(penaltyContract?.status) && !settledContract);
         if (penalty.paid) {
             throw new Error('Cette pénalité est déjà payée');
         }
@@ -3150,6 +3155,77 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         });
 
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+        return updatedContract;
+    }
+
+    /**
+     * Encaisse du manque à gagner après la fin du contrat (soldé, clos ou en
+     * perte). Le contrat reste terminé : seul l'encaissement est ajouté, dans
+     * la limite du manque à gagner restant.
+     */
+    async recordMissedEarningsPayment(
+        contractId: string,
+        data: { amount: number; date: Date; paymentTime?: string; mode: CreditPaymentMode; withFees?: boolean; agentRecouvrementId?: string; comment?: string; proofFile?: File; adminId: string; adminName?: string }
+    ): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        if (!isCreditContractEnded(contract.status)) {
+            throw new Error('Le manque à gagner ne s\'encaisse qu\'une fois le contrat terminé');
+        }
+        const amount = Math.round(Number(data.amount) || 0);
+        if (amount <= 0) {
+            throw new Error('Le montant doit être strictement positif');
+        }
+        const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
+        const { net } = computeMissedEarningsBalance(contract, payments);
+        if (amount > net) {
+            throw new Error(`Le montant dépasse le manque à gagner restant (${net.toLocaleString('fr-FR')} FCFA)`);
+        }
+
+        const isMobileMoney = data.mode === 'airtel_money' || data.mode === 'mobicash';
+        if (isMobileMoney && data.withFees === undefined) {
+            throw new Error('Veuillez préciser si le paiement mobile money est avec frais ou sans frais');
+        }
+
+        let proofUrl: string | undefined;
+        let proofPath: string | undefined;
+        if (data.proofFile) {
+            if (!data.proofFile.type.startsWith('image/')) {
+                throw new Error('La preuve de paiement doit être une image');
+            }
+            const upload = await this.documentRepository.uploadDocumentFile(
+                data.proofFile,
+                contract.clientId,
+                'CREDIT_SPECIALE_RECEIPT'
+            );
+            proofUrl = upload.url;
+            proofPath = upload.path;
+        }
+
+        const entry = {
+            id: `MAG_${Date.now()}`,
+            amount,
+            date: data.date,
+            paymentTime: data.paymentTime,
+            mode: data.mode,
+            withFees: isMobileMoney ? data.withFees : undefined,
+            agentRecouvrementId: data.agentRecouvrementId?.trim() || undefined,
+            proofUrl,
+            proofPath,
+            comment: data.comment?.trim() || undefined,
+            recordedBy: data.adminId,
+            recordedByName: data.adminName,
+            recordedAt: new Date(),
+        };
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            missedEarningsPayments: [...(contract.missedEarningsPayments ?? []), entry],
+            updatedBy: data.adminId,
+        });
         if (!updatedContract) {
             throw new Error('Erreur lors de la mise à jour du contrat');
         }

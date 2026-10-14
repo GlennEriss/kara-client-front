@@ -66,3 +66,34 @@ describe('manque à gagner d’un crédit spécial', () => {
     expect(computeCreditLossTotal(contract, [])).toBeGreaterThan(0)
   })
 })
+
+describe('manque à gagner encaissé après la fin du contrat', () => {
+  it('déduit les encaissements du manque à gagner restant', async () => {
+    const { computeMissedEarningsBalance } = await import('@/utils/credit-losses')
+    const contract = {
+      id: 'fixe-2',
+      creditType: 'FIXE',
+      status: 'CLOSED',
+      amount: 100_000,
+      totalAmount: 120_000,
+      monthlyPaymentAmount: 40_000,
+      duration: 3,
+      interestRate: 20,
+      firstPaymentDate: new Date('2026-01-10'),
+      createdAt: new Date('2026-01-01'),
+      restMonths: [],
+      missedEarningsPayments: [
+        { id: 'MAG_1', amount: 4_000, date: new Date('2026-07-01'), mode: 'cash', recordedBy: 'a', recordedAt: new Date('2026-07-01') },
+      ],
+    } as unknown as CreditContract
+    const payments = [
+      payment('M1_fixe-2', 'fixe-2', 20_000, '2026-01-10'),
+      payment('M2_fixe-2', 'fixe-2', 20_000, '2026-02-10'),
+      payment('M3_fixe-2', 'fixe-2', 20_000, '2026-03-10'),
+      payment('M4_fixe-2', 'fixe-2', 30_000, '2026-04-10'),
+      payment('M5_fixe-2', 'fixe-2', 30_000, '2026-05-10'),
+    ]
+
+    expect(computeMissedEarningsBalance(contract, payments)).toEqual({ gross: 9_000, paid: 4_000, net: 5_000 })
+  })
+})
