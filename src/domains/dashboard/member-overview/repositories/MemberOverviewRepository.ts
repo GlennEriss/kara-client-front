@@ -5,6 +5,7 @@ import {
   collectionGroup,
   doc,
   getDoc,
+  getCountFromServer,
   getDocs,
   limit as fbLimit,
   orderBy,
@@ -12,6 +13,10 @@ import {
   where,
 } from '@/firebase/firestore'
 import type { UserRole } from '@/types/types'
+import {
+  MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES,
+  type MemberOverviewClosableModule,
+} from '../entities/member-overview-status-filters'
 import type { MemberOverviewMemberInfo } from '../entities/member-overview.types'
 import type { IMemberOverviewRepository, OverviewRawRecord } from './IMemberOverviewRepository'
 
@@ -207,6 +212,32 @@ export class MemberOverviewRepository implements IMemberOverviewRepository {
     )
     const snap = await getDocsWithTimeout(getDocs(q))
     return snap.docs.map((d) => normalizeRecord(d.id, d.data() as Record<string, unknown>))
+  }
+
+  /**
+   * Compte les contrats clôturés sans les charger : filtres d'égalité seulement
+   * (membre, type de crédit, statut), servis par les index simples.
+   */
+  async countClosedContracts(memberId: string, module: MemberOverviewClosableModule): Promise<number> {
+    const statuses = [...MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES[module]]
+    const statusFilter = where('status', 'in', statuses)
+    const creditType = { creditSpeciale: 'SPECIALE', creditFixe: 'FIXE', creditAide: 'AIDE' }[module as string]
+
+    const q = creditType
+      ? query(
+          collection(db, firebaseCollectionNames.creditContracts),
+          where('clientId', '==', memberId),
+          where('creditType', '==', creditType),
+          statusFilter,
+        )
+      : module === 'caisseSpeciale'
+        ? query(collection(db, firebaseCollectionNames.caisseContracts), where('memberId', '==', memberId), statusFilter)
+        : module === 'caisseImprevue'
+          ? query(collection(db, firebaseCollectionNames.contractsCI), where('memberId', '==', memberId), statusFilter)
+          : query(collection(db, firebaseCollectionNames.placements), where('benefactorId', '==', memberId), statusFilter)
+
+    const snapshot = await getDocsWithTimeout(getCountFromServer(q))
+    return snapshot.data().count
   }
 
   async getPlacementDemands(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]> {

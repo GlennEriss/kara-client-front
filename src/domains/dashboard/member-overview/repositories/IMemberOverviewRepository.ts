@@ -1,3 +1,4 @@
+import type { MemberOverviewClosableModule } from '../entities/member-overview-status-filters'
 import type { MemberOverviewMemberInfo } from '../entities/member-overview.types'
 
 export interface OverviewRawRecord {
@@ -24,5 +25,7 @@ export interface IMemberOverviewRepository {
   getPlacements(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]>
   getCharityDeclarations(matricule: string, limitPerSection: number): Promise<OverviewRawRecord[]>
   getCharityContributions(memberId: string, limitPerSection: number): Promise<OverviewRawRecord[]>
+  /** Nombre de contrats clôturés du membre dans un module. */
+  countClosedContracts(memberId: string, module: MemberOverviewClosableModule): Promise<number>
 }
 

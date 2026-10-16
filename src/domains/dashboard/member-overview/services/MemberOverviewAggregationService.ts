@@ -1,5 +1,9 @@
 import routes from '@/constantes/routes'
-import { MEMBER_OVERVIEW_STATUS_FILTERS } from '../entities/member-overview-status-filters'
+import {
+  MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES,
+  MEMBER_OVERVIEW_STATUS_FILTERS,
+  type MemberOverviewClosableModule,
+} from '../entities/member-overview-status-filters'
 import type {
   MemberOverviewData,
   MemberOverviewListItem,
@@ -214,6 +218,17 @@ export class MemberOverviewAggregationService {
         hasError: charityDeclarationsRaw === null || charityContributionsRaw === null,
       },
     }
+
+    // Contrats clôturés : comptés côté serveur, sans la limite des listes.
+    const closableModules = Object.keys(MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES) as MemberOverviewClosableModule[]
+    const closedCounts = await Promise.all(
+      closableModules.map((module) =>
+        this.safeSection(`${module}ClosedContracts`, () => this.repository.countClosedContracts(memberId, module)),
+      ),
+    )
+    closableModules.forEach((module, index) => {
+      modules[module].closedContrats = closedCounts[index]
+    })
 
     return {
       member,
