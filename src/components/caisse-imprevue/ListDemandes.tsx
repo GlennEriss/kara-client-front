@@ -243,7 +243,7 @@ const ListDemandes = () => {
       {renderPagination()}
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
-        <TabsList className="grid w-full max-w-4xl grid-cols-6">
+        <TabsList className="w-full max-w-4xl md:grid md:grid-cols-6">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Toutes ({stats.total})

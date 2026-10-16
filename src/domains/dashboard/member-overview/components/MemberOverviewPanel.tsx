@@ -5,6 +5,7 @@ import routes from "@/constantes/routes";
 import { useMemo } from "react";
 import {
   AlertCircle,
+  Archive,
   BriefcaseBusiness,
   Building2,
   CircleDollarSign,
@@ -351,6 +352,16 @@ export function MemberOverviewPanel({
                                 <Building2 className="mr-1 h-3.5 w-3.5" />
                                 Contrats: {module.contrats.length}
                               </Badge>
+                              {module.closedContrats !== undefined && (
+                                <Badge
+                                  variant="secondary"
+                                  className="font-medium"
+                                  title="Contrats clôturés du membre dans ce module"
+                                >
+                                  <Archive className="mr-1 h-3.5 w-3.5" />
+                                  Clôturés: {module.closedContrats ?? "—"}
+                                </Badge>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

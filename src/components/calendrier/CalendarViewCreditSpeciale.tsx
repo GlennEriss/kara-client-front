@@ -119,25 +119,25 @@ export function CalendarViewCreditSpeciale({
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-7 gap-3">
+        <div className="grid grid-cols-7 gap-1 sm:gap-3">
           {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="min-h-[110px] bg-gray-100 animate-pulse rounded-xl" />
+            <div key={i} className="min-h-[56px] sm:min-h-[110px] bg-gray-100 animate-pulse rounded-xl" />
           ))}
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-7 gap-3">
+          <div className="grid grid-cols-7 gap-1 sm:gap-3">
             {weekDays.map((day) => (
               <div
                 key={day}
-                className="text-center py-3 rounded-lg bg-gradient-to-br from-[#234D65]/5 to-[#234D65]/10 border border-[#234D65]/10 text-sm font-semibold text-[#234D65]"
+                className="text-center py-2 sm:py-3 rounded-lg bg-gradient-to-br from-[#234D65]/5 to-[#234D65]/10 border border-[#234D65]/10 text-xs sm:text-sm font-semibold text-[#234D65]"
               >
                 {day}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-3">
+          <div className="grid grid-cols-7 gap-1 sm:gap-3">
             {calendarDays.map((day) => {
               const dayKey = format(day, "yyyy-MM-dd")
               const dayPayments = daysPaymentsMap.get(dayKey)
@@ -148,7 +148,7 @@ export function CalendarViewCreditSpeciale({
                   key={dayKey}
                   onClick={() => dayPayments?.payments?.length && setSelectedDay(day)}
                   className={[
-                    "min-h-[110px] rounded-xl border p-2 text-left transition-all",
+                    "min-h-[56px] rounded-lg border p-1 text-left transition-all sm:min-h-[110px] sm:rounded-xl sm:p-2",
                     isCurrentMonth ? "" : "opacity-40",
                     isToday ? "ring-2 ring-[#234D65]" : "",
                     COLOR_CLASS[dayPayments?.color || "gray"],
@@ -157,12 +157,15 @@ export function CalendarViewCreditSpeciale({
                 >
                   <div className="text-xs font-semibold text-gray-700">{format(day, "d")}</div>
                   {dayPayments?.payments?.length ? (
-                    <div className="mt-2 space-y-1">
+                    <div className="mt-1 space-y-1 sm:mt-2">
                       <div className="text-[11px] text-gray-700 font-medium">
-                        {dayPayments.count} échéance{dayPayments.count > 1 ? "s" : ""}
+                        <span className="sm:hidden">{dayPayments.count}</span>
+                        <span className="hidden sm:inline">
+                          {dayPayments.count} échéance{dayPayments.count > 1 ? "s" : ""}
+                        </span>
                       </div>
                       {canSeeAmounts && (
-                        <div className="text-[11px] text-gray-600">
+                        <div className="hidden sm:block text-[11px] text-gray-600">
                           {dayPayments.totalAmount.toLocaleString("fr-FR")} FCFA
                         </div>
                       )}

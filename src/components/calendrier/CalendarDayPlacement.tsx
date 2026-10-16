@@ -53,7 +53,7 @@ export function CalendarDayPlacement({
     <button
       onClick={onClick}
       className={cn(
-        "group relative min-h-[110px] p-3 border-2 rounded-xl transition-all duration-300 text-left",
+        "group relative min-h-[56px] p-1 sm:min-h-[110px] sm:p-3 border-2 rounded-lg sm:rounded-xl transition-all duration-300 text-left",
         "hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02]",
         "focus:outline-none focus:ring-2 focus:ring-[#234D65]/20 focus:ring-offset-2",
         isCurrentMonth ? "text-gray-900" : "text-gray-400 opacity-60",
@@ -66,7 +66,7 @@ export function CalendarDayPlacement({
       {/* Indicateur de jour avec commissions */}
       {hasCommissions && (
         <div className={cn(
-          "absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white transform group-hover:scale-110 transition-transform",
+          "absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white transform group-hover:scale-110 transition-transform",
           COLOR_BADGE_CLASSES[color]
         )}>
           {dayCommissions.count}
@@ -74,10 +74,10 @@ export function CalendarDayPlacement({
       )}
 
       {/* Numéro du jour */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between sm:mb-2">
         <span
           className={cn(
-            "flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold transition-colors",
+            "flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg text-xs sm:text-sm font-bold transition-colors",
             isToday 
               ? "bg-[#234D65] text-white shadow-md" 
               : hasCommissions 
@@ -91,7 +91,7 @@ export function CalendarDayPlacement({
 
       {/* Informations des commissions */}
       {hasCommissions && (
-        <div className="space-y-1.5">
+        <div className="hidden sm:block space-y-1.5">
           {canSeeAmounts && (
             <div className={cn(
               "text-xs font-semibold",

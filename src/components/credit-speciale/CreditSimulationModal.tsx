@@ -229,7 +229,7 @@ export default function CreditSimulationModal({
           setCustomResult(null)
           setProposedResult(null)
         }}>
-          <TabsList className={`grid w-full ${creditType === 'SPECIALE' ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <TabsList className={`w-full md:grid ${creditType === 'SPECIALE' ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
             <TabsTrigger value="standard">Simulation standard</TabsTrigger>
             <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
             <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>

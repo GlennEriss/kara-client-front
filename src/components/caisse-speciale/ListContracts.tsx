@@ -2690,8 +2690,8 @@ const ListContracts = () => {
               const durationMonths = contract?.monthsPlanned || 0
 
               return (
-                <div className="bg-gradient-to-b from-white via-white to-slate-50/80 text-sm">
-                  <DialogHeader className="border-b border-[#234D65]/15 bg-gradient-to-r from-[#234D65] via-[#285773] to-[#234D65] px-6 py-5 text-white">
+                <div className="flex max-h-[calc(100dvh-2rem)] flex-col bg-gradient-to-b from-white via-white to-slate-50/80 text-sm">
+                  <DialogHeader className="shrink-0 border-b border-[#234D65]/15 bg-gradient-to-r from-[#234D65] via-[#285773] to-[#234D65] px-6 py-5 text-white">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <DialogTitle className="text-xl font-semibold tracking-tight text-white">Détails complets du contrat</DialogTitle>
@@ -2715,7 +2715,7 @@ const ListContracts = () => {
                     </div>
                   </DialogHeader>
 
-                  <div className="max-h-[78vh] overflow-y-auto px-5 py-5 sm:px-6">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
                       <div className="space-y-4">
                         <div className="rounded-2xl border border-[#234D65]/15 bg-white p-4 shadow-sm">

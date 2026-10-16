@@ -244,7 +244,7 @@ const ListPlacementDemandes = () => {
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par statut */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
-        <TabsList className="grid w-full max-w-3xl grid-cols-5">
+        <TabsList className="w-full max-w-3xl md:grid md:grid-cols-5">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Toutes ({stats.total})

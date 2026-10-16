@@ -1,6 +1,8 @@
 "use client"
 
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
+import { getUserById } from '@/db/user.db'
+import { UNKNOWN_USER_MATRICULE } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 import {
     Dialog,
     DialogContent,
@@ -90,9 +92,42 @@ export default function EmergencyContact({ emergencyContact, contractKind, contr
   const setField = <K extends keyof EmergencyContact>(key: K, value: EmergencyContact[K]) =>
     setForm((f) => (f ? { ...f, [key]: value } : f))
 
+  // « Contact inconnu » : la fiche du membre INCONNU (matricule fixe), comme
+  // dans les autres saisies de contact d'urgence. Ni téléphone, ni lien, ni pièce.
+  const [loadingUnknown, setLoadingUnknown] = useState(false)
+  const isUnknownContact = (contact: EmergencyContact | null) =>
+    !!contact &&
+    ((contact.memberId || '').trim() === UNKNOWN_USER_MATRICULE ||
+      (contact.lastName || '').trim().toUpperCase().startsWith('INCONNU'))
+
+  const handleSelectUnknown = async () => {
+    setLoadingUnknown(true)
+    try {
+      const unknown = await getUserById(UNKNOWN_USER_MATRICULE)
+      if (!unknown) {
+        toast.error(`Membre INCONNU introuvable (matricule ${UNKNOWN_USER_MATRICULE})`)
+        return
+      }
+      setForm((f) => ({
+        ...(f ?? ({} as EmergencyContact)),
+        memberId: unknown.id,
+        lastName: unknown.lastName || 'INCONNU',
+        firstName: unknown.firstName || '',
+        phone1: '',
+        phone2: '',
+        relationship: 'Autre' as EmergencyContact['relationship'],
+        typeId: '',
+        idNumber: '',
+        documentPhotoUrl: '',
+      }))
+    } finally {
+      setLoadingUnknown(false)
+    }
+  }
+
   const handleSave = async () => {
     if (!form || !contractKind || !contractId) return
-    if (!form.lastName?.trim() || !form.phone1?.trim() || !form.relationship) {
+    if (!isUnknownContact(form) && (!form.lastName?.trim() || !form.phone1?.trim() || !form.relationship)) {
       toast.error('Nom, téléphone principal et lien sont obligatoires')
       return
     }
@@ -163,6 +198,17 @@ export default function EmergencyContact({ emergencyContact, contractKind, contr
 
         {editing && form ? (
           <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-gray-300 p-2">
+              <span className="text-xs text-slate-500">
+                {isUnknownContact(form)
+                  ? 'Contact INCONNU : téléphone, lien et pièce non requis.'
+                  : 'Aucune information sur le contact ?'}
+              </span>
+              <Button type="button" size="sm" variant="outline" disabled={loadingUnknown || saving} onClick={handleSelectUnknown}>
+                {loadingUnknown && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                Contact inconnu
+              </Button>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500">Nom</Label>

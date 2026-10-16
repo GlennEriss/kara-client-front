@@ -45,6 +45,12 @@ export interface MemberOverviewModuleData {
    * section réellement vide : l'admin lit « 0 » et croit la donnée absente.
    */
   hasError?: boolean
+  /**
+   * Nombre total de contrats clôturés du membre dans ce module (compté côté
+   * serveur, sans la limite des listes). Absent pour la charité ; null si le
+   * comptage a échoué.
+   */
+  closedContrats?: number | null
 }
 
 export interface MemberOverviewData {

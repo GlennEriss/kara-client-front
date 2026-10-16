@@ -1017,9 +1017,10 @@ export default function CreditContractDetail({
     contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
       ? 'Manque à gagner généré après la durée contractuelle, tant que le montant restant n’est pas à 0.'
       : 'Manque à gagner généré à partir du passage en partie fixe.'
+  // Mobile : les onglets défilent horizontalement ; grille à partir de md.
   const tabsGridClassName = isSimpleCredit
-    ? shouldShowLossesTab ? 'grid-cols-4' : 'grid-cols-3'
-    : shouldShowLossesTab ? 'grid-cols-5' : 'grid-cols-4'
+    ? shouldShowLossesTab ? 'md:grid-cols-4' : 'md:grid-cols-3'
+    : shouldShowLossesTab ? 'md:grid-cols-5' : 'md:grid-cols-4'
   // Toutes les commissions du contrat, tous cycles confondus : un rajout ouvre
   // un nouveau cycle qui repart à M1 et rémunère à nouveau le garant.
   const guarantorCommissionRows = React.useMemo(() => {
@@ -2278,7 +2279,7 @@ export default function CreditContractDetail({
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'penalties' | 'history' | 'losses' | 'guarantor')} className="w-full">
               <TabsList className={cn(
-                'grid w-full rounded-none border-b',
+                'w-full rounded-none border-b md:grid',
                 tabsGridClassName
               )}>
                 <TabsTrigger value="payments" className="flex items-center gap-2">

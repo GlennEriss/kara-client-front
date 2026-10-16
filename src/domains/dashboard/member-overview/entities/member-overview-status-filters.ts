@@ -31,3 +31,18 @@ export const MEMBER_OVERVIEW_STATUS_FILTERS = {
   },
 } as const
 
+/**
+ * Statuts d'un contrat clôturé, par module, pour le nombre « Clôturés » de la
+ * vue consolidée. La charité n'a pas de contrat à clôturer.
+ */
+export const MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES = {
+  caisseSpeciale: ['CLOSED'],
+  caisseImprevue: ['FINISHED'],
+  creditSpeciale: ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'],
+  creditFixe: ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'],
+  creditAide: ['CLOSED', 'DISCHARGED', 'WRITTEN_OFF'],
+  placement: ['Closed', 'EarlyExit'],
+} as const
+
+export type MemberOverviewClosableModule = keyof typeof MEMBER_OVERVIEW_CLOSED_CONTRACT_STATUSES
+

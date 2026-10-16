@@ -21,11 +21,37 @@ export const APP_STATS_QUERY_KEYS: readonly (readonly string[])[] = [
   ['contractsCIStats'],
   ['caisse-imprevue-demands'],
   ['caisse-imprevue-demands-stats'],
+  ['caisseImprevueDemands'],
+  ['caisseImprevueDemandsStats'],
+  ['memberContractsCI'],
   // Caisse Spéciale
   ['caisse-contracts'],
   ['caisse-contracts-stats'],
   ['all-contracts'],
+  ['contracts-by-member'],
+  ['caisseSpecialeDemands'],
+  ['caisseSpecialeDemandsStats'],
   ['subscriptions'],
+  // Crédit spécial / fixe / aide
+  ['creditDemands'],
+  ['creditDemandsStats'],
+  ['creditContracts'],
+  ['creditContractsStats'],
+  ['creditContractsLosses'],
+  // Placement
+  ['placementDemands'],
+  ['placementDemandsStats'],
+  ['placements'],
+  ['placementStats'],
+  // Vues transverses : historique d'activité du membre, calendrier, retards,
+  // remises à venir. Un contrat ou une demande créé ailleurs doit y apparaître.
+  ['member-form'],
+  ['calendar-caisse-speciale'],
+  ['calendar-caisse-imprevue'],
+  ['calendar-placements'],
+  ['calendar-credit-speciale'],
+  ['overdue-payments'],
+  ['upcoming-payouts'],
 ]
 
 /**
