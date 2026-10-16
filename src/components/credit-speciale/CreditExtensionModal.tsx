@@ -35,7 +35,7 @@ import {
     type ProposedSimulationFormData,
     type StandardSimulationFormData
 } from '@/schemas/credit-speciale.schema'
-import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import { EmergencyContact, emergencyContactErrors } from '@/schemas/emergency-contact.schema'
 import type { CreditContract, CreditType, StandardSimulation } from '@/types/types'
 import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -481,7 +481,8 @@ export default function CreditExtensionModal({
       case 'simulation':
         return simulation !== null && isSimulationValid
       case 'emergency':
-        return !!(emergencyContact.lastName && emergencyContact.phone1 && emergencyContact.relationship && emergencyContact.typeId && emergencyContact.idNumber)
+        // Mêmes règles qu'en Caisse Spéciale : le contact INCONNU passe sans téléphone, lien ni pièce.
+        return emergencyContactErrors(emergencyContact).length === 0
       case 'confirm':
         return true
       default:
@@ -741,7 +742,7 @@ export default function CreditExtensionModal({
               setSimulation(null)
               setCustomSimulation(null)
             }}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="w-full md:grid md:grid-cols-3">
                 <TabsTrigger value="standard">Simulation standard</TabsTrigger>
                 <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
                 <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>
