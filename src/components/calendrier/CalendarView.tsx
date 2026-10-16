@@ -170,27 +170,27 @@ export function CalendarView({
 
       {/* Calendrier */}
       {isLoading ? (
-        <div className="grid grid-cols-7 gap-3">
+        <div className="grid grid-cols-7 gap-1 sm:gap-3">
           {Array.from({ length: 35 }).map((_, i) => (
             <div
               key={i}
-              className="min-h-[110px] bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse rounded-xl"
+              className="min-h-[56px] sm:min-h-[110px] bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse rounded-xl"
             />
           ))}
         </div>
       ) : (
         <>
           {/* En-têtes des jours */}
-          <div className="grid grid-cols-7 gap-3">
+          <div className="grid grid-cols-7 gap-1 sm:gap-3">
             {weekDays.map((day) => (
               <div
                 key={day.short}
-                className="text-center py-3 rounded-lg bg-gradient-to-br from-[#234D65]/5 to-[#234D65]/10 border border-[#234D65]/10"
+                className="text-center py-2 sm:py-3 rounded-lg bg-gradient-to-br from-[#234D65]/5 to-[#234D65]/10 border border-[#234D65]/10"
               >
                 <span className="hidden sm:inline text-sm font-semibold text-[#234D65]">
                   {day.full}
                 </span>
-                <span className="sm:hidden text-sm font-semibold text-[#234D65]">
+                <span className="sm:hidden text-xs font-semibold text-[#234D65]">
                   {day.short}
                 </span>
               </div>
@@ -198,7 +198,7 @@ export function CalendarView({
           </div>
 
           {/* Grille du calendrier */}
-          <div className="grid grid-cols-7 gap-3">
+          <div className="grid grid-cols-7 gap-1 sm:gap-3">
             {calendarDays.map((day) => {
               const dayKey = format(day, "yyyy-MM-dd")
               const dayPayments = daysPaymentsMap.get(dayKey)

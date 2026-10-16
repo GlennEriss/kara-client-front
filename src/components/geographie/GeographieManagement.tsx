@@ -28,7 +28,7 @@ export default function GeographieManagement() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="w-full md:grid md:grid-cols-5">
           <TabsTrigger value="provinces">Provinces</TabsTrigger>
           <TabsTrigger value="departments">Départements</TabsTrigger>
           <TabsTrigger value="communes">Communes</TabsTrigger>

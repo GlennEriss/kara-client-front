@@ -377,7 +377,7 @@ export default function ContractCSRefundsPage() {
           </h2>
 
           {/* Stats déclarations */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[
               { label: 'En attente', value: String(declaredStats.pending),   icon: Hourglass,    bg: 'bg-amber-100',  color: 'text-amber-600'  },
               { label: 'Validés',    value: String(declaredStats.validated),  icon: CheckCircle,  bg: 'bg-green-100',  color: 'text-green-600'  },
@@ -386,8 +386,8 @@ export default function ContractCSRefundsPage() {
               const Icon = s.icon
               return (
                 <Card key={s.label} className="border-0 shadow-lg">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
                       <div className={`p-2 ${s.bg} rounded-lg shrink-0`}>
                         <Icon className={`h-5 w-5 ${s.color}`} />
                       </div>

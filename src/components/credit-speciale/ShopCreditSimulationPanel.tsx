@@ -186,7 +186,7 @@ export default function ShopCreditSimulationPanel({
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border">
+            <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                   <tr>

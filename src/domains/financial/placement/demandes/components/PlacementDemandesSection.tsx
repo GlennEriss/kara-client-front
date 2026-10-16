@@ -467,7 +467,7 @@ export function PlacementDemandesSection() {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
         <div className="hidden lg:block">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="w-full max-w-3xl md:grid md:grid-cols-5">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Toutes ({stats.total})
