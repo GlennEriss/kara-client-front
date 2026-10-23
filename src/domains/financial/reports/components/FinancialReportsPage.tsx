@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label'
 import { PageHero } from '@/components/ui/page-hero'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatStrip, type StatStripItem } from '@/components/ui/stat-strip'
+import { Switch } from '@/components/ui/switch'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { cn } from '@/lib/utils'
-import { AlertCircle, Download, FileSpreadsheet, Landmark, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
+import { AlertCircle, BookOpen, ChevronDown, Download, FileSpreadsheet, Landmark, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -21,6 +22,7 @@ import {
   type FinancialReportModule,
   type MonthKey,
 } from '../entities/financial-report.types'
+import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import { formatReportNumber, reportPeriodLabel, TOTAL_COLUMN_LABEL } from '../exports/report-format'
 import { useFinancialReport } from '../hooks/useFinancialReport'
 import { addMonthsToKey, currentMonthKey, isMonthKey } from '../utils/report-months'
@@ -66,29 +68,42 @@ function moduleStats(module: FinancialReportModule): StatStripItem[] {
   const inTotal = lineTotal(module, 'treasury', 'in_total')
   const outTotal = lineTotal(module, 'treasury', 'out_total')
   const result = lineTotal(module, 'result', 'net')
-  if (inTotal) stats.push({ title: 'Entrées', value: fcfa(inTotal.total), accent: true })
-  if (outTotal) stats.push({ title: 'Sorties', value: fcfa(outTotal.total) })
-  if (result) stats.push({ title: 'Résultat', value: fcfa(result.total), danger: result.total < 0 })
+  if (inTotal) stats.push({ title: 'Entrées', value: fcfa(inTotal.total), subtitle: 'Argent reçu sur la période', accent: true })
+  if (outTotal) stats.push({ title: 'Sorties', value: fcfa(outTotal.total), subtitle: 'Argent versé sur la période' })
+  if (result) {
+    stats.push({ title: 'Résultat', value: fcfa(result.total), subtitle: 'Produits moins charges', danger: result.total < 0 })
+  }
   const outstanding = module.blocks.find((block) => block.key === 'outstanding')
   for (const line of outstanding?.lines.filter((entry) => entry.unit === 'fcfa' && entry.level !== 'detail').slice(0, 2) ?? []) {
-    stats.push({ title: `${line.label} (fin)`, value: fcfa(line.total) })
+    stats.push({ title: line.label, value: fcfa(line.total), subtitle: 'À la fin de la période' })
   }
   return stats
 }
 
-function ReportBlockTable({ block, report }: { block: FinancialReportBlock; report: FinancialReport }) {
+function ReportBlockTable({
+  block,
+  report,
+  showDescriptions,
+}: {
+  block: FinancialReportBlock
+  report: FinancialReport
+  showDescriptions: boolean
+}) {
   const cell = (value: number, line: FinancialReportLine) => (
     <span className={cn(value < 0 && 'text-red-600')}>{line.unit === 'count' || value !== 0 ? formatReportNumber(value) : '—'}</span>
   )
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-[#234D65]">{block.title}</h3>
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[#234D65]">{block.title}</h3>
+        <p className="text-sm text-gray-500">{block.description}</p>
+      </div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         <table className="w-full min-w-max border-collapse text-sm tabular-nums">
           <thead>
             <tr className="bg-[#234D65] text-white">
-              <th className="sticky left-0 z-10 min-w-[220px] bg-[#234D65] px-3 py-2 text-left font-semibold">Libellé</th>
+              <th className="sticky left-0 z-10 min-w-[240px] bg-[#234D65] px-3 py-2 text-left font-semibold">Libellé</th>
               {report.monthLabels.map((label) => (
                 <th key={label} className="whitespace-nowrap px-3 py-2 text-right font-semibold">{label}</th>
               ))}
@@ -104,7 +119,7 @@ function ReportBlockTable({ block, report }: { block: FinancialReportBlock; repo
                 line.level === 'info' && 'italic text-gray-500'
               )
               const stickyClass = cn(
-                'sticky left-0 z-10 px-3 py-2 text-left',
+                'sticky left-0 z-10 max-w-[360px] whitespace-normal px-3 py-2 text-left align-top',
                 line.level === 'subtotal' ? 'bg-slate-50' : line.level === 'total' ? 'bg-slate-100' : 'bg-white'
               )
               return (
@@ -114,11 +129,14 @@ function ReportBlockTable({ block, report }: { block: FinancialReportBlock; repo
                     {line.kind === 'stock' && line.level !== 'info' && (
                       <span className="ml-1 text-[11px] font-normal text-gray-400">(fin de mois)</span>
                     )}
+                    {showDescriptions && (
+                      <span className="mt-0.5 block text-xs font-normal not-italic leading-snug text-gray-500">{line.description}</span>
+                    )}
                   </td>
                   {line.values.map((value, index) => (
-                    <td key={report.months[index]} className="whitespace-nowrap px-3 py-2 text-right">{cell(value, line)}</td>
+                    <td key={report.months[index]} className="whitespace-nowrap px-3 py-2 text-right align-top">{cell(value, line)}</td>
                   ))}
-                  <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">{cell(line.total, line)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right align-top font-semibold">{cell(line.total, line)}</td>
                 </tr>
               )
             })}
@@ -129,7 +147,15 @@ function ReportBlockTable({ block, report }: { block: FinancialReportBlock; repo
   )
 }
 
-function ReportModuleView({ module, report }: { module: FinancialReportModule; report: FinancialReport }) {
+function ReportModuleView({
+  module,
+  report,
+  showDescriptions,
+}: {
+  module: FinancialReportModule
+  report: FinancialReport
+  showDescriptions: boolean
+}) {
   return (
     <div className="space-y-6">
       <div>
@@ -138,7 +164,7 @@ function ReportModuleView({ module, report }: { module: FinancialReportModule; r
       </div>
       <StatStrip stats={moduleStats(module)} />
       {module.blocks.map((block) => (
-        <ReportBlockTable key={block.key} block={block} report={report} />
+        <ReportBlockTable key={block.key} block={block} report={report} showDescriptions={showDescriptions} />
       ))}
       {module.notes.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
@@ -152,12 +178,46 @@ function ReportModuleView({ module, report }: { module: FinancialReportModule; r
   )
 }
 
+/** Comment lire le bilan : replié d'un clic, ouvert par défaut. */
+function ReportGuide() {
+  const [open, setOpen] = useState(true)
+  return (
+    <Card className="border-[#234D65]/15 bg-[#234D65]/[0.03] shadow-none">
+      <CardContent className="p-4 md:p-5">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          aria-expanded={open}
+        >
+          <span className="flex items-center gap-2 font-semibold text-[#234D65]">
+            <BookOpen className="h-4 w-4" />
+            Comment lire ce bilan
+          </span>
+          <ChevronDown className={cn('h-4 w-4 text-[#234D65] transition-transform', open && 'rotate-180')} />
+        </button>
+        {open && (
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FINANCIAL_REPORT_GUIDE.map((entry) => (
+              <div key={entry.title}>
+                <dt className="text-sm font-semibold text-gray-900">{entry.title}</dt>
+                <dd className="mt-1 text-sm leading-relaxed text-gray-600">{entry.text}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function FinancialReportsPage() {
   const { isLoading: isLoadingAccess, isSuperAdmin } = useMyAccess()
   const [draft, setDraft] = useState<Period>(() => lastMonths(6))
   const [period, setPeriod] = useState<Period>(() => lastMonths(6))
   const [activeModule, setActiveModule] = useState<FinancialReportModule['key']>('synthesis')
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
+  const [showDescriptions, setShowDescriptions] = useState(true)
   const { data: report, isFetching, error, refetch } = useFinancialReport(isSuperAdmin ? period : null)
   const draftError = validatePeriod(draft)
   const module = useMemo(
@@ -286,6 +346,8 @@ export default function FinancialReportsPage() {
         </CardContent>
       </Card>
 
+      <ReportGuide />
+
       {error ? (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -298,9 +360,17 @@ export default function FinancialReportsPage() {
         </div>
       ) : (
         <div className={cn('space-y-5', isFetching && 'opacity-60 transition-opacity')}>
-          <p className="text-sm text-gray-500">
-            Bilan {reportPeriodLabel(report)} · généré le {new Date(report.generatedAt).toLocaleString('fr-FR')}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-gray-500">
+              Bilan {reportPeriodLabel(report)} · généré le {new Date(report.generatedAt).toLocaleString('fr-FR')}
+            </p>
+            <div className="flex items-center gap-2">
+              <Switch id="report-descriptions" checked={showDescriptions} onCheckedChange={setShowDescriptions} />
+              <Label htmlFor="report-descriptions" className="cursor-pointer text-sm text-gray-600">
+                Afficher les explications des lignes
+              </Label>
+            </div>
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {report.modules.map((entry) => (
               <button
@@ -318,7 +388,7 @@ export default function FinancialReportsPage() {
               </button>
             ))}
           </div>
-          <ReportModuleView module={module} report={report} />
+          <ReportModuleView module={module} report={report} showDescriptions={showDescriptions} />
         </div>
       )}
     </div>

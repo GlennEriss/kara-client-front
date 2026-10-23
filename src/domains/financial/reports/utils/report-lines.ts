@@ -22,6 +22,17 @@ export const BLOCK_TITLES: Record<FinancialReportBlockKey, string> = {
   risks: 'Pertes et risques',
 }
 
+export const BLOCK_DESCRIPTIONS: Record<FinancialReportBlockKey, string> = {
+  treasury:
+    'L’argent réellement entré dans les caisses et sorti chaque mois, quelle qu’en soit la nature. Le solde du mois est la différence entre les deux.',
+  result:
+    'Ce que l’association gagne (produits) moins ce qu’elle dépense (charges). L’épargne des membres et les capitaux confiés n’en font pas partie : ils doivent être rendus.',
+  outstanding:
+    'La situation à la fin de chaque mois : ce que les membres doivent encore, et ce que l’association doit rendre. La dernière colonne donne la valeur à la fin de la période.',
+  risks:
+    'Ce que l’association a perdu ou risque de perdre : intérêts non perçus, crédits abandonnés, pénalités impayées et échéances en retard.',
+}
+
 export const toNumber = (value: unknown): number => {
   const number = Number(value)
   return Number.isFinite(number) ? number : 0
@@ -60,6 +71,7 @@ export function makeLine(
   key: string,
   label: string,
   values: number[],
+  description: string,
   options: { kind?: FinancialReportLineKind; unit?: FinancialReportLineUnit; level?: FinancialReportLineLevel } = {}
 ): FinancialReportLine {
   const kind = options.kind ?? 'flow'
@@ -70,14 +82,20 @@ export function makeLine(
     kind,
     unit: options.unit ?? 'fcfa',
     level: options.level ?? 'detail',
+    description,
     values: rounded,
     total: kind === 'flow' ? rounded.reduce((sum, value) => sum + value, 0) : (rounded.at(-1) ?? 0),
   }
 }
 
-export const makeBlock = (key: FinancialReportBlockKey, lines: FinancialReportLine[]): FinancialReportBlock => ({
+export const makeBlock = (
+  key: FinancialReportBlockKey,
+  lines: FinancialReportLine[],
+  description = BLOCK_DESCRIPTIONS[key]
+): FinancialReportBlock => ({
   key,
   title: BLOCK_TITLES[key],
+  description,
   lines,
 })
 
