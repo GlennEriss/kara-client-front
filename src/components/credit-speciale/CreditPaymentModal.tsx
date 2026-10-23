@@ -105,6 +105,12 @@ const parseDateInputValue = (value: string): Date | null => {
   return parsed
 }
 
+/**
+ * Le modèle exige un moyen de paiement. Une déclaration à 0 FCFA n'en a pas :
+ * valeur technique enregistrée, jamais affichée pour un versement de 0 FCFA.
+ */
+const ZERO_DECLARATION_MODE: CreditPaymentMode = 'cash'
+
 export default function CreditPaymentModal({
   isOpen,
   onClose,
@@ -147,6 +153,11 @@ export default function CreditPaymentModal({
     },
     mode: 'onChange',
   })
+
+  // Déclaration à 0 FCFA : aucun argent n'a circulé, donc pas de moyen de paiement.
+  // Un paiement de pénalités seules (0 FCFA de mensualité) garde le sien.
+  const isZeroDeclaration =
+    form.watch('amount') === 0 && !paymentToEdit?.comment?.includes('Paiement de pénalités uniquement')
 
   const watchedPaymentDate = form.watch('paymentDate')
   const watchedAmount = form.watch('amount') || 0
@@ -374,10 +385,10 @@ export default function CreditPaymentModal({
             paymentDate,
             paymentTime: data.paymentTime,
             amount: data.amount,
-            mode: data.mode,
+            mode: isZeroDeclaration ? ZERO_DECLARATION_MODE : data.mode,
             comment: data.comment,
             note: data.note,
-            withFees: editMode === 'airtel_money' || editMode === 'mobicash' ? withFees : undefined,
+            withFees: !isZeroDeclaration && (editMode === 'airtel_money' || editMode === 'mobicash') ? withFees : undefined,
             agentRecouvrementId: agentRecouvrementId?.trim() || undefined,
           },
           proofFile,
@@ -399,7 +410,7 @@ export default function CreditPaymentModal({
       return
     }
 
-    const currentMode = form.watch('mode') as CreditPaymentMode
+    const currentMode = isZeroDeclaration ? ZERO_DECLARATION_MODE : (form.watch('mode') as CreditPaymentMode)
     if ((currentMode === 'airtel_money' || currentMode === 'mobicash') && withFees === undefined) {
       toast.error('Veuillez indiquer si le paiement Airtel Money / Mobicash est avec frais ou sans frais')
       return
@@ -420,6 +431,7 @@ export default function CreditPaymentModal({
 
       const paymentData = {
         ...data,
+        mode: currentMode,
         amount: data.amount,
         principalAmount: 0,
         interestAmount: 0,
@@ -538,6 +550,12 @@ export default function CreditPaymentModal({
             )}
           </div>
 
+          {isZeroDeclaration ? (
+            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+              Aucun versement : pas de moyen de paiement à indiquer.
+            </p>
+          ) : (
+          <>
           {/* Moyen de paiement */}
           <div>
             <Label className="flex items-center gap-2 mb-3">
@@ -647,6 +665,8 @@ export default function CreditPaymentModal({
                 </SelectContent>
               </Select>
             </div>
+          )}
+          </>
           )}
 
           {/* Agent de recouvrement */}

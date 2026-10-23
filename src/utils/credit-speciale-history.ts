@@ -702,3 +702,21 @@ export function buildCreditSpecialeTimelineHistory(
     }))
   })
 }
+
+/**
+ * Intérêts perçus, même règle qu'à l'enregistrement d'un versement : un
+ * versement paie au plus les intérêts de son mois. Crédit en semaines / achat
+ * en boutique : les intérêts dus jusqu'à l'échéance, moins ceux déjà payés.
+ */
+export function getCreditSpecialeInterestCollected(
+  rows: Array<Pick<CreditSpecialeHistoryMonth, 'interest' | 'actualPayment'>>,
+  isFlat: boolean
+): number {
+  let unpaidInterest = 0
+  return rows.reduce((collected, row) => {
+    unpaidInterest = isFlat ? unpaidInterest + row.interest : row.interest
+    const paidInterest = Math.min(Math.max(0, row.actualPayment), unpaidInterest)
+    unpaidInterest -= paidInterest
+    return collected + paidInterest
+  }, 0)
+}
