@@ -57,6 +57,7 @@ import MemberActivitySummary from './MemberActivitySummary'
 import ReopenDemandModal from './ReopenDemandModal'
 import ValidateDemandModal from './ValidateDemandModal'
 import { addContractMonths } from '@/utils/contract-months'
+import { getDefaultGuarantorRate } from '@/utils/guarantor-commission'
 
 interface CreditDemandDetailProps {
   demand: CreditDemand
@@ -979,6 +980,7 @@ export default function CreditDemandDetail({
           initialMonthlyPayment={demand.monthlyPaymentAmount}
           lockAmount
           shopPurchase={demand.shopPurchase}
+          defaultGuarantorRate={getDefaultGuarantorRate(demand)}
           onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
             // Fermer le modal de simulation et ouvrir le modal de création de contrat
             setSimulationModalState({ isOpen: false })

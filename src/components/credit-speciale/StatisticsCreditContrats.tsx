@@ -11,7 +11,8 @@ import {
     CheckCircle,
     Clock,
     DollarSign,
-    FileText
+    FileText,
+    Lock
 } from 'lucide-react'
 import React from 'react'
 
@@ -69,6 +70,11 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
   const hasFilters = Object.keys(filters).length > 0
 
   const { data: stats, isLoading } = useCreditContractsStats(hasFilters ? filters : undefined)
+  // La partie fixe n'existe que pour le crédit spéciale.
+  const showFixedPhase = !creditType || creditType === 'all' || creditType === 'SPECIALE'
+  const gridClassName = showFixedPhase
+    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'
+    : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2'
 
   // Préparer les données de stats
   const statsData = stats ? [
@@ -123,12 +129,19 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
       color: '#7c3aed',
       icon: CheckCircle
     },
+    ...(showFixedPhase ? [{
+      title: 'Partie fixe',
+      value: stats.fixedPhase,
+      // Ardoise : neutre, distincte des autres teintes (intérêts « figés »).
+      color: '#475569',
+      icon: Lock
+    }] : []),
   ] : []
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2">
-        {[...Array(8)].map((_, i) => (
+      <div className={gridClassName}>
+        {[...Array(showFixedPhase ? 9 : 8)].map((_, i) => (
           <div key={i} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm animate-pulse">
             <Skeleton className="h-7 w-7 rounded-lg shrink-0" />
             <div className="flex-1 space-y-1.5">
@@ -144,7 +157,8 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
   if (!stats) return null
 
   // Répartition par statut. Les montants (restant, pénalités) sont exclus : ils
-  // ne sont pas des parts d'un même tout et fausseraient la lecture.
+  // ne sont pas des parts d'un même tout et fausseraient la lecture. La partie
+  // fixe aussi : elle recoupe les statuts Actif, En retard et Partiel.
   const breakdown = [
     { label: 'Actifs', value: stats.active, color: '#10b981' },
     { label: 'En retard', value: stats.overdue, color: '#f59e0b' },
@@ -155,7 +169,7 @@ export default function StatisticsCreditContrats({ status, overdueOnly, creditTy
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2">
+      <div className={gridClassName}>
         {statsData.map((stat, index) => (
           <StatsCard key={index} {...stat} />
         ))}

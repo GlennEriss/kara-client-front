@@ -1,4 +1,5 @@
-import type { CreditContract, CreditPayment, GuarantorPayment, GuarantorRemuneration } from '@/types/types'
+import type { CreditContract, CreditDemand, CreditPayment, GuarantorPayment, GuarantorRemuneration } from '@/types/types'
+import { UNKNOWN_USER_ID } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 import { customRound } from './credit-speciale-calculations'
 import {
   buildCreditSpecialeTimelineHistory,
@@ -15,6 +16,19 @@ import {
  */
 
 type CycleContract = Parameters<typeof getCreditPaymentCycleNumber>[0]
+
+/** Taux de commission du garant proposé par défaut (modifiable de 0 à 5 %). */
+export const DEFAULT_GUARANTOR_RATE = 2
+
+/** Pas de garant, ou le membre INCONNU (« Contact inconnu ») : personne à rémunérer. */
+export function isUnknownGuarantor(guarantor: Pick<CreditDemand, 'guarantorId'>): boolean {
+  return !guarantor.guarantorId || guarantor.guarantorId === UNKNOWN_USER_ID
+}
+
+/** Taux proposé par défaut : 0 % pour un garant inconnu, 2 % sinon. */
+export function getDefaultGuarantorRate(guarantor: Pick<CreditDemand, 'guarantorId'>): number {
+  return isUnknownGuarantor(guarantor) ? 0 : DEFAULT_GUARANTOR_RATE
+}
 
 /** Identifiant Firestore déterministe : garantit une seule commission par mois et par cycle. */
 export function buildGuarantorRemunerationDocId(creditId: string, cycleNumber: number, month: number): string {

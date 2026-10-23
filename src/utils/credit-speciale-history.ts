@@ -3,6 +3,7 @@ import { customRound } from './credit-speciale-calculations'
 import { getLogicalMonthIndex } from './credit-speciale-rest-months'
 import { addContractMonths } from '@/utils/contract-months'
 import { getFlatInstallmentCount, isFlatCredit, splitFlatInstallments } from './credit-weekly'
+import { isCreditContractEnded } from './credit-write-off'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
 export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 60
@@ -577,6 +578,52 @@ export function getNextDueFromCreditSpecialeHistory(
   history: CreditSpecialeHistoryMonth[]
 ): CreditSpecialeHistoryMonth | undefined {
   return history.find((month) => month.status === 'DUE')
+}
+
+/**
+ * Premier mois de la partie fixe, si le contrat y est entré : un mois FIXE est
+ * déjà payé ou c'est l'échéance en cours. Les intérêts ne courent plus.
+ */
+export function getCreditSpecialeFixedPhaseEntry(
+  history: CreditSpecialeHistoryMonth[]
+): CreditSpecialeHistoryMonth | undefined {
+  const hasEntered = history.some(
+    (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
+  )
+  return hasEntered ? history.find((row) => row.phase === 'FIXE') : undefined
+}
+
+export interface CreditContractFixedPhase {
+  /** Mois (du cycle en cours) à partir duquel les intérêts ne courent plus. */
+  startMonth: number
+  /** Basculement fait par un admin, ou automatique après le 7e mois logique. */
+  mode: NonNullable<CreditContract['fixedTransitionMode']>
+}
+
+/** Seul un crédit spéciale en mensualités, non clôturé, peut être en partie fixe. */
+export function canCreditContractBeInFixedPhase(contract: CreditContract): boolean {
+  return contract.creditType === 'SPECIALE' && !isFlatCredit(contract) && !isCreditContractEnded(contract.status)
+}
+
+/**
+ * Partie fixe du cycle en cours, même calcul que la fiche du contrat ;
+ * `undefined` tant que les intérêts courent.
+ */
+export function getCreditContractFixedPhase(
+  contract: CreditContract,
+  payments: CreditPayment[]
+): CreditContractFixedPhase | undefined {
+  const history = buildCreditSpecialeHistory(
+    contract,
+    getCreditPaymentsForCurrentCycle(contract, payments),
+    { projectUntilZero: true }
+  )
+  const entry = getCreditSpecialeFixedPhaseEntry(history)
+  if (!entry) return undefined
+  return {
+    startMonth: entry.month,
+    mode: contract.fixedTransitionMode === 'MANUAL' ? 'MANUAL' : 'AUTOMATIC',
+  }
 }
 
 export function buildCreditSpecialeTimelineHistory(

@@ -346,6 +346,8 @@ export class CreditContractRepository implements ICreditContractRepository {
                 // Complété par `CreditSpecialeService.getContractsStats`, qui a
                 // accès à la collection `creditPenalties`. Ce dépôt ne l'a pas.
                 totalPenalties: 0,
+                // Complété par le service, qui a accès aux versements.
+                fixedPhase: 0,
                 byType: {
                     speciale: contracts.filter(c => c.creditType === 'SPECIALE').length,
                     fixe: contracts.filter(c => c.creditType === 'FIXE').length,
@@ -368,6 +370,7 @@ export class CreditContractRepository implements ICreditContractRepository {
                 totalPaid: 0,
                 totalRemaining: 0,
                 totalPenalties: 0,
+                fixedPhase: 0,
                 byType: { speciale: 0, fixe: 0, aide: 0 },
             };
         }

@@ -5,6 +5,7 @@ import { ENDED_CREDIT_STATUSES } from '@/utils/credit-write-off'
 import dynamic from 'next/dynamic'
 import { getCreditContractEndDate } from '@/services/credit-speciale/creditContractDates'
 import { isWeeklyCredit } from '@/utils/credit-weekly'
+import { canCreditContractBeInFixedPhase, type CreditContractFixedPhase } from '@/utils/credit-speciale-history'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -28,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import routes from '@/constantes/routes'
 import { useCreditContractsRealtimeSync } from '@/hooks/credit-speciale/useCreditContractsRealtimeSync'
 import { useCreditContractsLosses, type CreditContractLoss } from '@/hooks/credit-speciale/useCreditContractsLosses'
+import { useCreditContractsFixedPhase } from '@/hooks/credit-speciale/useCreditContractsFixedPhase'
 import { useCreditContractMutations, useCreditContracts } from '@/hooks/useCreditSpeciale'
 import { cn } from '@/lib/utils'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
@@ -44,6 +46,7 @@ import {
     Grid3X3,
     List,
     Loader2,
+    Lock,
     MoreVertical,
     RefreshCw,
     Search,
@@ -65,7 +68,7 @@ import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 type CreditTypeFilter = CreditType | 'all'
-type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'closed' | 'writtenOff' | 'overdue'
+type ContractTabValue = 'all' | 'active' | 'currentMonth' | 'fixedPhase' | 'closed' | 'writtenOff' | 'overdue'
 type CreditContractFilterState = {
   search: string
   status: CreditContractStatus | 'all'
@@ -98,7 +101,7 @@ type ContractTabItem = {
   isDanger?: boolean
 }
 
-const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'closed', 'writtenOff', 'overdue']
+const CONTRACT_TAB_VALUES: ContractTabValue[] = ['all', 'active', 'currentMonth', 'fixedPhase', 'closed', 'writtenOff', 'overdue']
 const isContractTabValue = (value: string | null): value is ContractTabValue =>
   value !== null && CONTRACT_TAB_VALUES.includes(value as ContractTabValue)
 
@@ -733,6 +736,17 @@ const ContractLossSummary = ({ loss }: { loss?: CreditContractLoss }) => {
   )
 }
 
+/** Partie fixe d'un contrat en cours (onglet « Partie fixe »). */
+const ContractFixedPhaseSummary = ({ fixedPhase }: { fixedPhase?: CreditContractFixedPhase }) => {
+  if (!fixedPhase) return null
+  return (
+    <p className="mt-1 text-[11px] font-medium text-amber-700 tabular-nums">
+      Partie fixe depuis M{fixedPhase.startMonth}
+      {' · '}{fixedPhase.mode === 'MANUAL' ? 'basculement manuel' : 'après 7 mois'}
+    </p>
+  )
+}
+
 const ListContrats = ({
   forcedCreditType,
   contractDetailsBasePath = routes.admin.creditSpecialeContrats,
@@ -748,8 +762,13 @@ const ListContrats = ({
     searchParamCreditType === 'SPECIALE' || searchParamCreditType === 'FIXE' || searchParamCreditType === 'AIDE'
       ? searchParamCreditType
       : 'all'
+  // La partie fixe n'existe que pour le crédit spéciale.
+  const showFixedPhaseTab = !forcedCreditType || forcedCreditType === 'SPECIALE'
   const searchParamTab = searchParams.get('tab')
-  const initialTab: ContractTabValue = isContractTabValue(searchParamTab) ? searchParamTab : 'all'
+  const initialTab: ContractTabValue =
+    isContractTabValue(searchParamTab) && (searchParamTab !== 'fixedPhase' || showFixedPhaseTab)
+      ? searchParamTab
+      : 'all'
   
   // Initialiser les états depuis l'URL
   const [activeTab, setActiveTab] = useState<ContractTabValue>(initialTab)
@@ -794,6 +813,7 @@ const ListContrats = ({
     { value: 'all', label: 'Tous', icon: FileText },
     { value: 'active', label: 'Actif', icon: CheckCircle2 },
     { value: 'currentMonth', label: 'Mois en cours', icon: Calendar },
+    ...(showFixedPhaseTab ? [{ value: 'fixedPhase' as const, label: 'Partie fixe', icon: Lock }] : []),
     { value: 'closed', label: 'Clos', icon: Shield },
     { value: 'writtenOff', label: 'En perte', icon: AlertCircle },
     { value: 'overdue', label: 'Retard', icon: AlertCircle, isDanger: true },
@@ -854,9 +874,25 @@ const ListContrats = ({
     [contrats, isLossTab]
   )
   const { data: lossesById, isLoading: isLoadingLosses } = useCreditContractsLosses(endedContrats, isLossTab)
-  const isLoading = isLoadingContracts || (isLossTab && endedContrats.length > 0 && isLoadingLosses)
+  // Onglet « Partie fixe » : contrats spéciale non clôturés dont les intérêts ne
+  // courent plus. La phase se déduit des versements, chargés pour ces seuls contrats.
+  const isFixedPhaseTab = activeTab === 'fixedPhase'
+  const fixedPhaseCandidates = React.useMemo(
+    () => (isFixedPhaseTab ? contrats.filter(canCreditContractBeInFixedPhase) : []),
+    [contrats, isFixedPhaseTab]
+  )
+  const { data: fixedPhaseById, isLoading: isLoadingFixedPhase } = useCreditContractsFixedPhase(
+    fixedPhaseCandidates,
+    isFixedPhaseTab
+  )
+  const isLoading =
+    isLoadingContracts ||
+    (isLossTab && endedContrats.length > 0 && isLoadingLosses) ||
+    (isFixedPhaseTab && fixedPhaseCandidates.length > 0 && isLoadingFixedPhase)
   const getContractLoss = (contractId: string): CreditContractLoss | undefined =>
     isLossTab ? lossesById?.get(contractId) : undefined
+  const getContractFixedPhase = (contractId: string): CreditContractFixedPhase | undefined =>
+    isFixedPhaseTab ? fixedPhaseById?.get(contractId) : undefined
   const { uploadSignedContract, replaceSignedContract } = useCreditContractMutations()
   
   // États pour les modals
@@ -968,6 +1004,7 @@ const ListContrats = ({
         all: 'Tous',
         active: 'Actif',
         currentMonth: 'Mois en cours',
+        fixedPhase: 'Partie fixe',
         closed: 'Clos',
         writtenOff: 'En perte',
         overdue: 'Retard',
@@ -1030,6 +1067,7 @@ const ListContrats = ({
         all: 'Tous',
         active: 'Actif',
         currentMonth: 'Mois en cours',
+        fixedPhase: 'Partie fixe',
         closed: 'Clos',
         writtenOff: 'En perte',
         overdue: 'Retard',
@@ -1288,6 +1326,12 @@ const ListContrats = ({
       })
     }
 
+    if (activeTab === 'fixedPhase') {
+      items = items.filter(
+        (contract) => !ENDED_CREDIT_STATUSES.includes(contract.status) && Boolean(fixedPhaseById?.has(contract.id))
+      )
+    }
+
     if (activeTab === 'currentMonth') {
       const { start, end } = getCurrentMonthRange()
       items = items.filter((contract) => {
@@ -1362,7 +1406,7 @@ const ListContrats = ({
     )
 
     return items
-  }, [activeTab, contrats, filters, isCreditTypeLocked, lossesById])
+  }, [activeTab, contrats, filters, isCreditTypeLocked, lossesById, fixedPhaseById])
 
   // Fonction pour construire les lignes d'export
   const formatAmount = (amount: number): string => {
@@ -1758,6 +1802,7 @@ const ListContrats = ({
                           {CREDIT_SCORING_ENABLED && scoreValue !== undefined && <> · Score {scoreValue}/10</>}
                         </p>
                         <ContractLossSummary loss={getContractLoss(contract.id)} />
+                        <ContractFixedPhaseSummary fixedPhase={getContractFixedPhase(contract.id)} />
                       </div>
 
                       {/* Statut du document, en pastille — comme les cartes de caisse */}
@@ -1935,6 +1980,7 @@ const ListContrats = ({
                       <td className="px-4 py-3 text-right font-medium text-orange-600">
                         {Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA
                         <ContractLossSummary loss={getContractLoss(contract.id)} />
+                        <ContractFixedPhaseSummary fixedPhase={getContractFixedPhase(contract.id)} />
                       </td>
                       <td className="px-4 py-3 text-right text-gray-700">
                         {contract.nextDueAt ? (contract.nextDueAt instanceof Date ? contract.nextDueAt.toLocaleDateString('fr-FR') : new Date(contract.nextDueAt).toLocaleDateString('fr-FR')) : '—'}

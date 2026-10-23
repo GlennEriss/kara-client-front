@@ -53,6 +53,7 @@ import {
   getCreditPaymentCycleNumber,
   getCreditPaymentMonthNumber,
   getCreditPaymentsForCurrentCycle,
+  getCreditSpecialeFixedPhaseEntry,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
 import { DELETABLE_PAYMENT_CONTRACT_STATUSES, getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
@@ -692,10 +693,7 @@ export default function CreditContractDetail({
   }, [contract, contractCycles])
   const currentCycleDocuments = contractDocumentsByCycle.find((entry) => entry.isCurrentCycle)
   const hasEnteredFixedPhase =
-    contract.creditType === 'SPECIALE' &&
-    specialHistory.some(
-      (row) => row.phase === 'FIXE' && (row.hasPaymentRecord || row.status === 'DUE')
-    )
+    contract.creditType === 'SPECIALE' && Boolean(getCreditSpecialeFixedPhaseEntry(specialHistory))
   const isContractRepaying = contract.status === 'ACTIVE' || contract.status === 'PARTIAL'
   // Un seul rajout autorisé, masqué si déjà fait ou contrat soldé / clos.
   const canExtendContract =
@@ -2191,6 +2189,11 @@ export default function CreditContractDetail({
                     Premier versement : <span className="font-medium">{formatDate(contract.firstPaymentDate)}</span>
                     {contract.nextDueAt ? <> · Prochaine échéance : <span className="font-medium">{formatDate(contract.nextDueAt)}</span></> : null}
                     {getCreditContractEndDate(contract) ? <> · Fin prévue : <span className="font-medium">{formatDate(getCreditContractEndDate(contract)!)}</span></> : null}
+                  </p>
+                  {/* Remise de l'argent au client, saisie à la création du contrat. */}
+                  <p>
+                    Date de remise : <span className="font-medium">{contract.disbursementDate ? formatDate(contract.disbursementDate) : '—'}</span>
+                    {' · '}Lieu de remise : <span className="font-medium">{contract.disbursementLocation?.trim() || '—'}</span>
                   </p>
                   {contract.guarantorId && (
                     <p>
