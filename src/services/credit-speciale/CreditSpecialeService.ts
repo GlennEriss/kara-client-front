@@ -29,6 +29,8 @@ import {
     getCreditPaymentMonthNumber,
     getCurrentCreditContractCycle,
     getNextDueFromCreditSpecialeHistory,
+    canCreditContractBeInFixedPhase,
+    getCreditContractFixedPhase,
 } from "@/utils/credit-speciale-history";
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from "@/utils/credit-write-off";
@@ -39,6 +41,7 @@ import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
 import { assertContractUnlocked, isCreditContractLocked } from "@/utils/contract-lock";
 import {
     buildGuarantorRemunerationDocId,
+    getDefaultGuarantorRate,
     getGuarantorRemunerationCycleNumber,
 } from "@/utils/guarantor-commission";
 import { addContractMonths } from '@/utils/contract-months'
@@ -542,7 +545,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             guarantorIsMember: demand.guarantorIsMember,
             guarantorIsParrain: shouldApplyGuarantorRemuneration ? guarantorIsParrain : false,
             guarantorRemunerationPercentage: shouldApplyGuarantorRemuneration
-                ? (simulationData.guarantorRemunerationPercentage ?? (demand.guarantorIsMember ? 2 : 0))
+                ? (simulationData.guarantorRemunerationPercentage ?? (demand.guarantorIsMember ? getDefaultGuarantorRate(demand) : 0))
                 : 0,
             emergencyContact: simulationData.emergencyContact,
             disbursementPaymentMode: simulationData.disbursementPaymentMode,
@@ -603,26 +606,51 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     async getContractsStats(filters?: CreditContractFilters): Promise<CreditContractStats> {
         const stats = await this.creditContractRepository.getContractsStats(filters);
 
+        let contracts: CreditContract[];
         try {
-            const contracts = await this.creditContractRepository.getContractsWithFilters(filters);
-            if (contracts.length === 0) return stats;
-
-            // Les pénalités portent `creditId` : on somme celles des contrats
-            // retenus par les filtres, pas la collection entière.
-            const creditIds = new Set(contracts.map((contract) => contract.id));
-            const penalties = await this.creditPenaltyRepository.getAllPenalties();
-            const totalPenalties = penalties.reduce(
-                (sum, penalty) => (creditIds.has(penalty.creditId) ? sum + (Number(penalty.amount) || 0) : sum),
-                0,
-            );
-
-            return { ...stats, totalPenalties };
+            contracts = await this.creditContractRepository.getContractsWithFilters(filters);
         } catch (error) {
-            // Une panne du calcul des pénalités ne doit pas priver la page de
-            // toutes ses statistiques : on renvoie le reste.
-            console.error('[CreditSpecialeService] calcul des pénalités impossible:', error);
+            console.error('[CreditSpecialeService] chargement des contrats impossible:', error);
             return stats;
         }
+        if (contracts.length === 0) return stats;
+
+        // Une panne de l'un de ces calculs ne doit pas priver la page de toutes
+        // ses statistiques : chacun garde la valeur du dépôt en cas d'erreur.
+        const [totalPenalties, fixedPhase] = await Promise.all([
+            this.sumPenaltiesOfContracts(contracts).catch((error) => {
+                console.error('[CreditSpecialeService] calcul des pénalités impossible:', error);
+                return stats.totalPenalties;
+            }),
+            this.countFixedPhaseContracts(contracts).catch((error) => {
+                console.error('[CreditSpecialeService] calcul de la partie fixe impossible:', error);
+                return stats.fixedPhase;
+            }),
+        ]);
+
+        return { ...stats, totalPenalties, fixedPhase };
+    }
+
+    private async sumPenaltiesOfContracts(contracts: CreditContract[]): Promise<number> {
+        // Les pénalités portent `creditId` : on somme celles des contrats
+        // retenus par les filtres, pas la collection entière.
+        const creditIds = new Set(contracts.map((contract) => contract.id));
+        const penalties = await this.creditPenaltyRepository.getAllPenalties();
+        return penalties.reduce(
+            (sum, penalty) => (creditIds.has(penalty.creditId) ? sum + (Number(penalty.amount) || 0) : sum),
+            0,
+        );
+    }
+
+    /** Contrats spéciale non clôturés dont les intérêts ne courent plus (même règle que l'onglet « Partie fixe »). */
+    private async countFixedPhaseContracts(contracts: CreditContract[]): Promise<number> {
+        const candidates = contracts.filter(canCreditContractBeInFixedPhase);
+        const inFixedPhase = await Promise.all(
+            candidates.map(async (contract) =>
+                Boolean(getCreditContractFixedPhase(contract, await this.getPaymentsByCreditId(contract.id)))
+            ),
+        );
+        return inFixedPhase.filter(Boolean).length;
     }
 
     async recordRestMonth(creditId: string, monthNumber: number, reason: string, recordedBy: string, recordedByName: string): Promise<void> {

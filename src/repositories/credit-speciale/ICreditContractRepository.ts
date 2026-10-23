@@ -29,6 +29,8 @@ export interface CreditContractStats {
     totalPaid: number;
     totalRemaining: number;
     totalPenalties: number;
+    /** Contrats spéciale non clôturés dont les intérêts ne courent plus. */
+    fixedPhase: number;
     byType: {
         speciale: number;
         fixe: number;

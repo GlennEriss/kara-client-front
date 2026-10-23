@@ -40,6 +40,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
+import { DEFAULT_GUARANTOR_RATE } from '@/utils/guarantor-commission'
 import WeeklyCreditSimulationPanel from './WeeklyCreditSimulationPanel'
 import ShopCreditSimulationPanel from './ShopCreditSimulationPanel'
 
@@ -52,6 +53,8 @@ interface CreditSimulationModalProps {
   lockAmount?: boolean
   /** Achat en boutique partenaire : seule la simulation en 2 ou 3 mensualités est proposée. */
   shopPurchase?: CreditShopPurchase
+  /** Taux de commission du garant proposé (0 % si le garant de la demande est inconnu). */
+  defaultGuarantorRate?: number
   onSimulationComplete?: (simulation: StandardSimulation | CustomSimulation) => void
 }
 
@@ -63,6 +66,7 @@ export default function CreditSimulationModal({
   initialMonthlyPayment,
   lockAmount = false,
   shopPurchase,
+  defaultGuarantorRate = DEFAULT_GUARANTOR_RATE,
   onSimulationComplete
 }: CreditSimulationModalProps) {
   const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed' | 'weekly'>('standard')
@@ -376,6 +380,7 @@ export default function CreditSimulationModal({
               <StandardSimulationResults
                 result={standardResult}
                 creditType={creditType}
+                defaultGuarantorRate={defaultGuarantorRate}
                 onUse={handleUseSimulation}
               />
             )}
@@ -497,6 +502,7 @@ export default function CreditSimulationModal({
               <CustomSimulationResults
                 result={customResult}
                 creditType={creditType}
+                defaultGuarantorRate={defaultGuarantorRate}
                 onUse={handleUseSimulation}
               />
             )}
@@ -642,6 +648,7 @@ export default function CreditSimulationModal({
               <StandardSimulationResults
                 result={proposedResult}
                 creditType={creditType}
+                defaultGuarantorRate={defaultGuarantorRate}
                 onUse={handleUseSimulation}
                 isProposed={true}
               />
@@ -811,9 +818,6 @@ function CustomPaymentsInput({
   )
 }
 
-/** Taux de commission du garant proposé par défaut (modifiable de 0 à 5 %). */
-const DEFAULT_GUARANTOR_RATE = 2
-
 /**
  * Commission du garant par mois : taux × reste dû au début du mois (le montant
  * emprunté au 1er mois), sur 7 mois au plus — même calcul qu'à la création du contrat.
@@ -860,17 +864,19 @@ function GuarantorRateField({ rate, onChange }: { rate: number; onChange: (rate:
 function StandardSimulationResults({
   result,
   creditType,
+  defaultGuarantorRate,
   onUse,
   isProposed = false
 }: {
   result: StandardSimulation
   creditType: CreditType
+  defaultGuarantorRate: number
   onUse: () => void
   isProposed?: boolean
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   const showGuarantor = creditType === 'SPECIALE'
-  const [guarantorRate, setGuarantorRate] = useState(DEFAULT_GUARANTOR_RATE)
+  const [guarantorRate, setGuarantorRate] = useState(defaultGuarantorRate)
   
   // Calculer l'échéancier en utilisant la fonction utilitaire partagée
   const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity)
@@ -1181,15 +1187,17 @@ function StandardSimulationResults({
 function CustomSimulationResults({
   result,
   creditType,
+  defaultGuarantorRate,
   onUse
 }: {
   result: CustomSimulation
   creditType: CreditType
+  defaultGuarantorRate: number
   onUse: () => void
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   const showGuarantor = creditType === 'SPECIALE'
-  const [guarantorRate, setGuarantorRate] = useState(DEFAULT_GUARANTOR_RATE)
+  const [guarantorRate, setGuarantorRate] = useState(defaultGuarantorRate)
   
   // Calculer l'échéancier personnalisé
   const schedule: Array<{

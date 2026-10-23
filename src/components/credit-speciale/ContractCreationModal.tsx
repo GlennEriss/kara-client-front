@@ -39,6 +39,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { PAYMENT_MODE_LABELS } from '@/constantes/membership-requests'
 import { toast } from 'sonner'
 import { addContractMonths } from '@/utils/contract-months'
+import { getDefaultGuarantorRate } from '@/utils/guarantor-commission'
 import ShopPurchaseDemandSummary from './ShopPurchaseDemandSummary'
 import { clampShopCreditInstallments, computeWeeklyCreditTotals, formatCreditDuration, splitFlatInstallments } from '@/utils/credit-weekly'
 
@@ -123,7 +124,8 @@ export default function ContractCreationModal({
   const isWeeklySimulation = simulationDurationUnit === 'WEEKS'
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2% (peut aller jusqu'à 5%)
+  // Par défaut 2 % (jusqu'à 5 %), 0 % si le garant est inconnu.
+  const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(() => getDefaultGuarantorRate(demand))
   const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('')
   const [paymentWithFees, setPaymentWithFees] = useState<boolean | undefined>(undefined)
   const [paymentLocation, setPaymentLocation] = useState('')
@@ -156,14 +158,14 @@ export default function ContractCreationModal({
     if (isOpen) {
       setCurrentStep('summary')
       setEmergencyContact({})
-      setGuarantorRemunerationPercentage(2) // Réinitialiser à 2% par défaut (peut aller jusqu'à 5%)
+      setGuarantorRemunerationPercentage(getDefaultGuarantorRate({ guarantorId: demand.guarantorId }))
       setPaymentMode('')
       setPaymentWithFees(undefined)
       setPaymentLocation('')
       setPaymentMethodOther('')
       setDisbursementDate(toDateInputValue(demand.approvedAt ?? demand.updatedAt))
     }
-  }, [isOpen, demand.approvedAt, demand.updatedAt])
+  }, [isOpen, demand.approvedAt, demand.updatedAt, demand.guarantorId])
 
   useEffect(() => {
     if (!isMobileMoneyMode) {

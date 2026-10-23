@@ -5,8 +5,10 @@ import {
   buildGuarantorCommissionRows,
   buildGuarantorRemunerationDocId,
   dedupeGuarantorRemunerations,
+  getDefaultGuarantorRate,
   getGuarantorRemunerationCycleNumber,
 } from '@/utils/guarantor-commission'
+import { UNKNOWN_USER_ID } from '@/domains/financial/caisse-imprevue/import/unknownUser'
 
 const contract = {
   id: 'credit-1',
@@ -123,5 +125,16 @@ describe('guarantor commission', () => {
       remaining: 8_500,
     })
     expect(buildGuarantorCommissionBalance(rows, [{ amount: 20_000 }]).remaining).toBe(0)
+  })
+})
+
+describe('getDefaultGuarantorRate', () => {
+  it('propose 2 % pour un garant identifié', () => {
+    expect(getDefaultGuarantorRate({ guarantorId: 'member-1' })).toBe(2)
+  })
+
+  it('propose 0 % pour le membre INCONNU ou sans garant', () => {
+    expect(getDefaultGuarantorRate({ guarantorId: UNKNOWN_USER_ID })).toBe(0)
+    expect(getDefaultGuarantorRate({ guarantorId: undefined })).toBe(0)
   })
 })

@@ -70,6 +70,7 @@ import EditCreditDemandModal from './EditCreditDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import StatisticsCreditDemandes from './StatisticsCreditDemandes'
 import ValidateDemandModal from './ValidateDemandModal'
+import { getDefaultGuarantorRate } from '@/utils/guarantor-commission'
 
 type ViewMode = 'grid' | 'list'
 type DemandTab = 'all' | 'pending' | 'approved' | 'rejected'
@@ -1825,6 +1826,7 @@ const ListDemandes = ({
             initialMonthlyPayment={simulationModalState.demand.monthlyPaymentAmount}
             lockAmount
             shopPurchase={simulationModalState.demand.shopPurchase}
+            defaultGuarantorRate={getDefaultGuarantorRate(simulationModalState.demand)}
             onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
               // Fermer le modal de simulation et ouvrir le modal de création de contrat
               setSimulationModalState({ isOpen: false, demand: null })
