@@ -181,7 +181,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, historyInterestCollected = 0, missedEarningsCollected = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; historyInterestCollected?: number; missedEarningsCollected?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, historyInterestCollected = 0, missedEarningsCollected = 0, hasManualFixedTransition = false }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; historyInterestCollected?: number; missedEarningsCollected?: number; hasManualFixedTransition?: boolean }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -203,11 +203,12 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
       : new Date(contract.firstPaymentDate)
     : null
   const endDate = getCreditContractEndDate(contract)
-  // Le manque à gagner ne s'affiche qu'une fois la date de fin prévue passée,
-  // que le contrat soit clôturé ou non.
+  // Le manque à gagner s'affiche une fois la date de fin prévue passée, que le
+  // contrat soit clôturé ou non, ou dès un basculement manuel en partie fixe.
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const isPastEndDate = !!endDate && today > endDate
+  const showMissedEarnings = isPastEndDate || hasManualFixedTransition
   const statsData: Array<{ title: string; value: string; subtitle?: string; tone?: 'accent' | 'danger' }> = [
     { title: 'Montant emprunté', value: fcfa(contract.amount) },
     {
@@ -244,7 +245,7 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
         : 'Aucune pénalité impayée',
       tone: unpaidPenaltiesTotal > 0 ? 'danger' : undefined,
     },
-    ...(totalLosses > 0 && isPastEndDate
+    ...(totalLosses > 0 && showMissedEarnings
       ? [{
           title: 'Manque à gagner',
           value: fcfa(Math.max(0, totalLosses - missedEarningsCollected)),
@@ -2221,6 +2222,7 @@ export default function CreditContractDetail({
             historyInterestTotal={historyInterestTotal}
             historyInterestCollected={historyInterestCollected}
             missedEarningsCollected={missedEarningsCollectedTotal}
+            hasManualFixedTransition={hasManualFixedNotice}
           />
         </div>
 
