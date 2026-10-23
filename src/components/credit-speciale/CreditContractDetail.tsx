@@ -54,6 +54,7 @@ import {
   getCreditPaymentMonthNumber,
   getCreditPaymentsForCurrentCycle,
   getCreditSpecialeFixedPhaseEntry,
+  getCreditSpecialeInterestCollected,
   getCreditSpecialeLastRecordedMonth,
 } from '@/utils/credit-speciale-history'
 import { DELETABLE_PAYMENT_CONTRACT_STATUSES, getCreditPaymentDeletionBlocker } from '@/utils/credit-payment-deletion'
@@ -180,7 +181,7 @@ interface DueItem {
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
 // Statistiques du contrat — grille statique (même design que la liste des contrats)
-const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, missedEarningsCollected = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; missedEarningsCollected?: number }) => {
+const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, totalLosses = 0, historyInterestTotal = 0, historyInterestCollected = 0, missedEarningsCollected = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; totalLosses?: number; historyInterestTotal?: number; historyInterestCollected?: number; missedEarningsCollected?: number }) => {
   // Calculer la somme des pénalités impayées
   const unpaidPenaltiesTotal = penalties
     .filter(p => !p.paid)
@@ -189,10 +190,10 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
 
   const isSimpleCredit = contract.creditType === 'FIXE' || contract.creditType === 'AIDE'
   // Crédit fixe: intérêt unique appliqué une seule fois. Crédit spécial : les
-  // intérêts déjà générés, ceux de l'onglet Historique (tous cycles).
+  // intérêts perçus, sur ceux générés par l'onglet Historique (tous cycles).
   const totalInterest = isSimpleCredit
     ? Math.max(0, customRound(contract.totalAmount - contract.amount))
-    : historyInterestTotal
+    : historyInterestCollected
 
   // Même présentation compacte que le contrat Caisse imprévue, montants en FCFA.
   const fcfa = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} FCFA`
@@ -229,11 +230,11 @@ const ContractStatsGrid = ({ contract, penalties = [], realRemainingAmount, tota
         : 'Aucun paiement enregistré',
     },
     {
-      title: isSimpleCredit ? 'Intérêt unique' : 'Total intérêts',
+      title: isSimpleCredit ? 'Intérêt unique' : 'Intérêts perçus',
       value: fcfa(totalInterest),
       subtitle: isSimpleCredit
         ? 'Appliqué une seule fois au démarrage'
-        : `Somme des intérêts de l'historique`,
+        : `sur ${fcfa(historyInterestTotal)} générés`,
     },
     {
       title: 'Pénalités impayées',
@@ -644,6 +645,7 @@ export default function CreditContractDetail({
   }, [contract, contract.creditType, contractCycles, payments])
 
   const historyInterestTotal = timelineHistoryRows.reduce((sum, row) => sum + row.interest, 0)
+  const historyInterestCollected = getCreditSpecialeInterestCollected(timelineHistoryRows, isFlat)
 
   const timelineHistoryByCycle = timelineHistoryRows.reduce((acc, row) => {
     const existing = acc.get(row.cycleNumber) ?? []
@@ -2217,6 +2219,7 @@ export default function CreditContractDetail({
             totalAmountToRepay={totalAmountToRepay}
             totalLosses={totalLosses}
             historyInterestTotal={historyInterestTotal}
+            historyInterestCollected={historyInterestCollected}
             missedEarningsCollected={missedEarningsCollectedTotal}
           />
         </div>
@@ -2256,7 +2259,8 @@ export default function CreditContractDetail({
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-[#234D65]" />
                 <span>
-                  Échéances payées&nbsp;: <b>{actualSchedule.filter((item) => item.status === 'PAID').length}</b> / {actualSchedule.filter((item) => !item.isRest).length || '—'}
+                  {/* Une déclaration à 0 FCFA n'est pas une échéance payée. */}
+                  Échéances payées&nbsp;: <b>{actualSchedule.filter((item) => item.status === 'PAID' && (item.paidAmount ?? 0) > 0).length}</b> / {actualSchedule.filter((item) => !item.isRest).length || '—'}
                 </span>
               </div>
               <span className="text-slate-500">{progressPercentage.toFixed(1)}% remboursé</span>
@@ -2348,6 +2352,8 @@ export default function CreditContractDetail({
                   const isPaymentSufficient = paidAmount >= progressTarget
                   const percentage = progressTarget > 0 ? Math.min(100, (paidAmount / progressTarget) * 100) : 0
                   const paymentForCard = item.status === 'PAID' ? getPaymentForScheduleIndex(index) : null
+                  // Versement de 0 FCFA : le mois est enregistré, mais rien n'a été payé.
+                  const isZeroDeclaration = item.status === 'PAID' && paidAmount === 0
                   // Seul le dernier mois payé se supprime : les mois suivants dépendent du capital
                   // de celui-ci. Sur un contrat encore en cours, les mois plus anciens montrent le
                   // bouton grisé avec l'explication, plutôt que de le masquer sans raison.
@@ -2470,7 +2476,13 @@ export default function CreditContractDetail({
                                 </div>
                               )}
 
-                              {item.status === 'PAID' && item.paymentDate && (
+                              {isZeroDeclaration && item.paymentDate && (
+                                <p className="pt-1 border-t border-gray-200 text-xs text-gray-500">
+                                  Aucun versement — déclaré le {format(new Date(item.paymentDate), 'dd/MM/yyyy', { locale: fr })}
+                                </p>
+                              )}
+
+                              {item.status === 'PAID' && !isZeroDeclaration && item.paymentDate && (
                                 <div className="space-y-1 pt-1 border-t border-gray-200">
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Payé le:</span>
@@ -2557,19 +2569,21 @@ export default function CreditContractDetail({
 
                           {item.status === 'PAID' && (
                             <div className="pt-3 border-t border-gray-200 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
-                                onClick={() => {
-                                  setSelectedDueIndexForReceipt(index)
-                                  setShowReceiptModal(true)
-                                }}
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                Voir la facture
-                              </Button>
+                              {!isZeroDeclaration && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65]/10"
+                                  onClick={() => {
+                                    setSelectedDueIndexForReceipt(index)
+                                    setShowReceiptModal(true)
+                                  }}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Voir la facture
+                                </Button>
+                              )}
                               {!isCreditContractLocked(contract.status) && (
                                 <Button
                                   type="button"
@@ -2722,7 +2736,9 @@ export default function CreditContractDetail({
                                       <TableCell>
                                         {formatDate(row.date)}
                                         {row.status === 'PAID' && row.paymentDate && (
-                                          <span className="block text-xs text-gray-500">versé le {formatDate(row.paymentDate)}</span>
+                                          <span className="block text-xs text-gray-500">
+                                            {row.actualPayment === 0 ? 'déclaré le' : 'versé le'} {formatDate(row.paymentDate)}
+                                          </span>
                                         )}
                                       </TableCell>
                                       <TableCell>
@@ -2788,7 +2804,11 @@ export default function CreditContractDetail({
                             const paymentDueDate = getPaymentDueDate(payment)
                             // Un versement de pénalités seules n'a pas d'échéance propre : pas de ponctualité.
                             const isPenaltyOnly = payment.amount === 0 && !!payment.comment?.includes('Paiement de pénalités uniquement')
-                            const punctuality = paymentDueDate && !isPenaltyOnly ? getPaymentPunctuality(paymentDueDate, payment.paymentDate) : null
+                            const punctuality = !paymentDueDate || isPenaltyOnly
+                              ? null
+                              : payment.amount === 0
+                                ? { kind: 'NO_PAYMENT' as const, daysLate: 0 }
+                                : getPaymentPunctuality(paymentDueDate, payment.paymentDate)
 
                             return (
                               <div
@@ -2830,7 +2850,11 @@ export default function CreditContractDetail({
                                     ) : (
                                       <>
                                         <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                                        <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
+                                        {payment.amount === 0 ? (
+                                          <span className="text-gray-500">Aucun versement</span>
+                                        ) : (
+                                          <span>Mode : {CREDIT_PAYMENT_MODE_LABELS[payment.mode] ?? payment.mode}{(payment.mode === 'airtel_money' || payment.mode === 'mobicash') && payment.withFees !== undefined ? ` (${payment.withFees ? 'Avec frais' : 'Sans frais'})` : ''}</span>
+                                        )}
                                         {CREDIT_SCORING_ENABLED && payment.note !== undefined && (
                                           <span>Note : {payment.note}/10</span>
                                         )}

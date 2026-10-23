@@ -251,7 +251,9 @@ export default function CreditHistoryTimeline({ contractId }: CreditHistoryTimel
         type: 'payment',
         date: paymentDate,
         title: `Paiement de ${payment.amount.toLocaleString('fr-FR')} FCFA`,
-        description: `Paiement effectué par ${getPaymentModeLabel(payment.mode)}${payment.reference ? ` - Réf: ${payment.reference}` : ''}`,
+        description: payment.amount === 0 && !payment.comment?.includes('Paiement de pénalités uniquement')
+          ? 'Aucun versement déclaré'
+          : `Paiement effectué par ${getPaymentModeLabel(payment.mode)}${payment.reference ? ` - Réf: ${payment.reference}` : ''}`,
         icon: DollarSign,
         color: '#10b981',
         badge: 'PAYÉ',

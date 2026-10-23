@@ -26,6 +26,15 @@ describe('ponctualité des versements', () => {
     expect(getInstallmentPunctuality({ date: due, status: 'REST', isRest: true }).kind).toBe('REST')
   })
 
+  it('ni à temps ni en retard pour un mois déclaré à 0 FCFA', () => {
+    expect(
+      getInstallmentPunctuality({ date: due, status: 'PAID', paymentDate: new Date('2026-09-09'), actualPayment: 0 })
+    ).toEqual({ kind: 'NO_PAYMENT', daysLate: 0 })
+    expect(
+      getInstallmentPunctuality({ date: due, status: 'PAID', paymentDate: new Date('2026-09-09'), actualPayment: 50_000 }).kind
+    ).toBe('ON_TIME')
+  })
+
   it('affiche les jours de retard dans le libellé', () => {
     expect(punctualityLabel('LATE', 6)).toBe('En retard (6 j)')
     expect(punctualityLabel('ON_TIME', 0)).toBe('À temps')

@@ -6,7 +6,7 @@
 
 export const LATE_TOLERANCE_DAYS = 3
 
-export type PaymentPunctuality = 'ON_TIME' | 'GRACE' | 'LATE' | 'OVERDUE' | 'UPCOMING' | 'REST'
+export type PaymentPunctuality = 'ON_TIME' | 'GRACE' | 'LATE' | 'OVERDUE' | 'NO_PAYMENT' | 'UPCOMING' | 'REST'
 
 export const PUNCTUALITY_META: Record<
   PaymentPunctuality,
@@ -16,12 +16,13 @@ export const PUNCTUALITY_META: Record<
   GRACE: { label: 'Retard toléré', badge: 'bg-yellow-50 text-yellow-800 border-yellow-300', border: 'border-l-yellow-400', dot: 'bg-yellow-400' },
   LATE: { label: 'En retard', badge: 'bg-orange-50 text-orange-700 border-orange-200', border: 'border-l-orange-500', dot: 'bg-orange-500' },
   OVERDUE: { label: 'Impayé', badge: 'bg-red-50 text-red-700 border-red-200', border: 'border-l-red-500', dot: 'bg-red-500' },
+  NO_PAYMENT: { label: 'Aucun versement', badge: 'bg-slate-100 text-slate-700 border-slate-300', border: 'border-l-slate-500', dot: 'bg-slate-500' },
   UPCOMING: { label: 'À venir', badge: 'bg-gray-50 text-gray-600 border-gray-200', border: 'border-l-gray-300', dot: 'bg-gray-300' },
   REST: { label: 'Repos', badge: 'bg-blue-50 text-blue-700 border-blue-200', border: 'border-l-blue-400', dot: 'bg-blue-400' },
 }
 
 /** Ordre de la légende. */
-export const PUNCTUALITY_LEGEND: PaymentPunctuality[] = ['ON_TIME', 'GRACE', 'LATE', 'OVERDUE', 'UPCOMING', 'REST']
+export const PUNCTUALITY_LEGEND: PaymentPunctuality[] = ['ON_TIME', 'GRACE', 'LATE', 'OVERDUE', 'NO_PAYMENT', 'UPCOMING', 'REST']
 
 const startOfDay = (value: Date | string) => {
   const date = new Date(value)
@@ -44,13 +45,22 @@ export function getPaymentPunctuality(dueDate: Date | string, paymentDate: Date 
 
 /**
  * Ponctualité d'une échéance de l'historique : payée (selon la date du
- * versement qui l'a soldée), en repos, impayée après la date, ou à venir.
+ * versement qui l'a soldée), déclarée à 0 FCFA, en repos, impayée après la
+ * date, ou à venir.
  */
 export function getInstallmentPunctuality(
-  row: { date: Date | string; status: 'PAID' | 'DUE' | 'FUTURE' | 'REST'; isRest?: boolean; paymentDate?: Date | string },
+  row: {
+    date: Date | string
+    status: 'PAID' | 'DUE' | 'FUTURE' | 'REST'
+    isRest?: boolean
+    paymentDate?: Date | string
+    actualPayment?: number
+  },
   today: Date = new Date(),
 ): { kind: PaymentPunctuality; daysLate: number } {
   if (row.isRest || row.status === 'REST') return { kind: 'REST', daysLate: 0 }
+  // Mois enregistré avec un versement de 0 FCFA : rien n'a été payé, ni à temps ni en retard.
+  if (row.status === 'PAID' && row.actualPayment === 0) return { kind: 'NO_PAYMENT', daysLate: 0 }
   if (row.status === 'PAID') {
     return row.paymentDate ? getPaymentPunctuality(row.date, row.paymentDate) : { kind: 'ON_TIME', daysLate: 0 }
   }
