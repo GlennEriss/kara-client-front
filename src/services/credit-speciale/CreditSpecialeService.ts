@@ -35,6 +35,7 @@ import {
 import { getCreditPaymentDeletionBlocker } from "@/utils/credit-payment-deletion";
 import { buildWriteOffAmounts, canWriteOffContract, computeWriteOffLoss, isCreditContractEnded } from "@/utils/credit-write-off";
 import { computeMissedEarningsBalance } from "@/utils/credit-losses";
+import { getMonthPenaltyReferenceDate } from "@/utils/credit-penalty-due-date";
 import { WEEKLY_CREDIT_MAX_WEEKS, applyShopPartnerTerms, clampShopCreditInstallments, isFlatCredit, splitFlatInstallments } from "@/utils/credit-weekly";
 import { getShopArticle, getShopCreditPartner } from "@/db/shops.db";
 import { CREDIT_SCORING_ENABLED } from "@/constantes/credit-scoring";
@@ -2212,18 +2213,26 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             return;
         }
 
-        // Calculer le nombre de jours de retard
-        // Si datePaiement <= dateEcheancierActuel → pas de pénalité
-        // Si datePaiement > dateEcheancierActuel → pénalité
-        const daysLate = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-
         // Tolérance de 3 jours : pas de pénalité si retard ≤ 3 jours. Au-delà, règle de 3.
-        if (daysLate <= 3) {
+        // La date prévue est la plus tôt possible : si le versement n'est pas en retard
+        // par rapport à elle, il ne l'est pas non plus par rapport à l'échéance glissante.
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+        if (Math.floor((paymentDate.getTime() - dueDate.getTime()) / MS_PER_DAY) <= 3) {
             return;
         }
 
         const allPayments = await this.getPaymentsByCreditId(creditId);
         const cyclePayments = this.getPaymentsForCycle(contract, allPayments, cycleNumber);
+
+        // Crédit spécial en mois : le plus grand retard des mois précédents reste toléré
+        // (échéance glissante). La pénalité garde la date prévue, qui la rattache à son mois.
+        const referenceDate = cycleContract.creditType === 'SPECIALE' && !isFlatCredit(cycleContract)
+            ? getMonthPenaltyReferenceDate(cycleContract, cyclePayments, monthNumber)
+            : dueDate;
+        const daysLate = Math.floor((paymentDate.getTime() - referenceDate.getTime()) / MS_PER_DAY);
+        if (daysLate <= 3) {
+            return;
+        }
         const paymentsBeforeCurrent = cyclePayments.filter((existingPayment) => existingPayment.id !== payment.id);
         const history = cycleContract.creditType === 'SPECIALE'
             ? buildCreditSpecialeHistory(cycleContract, paymentsBeforeCurrent, {
@@ -2280,7 +2289,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 entityId: creditId,
                 type: 'reminder',
                 title: 'Pénalité appliquée',
-                message: `Une pénalité de ${Math.round(penaltyAmount).toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard sur l'échéance du ${dueDate.toLocaleDateString('fr-FR')}).`,
+                message: `Une pénalité de ${Math.round(penaltyAmount).toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard sur l'échéance du ${dueDate.toLocaleDateString('fr-FR')}${referenceDate.getTime() !== dueDate.getTime() ? `, attendue le ${referenceDate.toLocaleDateString('fr-FR')} après les retards déjà tolérés` : ''}).`,
                 metadata: {
                     contractId: creditId,
                     penaltyId: penalty.id,
