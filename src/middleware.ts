@@ -20,6 +20,7 @@ const PUBLIC_ROUTES = [
  */
 const ADMIN_ROUTE_PREFIXES = [
     '/dashboard',
+    '/bilans-financiers',
     '/memberships',
     '/membership-requests',
     '/groups',

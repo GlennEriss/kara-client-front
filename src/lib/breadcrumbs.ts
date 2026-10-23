@@ -249,6 +249,7 @@ function resolveBreadcrumbs(pathname: string): BreadcrumbSegment[] {
     return [TB, PAYMENTS_HISTORY, { label: 'Détails' }]
   }
   if (pathname === '/payments-history') return [TB, { label: 'Historique des paiements' }]
+  if (pathname === '/bilans-financiers') return [TB, { label: 'Bilans financiers' }]
 
   if (/^\/contracts-history\/[^/]+$/.test(pathname)) {
     return [TB, CONTRACTS_HISTORY, { label: 'Détails' }]
