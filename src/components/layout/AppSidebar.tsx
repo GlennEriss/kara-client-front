@@ -35,6 +35,7 @@ import {
   HandCoins,
   HeartHandshake,
   Home,
+  Landmark,
   LogOut,
   MapPin,
   MessageSquare,
@@ -365,6 +366,14 @@ export function AppSidebar() {
       return item.fallbackUrl && canSeeUrl(item.fallbackUrl) ? { ...item, url: item.fallbackUrl } : null;
     })
     .filter((item): item is SidebarItem => item !== null);
+  // « Bilans financiers » juste après le tableau de bord, réservé au superAdmin.
+  const mainItems: SidebarItem[] = isSuperAdmin
+    ? [
+        ...visibleAdminItems.slice(0, 1),
+        { title: "Bilans financiers", url: routes.admin.financialReports, icon: Landmark },
+        ...visibleAdminItems.slice(1),
+      ]
+    : visibleAdminItems;
 
   // Section Système filtrée ; « Réinitialisation » réservée au superAdmin.
   const baseSystemItems = systemMenuItems.filter((it: any) => canSeeUrl(it.url));
@@ -523,7 +532,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {visibleAdminItems.map((item) => {
+              {mainItems.map((item) => {
                 if (!item.children) {
                   const isActive = isActiveRoute(item.url);
                   return (
