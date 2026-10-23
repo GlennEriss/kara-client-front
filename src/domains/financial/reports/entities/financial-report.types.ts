@@ -19,6 +19,8 @@ export interface FinancialReportLine {
   kind: FinancialReportLineKind
   unit: FinancialReportLineUnit
   level: FinancialReportLineLevel
+  /** Ce que la ligne mesure, en langage courant. */
+  description: string
   values: number[]
   total: number
 }
@@ -28,6 +30,8 @@ export type FinancialReportBlockKey = 'treasury' | 'result' | 'outstanding' | 'r
 export interface FinancialReportBlock {
   key: FinancialReportBlockKey
   title: string
+  /** Ce que la partie montre et comment la lire. */
+  description: string
   lines: FinancialReportLine[]
 }
 

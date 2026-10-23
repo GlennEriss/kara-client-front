@@ -314,12 +314,21 @@ export function buildCreditModule(
   const losses = flowValues(months, all.losses)
   const inTotal = addValues(repayments, penaltiesPaid, missedEarningsPaid, recoveries)
   const outTotal = addValues(disbursed, guarantors)
+  const isSpeciale = creditType === 'SPECIALE'
   const incomeLines = [
-    makeLine('income_interest', 'Intérêts perçus', interest),
-    makeLine('income_penalties', 'Pénalités encaissées', penaltiesPaid),
-    makeLine('income_missed_earnings', 'Manque à gagner encaissé', missedEarningsPaid),
-    makeLine('income_recoveries', 'Récupérations sur pertes', recoveries),
-    ...(creditType === 'SPECIALE' ? [makeLine('income_shop_discount', 'Remises des boutiques partenaires', shopDiscount)] : []),
+    makeLine('income_interest', 'Intérêts perçus', interest, isSpeciale
+      ? 'Part des versements qui paie les intérêts. Un versement paie au plus les intérêts de son mois ; ceux d’un mois impayé passent dans le reste dû.'
+      : 'Part des versements qui paie l’intérêt unique du crédit, répartie au prorata de chaque versement.'),
+    makeLine('income_penalties', 'Pénalités encaissées', penaltiesPaid,
+      'Pénalités de retard payées par les membres.'),
+    makeLine('income_missed_earnings', 'Manque à gagner encaissé', missedEarningsPaid,
+      'Sommes versées après la fin d’un contrat pour compenser les intérêts que l’association n’a pas touchés.'),
+    makeLine('income_recoveries', 'Récupérations sur pertes', recoveries,
+      'Sommes récupérées après une clôture en perte : elles réduisent la perte.'),
+    ...(isSpeciale
+      ? [makeLine('income_shop_discount', 'Remises des boutiques partenaires', shopDiscount,
+          'Remise accordée par les boutiques partenaires : l’association paie le vendeur moins que ce que le membre rembourse.')]
+      : []),
   ]
   const incomeTotal = addValues(...incomeLines.map((line) => line.values))
   const chargeTotal = addValues(guarantors, losses)
@@ -330,40 +339,63 @@ export function buildCreditModule(
     description: info.description,
     blocks: [
       makeBlock('treasury', [
-        makeLine('in_repayments', 'Remboursements reçus', repayments),
-        makeLine('in_penalties', 'Pénalités encaissées', penaltiesPaid),
-        makeLine('in_missed_earnings', 'Manque à gagner encaissé', missedEarningsPaid),
-        makeLine('in_recoveries', 'Sommes récupérées après une perte', recoveries),
-        makeLine('in_total', 'Total des entrées', inTotal, { level: 'subtotal' }),
-        makeLine('out_disbursed', 'Fonds remis aux membres', disbursed),
-        makeLine('out_guarantors', 'Commissions versées aux garants', guarantors),
-        makeLine('out_total', 'Total des sorties', outTotal, { level: 'subtotal' }),
-        makeLine('net', 'Solde du mois', subtractValues(inTotal, outTotal), { level: 'total' }),
+        makeLine('in_repayments', 'Remboursements reçus', repayments,
+          'Versements des membres pour rembourser leurs crédits, capital et intérêts confondus.'),
+        makeLine('in_penalties', 'Pénalités encaissées', penaltiesPaid,
+          'Pénalités de retard payées par les membres.'),
+        makeLine('in_missed_earnings', 'Manque à gagner encaissé', missedEarningsPaid,
+          'Sommes versées après la fin d’un contrat pour compenser le manque à gagner.'),
+        makeLine('in_recoveries', 'Sommes récupérées après une perte', recoveries,
+          'Argent récupéré auprès d’un membre dont le crédit a été clôturé en perte.'),
+        makeLine('in_total', 'Total des entrées', inTotal,
+          'Tout l’argent reçu sur les crédits dans le mois.', { level: 'subtotal' }),
+        makeLine('out_disbursed', 'Fonds remis aux membres', disbursed,
+          'Argent prêté : remis au membre à la signature ou lors d’un rajout (versé au vendeur pour un achat en boutique).'),
+        makeLine('out_guarantors', 'Commissions versées aux garants', guarantors,
+          'Commissions payées aux garants (parrains) des crédits.'),
+        makeLine('out_total', 'Total des sorties', outTotal,
+          'Tout l’argent sorti pour les crédits dans le mois.', { level: 'subtotal' }),
+        makeLine('net', 'Solde du mois', subtractValues(inTotal, outTotal),
+          'Entrées moins sorties. Négatif quand l’association a prêté plus qu’elle n’a récupéré dans le mois.', { level: 'total' }),
       ]),
       makeBlock('result', [
         ...incomeLines,
-        makeLine('income_total', 'Total des produits', incomeTotal, { level: 'subtotal' }),
-        makeLine('charge_guarantors', 'Commissions versées aux garants', guarantors),
-        makeLine('charge_losses', 'Pertes sur crédits clôturés en perte', losses),
-        makeLine('charge_total', 'Total des charges', chargeTotal, { level: 'subtotal' }),
-        makeLine('net', 'Résultat net', subtractValues(incomeTotal, chargeTotal), { level: 'total' }),
-        makeLine('info_interest_generated', 'Pour information : intérêts générés', flowValues(months, all.interestGenerated), { level: 'info' }),
+        makeLine('income_total', 'Total des produits', incomeTotal,
+          'Tout ce que les crédits ont rapporté dans le mois.', { level: 'subtotal' }),
+        makeLine('charge_guarantors', 'Commissions versées aux garants', guarantors,
+          'Les commissions des garants sont un coût pour l’association.'),
+        makeLine('charge_losses', 'Pertes sur crédits clôturés en perte', losses,
+          'Reste dû abandonné quand un crédit est clôturé en perte (le membre ne remboursera plus).'),
+        makeLine('charge_total', 'Total des charges', chargeTotal,
+          'Tout ce que les crédits ont coûté dans le mois.', { level: 'subtotal' }),
+        makeLine('net', 'Résultat net', subtractValues(incomeTotal, chargeTotal),
+          'Produits moins charges : le gain (ou la perte) des crédits dans le mois.', { level: 'total' }),
+        makeLine('info_interest_generated', 'Pour information : intérêts générés', flowValues(months, all.interestGenerated),
+          'Intérêts produits par les contrats dans le mois, payés ou non. L’écart avec les intérêts perçus reste à encaisser.', { level: 'info' }),
       ]),
       makeBlock('outstanding', [
-        makeLine('receivables', 'Reste dû par les membres (capital et intérêts échus)', receivables, { kind: 'stock', level: 'total' }),
-        makeLine('contracts_active', 'Contrats en cours', activeContracts, { kind: 'stock', unit: 'count' }),
+        makeLine('receivables', 'Reste dû par les membres (capital et intérêts échus)', receivables,
+          'Ce que les membres doivent encore : montant prêté et intérêts arrivés à échéance, moins leurs versements.', { kind: 'stock', level: 'total' }),
+        makeLine('contracts_active', 'Contrats en cours', activeContracts,
+          'Contrats dont le reste dû n’est pas soldé à la fin du mois.', { kind: 'stock', unit: 'count' }),
       ]),
       makeBlock('risks', [
-        makeLine('missed_earnings', 'Manque à gagner du mois', flowValues(months, all.missedEarnings)),
-        makeLine('losses', 'Pertes constatées (clôtures en perte)', losses),
-        makeLine('unpaid_penalties', 'Pénalités impayées', unpaidPenalties, { kind: 'stock' }),
-        makeLine('late_amount', 'Montant des échéances en retard', lateAmount, { kind: 'stock' }),
-        makeLine('late_contracts', 'Contrats en retard', lateContracts, { kind: 'stock', unit: 'count' }),
+        makeLine('missed_earnings', 'Manque à gagner du mois', flowValues(months, all.missedEarnings), isSpeciale
+          ? 'Intérêts que l’association ne touche pas en partie fixe : le taux du contrat appliqué à la dette, pour chaque mois après le 7e.'
+          : '10 % du reste dû pour chaque mois au-delà de la durée prévue du contrat.'),
+        makeLine('losses', 'Pertes constatées (clôtures en perte)', losses,
+          'Reste dû abandonné lors des clôtures en perte du mois.'),
+        makeLine('unpaid_penalties', 'Pénalités impayées', unpaidPenalties,
+          'Pénalités de retard appliquées et pas encore payées.', { kind: 'stock' }),
+        makeLine('late_amount', 'Montant des échéances en retard', lateAmount,
+          'Part du reste dû qui aurait déjà dû être payée d’après les échéances passées.', { kind: 'stock' }),
+        makeLine('late_contracts', 'Contrats en retard', lateContracts,
+          'Contrats qui ont un montant en retard à la fin du mois.', { kind: 'stock', unit: 'count' }),
       ]),
     ],
     notes: [
       'Les fonds remis comptent à la date de remise (à défaut, à la création du contrat) ; un rajout compte à sa date. Achat en boutique : le montant versé au vendeur.',
-      creditType === 'SPECIALE'
+      isSpeciale
         ? 'Intérêts perçus : un versement paie au plus les intérêts de son mois (règle de l’application). Les intérêts d’un mois impayé passent dans le reste dû et ne sont pas comptés comme perçus.'
         : 'Intérêts perçus : l’intérêt unique est réparti au prorata de chaque versement.',
       'Le reste dû cumule le montant prêté et les intérêts échus, moins les versements ; il tombe à zéro quand le contrat est soldé, clos ou clôturé en perte.',
