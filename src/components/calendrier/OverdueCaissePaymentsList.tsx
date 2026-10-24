@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { PermissionGate } from '@/components/auth/PermissionGate'
 import { Card, CardContent } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/hooks/useOverduePayments'
@@ -119,6 +120,14 @@ function groupOverdue(items: OverduePayment[]): OverdueGroup[] {
   return groups
 }
 
+const ALL_MONTHS = 'all'
+
+/** Mois (`yyyy-MM`) de l'échéance la plus ancienne : clé du filtre par mois. */
+const earliestMonthOf = (group: OverdueGroup) => format(group.earliestDueAt, 'yyyy-MM')
+
+/** « septembre 2026 » à partir de `2026-09`. */
+const monthLabelOf = (key: string) => format(new Date(`${key}-01T12:00:00`), 'MMMM yyyy', { locale: fr })
+
 /** « 3 jours » / « 1 jour » — accord du pluriel réutilisé par les modèles. */
 function daysLabel(days: number): string {
   return `${days} jour${days > 1 ? 's' : ''}`
@@ -185,8 +194,28 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   // Textes de relance personnalisables (Système → Modèles de messages).
   const renderMessage = useRenderMessageTemplate()
 
-  const groups = useMemo(() => groupOverdue(items), [items])
-  const totalAmount = items.reduce((sum, i) => sum + (i.amount || 0), 0)
+  const allGroups = useMemo(() => groupOverdue(items), [items])
+
+  // Filtre sur le mois de l'échéance la plus ancienne : seuls les mois présents,
+  // du plus ancien au plus récent, avec leur nombre de retardataires.
+  const [monthFilter, setMonthFilter] = useState<string>(ALL_MONTHS)
+  const monthOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const g of allGroups) counts.set(earliestMonthOf(g), (counts.get(earliestMonthOf(g)) ?? 0) + 1)
+    return Array.from(counts, ([key, count]) => ({ key, count })).sort((a, b) => a.key.localeCompare(b.key))
+  }, [allGroups])
+  // Après une actualisation, un mois qui n'a plus de retardataire revient à « Tous les mois ».
+  const activeMonth = monthOptions.some((option) => option.key === monthFilter) ? monthFilter : ALL_MONTHS
+  const isFiltered = activeMonth !== ALL_MONTHS
+  const groups = useMemo(
+    () => (isFiltered ? allGroups.filter((g) => earliestMonthOf(g) === activeMonth) : allGroups),
+    [allGroups, activeMonth, isFiltered]
+  )
+  // Versements des retardataires affichés : totaux et exports suivent le filtre.
+  const shownItems = useMemo(() => (isFiltered ? groups.flatMap((g) => g.payments) : items), [groups, items, isFiltered])
+  const totalAmount = shownItems.reduce((sum, i) => sum + (i.amount || 0), 0)
+  const exportTitle = `Versements en retard — ${product}${isFiltered ? ` — échéance la plus ancienne en ${monthLabelOf(activeMonth)}` : ''}`
+  const exportFileName = `versements_en_retard_${slugify(product)}${isFiltered ? `_${activeMonth}` : ''}`
 
   // Traçabilité : dernier contact par retardataire + fenêtre de compte rendu.
   const { lastContact } = useLastContactByPerson()
@@ -213,8 +242,8 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
     try {
       const XLSX = await import('xlsx')
 
-      const title = `Versements en retard — ${product}`
-      const meta = `Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}  •  ${groups.length} retardataire(s)  •  ${items.length} versement(s)  •  Total dû : ${fmtAmount(totalAmount)} FCFA`
+      const title = exportTitle
+      const meta = `Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}  •  ${groups.length} retardataire(s)  •  ${shownItems.length} versement(s)  •  Total dû : ${fmtAmount(totalAmount)} FCFA`
       const header = ['Matricule', 'Membre / Groupe', 'Téléphone', 'Nb retards', 'Montant total dû (FCFA)', 'Échéance la plus ancienne', 'Retard max (jours)']
       const dataRows = groups.map((g) => [
         g.matricule || '—',
@@ -227,7 +256,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       ])
 
       // Ligne total en bas de la synthèse.
-      const totalRow: (string | number)[] = ['', 'TOTAL', '', items.length, totalAmount, '', '']
+      const totalRow: (string | number)[] = ['', 'TOTAL', '', shownItems.length, totalAmount, '', '']
       const aoa: (string | number)[][] = [[title], [meta], [], header, ...dataRows, [], totalRow]
       const worksheet = XLSX.utils.aoa_to_sheet(aoa)
 
@@ -242,7 +271,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
       // Feuille "Détail" : un versement en retard par ligne (rapprochement comptable).
       const detailHeader = ['Matricule', 'Membre / Groupe', 'Téléphone', 'Type', 'Montant dû (FCFA)', 'Échéance', 'Retard (jours)']
-      const detailRows = items.map((i) => [
+      const detailRows = shownItems.map((i) => [
         i.matricule || '—',
         i.name,
         i.phone || '',
@@ -259,7 +288,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Synthèse')
       XLSX.utils.book_append_sheet(workbook, detailSheet, 'Détail')
-      XLSX.writeFile(workbook, `versements_en_retard_${slugify(product)}.xlsx`)
+      XLSX.writeFile(workbook, `${exportFileName}.xlsx`)
       toast.success('Export Excel généré')
     } catch (error) {
       console.error('Erreur export Excel:', error)
@@ -278,9 +307,9 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
       const doc = new jsPDF('landscape')
 
       doc.setFontSize(16)
-      doc.text(`Versements en retard — ${product}`, 14, 14)
+      doc.text(exportTitle, 14, 14)
       doc.setFontSize(10)
-      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })} • ${groups.length} retardataire(s) • ${items.length} versement(s)`, 14, 20)
+      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })} • ${groups.length} retardataire(s) • ${shownItems.length} versement(s)`, 14, 20)
 
       autoTable(doc, {
         head: [['Matricule', 'Membre / Groupe', 'Téléphone', 'Nb retards', 'Montant total dû (FCFA)', 'Échéance la + ancienne', 'Retard max (j)']],
@@ -293,7 +322,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
           format(g.earliestDueAt, 'dd/MM/yyyy', { locale: fr }),
           g.maxDaysOverdue.toString(),
         ]),
-        foot: [['', 'TOTAL', '', items.length.toString(), fmtAmount(totalAmount), '', '']],
+        foot: [['', 'TOTAL', '', shownItems.length.toString(), fmtAmount(totalAmount), '', '']],
         startY: 26,
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
@@ -301,7 +330,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
         alternateRowStyles: { fillColor: [245, 247, 250] },
       })
 
-      doc.save(`versements_en_retard_${slugify(product)}.pdf`)
+      doc.save(`${exportFileName}.pdf`)
       toast.success('Export PDF généré')
     } catch (error) {
       console.error('Erreur export PDF:', error)
@@ -369,10 +398,27 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
           {!isLoading && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
               {groups.length} retardataire{groups.length !== 1 ? 's' : ''}
+              {isFiltered && ` sur ${allGroups.length}`}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {monthOptions.length > 0 && (
+            <Select value={activeMonth} onValueChange={setMonthFilter}>
+              <SelectTrigger size="sm" className="w-full sm:w-60" aria-label="Filtrer par mois de l’échéance la plus ancienne">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_MONTHS}>Échéance la + ancienne : tous les mois</SelectItem>
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.key} value={option.key}>
+                    <span className="capitalize">{monthLabelOf(option.key)}</span> ({option.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
             Actualiser
@@ -395,7 +441,10 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
         <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm">
           <span className="text-gray-600">Total dû en retard : </span>
           <span className="font-bold text-red-700 tabular-nums">{shownAmount(totalAmount)} FCFA</span>
-          <span className="text-gray-500"> • {items.length} versement{items.length !== 1 ? 's' : ''} sur {groups.length} retardataire{groups.length !== 1 ? 's' : ''}</span>
+          <span className="text-gray-500"> • {shownItems.length} versement{shownItems.length !== 1 ? 's' : ''} sur {groups.length} retardataire{groups.length !== 1 ? 's' : ''}</span>
+          {isFiltered && (
+            <span className="text-gray-500"> • échéance la plus ancienne en {monthLabelOf(activeMonth)}</span>
+          )}
         </div>
       )}
 
