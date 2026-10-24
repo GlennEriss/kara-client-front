@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import {
   useCreditContract,
@@ -80,6 +81,19 @@ const calculateNoteByDelay = (daysLate: number): number => {
 const getDefaultComment = (isPaid: boolean): string =>
   isPaid ? 'CONFORME' : 'NON CONFORME'
 
+type CommentChoice = 'CONFORME' | 'NON CONFORME' | 'AUTRES'
+
+/** Préfixes que l'application relit sur un versement de 0 FCFA : à garder à la modification. */
+const SPECIAL_COMMENT_PREFIX = /^(Paiement de 0 FCFA|Paiement de pénalités uniquement)(\s*-\s*)?/
+
+const splitComment = (comment: string): { prefix: string | null; text: string } => {
+  const match = comment.match(SPECIAL_COMMENT_PREFIX)
+  return match ? { prefix: match[1], text: comment.slice(match[0].length) } : { prefix: null, text: comment }
+}
+
+const choiceForComment = (text: string): CommentChoice =>
+  text === 'CONFORME' || text === 'NON CONFORME' ? text : 'AUTRES'
+
 const isValidDateValue = (value: unknown): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime())
 
@@ -139,6 +153,12 @@ export default function CreditPaymentModal({
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
 
   const autoComment = useMemo(() => getDefaultComment(true), [])
+  const [commentChoice, setCommentChoice] = useState<CommentChoice>('CONFORME')
+  const [editCommentPrefix, setEditCommentPrefix] = useState<string | null>(null)
+  const selectComment = (choice: CommentChoice) => {
+    setCommentChoice(choice)
+    form.setValue('comment', choice === 'AUTRES' ? '' : choice)
+  }
 
   const form = useForm<CreditPaymentFormInput>({
     resolver: zodResolver(creditPaymentFormSchema),
@@ -226,7 +246,10 @@ export default function CreditPaymentModal({
         form.setValue('paymentTime', paymentToEdit.paymentTime || format(new Date(), 'HH:mm'))
         form.setValue('amount', paymentToEdit.amount ?? 0)
         form.setValue('mode', toCreditPaymentMode(paymentToEdit.mode as string))
-        form.setValue('comment', paymentToEdit.comment ?? '')
+        const { prefix, text } = splitComment(paymentToEdit.comment ?? '')
+        setEditCommentPrefix(prefix)
+        setCommentChoice(choiceForComment(text))
+        form.setValue('comment', text)
         form.setValue('note', paymentToEdit.note ?? 10)
         setAgentRecouvrementId(paymentToEdit.agentRecouvrementId ?? '')
         setWithFees(
@@ -248,6 +271,8 @@ export default function CreditPaymentModal({
       }
       form.setValue('note', 10)
       form.setValue('comment', autoComment)
+      setCommentChoice('CONFORME')
+      setEditCommentPrefix(null)
     }
   }, [isOpen, form, defaultPaymentDate, autoComment, paymentToEdit])
 
@@ -368,6 +393,11 @@ export default function CreditPaymentModal({
       return
     }
 
+    if (commentChoice === 'AUTRES' && !(data.comment ?? '').trim()) {
+      toast.error('Écrivez le commentaire, ou choisissez CONFORME ou NON CONFORME')
+      return
+    }
+
     if (editMode) {
       const reason = (modificationReason ?? '').trim()
       if (!reason) {
@@ -386,7 +416,10 @@ export default function CreditPaymentModal({
             paymentTime: data.paymentTime,
             amount: data.amount,
             mode: isZeroDeclaration ? ZERO_DECLARATION_MODE : data.mode,
-            comment: data.comment,
+            // Un versement resté à 0 FCFA (ou pénalités seules) garde son préfixe.
+            comment: editCommentPrefix && (data.amount === 0 || editCommentPrefix.includes('pénalités'))
+              ? `${editCommentPrefix}${data.comment ? ` - ${data.comment}` : ''}`
+              : data.comment,
             note: data.note,
             withFees: !isZeroDeclaration && (editMode === 'airtel_money' || editMode === 'mobicash') ? withFees : undefined,
             agentRecouvrementId: agentRecouvrementId?.trim() || undefined,
@@ -871,8 +904,7 @@ export default function CreditPaymentModal({
                 },
                 onChange: (e) => {
                   const noteValue = parseFloat(e.target.value) || autoNote
-                  const defaultComment = getDefaultComment(noteValue > 0)
-                  form.setValue('comment', defaultComment)
+                  if (commentChoice !== 'AUTRES') selectComment(getDefaultComment(noteValue > 0) as CommentChoice)
                 }
               })}
               placeholder={autoNote.toString()}
@@ -893,17 +925,40 @@ export default function CreditPaymentModal({
 
           {/* Commentaire */}
           <div>
-            <Label htmlFor="comment" className="mb-2">
-              Commentaire (CONFORME / NON CONFORME, modifiable)
-            </Label>
-            <Textarea
-              id="comment"
-              {...form.register('comment')}
-              rows={2}
-              placeholder="CONFORME ou NON CONFORME"
-            />
+            <Label className="mb-2">Commentaire</Label>
+            <div role="radiogroup" aria-label="Commentaire" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {(['CONFORME', 'NON CONFORME', 'AUTRES'] as const).map((choice) => (
+                <label
+                  key={choice}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-colors',
+                    commentChoice === choice ? 'border-[#224D62] bg-[#224D62]/5 text-[#224D62]' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="creditPaymentComment"
+                    value={choice}
+                    checked={commentChoice === choice}
+                    onChange={() => selectComment(choice)}
+                    className="h-4 w-4 accent-[#224D62]"
+                  />
+                  {choice === 'AUTRES' ? 'Autres' : choice}
+                </label>
+              ))}
+            </div>
+            {commentChoice === 'AUTRES' && (
+              <Textarea
+                id="comment"
+                {...form.register('comment')}
+                rows={2}
+                autoFocus
+                className="mt-2"
+                placeholder="Écrivez votre commentaire"
+              />
+            )}
             <p className="text-xs text-gray-500 mt-1">
-              CONFORME si le paiement est effectué, NON CONFORME sinon. Vous pouvez modifier si besoin.
+              CONFORME si le paiement est effectué, NON CONFORME sinon, Autres pour écrire un commentaire.
             </p>
             {form.formState.errors.comment && (
               <p className="text-sm text-red-600 mt-1">

@@ -1754,10 +1754,14 @@ const ListContrats = ({
                         </div>
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Mensualité</p>
-                          <p className="font-bold text-gray-900 tabular-nums text-sm">
-                            {(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')}{' '}
-                            <span className="text-[10px] font-normal text-gray-400">FCFA</span>
-                          </p>
+                          {contract.customSchedule?.length ? (
+                            <p className="font-bold text-gray-900 text-sm">Personnalisée</p>
+                          ) : (
+                            <p className="font-bold text-gray-900 tabular-nums text-sm">
+                              {(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')}{' '}
+                              <span className="text-[10px] font-normal text-gray-400">FCFA</span>
+                            </p>
+                          )}
                         </div>
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Prochaine échéance</p>
@@ -2250,7 +2254,9 @@ const ListContrats = ({
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Mensualité</p>
-                              <p className="text-base font-semibold text-slate-900">{(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')} FCFA</p>
+                              <p className="text-base font-semibold text-slate-900">
+                                {contract.customSchedule?.length ? 'Personnalisée' : `${(contract.monthlyPaymentAmount || 0).toLocaleString('fr-FR')} FCFA`}
+                              </p>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                               <p className="text-[11px] uppercase tracking-wide text-slate-500">Déjà versé</p>

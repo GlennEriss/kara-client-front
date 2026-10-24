@@ -1,5 +1,6 @@
 import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import type { FinancialReport } from '../entities/financial-report.types'
+import { REPORT_MINIMAL_LEGEND, type ReportTextLevel } from './export-options'
 import { formatReportNumber, reportFileName, reportPeriodLabel, TOTAL_COLUMN_LABEL } from './report-format'
 
 const BRAND: [number, number, number] = [35, 77, 101]
@@ -7,10 +8,11 @@ const TEXT: [number, number, number] = [30, 41, 59]
 const MUTED: [number, number, number] = [75, 85, 99]
 
 /**
- * PDF paysage : une page « Comment lire ce bilan », puis un chapitre par
- * module (un tableau par partie, l'explication des lignes, les bases de calcul).
+ * PDF paysage : un chapitre par module, un tableau par partie. Le niveau
+ * d'explication ajoute la page « Comment lire ce bilan », la description des
+ * parties, l'explication des lignes et les bases de calcul.
  */
-export async function exportFinancialReportPdf(report: FinancialReport): Promise<void> {
+export async function exportFinancialReportPdf(report: FinancialReport, textLevel: ReportTextLevel = 'full'): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const autoTable = (await import('jspdf-autotable')).default
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -21,6 +23,8 @@ export async function exportFinancialReportPdf(report: FinancialReport): Promise
   const columns = report.months.length + 2
   const fontSize = columns <= 8 ? 8 : columns <= 14 ? 6.5 : 5.2
   const generatedOn = new Date(report.generatedAt).toLocaleDateString('fr-FR')
+  const withExplanations = textLevel === 'full'
+  const withDescriptions = textLevel !== 'none'
   let cursorY = 0
 
   /** Paragraphe replié sur la largeur de la page, avec saut de page si besoin. */
@@ -47,24 +51,26 @@ export async function exportFinancialReportPdf(report: FinancialReport): Promise
     cursorY = 21
   }
 
-  // Page de lecture.
-  title('Bilan financier — Comment lire ce bilan')
-  paragraph(`Période : ${reportPeriodLabel(report)} · généré le ${generatedOn}`, { gap: 4 })
-  for (const entry of FINANCIAL_REPORT_GUIDE) {
-    paragraph(entry.title, { size: 10, bold: true, color: TEXT, gap: 0.5 })
-    paragraph(entry.text, { gap: 3 })
+  if (withExplanations) {
+    title('Bilan financier — Comment lire ce bilan')
+    paragraph(`Période : ${reportPeriodLabel(report)} · généré le ${generatedOn}`, { gap: 4 })
+    for (const entry of FINANCIAL_REPORT_GUIDE) {
+      paragraph(entry.title, { size: 10, bold: true, color: TEXT, gap: 0.5 })
+      paragraph(entry.text, { gap: 3 })
+    }
+    paragraph('Onglets du bilan', { size: 10, bold: true, color: TEXT, gap: 0.5 })
+    for (const module of report.modules) paragraph(`• ${module.title} : ${module.description}`, { gap: 1 })
   }
-  paragraph('Onglets du bilan', { size: 10, bold: true, color: TEXT, gap: 0.5 })
-  for (const module of report.modules) paragraph(`• ${module.title} : ${module.description}`, { gap: 1 })
 
-  for (const module of report.modules) {
-    doc.addPage()
+  report.modules.forEach((module, moduleIndex) => {
+    if (withExplanations || moduleIndex > 0) doc.addPage()
     title(`Bilan financier — ${module.title}`)
-    paragraph(`Période : ${reportPeriodLabel(report)} · généré le ${generatedOn}`, { gap: 0.5 })
-    paragraph(module.description, { gap: 4 })
+    paragraph(`Période : ${reportPeriodLabel(report)} · généré le ${generatedOn}`, { gap: withDescriptions ? 0.5 : 4 })
+    if (withDescriptions) paragraph(module.description, { gap: textLevel === 'minimal' ? 0.5 : 4 })
+    if (textLevel === 'minimal') paragraph(REPORT_MINIMAL_LEGEND, { size: 8, italic: true, gap: 4 })
 
     for (const block of module.blocks) {
-      paragraph(block.description, { italic: true, gap: 1 })
+      if (withDescriptions) paragraph(block.description, { italic: true, gap: 1 })
       autoTable(doc, {
         startY: cursorY,
         head: [[block.title, ...report.monthLabels, TOTAL_COLUMN_LABEL]],
@@ -98,6 +104,7 @@ export async function exportFinancialReportPdf(report: FinancialReport): Promise
       cursorY = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursorY) + 6
     }
 
+    if (!withExplanations) return
     // Une même ligne peut figurer dans deux parties (pénalités…) : expliquée une fois.
     const explained = new Map<string, string>()
     for (const line of module.blocks.flatMap((block) => block.lines)) {
@@ -111,7 +118,7 @@ export async function exportFinancialReportPdf(report: FinancialReport): Promise
       paragraph('Bases de calcul', { size: 10, bold: true, color: TEXT, gap: 1 })
       for (const note of module.notes) paragraph(`• ${note}`, { size: 8, gap: 0.8 })
     }
-  }
+  })
 
   const totalPages = doc.getNumberOfPages()
   for (let page = 1; page <= totalPages; page++) {

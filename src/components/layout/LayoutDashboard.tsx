@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { DashboardBreadcrumb } from "./DashboardBreadcrumb";
 import NotificationBell from "./NotificationBell";
+import { HelpButton } from "@/domains/help/components/HelpButton";
 import { useMyAccess } from "@/hooks/useMyAccess";
 
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
@@ -40,6 +41,7 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
               {can("members.view") && <MemberNavbarSearch />}
             </div>
 
+            <HelpButton />
             <NotificationBell />
           </header>
           <div
