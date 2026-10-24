@@ -361,6 +361,11 @@ export default function NotificationBell() {
                 onNavigate={handleNavigate}
               />
             ))}
+            {unreadCount > notifications.length && (
+              <p className="px-3 py-2 text-center text-xs text-gray-500">
+                Les {notifications.length} plus récentes sur {unreadCount} non lues
+              </p>
+            )}
           </div>
         )}
       </DropdownMenuContent>
