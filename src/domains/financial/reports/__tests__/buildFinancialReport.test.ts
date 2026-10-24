@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CreditContract, CreditPayment, CreditPenalty } from '@/types/types'
 import { buildFinancialReport } from '../builders/buildFinancialReport'
 import type { FinancialReportSources } from '../entities/financial-report-sources.types'
+import { selectReportContent } from '../exports/export-options'
 import type { FinancialReport, FinancialReportBlockKey, FinancialReportModuleKey } from '../entities/financial-report.types'
 
 const noon = (value: string) => new Date(`${value}T12:00:00`)
@@ -140,6 +141,26 @@ describe('bilan financier', () => {
     expect(at('placements', 'outstanding', 'capital_to_return', '2026-10')).toBe(500_000)
     expect(line('placements', 'result', 'charge_commissions').total).toBe(25_000)
     expect(at('placements', 'outstanding', 'placements_active', '2026-10')).toBe(1)
+  })
+
+  it('explique chaque partie et chaque ligne', () => {
+    for (const module of report.modules) {
+      for (const block of module.blocks) {
+        expect(block.description.trim(), `${module.key}.${block.key}`).not.toBe('')
+        for (const entry of block.lines) {
+          expect(entry.description.trim(), `${module.key}.${block.key}.${entry.key}`).not.toBe('')
+        }
+      }
+    }
+  })
+
+  it('export : ne garde que les onglets et les parties choisis', () => {
+    const selection = selectReportContent(report, { modules: ['synthesis', 'adhesions'], blocks: ['outstanding'] })
+
+    // Les adhésions n'ont pas d'encours : l'onglet disparaît plutôt que de rester vide.
+    expect(selection.modules.map((module) => module.key)).toEqual(['synthesis'])
+    expect(selection.modules[0].blocks.map((block) => block.key)).toEqual(['outstanding'])
+    expect(selection.months).toEqual(report.months)
   })
 
   it('synthèse : additionne les modules', () => {

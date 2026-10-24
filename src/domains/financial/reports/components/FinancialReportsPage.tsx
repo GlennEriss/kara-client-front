@@ -11,9 +11,9 @@ import { StatStrip, type StatStripItem } from '@/components/ui/stat-strip'
 import { Switch } from '@/components/ui/switch'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { cn } from '@/lib/utils'
-import { AlertCircle, BookOpen, ChevronDown, Download, FileSpreadsheet, Landmark, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
+import { AlertCircle, BookOpen, ChevronDown, Download, Landmark, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import React, { useMemo, useState } from 'react'
-import { toast } from 'sonner'
 import {
   FINANCIAL_REPORT_MAX_MONTHS,
   type FinancialReport,
@@ -25,6 +25,8 @@ import {
 import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import { formatReportNumber, reportPeriodLabel, TOTAL_COLUMN_LABEL } from '../exports/report-format'
 import { useFinancialReport } from '../hooks/useFinancialReport'
+
+const FinancialReportExportDialog = dynamic(() => import('./FinancialReportExportDialog'), { ssr: false })
 import { addMonthsToKey, currentMonthKey, isMonthKey } from '../utils/report-months'
 
 type Period = { from: MonthKey; to: MonthKey }
@@ -216,7 +218,7 @@ export default function FinancialReportsPage() {
   const [draft, setDraft] = useState<Period>(() => lastMonths(6))
   const [period, setPeriod] = useState<Period>(() => lastMonths(6))
   const [activeModule, setActiveModule] = useState<FinancialReportModule['key']>('synthesis')
-  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
+  const [isExportOpen, setIsExportOpen] = useState(false)
   const [showDescriptions, setShowDescriptions] = useState(true)
   const { data: report, isFetching, error, refetch } = useFinancialReport(isSuperAdmin ? period : null)
   const draftError = validatePeriod(draft)
@@ -228,26 +230,6 @@ export default function FinancialReportsPage() {
   const applyPeriod = (next: Period) => {
     setDraft(next)
     if (!validatePeriod(next)) setPeriod(next)
-  }
-
-  const runExport = async (kind: 'excel' | 'pdf') => {
-    if (!report) return
-    setExporting(kind)
-    try {
-      if (kind === 'excel') {
-        const { exportFinancialReportExcel } = await import('../exports/exportFinancialReportExcel')
-        await exportFinancialReportExcel(report)
-      } else {
-        const { exportFinancialReportPdf } = await import('../exports/exportFinancialReportPdf')
-        await exportFinancialReportPdf(report)
-      }
-      toast.success(kind === 'excel' ? 'Bilan exporté en Excel' : 'Bilan exporté en PDF')
-    } catch (exportError) {
-      console.error('[financial-reports] export impossible:', exportError)
-      toast.error('Erreur lors de l’export du bilan')
-    } finally {
-      setExporting(null)
-    }
   }
 
   if (isLoadingAccess) {
@@ -331,22 +313,24 @@ export default function FinancialReportsPage() {
               {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Générer le bilan
             </Button>
-            <div className="flex gap-2 sm:ml-auto">
-              <Button type="button" variant="outline" disabled={!report || !!exporting} onClick={() => runExport('excel')}>
-                {exporting === 'excel' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-                Excel
-              </Button>
-              <Button type="button" variant="outline" disabled={!report || !!exporting} onClick={() => runExport('pdf')}>
-                {exporting === 'pdf' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                PDF
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="sm:ml-auto"
+              disabled={!report}
+              onClick={() => setIsExportOpen(true)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exporter (Excel ou PDF)
+            </Button>
           </div>
           {draftError && <p className="text-sm text-red-600">{draftError}</p>}
         </CardContent>
       </Card>
 
       <ReportGuide />
+
+      {report && <FinancialReportExportDialog open={isExportOpen} onOpenChange={setIsExportOpen} report={report} />}
 
       {error ? (
         <Alert variant="destructive">
