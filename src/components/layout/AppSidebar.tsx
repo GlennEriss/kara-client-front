@@ -36,6 +36,7 @@ import {
   HeartHandshake,
   Home,
   Landmark,
+  LifeBuoy,
   LogOut,
   MapPin,
   MessageSquare,
@@ -297,6 +298,11 @@ const systemMenuItems: any[] = [
     title: "Géographie",
     url: routes.admin.geographie,
     icon: MapPin,
+  },
+  {
+    title: "Centre d’aide",
+    url: routes.admin.helpCenter,
+    icon: LifeBuoy,
   },
   {
     title: "Modèles de messages",

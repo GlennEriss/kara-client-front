@@ -311,7 +311,7 @@ export function firstAccessiblePath(can: (key: string) => boolean): string | nul
  * restreint peut tout de même ouvrir. Toutes les autres leur sont fermées : une page
  * ajoutée sans module ne leur devient pas accessible par défaut.
  */
-export const RESTRICTED_ROLE_OPEN_PREFIXES = ['/statuts']
+export const RESTRICTED_ROLE_OPEN_PREFIXES = ['/statuts', '/aide']
 
 /** Une page sans module de permission est-elle ouverte à un rôle restreint ? */
 export function isOpenToRestrictedRole(pathname: string): boolean {

@@ -8,6 +8,7 @@ const routes = {
     admin: {
         dashboard: '/dashboard',
         financialReports: '/bilans-financiers',
+        helpCenter: '/aide',
         // Calendrier
         calendrier: '/calendrier',
         membershipRequests: '/membership-requests',
