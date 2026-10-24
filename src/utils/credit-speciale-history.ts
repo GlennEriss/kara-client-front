@@ -6,7 +6,7 @@ import { getFlatInstallmentCount, isFlatCredit, splitFlatInstallments } from './
 import { isCreditContractEnded } from './credit-write-off'
 
 export const SPECIAL_CREDIT_MAX_LOGICAL_MONTHS = 7
-export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 60
+export const SPECIAL_CREDIT_MAX_HISTORY_MONTHS = 84
 
 export interface CreditSpecialeHistoryMonth {
   month: number
