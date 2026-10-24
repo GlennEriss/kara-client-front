@@ -32,7 +32,7 @@ import { getAdminById } from '@/db/admin.db'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useAdmin } from '@/hooks/useAdmins'
 import { useAuth } from '@/hooks/useAuth'
-import { useChildContract, useCreditContractMutations, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPaymentMutations, useCreditPenaltiesByCreditId, useDeleteGuarantorPayment, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
+import { useChildContract, useCreditContractMutations, useCreditDemand, useCreditInstallmentsByCreditId, useCreditPaymentsByCreditId, useCreditPaymentMutations, useCreditPenaltiesByCreditId, useDeleteGuarantorPayment, useGuarantorPaymentsByCreditId, useGuarantorRemunerationsByCreditId, useParentContract, useSwitchToFixedPhase } from '@/hooks/useCreditSpeciale'
 import { useMember } from '@/hooks/useMembers'
 import { cn } from '@/lib/utils'
 import DocumentViewerModal from '@/components/documents/DocumentViewerModal'
@@ -708,6 +708,8 @@ export default function CreditContractDetail({
   const hasRajoutNotice = !!contract.rajoutEffectue && (contract.initialAmount != null || contract.rajoutAmount != null)
   const hasManualFixedNotice = fixedTransitionMeta.mode === 'MANUAL' && !!fixedTransitionMeta.at
   const { data: fixedTransitionAdmin } = useAdmin(fixedTransitionMeta.by || '')
+  // Le motif du crédit est saisi sur la demande d'origine.
+  const { data: originDemand } = useCreditDemand(contract.demandId || '')
   const guarantorRemunerationsErrorMessage =
     guarantorRemunerationsError instanceof Error
       ? guarantorRemunerationsError.message
@@ -2174,7 +2176,9 @@ export default function CreditContractDetail({
               </p>
               <p className="text-sm break-words">
                 Taux {contract.interestRate}% · {formatCreditDuration(contract.duration, contract.durationUnit)} ·{' '}
-                {isWeekly ? 'Montant dû' : 'Mensualité'} {contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA
+                {contract.customSchedule?.length
+                  ? 'Échéancier personnalisé'
+                  : `${isWeekly ? 'Montant dû' : 'Mensualité'} ${contract.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA`}
               </p>
               <button
                 type="button"
@@ -2188,6 +2192,7 @@ export default function CreditContractDetail({
               {showContractInfo && (
                 <div className="space-y-1 pt-1 text-xs">
                   <p>Contacts client : <span className="font-medium">{contract.clientContacts.join(', ') || '—'}</span></p>
+                  <p>Motif du crédit : <span className="font-medium">{originDemand?.cause?.trim() || '—'}</span></p>
                   <p>
                     Premier versement : <span className="font-medium">{formatDate(contract.firstPaymentDate)}</span>
                     {contract.nextDueAt ? <> · Prochaine échéance : <span className="font-medium">{formatDate(contract.nextDueAt)}</span></> : null}
@@ -2467,7 +2472,14 @@ export default function CreditContractDetail({
                                 </span>
                               </div>
 
-                              <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
+                              {!isSimpleCredit && (
+                                <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
+                                  <span className="text-gray-600">Capital actuel:</span>
+                                  {/* Reste dû au début du mois, avant les intérêts du mois. */}
+                                  <span className="font-semibold text-gray-900">{Math.max(0, item.principal - item.interest).toLocaleString('fr-FR')} FCFA</span>
+                                </div>
+                              )}
+                              <div className={cn('flex items-center justify-between text-sm', isSimpleCredit && 'pt-1 border-t border-gray-200')}>
                                 <span className="text-gray-600">Montant global:</span>
                                 <span className="font-semibold text-gray-900">{(isFlat ? (flatInstallments[item.month - 1] ?? item.principal) : item.principal).toLocaleString('fr-FR')} FCFA</span>
                               </div>
