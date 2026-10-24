@@ -206,19 +206,17 @@ export class NotificationRepository implements INotificationRepository {
    */
   async getUnreadNotifications(limit: number = 50): Promise<Notification[]> {
     try {
-      const { collection, query, where, orderBy, limitToLast, getDocs, db } = await getFirestore()
+      // Même requête que le compteur, triée ici : sans index composite, la liste
+      // restait vide là où l'index manquait, et une notification sans `createdAt`
+      // était comptée mais jamais listée. Les plus récentes d'abord.
+      const { collection, query, where, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
-      const q = query(
-        collectionRef,
-        where('isRead', '==', false),
-        orderBy('createdAt', 'desc'),
-        limitToLast(limit)
-      )
-
-      const snapshot = await getDocs(q)
+      const snapshot = await getDocs(query(collectionRef, where('isRead', '==', false)))
       return snapshot.docs
         .filter((doc) => !this.isMemberNotification(doc.data() as { recipientId?: unknown }))
         .map((doc) => this.mapDocToEntity(doc.id, doc.data() as FirestoreNotification))
+        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+        .slice(0, limit)
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications non lues:', error)
       return []
