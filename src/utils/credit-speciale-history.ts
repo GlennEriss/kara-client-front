@@ -431,6 +431,7 @@ export function buildCreditSpecialeHistory(
     | 'creditType'
     | 'createdAt'
     | 'creditCycles'
+    | 'customSchedule'
     | 'firstPaymentDate'
     | 'fixedTransitionAt'
     | 'fixedTransitionBy'
@@ -462,6 +463,15 @@ export function buildCreditSpecialeHistory(
   const guarantorRate = (contract.guarantorRemunerationPercentage ?? 0) / 100
   const restMonths = contract.restMonths ?? []
   const manualFixedStartMonth = contract.fixedTransitionStartMonth
+  // Simulation personnalisée : le montant prévu de chaque mois (hors mois de repos),
+  // celui du cycle en cours. Au-delà du plan, tout le reste dû est attendu.
+  const plannedByMonth = new Map(
+    (getCreditContractCycles(contract).at(-1)?.customSchedule ?? []).map((entry, index) => [
+      entry.month || index + 1,
+      Number(entry.amount) || 0,
+    ])
+  )
+  const lastPlannedMonth = plannedByMonth.size > 0 ? Math.max(...plannedByMonth.keys()) : 0
   const maxMonths = options.maxMonths ?? SPECIAL_CREDIT_MAX_HISTORY_MONTHS
   const projectUntilZero = options.projectUntilZero ?? true
   const lastRecordedMonth = getCreditSpecialeLastRecordedMonth(contract, payments)
@@ -507,9 +517,14 @@ export function buildCreditSpecialeHistory(
     const interest = restEntry || isFixedPhase ? 0 : customRound(capitalStart * monthlyRate)
     const commission = restEntry || isFixedPhase ? 0 : customRound(capitalStart * guarantorRate)
     const amountDue = customRound(capitalStart + interest)
+    const plannedPayment = plannedByMonth.size === 0
+      ? contract.monthlyPaymentAmount
+      : logicalMonth <= lastPlannedMonth
+        ? (plannedByMonth.get(logicalMonth) ?? 0)
+        : amountDue
     const expectedPayment = restEntry
       ? 0
-      : Math.min(Math.max(customRound(contract.monthlyPaymentAmount), 0), amountDue)
+      : Math.min(Math.max(customRound(plannedPayment), 0), amountDue)
     const actualPayment = paymentTotalsByMonth.get(month) ?? 0
     const monthPayments = paymentRecordsByMonth.get(month) ?? []
     const firstPayment = monthPayments[0]
@@ -678,6 +693,7 @@ export function buildCreditSpecialeTimelineHistory(
       monthlyPaymentAmount: cycle.monthlyPaymentAmount,
       totalAmount: cycle.totalAmount,
       duration: cycle.duration,
+      customSchedule: cycle.customSchedule,
       restMonths: cycle.restMonths ?? [],
     }
     const lastRecordedMonth = getCreditSpecialeLastRecordedMonth(cycleContract, cyclePayments)

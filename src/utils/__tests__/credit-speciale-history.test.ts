@@ -88,3 +88,40 @@ describe('intérêts perçus d’un crédit spécial', () => {
     expect(getCreditSpecialeInterestCollected(rows, false)).toBe(40_000)
   })
 })
+
+describe('échéancier personnalisé d’un crédit spécial', () => {
+  const customContract = {
+    ...contract,
+    id: 'credit-c',
+    amount: 500_000,
+    interestRate: 0,
+    monthlyPaymentAmount: 0, // le 1er mois du plan
+    totalAmount: 500_000,
+    duration: 4,
+    firstPaymentDate: new Date('2026-10-24'),
+    restMonths: [],
+    customSchedule: [
+      { month: 1, amount: 0 },
+      { month: 2, amount: 100_000 },
+      { month: 3, amount: 150_000 },
+      { month: 4, amount: 250_000 },
+    ],
+  } as unknown as CreditContract
+
+  it('attend le montant prévu de chaque mois et s’arrête à la fin du plan', () => {
+    const history = buildCreditSpecialeHistory(customContract, [], { projectUntilZero: true })
+
+    expect(history.map((row) => row.expectedPayment)).toEqual([0, 100_000, 150_000, 250_000])
+    expect(history.at(-1)?.nextCapitalProjected).toBe(0)
+  })
+
+  it('au-delà du plan, attend tout le reste dû', () => {
+    const withInterest = { ...customContract, interestRate: 10 } as CreditContract
+    const history = buildCreditSpecialeHistory(withInterest, [], { projectUntilZero: true })
+
+    // Le plan ne couvre pas les intérêts : un 5e mois réclame le solde.
+    expect(history).toHaveLength(5)
+    expect(history[4].expectedPayment).toBe(history[4].amountDue)
+    expect(history[4].nextCapitalProjected).toBe(0)
+  })
+})
