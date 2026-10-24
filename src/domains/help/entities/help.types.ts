@@ -26,7 +26,16 @@ export interface HelpPage {
   summary: string
 }
 
-export type HelpCategory = 'Pilotage' | 'Épargne' | 'Crédits' | 'Placements' | 'Utiliser l’aide'
+export type HelpCategory =
+  | 'Pilotage'
+  | 'Épargne'
+  | 'Crédits'
+  | 'Placements'
+  | 'Membres'
+  | 'Bienfaiteur'
+  | 'Vie de l’association'
+  | 'Système'
+  | 'Utiliser l’aide'
 
 export interface HelpTopic {
   key: string
