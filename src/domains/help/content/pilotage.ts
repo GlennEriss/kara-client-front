@@ -86,7 +86,7 @@ export const calendrierHelp: HelpTopic = {
           items: [
             'Chaque jour affiche les échéances prévues ; un clic ouvre le détail des membres concernés.',
             'Les filtres affinent la vue : type de caisse, fréquence de versement, mode de versement des placements.',
-            'La liste des versements en retard montre, pour chaque membre, le montant dû, l’échéance la plus ancienne et le dernier contact.',
+            'La liste des versements en retard montre, pour chaque membre, le montant dû, l’échéance la plus ancienne et le dernier contact. Le filtre par mois ne garde que les membres dont l’échéance la plus ancienne tombe dans le mois choisi ; le total et les exports suivent ce filtre.',
           ],
         },
       ],
