@@ -12,8 +12,14 @@ export const reportPeriodLabel = (report: FinancialReport): string =>
     ? `de ${report.monthLabels[0]} à ${report.monthLabels[report.monthLabels.length - 1]}`
     : (report.monthLabels[0] ?? '')
 
-export const reportFileName = (report: FinancialReport, extension: 'xlsx' | 'pdf'): string =>
-  `bilan_financier_${report.from}_${report.to}.${extension}`
+/** « Bilan financier », ou « Bilan financier de NOM (matricule) » pour un membre. */
+export const reportTitle = (report: FinancialReport): string =>
+  report.subject ? `Bilan financier de ${report.subject.name} (${report.subject.matricule})` : 'Bilan financier'
+
+export const reportFileName = (report: FinancialReport, extension: 'xlsx' | 'pdf'): string => {
+  const member = report.subject ? `${report.subject.matricule.replace(/[^\w.-]+/g, '_')}_` : ''
+  return `bilan_financier_${member}${report.from}_${report.to}.${extension}`
+}
 
 /** Colonne finale : somme des mois pour un flux, valeur de fin de période pour un stock. */
 export const TOTAL_COLUMN_LABEL = 'Total / fin'

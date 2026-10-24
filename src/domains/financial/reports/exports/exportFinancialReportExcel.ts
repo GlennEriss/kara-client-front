@@ -2,7 +2,7 @@ import type { Borders, Fill, Font, Row, Workbook, Worksheet } from 'exceljs'
 import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import type { FinancialReport, FinancialReportLine } from '../entities/financial-report.types'
 import { REPORT_MINIMAL_LEGEND, type ReportTextLevel } from './export-options'
-import { reportFileName, reportPeriodLabel, TOTAL_COLUMN_LABEL } from './report-format'
+import { reportFileName, reportPeriodLabel, reportTitle, TOTAL_COLUMN_LABEL } from './report-format'
 
 const BRAND = 'FF234D65'
 const BAND = 'FFEEF2F6'
@@ -38,7 +38,7 @@ function styleRow(row: Row, fromColumn: number, toColumn: number, style: { font?
 function addGuideSheet(workbook: Workbook, report: FinancialReport, generatedOn: string) {
   const sheet = workbook.addWorksheet('Mode d’emploi', { properties: { tabColor: { argb: BRAND } } })
   sheet.columns = [{ width: 30 }, { width: 110 }]
-  sheet.addRow(['Bilan financier — mode d’emploi']).font = { bold: true, size: 14, color: { argb: BRAND } }
+  sheet.addRow([`${reportTitle(report)} — mode d’emploi`]).font = { bold: true, size: 14, color: { argb: BRAND } }
   sheet.addRow([`Période : ${reportPeriodLabel(report)} · montants en FCFA · généré le ${generatedOn}`]).font = { color: { argb: MUTED } }
   sheet.addRow([])
   for (const entry of FINANCIAL_REPORT_GUIDE) {
@@ -84,7 +84,7 @@ function addModuleSheet(workbook: Workbook, report: FinancialReport, moduleIndex
     ...(withExplanations ? [{ width: 70 }] : []),
   ]
 
-  sheet.addRow([`Bilan financier — ${module.title}`]).font = { bold: true, size: 14, color: { argb: BRAND } }
+  sheet.addRow([`${reportTitle(report)} — ${module.title}`]).font = { bold: true, size: 14, color: { argb: BRAND } }
   sheet.addRow([`Période : ${reportPeriodLabel(report)} · montants en FCFA · généré le ${generatedOn}`]).font = { color: { argb: MUTED } }
   if (withDescriptions) sheet.addRow([module.description]).font = { italic: true, color: { argb: MUTED } }
   if (textLevel === 'minimal') sheet.addRow([REPORT_MINIMAL_LEGEND]).font = { italic: true, size: 9, color: { argb: MUTED } }
@@ -158,7 +158,7 @@ export async function buildFinancialReportWorkbook(report: FinancialReport, text
   const generatedOn = new Date(report.generatedAt).toLocaleDateString('fr-FR')
   workbook.creator = 'LE KARA'
   workbook.created = new Date(report.generatedAt)
-  workbook.title = `Bilan financier ${reportPeriodLabel(report)}`
+  workbook.title = `${reportTitle(report)} ${reportPeriodLabel(report)}`
 
   if (textLevel === 'full') addGuideSheet(workbook, report, generatedOn)
   report.modules.forEach((_, index) => addModuleSheet(workbook, report, index, textLevel, generatedOn))

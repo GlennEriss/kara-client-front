@@ -46,10 +46,10 @@ export function addMonthsToKey(key: MonthKey, count: number): MonthKey {
   return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
 }
 
-/** Mois de `from` à `to` inclus. */
-export function listMonths(from: MonthKey, to: MonthKey): MonthKey[] {
+/** Mois de `from` à `to` inclus, `max` au plus. */
+export function listMonths(from: MonthKey, to: MonthKey, max: number = FINANCIAL_REPORT_MAX_MONTHS): MonthKey[] {
   const months: MonthKey[] = []
-  for (let key = from; key <= to && months.length < FINANCIAL_REPORT_MAX_MONTHS; key = addMonthsToKey(key, 1)) {
+  for (let key = from; key <= to && months.length < max; key = addMonthsToKey(key, 1)) {
     months.push(key)
   }
   return months
@@ -62,4 +62,13 @@ export function monthLabel(key: MonthKey): string {
 
 export function currentMonthKey(now: Date = new Date()): MonthKey {
   return monthKeyOf(now) as MonthKey
+}
+
+/** Erreur d'une période saisie (texte affichable), ou `null` si elle est valable. */
+export function periodError(period: { from: string; to: string }, maxMonths: number = FINANCIAL_REPORT_MAX_MONTHS): string | null {
+  if (!isMonthKey(period.from) || !isMonthKey(period.to)) return 'Choisissez un mois de début et un mois de fin.'
+  if (period.from > period.to) return 'Le mois de début doit précéder le mois de fin.'
+  if (period.to > currentMonthKey()) return 'Le mois de fin ne peut pas être dans le futur.'
+  if (period.from < addMonthsToKey(period.to, -(maxMonths - 1))) return `La période ne peut pas dépasser ${maxMonths} mois.`
+  return null
 }

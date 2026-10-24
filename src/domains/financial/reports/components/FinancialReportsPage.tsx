@@ -11,7 +11,7 @@ import { StatStrip, type StatStripItem } from '@/components/ui/stat-strip'
 import { Switch } from '@/components/ui/switch'
 import { useMyAccess } from '@/hooks/useMyAccess'
 import { cn } from '@/lib/utils'
-import { AlertCircle, BookOpen, ChevronDown, Download, Landmark, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
+import { AlertCircle, ArrowLeft, BookOpen, ChevronDown, Download, Landmark, Loader2, RefreshCw, ShieldAlert, UserRound } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import React, { useMemo, useState } from 'react'
 import {
@@ -25,9 +25,10 @@ import {
 import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import { formatReportNumber, reportPeriodLabel, TOTAL_COLUMN_LABEL } from '../exports/report-format'
 import { useFinancialReport } from '../hooks/useFinancialReport'
+import { MemberFinancialReportCard } from './MemberFinancialReportCard'
 
 const FinancialReportExportDialog = dynamic(() => import('./FinancialReportExportDialog'), { ssr: false })
-import { addMonthsToKey, currentMonthKey, isMonthKey } from '../utils/report-months'
+import { addMonthsToKey, currentMonthKey, periodError } from '../utils/report-months'
 
 type Period = { from: MonthKey; to: MonthKey }
 
@@ -50,15 +51,7 @@ const PRESETS: Array<{ label: string; period: () => Period }> = [
   },
 ]
 
-function validatePeriod(period: Period): string | null {
-  if (!isMonthKey(period.from) || !isMonthKey(period.to)) return 'Choisissez un mois de début et un mois de fin.'
-  if (period.from > period.to) return 'Le mois de début doit précéder le mois de fin.'
-  if (period.to > currentMonthKey()) return 'Le mois de fin ne peut pas être dans le futur.'
-  if (period.from < addMonthsToKey(period.to, -(FINANCIAL_REPORT_MAX_MONTHS - 1))) {
-    return `La période ne peut pas dépasser ${FINANCIAL_REPORT_MAX_MONTHS} mois.`
-  }
-  return null
-}
+const validatePeriod = (period: Period) => periodError(period, FINANCIAL_REPORT_MAX_MONTHS)
 
 const lineTotal = (module: FinancialReportModule, blockKey: FinancialReportBlock['key'], lineKey: string) =>
   module.blocks.find((block) => block.key === blockKey)?.lines.find((line) => line.key === lineKey)
@@ -218,17 +211,36 @@ export default function FinancialReportsPage() {
   const [draft, setDraft] = useState<Period>(() => lastMonths(6))
   const [period, setPeriod] = useState<Period>(() => lastMonths(6))
   const [activeModule, setActiveModule] = useState<FinancialReportModule['key']>('synthesis')
+  const [exportedReport, setExportedReport] = useState<FinancialReport | null>(null)
   const [isExportOpen, setIsExportOpen] = useState(false)
   const [showDescriptions, setShowDescriptions] = useState(true)
-  const { data: report, isFetching, error, refetch } = useFinancialReport(isSuperAdmin ? period : null)
+  // Bilan d'un membre affiché à la place de celui de l'association.
+  const [memberReport, setMemberReport] = useState<FinancialReport | null>(null)
+  const { data: associationReport, isFetching: isFetchingAssociation, error: associationError, refetch } =
+    useFinancialReport(isSuperAdmin ? period : null)
+  const report = memberReport ?? associationReport
+  const isFetching = !memberReport && isFetchingAssociation
+  const error = memberReport ? null : associationError
   const draftError = validatePeriod(draft)
   const module = useMemo(
     () => report?.modules.find((entry) => entry.key === activeModule) ?? report?.modules[0],
     [report, activeModule]
   )
 
+  const openExport = (target: FinancialReport) => {
+    setExportedReport(target)
+    setIsExportOpen(true)
+  }
+
+  const showMemberReport = (target: FinancialReport) => {
+    setMemberReport(target)
+    setActiveModule('synthesis')
+    requestAnimationFrame(() => document.getElementById('report-view')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
   const applyPeriod = (next: Period) => {
     setDraft(next)
+    setMemberReport(null)
     if (!validatePeriod(next)) setPeriod(next)
   }
 
@@ -308,7 +320,11 @@ export default function FinancialReportsPage() {
               type="button"
               disabled={!!draftError || isFetching}
               className="bg-[#234D65] hover:bg-[#234D65]/90"
-              onClick={() => (draft.from === period.from && draft.to === period.to ? refetch() : setPeriod(draft))}
+              onClick={() => {
+                setMemberReport(null)
+                if (draft.from === period.from && draft.to === period.to) refetch()
+                else setPeriod(draft)
+              }}
             >
               {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Générer le bilan
@@ -317,8 +333,8 @@ export default function FinancialReportsPage() {
               type="button"
               variant="outline"
               className="sm:ml-auto"
-              disabled={!report}
-              onClick={() => setIsExportOpen(true)}
+              disabled={!associationReport}
+              onClick={() => associationReport && openExport(associationReport)}
             >
               <Download className="mr-2 h-4 w-4" />
               Exporter (Excel ou PDF)
@@ -328,9 +344,11 @@ export default function FinancialReportsPage() {
         </CardContent>
       </Card>
 
+      <MemberFinancialReportCard onView={showMemberReport} onDownload={openExport} />
+
       <ReportGuide />
 
-      {report && <FinancialReportExportDialog open={isExportOpen} onOpenChange={setIsExportOpen} report={report} />}
+      {exportedReport && <FinancialReportExportDialog open={isExportOpen} onOpenChange={setIsExportOpen} report={exportedReport} />}
 
       {error ? (
         <Alert variant="destructive">
@@ -343,7 +361,27 @@ export default function FinancialReportsPage() {
           <Skeleton className="h-72 w-full rounded-xl" />
         </div>
       ) : (
-        <div className={cn('space-y-5', isFetching && 'opacity-60 transition-opacity')}>
+        <div id="report-view" className={cn('scroll-mt-4 space-y-5', isFetching && 'opacity-60 transition-opacity')}>
+          {report.subject && (
+            <div className="flex flex-col gap-3 rounded-xl border border-[#234D65]/20 bg-[#234D65]/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-center gap-2 text-sm text-[#234D65]">
+                <UserRound className="h-4 w-4 shrink-0" />
+                <span>
+                  Bilan de <strong>{report.subject.name}</strong> ({report.subject.matricule}) : seulement ses contrats et ses paiements.
+                </span>
+              </p>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => openExport(report)}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Télécharger
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setMemberReport(null)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Bilan de l’association
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-gray-500">
               Bilan {reportPeriodLabel(report)} · généré le {new Date(report.generatedAt).toLocaleString('fr-FR')}
