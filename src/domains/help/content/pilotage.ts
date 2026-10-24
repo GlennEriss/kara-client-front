@@ -1,5 +1,72 @@
 import type { HelpTopic } from '../entities/help.types'
 
+export const tableauDeBordHelp: HelpTopic = {
+  key: 'tableau-de-bord',
+  title: 'Tableau de bord',
+  category: 'Pilotage',
+  summary: 'Les indicateurs de tous les modules en un coup d’œil : demandes, encours, impayés, bénéfices et alertes.',
+  pages: [{ path: '/dashboard', label: 'Tableau de bord', summary: 'Lire les indicateurs, onglet par onglet, avec des filtres de période, de type de membre et de zone.' }],
+  sections: [
+    {
+      kind: 'purpose',
+      blocks: [
+        {
+          type: 'text',
+          text: 'Le tableau de bord donne l’état de l’association au moment où vous l’ouvrez. L’onglet Exécutif résume tous les modules ; les autres onglets détaillent chacun : caisses, crédits, placements, administration, recouvrement, groupes, métiers et géographie.',
+        },
+        {
+          type: 'definitions',
+          items: [
+            { term: 'Encours global', text: 'Ce que les membres doivent encore sur leurs contrats en cours, tous modules (ou le module choisi).' },
+            { term: 'Impayés', text: 'Le nombre de contrats et de placements en retard.' },
+            { term: 'Bénéfices estimés', text: 'Intérêts attendus des crédits + commissions prévues des placements + pénalités de caisse.' },
+            { term: 'Bénéfices encaissés', text: 'La part de ces gains réellement payée.' },
+            { term: 'Pertes à risque', text: 'Les montants exposés : retards des caisses et des crédits, commissions de placement dues.' },
+            { term: 'Alertes opérationnelles', text: 'Pour chaque sous-module, les dossiers en retard ; « Action requise » dès qu’il y en a un.' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'howto',
+      blocks: [
+        {
+          type: 'steps',
+          title: 'Filtrer',
+          items: [
+            'Période : depuis le début, aujourd’hui, 7 ou 30 derniers jours, mois en cours, ou dates personnalisées.',
+            'Type de membre (adhérent, bienfaiteur, sympathisant), province et ville.',
+            'Dans l’onglet Exécutif, comparez un groupe de modules : caisse, crédit ou placement.',
+          ],
+        },
+        {
+          type: 'note',
+          tone: 'info',
+          text: 'Les notes en bas de chaque onglet détaillent comment les montants sont calculés.',
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            {
+              question: 'Quelle différence avec les bilans financiers ?',
+              answer: 'Le tableau de bord donne l’état du moment. Les bilans financiers recalculent, mois par mois, la trésorerie, le résultat et les encours d’une période ; c’est la référence pour les comptes.',
+            },
+            {
+              question: 'Les chiffres ne bougent pas après un versement.',
+              answer: 'Les indicateurs sont gardés quelques minutes en mémoire. Rechargez la page un peu plus tard.',
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
+
 export const calendrierHelp: HelpTopic = {
   key: 'calendrier',
   title: 'Calendrier',
@@ -81,7 +148,7 @@ export const bilansFinanciersHelp: HelpTopic = {
   title: 'Bilans financiers',
   category: 'Pilotage',
   superAdminOnly: true,
-  summary: 'Le bilan de l’association mois par mois : trésorerie, résultat, encours et risques de chaque module, exportable en Excel ou PDF.',
+  summary: 'Le bilan de l’association mois par mois (trésorerie, résultat, encours et risques de chaque module) et le bilan de chaque membre, exportables en Excel ou PDF.',
   pages: [{ path: '/bilans-financiers', label: 'Bilans financiers', summary: 'Générer le bilan d’une période, le lire module par module et l’exporter.' }],
   sections: [
     {
@@ -116,6 +183,16 @@ export const bilansFinanciersHelp: HelpTopic = {
         },
         {
           type: 'steps',
+          title: 'Bilan d’un membre',
+          items: [
+            'Dans « Bilan d’un membre », cherchez le membre par nom, prénom ou matricule.',
+            'Choisissez « Toute la période » (de sa première opération jusqu’au mois en cours) ou un intervalle de mois, puis « Préparer le bilan ».',
+            'Un résumé s’affiche : ce qu’il a versé et reçu, son reste dû et ce que l’association doit lui rendre.',
+            '« Afficher dans la page » ouvre son bilan à la place de celui de l’association ; « Télécharger » l’exporte en Excel ou en PDF.',
+          ],
+        },
+        {
+          type: 'steps',
           title: 'Exporter',
           items: [
             'Cliquez sur « Exporter (Excel ou PDF) ».',
@@ -136,6 +213,7 @@ export const bilansFinanciersHelp: HelpTopic = {
             { term: 'Intérêts perçus', text: 'Crédit spécial : un versement paie au plus les intérêts de son mois. Crédits fixe et aide : l’intérêt unique est réparti au prorata des versements.' },
             { term: 'Reste dû', text: 'Montant prêté + intérêts arrivés à échéance − versements ; nul dès qu’un contrat est soldé, clos ou clôturé en perte.' },
             { term: 'Période', text: '36 mois au plus, sans mois futur. Le bilan est recalculé à chaque génération à partir de toutes les données.' },
+            { term: 'Bilan d’un membre', text: 'Les mêmes calculs, sur ses seuls contrats : caisses, crédits dont il est le client (avec les commissions versées à leurs garants), placements et adhésion. Seuls les modules où il a une opération apparaissent. Jusqu’à 120 mois.' },
           ],
         },
         {
@@ -187,7 +265,7 @@ export const utiliserAideHelp: HelpTopic = {
         {
           type: 'note',
           tone: 'info',
-          text: 'Les fiches sont rédigées section par section : les modules financiers d’abord, les autres pages ensuite. Une page sans fiche renvoie vers ce centre d’aide.',
+          text: 'Vous ne voyez que les fiches des sections auxquelles vous avez accès.',
         },
       ],
     },

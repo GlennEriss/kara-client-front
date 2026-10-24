@@ -54,7 +54,16 @@ export interface FinancialReportModule {
   notes: string[]
 }
 
+/** Membre d'un bilan individuel : le bilan ne porte que sur ses contrats et paiements. */
+export interface FinancialReportSubject {
+  memberId: string
+  matricule: string
+  name: string
+}
+
 export interface FinancialReport {
+  /** Absent pour le bilan de l'association. */
+  subject?: FinancialReportSubject
   from: MonthKey
   to: MonthKey
   months: MonthKey[]
@@ -65,3 +74,9 @@ export interface FinancialReport {
 
 /** Période maximale d'un bilan, en mois. */
 export const FINANCIAL_REPORT_MAX_MONTHS = 36
+
+/**
+ * Période maximale du bilan d'un membre : « toute la période » couvre toute
+ * son histoire, avec moins de lignes à calculer qu'un bilan de l'association.
+ */
+export const MEMBER_FINANCIAL_REPORT_MAX_MONTHS = 120

@@ -1,7 +1,7 @@
 import { FINANCIAL_REPORT_GUIDE } from '../entities/financial-report-guide'
 import type { FinancialReport } from '../entities/financial-report.types'
 import { REPORT_MINIMAL_LEGEND, type ReportTextLevel } from './export-options'
-import { formatReportNumber, reportFileName, reportPeriodLabel, TOTAL_COLUMN_LABEL } from './report-format'
+import { formatReportNumber, reportFileName, reportPeriodLabel, reportTitle, TOTAL_COLUMN_LABEL } from './report-format'
 
 const BRAND: [number, number, number] = [35, 77, 101]
 const TEXT: [number, number, number] = [30, 41, 59]
@@ -21,7 +21,10 @@ export async function exportFinancialReportPdf(report: FinancialReport, textLeve
   const margin = 12
   const textWidth = pageWidth - margin * 2
   const columns = report.months.length + 2
-  const fontSize = columns <= 8 ? 8 : columns <= 14 ? 6.5 : 5.2
+  // Au-delà de 36 mois (bilan d'un membre), le tableau se poursuit sur les pages
+  // suivantes, libellés répétés, plutôt que de rapetisser les chiffres.
+  const splitColumns = report.months.length > 36
+  const fontSize = columns <= 8 ? 8 : columns <= 14 || splitColumns ? 6.5 : 5.2
   const generatedOn = new Date(report.generatedAt).toLocaleDateString('fr-FR')
   const withExplanations = textLevel === 'full'
   const withDescriptions = textLevel !== 'none'
@@ -52,7 +55,7 @@ export async function exportFinancialReportPdf(report: FinancialReport, textLeve
   }
 
   if (withExplanations) {
-    title('Bilan financier — Comment lire ce bilan')
+    title(`${reportTitle(report)} — Comment lire ce bilan`)
     paragraph(`Période : ${reportPeriodLabel(report)} · généré le ${generatedOn}`, { gap: 4 })
     for (const entry of FINANCIAL_REPORT_GUIDE) {
       paragraph(entry.title, { size: 10, bold: true, color: TEXT, gap: 0.5 })
@@ -64,7 +67,7 @@ export async function exportFinancialReportPdf(report: FinancialReport, textLeve
 
   report.modules.forEach((module, moduleIndex) => {
     if (withExplanations || moduleIndex > 0) doc.addPage()
-    title(`Bilan financier — ${module.title}`)
+    title(`${reportTitle(report)} — ${module.title}`)
     paragraph(`Période : ${reportPeriodLabel(report)} · généré le ${generatedOn}`, { gap: withDescriptions ? 0.5 : 4 })
     if (withDescriptions) paragraph(module.description, { gap: textLevel === 'minimal' ? 0.5 : 4 })
     if (textLevel === 'minimal') paragraph(REPORT_MINIMAL_LEGEND, { size: 8, italic: true, gap: 4 })
@@ -84,6 +87,7 @@ export async function exportFinancialReportPdf(report: FinancialReport, textLeve
         styles: { font: 'times', fontSize, cellPadding: 1.2, lineColor: [226, 232, 240], lineWidth: 0.15, textColor: TEXT, halign: 'right' },
         headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', halign: 'center' },
         columnStyles: { 0: { halign: 'left', cellWidth: columns <= 8 ? 70 : 52 } },
+        ...(splitColumns ? { horizontalPageBreak: true, horizontalPageBreakRepeat: 0 } : {}),
         didParseCell: (data) => {
           if (data.section !== 'body') return
           const line = block.lines[data.row.index]

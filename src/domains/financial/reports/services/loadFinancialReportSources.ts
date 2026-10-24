@@ -1,6 +1,6 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 import type { CreditContract, CreditPayment, CreditPenalty, GuarantorPayment } from '@/types/types'
-import { Timestamp, type Firestore, type QueryDocumentSnapshot } from 'firebase-admin/firestore'
+import { Timestamp, type DocumentSnapshot, type Firestore } from 'firebase-admin/firestore'
 import type { ChildRecord, FinancialReportSources, SourceRecord } from '../entities/financial-report-sources.types'
 
 /** Les calculs attendent des `Date`, pas des `Timestamp` Firestore. */
@@ -13,7 +13,7 @@ function withDates(value: unknown): unknown {
   return value
 }
 
-const toRecord = (doc: QueryDocumentSnapshot): SourceRecord => ({ id: doc.id, ...(withDates(doc.data()) as object) })
+export const toRecord = (doc: DocumentSnapshot): SourceRecord => ({ id: doc.id, ...(withDates(doc.data() ?? {}) as object) })
 
 async function readCollection(db: Firestore, name: string): Promise<SourceRecord[]> {
   const snapshot = await db.collection(name).get()

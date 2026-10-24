@@ -6,17 +6,35 @@ import { findHelpContext, searchHelp } from '../utils/help-search'
 
 const ADMIN_APP_DIR = path.join(process.cwd(), 'src', 'app', '(admin)')
 
+/** URL de chaque page de l'espace admin (`[id]` remplacé par une valeur). */
+const listAdminPages = (dir = ADMIN_APP_DIR, url = ''): string[] =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isFile()) return entry.name === 'page.tsx' ? [url || '/'] : []
+    const segment = entry.name.startsWith('[') ? 'x' : entry.name
+    return listAdminPages(path.join(dir, entry.name), `${url}/${segment}`)
+  })
+
 describe('aide : fiche de la page en cours', () => {
   it('choisit la page la plus précise', () => {
     expect(findHelpContext(HELP_TOPICS, '/caisse-speciale/demandes/nouvelle')?.page.label).toBe('Demandes')
     expect(findHelpContext(HELP_TOPICS, '/caisse-speciale/contrats/abc/versements')?.page.label).toBe('Contrats')
     expect(findHelpContext(HELP_TOPICS, '/credit-speciale/contrats/MK_CSP_1')?.topic.key).toBe('credit-speciale')
     expect(findHelpContext(HELP_TOPICS, '/credit-fixe/simulation')?.topic.key).toBe('credit-fixe')
+    expect(findHelpContext(HELP_TOPICS, '/memberships/abc/filleuls')?.topic.key).toBe('membres')
+    expect(findHelpContext(HELP_TOPICS, '/memberships/anniversaires')?.topic.key).toBe('anniversaires')
+    expect(findHelpContext(HELP_TOPICS, '/memberships/add')?.topic.key).toBe('adhesions')
+    expect(findHelpContext(HELP_TOPICS, '/admin/relances')?.topic.key).toBe('journal-relances')
+    expect(findHelpContext(HELP_TOPICS, '/admin')?.topic.key).toBe('administration')
   })
 
   it('ne confond pas deux URL qui commencent pareil', () => {
     expect(findHelpContext(HELP_TOPICS, '/placements-archives')).toBeNull()
-    expect(findHelpContext(HELP_TOPICS, '/memberships')).toBeNull()
+    expect(findHelpContext(HELP_TOPICS, '/membershipsX')).toBeNull()
+  })
+
+  it('chaque page de l’application a sa fiche', () => {
+    const missing = listAdminPages().filter((pagePath) => !findHelpContext(HELP_TOPICS, pagePath))
+    expect(missing).toEqual([])
   })
 })
 
