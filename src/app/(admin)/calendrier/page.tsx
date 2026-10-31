@@ -7,6 +7,7 @@ import { CalendarViewCreditSpeciale } from "@/components/calendrier/CalendarView
 import { CalendarViewPlacement } from "@/components/calendrier/CalendarViewPlacement"
 import { OverdueCaissePaymentsList } from "@/components/calendrier/OverdueCaissePaymentsList"
 import { UpcomingPayoutsList } from "@/components/calendrier/UpcomingPayoutsList"
+import { WeeklyCallPlan } from "@/components/calendrier/WeeklyCallPlan"
 import { PaymentFrequencyFilters } from "@/components/calendrier/PaymentFrequencyFilters"
 import { PayoutModeFilters } from "@/components/calendrier/PayoutModeFilters"
 import { PageHero } from "@/components/ui/page-hero"
@@ -176,6 +177,8 @@ export default function CalendrierPage() {
           <span className="text-sm text-gray-700">Sans versement</span>
         </div>
       </div>
+
+      <WeeklyCallPlan />
 
       {/* Contenu principal */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

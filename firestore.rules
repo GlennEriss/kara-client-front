@@ -360,6 +360,23 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Planning hebdomadaire des appels. Le superAdmin constitue et modifie les
+    // lots ; les admins peuvent consulter le planning et clôturer un appel via
+    // son compte rendu. Les suppressions restent réservées au superAdmin.
+    match /callPlans/{planId} {
+      allow read: if isAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (
+        isAdmin() &&
+        resource.data.status == 'planned' &&
+        request.resource.data.status == 'completed' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'completedAt', 'completedById', 'completedByName', 'callLogId', 'updatedAt'
+        ])
+      );
+      allow delete: if isSuperAdmin();
+    }
+
     // ==========================================
     // BOUTIQUES (annuaire des commerces des membres)
     // ==========================================
