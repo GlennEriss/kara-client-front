@@ -29,8 +29,8 @@ import React from 'react'
 /**
  * Procès-verbal de liquidation du contrat de Caisse Spéciale (modèle
  * LIQUIDATION.docx, comme la Caisse Imprévue). Il constate la restitution liée
- * à un contrat arrivé à son terme ou clôturé par retrait anticipé, et n'est
- * établi qu'une fois le remboursement réglé.
+ * à un contrat arrivé à son terme ou clôturé par retrait anticipé. Il peut être
+ * préparé avant la demande, avec les informations de règlement à compléter.
  */
 
 const CAISSE_TYPE_LABELS: Record<string, string> = {

@@ -224,9 +224,9 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     }
   }
 
-  // Le procès-verbal est généré dès la demande : imprimé, signé à la remise des
-  // fonds (date et mode de règlement complétés à la main), puis téléversé pour
-  // approuver. On privilégie le dernier remboursement effectivement payé.
+  // Le procès-verbal peut être préparé avant la demande : la date et le mode de
+  // règlement restent alors à compléter. Si une demande existe, on privilégie
+  // le dernier remboursement effectivement payé.
   const activeRefund = React.useMemo(() => {
     const eligible = refunds.filter((r: any) =>
       (r.type === 'FINAL' || r.type === 'EARLY') &&
@@ -234,8 +234,6 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     )
     return eligible.find((r: any) => r.status === 'PAID') ?? eligible[0]
   }, [refunds])
-  const canGenerateLiquidation = activeRefund != null
-
   // Créer un objet contract enrichi avec les données du membre
   const enrichedContract = React.useMemo(() => {
     if (!contractData) return null
@@ -312,11 +310,6 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
   )
 
   const handleDownloadPDF = async () => {
-    if (!canGenerateLiquidation) {
-      toast.error('Le procès-verbal est disponible une fois une demande de remboursement enregistrée.')
-      return
-    }
-
     setIsExporting(true)
 
     try {
@@ -372,7 +365,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
           </div>
           <Button
             onClick={handleDownloadPDF}
-            disabled={isExporting || !canGenerateLiquidation}
+            disabled={isExporting}
             className="mr-2 lg:mr-10 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
           >
             {isExporting ? (
@@ -406,16 +399,6 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                     Récupération des informations personnelles
                   </p>
                 </div>
-              </div>
-            </div>
-          ) : !canGenerateLiquidation ? (
-            <div className="flex h-full items-center justify-center bg-amber-50 p-6 text-center">
-              <div className="max-w-md space-y-2">
-                <h3 className="text-lg font-bold text-amber-900">Aucune demande de remboursement</h3>
-                <p className="text-sm leading-relaxed text-amber-800">
-                  Le procès-verbal devient téléchargeable dès qu&apos;une demande de remboursement
-                  final ou de retrait anticipé est enregistrée.
-                </p>
               </div>
             </div>
           ) : (
