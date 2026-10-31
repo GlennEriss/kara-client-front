@@ -66,6 +66,8 @@ export const firebaseCollectionNames = {
     auditLogs: "auditLogs",
     // Comptes rendus d'appels / relances des retardataires
     callLogs: "callLogs",
+    // Planning hebdomadaire des appels de recouvrement
+    callPlans: "callPlans",
 }
 
 // Export également en majuscules pour compatibilité
@@ -118,4 +120,5 @@ export const FIREBASE_COLLECTION_NAMES = {
     AGENTS_RECOUVREMENT: firebaseCollectionNames.agentsRecouvrement,
     // Comptes rendus d'appels / relances
     CALL_LOGS: firebaseCollectionNames.callLogs,
+    CALL_PLANS: firebaseCollectionNames.callPlans,
 }

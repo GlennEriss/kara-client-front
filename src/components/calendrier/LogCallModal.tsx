@@ -56,7 +56,7 @@ interface LogCallModalProps {
   /** Canal du contact : décidé par le bouton qui a ouvert la fenêtre. */
   channel: ContactChannel
   /** Appelé après enregistrement réussi. */
-  onRecorded: () => void
+  onRecorded: (callLogId: string) => void
   /** Fermeture sans enregistrer (croix, Échap, clic extérieur, « Annuler »). */
   onCancel: () => void
 }
@@ -110,7 +110,7 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
     const parsedPromiseAmount = promiseAmount.trim() ? Number(promiseAmount.replace(/\s/g, '')) : undefined
 
     try {
-      await record({
+      const callLogId = await record({
         personKey: target.personKey,
         memberId: target.memberId,
         groupId: target.groupId,
@@ -131,7 +131,7 @@ export function LogCallModal({ open, target, channel, onRecorded, onCancel }: Lo
             : undefined,
       })
       toast.success('Compte rendu enregistré')
-      onRecorded()
+      onRecorded(callLogId)
     } catch (error) {
       console.error('[callLog] enregistrement impossible:', error)
       toast.error("Le compte rendu n'a pas pu être enregistré. Réessayez.")

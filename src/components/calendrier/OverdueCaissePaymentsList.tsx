@@ -3,6 +3,9 @@
 import { Button } from '@/components/ui/button'
 import { PermissionGate } from '@/components/auth/PermissionGate'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -10,13 +13,16 @@ import { useOverduePayments, type OverdueProduct, type OverduePayment } from '@/
 import { generateWhatsAppUrl, resolveWhatsappNumber } from '@/domains/memberships/utils/whatsappUrl'
 import { useRenderMessageTemplate } from '@/domains/messaging/hooks/useMessageTemplates'
 import { useLastContactByPerson, useRecordCall } from '@/hooks/useCallLogs'
+import { useCallPlans, useCompleteCallPlan, useScheduleCallBatch } from '@/hooks/useCallPlans'
+import { useAdmins } from '@/hooks/useAdmins'
+import { useMyAccess } from '@/hooks/useMyAccess'
 import { CALL_OUTCOME_COLORS, CALL_OUTCOME_LABELS, type ContactChannel } from '@/services/call-logs/callLog'
 import { CallHistorySheet } from '@/components/calendrier/CallHistorySheet'
 import { LogCallModal, type CallTarget } from '@/components/calendrier/LogCallModal'
-import { format } from 'date-fns'
+import { addDays, format, isBefore, startOfDay, startOfWeek } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { AlertTriangle, Building2, Calendar, ChevronDown, ChevronRight, Download, History, MessageCircle, Phone, PhoneCall, RefreshCw, User } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
+import { AlertTriangle, Building2, Calendar, CalendarPlus, ChevronDown, ChevronRight, Download, History, Loader2, MessageCircle, Phone, PhoneCall, RefreshCw, User, Users } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useShownAmount } from './useShownAmount'
 
@@ -190,6 +196,7 @@ function reminderTemplateFor(group: OverdueGroup): { key: string; variables: Rec
 
 export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsListProps) {
   const shownAmount = useShownAmount()
+  const { isSuperAdmin } = useMyAccess()
   const { data: items = [], isLoading, isError, refetch, isFetching } = useOverduePayments([product])
   // Textes de relance personnalisables (Système → Modèles de messages).
   const renderMessage = useRenderMessageTemplate()
@@ -223,6 +230,95 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
   const [callTarget, setCallTarget] = useState<CallTarget | null>(null)
   const [callChannel, setCallChannel] = useState<ContactChannel>('call')
   const [historyFor, setHistoryFor] = useState<OverdueGroup | null>(null)
+
+  // Constitution d'un lot d'appels (superAdmin uniquement).
+  const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set())
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [scheduledDate, setScheduledDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [assigneeId, setAssigneeId] = useState('unassigned')
+  const scheduleBatch = useScheduleCallBatch()
+  const { data: adminsPage } = useAdmins({}, 1, 100)
+  const eligibleAdmins = useMemo(
+    () => (adminsPage?.data ?? []).filter((admin) =>
+      admin.isActive && !!admin.email && admin.roles.some((role) => role === 'Admin' || role === 'SuperAdmin')
+    ),
+    [adminsPage],
+  )
+  const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart])
+  const { data: weeklyPlans = [] } = useCallPlans(
+    format(weekDays[0], 'yyyy-MM-dd'),
+    format(weekDays[6], 'yyyy-MM-dd'),
+  )
+  const completePlan = useCompleteCallPlan()
+
+  useEffect(() => {
+    setSelectedPeople(new Set())
+  }, [activeMonth, product])
+
+  const selectedGroups = useMemo(
+    () => allGroups.filter((group) => selectedPeople.has(group.personKey)),
+    [allGroups, selectedPeople],
+  )
+
+  const toggleSelected = (personKey: string) => {
+    setSelectedPeople((previous) => {
+      const next = new Set(previous)
+      if (next.has(personKey)) next.delete(personKey)
+      else next.add(personKey)
+      return next
+    })
+  }
+
+  const toggleAllShown = () => {
+    const allShownSelected = groups.length > 0 && groups.every((group) => selectedPeople.has(group.personKey))
+    setSelectedPeople((previous) => {
+      const next = new Set(previous)
+      for (const group of groups) {
+        if (allShownSelected) next.delete(group.personKey)
+        else next.add(group.personKey)
+      }
+      return next
+    })
+  }
+
+  const handleScheduleBatch = async () => {
+    if (selectedGroups.length === 0) return
+    const selectedAdmin = eligibleAdmins.find((admin) => admin.id === assigneeId)
+    try {
+      const count = await scheduleBatch.mutateAsync({
+        scheduledDate,
+        assignee: selectedAdmin?.email
+          ? {
+              adminId: selectedAdmin.id,
+              email: selectedAdmin.email,
+              name: `${selectedAdmin.firstName} ${selectedAdmin.lastName}`.trim() || selectedAdmin.email,
+            }
+          : undefined,
+        targets: selectedGroups.map((group) => ({
+          personKey: group.personKey,
+          memberId: group.memberId,
+          groupId: group.groupId,
+          matricule: group.matricule,
+          name: group.name,
+          isGroup: group.isGroup,
+          product: group.product,
+          phone: group.phone,
+          whatsappNumber: group.whatsappNumber,
+          totalOverdue: group.totalAmount,
+          overdueCount: group.count,
+          maxDaysOverdue: group.maxDaysOverdue,
+        })),
+      })
+      toast.success(`${count} appel${count > 1 ? 's' : ''} planifié${count > 1 ? 's' : ''}`)
+      setSelectedPeople(new Set())
+      setScheduleOpen(false)
+      setAssigneeId('unassigned')
+    } catch (error) {
+      console.error('[callPlan] planification impossible:', error)
+      toast.error("Le lot d'appels n'a pas pu être planifié.")
+    }
+  }
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const toggleExpanded = (key: string) => {
@@ -436,6 +532,22 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
         </div>
       </div>
 
+      {isSuperAdmin && selectedGroups.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm text-blue-900">
+            <Users className="h-4 w-4" />
+            <span className="font-semibold">{selectedGroups.length} personne{selectedGroups.length > 1 ? 's' : ''} sélectionnée{selectedGroups.length > 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedPeople(new Set())}>Annuler</Button>
+            <Button size="sm" onClick={() => setScheduleOpen(true)}>
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Planifier les appels
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Total dû */}
       {!isLoading && groups.length > 0 && (
         <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm">
@@ -455,6 +567,15 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
+                  {isSuperAdmin && (
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={groups.length > 0 && groups.every((group) => selectedPeople.has(group.personKey))}
+                        onCheckedChange={toggleAllShown}
+                        aria-label="Sélectionner tous les retardataires affichés"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead className="w-8" />
                   <TableHead>Matricule</TableHead>
                   <TableHead>Membre / Groupe</TableHead>
@@ -471,7 +592,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                 {isLoading &&
                   [...Array(5)].map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      <TableCell colSpan={10}>
+                      <TableCell colSpan={isSuperAdmin ? 11 : 10}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -479,7 +600,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && isError && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-10 text-red-600">
+                    <TableCell colSpan={isSuperAdmin ? 11 : 10} className="text-center py-10 text-red-600">
                       Erreur lors du chargement des versements en retard.
                     </TableCell>
                   </TableRow>
@@ -487,7 +608,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                 {!isLoading && !isError && groups.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={isSuperAdmin ? 11 : 10} className="text-center py-10 text-gray-500">
                       🎉 Aucun versement en retard.
                     </TableCell>
                   </TableRow>
@@ -519,6 +640,15 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
                               : undefined
                           }
                         >
+                          {isSuperAdmin && (
+                            <TableCell onClick={(event) => event.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedPeople.has(g.personKey)}
+                                onCheckedChange={() => toggleSelected(g.personKey)}
+                                aria-label={`Sélectionner ${g.name}`}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="text-gray-400">
                             {isMulti ? (
                               isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
@@ -640,6 +770,7 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
 
                         {isMulti && isOpen && (
                           <TableRow className="bg-gray-50/60">
+                            {isSuperAdmin && <TableCell />}
                             <TableCell />
                             <TableCell colSpan={9} className="py-2">
                               <div className="space-y-1.5">
@@ -681,7 +812,21 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
         open={!!callTarget}
         target={callTarget}
         channel={callChannel}
-        onRecorded={() => setCallTarget(null)}
+        onRecorded={(callLogId) => {
+          if (callTarget) {
+            const today = format(new Date(), 'yyyy-MM-dd')
+            const matchingPlan = weeklyPlans
+              .filter((plan) =>
+                plan.status === 'planned' &&
+                plan.personKey === callTarget.personKey &&
+                plan.product === callTarget.product &&
+                plan.scheduledDate <= today
+              )
+              .sort((left, right) => right.scheduledDate.localeCompare(left.scheduledDate))[0]
+            if (matchingPlan) completePlan.mutate({ id: matchingPlan.id, callLogId })
+          }
+          setCallTarget(null)
+        }}
         onCancel={() => setCallTarget(null)}
       />
 
@@ -691,6 +836,69 @@ export function OverdueCaissePaymentsList({ product }: OverdueCaissePaymentsList
         personKey={historyFor?.personKey}
         name={historyFor?.name}
       />
+
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Planifier le lot d&apos;appels</DialogTitle>
+            <DialogDescription>
+              {selectedGroups.length} personne{selectedGroups.length > 1 ? 's' : ''} sélectionnée{selectedGroups.length > 1 ? 's' : ''} dans {product}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Jour de la semaine en cours</Label>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {weekDays.map((day) => {
+                  const key = format(day, 'yyyy-MM-dd')
+                  const disabled = isBefore(startOfDay(day), startOfDay(new Date()))
+                  const active = key === scheduledDate
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setScheduledDate(key)}
+                      className={`rounded-lg border px-2 py-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+                        active ? 'border-[#234D65] bg-[#234D65] text-white' : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="block capitalize">{format(day, 'EEE', { locale: fr })}</span>
+                      <span className="font-bold">{format(day, 'dd/MM')}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="call-plan-assignee">Attribuer le lot (facultatif)</Label>
+              <Select value={assigneeId} onValueChange={setAssigneeId}>
+                <SelectTrigger id="call-plan-assignee">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Non attribué — visible par tous</SelectItem>
+                  {eligibleAdmins.map((admin) => (
+                    <SelectItem key={admin.id} value={admin.id}>
+                      {`${admin.firstName} ${admin.lastName}`.trim() || admin.email} — {admin.roles.includes('SuperAdmin') ? 'Superadmin' : 'Admin'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleOpen(false)} disabled={scheduleBatch.isPending}>Annuler</Button>
+            <Button onClick={handleScheduleBatch} disabled={scheduleBatch.isPending || selectedGroups.length === 0}>
+              {scheduleBatch.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Planifier {selectedGroups.length} appel{selectedGroups.length > 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
