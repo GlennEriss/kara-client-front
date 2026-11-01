@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { createFile } from '@/db/upload-image.db'
 import { useVehicleInsuranceForm } from '@/hooks/vehicule/useVehicleInsuranceForm'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { User as UserType, VehicleInsurance } from '@/types/types'
-import { Calendar, Car, DollarSign, FileText, Shield, User, Users } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { Calendar, Car, DollarSign, FileText, Loader2, Shield, Upload, User, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import MemberSearchInput from './MemberSearchInput'
 
 const DEFAULT_PHONE_PREFIX = '+241 '
@@ -32,14 +34,17 @@ const formatPhoneValue = (value: string, allowEmpty = false) => {
 }
 
 interface Props {
-  onSubmit: (values: VehicleInsuranceFormValues) => void
+  onSubmit: (values: VehicleInsuranceFormValues) => void | Promise<void>
   initialInsurance?: VehicleInsurance | null
   isSubmitting?: boolean
   mode?: 'create' | 'edit'
   isLoadingMembers?: boolean
 }
 
-export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting, mode = 'create', isLoadingMembers = false }: Props) {
+export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting = false, mode = 'create', isLoadingMembers = false }: Props) {
+  const [policyFile, setPolicyFile] = useState<File | null>(null)
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const defaultValues = useMemo(() => {
     if (!initialInsurance) {
       return {
@@ -194,8 +199,30 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
     form.setValue(fieldName, formatted, { shouldDirty: true, shouldValidate: true })
   }
 
-  const handleSubmit = (values: VehicleInsuranceFormValues) => {
-    onSubmit(values)
+  const handleSubmit = async (values: VehicleInsuranceFormValues) => {
+    try {
+      setIsUploading(true)
+      const ownerId = values.memberMatricule || values.memberId || initialInsurance?.id || 'externe'
+      const insuranceFolder = initialInsurance?.id || `nouveau-${Date.now()}`
+      const attachments = { ...(initialInsurance?.attachments || values.attachments || {}) }
+      if (policyFile) {
+        const uploaded = await createFile(policyFile, ownerId, `vehicle-insurances/${ownerId}/${insuranceFolder}`)
+        attachments.policyUrl = uploaded.url
+        attachments.policyPath = uploaded.path
+      }
+      if (receiptFile) {
+        const uploaded = await createFile(receiptFile, ownerId, `vehicle-insurances/${ownerId}/${insuranceFolder}`)
+        attachments.receiptUrl = uploaded.url
+        attachments.receiptPath = uploaded.path
+      }
+      await onSubmit({ ...values, attachments })
+    } catch (error) {
+      toast.error("Impossible de téléverser les pièces d'assurance", {
+        description: error instanceof Error ? error.message : undefined,
+      })
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   return (
@@ -399,8 +426,8 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                 <Car className="h-4 w-4 text-green-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">Informations du véhicule</CardTitle>
-                <CardDescription>Détails du véhicule à assurer</CardDescription>
+                <CardTitle className="text-lg">Informations du bien assuré</CardTitle>
+                <CardDescription>Caractéristiques à contrôler auprès de l&apos;assureur</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -436,12 +463,69 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                 name="plateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-semibold">Plaque d'immatriculation</FormLabel>
-                    <Input {...field} placeholder="AA-123-BB" className="h-11 uppercase" />
+                    <FormLabel className="text-sm font-semibold">
+                      {form.watch('vehicleType') === 'maison' ? 'Référence du bien' : "Plaque d'immatriculation"}
+                    </FormLabel>
+                    <Input
+                      {...field}
+                      placeholder={form.watch('vehicleType') === 'maison' ? 'Référence du contrat ou du bien' : 'AA-123-BB'}
+                      className="h-11 uppercase"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              <FormField control={form.control} name="vehicleBrand" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Marque</FormLabel>
+                  <Input {...field} value={field.value || ''} placeholder="Toyota" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="vehicleModel" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Modèle</FormLabel>
+                  <Input {...field} value={field.value || ''} placeholder="Corolla" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="vehicleYear" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Année</FormLabel>
+                  <Input
+                    type="number"
+                    value={field.value ?? ''}
+                    onChange={event => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
+                    placeholder="2020"
+                    className="h-11"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="energySource" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Énergie</FormLabel>
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Choisir" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="essence">Essence</SelectItem>
+                      <SelectItem value="diesel">Diesel</SelectItem>
+                      <SelectItem value="hybride">Hybride</SelectItem>
+                      <SelectItem value="electrique">Électrique</SelectItem>
+                      <SelectItem value="gaz">Gaz</SelectItem>
+                      <SelectItem value="autre">Autre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="fiscalPower" render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel className="text-sm font-semibold">Puissance fiscale / administrative (optionnel)</FormLabel>
+                  <Input {...field} value={field.value || ''} placeholder="Ex. 7 CV" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
           </CardContent>
         </Card>
@@ -464,6 +548,13 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
               <FormItem>
                 <FormLabel className="text-sm font-semibold">Compagnie d'assurance</FormLabel>
                 <Input {...field} placeholder="Nom de l'assurance" className="h-11" />
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="policyNumber" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-semibold">N° de police</FormLabel>
+                <Input {...field} value={field.value || ''} placeholder="POL-XXXXX" className="h-11" />
                 <FormMessage />
               </FormItem>
             )} />
@@ -601,6 +692,31 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                 </FormItem>
               )} />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-cyan-100 p-2"><Upload className="h-4 w-4 text-cyan-700" /></div>
+              <div>
+                <CardTitle className="text-lg">Pièces justificatives</CardTitle>
+                <CardDescription>Police d&apos;assurance et reçu, en PDF ou image</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <FormLabel>Police d&apos;assurance</FormLabel>
+              <Input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={isUploading || isSubmitting} onChange={event => setPolicyFile(event.target.files?.[0] || null)} />
+              {initialInsurance?.attachments?.policyUrl && !policyFile && <p className="text-xs text-emerald-700">Une police est déjà enregistrée.</p>}
+            </div>
+            <div className="space-y-2">
+              <FormLabel>Reçu de paiement</FormLabel>
+              <Input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={isUploading || isSubmitting} onChange={event => setReceiptFile(event.target.files?.[0] || null)} />
+              {initialInsurance?.attachments?.receiptUrl && !receiptFile && <p className="text-xs text-emerald-700">Un reçu est déjà enregistré.</p>}
+            </div>
+            {isUploading && <p className="flex items-center gap-2 text-sm text-[#234D65] md:col-span-2"><Loader2 className="h-4 w-4 animate-spin" />Téléversement des documents…</p>}
           </CardContent>
         </Card>
 

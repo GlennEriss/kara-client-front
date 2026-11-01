@@ -22,7 +22,8 @@ export async function checkAndNotifyVehicleInsuranceExpiring(): Promise<void> {
 
   try {
     // Récupérer toutes les assurances actives ou qui expirent bientôt
-    const insurancesRef = db.collection('vehicleInsurances')
+    // Collection partagée par les portails admin et membre.
+    const insurancesRef = db.collection('vehicle-insurances')
     const insurancesSnapshot = await insurancesRef
       .where('status', 'in', ['active', 'expires_soon'])
       .get()
@@ -46,6 +47,14 @@ export async function checkAndNotifyVehicleInsuranceExpiring(): Promise<void> {
 
         // Calculer les jours jusqu'à expiration
         const daysUntil = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+        const nextStatus = daysUntil < 0 ? 'expired' : daysUntil <= 30 ? 'expires_soon' : 'active'
+        if (insurance.status !== nextStatus) {
+          await insuranceDoc.ref.update({
+            status: nextStatus,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+        }
 
         // Notifier pour J-30, J-7, J (aujourd'hui), et J+1 (expirée)
         const shouldNotify = daysUntil === 30 || daysUntil === 7 || daysUntil === 0 || daysUntil === -1
@@ -85,12 +94,17 @@ export async function checkAndNotifyVehicleInsuranceExpiring(): Promise<void> {
               message = `L'assurance véhicule de ${holderName} (${insurance.plateNumber}) a expiré hier (${endDate.toLocaleDateString('fr-FR')}).`
             }
 
+            const recipientId = insurance.holderType === 'member'
+              ? insurance.memberMatricule || insurance.memberId || null
+              : null
+
             await notificationsRef.add({
               module: 'vehicule',
               entityId: insuranceId,
               type: 'contract_expiring',
               title,
               message,
+              ...(recipientId ? { recipientId } : {}),
               isRead: false,
               metadata: {
                 insuranceId,

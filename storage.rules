@@ -81,6 +81,27 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Pièces d'une déclaration d'assurance véhicule.
+    match /vehicle-insurances/{memberId}/{insuranceId}/{fileName} {
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          request.auth.uid == memberId ||
+          (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+        )
+      );
+      allow create: if (isAdmin() || (
+        isAuthenticated() && (
+          request.auth.uid == memberId ||
+          (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('matricule', '') == memberId)
+        ) &&
+        firestore.exists(/databases/(default)/documents/vehicle-insurances/$(insuranceId)) &&
+        firestore.get(/databases/(default)/documents/vehicle-insurances/$(insuranceId)).data.memberId == memberId
+      )) && ((isPDF() && isPDFSizeValid()) || (isImage() && isImageSizeValid()));
+      allow update, delete: if isAdmin();
+    }
+
     // ==========================================
     // ÉDITION FICHE MEMBRE PAR L'ADMIN
     // ==========================================

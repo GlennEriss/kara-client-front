@@ -1491,7 +1491,8 @@ service cloud.firestore {
         request.resource.data.holderType == 'member' &&
         request.resource.data.memberId is string &&
         isMemberOwner(request.resource.data.memberId) &&
-        request.resource.data.declarationStatus == 'draft'
+        request.resource.data.declarationStatus == 'draft' &&
+        request.resource.data.status == 'active'
       );
       // Le membre modifie son brouillon (ou sa déclaration refusée) et l'envoie à
       // l'administration ; seul l'admin valide ou refuse.
@@ -1501,9 +1502,11 @@ service cloud.firestore {
         isMemberOwner(resource.data.memberId) &&
         resource.data.declarationStatus in ['draft', 'rejected'] &&
         request.resource.data.declarationStatus in ['draft', 'pending'] &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'memberId', 'holderType', 'validatedAt', 'validatedBy', 'rejectedAt', 'rejectedBy',
-          'sponsorMemberId', 'createdBy'
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'vehicleType', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'plateNumber',
+          'energySource', 'city', 'fiscalPower', 'insuranceCompany', 'policyNumber',
+          'warrantyMonths', 'premiumAmount', 'startDate', 'endDate', 'notes', 'attachments',
+          'declarationStatus', 'declaredValues', 'submittedAt', 'updatedAt'
         ])
       );
       // Le membre peut supprimer un brouillon ou une déclaration refusée.

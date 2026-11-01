@@ -2378,7 +2378,7 @@ export interface VehicleInsurance {
   /** Champs corrigés par l'admin à la validation (comparaison avec l'assureur partenaire). */
   declarationCorrections?: VehicleDeclarationCorrection[]
   /** Copie de la saisie du membre au moment de l'envoi (référence des corrections). */
-  declaredValues?: Partial<Pick<VehicleInsurance, 'plateNumber' | 'vehicleType' | 'vehicleBrand' | 'vehicleModel' | 'vehicleYear' | 'energySource' | 'insuranceCompany' | 'policyNumber' | 'premiumAmount' | 'startDate' | 'endDate'>>
+  declaredValues?: Partial<Pick<VehicleInsurance, 'plateNumber' | 'vehicleType' | 'vehicleBrand' | 'vehicleModel' | 'vehicleYear' | 'energySource' | 'city' | 'fiscalPower' | 'insuranceCompany' | 'policyNumber' | 'warrantyMonths' | 'premiumAmount' | 'startDate' | 'endDate'>>
 }
 
 /**
