@@ -6,6 +6,8 @@ import { VehicleDeclarationCorrection, VehicleInsurance, VehicleInsuranceFilters
 import { summarizeCorrections } from '@/utils/vehicle-declaration'
 import { useAuth } from '@/hooks/useAuth'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
+import { VEHICLE_AUDIT_MODULE } from '@/constantes/audit-modules'
+import { useAuditLogger } from '@/hooks/useAuditLog'
 import { openCurrentRewardPeriod } from './useVehicleRewards'
 
 const getService = () => ServiceFactory.getVehicleInsuranceService()
@@ -52,6 +54,7 @@ export function useVehicleInsurance(id?: string) {
 export function useCreateVehicleInsurance() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: (payload: VehicleInsuranceFormValues) => {
@@ -62,9 +65,26 @@ export function useCreateVehicleInsurance() {
         return id
       })
     },
-    onSuccess: () => {
+    onSuccess: (id, payload) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
       queryClient.invalidateQueries({ queryKey: ['vehicle-rewards'] })
+      const holderName = payload.holderType === 'member'
+        ? [payload.memberLastName, payload.memberFirstName].filter(Boolean).join(' ')
+        : [payload.nonMemberLastName, payload.nonMemberFirstName].filter(Boolean).join(' ')
+      log({
+        action: 'create',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurance',
+        targetId: id,
+        description: `Création d'une assurance véhicule${holderName ? ` — ${holderName}` : ''}${payload.plateNumber ? ` (${payload.plateNumber})` : ''}`,
+        metadata: {
+          holderType: payload.holderType,
+          memberId: payload.memberId ?? null,
+          sponsorMemberId: payload.sponsorMemberId ?? null,
+          plateNumber: payload.plateNumber ?? null,
+          premiumAmount: payload.premiumAmount,
+        },
+      })
     },
   })
 }
@@ -72,6 +92,7 @@ export function useCreateVehicleInsurance() {
 export function useUpdateVehicleInsurance() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<VehicleInsuranceFormValues> }) => {
@@ -81,6 +102,14 @@ export function useUpdateVehicleInsurance() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', variables.id] })
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', 'list'] })
+      log({
+        action: 'update',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurance',
+        targetId: variables.id,
+        description: `Modification d'une assurance véhicule${variables.updates.plateNumber ? ` (${variables.updates.plateNumber})` : ''}`,
+        metadata: { plateNumber: variables.updates.plateNumber ?? null },
+      })
     },
   })
 }
@@ -88,6 +117,7 @@ export function useUpdateVehicleInsurance() {
 export function useRenewVehicleInsurance() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: ({ id, startDate, endDate, premiumAmount, policyNumber }: { id: string; startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string }) => {
@@ -100,16 +130,37 @@ export function useRenewVehicleInsurance() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', variables.id] })
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', 'stats'] })
+      log({
+        action: 'update',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurance',
+        targetId: variables.id,
+        description: "Renouvellement d'une assurance véhicule",
+        metadata: {
+          startDate: variables.startDate.toISOString(),
+          endDate: variables.endDate.toISOString(),
+          premiumAmount: variables.premiumAmount,
+          policyNumber: variables.policyNumber ?? null,
+        },
+      })
     },
   })
 }
 
 export function useDeleteVehicleInsurance() {
   const queryClient = useQueryClient()
+  const { log } = useAuditLogger()
   return useMutation({
     mutationFn: (id: string) => getService().deleteInsurance(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
+      log({
+        action: 'delete',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurance',
+        targetId: id,
+        description: "Suppression d'une assurance véhicule",
+      })
     },
   })
 }
@@ -117,6 +168,7 @@ export function useDeleteVehicleInsurance() {
 export function useMarkVehicleInsuranceExpired() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: (id: string) => {
@@ -126,6 +178,13 @@ export function useMarkVehicleInsuranceExpired() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', id] })
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', 'stats'] })
+      log({
+        action: 'update',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'assurance',
+        targetId: id,
+        description: "Passage manuel d'une assurance au statut expiré",
+      })
     },
   })
 }
@@ -137,28 +196,33 @@ async function notifyMemberOfDeclaration(insurance: VehicleInsurance, decision: 
   if (!recipientId) return
   const vehicle = [insurance.vehicleBrand, insurance.vehicleModel].filter(Boolean).join(' ') || 'votre véhicule'
   const plate = insurance.plateNumber ? ` (${insurance.plateNumber})` : ''
-  await ServiceFactory.getNotificationService().notifyMember({
-    recipientId,
-    module: 'vehicule',
-    entityId: insurance.id,
-    type: 'status_update',
-    title: decision === 'validated' ? 'Véhicule validé' : 'Déclaration de véhicule refusée',
-    message:
-      decision === 'validated'
-        ? `L'assurance de ${vehicle}${plate} a été vérifiée et validée par l'association.${
-            insurance.declarationCorrections?.length
-              ? ` Informations corrigées d'après l'assureur partenaire : ${summarizeCorrections(insurance.declarationCorrections)}.`
-              : ''
-          }`
-        : `La déclaration de ${vehicle}${plate} n'a pas été validée${reason ? ` : ${reason}` : ''}. Corrigez-la puis envoyez-la à nouveau.`,
-    metadata: { insuranceId: insurance.id, declarationStatus: decision },
-  })
+  try {
+    await ServiceFactory.getNotificationService().notifyMember({
+      recipientId,
+      module: 'vehicule',
+      entityId: insurance.id,
+      type: 'status_update',
+      title: decision === 'validated' ? 'Véhicule validé' : 'Déclaration de véhicule refusée',
+      message:
+        decision === 'validated'
+          ? `L'assurance de ${vehicle}${plate} a été vérifiée et validée par l'association.${
+              insurance.declarationCorrections?.length
+                ? ` Informations corrigées d'après l'assureur partenaire : ${summarizeCorrections(insurance.declarationCorrections)}.`
+                : ''
+            }`
+          : `La déclaration de ${vehicle}${plate} n'a pas été validée${reason ? ` : ${reason}` : ''}. Corrigez-la puis envoyez-la à nouveau.`,
+      metadata: { insuranceId: insurance.id, declarationStatus: decision },
+    })
+  } catch (error) {
+    console.error('[vehicule] notification du membre impossible:', error)
+  }
 }
 
 /** Valide une déclaration de membre après vérification chez l'assureur partenaire. */
 export function useValidateVehicleDeclaration() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: async ({ id, corrections = [] }: { id: string; corrections?: VehicleDeclarationCorrection[] }) => {
@@ -168,9 +232,17 @@ export function useValidateVehicleDeclaration() {
       const reward = await openRewardSafely(id, user.uid)
       return { insurance, reward }
     },
-    onSuccess: () => {
+    onSuccess: ({ insurance }, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
       queryClient.invalidateQueries({ queryKey: ['vehicle-rewards'] })
+      log({
+        action: 'validate',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'declaration',
+        targetId: variables.id,
+        description: `Validation d'une déclaration de véhicule${insurance.plateNumber ? ` (${insurance.plateNumber})` : ''}`,
+        metadata: { correctionsCount: variables.corrections?.length ?? 0, memberId: insurance.memberId ?? null },
+      })
     },
   })
 }
@@ -179,6 +251,7 @@ export function useValidateVehicleDeclaration() {
 export function useRejectVehicleDeclaration() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { log } = useAuditLogger()
 
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
@@ -187,8 +260,16 @@ export function useRejectVehicleDeclaration() {
       await notifyMemberOfDeclaration(insurance, 'rejected', reason.trim())
       return insurance
     },
-    onSuccess: () => {
+    onSuccess: (insurance, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances'] })
+      log({
+        action: 'reject',
+        ...VEHICLE_AUDIT_MODULE,
+        targetType: 'declaration',
+        targetId: variables.id,
+        description: `Refus d'une déclaration de véhicule${insurance.plateNumber ? ` (${insurance.plateNumber})` : ''}`,
+        metadata: { reason: variables.reason.trim(), memberId: insurance.memberId ?? null },
+      })
     },
   })
 }

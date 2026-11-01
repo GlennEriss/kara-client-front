@@ -18,6 +18,8 @@ import { useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useListUrlSync } from '@/hooks/useListUrlSync'
+import { useAuditLogger } from '@/hooks/useAuditLog'
+import { VEHICLE_AUDIT_MODULE } from '@/constantes/audit-modules'
 import { VehicleInsuranceDetail } from './VehicleInsuranceDetail'
 import { VehicleInsuranceFilters as FiltersComponent } from './VehicleInsuranceFilters'
 import { VehicleInsuranceForm } from './VehicleInsuranceForm'
@@ -69,6 +71,7 @@ const EXPORT_HEADERS = [
 
 export function VehicleInsuranceList() {
   const { can } = useMyAccess()
+  const { log } = useAuditLogger()
   const canExport = can('vehicules.export')
   useVehicleInsurancesRealtimeSync(true)
   // État initialisé depuis l'URL : le retour navigateur retrouve la liste au même endroit.
@@ -212,6 +215,14 @@ export function VehicleInsuranceList() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Assurances')
     const filename = `assurances_${new Date().toISOString().slice(0, 10)}.xlsx`
     XLSX.writeFile(workbook, filename)
+    log({
+      action: 'export',
+      ...VEHICLE_AUDIT_MODULE,
+      targetType: 'assurances',
+      targetId: filename,
+      description: `Export Excel des assurances véhicules — ${allItems.length} ligne${allItems.length > 1 ? 's' : ''}`,
+      metadata: { format: 'xlsx', count: allItems.length },
+    })
     toast.success('Exporter Excel généré')
   }
 
@@ -237,6 +248,14 @@ export function VehicleInsuranceList() {
     })
     const filename = `assurances_${new Date().toISOString().slice(0, 10)}.pdf`
     doc.save(filename)
+    log({
+      action: 'export',
+      ...VEHICLE_AUDIT_MODULE,
+      targetType: 'assurances',
+      targetId: filename,
+      description: `Export PDF des assurances véhicules — ${allItems.length} ligne${allItems.length > 1 ? 's' : ''}`,
+      metadata: { format: 'pdf', count: allItems.length },
+    })
     toast.success('Exporter PDF généré')
   }
 
@@ -278,6 +297,17 @@ export function VehicleInsuranceList() {
     setIsFormOpen(true)
   }
 
+  const openDetailModal = (insurance: VehicleInsurance) => {
+    setDetailInsurance(insurance)
+    log({
+      action: 'view',
+      ...VEHICLE_AUDIT_MODULE,
+      targetType: 'assurance',
+      targetId: insurance.id,
+      description: `Consultation d'une assurance véhicule${insurance.plateNumber ? ` (${insurance.plateNumber})` : ''}`,
+    })
+  }
+
   const handleSubmitForm = async (values: VehicleInsuranceFormValues) => {
     try {
       // Récupérer le membre sélectionné pour enrichir les données
@@ -316,7 +346,6 @@ export function VehicleInsuranceList() {
       setIsFormOpen(false)
       setCurrentInsurance(null)
       setValidateAfterSave(false)
-      refetch()
     } catch (error) {
       toast.error("Impossible d'enregistrer l'assurance", { description: error instanceof Error ? error.message : undefined })
     }
@@ -329,7 +358,6 @@ export function VehicleInsuranceList() {
       toast.success('Assurance renouvelée')
       setIsRenewDialogOpen(false)
       setCurrentInsurance(null)
-      refetch()
     } catch (error) {
       toast.error('Renouvellement impossible', { description: error instanceof Error ? error.message : undefined })
     }
@@ -341,7 +369,6 @@ export function VehicleInsuranceList() {
       await deleteMutation.mutateAsync(insuranceToDelete.id)
       toast.success('Assurance supprimée')
       setInsuranceToDelete(null)
-      refetch()
     } catch (error) {
       toast.error('Suppression impossible', { description: error instanceof Error ? error.message : undefined })
     }
@@ -396,7 +423,7 @@ export function VehicleInsuranceList() {
             )}
             <Button
               variant="outline"
-              onClick={() => { refetch(); refetchMembers() }}
+              onClick={() => { void Promise.allSettled([refetch(), refetchMembers()]) }}
               className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
             >
               Actualiser
@@ -460,7 +487,7 @@ export function VehicleInsuranceList() {
       <VehicleInsuranceTable
         data={list}
         isLoading={isLoading}
-        onView={insurance => setDetailInsurance(insurance)}
+        onView={openDetailModal}
         onEdit={can('vehicules.edit') ? openEditModal : undefined}
         onRenew={can('vehicules.edit') && view !== 'pending' ? insurance => {
           setCurrentInsurance(insurance)
