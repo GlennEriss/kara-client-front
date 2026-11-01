@@ -468,9 +468,9 @@ function buildExecutiveFinancialSections(report: FinancialReport): NonNullable<D
 function moduleHref(moduleKey: FinancialReportModuleKey): string {
   if (moduleKey === 'caisse_speciale') return routes.admin.caisseSpeciale
   if (moduleKey === 'caisse_imprevue') return routes.admin.caisseImprevue
-  if (moduleKey === 'credit_speciale') return routes.admin.creditSpeciale
-  if (moduleKey === 'credit_fixe') return routes.admin.creditFixe
-  if (moduleKey === 'credit_aide') return routes.admin.creditAide
+  if (moduleKey === 'credit_speciale') return routes.admin.creditSpecialeContrats
+  if (moduleKey === 'credit_fixe') return routes.admin.creditFixeContrats
+  if (moduleKey === 'credit_aide') return routes.admin.creditAideContrats
   if (moduleKey === 'placements') return routes.admin.placements
   return routes.admin.financialReports
 }
@@ -1827,7 +1827,7 @@ function buildExecutivePayload(
 
   const detailedModuleSummaries = [
     {
-      label: 'Caisse speciale',
+      label: 'Caisse spéciale',
       href: routes.admin.caisseSpeciale,
       family: 'caisse' as const,
       pending: pendingCaisseSpeciale,
@@ -1838,7 +1838,7 @@ function buildExecutivePayload(
       }).length,
     },
     {
-      label: 'Caisse imprevue',
+      label: 'Caisse imprévue',
       href: routes.admin.caisseImprevue,
       family: 'caisse' as const,
       pending: pendingCaisseImprevue,
@@ -1847,23 +1847,23 @@ function buildExecutivePayload(
     },
     {
       label: 'Caisse aide',
-      href: routes.admin.creditAide,
+      href: moduleHref('credit_aide'),
       family: 'credit' as const,
       pending: pendingCreditAide,
       encours: creditAideEncours,
       impayes: getFinancialLine(financialReport, 'credit_aide', 'risks', 'late_contracts')?.values.at(-1) || 0,
     },
     {
-      label: 'Credit speciale',
-      href: routes.admin.creditSpeciale,
+      label: 'Crédit spécial',
+      href: moduleHref('credit_speciale'),
       family: 'credit' as const,
       pending: pendingCreditSpeciale,
       encours: creditSpecialeEncours,
       impayes: getFinancialLine(financialReport, 'credit_speciale', 'risks', 'late_contracts')?.values.at(-1) || 0,
     },
     {
-      label: 'Credit fixe',
-      href: routes.admin.creditFixe,
+      label: 'Crédit fixe',
+      href: moduleHref('credit_fixe'),
       family: 'credit' as const,
       pending: pendingCreditFixe,
       encours: creditFixeEncours,
@@ -2043,7 +2043,7 @@ function buildExecutivePayload(
       ),
       createRanking(
         'module_alerts',
-        'Alertes operationnelles par sous-module',
+        'Alertes opérationnelles par sous-module',
         selectedDetailedSummaries.map((summary) => ({
           label: summary.label,
           value: summary.impayes,

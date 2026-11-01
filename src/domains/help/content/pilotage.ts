@@ -4,7 +4,7 @@ export const tableauDeBordHelp: HelpTopic = {
   key: 'tableau-de-bord',
   title: 'Tableau de bord',
   category: 'Pilotage',
-  summary: 'Les indicateurs de tous les modules en un coup d’œil : demandes, encours, impayés, bénéfices et alertes.',
+  summary: 'Les indicateurs opérationnels et financiers vérifiés de tous les modules : demandes, créances, fonds à restituer, retards, manque à gagner et alertes.',
   pages: [{ path: '/dashboard', label: 'Tableau de bord', summary: 'Lire les indicateurs, onglet par onglet, avec des filtres de période, de type de membre et de zone.' }],
   sections: [
     {
@@ -12,7 +12,7 @@ export const tableauDeBordHelp: HelpTopic = {
       blocks: [
         {
           type: 'text',
-          text: 'Le tableau de bord donne l’état de l’association au moment où vous l’ouvrez. L’onglet Exécutif résume tous les modules ; les autres onglets détaillent chacun : caisses, crédits, placements, administration, recouvrement, groupes, métiers et géographie.',
+          text: 'Le tableau de bord donne l’état de l’association au moment où vous l’ouvrez. L’onglet Exécutif rassemble les priorités du jour, la situation financière vérifiée et les alertes de tous les modules ; les autres onglets détaillent chacun : caisses, crédits, placements, administration, recouvrement, groupes, métiers et géographie.',
         },
         {
           type: 'definitions',
@@ -21,8 +21,10 @@ export const tableauDeBordHelp: HelpTopic = {
             { term: 'Fonds à restituer', text: 'Épargne des caisses et capitaux de placements détenus par l’association, mais appartenant aux membres ou bienfaiteurs.' },
             { term: 'Impayés', text: 'Le nombre de contrats et de placements en retard.' },
             { term: 'Montant en retard', text: 'Part des échéances déjà dépassées qui reste impayée. Ce montant n’est pas encore une perte.' },
-            { term: 'Pertes constatées', text: 'Créances réellement abandonnées lors de la clôture d’un crédit en perte.' },
-            { term: 'Alertes opérationnelles', text: 'Pour chaque sous-module, les dossiers en retard ; « Action requise » dès qu’il y en a un.' },
+            { term: 'Manque à gagner généré restant', text: 'Manque à gagner produit par les seules échéances déjà arrivées, diminué des encaissements enregistrés à ce titre. Aucun mois futur n’est compté.' },
+            { term: 'Pertes comptables constatées', text: 'Créances réellement abandonnées lors de la clôture d’un crédit en perte. Elles sont distinctes du manque à gagner et des retards.' },
+            { term: 'Alertes opérationnelles', text: 'Pour chaque sous-module, le niveau dépend des dossiers en retard. « Action requise » signale au moins un dossier à traiter ; un clic ouvre directement la liste correspondante.' },
+            { term: 'Détails financiers vérifiés', text: 'Les blocs Trésorerie, Résultat, Encours et créances, puis Pertes et risques utilisent le même moteur de calcul que les bilans financiers.' },
             { term: 'Appels à traiter', text: 'Les appels planifiés aujourd’hui et ceux des jours précédents qui ne sont pas encore terminés.' },
             { term: 'Réalisation des appels', text: 'La part des appels planifiés cette semaine qui disposent déjà d’un compte rendu.' },
             { term: 'Taux de joignabilité', text: 'La part des relances de la période ayant abouti à un échange avec le membre.' },
@@ -46,6 +48,21 @@ export const tableauDeBordHelp: HelpTopic = {
         {
           type: 'note',
           tone: 'info',
+          text: 'Les cartes KPI, les lignes des détails financiers et les alertes soulignées sont cliquables. Elles ouvrent la page de contrats, le calendrier ou le bilan correspondant.',
+        },
+        {
+          type: 'steps',
+          title: 'Passer d’une alerte au dossier à traiter',
+          items: [
+            'Dans « Alertes opérationnelles », repérez les modules marqués « Action requise ».',
+            'Cliquez sur la carte : une caisse ouvre son module ; Crédit spécial, Crédit fixe et Caisse aide ouvrent directement leur liste de contrats.',
+            'Dans « Retards et risques de crédit », cliquez sur les échéances en retard pour ouvrir le calendrier, ou sur le manque à gagner pour ouvrir les contrats concernés.',
+            'Utilisez le bouton retour du navigateur pour retrouver les mêmes filtres du tableau de bord.',
+          ],
+        },
+        {
+          type: 'note',
+          tone: 'info',
           text: 'Les notes en bas de chaque onglet détaillent comment les montants sont calculés.',
         },
       ],
@@ -58,7 +75,7 @@ export const tableauDeBordHelp: HelpTopic = {
           items: [
             {
               question: 'Quelle différence avec les bilans financiers ?',
-              answer: 'Le tableau de bord donne l’état du moment. Les bilans financiers recalculent, mois par mois, la trésorerie, le résultat et les encours d’une période ; c’est la référence pour les comptes.',
+              answer: 'Le tableau de bord donne la situation actuelle et les priorités opérationnelles. Ses montants financiers vérifiés utilisent le même moteur que les bilans ; les bilans ajoutent la lecture mois par mois, le choix d’une période et les exports Excel ou PDF.',
             },
             {
               question: 'Les chiffres ne bougent pas après un versement.',
@@ -252,7 +269,7 @@ export const bilansFinanciersHelp: HelpTopic = {
             },
             {
               question: 'Les chiffres du bilan diffèrent du tableau de bord : lequel croire ?',
-              answer: 'Le bilan recalcule tout à partir des versements et de l’historique des contrats, mois par mois. Le tableau de bord additionne certaines valeurs enregistrées. Un écart signale souvent un versement modifié après sa saisie.',
+              answer: 'À date et avec le même périmètre de membres, les montants financiers vérifiés utilisent le même moteur et doivent correspondre. Un écart peut venir de la période du bilan, d’un filtre du tableau de bord ou d’une opération enregistrée après l’ouverture de la page ; rechargez puis comparez le même périmètre.',
             },
           ],
         },
@@ -263,9 +280,9 @@ export const bilansFinanciersHelp: HelpTopic = {
 
 export const utiliserAideHelp: HelpTopic = {
   key: 'utiliser-aide',
-  title: 'Utiliser l’aide',
+  title: 'Prise en main et centre d’aide',
   category: 'Utiliser l’aide',
-  summary: 'Comment trouver de l’aide sur la plateforme : le bouton Aide de chaque page et ce centre d’aide.',
+  summary: 'Les premiers repères pour travailler sans erreur, comprendre la navigation et trouver l’aide détaillée de chaque section.',
   pages: [{ path: '/aide', label: 'Centre d’aide', summary: 'Toutes les fiches d’aide, avec une recherche.' }],
   sections: [
     {
@@ -274,6 +291,7 @@ export const utiliserAideHelp: HelpTopic = {
         {
           type: 'list',
           items: [
+            'Le menu latéral ne montre que les sections autorisées pour votre compte. Sur téléphone, ouvrez-le avec le bouton de navigation.',
             'Le bouton « Aide », en haut de chaque page, ouvre la fiche de la page où vous êtes, sans la quitter.',
             'Le centre d’aide (menu Système) regroupe toutes les fiches. La recherche trouve un mot dans toutes les fiches, avec ou sans accents.',
             'Chaque fiche suit le même plan : à quoi sert la section, pas à pas, règles et calculs, statuts, questions fréquentes.',
@@ -283,6 +301,74 @@ export const utiliserAideHelp: HelpTopic = {
           type: 'note',
           tone: 'info',
           text: 'Vous ne voyez que les fiches des sections auxquelles vous avez accès.',
+        },
+      ],
+    },
+    {
+      kind: 'howto',
+      blocks: [
+        {
+          type: 'steps',
+          title: 'Première connexion',
+          items: [
+            'Connectez-vous avec les identifiants remis par le super admin et remplacez le mot de passe temporaire si la plateforme le demande.',
+            'Vérifiez votre nom et votre rôle dans l’en-tête, puis parcourez le menu disponible : il correspond à vos accès.',
+            'Ouvrez le tableau de bord pour prendre connaissance des priorités, puis la section liée à votre mission.',
+            'Utilisez le bouton « Aide » de la page avant une opération que vous ne connaissez pas.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Traiter une opération en sécurité',
+          items: [
+            'Retrouvez d’abord la bonne personne par nom et matricule, puis vérifiez le contrat, le statut et les montants.',
+            'Pour un paiement, contrôlez la date, l’heure, le moyen, les frais éventuels, l’agent collecteur et la preuve avant de valider.',
+            'Téléchargez ou remettez le reçu lorsque l’opération en produit un.',
+            'Relisez la fiche après validation et vérifiez que le statut, le montant payé et le reste dû ont bien changé.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Trouver une réponse',
+          items: [
+            'Depuis une page, ouvrez son aide contextuelle pour obtenir directement la fiche correspondante.',
+            'Dans le centre d’aide, recherchez un mot précis : pénalité, remboursement, lot d’appels, manque à gagner, permission…',
+            'Consultez les règles et les statuts avant les questions fréquentes : ils expliquent souvent pourquoi une action est indisponible.',
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'rules',
+      blocks: [
+        {
+          type: 'definitions',
+          items: [
+            { term: 'Matricule', text: 'Identifiant unique à utiliser pour distinguer deux personnes portant le même nom.' },
+            { term: 'Statut', text: 'État du dossier ou du contrat. Il détermine les actions encore possibles.' },
+            { term: 'Preuve', text: 'Photo ou document justifiant un paiement, une remise de fonds ou une restitution.' },
+            { term: 'Permission', text: 'Droit accordé à votre compte pour consulter ou réaliser une action. Voir une page ne signifie pas pouvoir tout y faire.' },
+            { term: 'Journalisation', text: 'Traçabilité des actions sensibles : auteur, date, section et description.' },
+          ],
+        },
+        {
+          type: 'note',
+          tone: 'warning',
+          text: 'Ne validez jamais une opération financière sur la seule base du nom. Vérifiez le matricule, le contrat, la période et la preuve ; une correction doit rester exceptionnelle et motivée.',
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Je ne vois pas une section ou un bouton.', answer: 'Votre compte n’a probablement pas l’accès ou la permission correspondante. Rechargez votre session puis demandez au super admin de vérifier Accès & permissions.' },
+            { question: 'Une page semble afficher une ancienne valeur.', answer: 'Rechargez la page : certains indicateurs restent quelques minutes en mémoire. Vérifiez aussi les filtres actifs et la période.' },
+            { question: 'J’ai validé une mauvaise opération.', answer: 'N’enregistrez pas une deuxième opération pour compenser sans vérifier la règle du module. Prévenez un super admin, conservez la preuve et utilisez uniquement l’action de modification ou d’annulation prévue.' },
+            { question: 'L’aide ne répond pas à mon cas.', answer: 'Notez la page, le contrat ou matricule concerné, l’action tentée et le message affiché, puis transmettez ces éléments à l’assistance sans partager de mot de passe.' },
+          ],
         },
       ],
     },

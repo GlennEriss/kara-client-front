@@ -38,7 +38,7 @@ export default function HelpCenterPage() {
       <PageHero
         icon={LifeBuoy}
         title="Centre d’aide"
-        subtitle="Comment fonctionne chaque section de la plateforme, ses règles et les réponses aux questions fréquentes"
+        subtitle="Prise en main, procédures, règles de calcul, statuts et réponses aux erreurs fréquentes de chaque section"
       />
 
       <div className="relative">
@@ -46,7 +46,7 @@ export default function HelpCenterPage() {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Rechercher dans l’aide : pénalité, mois de repos, bonus, sortie anticipée…"
+          placeholder="Rechercher : paiement, pénalité, lot d’appels, permission, remboursement…"
           className="h-11 rounded-xl pl-9 pr-9"
           aria-label="Rechercher dans l’aide"
         />

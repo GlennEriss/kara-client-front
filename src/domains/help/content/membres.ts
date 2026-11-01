@@ -163,6 +163,25 @@ export const membresHelp: HelpTopic = {
             'Rémunérations : les commissions qu’il a gagnées comme garant de crédits spéciaux.',
           ],
         },
+        {
+          type: 'steps',
+          title: 'Renouveler un abonnement',
+          items: [
+            'Ouvrez la fiche du membre, puis « Abonnements ».',
+            'Cliquez sur « Renouveler l’abonnement » et renseignez le paiement, la date de début et la fiche signée.',
+            'Vérifiez la période calculée avant de confirmer. L’ancien abonnement reste dans l’historique.',
+            'En cas d’erreur de date, utilisez l’action de modification de la période ; la correction est journalisée.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Consulter les documents et les liens du membre',
+          items: [
+            'Depuis la fiche, ouvrez « Documents » pour retrouver les pièces, contrats, quittances et preuves rattachés au membre.',
+            'Ouvrez « Filleuls » pour vérifier les adhésions issues de son code d’intermédiaire.',
+            'Ouvrez « Rémunérations » pour suivre les commissions gagnées comme garant d’un crédit spécial.',
+          ],
+        },
       ],
     },
     {
@@ -174,6 +193,8 @@ export const membresHelp: HelpTopic = {
             { term: 'Matricule', text: 'Identifiant unique du membre, attribué à l’adhésion. Il sert à le retrouver partout.' },
             { term: 'Abonnement', text: 'Valable un an. Un membre dont l’abonnement a expiré apparaît dans « Expirés ».' },
             { term: 'Position', text: 'La latitude et la longitude de son domicile, si elles ont été relevées.' },
+            { term: 'Données liées', text: 'Un membre peut avoir plusieurs contrats, paiements et documents. La fiche les rassemble sans les fusionner : chaque opération reste dans son module d’origine.' },
+            { term: 'Droits d’accès', text: 'Les boutons de modification, paiement, document ou export apparaissent selon les permissions du compte connecté.' },
           ],
         },
       ],
@@ -191,6 +212,14 @@ export const membresHelp: HelpTopic = {
             {
               question: 'Un membre a perdu son mot de passe.',
               answer: 'Dans Demandes d’adhésion, ouvrez son dossier approuvé et utilisez « Générer les identifiants » : un nouveau mot de passe est créé dans un PDF à lui remettre.',
+            },
+            {
+              question: 'Pourquoi un membre apparaît-il comme expiré ?',
+              answer: 'Son dernier abonnement est arrivé à sa date de fin. Ouvrez sa fiche puis Abonnements pour vérifier les périodes et enregistrer le renouvellement.',
+            },
+            {
+              question: 'Pourquoi un contrat ou un document manque-t-il sur la fiche ?',
+              answer: 'Vérifiez d’abord le module et la période concernés. Un document n’apparaît que s’il a été téléversé et rattaché au bon membre ; un contrat importé sous le compte INCONNU doit être re-pointé.',
             },
           ],
         },
@@ -239,6 +268,31 @@ export const anniversairesHelp: HelpTopic = {
         },
       ],
     },
+    {
+      kind: 'rules',
+      blocks: [
+        {
+          type: 'definitions',
+          items: [
+            { term: 'Date inconnue', text: 'Un membre sans date de naissance complète ne peut pas être placé correctement dans le calendrier des anniversaires.' },
+            { term: 'Message WhatsApp', text: 'La plateforme prépare le texte et ouvre WhatsApp ; l’envoi reste à confirmer dans WhatsApp.' },
+            { term: 'Âge', text: 'Il est calculé à partir de la date de naissance enregistrée sur la fiche du membre.' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Pourquoi un membre n’apparaît-il pas ?', answer: 'Vérifiez sa date de naissance dans sa fiche et le mois sélectionné. Une date absente ou incomplète empêche son classement.' },
+            { question: 'Le message contient une mauvaise information.', answer: 'Corrigez d’abord la fiche du membre si le nom ou le téléphone est faux. Pour le texte commun, modifiez le modèle Anniversaire dans Système > Modèles de messages.' },
+          ],
+        },
+      ],
+    },
   ],
 }
 
@@ -274,6 +328,40 @@ export const historiquesHelp: HelpTopic = {
             'Ouvrez l’historique des contrats et cherchez le membre par nom, matricule ou téléphone.',
             'Ouvrez sa fiche, choisissez l’onglet du module, puis affichez ou téléchargez le PDF.',
             'Les filtres limitent la liste par type de document, par format et par période.',
+          ],
+        },
+        {
+          type: 'steps',
+          title: 'Contrôler l’historique des paiements',
+          items: [
+            'Ouvrez l’historique depuis la fiche du membre ou du dossier concerné.',
+            'Filtrez par module et par période, puis ouvrez une ligne pour retrouver sa référence et son document justificatif.',
+            'Comparez toujours un paiement avec le contrat d’origine avant de signaler un écart.',
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'rules',
+      blocks: [
+        {
+          type: 'definitions',
+          items: [
+            { term: 'Source', text: 'L’historique regroupe les opérations, mais leur modification reste dans le module d’origine.' },
+            { term: 'Accès aux fichiers', text: 'L’affichage ou le téléchargement d’un PDF dépend de la permission Documents > Télécharger.' },
+            { term: 'Document absent', text: 'Une ligne de contrat peut exister sans PDF si le document signé n’a jamais été téléversé.' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'faq',
+      blocks: [
+        {
+          type: 'faq',
+          items: [
+            { question: 'Puis-je modifier un paiement depuis l’historique ?', answer: 'Non. L’historique sert au contrôle et à la consultation ; ouvrez le contrat ou le module d’origine pour utiliser une action autorisée.' },
+            { question: 'Pourquoi le téléchargement est-il indisponible ?', answer: 'Le fichier peut être absent, ou votre compte ne possède pas la permission de téléchargement des documents.' },
           ],
         },
       ],

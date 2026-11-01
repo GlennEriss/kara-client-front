@@ -65,6 +65,7 @@ export const caisseImprevueHelp: HelpTopic = {
           items: [
             'Retrait anticipé : le contrat doit être actif, avec au moins un versement.',
             'Remboursement final : toutes les échéances doivent être payées.',
+            'Cliquez sur « Générer le procès-verbal de liquidation » : l’aperçu PDF s’ouvre immédiatement. Complétez les champs manquants, contrôlez le montant nominal rendu, puis téléchargez le document pour signature.',
             'Dans les deux cas : demande, validation, puis paiement avec la preuve. Une seule demande en cours à la fois.',
           ],
         },
@@ -79,6 +80,10 @@ export const caisseImprevueHelp: HelpTopic = {
             { term: 'Éligibilité au support', text: 'Au moins 3 mois entièrement payés, et aucun support encore actif.' },
             { term: 'Versements bloqués', text: 'Tant qu’un support est actif, un versement doit d’abord le rembourser en entier ; un montant inférieur est refusé.' },
             { term: 'Plafond d’un versement', text: 'Un versement ne peut pas dépasser ce que le contrat peut encore recevoir jusqu’à son terme.' },
+            {
+              term: 'Procès-verbal de liquidation',
+              text: 'Il peut être préparé avant la demande. Sans remboursement enregistré, la date et le mode de règlement restent à compléter ; lorsqu’un remboursement existe, ses données sont reprises dans le document.',
+            },
           ],
         },
         {
@@ -115,6 +120,10 @@ export const caisseImprevueHelp: HelpTopic = {
             {
               question: 'Un membre peut-il avoir deux supports en même temps ?',
               answer: 'Non : un nouveau support n’est possible qu’une fois le précédent remboursé.',
+            },
+            {
+              question: 'Le message « Aucune demande de remboursement » empêche-t-il de préparer le procès-verbal ?',
+              answer: 'Non. Ce message décrit seulement la liste des demandes. Le bouton ouvre tout de même le PDF ; les informations de règlement doivent alors être complétées et vérifiées manuellement.',
             },
           ],
         },

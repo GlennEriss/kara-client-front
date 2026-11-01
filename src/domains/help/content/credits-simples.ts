@@ -54,6 +54,7 @@ export const creditFixeHelp: HelpTopic = {
   category: 'Crédits',
   summary: 'Prêts à intérêt unique, remboursés en mensualités sur 14 mois au plus.',
   pages: [
+    { path: '/credit-fixe', label: 'Accès au crédit fixe', summary: 'Redirection vers la liste des contrats de crédit fixe.' },
     { path: '/credit-fixe/simulation', label: 'Simulation', summary: 'Calculer l’échéancier d’un crédit fixe : intérêt unique, mensualités et total à rembourser.' },
     { path: '/credit-fixe/demandes', label: 'Demandes', summary: 'Enregistrer, approuver ou rejeter les demandes, puis créer le contrat.' },
     { path: '/credit-fixe/contrats', label: 'Contrats', summary: 'Suivre les contrats de crédit fixe : versements, retards, clôture.' },
@@ -116,6 +117,7 @@ export const creditAideHelp: HelpTopic = {
   category: 'Crédits',
   summary: 'Petits prêts d’aide à intérêt unique (5 % au plus), remboursés en 3 mois au plus.',
   pages: [
+    { path: '/credit-aide', label: 'Accès au crédit aide', summary: 'Redirection vers la liste des contrats de crédit aide.' },
     { path: '/credit-aide/simulation', label: 'Simulation', summary: 'Calculer l’échéancier d’un crédit aide sur 3 mois au plus.' },
     { path: '/credit-aide/demandes', label: 'Demandes', summary: 'Enregistrer, approuver ou rejeter les demandes de crédit aide, puis créer le contrat.' },
     { path: '/credit-aide/contrats', label: 'Contrats', summary: 'Suivre les contrats de crédit aide jusqu’au remboursement ou à la transformation.' },

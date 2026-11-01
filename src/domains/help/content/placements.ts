@@ -113,6 +113,14 @@ export const placementsHelp: HelpTopic = {
               question: 'Le bienfaiteur sort après trois semaines : touche-t-il une commission ?',
               answer: 'Non. Sans mois complet écoulé, la sortie anticipée rend le capital seul.',
             },
+            {
+              question: 'Pourquoi le capital reçu n’apparaît-il pas comme un bénéfice ?',
+              answer: 'Parce qu’il appartient au bienfaiteur et doit lui être rendu. Il entre en trésorerie et dans les fonds à restituer, mais pas dans le résultat.',
+            },
+            {
+              question: 'Une commission est en retard : où la traiter ?',
+              answer: 'Ouvrez le placement depuis la liste ou depuis l’échéance correspondante du calendrier, puis enregistrez le versement et sa preuve.',
+            },
           ],
         },
       ],
