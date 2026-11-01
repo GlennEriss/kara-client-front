@@ -248,6 +248,7 @@ export function buildCreditModule(
   }
   const zeros = () => new Array(months.length).fill(0) as number[]
   let receivables = zeros()
+  let missedEarningsOutstanding = zeros()
   let unpaidPenalties = zeros()
   let lateAmount = zeros()
   let activeContracts = zeros()
@@ -287,9 +288,18 @@ export function buildCreditModule(
       .map((value, index) => Math.min(value, contractReceivable[index]))
     const contractLate = settle(months, late, ledger.settledFrom)
     const penalties = subtractValues(stockValues(months, ledger.penaltiesCreated), stockValues(months, ledger.penaltiesPaid))
+    const contractMissedEarningsPaid = (contract.missedEarningsPayments ?? []).map((payment) => ({
+      month: monthKeyOf(payment.date),
+      amount: toNumber(payment.amount),
+    }))
+    const contractMissedEarningsOutstanding = subtractValues(
+      stockValues(months, ledger.missedEarnings),
+      stockValues(months, contractMissedEarningsPaid)
+    ).map((value) => Math.max(0, value))
     const firstMonth = ledger.principal[0]?.month ?? null
 
     receivables = addValues(receivables, contractReceivable)
+    missedEarningsOutstanding = addValues(missedEarningsOutstanding, contractMissedEarningsOutstanding)
     lateAmount = addValues(lateAmount, contractLate)
     unpaidPenalties = addValues(unpaidPenalties, settle(months, penalties, ledger.writeOffMonth))
     activeContracts = addValues(
@@ -380,6 +390,8 @@ export function buildCreditModule(
           'Contrats dont le reste dû n’est pas soldé à la fin du mois.', { kind: 'stock', unit: 'count' }),
       ]),
       makeBlock('risks', [
+        makeLine('missed_earnings_outstanding', 'Manque à gagner généré restant à date', missedEarningsOutstanding,
+          'Manque à gagner déjà généré à la date du bilan, moins les montants encaissés à ce titre. L’estimation complète visible dans les contrats peut inclure des mois futurs.', { kind: 'stock', level: 'total' }),
         makeLine('missed_earnings', 'Manque à gagner du mois', flowValues(months, all.missedEarnings), isSpeciale
           ? 'Intérêts que l’association ne touche pas en partie fixe : le taux du contrat appliqué à la dette, pour chaque mois après le 7e.'
           : '10 % du reste dû pour chaque mois au-delà de la durée prévue du contrat.'),
