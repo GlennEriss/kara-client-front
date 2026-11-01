@@ -92,7 +92,7 @@ function PartnerReceiptDialog({ reward, onClose }: { reward: VehicleInsuranceRew
 
   const submit = async () => {
     if (!(Number(amount) > 0)) return toast.error('Indiquez le montant reçu de l’assureur')
-    if (shareValue <= 0 || shareValue > 100) return toast.error('Indiquez la part du membre (entre 1 et 100 %)')
+    if (shareValue <= 0 || shareValue > 100) return toast.error('Indiquez la part du parrain (entre 1 et 100 %)')
     try {
       await partnerReceipt.mutateAsync({
         reward,
@@ -125,7 +125,7 @@ function PartnerReceiptDialog({ reward, onClose }: { reward: VehicleInsuranceRew
               <Input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-gray-500">Part du membre (%)</Label>
+              <Label className="text-xs text-gray-500">Part du parrain (%)</Label>
               <Input inputMode="decimal" value={share} onChange={(e) => setShare(e.target.value)} />
             </div>
             <div className="space-y-1">
@@ -374,7 +374,7 @@ export function VehicleRewardsSection({
                 onSuccess: (reward) =>
                   reward
                     ? toast.success('Reversement ouvert pour la période en cours')
-                    : toast.error('Aucun membre bénéficiaire : indiquez le titulaire membre ou le parrain'),
+                    : toast.error('Aucun parrain bénéficiaire : renseignez le parrain du dossier'),
               })
             }
           >
@@ -496,7 +496,7 @@ export function InsurancePartnersDialog({
     const memberSharePercent = Number(draft.memberSharePercent.replace(',', '.'))
     if (!draft.name.trim()) return toast.error("Indiquez le nom de l'assureur")
     if (!(commissionRate > 0 && commissionRate <= 100)) return toast.error('Commission entre 0 et 100 % de la prime')
-    if (!(memberSharePercent > 0 && memberSharePercent <= 100)) return toast.error('Part du membre entre 0 et 100 %')
+    if (!(memberSharePercent > 0 && memberSharePercent <= 100)) return toast.error('Part du parrain entre 0 et 100 %')
     try {
       await save.mutateAsync({ id: draft.id, name: draft.name, commissionRate, memberSharePercent })
       toast.success('Taux enregistré')
@@ -514,8 +514,8 @@ export function InsurancePartnersDialog({
             <Percent className="h-5 w-5" /> Taux des assureurs partenaires
           </DialogTitle>
           <DialogDescription>
-            Commission versée par l&apos;assureur à LE KARA (en % de la prime) et part reversée au membre qui a enregistré
-            le véhicule (en % de cette commission). Un changement vaut pour les prochaines périodes.
+            Commission versée par l&apos;assureur à LE KARA (en % de la prime) et part reversée au parrain du dossier
+            (en % de cette commission). Le titulaire membre peut être son propre parrain. Un changement vaut pour les prochaines périodes.
           </DialogDescription>
         </DialogHeader>
 
@@ -529,7 +529,7 @@ export function InsurancePartnersDialog({
                 <div>
                   <p className="font-medium text-gray-900">{partner.name}</p>
                   <p className="text-xs text-gray-500">
-                    Commission {partner.commissionRate} % de la prime · membre {partner.memberSharePercent} % de la commission
+                    Commission {partner.commissionRate} % de la prime · parrain {partner.memberSharePercent} % de la commission
                   </p>
                 </div>
                 <div className="flex gap-1">
@@ -565,7 +565,7 @@ export function InsurancePartnersDialog({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">Part du membre (% de la commission)</Label>
+                    <Label className="text-xs text-gray-500">Part du parrain (% de la commission)</Label>
                     <Input
                       inputMode="decimal"
                       value={draft.memberSharePercent}

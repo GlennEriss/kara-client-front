@@ -166,7 +166,7 @@ export async function openRewardForPeriod(
   return mapReward(id, { ...data, createdAt: new Date() })
 }
 
-/** L'assureur a versé sa commission : la part du membre se calcule sur ce montant. */
+/** L'assureur a versé sa commission : la part du parrain se calcule sur ce montant. */
 export async function recordPartnerReceipt(
   reward: VehicleInsuranceReward,
   data: { amount: number; receivedAt: Date; memberSharePercent: number; reference?: string },

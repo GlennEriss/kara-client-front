@@ -126,14 +126,14 @@ export const vehiculesHelp: HelpTopic = {
           items: [
             'Cliquez sur « Ajouter l’assurance » et choisissez le titulaire : un membre, ou une personne non membre parrainée par un membre.',
             'Renseignez le véhicule, l’assureur, la police, la prime, les dates de début et de fin.',
-            'Joignez la police et le reçu si vous les avez.',
+            'Joignez le reçu de paiement si vous l’avez.',
           ],
         },
         {
           type: 'steps',
           title: 'Valider une déclaration de membre',
           items: [
-            'Ouvrez l’onglet « À valider » et contrôlez les informations, la police et le reçu transmis par le membre auprès de l’assureur partenaire.',
+            'Ouvrez l’onglet « À valider » et contrôlez les informations et le reçu transmis par le membre auprès de l’assureur partenaire.',
             'Complétez notamment le parrain, puis corrigez les champs qui diffèrent : la valeur déclarée et la valeur retenue restent visibles des deux côtés.',
             'Cliquez sur « Enregistrer et valider », ou refusez la déclaration avec un motif.',
           ],
@@ -164,7 +164,7 @@ export const vehiculesHelp: HelpTopic = {
           type: 'definitions',
           items: [
             { term: 'Commission', text: 'L’assureur partenaire verse à LE KARA un pourcentage de la prime. Le taux est enregistré pour chaque assureur.' },
-            { term: 'Part du membre', text: 'Un pourcentage de cette commission revient au membre qui a enregistré le véhicule ; le reste est gardé par LE KARA.' },
+            { term: 'Part du parrain', text: 'Un pourcentage de cette commission revient au parrain du dossier ; le titulaire membre peut se désigner lui-même comme parrain et recevoir cette part. Le reste est gardé par LE KARA.' },
             { term: 'Une ligne par période', text: 'Un reversement est créé à la validation, puis à chaque renouvellement.' },
             { term: 'Commission confidentielle', text: 'Les membres ne voient pas la commission de l’assureur.' },
             { term: 'Échéance synchronisée', text: 'Le statut passe automatiquement à « Expire bientôt » dans les 30 derniers jours, puis à « Expirée ». Le membre reçoit aussi les rappels prévus.' },
@@ -181,7 +181,7 @@ export const vehiculesHelp: HelpTopic = {
             { question: 'Pourquoi une assurance est-elle encore « À valider » ?', answer: 'Une déclaration faite par un membre doit être contrôlée puis validée par un administrateur. Ouvrez-la, comparez les pièces et utilisez « Enregistrer et valider ».' },
             { question: 'Pourquoi aucun reversement n’est-il calculé ?', answer: 'Vérifiez que l’assureur est configuré comme partenaire avec ses taux, puis que l’assurance ou son renouvellement a été validé.' },
             { question: 'Le membre ne doit pas voir la commission de l’assureur.', answer: 'C’est prévu : la commission partenaire reste confidentielle. Le membre ne voit que les informations et montants qui lui sont destinés.' },
-            { question: 'Le membre voit-il les corrections et les pièces ?', answer: 'Oui. Après validation, sa fiche affiche les corrections retenues, la police, le reçu, la prime et l’échéance. Il ne peut plus modifier le dossier validé.' },
+            { question: 'Le membre voit-il les corrections et les pièces ?', answer: 'Oui. Après validation, sa fiche affiche les corrections retenues, le reçu, la prime et l’échéance. Il ne peut plus modifier le dossier validé.' },
           ],
         },
       ],
@@ -196,7 +196,7 @@ export const vehiculesHelp: HelpTopic = {
             { term: 'Expire bientôt', text: 'Elle se termine dans les 30 jours.' },
             { term: 'Expirée', text: 'Sa date de fin est passée.' },
             { term: 'Commission à recevoir', text: 'Reversement en attente du paiement de l’assureur.' },
-            { term: 'À verser au membre', text: 'La commission est reçue ; la part du membre reste à lui payer.' },
+            { term: 'À verser au parrain', text: 'La commission est reçue ; la part du parrain reste à lui payer.' },
             { term: 'Versé au membre', text: 'Le reversement est terminé.' },
           ],
         },
