@@ -181,7 +181,7 @@ export const bilansFinanciersHelp: HelpTopic = {
             { term: 'Trésorerie', text: 'L’argent réellement entré et sorti chaque mois.' },
             { term: 'Résultat', text: 'Ce que l’association gagne (intérêts perçus, pénalités, adhésions…) moins ce qu’elle paie (bonus, commissions, pertes).' },
             { term: 'Encours et créances', text: 'À la fin de chaque mois : ce que les membres doivent encore, et ce que l’association doit rendre (épargne, capitaux des placements).' },
-            { term: 'Pertes et risques', text: 'Le manque à gagner estimé des contrats, sa part déjà générée à la date du bilan, les pertes comptables des crédits clôturés en perte, les pénalités impayées et les échéances en retard.' },
+            { term: 'Pertes et risques', text: 'Le manque à gagner généré par les échéances déjà arrivées, les pertes comptables des crédits clôturés en perte, les pénalités impayées et les échéances en retard. Les mois futurs ne sont pas comptés.' },
           ],
         },
       ],

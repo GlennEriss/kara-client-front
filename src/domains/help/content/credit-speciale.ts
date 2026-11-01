@@ -137,7 +137,7 @@ export const creditSpecialeHelp: HelpTopic = {
             },
             {
               term: 'Manque à gagner',
-              text: 'Les intérêts que l’association ne touche pas en partie fixe : le taux du contrat × la dette, pour chaque mois en partie fixe. Affiché après la date de fin prévue, ou dès un basculement manuel.',
+              text: 'Les intérêts que l’association ne touche pas sur les échéances déjà arrivées en partie fixe : taux du contrat × dette au début du mois. Les mois futurs ne sont pas comptés.',
             },
             {
               term: 'Crédit en semaines',

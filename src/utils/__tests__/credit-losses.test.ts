@@ -36,7 +36,16 @@ describe('manque à gagner d’un crédit fixe', () => {
     const schedule = buildSimpleCreditSchedule(contract, payments)
     expect(schedule.slice(3, 5).map((row) => row.principal)).toEqual([60_000, 30_000])
     // M4 : 10 % de 60 000, M5 : 10 % de 30 000.
-    expect(computeCreditLossTotal(contract, payments)).toBe(9_000)
+    expect(computeCreditLossTotal(contract, payments, new Date('2026-05-10T23:59:59'))).toBe(9_000)
+  })
+
+  it('ne compte pas les échéances futures', () => {
+    const payments = [
+      payment('M1_fixe-1', 'fixe-1', 20_000, '2026-01-10'),
+      payment('M2_fixe-1', 'fixe-1', 20_000, '2026-02-10'),
+      payment('M3_fixe-1', 'fixe-1', 20_000, '2026-03-10'),
+    ]
+    expect(computeCreditLossTotal(contract, payments, new Date('2026-03-31T23:59:59'))).toBe(0)
   })
 })
 
@@ -63,7 +72,11 @@ describe('manque à gagner d’un crédit spécial', () => {
   })
 
   it('compte les intérêts non perçus en partie fixe', () => {
-    expect(computeCreditLossTotal(contract, [])).toBeGreaterThan(0)
+    expect(computeCreditLossTotal(contract, [], new Date('2026-08-10T23:59:59'))).toBeGreaterThan(0)
+  })
+
+  it('ne compte pas la partie fixe avant sa première échéance', () => {
+    expect(computeCreditLossTotal(contract, [], new Date('2026-07-31T23:59:59'))).toBe(0)
   })
 })
 
@@ -94,6 +107,6 @@ describe('manque à gagner encaissé après la fin du contrat', () => {
       payment('M5_fixe-2', 'fixe-2', 30_000, '2026-05-10'),
     ]
 
-    expect(computeMissedEarningsBalance(contract, payments)).toEqual({ gross: 9_000, paid: 4_000, net: 5_000 })
+    expect(computeMissedEarningsBalance(contract, payments, new Date('2026-05-10T23:59:59'))).toEqual({ gross: 9_000, paid: 4_000, net: 5_000 })
   })
 })

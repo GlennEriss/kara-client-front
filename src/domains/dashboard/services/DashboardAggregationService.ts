@@ -19,16 +19,8 @@ import type { FinancialReport, FinancialReportModuleKey } from '@/domains/financ
 import type { FinancialReportSources } from '@/domains/financial/reports/entities/financial-report-sources.types'
 import { loadFinancialReportSources } from '@/domains/financial/reports/services/loadFinancialReportSources'
 import { currentMonthKey } from '@/domains/financial/reports/utils/report-months'
-import type { CreditContract, CreditPayment } from '@/types/types'
-import { computeMissedEarningsBalance } from '@/utils/credit-losses'
 
 type FirestoreRecord = Record<string, unknown> & { id: string }
-
-interface MissedEarningsSummary {
-  gross: number
-  paid: number
-  net: number
-}
 
 const MEMBER_ROLES = new Set(['Adherant', 'Bienfaiteur', 'Sympathisant'])
 
@@ -378,23 +370,6 @@ function buildCurrentFinancialReport(sources: FinancialReportSources): Financial
   return buildFinancialReport(sources, { from: month, to: month, now: new Date() })
 }
 
-/** Même total estimé que celui affiché dans les fiches des contrats. */
-function summarizeContractMissedEarnings(sources: FinancialReportSources): MissedEarningsSummary {
-  const paymentsByContract = new Map<string, CreditPayment[]>()
-  for (const payment of sources.creditPayments) {
-    paymentsByContract.set(payment.creditId, [...(paymentsByContract.get(payment.creditId) ?? []), payment])
-  }
-
-  return sources.creditContracts.reduce<MissedEarningsSummary>((total, contract: CreditContract) => {
-    const balance = computeMissedEarningsBalance(contract, paymentsByContract.get(contract.id) ?? [])
-    return {
-      gross: total.gross + balance.gross,
-      paid: total.paid + balance.paid,
-      net: total.net + balance.net,
-    }
-  }, { gross: 0, paid: 0, net: 0 })
-}
-
 function getFinancialLine(
   report: FinancialReport,
   moduleKey: FinancialReportModuleKey,
@@ -432,10 +407,7 @@ function financialLine(
   }
 }
 
-function buildExecutiveFinancialSections(
-  report: FinancialReport,
-  missedEarnings: MissedEarningsSummary
-): NonNullable<DashboardTabPayload['financialSections']> {
+function buildExecutiveFinancialSections(report: FinancialReport): NonNullable<DashboardTabPayload['financialSections']> {
   const toneForPositiveRisk = (lineKey: string): DashboardKpiItem['tone'] =>
     (getFinancialLine(report, 'synthesis', 'risks', lineKey)?.values.at(-1) || 0) > 0 ? 'danger' : 'success'
   const treasuryNet = getFinancialLine(report, 'synthesis', 'treasury', 'net')?.values.at(-1) || 0
@@ -472,15 +444,6 @@ function buildExecutiveFinancialSections(
       lines: [
         financialLine(report, 'credit_speciale', 'risks', 'late_amount', { href: routes.admin.calendrier }),
         financialLine(report, 'credit_fixe', 'risks', 'late_amount', { href: routes.admin.calendrier }),
-        {
-          key: 'contracts_missed_earnings_outstanding',
-          label: 'Manque à gagner estimé restant (contrats)',
-          value: missedEarnings.net,
-          format: 'currency',
-          description: 'Total estimé affiché dans les contrats, après déduction des encaissements de manque à gagner.',
-          tone: missedEarnings.net > 0 ? 'danger' : 'success',
-          href: routes.admin.creditSpecialeContrats,
-        },
         financialLine(report, 'synthesis', 'risks', 'missed_earnings_outstanding', { tone: toneForPositiveRisk('missed_earnings_outstanding'), href: routes.admin.creditSpecialeContrats }),
         financialLine(report, 'synthesis', 'risks', 'missed_earnings', { tone: toneForPositiveRisk('missed_earnings'), href: routes.admin.financialReports }),
         financialLine(report, 'synthesis', 'risks', 'late_contracts', { tone: toneForPositiveRisk('late_contracts'), href: routes.admin.calendrier }),
@@ -1785,7 +1748,6 @@ function buildExecutivePayload(
   placements: FirestoreRecord[],
   callPlans: FirestoreRecord[],
   financialReport: FinancialReport,
-  missedEarnings: MissedEarningsSummary,
   filters: DashboardFilters
 ): DashboardTabPayload {
   const creditTypeOf = (record: FirestoreRecord): 'SPECIALE' | 'FIXE' | 'AIDE' | 'UNKNOWN' => {
@@ -1857,6 +1819,7 @@ function buildExecutivePayload(
   const lateCreditAmount = getFinancialLine(financialReport, 'synthesis', 'risks', 'late_amount')?.values.at(-1) || 0
   const lateCreditContracts = getFinancialLine(financialReport, 'synthesis', 'risks', 'late_contracts')?.values.at(-1) || 0
   const unpaidCreditPenalties = getFinancialLine(financialReport, 'synthesis', 'risks', 'unpaid_penalties')?.values.at(-1) || 0
+  const missedEarningsOutstanding = getFinancialLine(financialReport, 'synthesis', 'risks', 'missed_earnings_outstanding')?.values.at(-1) || 0
   const confirmedLosses = getFinancialLine(financialReport, 'synthesis', 'risks', 'losses')?.values.at(-1) || 0
   const currentMonthIn = getFinancialLine(financialReport, 'synthesis', 'treasury', 'in_total')?.values.at(-1) || 0
   const currentMonthNet = getFinancialLine(financialReport, 'synthesis', 'treasury', 'net')?.values.at(-1) || 0
@@ -2050,7 +2013,7 @@ function buildExecutivePayload(
       currencyKpi('funds_to_return_total', 'Fonds à restituer', fundsToReturnTotal, 'Épargne et capitaux détenus', 'primary', routes.admin.financialReports),
       currencyKpi('late_credit_amount', 'Échéances de crédit en retard', lateCreditAmount, 'Montant déjà exigible', lateCreditAmount > 0 ? 'danger' : 'success', routes.admin.calendrier),
       currencyKpi('unpaid_credit_penalties', 'Pénalités de crédit impayées', unpaidCreditPenalties, 'Pénalités créées et non réglées', unpaidCreditPenalties > 0 ? 'warning' : 'success', routes.admin.creditSpecialeContrats),
-      currencyKpi('missed_earnings_outstanding', 'Manque à gagner restant', missedEarnings.net, `Total des contrats · ${Math.round(missedEarnings.paid).toLocaleString('fr-FR')} FCFA déjà encaissés`, missedEarnings.net > 0 ? 'danger' : 'success', routes.admin.creditSpecialeContrats),
+      currencyKpi('missed_earnings_outstanding', 'Manque à gagner généré restant', missedEarningsOutstanding, 'Échéances arrivées à date, après encaissements', missedEarningsOutstanding > 0 ? 'danger' : 'success', routes.admin.creditSpecialeContrats),
       ...(confirmedLosses > 0
         ? [currencyKpi('confirmed_losses', 'Pertes comptables constatées', confirmedLosses, 'Crédits officiellement clôturés en perte', 'danger', routes.admin.financialReports)]
         : []),
@@ -2090,11 +2053,11 @@ function buildExecutivePayload(
         'alertes'
       ),
     ],
-    financialSections: buildExecutiveFinancialSections(financialReport, missedEarnings),
+    financialSections: buildExecutiveFinancialSections(financialReport),
     notes: [
       'Les montants financiers vérifiés utilisent exactement le moteur des bilans financiers.',
       'Les sommes dues à l’association et les fonds à restituer sont volontairement séparés : ils n’ont pas la même nature comptable.',
-      'Le manque à gagner restant reprend le même calcul estimatif que les fiches contrats. Le détail financier distingue la part déjà générée à la date du bilan.',
+      'Le manque à gagner ne retient que les échéances déjà arrivées à la date du calcul. Les mois futurs ne sont jamais comptés.',
       'Une perte comptable n’est affichée que lorsqu’un crédit a réellement été clôturé en perte : elle ne doit pas être confondue avec le manque à gagner.',
     ],
   }
@@ -2403,7 +2366,6 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
 
     const financialSources = scopeFinancialSources(financialSourcesRaw, memberScope)
     const financialReport = buildCurrentFinancialReport(financialSources)
-    const missedEarnings = summarizeContractMissedEarnings(financialSources)
     const caisseSpecialeContracts = financialSources.caisseSpecialeContracts as FirestoreRecord[]
     const caisseImprevueContracts = financialSources.caisseImprevueContracts as FirestoreRecord[]
     const creditContracts = financialSources.creditContracts as unknown as FirestoreRecord[]
@@ -2455,7 +2417,6 @@ export async function getDashboardSnapshot(activeTab: DashboardTabKey, filters: 
       placements,
       callPlans,
       financialReport,
-      missedEarnings,
       filters
     )
   } else if (activeTab === 'caisse_speciale') {
