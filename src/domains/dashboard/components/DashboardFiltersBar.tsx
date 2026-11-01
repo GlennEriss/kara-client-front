@@ -14,12 +14,14 @@ import {
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
+  ChevronDown,
   Filter,
   Layers3,
   MapPinned,
   RotateCcw,
   Users,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { DashboardTabKey } from "../entities/dashboard-tabs.types";
 import type {
   DashboardFilterOptions,
@@ -41,6 +43,18 @@ export function DashboardFiltersBar({
   onChange,
   onReset,
 }: DashboardFiltersBarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const desktopMedia = window.matchMedia("(min-width: 768px)");
+    const syncWithViewport = (event: MediaQueryListEvent | MediaQueryList) =>
+      setIsExpanded(event.matches);
+
+    syncWithViewport(desktopMedia);
+    desktopMedia.addEventListener("change", syncWithViewport);
+    return () => desktopMedia.removeEventListener("change", syncWithViewport);
+  }, []);
+
   const provinces = filterOptions?.provinces || [];
 
   const availableCities =
@@ -59,17 +73,17 @@ export function DashboardFiltersBar({
   };
 
   const periodLabels: Record<DashboardFilters["period"], string> = {
-    all: "Depuis le debut",
+    all: "Depuis le début",
     today: "Aujourd'hui",
     "7d": "7 derniers jours",
     "30d": "30 derniers jours",
     month: "Mois en cours",
-    custom: "Personnalisee",
+    custom: "Personnalisée",
   };
 
   const memberTypeLabels: Record<DashboardFilters["memberType"], string> = {
     all: "Tous",
-    adherant: "Adherant",
+    adherant: "Adhérent",
     bienfaiteur: "Bienfaiteur",
     sympathisant: "Sympathisant",
   };
@@ -78,13 +92,13 @@ export function DashboardFiltersBar({
     {
       all: "Tous modules",
       caisse: "Caisse",
-      credit: "Credit",
+      credit: "Crédit",
       placement: "Placement",
     };
 
   const activeFilters = [
     filters.period !== "all"
-      ? `Periode: ${periodLabels[filters.period]}`
+      ? `Période : ${periodLabels[filters.period]}`
       : null,
     filters.memberType !== "all"
       ? `Type: ${memberTypeLabels[filters.memberType]}`
@@ -142,19 +156,50 @@ export function DashboardFiltersBar({
               type="button"
               variant="outline"
               className={cn(
-                "h-10 w-full border-[#234D65]/30 text-[#234D65] sm:w-auto",
+                "h-10 flex-1 border-[#234D65]/30 text-[#234D65] sm:flex-none",
                 "hover:border-[#234D65] hover:bg-[#234D65] hover:text-white",
               )}
               onClick={onReset}
+              disabled={!hasActiveFilters}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Reinitialiser
+              Réinitialiser
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 flex-1 border-[#234D65]/30 text-[#234D65] sm:flex-none"
+              aria-expanded={isExpanded}
+              aria-controls="dashboard-filters-content"
+              onClick={() => setIsExpanded((current) => !current)}
+            >
+              {isExpanded ? "Masquer" : "Afficher"}
+              <ChevronDown
+                className={cn(
+                  "ml-2 h-4 w-4 transition-transform",
+                  isExpanded && "rotate-180",
+                )}
+              />
             </Button>
           </div>
         </div>
+
+        {!isExpanded && hasActiveFilters && (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+            {activeFilters.map((filterLabel) => (
+              <span
+                key={filterLabel}
+                className="shrink-0 rounded-full border border-[#234D65]/20 bg-[#234D65]/5 px-3 py-1 text-xs font-medium text-[#234D65]"
+              >
+                {filterLabel}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="space-y-4 p-4 sm:p-5">
+      {isExpanded && (
+        <div id="dashboard-filters-content" className="space-y-4 p-4 sm:p-5">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className={fieldWrapperClass}>
             <Label
@@ -162,7 +207,7 @@ export function DashboardFiltersBar({
               className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
             >
               <CalendarDays className="h-3.5 w-3.5" />
-              Periode
+              Période
             </Label>
             <Select
               value={filters.period}
@@ -182,15 +227,15 @@ export function DashboardFiltersBar({
                 id="dashboard-period"
                 className={selectTriggerClass}
               >
-                <SelectValue placeholder="Periode" />
+                <SelectValue placeholder="Période" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Depuis le debut</SelectItem>
+                <SelectItem value="all">Depuis le début</SelectItem>
                 <SelectItem value="today">Aujourd'hui</SelectItem>
                 <SelectItem value="7d">7 derniers jours</SelectItem>
                 <SelectItem value="30d">30 derniers jours</SelectItem>
                 <SelectItem value="month">Mois en cours</SelectItem>
-                <SelectItem value="custom">Personnalisee</SelectItem>
+                <SelectItem value="custom">Personnalisée</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -217,7 +262,7 @@ export function DashboardFiltersBar({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="adherant">Adherant</SelectItem>
+                <SelectItem value="adherant">Adhérent</SelectItem>
                 <SelectItem value="bienfaiteur">Bienfaiteur</SelectItem>
                 <SelectItem value="sympathisant">Sympathisant</SelectItem>
               </SelectContent>
@@ -294,7 +339,7 @@ export function DashboardFiltersBar({
                 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-600"
               >
                 <Layers3 className="h-3.5 w-3.5" />
-                Comparaison des modules (Executif)
+                Comparaison des modules (Exécutif)
               </Label>
               <Select
                 value={filters.moduleCompare}
@@ -311,7 +356,7 @@ export function DashboardFiltersBar({
                 <SelectContent>
                   <SelectItem value="all">Tous modules</SelectItem>
                   <SelectItem value="caisse">Caisse</SelectItem>
-                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="credit">Crédit</SelectItem>
                   <SelectItem value="placement">Placement</SelectItem>
                 </SelectContent>
               </Select>
@@ -322,7 +367,7 @@ export function DashboardFiltersBar({
         {filters.period === "custom" && (
           <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
             <p className="mb-3 text-xs font-semibold uppercase text-gray-600">
-              Periode personnalisee
+              Période personnalisée
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -330,7 +375,7 @@ export function DashboardFiltersBar({
                   htmlFor="dashboard-custom-from"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Date debut
+                  Date de début
                 </Label>
                 <Input
                   id="dashboard-custom-from"
@@ -377,7 +422,8 @@ export function DashboardFiltersBar({
             ))}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

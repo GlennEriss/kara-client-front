@@ -1,16 +1,16 @@
 export const DASHBOARD_TAB_DEFINITIONS = [
-  { key: 'executive', label: 'Executif', shortLabel: 'Exec' },
-  { key: 'caisse_speciale', label: 'Caisse speciale', shortLabel: 'CS' },
-  { key: 'caisse_imprevue', label: 'Caisse imprevue', shortLabel: 'CI' },
-  { key: 'credit_speciale', label: 'Credit speciale', shortLabel: 'CrSpec' },
-  { key: 'credit_fixe', label: 'Credit fixe', shortLabel: 'CFixe' },
+  { key: 'executive', label: 'Exécutif', shortLabel: 'Exec' },
+  { key: 'caisse_speciale', label: 'Caisse spéciale', shortLabel: 'CS' },
+  { key: 'caisse_imprevue', label: 'Caisse imprévue', shortLabel: 'CI' },
+  { key: 'credit_speciale', label: 'Crédit spécial', shortLabel: 'CrSpec' },
+  { key: 'credit_fixe', label: 'Crédit fixe', shortLabel: 'CFixe' },
   { key: 'caisse_aide', label: 'Caisse aide', shortLabel: 'CAide' },
   { key: 'placements', label: 'Placements', shortLabel: 'Place' },
   { key: 'administration', label: 'Administration', shortLabel: 'Admin' },
   { key: 'recouvrement', label: 'Recouvrement', shortLabel: 'Reco' },
   { key: 'groupes', label: 'Groupes', shortLabel: 'Groupes' },
-  { key: 'metiers', label: 'Metiers', shortLabel: 'Metiers' },
-  { key: 'geographie', label: 'Geographie', shortLabel: 'Geo' },
+  { key: 'metiers', label: 'Métiers', shortLabel: 'Métiers' },
+  { key: 'geographie', label: 'Géographie', shortLabel: 'Géo' },
 ] as const
 
 export type DashboardTabKey = (typeof DASHBOARD_TAB_DEFINITIONS)[number]['key']

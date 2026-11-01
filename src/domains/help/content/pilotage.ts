@@ -23,6 +23,9 @@ export const tableauDeBordHelp: HelpTopic = {
             { term: 'Bénéfices encaissés', text: 'La part de ces gains réellement payée.' },
             { term: 'Pertes à risque', text: 'Les montants exposés : retards des caisses et des crédits, commissions de placement dues.' },
             { term: 'Alertes opérationnelles', text: 'Pour chaque sous-module, les dossiers en retard ; « Action requise » dès qu’il y en a un.' },
+            { term: 'Appels à traiter', text: 'Les appels planifiés aujourd’hui et ceux des jours précédents qui ne sont pas encore terminés.' },
+            { term: 'Réalisation des appels', text: 'La part des appels planifiés cette semaine qui disposent déjà d’un compte rendu.' },
+            { term: 'Taux de joignabilité', text: 'La part des relances de la période ayant abouti à un échange avec le membre.' },
           ],
         },
       ],
@@ -37,6 +40,7 @@ export const tableauDeBordHelp: HelpTopic = {
             'Période : depuis le début, aujourd’hui, 7 ou 30 derniers jours, mois en cours, ou dates personnalisées.',
             'Type de membre (adhérent, bienfaiteur, sympathisant), province et ville.',
             'Dans l’onglet Exécutif, comparez un groupe de modules : caisse, crédit ou placement.',
+            'Sur téléphone, utilisez « Afficher » pour ouvrir les filtres ; les filtres actifs restent visibles lorsqu’ils sont repliés.',
           ],
         },
         {

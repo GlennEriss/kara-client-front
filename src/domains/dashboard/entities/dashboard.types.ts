@@ -26,6 +26,7 @@ export interface DashboardKpiItem {
   format?: 'number' | 'currency' | 'percent'
   subtitle?: string
   tone?: 'primary' | 'success' | 'warning' | 'danger' | 'neutral'
+  href?: string
 }
 
 export interface DashboardDistributionItem {
@@ -37,6 +38,7 @@ export interface DashboardDistributionBlock {
   key: string
   title: string
   chartType?: 'bar' | 'pie'
+  unit?: string
   items: DashboardDistributionItem[]
 }
 

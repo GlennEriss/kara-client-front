@@ -3,9 +3,14 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -42,7 +47,7 @@ const CHART_COLORS = [
   "#5E35B1",
   "#0288D1",
 ];
-const EXECUTIVE_TITLE = "executif";
+const EXECUTIVE_TITLE = "exécutif";
 
 type DashboardKpi = DashboardTabPayload["kpis"][number];
 
@@ -98,29 +103,37 @@ function getProgressClass(value: number, max: number): string {
   return "bg-emerald-500";
 }
 
-function isCurrencyDistribution(
-  distribution: DashboardDistributionBlock,
-): boolean {
-  const key = distribution.key.toLowerCase();
-  const title = distribution.title.toLowerCase();
-  return key.includes("encours") || title.includes("encours");
-}
-
 function formatDistributionValue(
   value: number,
   distribution: DashboardDistributionBlock,
 ): string {
-  if (isCurrencyDistribution(distribution)) {
-    return `${Math.round(value).toLocaleString("fr-FR")} FCFA`;
-  }
-
-  return Math.round(value).toLocaleString("fr-FR");
+  const formatted = Math.round(value).toLocaleString("fr-FR");
+  return distribution.unit ? `${formatted} ${distribution.unit}` : formatted;
 }
 
-function getDistributionUnitLabel(
-  distribution: DashboardDistributionBlock,
-): string {
-  return isCurrencyDistribution(distribution) ? "FCFA" : "demandes";
+function ActionableCard({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className: string;
+  children: ReactNode;
+}) {
+  if (!href) return <div className={className}>{children}</div>;
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        className,
+        "group relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#234D65] focus-visible:ring-offset-2",
+      )}
+    >
+      <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 text-[#234D65]/50 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+      {children}
+    </Link>
+  );
 }
 
 function shortModuleLabel(label: string): string {
@@ -158,6 +171,7 @@ export function DashboardTabContent({
   onExecutiveNextPage,
 }: DashboardTabContentProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [showDetailedKpis, setShowDetailedKpis] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 640);
@@ -167,6 +181,10 @@ export function DashboardTabContent({
   }, []);
 
   const isExecutive = payload.title.trim().toLowerCase() === EXECUTIVE_TITLE;
+
+  useEffect(() => {
+    setShowDetailedKpis(false);
+  }, [payload.title]);
 
   const leadKpi = payload.kpis[0];
   const spotlightKpis = payload.kpis.slice(1, 4);
@@ -202,7 +220,7 @@ export function DashboardTabContent({
         <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
           <div>
             <p className="text-[10px] font-semibold uppercase text-gray-500">
-              Vue metier
+              Vue métier
             </p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#234D65] sm:text-3xl">
               {payload.title}
@@ -225,13 +243,13 @@ export function DashboardTabContent({
                     variant="outline"
                     className="border-[#234D65]/20 bg-[#234D65]/5 text-[#234D65]"
                   >
-                    Vue decisionnelle
+                    Vue décisionnelle
                   </Badge>
                   <Badge
                     variant="outline"
                     className="bg-amber-50 text-amber-700 border-amber-200"
                   >
-                    Priorites des 24h
+                    Priorités du jour
                   </Badge>
                 </>
               )}
@@ -239,14 +257,15 @@ export function DashboardTabContent({
           </div>
 
           {leadKpi && (
-            <div
+            <ActionableCard
+              href={leadKpi.href}
               className={cn(
-                "rounded-2xl border p-4 shadow-sm",
+                "rounded-2xl border p-4 pr-9 shadow-sm transition-transform hover:-translate-y-0.5",
                 getTonePanelClass(leadKpi.tone),
               )}
             >
               <p className="text-[10px] font-semibold uppercase text-gray-500">
-                Indicateur cle
+                Indicateur clé
               </p>
               <p className="mt-2 text-sm font-semibold text-[#234D65]">
                 {leadKpi.label}
@@ -266,7 +285,7 @@ export function DashboardTabContent({
               >
                 {getToneLabel(leadKpi.tone)}
               </Badge>
-            </div>
+            </ActionableCard>
           )}
         </div>
       </section>
@@ -274,10 +293,11 @@ export function DashboardTabContent({
       {spotlightKpis.length > 0 && (
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {spotlightKpis.map((kpi) => (
-            <article
+            <ActionableCard
               key={kpi.key}
+              href={kpi.href}
               className={cn(
-                "rounded-2xl border p-4 transition-colors duration-200 hover:border-[#234D65]/25",
+                "rounded-2xl border p-4 pr-9 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#234D65]/25",
                 getTonePanelClass(kpi.tone),
               )}
             >
@@ -298,7 +318,7 @@ export function DashboardTabContent({
               {kpi.subtitle && (
                 <p className="mt-1 text-xs text-gray-500">{kpi.subtitle}</p>
               )}
-            </article>
+            </ActionableCard>
           ))}
         </section>
       )}
@@ -307,20 +327,34 @@ export function DashboardTabContent({
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-bold uppercase text-[#234D65]">
-              Indicateurs detailles
+              Indicateurs détaillés
             </h3>
-            <Badge
+            <Button
+              type="button"
               variant="outline"
-              className="border-[#234D65]/20 bg-[#234D65]/5 text-[#234D65]"
+              size="sm"
+              aria-expanded={showDetailedKpis}
+              onClick={() => setShowDetailedKpis((current) => !current)}
+              className="border-[#234D65]/20 text-[#234D65]"
             >
-              {detailedKpis.length} valeur(s)
-            </Badge>
+              {showDetailedKpis
+                ? "Masquer"
+                : `Afficher les ${detailedKpis.length} indicateurs`}
+              <ChevronDown
+                className={cn(
+                  "ml-2 h-4 w-4 transition-transform",
+                  showDetailedKpis && "rotate-180",
+                )}
+              />
+            </Button>
           </div>
+          {showDetailedKpis && (
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {detailedKpis.map((kpi) => (
-              <div
+              <ActionableCard
                 key={kpi.key}
-                className="rounded-xl border border-gray-100 bg-white p-3"
+                href={kpi.href}
+                className="rounded-xl border border-gray-100 bg-white p-3 pr-9 transition-colors hover:border-[#234D65]/30"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -346,9 +380,10 @@ export function DashboardTabContent({
                 <p className="mt-2 text-lg font-bold text-[#234D65]">
                   {formatMetric(kpi.value, kpi.format)}
                 </p>
-              </div>
+              </ActionableCard>
             ))}
           </div>
+          )}
         </section>
       )}
 
@@ -378,7 +413,7 @@ export function DashboardTabContent({
               </p>
             ) : executiveMembers.length === 0 ? (
               <p className="text-sm text-gray-500">
-                Aucun membre avec contrat actif sur ce scope.
+                Aucun membre avec contrat actif dans ce périmètre.
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -393,7 +428,7 @@ export function DashboardTabContent({
                           {item.label}
                         </p>
                         <p className="line-clamp-2 break-words text-xs text-gray-500">
-                          {item.subLabel || "Aucun detail disponible."}
+                          {item.subLabel || "Aucun détail disponible."}
                         </p>
                       </div>
                       <Badge
@@ -421,7 +456,7 @@ export function DashboardTabContent({
 
           <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
-              {executiveMembers.length} membre(s) affiche(s)
+              {executiveMembers.length} membre(s) affiché(s)
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -434,7 +469,7 @@ export function DashboardTabContent({
                 onClick={onExecutivePrevPage}
               >
                 <ChevronLeft className="mr-1 h-4 w-4" />
-                Precedent
+                Précédent
               </Button>
               <Button
                 type="button"
@@ -474,7 +509,7 @@ export function DashboardTabContent({
 
                 {!hasData ? (
                   <p className="mt-3 text-sm text-gray-500">
-                    Aucune donnee disponible.
+                    Aucune donnée disponible.
                   </p>
                 ) : (
                   <>
@@ -569,10 +604,7 @@ export function DashboardTabContent({
                             </span>
                           </div>
                           <span className="shrink-0 font-semibold text-[#234D65]">
-                            {formatDistributionValue(item.value, distribution)}{" "}
-                            <span className="text-xs font-medium text-gray-500">
-                              {getDistributionUnitLabel(distribution)}
-                            </span>
+                            {formatDistributionValue(item.value, distribution)}
                           </span>
                         </div>
                       ))}
@@ -588,17 +620,18 @@ export function DashboardTabContent({
       {isExecutive && executiveRanking && executiveRanking.items.length > 0 && (
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold text-[#234D65]">
-            Alertes operationnelles
+            Alertes opérationnelles
           </h3>
           <p className="mt-1 text-xs text-gray-500">
-            Plus le niveau est eleve, plus il y a de dossiers a traiter.
+            Plus le niveau est élevé, plus il y a de dossiers à traiter.
           </p>
 
           <div className="mt-3 space-y-3">
             {executiveRanking.items.map((item) => (
-              <div
+              <ActionableCard
                 key={`executive-risk-${item.label}`}
-                className="rounded-lg border border-gray-100 p-3"
+                href={item.href}
+                className="rounded-lg border border-gray-100 p-3 pr-9 transition-colors hover:border-[#234D65]/30"
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-[#234D65]">
@@ -616,7 +649,7 @@ export function DashboardTabContent({
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  {item.subLabel || "Aucun detail disponible."}
+                    {item.subLabel || "Aucun détail disponible."}
                 </p>
                 <div className="mt-2 h-2 w-full rounded-full bg-[#234D65]/10">
                   <div
@@ -626,7 +659,7 @@ export function DashboardTabContent({
                     }}
                   />
                 </div>
-              </div>
+              </ActionableCard>
             ))}
           </div>
         </section>
@@ -648,14 +681,15 @@ export function DashboardTabContent({
 
                 {ranking.items.length === 0 ? (
                   <p className="mt-3 text-sm text-gray-500">
-                    Aucune donnee disponible.
+                    Aucune donnée disponible.
                   </p>
                 ) : (
                   <div className="mt-3 space-y-3">
                     {ranking.items.map((item) => (
-                      <div
+                      <ActionableCard
                         key={`${ranking.key}-${item.label}`}
-                        className="space-y-1"
+                        href={item.href}
+                        className="space-y-1 rounded-lg p-2 pr-8 transition-colors hover:bg-[#234D65]/[0.04]"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -685,7 +719,7 @@ export function DashboardTabContent({
                             }}
                           />
                         </div>
-                      </div>
+                      </ActionableCard>
                     ))}
                   </div>
                 )}
@@ -697,7 +731,7 @@ export function DashboardTabContent({
 
       {payload.notes && payload.notes.length > 0 && (
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-          <h3 className="text-base font-bold text-[#234D65]">Notes metier</h3>
+          <h3 className="text-base font-bold text-[#234D65]">Notes métier</h3>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-500">
             {payload.notes.map((note) => (
               <li key={note}>{note}</li>
